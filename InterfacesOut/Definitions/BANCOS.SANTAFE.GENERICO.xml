@@ -1,0 +1,84 @@
+<INTERFACE-DEF finalenter="1" entermode="DOS" xmlns:qry="XXX">
+	<QUERY declare="&lt;DATA oi_empresa=&quot;10&quot; oi_banco=&quot;1&quot; oi_sucursal=&quot;&quot; f_acreditacion=&quot;20080501&quot; interface=&quot;SANTAFE&quot;&gt;&#13;&#10;&lt;LIQS&gt;&#13;&#10;&#9;&lt;LIQ oi_liquidacion=&quot;69&quot; /&gt;&#13;&#10;&#9;&lt;LIQ oi_liquidacion=&quot;70&quot; /&gt;&#9;&#13;&#10;&lt;/LIQS&gt;&#13;&#10;&lt;/DATA&gt;&#13;&#10;">
+		<qry:main doc="SOURCE">
+			<qry:element name="DATA">
+				<qry:element name="DETAILS">
+					<qry:insert-select doc-path="#SOURCE:/DATA" name="SQL1"/>
+				</qry:element>
+			</qry:element>
+		</qry:main>
+		<qry:select doc="SOURCE" name="SQL1">
+			<qry:xquery>
+				&#9;for $r in SQL('
+SELECT     
+	LIQ15_EMPRESA_BCOS.c_convenio , 	
+	LIQ22_BANCOS_SUCUR.c_suc_bancaria, 
+	LIQ97_PERSONAL_EMP.c_cta_bancaria,
+	LIQ20_TOT_LIQ_PER.n_totpag  ,
+	LIQ97_PERSONAL_EMP.c_tipo_documento,
+	LIQ97_PERSONAL_EMP.c_nro_documento,
+	PER31_FORMAS_PAGO.c_forma_pago,
+	PER31_FORMAS_PAGO.l_banco
+
+FROM         
+	LIQ15_EMPRESA_BCOS ,
+	LIQ15_EMPRESAS ,
+	ORG03_EMPRESAS, 
+	LIQ22_BANCOS ,
+	LIQ22_BANCOS_SUCUR ,
+	LIQ99_RECIBOS ,
+	LIQ20_TOT_LIQ_PER ,
+	LIQ97_PERSONAL_EMP ,
+	LIQ93_EMPRESAS ,
+	LIQ99_LIQUIDACION,
+	LIQ19_EJECUCIONES ,
+	LIQ19_LIQUIDACION , 
+	PER31_FORMAS_PAGO
+JOIN
+	LIQ15_EMPRESA_BCOS.oi_empresa 				INNER LIQ15_EMPRESAS.oi_empresa  ,
+	LIQ15_EMPRESAS.oi_empresa 						INNER ORG03_EMPRESAS.oi_empresa  ,
+	LIQ15_EMPRESA_BCOS.oi_banco			 			INNER LIQ22_BANCOS.oi_banco  ,
+	LIQ22_BANCOS.oi_banco 								INNER LIQ22_BANCOS_SUCUR.oi_banco  ,
+	LIQ20_TOT_LIQ_PER.oi_per_emp_ddo		 	INNER LIQ97_PERSONAL_EMP.oi_per_emp_ddo  ,
+	LIQ99_RECIBOS.oi_tot_liq_per 					INNER LIQ20_TOT_LIQ_PER.oi_tot_liq_per  ,
+	LIQ93_EMPRESAS.oi_empresa_ddo 				INNER LIQ99_LIQUIDACION.oi_empresa_ddo ,
+	LIQ99_RECIBOS.oi_liquidacion_ddo 			INNER LIQ99_LIQUIDACION.oi_liquidacion_ddo ,
+	ORG03_EMPRESAS.c_empresa 							INNER LIQ93_EMPRESAS.c_empresa  ,
+	LIQ99_LIQUIDACION.oi_liquidacion_ddo 	INNER LIQ19_EJECUCIONES.oi_liquidacion_ddo  ,
+	LIQ19_EJECUCIONES.oi_liquidacion 			INNER LIQ19_LIQUIDACION.oi_liquidacion ,
+	LIQ22_BANCOS_SUCUR.c_sucursal 				INNER LIQ97_PERSONAL_EMP.c_sucursal  , 
+	LIQ22_BANCOS.c_banco 									INNER LIQ97_PERSONAL_EMP.c_banco,
+	PER31_FORMAS_PAGO.c_forma_pago	 			INNER LIQ20_TOT_LIQ_PER.c_forma_pago
+WHERE     
+	LIQ99_LIQUIDACION.c_estado = \'F\'     
+	and 
+ 	LIQ19_LIQUIDACION.oi_liquidacion IN ({%= STRING(#SOURCE:LIQS/LIQ/@oi_liquidacion) %})
+ 	and
+ 	LIQ22_BANCOS.oi_banco = {%= #SOURCE:@oi_banco%}
+ 	and
+	PER31_FORMAS_PAGO.l_banco = 1
+				')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:element name="DETAIL">
+					<qry:attribute name="c_empresa" value="SUBSTRING(FILL_LEFT($r/@c_convenio, '0', 4), 0, 4)"/>
+					<qry:attribute name="tipoMoneda" value="'01'"/>
+					<qry:attribute value="SUBSTRING(FILL_LEFT($r/@c_suc_bancaria,  '0', 4), 0, 4)" name="c_suc_bancaria"/>
+					<qry:attribute value="SUBSTRING(FILL_LEFT($r/@c_cta_bancaria,  '0', 8), 0, 8)" name="c_cta_bancaria"/>
+					<qry:attribute name="CodOperacion" value="'02'"/>
+					<qry:attribute name="vacio" value="'000000'"/>
+					<qry:attribute name="n_totpag" value="SUBSTRING(FORMAT_NUMBER($r/@n_totpag, 5, 2, '', '', '0'), 0, 7)"/>
+					<qry:attribute name="vacio2" value="'0'"/>
+					<qry:attribute name="fechaFiltro" value="#SOURCE:@f_acreditacion"/>
+					<qry:attribute name="vacio3" value="'01'"/>
+					<qry:attribute name="c_tipo_documento" value="IIF($r/@c_tipo_documento = 'DNI', '03', IIF($r/@c_tipo_documento = 'LE', '01',IIF($r/@c_tipo_documento = 'LC', '02', '  ')))"/>
+					<qry:attribute name="c_nro_documento" value="SUBSTRING(FILL_LEFT($r/@c_nro_documento, '0', 8), 0, 8)"/>
+					<qry:attribute name="vacio4" value="'0000'"/>
+				</qry:element>
+			</qry:out>
+		</qry:select>
+	</QUERY>
+	<DETAIL>
+		{c_empresa:4}{tipoMoneda:2}{c_suc_bancaria:4}{c_cta_bancaria:8}{CodOperacion:2}{vacio:6}{n_totpag:7}{vacio2:1}{fechaFiltro:8}{vacio3:2}{c_tipo_documento:2}{c_nro_documento:8}{vacio4:4}
+	</DETAIL>
+</INTERFACE-DEF>

@@ -1,0 +1,178 @@
+<form:Form xmlns:form="nomad_engine.form" xmlns:qry="nomad_engine.qry" default_mode="FILTER" extends="NucleusRH.Base.Liquidacion.Legajo.Legajo.buscar2.form" doc="source" name="ReciboSueldo">
+	<form:Title>
+		<form:Label label="212 - Recibo de Sueldo (Nuevo)" style="S3 LCol_w" name="lbl_titulo"/>
+	</form:Title>
+	<form:Center width="100%">
+		<form:VGroup nvalue="#source:@gcustom" border="1" width="90%" label="Criterios de selecci&#243;n particulares" name="vgroupDatosCustom" collapse="1" X-POLICY="./FORM/NucleusRH/Base/Liquidacion/Recibos/Crystal/filter/form/vgroupDatosCustom">
+			<form:Columns width="100%" name="colsc">
+				<form:Column width="20%" name="colc1" align="left" valign="top">
+					<form:Combo label="Modelo de recibo" name="modelo" required="1" nvalue="#source:@modelo" flow="NucleusRH.Base.Liquidacion.Recibos.ReciboFO.flow" action="COMBO"/>
+					<form:Blank height="20px" name="bl2" width="100%" visible=""/>
+					<form:ComboBox queryname1="NucleusRH.Base.Organizacion.Empresas.EMPRESA.INFO" xsize="40" mode="QRY" required="1" label="Empresa" nvalue="#source:@empresa" name="empresa" X-POLICY="./FORM/NucleusRH/Base/Liquidacion/Recibos/Crystal/filter/form/empresa">
+						<form:Event action="habilitarTodo" name="onchange" runat="client"/>
+					</form:ComboBox>
+					<form:ComboBox where1="LIQ19_LIQUIDACION.oi_tipo_liq != 7" nvalue="#source:@liquidacion" prev="empresa" name="liquidacion" label="Liquidaci&#243;n" queryname1="NucleusRH.Base.Liquidacion.Liquidacion.LIQUIDACION.INFO" xsize="40" mode="QRY" required="1">
+						<form:Event action="deshabilitarPer" name="onchange" runat="client"/>
+					</form:ComboBox>
+					<form:DateTime prev="empresa" xsize="0" name="periodo" label="Per&#237;odo" required="1" nvalue="#source:@periodo" pattern="YYYYMM">
+						<form:Event action="deshabilitarLiq" name="onchange" runat="client"/>
+					</form:DateTime>
+					<form:Rower label="Ordenar por" name="rwerOrden" separation="6">
+						<form:Combo nvalue="#source:@orden1" name="orden1" flow="NucleusRH.Base.Liquidacion.Recibos.Crystal.atribOrden.form" action="COMBO" required="0" label="Orden" X-POLICY="./FORM/NucleusRH/Base/Personal/Reportes/LegajosPorEmpresa/filter/form/orden">
+							<form:Event name="onchange" action="val_orden" runat="client"/>
+						</form:Combo>
+						<form:Label style="S2 LCol_g" label="y luego por" name="lbl_orden"/>
+						<form:Combo flow="NucleusRH.Base.Liquidacion.Recibos.Crystal.atribOrden.form" action="COMBO1" nvalue="#source:@orden2" name="orden2" required="0" X-POLICY="./FORM/NucleusRH/Base/Personal/Reportes/LegajosPorEmpresa/filter/form/orden"/>
+					</form:Rower>
+					<form:SButton name="img_ojo" img="eye.gif"/>
+				</form:Column>
+				<form:Column width="80%" align="left" valign="bottom" name="c2">
+					<form:Blank height="10" name="af"/>
+				</form:Column>
+			</form:Columns>
+		</form:VGroup>
+		<form:VGroup nvalue="#source:@gpers" border="1" width="90%" collapse="1" label="Criterios de selecci&#243;n de personas" name="vgroupDatosPers" X-POLICY="./FORM/NucleusRH/Base/Liquidacion/Recibos/Crystal/filter/form/vgroupDatosPers">
+			<form:Columns name="colsemps" width="100%">
+				<form:Column valign="middle" name="colemp" align="left">
+					<form:ComboBox visible="0" queryname1="NucleusRH.Base.Organizacion.Empresas.EMPRESA.INFO" xsize="40" mode="QRY" required="1" label="Empresa" nvalue="#source:@empresa" name="empresa" X-POLICY="./FORM/NucleusRH/Base/Liquidacion/Recibos/Crystal/filter/form/empresa">
+						<form:Policies>
+							<form:Updateable X-POLICY="./FORM/NucleusRH/Base/Liquidacion/Recibos/Crystal/filter/form/empresa/HAB"/>
+							<form:Visible X-POLICY="./FORM/NucleusRH/Base/Liquidacion/Recibos/Crystal/filter/form/empresa"/>
+						</form:Policies>
+					</form:ComboBox>
+				</form:Column>
+			</form:Columns>
+		</form:VGroup>
+		<form:Hidden name="l_confidencial" nvalue="#source:@l_confidencial"/>
+	</form:Center>
+	<form:Bottom>
+		<form:RowAligner name="rowaligner1">
+			<form:Row name="row1">
+				<form:Button label="Aceptar" img="ok" name="btnFILTER" descrip="Ejecuta el reporte" note="Consultar los Legajos seleccionados">
+					<form:Event action="Filtrar" runat="client" name="onclick"/>
+				</form:Button>
+				<form:Button img="back" label="Volver" name="btnBACK" descrip="Volver al Menu princial" note="Volver al Menu princial">
+					<form:Event action="BACK" runat="server" name="onclick"/>
+				</form:Button>
+			</form:Row>
+		</form:RowAligner>
+	</form:Bottom>
+	<form:Event action="ACCEPT" name="FILTER" runat="server"/>
+	<!--form:Event action="ONLOAD_custom" name="onload" runat="client"/-->
+	<form:Event action="ONLOAD_custom" name="onload" runat="client"/>
+	<form:Scripts>
+		&#13;&#10;&#13;&#10;&#9;&#9;function ONLOAD_custom()
+{   
+	//Recupero el numero del Modelo elejido por defecto en el parametro
+	var np = new NomadProxy("", ut);
+	var nSQL = np.SQLService();    
+	var param = nSQL.GetOBJ(Ctrl("main").getResource("QRY_PARAMETRO"), "");	
+	//Si existe el parametro el cliente controla la licencia
+	if (typeof(param.d_valor) != "undefined")
+	{  
+		var v_param = param.d_valor.toString();
+		Ctrl("modelo").SetXValue(v_param);		        
+	} 
+
+}	
+		
+			function PREV_exec_qry()
+{
+	if(Ctrl("empresa").GetXValue()=="")
+		return "Es requerido especificar la Empresa.";
+
+	if(Ctrl("liquidacion").GetXValue()=="" &amp;&amp; Ctrl("periodo").GetXValue()=="")
+		return "Es requerido especificar la Liquidacion o el Per&#237;odo.";
+	
+	if(Ctrl("liquidacion").GetXValue()!="" &amp;&amp; Ctrl("periodo").GetXValue()!="")
+		return "S&#243;lo se permite especificar la Liquidaci&#243;n o el Per&#237;odo.";
+
+	if(Ctrl("liquidacion").GetXValue()!="")
+		Ctrl("where").SetXValue("LEG.oi_personal_emp in (select EXT.oi_personal_emp from LIQ25_PERSONAL_LIQ as EXT where EXT.oi_liquidacion=" + Ctrl("liquidacion").GetXValue() + " )");
+	else                                                                                                                                                                             
+		Ctrl("where").SetXValue("LEG.oi_personal_emp in (select EXT.oi_personal_emp from LIQ25_PERSONAL_LIQ as EXT, LIQ19_LIQUIDACION as LIQ where EXT.oi_liquidacion = LIQ.oi_liquidacion and LIQ.oi_empresa=" + Ctrl("empresa").GetXValue() + " and LIQ.e_periodo=" + Ctrl("periodo").GetXValue() + " )");
+
+  return null;
+}
+
+function deshabilitarPer()
+{   
+	clearFILTER();
+	if(Ctrl("liquidacion").GetXValue()!="")
+		CtrlEnabled('periodo',false);
+	else
+	{
+		CtrlEnabled('periodo',true);
+		Ctrl('orden1').SetXValue('');
+		Ctrl('orden2').SetXValue('');
+	}
+}
+
+function deshabilitarLiq()
+{   
+	clearFILTER();
+	if(Ctrl("periodo").GetXValue()!="")
+	{
+		CtrlEnabled('liquidacion',false);
+		CtrlEnabled('rwerOrden',false);
+		Ctrl('orden1').SetXValue('');
+		Ctrl('orden2').SetXValue('');
+	}		
+	else
+	{
+		CtrlEnabled('liquidacion',true);
+		CtrlEnabled('rwerOrden',true);
+	}
+		
+}
+
+function habilitarTodo()
+{ 
+	clearFILTER();
+	CtrlEnabled('liquidacion',true);
+	CtrlEnabled('rwerOrden',true);
+	CtrlEnabled('periodo',true); 
+		
+}   
+
+function val_orden() 
+{
+if (Ctrl('orden1').GetXValue() == "ORG03_UBICACIONES.c_ubicacion" || Ctrl('orden1').GetXValue() == "ORG03_UBICACIONES.d_ubicacion")
+ {
+ 	CtrlEnabled('orden2',true);
+ }
+else
+ {
+  CtrlEnabled('orden2',false);
+  Ctrl("orden2").SetXValue("");
+ } 
+}
+	</form:Scripts>
+	<form:Resources>
+		<form:Resource name="QRY_PARAMETRO" declare="&lt;PARAM /&gt;">
+			<qry:main doc="SOURCE">
+				<qry:element name="DATO">
+					<qry:insert-select name="sql1" doc-path=""/>
+				</qry:element>
+			</qry:main>
+			<qry:select name="sql1" doc="SOURCE">
+				<qry:xquery>
+					for $r in sql('					
+			SELECT 
+    			ORG26.c_parametro,
+				ORG26.d_valor                    
+			FROM
+				ORG26_PARAMETROS AS ORG26
+            WHERE
+				ORG26.c_modulo = \'LIQ\'
+				AND ORG26.c_parametro in (\'RepRecPred\')						 				
+      ')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:attribute name="c_parametro" value="$r/@c_parametro"/>
+					<qry:attribute name="d_valor" value="$r/@d_valor"/>
+				</qry:out>
+			</qry:select>
+		</form:Resource>
+	</form:Resources>
+</form:Form>

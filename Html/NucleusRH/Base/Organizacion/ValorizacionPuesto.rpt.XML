@@ -1,0 +1,173 @@
+<html:html xmlns:html="nomad_engine.html" xmlns:qry="nomad_engine.qry" extends="Nomad.Base.BaseReport.rpt" doc="source" name="NucleusRH.Base.Organizacion.ValorizacionPuesto">
+	<html:query declare="&lt;PARAMETERS oi_puesto=&quot;696&quot;/&gt;">
+		<qry:main doc="SOURCE">
+			<qry:append-doc name="PARAMIN" doc-path="#SOURCE:PARAMETERS"/>
+			<REPORT label="Valorizaci&#243;n de Puesto">
+				<GROUPS>
+					<GROUP style="width:100%" tag="PUE" type="title">
+						<COLS>
+							<COL name="f_informe" label="Fecha de Emisi&#243;n"/>
+							<COL name="empresa" label="Empresa"/>
+							<COL name="puesto" label="Puesto"/>
+							<COL name="l_convenio" label="Puesto de Convenio?">
+								<OPT id="1" value="Si"/>
+								<OPT id="0" value="No"/>
+							</COL>
+							<COL name="d_banda_sal" label="Banda Salarial"/>
+							<COL name="d_categoria" label="Convenio - Categor&#237;a"/>
+							<COL name="n_valor_total" label="Costo B&#225;sico"/>
+						</COLS>
+						<GROUP tag="BEN" label="Beneficios" type="table">
+							<COLS>
+								<COL name="d_beneficio" label="Descripci&#243;n" style="width:70%;"/>
+								<COL name="n_valor_total" label="Valor Total" style="text-align:right;"/>
+							</COLS>
+							<FCOLS>
+								<COL label="Total" style="text-align:right; font-weight:bold"/>
+								<COL name="n_total_ben" style="text-align:right; font-weight:bold"/>
+							</FCOLS>
+						</GROUP>
+						<GROUP tag="EPP" label="Elementos de Protecci&#243;n Personal" type="table">
+							<COLS>
+								<COL name="d_elemento_pp" label="Descripci&#243;n" style="width:70%;"/>
+								<COL name="n_valor_total" label="Valor Total" style="text-align:right;"/>
+							</COLS>
+							<FCOLS>
+								<COL label="Total" style="text-align:right; font-weight:bold"/>
+								<COL name="n_total_epp" style="text-align:right; font-weight:bold"/>
+							</FCOLS>
+						</GROUP>
+						<GROUP tag="BIEN" label="Bienes a Cargo" type="table">
+							<COLS>
+								<COL name="d_bien_cargo" label="Descripci&#243;n" style="width:70%;"/>
+								<COL name="n_valor_total" label="Valor Total" style="text-align:right;"/>
+							</COLS>
+							<FCOLS>
+								<COL label="Total" style="text-align:right; font-weight:bold"/>
+								<COL name="n_total_bien" style="text-align:right; font-weight:bold"/>
+							</FCOLS>
+						</GROUP>
+						<GROUP tag="PIE" label="" type="title">
+							<COLS>
+								<COL name="valorizacion" label="Valorizaci&#243;n Total" style="font-size:16px;"/>
+							</COLS>
+						</GROUP>
+					</GROUP>
+				</GROUPS>
+				<qry:element name="DATA">
+					<qry:element name="PUE">
+						<qry:insert-select doc-path="#PARAMIN:" name="qry_puesto"/>
+						<qry:element name="PIE">
+							<qry:attribute name="valorizacion" value="../@valorizacion"/>
+						</qry:element>
+					</qry:element>
+				</qry:element>
+			</REPORT>
+		</qry:main>
+		<qry:select doc="PARAM" name="qry_puesto">
+			<qry:xquery>
+				for $r in sql('
+					SELECT ORG04_PUESTOS.d_puesto, ORG04_PUESTOS.c_puesto, 
+					ORG03_EMPRESAS.c_empresa, ORG03_EMPRESAS.d_empresa, 
+					ORG04_PUESTOS.l_convenio, ORG04_PUESTOS.n_costo
+					FROM ORG04_PUESTOS, ORG03_EMPRESAS
+					JOIN ORG04_PUESTOS.oi_empresa INNER ORG03_EMPRESAS.oi_empresa					
+					WHERE ORG04_PUESTOS.oi_puesto = {#PARAM:@oi_puesto}
+				')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:attribute value="format_date(now(),'dd/mm/yyyy HH:MM:SS')" name="f_informe"/>
+				<qry:attribute name="oi_puesto" value="#PARAM:@oi_puesto"/>
+				<qry:attribute name="puesto" value="$r/@c_puesto + ' - ' + $r/@d_puesto"/>
+				<qry:attribute name="empresa" value="$r/@c_empresa + ' - ' + $r/@d_empresa"/>
+				<qry:attribute name="l_convenio" value="$r/@l_convenio"/>
+				<qry:attribute name="n_valor_total" value="format_number($r/@n_costo,'$###,###,##0.00')"/>
+				<qry:attribute name="n_total_ben" value="'0'"/>
+				<qry:attribute name="n_total_bien" value="'0'"/>
+				<qry:attribute name="n_total_epp" value="'0'"/>
+				<qry:insert-select doc-path="." name="qry_categoria"/>
+				<qry:insert-select doc-path="." name="qry_beneficios"/>
+				<qry:insert-select doc-path="." name="qry_bienes"/>
+				<qry:insert-select doc-path="." name="qry_epp"/>
+				<qry:attribute name="valorizacion" value="format_number((Number($r/@n_costo) + Number(./@n_total_bien) + Number(./@n_total_epp)),'$###,###,##0.00')"/>
+				<qry:attribute name="n_total_ben" value="format_number(./@n_total_ben,'$###,###,##0.00')"/>
+				<qry:attribute name="n_total_bien" value="format_number(./@n_total_bien,'$###,###,##0.00')"/>
+				<qry:attribute name="n_total_epp" value="format_number(./@n_total_epp,'$###,###,##0.00')"/>
+			</qry:out>
+		</qry:select>
+		<qry:select doc="PARAM" name="qry_categoria">
+			<qry:xquery>
+				for $r in sql('		
+					{%? (#PARAM:@l_convenio = 0) 
+						{% SELECT ORG17_BANDAS_SAL.d_banda_sal 
+						FROM ORG17_BANDAS_SAL, ORG04_PUESTOS
+						JOIN ORG04_PUESTOS.oi_banda_sal INNER ORG17_BANDAS_SAL.oi_banda_sal
+						WHERE ORG04_PUESTOS.oi_puesto = {#PARAM:@oi_puesto} %}
+					  {% SELECT ORG18_CATEGORIAS.d_categoria, ORG18_CONVENIOS.d_convenio 
+					  FROM ORG18_CATEGORIAS, ORG18_CONVENIOS, ORG04_PUESTOS
+						JOIN ORG18_CATEGORIAS.oi_categoria INNER ORG04_PUESTOS.oi_categoria,
+						ORG18_CONVENIOS.oi_convenio INNER ORG18_CATEGORIAS.oi_convenio
+						WHERE ORG04_PUESTOS.oi_puesto = {#PARAM:@oi_puesto}  %} 
+					%}
+				')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:attribute name="d_banda_sal" value="$r/@d_banda_sal"/>
+				<qry:attribute name="d_categoria" value="$r/@d_convenio +'-'+$r/@d_categoria"/>
+			</qry:out>
+		</qry:select>
+		<qry:select doc="PARAM" name="qry_beneficios">
+			<qry:xquery>
+				for $r in sql('
+					SELECT ORG23_BENEFICIOS.c_beneficio, ORG23_BENEFICIOS.d_beneficio, ORG04_PUESTO_BENEF.n_valor_total 
+					FROM ORG04_PUESTO_BENEF, ORG23_BENEFICIOS
+					JOIN ORG04_PUESTO_BENEF.oi_beneficio INNER ORG23_BENEFICIOS.oi_beneficio
+					WHERE ORG04_PUESTO_BENEF.oi_puesto = {#PARAM:@oi_puesto}
+				')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:element name="BEN">
+					<qry:attribute name="d_beneficio" value="$r/@c_beneficio + ' - ' +$r/@d_beneficio"/>
+					<qry:attribute name="n_valor_total" value="format_number($r/@n_valor_total,'$###,###,##0.00')"/>
+				</qry:element>
+				<qry:attribute name="n_total_ben" value="Number(./@n_total_ben) + Number($r/@n_valor_total)"/>
+			</qry:out>
+		</qry:select>
+		<qry:select doc="PARAM" name="qry_bienes">
+			<qry:xquery>
+				for $r in sql('
+					SELECT ORG04_PUESTO_BS.n_valor_total, ORG14_BIENES_CARGO.c_bien_cargo,
+					ORG14_BIENES_CARGO.d_bien_cargo
+					FROM ORG04_PUESTO_BS, ORG14_BIENES_CARGO
+					JOIN ORG04_PUESTO_BS.oi_bien_cargo INNER ORG14_BIENES_CARGO.oi_bien_cargo
+					WHERE ORG04_PUESTO_BS.oi_puesto = {#PARAM:@oi_puesto}
+				')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:element name="BIEN">
+					<qry:attribute name="d_bien_cargo" value="$r/@c_bien_cargo + ' - ' + $r/@d_bien_cargo"/>
+					<qry:attribute name="n_valor_total" value="format_number($r/@n_valor_total,'$###,###,##0.00')"/>
+				</qry:element>
+				<qry:attribute name="n_total_bien" value="Number(./@n_total_bien) + Number($r/@n_valor_total)"/>
+			</qry:out>
+		</qry:select>
+		<qry:select doc="PARAM" name="qry_epp">
+			<qry:xquery>
+				for $r in sql('
+					SELECT ORG04_PUESTO_EPP.n_valor_total, ORG07_ELEMENTOS_PP.c_elemento_pp,
+					ORG07_ELEMENTOS_PP.d_elemento_pp
+					FROM ORG04_PUESTO_EPP, ORG07_ELEMENTOS_PP
+					JOIN ORG04_PUESTO_EPP.oi_elemento_pp INNER ORG07_ELEMENTOS_PP.oi_elemento_pp
+					WHERE ORG04_PUESTO_EPP.oi_puesto = {#PARAM:@oi_puesto}				
+				')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:element name="EPP">
+					<qry:attribute name="d_elemento_pp" value="$r/@c_elemento_pp + ' - ' + $r/@d_elemento_pp"/>
+					<qry:attribute name="n_valor_total" value="format_number($r/@n_valor_total,'$###,###,##0.00')"/>
+				</qry:element>
+				<qry:attribute name="n_total_epp" value="Number(./@n_total_epp) + Number($r/@n_valor_total)"/>
+			</qry:out>
+		</qry:select>
+	</html:query>
+</html:html>

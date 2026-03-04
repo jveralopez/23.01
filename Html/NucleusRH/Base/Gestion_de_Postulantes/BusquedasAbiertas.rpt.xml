@@ -1,0 +1,169 @@
+<html:html xmlns:html="nomad_engine.html" xmlns:qry="nomad_engine.qry" name="NucleusRH.Base.Gestion_de_Postulantes.ListadoReferencias.rpt" doc="source" extends="Nomad.Base.BaseReport.rpt">
+	<html:query declare="&lt;FILTRO &#13;&#10;&#9;f_desde=&quot;20010108&quot; &#13;&#10;&#9;f_hasta=&quot;20131208&quot; &#13;&#10;/&gt;">
+		<qry:main doc="SOURCE">
+			<qry:append-doc name="FILTRO" doc-path="#SOURCE:FILTRO"/>
+			<REPORT label="Listado de B&#250;squedas Abiertas">
+				<qry:attribute value="format_date(now(),'dd/mm/yyyy HH:MM')" name="date"/>
+				<GROUPS>
+					<GROUP tag="FEC" type="title">
+						<COLS>
+							<COL name="f_desde" label="Fecha Desde" type="date"/>
+							<COL name="f_hasta" label="Fecha Hasta" type="date"/>
+						</COLS>
+						<GROUP tag="EMP" type="title">
+							<COLS>
+								<COL name="empresa" label="Empresa"/>
+							</COLS>
+							<GROUP tag="REQ" type="title" noreg="No se encontraron registros.">
+								<COLS>
+									<COL name="requerimiento" label="Referencia"/>
+									<COL name="f_req" label="Fecha" type="date"/>
+									<COL name="ca_estado" label="Estado">
+										<OPT id="A" value="Abierta"/>
+										<OPT id="I" value="Inicializada"/>
+										<OPT id="C" value="Cerrada"/>
+										<OPT id="N" value="Anulada"/>
+									</COL>
+								</COLS>
+								<GROUP tag="REF" type="table">
+									<COLS>
+										<COL name="f_inicio" label="Fecha Inicio" style="width:10%;" type="date"/>
+										<COL name="puesto" label="Puesto" style="width:25%;"/>
+										<COL name="posicion" label="Posici&#243;n" style="width:20%;"/>
+									</COLS>
+								</GROUP>
+							</GROUP>
+						</GROUP>
+					</GROUP>
+				</GROUPS>
+				<qry:element name="DATA">
+					<qry:element name="FEC">
+						<qry:attribute name="f_desde" value="format_date(#FILTRO:@f_desde, 'dd/mm/yyyy')"/>
+						<qry:attribute name="f_hasta" value="format_date(#FILTRO:@f_hasta, 'dd/mm/yyyy')"/>
+						<qry:insert-select doc-path="#SOURCE:FILTRO" name="SELECT_EMP"/>
+					</qry:element>
+				</qry:element>
+			</REPORT>
+		</qry:main>
+		<qry:select name="SELECT_EMP" doc="SOURCE">
+			<qry:xquery>
+				for $r in sql('
+				SELECT 
+					ORG03_EMPRESAS.oi_empresa,
+					ORG03_EMPRESAS.c_empresa, 
+					ORG03_EMPRESAS.d_empresa
+				FROM
+					ORG03_EMPRESAS  
+				ORDER BY 
+					d_empresa ASC
+			')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:element name="EMP">
+					<qry:attribute name="oi_empresa" value="$r/@oi_empresa"/>
+					<qry:attribute name="empresa" value="$r/@c_empresa + ' - ' + $r/@d_empresa"/>
+					<qry:attribute name="hts:delete" value="1"/>
+					<qry:insert-select doc-path="$r" name="SELECT_REQ"/>
+				</qry:element>
+			</qry:out>
+		</qry:select>
+		<qry:select name="SELECT_REQ" doc="SOURCE">
+			<qry:xquery>
+				for $r in sql('
+				SELECT
+					SEL02_REQ.oi_req, 
+					SEL02_REQ.c_req, 
+					SEL02_REQ.d_req, 
+	        		SEL02_REQ.f_req,
+	        		SEL02_REQ.ca_estado
+				FROM
+					SEL02_REQ
+				WHERE
+					SEL02_REQ.oi_empresa = {#SOURCE:@oi_empresa} 
+			')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:attribute name="hts:delete" value="0"/>
+				<qry:element name="REQ">
+					<qry:attribute name="oi_req" value="$r/@oi_req"/>
+					<qry:attribute name="requerimiento" value="$r/@c_req + ' - ' + $r/@d_req"/>
+					<qry:attribute name="f_req" value="format_date($r/@f_req,'dd/mm/yyyy')"/>
+					<qry:attribute name="ca_estado" value="$r/@ca_estado"/>
+					<qry:attribute name="hts:delete" value="1"/>
+					<qry:insert-select doc-path="$r" name="SELECT_REF"/>
+				</qry:element>
+			</qry:out>
+		</qry:select>
+		<qry:select name="SELECT_REF" doc="SOURCE">
+			<qry:xquery>
+				for $r in sql('
+				SELECT 
+					SEL02_REFERENCIAS.oi_referencia,
+					SEL02_REFERENCIAS.c_referencia,
+					SEL02_REFERENCIAS.d_referencia,
+					SEL02_REFERENCIAS.ca_estado,
+					SEL02_REFERENCIAS.oi_puesto,
+					SEL02_REFERENCIAS.oi_posicion,
+					SEL02_REFERENCIAS.f_inicio
+				FROM                                                              
+					SEL02_REFERENCIAS 
+				WHERE
+					SEL02_REFERENCIAS.oi_req = {#SOURCE:@oi_req} 
+					{%? (#FILTRO:@f_desde!='') {% AND SEL02_REFERENCIAS.f_inicio &gt;= {#FILTRO:@f_desde} %} {% %} %}
+					{%? (#FILTRO:@f_hasta!='') {% AND SEL02_REFERENCIAS.f_inicio &lt;={#FILTRO:@f_hasta} %} {% %} %}
+					AND ISNULL(SEL02_REFERENCIAS.f_cierre)                         
+					AND SEL02_REFERENCIAS.ca_estado != \'F\'
+					AND SEL02_REFERENCIAS.ca_estado != \'N\' 
+				ORDER BY
+					d_referencia ASC
+		  ')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:attribute name="hts:delete" value="0"/>
+				<qry:element name="REF">
+					<qry:attribute name="oi_referencia" value="$r/@oi_referencia"/>
+					<qry:attribute name="oi_puesto" value="$r/@oi_puesto"/>
+					<qry:attribute name="oi_posicion" value="$r/@oi_posicion"/>
+					<qry:attribute name="f_inicio" value="format_date($r/@f_inicio, 'dd/mm/yyyy')"/>
+					<qry:insert-select doc-path=".[@oi_puesto != '']" name="SELECT_PUESTO"/>
+					<qry:insert-select doc-path=".[@oi_Posicion != '']" name="SELECT_POSICION"/>
+				</qry:element>
+			</qry:out>
+		</qry:select>
+		<qry:select name="SELECT_PUESTO" doc="SOURCE">
+			<qry:xquery>
+				for $r in sql('
+				SELECT
+					ORG04_PUESTOS.d_puesto
+				FROM 
+					ORG04_PUESTOS
+				WHERE 
+					ORG04_PUESTOS.oi_puesto = {%= #SOURCE:@oi_puesto %}
+			')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:attribute name="puesto" value="$r/@d_puesto"/>
+			</qry:out>
+		</qry:select>
+		<qry:select name="SELECT_POSICION" doc="SOURCE">
+			<qry:xquery>
+				for $r in sql('
+					SELECT
+						ORG04_POSICIONES.d_posicion
+					FROM 
+						ORG04_POSICIONES
+					WHERE 
+						ORG04_POSICIONES.oi_posicion = {%= #SOURCE:@oi_posicion %} 
+				')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:attribute name="posicion" value="$r/@d_posicion"/>
+			</qry:out>
+		</qry:select>
+		<qry:select name="sqldelete" doc="SOURCE">
+			<qry:out>
+				<qry:attribute name="hts:delete" value="'0'"/>
+			</qry:out>
+		</qry:select>
+	</html:query>
+</html:html>

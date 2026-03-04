@@ -1,0 +1,193 @@
+<qry:define xmlns:qry="nomad_engine.qry" declare="&lt;FILTRO FormatRPT=&quot;PDF&quot; nro_hoja=&quot;1&quot; oi_empresa=&quot;7&quot; e_periodo=&quot;201201&quot; orden1=&quot;&quot;&gt;&lt;LIQUIDACIONES/&gt;&lt;/FILTRO&gt;" name="LibroLey">
+	<qry:main doc="PARAM">
+		<qry:element name="ROOT">
+			<qry:element name="LIQUIDACIONES">
+				<qry:if test="#PARAM:FILTRO/@nro_hoja!=''">
+					<qry:then>
+						<qry:attribute value="number(#PARAM:FILTRO/@nro_hoja)-1" name="nro_hoja"/>
+					</qry:then>
+					<qry:else>
+						<qry:attribute value="0" name="nro_hoja"/>
+					</qry:else>
+				</qry:if>
+				<qry:attribute value="'0'" name="plantilla"/>
+				<qry:attribute value="'0'" name="noValidarCerradas"/>
+				<qry:attribute value="'0'" name="mostrarDomicilio"/>
+				<qry:attribute value="'0'" name="mostrarFamiliares"/>
+				<qry:attribute value="'0'" name="mostrarRemuneracion"/>
+				<qry:attribute value="'0'" name="detalleAnticipo"/>
+				<qry:insert-select name="qry_cerrada"/>
+				<qry:insert-select name="qry_domicilio"/>
+				<qry:insert-select name="qry_familiares"/>
+				<qry:insert-select name="qry_remuneracion"/>
+				<qry:insert-select name="qry_anticipo"/>
+				<qry:append-doc doc-path="." name="VAL"/>
+				<qry:insert-select name="qry_encabezado"/>
+				<qry:attribute value="format_date(string(#PARAM:FILTRO/@e_periodo) + '01', 'mm/yyyy')" name="periodo"/>
+				<qry:attribute value="format_date(now(), 'dd/mm/yyyy')" name="f_informe"/>
+				<qry:attribute value="iif(string(#PARAM:FILTRO/LIQUIDACIONES/LIQUIDACION/@id)!='', 'Si', 'No')" name="liquidaciones"/>
+				<qry:insert-select doc-path="#PARAM:FILTRO" name="QRY_PARAM_EMPRESA"/>
+			</qry:element>
+			<NULL/>
+			<qry:append-doc name="FILTRO" doc-path="#PARAM:/FILTRO"/>
+			<qry:insert-select doc-path="#PARAM:FILTRO" name="QRY_RECIBOS"/>
+		</qry:element>
+	</qry:main>
+	<qry:select doc="PARAM" name="qry_encabezado">
+		<qry:xquery>
+			for $r in sql('
+				SELECT ORG26_PARAMETROS.d_valor FROM ORG26_PARAMETROS
+				WHERE ORG26_PARAMETROS.c_parametro = \'PlantillaLibroLey\'')/ROWS/ROW
+		</qry:xquery>
+		<qry:out>
+			<qry:attribute value="iif($r/@d_valor!='1', @plantilla, '1')" name="plantilla"/>
+		</qry:out>
+	</qry:select>
+	<qry:select doc="PARAM" name="qry_cerrada">
+		<qry:xquery>
+			for $r in sql('
+				SELECT ORG26_PARAMETROS.d_valor FROM ORG26_PARAMETROS
+				WHERE ORG26_PARAMETROS.c_parametro = \'noValidarCerradas\'')/ROWS/ROW
+		</qry:xquery>
+		<qry:out>
+			<qry:attribute value="$r/@d_valor" name="noValidarCerradas"/>
+		</qry:out>
+	</qry:select>
+	<qry:select doc="PARAM" name="qry_domicilio">
+		<qry:xquery>
+			for $r in sql('
+				SELECT ORG26_PARAMETROS.d_valor FROM ORG26_PARAMETROS
+				WHERE ORG26_PARAMETROS.c_parametro = \'DomicilioLibroLey\'')/ROWS/ROW
+		</qry:xquery>
+		<qry:out>
+			<qry:attribute value="iif($r/@d_valor='1',1,0)" name="mostrarDomicilio"/>
+		</qry:out>
+	</qry:select>
+	<qry:select doc="PARAM" name="qry_familiares">
+		<qry:xquery>
+			for $r in sql('
+				SELECT ORG26_PARAMETROS.d_valor FROM ORG26_PARAMETROS
+				WHERE ORG26_PARAMETROS.c_parametro = \'FamiliaresLibroLey\'')/ROWS/ROW
+		</qry:xquery>
+		<qry:out>
+			<qry:attribute value="iif($r/@d_valor='1',1,0)" name="mostrarFamiliares"/>
+		</qry:out>
+	</qry:select>
+	<qry:select doc="PARAM" name="QRY_PARAM_EMPRESA">
+		<qry:xquery>
+			for $r in sql('
+						SELECT ORG03_EMPRESAS.c_empresa, ORG03_EMPRESAS.d_empresa,
+						ORG03_EMPRESAS.d_domicilio,
+						ORG03_EMPRESAS.c_cuit,
+						ORG34_ACTIVIDADES.d_actividad,
+						ORG03_EMPRESAS.oi_localidad
+						FROM ORG03_EMPRESAS, ORG34_ACTIVIDADES
+						JOIN ORG03_EMPRESAS.oi_actividad INNER ORG34_ACTIVIDADES.oi_actividad
+						WHERE ORG03_EMPRESAS.oi_empresa = {#PARAM:@oi_empresa}   					
+					')/ROWS/ROW
+		</qry:xquery>
+		<qry:out>
+			<qry:attribute value="$r/@d_empresa" name="empresa"/>
+			<qry:attribute value="$r/@d_actividad" name="actividad"/>
+			<qry:attribute value="$r/@d_domicilio" name="domicilio"/>
+			<qry:attribute value="$r/@c_cuit" name="cuit"/>
+			<qry:insert-select name="qry_localidad" doc-path="$r"/>
+		</qry:out>
+	</qry:select>
+	<qry:select name="QRY_RECIBOS" doc="SOURCE">
+		<qry:xquery>
+			for $r in sql('
+			SELECT 
+				{%? (#FILTRO:@orden1!=''){% {%=#FILTRO:@orden1 %} as orden1,%}{% %} %}
+				{%? (#FILTRO:@orden2!=''){% {%=#FILTRO:@orden2 %} as orden2,%}{% %} %}
+				LIQ20_TOT_LIQ_PER.oi_tot_liq_per, 
+				LIQ99_RECIBOS.e_numero_legajo,
+				LIQ99_RECIBOS.e_numero_legajo AS LEG
+			FROM 
+				LIQ19_LIQUIDACION, LIQ19_EJECUCIONES, 
+				LIQ99_LIQUIDACION, LIQ99_RECIBOS, 
+				LIQ20_TOT_LIQ_PER, LIQ97_PERSONAL_EMP,
+				ORG03_UBICACIONES(ORG03_UBICACIONES.oi_empresa={%=#SOURCE:@oi_empresa%})
+			JOIN
+			  LIQ19_LIQUIDACION.oi_liquidacion INNER LIQ19_EJECUCIONES.oi_liquidacion, 
+				LIQ19_EJECUCIONES.oi_liquidacion_ddo INNER LIQ99_LIQUIDACION.oi_liquidacion_ddo,
+				LIQ99_LIQUIDACION.oi_liquidacion_ddo INNER LIQ99_RECIBOS.oi_liquidacion_ddo,
+				LIQ99_RECIBOS.oi_tot_liq_per INNER LIQ20_TOT_LIQ_PER.oi_tot_liq_per,
+				LIQ20_TOT_LIQ_PER.oi_per_emp_ddo INNER LIQ97_PERSONAL_EMP.oi_per_emp_ddo,
+				LIQ97_PERSONAL_EMP.c_ubicacion LEFT OUTER ORG03_UBICACIONES.c_ubicacion
+			WHERE
+				LIQ19_LIQUIDACION.e_periodo = {#SOURCE:@e_periodo}
+				AND LIQ19_LIQUIDACION.oi_empresa = {#SOURCE:@oi_empresa}
+				{%? (#VAL:@noValidarCerradas!='1')
+					{% AND LIQ19_LIQUIDACION.c_estado = \'C\' %}
+					{% %}
+				%}
+				{%? (string(#SOURCE:LIQUIDACIONES/LIQUIDACION/@id)!='')         
+					{% AND LIQ19_LIQUIDACION.oi_liquidacion 
+						{%? (#SOURCE:@excluir=1) 	
+							{% NOT IN ({%=string(#SOURCE:LIQUIDACIONES/LIQUIDACION/@id)%}) %} 
+							{% IN     ({%=string(#SOURCE:LIQUIDACIONES/LIQUIDACION/@id)%}) %} 
+						%}
+					%}
+					{% %}					
+				%}
+				AND LIQ99_LIQUIDACION.c_estado = \'F\'
+			ORDER BY
+				{%? (#FILTRO:@orden1!='') {% orden1 ASC, %} {% %} %}
+				{%? (#FILTRO:@orden2!='') {% orden2 ASC, %} {% %} %}
+				LEG ASC 
+	 	')ROWS/ROW
+		</qry:xquery>
+		<qry:out>
+			<qry:element name="CABECERA">
+				<qry:attribute value="$r/@oi_tot_liq_per" name="oi_tot_liq_per"/>
+				<qry:attribute name="dom" value="../LIQUIDACIONES/@mostrarDomicilio"/>
+				<qry:attribute name="fam" value="../LIQUIDACIONES/@mostrarFamiliares"/>
+				<qry:attribute name="rem" value="../LIQUIDACIONES/@mostrarRemuneracion"/>
+				<qry:attribute name="anti" value="../LIQUIDACIONES/@detalleAnticipo"/>
+				<qry:attribute name="nro_hoja" value="../LIQUIDACIONES/@nro_hoja"/>
+			</qry:element>
+		</qry:out>
+	</qry:select>
+	<qry:select name="qry_localidad" doc="SOURCE">
+		<qry:xquery>
+			for $r in SQL('
+select
+	org19_localidades.d_localidad, org35_provincias.d_provincia, org35_paises.d_pais
+from
+	org19_localidades, org35_provincias, org35_paises
+where 
+	org19_localidades.oi_provincia = org35_provincias.oi_provincia and
+	org35_provincias.oi_pais = org35_paises.oi_pais and
+	org19_localidades.oi_localidad = {$SOURCE/@oi_localidad}
+')/ROWS/ROW
+		</qry:xquery>
+		<qry:out>
+			<qry:if test="$r/@d_localidad != ''">
+				<qry:then>
+					<qry:attribute name="domicilio" value="@domicilio + ' - ' + $r/@d_localidad + ', ' + $r/@d_provincia + ', ' + $r/@d_pais"/>
+				</qry:then>
+			</qry:if>
+		</qry:out>
+	</qry:select>
+	<qry:select name="qry_remuneracion" doc="SOURCE">
+		<qry:xquery>
+			for $r in sql('
+				SELECT ORG26_PARAMETROS.d_valor FROM ORG26_PARAMETROS
+				WHERE ORG26_PARAMETROS.c_parametro = \'RemuneracionLibroLey\'')/ROWS/ROW
+		</qry:xquery>
+		<qry:out>
+			<qry:attribute value="iif($r/@d_valor='1',1,0)" name="mostrarRemuneracion"/>
+		</qry:out>
+	</qry:select>
+	<qry:select doc="PARAM" name="qry_anticipo">
+		<qry:xquery>
+			for $r in sql('
+				SELECT ORG26_PARAMETROS.d_valor FROM ORG26_PARAMETROS
+				WHERE ORG26_PARAMETROS.c_parametro = \'DetalleAnticipo\'')/ROWS/ROW
+		</qry:xquery>
+		<qry:out>
+			<qry:attribute value="iif($r/@d_valor='1',1,0)" name="detalleAnticipo"/>
+		</qry:out>
+	</qry:select>
+</qry:define>

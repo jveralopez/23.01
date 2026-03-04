@@ -1,0 +1,296 @@
+<flow:flow xmlns:flow="nomad_engine.flow" xmlns:doc="nomad_engine.doc" xmlns:qry="nomad_engine.qry" default_action="initialize" name="NucleusRH.Base.Evaluacion2.Eventos">
+	<flow:info label="Flow para NucleusRH.Base.Evaluacion2.Eventos"/>
+	<flow:declare>
+		<doc:define name="FILTERDATA">
+			<DATA/>
+		</doc:define>
+		<doc:define name="REPORTDATA">
+			<PARAM/>
+		</doc:define>
+		<qry:define name="REPORT" declare="&lt;DATA oi_evento=&quot;1&quot; /&gt;">
+			<qry:main name="" doc="SOURCE">
+				<qry:element name="ROW">
+					<qry:insert-select name="SQL1" doc-path="#SOURCE:."/>
+				</qry:element>
+			</qry:main>
+			<qry:select name="SQL1" doc="SOURCE">
+				<qry:xquery>
+					for $r in SQL('
+				select                
+					TY.d_reporte as REPORT
+				from        
+					EDD01_TIPOS_EVAL as TY,
+					EDD02_EVENTOS as EV
+				join                  
+					TY.oi_tipo_eval inner EV.oi_tipo_eval
+				where
+					 EV.oi_evento = {#SOURCE:@oi_evento}
+			')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:attribute name="REPORT" value="$r/@REPORT"/>
+				</qry:out>
+			</qry:select>
+		</qry:define>
+		<doc:define name="REPORTNAME"/>
+		<doc:define class="NucleusRH.Base.Evaluacion2.Evaluacion.EVALUACION" name="DDO"/>
+		<qry:define name="QRY_PERSONA">
+			<qry:main>
+				<qry:element name="ROW">
+					<qry:insert-select name="SQL1"/>
+				</qry:element>
+			</qry:main>
+			<qry:select name="SQL1" doc="">
+				<qry:xquery>
+					for $r in SQL('
+SELECT
+	PER.oi_personal
+FROM
+	per01_personal as PER
+WHERE                                 
+	PER.oi_usuario_sistema={#PROXY:@ETTY}
+')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:attribute name="oi_personal" value="$r/@oi_personal"/>
+				</qry:out>
+			</qry:select>
+		</qry:define>
+		<qry:define declare="&lt;X oi_evaluacion=&quot;1084&quot; /&gt;" name="QRY_EVALUADORES360">
+			<qry:main doc="SOURCE">
+				<ROWS>
+					<qry:insert-select name="EVALUADORES" doc-path="#SOURCE:."/>
+				</ROWS>
+			</qry:main>
+			<qry:select name="EVALUADORES" doc="SOURCE">
+				<qry:xquery>
+					for $r in SQL('
+select 
+	PER.d_ape_y_nom, 
+	EVA.c_estado, 
+	EVA.oi_personal_emp, 
+	ROL.oi_rol,
+	ROL.d_rol,
+	ROL.c_rol
+from 
+	edd03_eva_evaluad as EVA,
+	edd05_roles as ROL,
+	per02_personal_emp as LEG,
+	per01_personal as PER
+join
+	EVA.oi_rol INNER ROL.oi_rol,
+	EVA.oi_personal_emp INNER LEG.oi_personal_emp,
+	LEG.oi_personal INNER PER.oi_personal
+where
+	EVA.oi_evaluacion = {#SOURCE:@oi_evaluacion}              
+order by
+	c_rol asc, oi_personal_emp asc
+')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<option>
+						<qry:attribute name="text" value="$r/@d_ape_y_nom + '-' +$r/@d_rol"/>
+						<qry:attribute name="value" value="$r/@oi_personal_emp"/>
+					</option>
+				</qry:out>
+			</qry:select>
+		</qry:define>
+		<doc:define name="EVALUADORES360"/>
+	</flow:declare>
+	<flow:main doc="SOURCE">
+		<flow:action name="initialize">
+			<flow:load-user-data name="FILTER-NucleusRH.Base.Evaluacion2.Evaluacion.EVALUACION-ADM" doc="FILTERDATA"/>
+			<flow:open-form doc-path="#FILTERDATA:" mode="FILTER" form-class="NucleusRH.Base.Evaluacion2.Evaluacion.FILTRO.form"/>
+		</flow:action>
+		<flow:action name="evaluar">
+			<flow:load-user-data name="FILTER-NucleusRH.Base.Evaluacion2.Evaluacion.EVALUACION-EVA" doc="FILTERDATA"/>
+			<doc:load-qry output-doc="REPORTNAME" qry="QRY_PERSONA"/>
+			<doc:set-attribute to-attr-path="#FILTERDATA:@oi_evaluador" from-attr-path="#REPORTNAME:@oi_personal"/>
+			<flow:open-form mode="EVALUAR" doc-path="#FILTERDATA:" form-class="NucleusRH.Base.Evaluacion2.Evaluacion.FILTRO.form"/>
+			<flow:call-action action="sin-permisos" if="#REPORTNAME:@oi_personal" eq=""/>
+		</flow:action>
+		<flow:action name="supervisar">
+			<flow:load-user-data name="FILTER-NucleusRH.Base.Evaluacion2.Evaluacion.EVALUACION-SUP" doc="FILTERDATA"/>
+			<doc:load-qry output-doc="REPORTNAME" qry="QRY_PERSONA"/>
+			<doc:set-attribute to-attr-path="#FILTERDATA:@oi_supervisor" from-attr-path="#REPORTNAME:@oi_personal"/>
+			<flow:open-form mode="SUPERVISAR" doc-path="#FILTERDATA:" form-class="NucleusRH.Base.Evaluacion2.Evaluacion.FILTRO.form"/>
+			<flow:call-action action="sin-permisos" if="#REPORTNAME:@oi_personal" eq=""/>
+		</flow:action>
+		<flow:action name="sin-permisos">
+			<flow:open-form mode="CLEAN" doc-path="#FILTERDATA:" form-class="NucleusRH.Base.Evaluacion2.Evaluacion.FILTRO.form"/>
+		</flow:action>
+	</flow:main>
+	<flow:form parent-doc="PARENTSOURCE" doc="SOURCE" name="NucleusRH.Base.Evaluacion2.Evaluacion.FILTRO.form:FILTER" form-class="NucleusRH.Base.Evaluacion2.Evaluacion.FILTRO.form" mode="FILTER">
+		<flow:action name="on-open"/>
+		<flow:action name="on-show"/>
+		<flow:action name="Save-FILTER">
+			<flow:save-user-data name="FILTER-NucleusRH.Base.Evaluacion2.Evaluacion.EVALUACION-ADM" doc-path="#SOURCE:"/>
+		</flow:action>
+		<flow:action name="CONSULTAR">
+			<flow:call-action action="Save-FILTER"/>
+			<flow:call-action action="GETDATA"/>
+			<flow:open-form form-class="NucleusRH.Base.Evaluacion2.Evaluacion.REPORTE.form" parent-doc-path="#SOURCE:" doc-path="#SOURCE:" mode="SHOW"/>
+		</flow:action>
+		<flow:action name="PREEVALUAR">
+			<flow:call-action action="Save-FILTER"/>
+			<flow:call-action action="GETDATA"/>
+			<flow:open-form mode="PREEVALUAR" form-class="NucleusRH.Base.Evaluacion2.Evaluacion.REPORTE.form" parent-doc-path="#SOURCE:" doc-path="#SOURCE:"/>
+		</flow:action>
+		<flow:action name="EVALUADOR">
+			<flow:call-action action="Save-FILTER"/>
+			<flow:call-action action="GETDATA"/>
+			<flow:open-form mode="EVALUADOR" form-class="NucleusRH.Base.Evaluacion2.Evaluacion.REPORTE.form" parent-doc-path="#SOURCE:" doc-path="#SOURCE:"/>
+		</flow:action>
+		<flow:action name="EVALUADO">
+			<flow:call-action action="Save-FILTER"/>
+			<flow:call-action action="GETDATA"/>
+			<flow:open-form mode="EVALUADO" form-class="NucleusRH.Base.Evaluacion2.Evaluacion.REPORTE.form" parent-doc-path="#SOURCE:" doc-path="#SOURCE:"/>
+		</flow:action>
+		<flow:action name="SUPERVISOR">
+			<flow:call-action action="Save-FILTER"/>
+			<flow:call-action action="GETDATA"/>
+			<flow:open-form mode="SUPERVISOR" form-class="NucleusRH.Base.Evaluacion2.Evaluacion.REPORTE.form" parent-doc-path="#SOURCE:" doc-path="#SOURCE:"/>
+		</flow:action>
+		<flow:action name="APROBAR">
+			<flow:call-action action="Save-FILTER"/>
+			<flow:call-action action="GETDATA"/>
+			<flow:open-form mode="APROBAR" form-class="NucleusRH.Base.Evaluacion2.Evaluacion.REPORTE.form" parent-doc-path="#SOURCE:" doc-path="#SOURCE:"/>
+		</flow:action>
+		<flow:action name="POSAPROBAR">
+			<flow:call-action action="Save-FILTER"/>
+			<flow:call-action action="GETDATA"/>
+			<flow:open-form mode="POSAPROBAR" form-class="NucleusRH.Base.Evaluacion2.Evaluacion.REPORTE.form" parent-doc-path="#SOURCE:" doc-path="#SOURCE:"/>
+		</flow:action>
+		<flow:action name="CERRAR">
+			<flow:call-action action="Save-FILTER"/>
+			<flow:call-action action="GETDATA"/>
+			<!--doc:set-attribute to-attr-path="#DDO:@c_estado" from-value="CE"/-->
+			<flow:exec-method method="CambiarEstadoFlow" class="NucleusRH.Base.Evaluacion2.Evaluacion.EVALUACION" out-type="String">
+				<flow:param attr-path="#SOURCE:@oi_evaluacion" name="oi_evaluacion" type="Nomad.NSystem.String" mode="in"/>
+				<flow:param value="CE" type="Nomad.NSystem.String" mode="in" name="c_estado"/>
+			</flow:exec-method>
+		</flow:action>
+		<flow:action name="CONFIRM">
+			<flow:call-action action="Save-FILTER"/>
+			<flow:call-action action="GETDATA"/>
+			<flow:exec-method method="CambiarEstadoFlow" class="NucleusRH.Base.Evaluacion2.Evaluacion.EVALUACION" out-type="String">
+				<flow:param attr-path="#SOURCE:@oi_evaluacion" name="oi_evaluacion" type="Nomad.NSystem.String" mode="in"/>
+				<flow:param value="CO" type="Nomad.NSystem.String" mode="in" name="c_estado"/>
+			</flow:exec-method>
+			<!--doc:set-attribute to-attr-path="#DDO:@c_estado" from-value="CO"/>
+	<doc:save-object doc="DDO" class="NucleusRH.Base.Evaluacion2.Evaluacion.EVALUACION"/-->
+		</flow:action>
+		<flow:action name="BACK">
+			<flow:call-action action="Save-FILTER"/>
+			<flow:exit-flow return-path="#SOURCE:"/>
+		</flow:action>
+		<flow:action name="GETDATA">
+			<doc:load-qry input-doc-path="#SOURCE:" output-doc="REPORTNAME" qry="REPORT"/>
+			<flow:log text="#REPORTNAME:" text-path="#REPORTNAME:"/>
+			<doc:set-attribute from-attr-path="#REPORTNAME:@REPORT" to-attr-path="#SOURCE:@REPORT"/>
+		</flow:action>
+		<flow:action name="ANULAR">
+			<flow:call-action action="Save-FILTER"/>
+			<flow:call-action action="GETDATA"/>
+			<!--doc:set-attribute to-attr-path="#DDO:@c_estado" from-value="AN"/>
+	<doc:save-object doc="DDO" class="NucleusRH.Base.Evaluacion2.Evaluacion.EVALUACION"/-->
+			<flow:exec-method method="CambiarEstadoFlow" class="NucleusRH.Base.Evaluacion2.Evaluacion.EVALUACION" out-type="String">
+				<flow:param attr-path="#SOURCE:@oi_evaluacion" name="oi_evaluacion" type="Nomad.NSystem.String" mode="in"/>
+				<flow:param value="AN" type="Nomad.NSystem.String" mode="in" name="c_estado"/>
+			</flow:exec-method>
+		</flow:action>
+		<flow:action name="EVALUADOR360">
+			<flow:call-action action="Save-FILTER"/>
+			<flow:call-action action="GETDATA"/>
+			<flow:open-form form-class="NucleusRH.Base.Evaluacion2.Evaluacion.EVALUADOR.form" mode="EVALUADOR360" parent-doc-path="#SOURCE:" doc-path="#SOURCE:"/>
+		</flow:action>
+	</flow:form>
+	<flow:form parent-doc="SOURCE" form-class="NucleusRH.Base.Evaluacion2.Evaluacion.REPORTE.form" name="NucleusRH.Base.Evaluacion2.Evaluacion.REPORTE.form:SHOW" doc="SOURCE" mode="SHOW">
+		<flow:action name="on-show"/>
+		<flow:action name="on-open"/>
+		<flow:action name="BACK">
+			<flow:close-form/>
+		</flow:action>
+	</flow:form>
+	<flow:form mode="EVALUADOR" name="NucleusRH.Base.Evaluacion2.Evaluacion.REPORTE.form:EVALUADOR" parent-doc="SOURCE" form-class="NucleusRH.Base.Evaluacion2.Evaluacion.REPORTE.form" doc="SOURCE">
+		<flow:action name="on-show"/>
+		<flow:action name="on-open"/>
+		<flow:action name="BACK">
+			<flow:close-form/>
+		</flow:action>
+	</flow:form>
+	<flow:form mode="EVALUADO" name="NucleusRH.Base.Evaluacion2.Evaluacion.REPORTE.form:EVALUADO" parent-doc="SOURCE" form-class="NucleusRH.Base.Evaluacion2.Evaluacion.REPORTE.form" doc="SOURCE">
+		<flow:action name="on-show"/>
+		<flow:action name="on-open"/>
+		<flow:action name="BACK">
+			<flow:close-form/>
+		</flow:action>
+	</flow:form>
+	<flow:form mode="SUPERVISOR" name="NucleusRH.Base.Evaluacion2.Evaluacion.REPORTE.form:SUPERVISOR" parent-doc="SOURCE" form-class="NucleusRH.Base.Evaluacion2.Evaluacion.REPORTE.form" doc="SOURCE">
+		<flow:action name="on-show"/>
+		<flow:action name="on-open"/>
+		<flow:action name="BACK">
+			<flow:close-form/>
+		</flow:action>
+	</flow:form>
+	<flow:form mode="APROBAR" name="NucleusRH.Base.Evaluacion2.Evaluacion.REPORTE.form:APROBAR" parent-doc="SOURCE" form-class="NucleusRH.Base.Evaluacion2.Evaluacion.REPORTE.form" doc="SOURCE">
+		<flow:action name="on-show"/>
+		<flow:action name="on-open"/>
+		<flow:action name="BACK">
+			<flow:close-form/>
+		</flow:action>
+	</flow:form>
+	<flow:form mode="PREEVALUAR" name="NucleusRH.Base.Evaluacion2.Evaluacion.REPORTE.form:PREEVALUAR" parent-doc="SOURCE" form-class="NucleusRH.Base.Evaluacion2.Evaluacion.REPORTE.form" doc="SOURCE">
+		<flow:action name="on-show"/>
+		<flow:action name="on-open"/>
+		<flow:action name="BACK">
+			<flow:close-form/>
+		</flow:action>
+	</flow:form>
+	<flow:form name="NucleusRH.Base.Evaluacion2.Evaluacion.REPORTE.form:POSAPROBAR" mode="POSAPROBAR" parent-doc="SOURCE" form-class="NucleusRH.Base.Evaluacion2.Evaluacion.REPORTE.form" doc="SOURCE">
+		<flow:action name="on-show"/>
+		<flow:action name="on-open"/>
+		<flow:action name="BACK">
+			<flow:close-form/>
+		</flow:action>
+	</flow:form>
+	<flow:form name="NucleusRH.Base.Evaluacion2.Evaluacion.FILTRO.form:EVALUAR" extends="NucleusRH.Base.Evaluacion2.Evaluacion.FILTRO.form:FILTER" mode="EVALUAR" parent-doc="PARENTSOURCE" doc="SOURCE" form-class="NucleusRH.Base.Evaluacion2.Evaluacion.FILTRO.form">
+		<flow:action name="Save-FILTER">
+			<flow:save-user-data name="FILTER-NucleusRH.Base.Evaluacion2.Evaluacion.EVALUACION-EVA" doc-path="#SOURCE:"/>
+		</flow:action>
+	</flow:form>
+	<flow:form name="NucleusRH.Base.Evaluacion2.Evaluacion.FILTRO.form:SUPERVISAR" mode="SUPERVISAR" extends="NucleusRH.Base.Evaluacion2.Evaluacion.FILTRO.form:FILTER" parent-doc="PARENTSOURCE" doc="SOURCE" form-class="NucleusRH.Base.Evaluacion2.Evaluacion.FILTRO.form">
+		<flow:action name="Save-FILTER">
+			<flow:save-user-data name="FILTER-NucleusRH.Base.Evaluacion2.Evaluacion.EVALUACION-SUP" doc-path="#SOURCE:"/>
+		</flow:action>
+	</flow:form>
+	<flow:form parent-doc="PARENTSOURCE" doc="SOURCE" name="NucleusRH.Base.Evaluacion2.Evaluacion.FILTRO.form:CLEAN" form-class="NucleusRH.Base.Evaluacion2.Evaluacion.FILTRO.form" mode="CLEAN">
+		<flow:action name="on-open"/>
+		<flow:action name="on-show"/>
+		<flow:action name="BACK">
+			<flow:exit-flow return-path="#SOURCE:"/>
+		</flow:action>
+	</flow:form>
+	<flow:form mode="EVALUADOR360" name="NucleusRH.Base.Evaluacion2.Evaluacion.REPORTE.form:EVALUADOR360" parent-doc="SOURCE" form-class="NucleusRH.Base.Evaluacion2.Evaluacion.REPORTE.form" doc="SOURCE">
+		<flow:action name="on-show"/>
+		<flow:action name="on-open"/>
+		<flow:action name="BACK">
+			<flow:close-form/>
+		</flow:action>
+	</flow:form>
+	<flow:form form-class="NucleusRH.Base.Evaluacion2.Evaluacion.EVALUADOR.form" name="NucleusRH.Base.Evaluacion2.Evaluacion.EVALUADOR.form:EVALUADOR360" mode="EVALUADOR360" parent-doc="SOURCE" doc="SOURCE">
+		<flow:action name="on-show">
+			<flow:attach-doc doc-path="#EVALUADORES360:" attach-id="EVALUADORES360"/>
+		</flow:action>
+		<flow:action name="on-open">
+			<doc:load-qry output-doc="EVALUADORES360" input-doc-path="#SOURCE:" qry="QRY_EVALUADORES360"/>
+		</flow:action>
+		<flow:action name="BACK">
+			<flow:close-form/>
+		</flow:action>
+		<flow:action name="NEXT">
+			<flow:close-form/>
+			<flow:open-form mode="EVALUADOR360" form-class="NucleusRH.Base.Evaluacion2.Evaluacion.REPORTE.form" parent-doc-path="#SOURCE:" doc-path="#SOURCE:"/>
+		</flow:action>
+	</flow:form>
+</flow:flow>

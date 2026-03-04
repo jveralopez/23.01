@@ -1,0 +1,117 @@
+<flow:flow xmlns:flow="nomad_engine.flow" xmlns:doc="nomad_engine.doc" xmlns:qry="nomad_engine.qry" default_action="initialize" name="NucleusProject.Base.Project.Reportes.TareasPriorizadas.flow" extends="Nomad.base.HTML_XLS.flow">
+	<flow:info label="Flow para NucleusProject.Base.Project.Reportes.TareasPriorizadas"/>
+	<flow:declare>
+		<doc:define name="FILTERDATA">
+			<DATA oi_recurso="" f_desde="" f_hasta="" selected="" l_estado="" l_horas_imputadas="" l_desc_tarea="" l_desc_proy="" l_desc_cliente="">
+				<EST/>
+			</DATA>
+		</doc:define>
+		<doc:define name="EST">
+			<ROWS>
+				<ROW des="Inicializada" id="I"/>
+				<ROW des="Trabajando" id="T"/>
+				<ROW des="Pausada" id="P"/>
+				<ROW des="Finalizada" id="F"/>
+				<ROW des="Anulada" id="A"/>
+				<ROW des="Derivada a Testing" id="D"/>
+			</ROWS>
+		</doc:define>
+		<doc:define name="PARAM_CALEN"/>
+		<qry:define declare="&lt;PARAM oi_recurso=&quot;1&quot; /&gt;" name="qry_param_calen">
+			<qry:main doc="SOURCE">
+				<qry:element name="DATA">
+					<qry:attribute name="oi_personal_emp" value="-1"/>
+					<qry:insert-select name="qry_legajo" doc-path="#SOURCE:."/>
+				</qry:element>
+			</qry:main>
+			<qry:select name="qry_legajo" doc="PARAM">
+				<qry:xquery>
+					for $r in SQL('
+	SELECT 
+		LEG.oi_personal_emp
+	FROM 
+		PER02_PERSONAL_EMP as LEG,
+		PRY05_RECURSOS as REC
+	JOIN 	
+		REC.oi_personal INNER LEG.oi_personal
+	WHERE
+		REC.oi_recurso = {%=#PARAM:@oi_recurso%}
+	')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:attribute name="oi_personal_emp" value="$r/@oi_personal_emp"/>
+					<qry:attribute name="f_desde" value="now-date()"/>
+					<qry:attribute name="f_hasta" value="now-date() + 183"/>
+				</qry:out>
+			</qry:select>
+		</qry:define>
+		<doc:define name="TEMP"/>
+		<doc:define name="PARAM_CALEN_EMP"/>
+		<qry:define name="qry_param_calen_emp">
+			<qry:main doc="SOURCE">
+				<qry:element name="DATA">
+					<qry:attribute name="f_desde" value="now-date()"/>
+					<qry:attribute name="f_hasta" value="now-date() + 183"/>
+					<qry:attribute name="c_empresa" value="fill_left(129,'0',6)"/>
+				</qry:element>
+			</qry:main>
+		</qry:define>
+	</flow:declare>
+	<flow:main doc="PARAMIN">
+		<flow:action name="initialize">
+			<flow:open-form doc-path="#FILTERDATA:" mode="FILTER" form-class="NucleusProject.Base.Project.Reportes.TareasPriorizadas.filtro.form"/>
+		</flow:action>
+	</flow:main>
+	<flow:form form-class="NucleusProject.Base.Project.Reportes.TareasPriorizadas.filtro.form" name="NucleusProject.Base.Project.Reportes.TareasPriorizadas.filtro.form:FILTER" mode="FILTER" doc="SOURCE">
+		<flow:action name="Save-FILTER">
+			<flow:save-user-data name="FILTER-NucleusProject.Base.Project.TareasPriorizadas" doc-path="#FILTERDATA:"/>
+		</flow:action>
+		<flow:action name="ACCEPT">
+			<flow:log text-path="#FILTERDATA:" text="masosaFILTERDATA"/>
+			<flow:call-action action="Save-FILTER"/>
+			<flow:exec-method method="ExecReportHTML" out-attr-path="#BATCHDOC:@batch-id" priority="9" class="Nomad.Base.Report.GeneralReport.REPORT">
+				<flow:param value="NucleusProject.Base.Project.TareasPriorizadas.rpt" type="Nomad.NSystem.String" mode="in" name="ReportName"/>
+				<flow:param mode="in" doc-path="#FILTERDATA:" name="paramIN" type="Nomad.NSystem.Proxy.NomadXML"/>
+			</flow:exec-method>
+			<doc:set-attribute from-value="007 - Tareas Priorizadas de un Responsable" to-attr-path="#BATCHDOC:@title"/>
+			<flow:open-form form-class="Nomad.base.HTML_XLS.form" parent-doc-path="#SOURCE:" mode="SHOW" doc-path="#BATCHDOC:"/>
+		</flow:action>
+		<flow:action name="Load-FILTER">
+			<flow:load-user-data name="FILTER-NucleusProject.Base.Project.TareasPriorizadas" doc="FILTERDATA"/>
+		</flow:action>
+		<flow:action name="on-show">
+			<doc:load-qry output-doc="PARAM_CALEN_EMP" qry="qry_param_calen_emp"/>
+			<flow:log text-path="#PARAM_CALEN_EMP:" text="falvarezPARAM"/>
+			<flow:call-action action="Load-FILTER"/>
+			<flow:log text="falvarezDespuesCallAction" text-path="#PARAM_CALEN_EMP:"/>
+			<flow:exec-method method="DiasTrabajablesRptString" out-doc="TEMP" out-type="Nomad.NSystem.Proxy.NomadXML" class="NucleusRH.Base.Organizacion.Calendario_Feriados.CALENDARIO">
+				<flow:param doc-path="#PARAM_CALEN_EMP:" mode="in" type="Nomad.NSystem.Proxy.NomadXML" name="xmlparam"/>
+			</flow:exec-method>
+			<flow:log text="falvarezDespEvento" text-path="#TEMP:"/>
+			<flow:attach-doc doc-path="#EST:" attach-id="EST"/>
+			<doc:set-attribute from-attr-path="#TEMP:@d_laborales" to-attr-path="#FILTERDATA:@d_laborales"/>
+			<flow:log text="falvarezTEMP" text-path="#TEMP:"/>
+		</flow:action>
+		<flow:action name="CANCEL">
+			<flow:exit-flow return-path="#SOURCE:"/>
+		</flow:action>
+		<flow:action name="LABORALES">
+			<!--doc:load-qry input-doc-path="#FILTERDATA:" output-doc="PARAM_CALEN" qry="qry_param_calen"/>
+	<flow:log text="masosaPARAM_CALEN" text-path="#PARAM_CALEN:">
+		<doc:load-qry input-doc-path="#FILTERDATA:" output-doc="PARAM_CALEN" qry="qry_param_calen"/>
+	</flow:log>
+	<flow:exec-method out-doc="TEMP" out-type="Nomad.NSystem.Proxy.NomadXML" method="DiasTrabajablesString" class="NucleusRH.Base.Organizacion.Calendario_Feriados.CALENDARIO">
+		<flow:param mode="in" doc-path="#PARAM_CALEN:" type="Nomad.NSystem.Proxy.NomadXML" name="xmlparam"/>
+	</flow:exec-method>
+	<flow:log text="masosaTEMP" text-path="#TEMP:">
+		<doc:load-qry input-doc-path="#FILTERDATA:" output-doc="PARAM_CALEN" qry="qry_param_calen"/>
+	</flow:log>
+	<doc:set-attribute from-attr-path="#TEMP:@d_laborales" to-attr-path="#FILTERDATA:@d_laborales"/-->
+			<flow:call-action else="MSG" eq="1" if="#TEMP:@rta" action="ACCEPT"/>
+		</flow:action>
+		<flow:action name="MSG">
+			<flow:attach-doc doc-path="#EST:" attach-id="EST"/>
+			<flow:message message="#TEMP:@msg"/>
+		</flow:action>
+	</flow:form>
+</flow:flow>

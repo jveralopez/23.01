@@ -1,0 +1,126 @@
+<html:html xmlns:html="nomad_engine.html" xmlns:qry="nomad_engine.qry" xmlns:xsl="http://www.w3.org/1999/XSL/Transform" name="Tareas" extends="NucleusRH.Base.Configuracion.GadgetBASE.rpt" doc="source">
+	<html:query declare="&lt;PARAMS  /&gt;">
+		<qry:main doc="SOURCE">
+			<qry:element name="MAIN">
+				<qry:element name="DATA">
+					<qry:attribute name="hoy" value="format-date(Now(),'dd/mm/yy')"/>
+					<qry:attribute name="cant_tareas" value="0"/>
+					<qry:attribute name="cant_vencidas" value="0"/>
+					<qry:insert-select doc-path="." name="qry_tareas"/>
+				</qry:element>
+			</qry:element>
+		</qry:main>
+		<qry:select doc="SOURCE" name="qry_tareas">
+			<qry:xquery>
+				for $r in sql('		
+					SELECT 
+						t.oi_tarea,
+						t.c_tarea,
+  					t.d_tarea,
+  			    t.f_inicio,
+  					t.f_fin_est,
+  			    p.c_proyecto,
+  			    p.d_proyecto 
+  			    
+  					
+					FROM 
+						PRY02_TAREAS as t,
+						PRY05_RECURSOS as re,
+	         	PER01_PERSONAL as pe,
+	         	PRY01_PROYECTOS as p
+	     
+					
+					JOIN 
+				  	t.oi_recurso INNER re.oi_recurso,
+		        re.oi_personal INNER pe.oi_personal,
+		        t.oi_proyecto INNER p.oi_proyecto
+					
+			    WHERE  
+			    	      
+			   pe.oi_usuario_sistema = {#PROXY:@ETTY} 
+			        
+		     AND t.c_estado NOT IN (\'P\', \'A\', \'F\')
+
+  				ORDER BY f_fin_est ASC 
+  					
+				')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:attribute name="cant_tareas" value="number(@cant_tareas)+1"/>
+				<!--qry:if test="$r/@f_fin_est!=''">
+				<qry:then-->
+				<qry:if test="$r/@f_fin_est &lt;=  Now()">
+					<qry:then>
+						<qry:attribute name="cant_vencidas" value="number(@cant_vencidas)+1"/>
+					</qry:then>
+					<qry:else>
+						<qry:attribute name="cant_vencidas" value="number(@cant_vencidas)+0"/>
+					</qry:else>
+				</qry:if>
+				<!--/qry:then>
+				<qry:else/>
+			</qry:if-->
+				<qry:element name="TAREA">
+					<qry:attribute name="oi_tarea" value="$r/@oi_tarea"/>
+					<qry:attribute name="d_tarea" value="'[' + $r/@c_tarea + '] ' + $r/@d_tarea"/>
+					<qry:attribute name="f_inicio" value="format-date($r/@f_inicio, 'dd/mm/yyyy')"/>
+					<qry:attribute name="d_proyecto" value="'[' + $r/@c_proyecto + '] ' + $r/@d_proyecto"/>
+					<qry:attribute name="f_fin_est" value="format-date($r/@f_fin_est, 'dd/mm/yyyy')"/>
+				</qry:element>
+			</qry:out>
+		</qry:select>
+	</html:query>
+	<html:xslt>
+		<xsl:template name="MainReport" match="DATA">
+			<body bgcolor="#F2F2EC" scroll="no">
+				<table class="tabla_detail estilo1" cellspacing="0" cellpadding="0">
+					<tr>
+						<th>
+							<xsl:value-of select="concat('Mis Tareas al  ',./@hoy,':    ',./@cant_vencidas,' vencidas de ',./@cant_tareas,' sin cerrar')"/>
+						</th>
+					</tr>
+					<tr>
+						<td>
+							<div>
+								<table style="width:100%;font-size: 11px;" class="tabla_noticia estilo1">
+									<tr>
+										<th style="width:25%;">
+											Proyecto
+										</th>
+										<th style="width:55%;">
+											Tarea
+										</th>
+										<th style="width:10%;">
+											Creaci&#243;n
+										</th>
+										<th style="width:10%;">
+											Fin estimado
+										</th>
+									</tr>
+									<xsl:for-each select="TAREA">
+										<tr>
+											<td height="40px" class="img_back underline">
+												<xsl:value-of select="@d_proyecto"/>
+											</td>
+											<td height="40px" class="img_back underline">
+												<xsl:value-of select="@d_tarea"/>
+											</td>
+											<td height="40px" class="img_back underline">
+												<xsl:value-of select="@f_inicio"/>
+											</td>
+											<td height="40px" class="img_back underline">
+												<xsl:value-of select="@f_fin_est"/>
+											</td>
+										</tr>
+									</xsl:for-each>
+								</table>
+							</div>
+						</td>
+					</tr>
+				</table>
+			</body>
+		</xsl:template>
+		<xsl:template name="ReportSCRIPT"/>
+		<xsl:template name="GADGET_PARAM"/>
+	</html:xslt>
+</html:html>

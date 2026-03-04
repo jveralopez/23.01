@@ -1,0 +1,265 @@
+<html:html xmlns:html="nomad_engine.html" xmlns:qry="nomad_engine.qry" xmlns:xsl="http://www.w3.org/1999/XSL/Transform" name="NucleusRH.Base.SeleccionDePostulantes.Avisos" doc="source">
+	<html:query declare="&lt;PARAMS p_clave=&quot;&quot; waitoff=&quot;1&quot; maxsize=&quot;20&quot; oi_cv=&quot;&quot;/&gt;" name="dd">
+		<qry:main doc="SOURCE">
+			<qry:element name="ROWS">
+				<qry:attribute name="fromlogin" value="iif(#SOURCE:PARAMS/@fromlogin = '', '0', '1')"/>
+				<qry:attribute name="d_valorReclutados" value="'0'"/>
+				<qry:attribute name="d_valorInternos" value="'0'"/>
+				<qry:append-doc name="PARAMIN" doc-path="."/>
+				<qry:insert-select doc-path="#PARAMIN:" name="QRY_PARAMETRO"/>
+				<qry:insert-select doc-path="#SOURCE:PARAMS" name="sqlMain"/>
+			</qry:element>
+		</qry:main>
+		<qry:select name="QRY_PARAMETRO" doc="PARAM">
+			<qry:xquery>
+				for $r in sql('
+			SELECT ORG26_PARAMETROS.c_parametro,ORG26_PARAMETROS.d_valor 
+			FROM ORG26_PARAMETROS
+			WHERE ORG26_PARAMETROS.c_parametro in (\'WebReclutados\',\'WebInternos\')
+		')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:attribute name="d_valorReclutados" value="iif($r/@c_parametro='WebReclutados' and $r/@d_valor!='',$r/@d_valor,@d_valorReclutados)"/>
+				<qry:attribute name="d_valorInternos" value="iif($r/@c_parametro='WebInternos' and $r/@d_valor!='',$r/@d_valor,@d_valorInternos)"/>
+			</qry:out>
+		</qry:select>
+		<qry:select doc="SOURCE" name="sqlMain">
+			<qry:xquery>
+				for $r in sql('
+				{%? (#SOURCE:@maxsize != '')
+					{% MAXSIZE {%=#SOURCE:@maxsize%} %}
+					{% %}
+				%}
+				
+				SELECT
+					avi.oi_aviso,
+					avi.c_aviso,
+					avi.f_aviso,
+					avi.f_cierre,
+					avi.c_sexo,
+					avi.o_aviso,
+					avi.d_mail,
+					avi.c_tipo,
+					avi.oi_pais,
+					avi.oi_provincia,
+					avi.oi_localidad,
+					avi.oi_jerarquia,
+					avi.oi_puesto,
+					avi.oi_area,
+					avi.d_puesto as d_puesto_aviso,
+
+					pais.d_pais,
+					prov.d_provincia,
+					loc.d_localidad,
+					
+					jer.d_jerarquia,
+					pu.d_puesto,
+					a.d_area,
+					
+					postu.f_postulacion
+					
+				FROM
+					SDP05_AVISOS as avi,
+					ORG35_PAISES as pais,
+					ORG35_PROVINCIAS as prov,
+					ORG19_LOCALIDADES as loc,
+					SDP07_JERARQUIA as jer,
+					ORG04_PUESTOS as pu,
+					SDP09_AREAS as a,
+
+					SDP01_POSTU_CV(SDP01_POSTU_CV.oi_cv = {%? (#SOURCE:@oi_cv='') {%='0'%} {%=#SOURCE:@oi_cv%} %}) as postu
+					
+				JOIN
+					avi.oi_pais LEFT OUTER pais.oi_pais,
+					avi.oi_provincia LEFT OUTER prov.oi_provincia,
+					avi.oi_localidad LEFT OUTER loc.oi_localidad,
+					avi.oi_jerarquia LEFT OUTER jer.oi_jerarquia,
+					avi.oi_puesto LEFT OUTER pu.oi_puesto,
+					avi.oi_area LEFT OUTER a.oi_area,
+
+					{%? (#SOURCE:@postus = '1')
+						{% avi.oi_aviso INNER postu.oi_aviso %}
+						{% avi.oi_aviso LEFT OUTER postu.oi_aviso %}
+					%}
+     			
+     			
+					WHERE								
+					
+						{%? (#PARAMIN:@d_valorInternos != '1') {% contain(avi.c_tipo, \'E\') %} {% 1=1 %} %} 					  					  						                           
+						{%? (#SOURCE:@postus='') 
+							{%   
+								{%? (#PARAMIN:@d_valorReclutados != '1') {% AND avi.c_estado in (\'P\') %} {% AND avi.c_estado in (\'P\',\'R\') %} %} 
+								AND avi.f_aviso &lt;= {Datetime(floor(now()))} 
+								AND (IsNull(avi.f_cierre) OR avi.f_cierre &gt;= {Datetime(floor(now()))})
+ 								AND avi.l_publicar = 1
+         				%} 
+							{% 
+								AND avi.l_publicar = 1								
+								AND (avi.oi_aviso in (select SDP01_POSTU_CV.oi_aviso from SDP01_POSTU_CV where SDP01_POSTU_CV.oi_cv = {%=#SOURCE:@oi_cv%}))							
+							%} 
+						%}
+						
+						{%? (#SOURCE:@p_clave != '')
+							{% AND
+								 (
+								 contain(avi.c_aviso, \'{%= #SOURCE:@p_clave%}\') OR
+								 contain(avi.o_aviso, \'{%= #SOURCE:@p_clave%}\') OR
+								 contain(avi.d_puesto, \'{%= #SOURCE:@p_clave%}\') OR
+
+								 contain(pais.d_pais, \'{%= #SOURCE:@p_clave%}\') OR
+								 contain(prov.d_provincia, \'{%= #SOURCE:@p_clave%}\') OR
+								 contain(loc.d_localidad, \'{%= #SOURCE:@p_clave%}\') OR
+
+								 contain(jer.d_jerarquia, \'{%= #SOURCE:@p_clave%}\') OR
+								 contain(pu.d_puesto, \'{%= #SOURCE:@p_clave%}\') OR
+								 contain(a.d_area, \'{%= #SOURCE:@p_clave%}\')
+								 )
+							 %}
+							{% %}
+						%}
+											
+					ORDER BY
+						f_aviso DESC
+
+			')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:attribute name="rtipo" value="IIF(number(./@rtipo) = 1, 0, 1)"/>
+				<qry:element name="ROW">
+					<qry:attribute name="rtipo" value="../@rtipo"/>
+					<qry:attribute name="oi_aviso" value="$r/@oi_aviso"/>
+					<qry:attribute name="c_aviso" value="$r/@c_aviso"/>
+					<qry:attribute name="f_aviso" value="format_date($r/@f_aviso, 'dd/mm/yyyy')"/>
+					<qry:attribute name="f_cierre" value="format_date($r/@f_cierre, 'dd/mm/yyyy')"/>
+					<qry:attribute name="c_sexo" value="$r/@c_sexo"/>
+					<qry:attribute name="c_sexo" value="iif(@c_sexo = 'F', 'Femenino', @c_sexo)"/>
+					<qry:attribute name="c_sexo" value="iif(@c_sexo = 'M', 'Masculino', @c_sexo)"/>
+					<qry:attribute name="c_sexo" value="iif(@c_sexo = 'I', 'Indistinto', @c_sexo)"/>
+					<qry:attribute name="c_sexo" value="iif(@c_sexo = '', 'Indistinto', @c_sexo)"/>
+					<qry:attribute name="o_aviso" value="$r/@o_aviso"/>
+					<qry:attribute name="o_aviso2" value="substring($r/@o_aviso, 0, 150) + iif(string_length($r/@o_aviso) &gt; 150, '...', '')"/>
+					<qry:attribute name="d_mail" value="$r/@d_mail"/>
+					<qry:attribute name="d_pais" value="$r/@d_pais"/>
+					<qry:attribute name="d_provincia" value="$r/@d_provincia"/>
+					<qry:attribute name="d_localidad" value="$r/@d_localidad"/>
+					<qry:attribute name="d_jerarquia" value="$r/@d_jerarquia"/>
+					<qry:attribute name="d_puesto" value="$r/@d_puesto_aviso"/>
+					<qry:attribute name="d_area" value="$r/@d_area"/>
+					<qry:attribute name="postulado" value="iif($r/@f_postulacion != '', '1', '0')"/>
+					<qry:attribute name="matias" value="Datetime(floor(now())+1)"/>
+				</qry:element>
+			</qry:out>
+		</qry:select>
+	</html:query>
+	<html:xslt>
+		<xsl:template match="/">
+			<html>
+				<HEAD>
+					<LINK href="./Styles/Reports.css" type="text/css" rel="stylesheet"/>
+					<script languaje="javascript">
+						<xsl:text>
+							function PageOnLoad() {
+							parent.PageShowWait(false);
+						}
+						</xsl:text>
+						function openAviso(pOIAviso) {
+							parent.ShowDetail(pOIAviso);
+					}
+
+					function showPostulado(pOIAviso) {
+						var objImg = document.getElementById("img_" + pOIAviso);
+						if (objImg.style.display == 'none')
+							objImg.style.display = "";
+						else
+							objImg.style.display = "none";
+					}
+					</script>
+				</HEAD>
+				<xsl:apply-templates select="ROWS"/>
+			</html>
+		</xsl:template>
+		<xsl:template match="ROWS">
+			<body onload="PageOnLoad();">
+				<table border="0" width="100%" class="seleccionable">
+					<col width="24px" align="center"/>
+					<col width="10%"/>
+					<col width="10%"/>
+					<col width="20%"/>
+					<col width="10%"/>
+					<col width="50%"/>
+					<tr>
+						<td class="cabecera" width="24px">
+							&#160;
+						</td>
+						<td class="cabecera">
+							Fecha
+						</td>
+						<td class="cabecera">
+							C&#243;digo
+						</td>
+						<td class="cabecera">
+							Puesto
+						</td>
+						<td class="cabecera">
+							Provincia
+						</td>
+						<td class="cabecera">
+							Detalle
+						</td>
+					</tr>
+					<xsl:if test="ROW">
+						<xsl:for-each select="ROW">
+							<tr onmouseover="this.className=this.className.replace('_n_', '_o_');" onmouseout="this.className=this.className.replace('_o_', '_n_');">
+								<xsl:attribute name="class">
+									<xsl:value-of select="concat('rowtipo_n_', @rtipo)"/>
+								</xsl:attribute>
+								<xsl:attribute name="onclick">
+									<xsl:value-of select="concat('openAviso(&quot;', @oi_aviso, '&quot;);')"/>
+								</xsl:attribute>
+								<td>
+									<img src="images/Reports/tag_green.gif" title="Ya estoy postulado a esta oferta.">
+										<xsl:attribute name="id">
+											<xsl:value-of select="concat('img_', @oi_aviso)"/>
+										</xsl:attribute>
+										<xsl:if test="@postulado = '0'">
+											<xsl:attribute name="style">
+												<xsl:value-of select="'display:none;'"/>
+											</xsl:attribute>
+										</xsl:if>
+									</img>
+								</td>
+								<td class="rowData_normal size01">
+									<xsl:value-of select="@f_aviso"/>
+								</td>
+								<td class="rowData_normal size01">
+									<xsl:value-of select="@c_aviso"/>
+								</td>
+								<td class="rowData_normal size02b">
+									<xsl:value-of select="@d_puesto"/>
+								</td>
+								<td class="rowData_normal size01">
+									<xsl:value-of select="@d_provincia"/>
+								</td>
+								<td class="rowData_normal size01">
+									<xsl:value-of select="@o_aviso2"/>
+								</td>
+							</tr>
+						</xsl:for-each>
+					</xsl:if>
+					<xsl:if test="count(./ROW) = 0">
+						<tr>
+							<td class="rowData_normal size01" colspan="4" style="PADDING-TOP:15px;">
+								<xsl:if test="@fromlogin = '1'">
+									No existen ofertas activas por el momento.
+								</xsl:if>
+								<xsl:if test="@fromlogin = '0'">
+									La b&#250;squeda realizada no arroja resultados.
+								</xsl:if>
+							</td>
+						</tr>
+					</xsl:if>
+				</table>
+			</body>
+		</xsl:template>
+	</html:xslt>
+</html:html>

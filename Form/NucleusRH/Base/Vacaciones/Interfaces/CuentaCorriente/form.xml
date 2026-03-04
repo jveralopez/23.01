@@ -1,0 +1,144 @@
+<form:Form xmlns:form="nomad_engine.form" xmlns:qry="nomad_engine.qry" name="NucleusRH.Base.Vacaciones.Interfaces.CuentaCorriente.form" default_mode="FILTER" doc="source">
+	<form:Title>
+		<form:Label label="Importar Cuenta Corriente" style="S3 LCol_w" nowrap="1" name="lblTitulo"/>
+	</form:Title>
+	<form:Center width="680px">
+		<form:Blank name="blank01"/>
+		<form:Columns name="tabla1" height="75%">
+			<form:Column name="col1" separation="2" align="center" valign="top">
+				<form:ComboBox name="oi_personal_emp_origen" nvalue="#source:@oi_personal_emp_origen" queryname2="NucleusRH.Base.Organizacion.Empresas.EMPRESA.INFO" queryname1="NucleusRH.Base.Personal.LegajoEmpresa.PERSONAL_EMP.INFO" xsize="30" mode="QRY" required="1" label="Legajo Origen">
+					<form:Event name="onchange" action="CargarTabla" runat="client"/>
+				</form:ComboBox>
+				<form:Blank name="blank02"/>
+				<form:ComboBox label="Legajo Destino" name="oi_personal_emp_destino" nvalue="#source:@oi_personal_emp_destino" queryname2="NucleusRH.Base.Organizacion.Empresas.EMPRESA.INFO" queryname1="NucleusRH.Base.Personal.LegajoEmpresa.PERSONAL_EMP.INFO" xsize="30" mode="QRY" required="1">
+					<form:Event action="CargarTabla" name="onchange" runat="client"/>
+				</form:ComboBox>
+				<form:Blank name="blank03"/>
+				<form:Label label="Cuentas Corrientes a Importar" name="labelCuenta" style="M1 LCol_t"/>
+				<form:Blank name="blank04"/>
+				<form:Grid idvalue="#source:@periodo" width="800" allowdel="0" allownew="0" paging="1" rows="5" name="MAIN_GRID" doc="source">
+					<form:GColumns>
+						<form:GColumn label="Periodo" name="colPeriodo">
+							<form:TextBox enabled="0" required="1" label="Per&#237;odo" name="periodo"/>
+						</form:GColumn>
+						<form:GColumn label="DiasGenerados" name="colDiasGenerados">
+							<form:TextBox enabled="0" label="D&#237;as Generados" name="dias_generados" required="1"/>
+						</form:GColumn>
+						<form:GColumn label="DiasPendientes" name="colDiasPendientes">
+							<form:TextBox enabled="0" label="D&#237;as Pendientes" name="dias_pendientes" required="1"/>
+						</form:GColumn>
+						<form:GColumn label="Anio" name="colAnio">
+							<form:TextBox enabled="0" label="A&#241;o" name="anio" required="1"/>
+						</form:GColumn>
+						<form:GColumn label="Estado" name="colEstado">
+							<form:TextBox enabled="0" label="Estado" name="estado" required="1"/>
+						</form:GColumn>
+					</form:GColumns>
+				</form:Grid>
+			</form:Column>
+		</form:Columns>
+	</form:Center>
+	<form:Bottom>
+		<form:RowAligner name="raBotonera">
+			<form:Row name="row1">
+				<form:Button label="Copiar CTA CTE" startvalidate="1" img="play" name="butEjecutar">
+					<form:Event action="EJECUTAR" name="onclick" runat="server"/>
+				</form:Button>
+				<form:Button label="Volver" img="back" name="butVolver">
+					<form:Event action="VOLVER" name="onclick" runat="server"/>
+				</form:Button>
+			</form:Row>
+		</form:RowAligner>
+	</form:Bottom>
+	<form:Resources>
+		<form:Resource name="QRY_CUENTA_CORRIENTE" declare="&lt;PARAM oi_personal_emp=&quot;14747&quot; /&gt;">
+			<qry:main doc="SOURCE" name="QRY_MAIN">
+				<qry:element name="RESULT">
+					<qry:insert-select name="RS1" doc-path="#SOURCE:PARAM"/>
+				</qry:element>
+			</qry:main>
+			<qry:select name="RS1" doc="SOURCE">
+				<qry:xquery>
+					for $r in SQL('
+				SELECT  
+					VAC04_PERIODOS.c_periodo,
+					VAC04_PERIODOS.d_periodo,
+					VAC01_CTA_CTE_VAC.e_dias_gen,
+					VAC01_CTA_CTE_VAC.e_dias_pend,
+					VAC01_CTA_CTE_VAC.e_ano,
+					VAC01_CTA_CTE_VAC.c_estado
+					
+				FROM
+					VAC01_CTA_CTE_VAC,
+					VAC04_PERIODOS
+				JOIN
+					VAC04_PERIODOS.oi_periodo INNER VAC01_CTA_CTE_VAC.oi_periodo
+				WHERE
+					VAC01_CTA_CTE_VAC.oi_personal_emp = {#SOURCE:@oi_personal_emp}
+				')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:element name="CUENTA">
+						<qry:attribute name="id" value="'1'"/>
+						<qry:attribute name="c_periodo" value="$r/@c_periodo"/>
+						<qry:attribute name="d_periodo" value="$r/@d_periodo"/>
+						<qry:attribute name="e_dias_gen" value="$r/@e_dias_gen"/>
+						<qry:attribute name="e_dias_pend" value="$r/@e_dias_pend"/>
+						<qry:attribute name="e_ano" value="$r/@e_ano"/>
+						<qry:switch test="$r/@c_estado">
+							<qry:case value="P">
+								<qry:attribute name="estado" value="'Presente'"/>
+							</qry:case>
+							<qry:case value="A">
+								<qry:attribute name="estado" value="'Actual'"/>
+							</qry:case>
+							<qry:case value="F">
+								<qry:attribute name="estado" value="'Futuro'"/>
+							</qry:case>
+							<qry:default>
+								<qry:attribute name="estado" value="$r/@c_estado"/>
+							</qry:default>
+						</qry:switch>
+					</qry:element>
+				</qry:out>
+			</qry:select>
+		</form:Resource>
+	</form:Resources>
+	<form:Scripts>
+		function OnLoad()
+{
+	CargarTabla();
+}
+
+function CargarTabla()
+{           
+	Ctrl("butEjecutar").SetEnabled(false);
+	
+	var np = new NomadProxy("", ut);
+	var nSQL = np.SQLService();
+	
+	var xmlParam = new NomadXML("PARAM");
+	xmlParam.SetAttr("oi_personal_emp", Ctrl("oi_personal_emp_origen").GetXValue());
+	
+	var xmlCUENTAS = nSQL.GetXML(Ctrl("main").getResource("QRY_CUENTA_CORRIENTE"), xmlParam.ToString());   
+	
+	//Limpia la Grilla
+	Ctrl("MAIN_GRID").DelAllRows();
+	
+	//Carga los Registros de las Cuentas Corrientes correspondientes al Legajo
+	for (cuenta = xmlCUENTAS.FirstChild(); cuenta != null; cuenta = cuenta.Next()) 
+		{          
+			Ctrl("MAIN_GRID").AddNew(); 
+			Ctrl("MAIN_GRID").GetCellSelectedControl("periodo").SetXValue(cuenta.GetAttr("d_periodo").toString());   
+			Ctrl("MAIN_GRID").GetCellSelectedControl("dias_generados").SetXValue(cuenta.GetAttr("e_dias_gen").toString());  
+			Ctrl("MAIN_GRID").GetCellSelectedControl("dias_pendientes").SetXValue(cuenta.GetAttr("e_dias_pend").toString());  
+			Ctrl("MAIN_GRID").GetCellSelectedControl("anio").SetXValue(cuenta.GetAttr("e_ano").toString());  
+			Ctrl("MAIN_GRID").GetCellSelectedControl("estado").SetXValue(cuenta.GetAttr("estado").toString());  
+		}      
+	
+	if(Ctrl("MAIN_GRID").RowsCount()&gt;0)
+		Ctrl("butEjecutar").SetEnabled(true);
+}
+	</form:Scripts>
+	<form:Event action="OnLoad" name="onload" runat="client"/>
+</form:Form>

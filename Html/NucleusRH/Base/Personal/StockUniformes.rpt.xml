@@ -1,0 +1,272 @@
+<html:html xmlns:html="nomad_engine.html" xmlns:qry="nomad_engine.qry" extends="Nomad.Base.BaseReport.rpt" name="NucleusRH.Base.Personal.StockUniformes" doc="source">
+	<html:query declare="&lt;DATOS oi_uniforme=&quot;12&quot; f_desde=&quot;20130220&quot; f_hasta=&quot;20130430&quot;&gt;&lt;ROWS /&gt;&lt;/DATOS&gt;">
+		<qry:main doc="PARAM">
+			<qry:append-doc name="PARAMIN" doc-path="#PARAM:DATOS"/>
+			<REPORT label="Movimientos de Stock por Uniforme">
+				<qry:attribute name="date" value="format_date(Now(),'dd/mm/yyyy HH:MM')"/>
+				<GROUPS>
+					<GROUP tag="TIT" type="title" noreg="No se encontraron registros para los filtros seleccionados.">
+						<COLS>
+							<COL name="uniforme" label="Uniforme"/>
+							<COL name="f_desde" label="Fecha Desde" type="date"/>
+							<COL name="f_hasta" label="Fecha Hasta" type="date"/>
+						</COLS>
+						<GROUP tag="MOV" type="table" noreg="No se encontraron registros de movimientos de stock.">
+							<COLS>
+								<COL name="fecha" label="Fecha" style="width:10%;text-align:right;" type="date"/>
+								<COL name="motivo" label="Motivo" style="width:15%"/>
+								<COL name="legajo" label="Legajo" style="width:30%"/>
+								<COL name="entrada" label="Entrada" style="width:10%;text-align:right;"/>
+								<COL name="salida" label="Salida" style="width:10%;text-align:right;"/>
+								<COL name="saldo" label="Saldo" style="width:10%;text-align:right;"/>
+								<COL name="observaciones" label="Observaciones" style="width:15%"/>
+							</COLS>
+						</GROUP>
+					</GROUP>
+				</GROUPS>
+				<qry:element name="DATA">
+					<qry:element name="TIT">
+						<qry:attribute value="format_date(#PARAM:DATOS/@f_desde, 'dd/mm/yyyy')" name="f_desde"/>
+						<qry:attribute value="format_date(#PARAM:DATOS/@f_hasta, 'dd/mm/yyyy')" name="f_hasta"/>
+						<qry:insert-select doc-path="#PARAM:DATOS" name="QRY_UNIFORME"/>
+						<qry:insert-select doc-path="#PARAM:DATOS" name="RS1"/>
+						<qry:insert-select doc-path="." name="RS2"/>
+						<qry:insert-select doc-path="." name="RS2_1"/>
+						<qry:insert-select doc-path="." name="RS3"/>
+						<qry:attribute name="saldo" value="number(@recuento) + number(@repuesto) + number(@devuelto) - number(@entregado)"/>
+						<MOV>
+							<qry:attribute name="entrada" value="../@entrada"/>
+							<qry:attribute name="saldo" value="../@saldo"/>
+							<qry:attribute name="motivo" value="'Saldo Inicial a la Fecha'"/>
+							<qry:attribute name="fecha" value="../@f_desde"/>
+						</MOV>
+						<qry:insert-select doc-path="#PARAM:DATOS" name="MOVIMIENTOS"/>
+					</qry:element>
+				</qry:element>
+			</REPORT>
+		</qry:main>
+		<qry:select doc="PARAM" name="QRY_UNIFORME">
+			<qry:xquery>
+				for $r in sql('
+					SELECT
+							ORG16_UNIFORMES.oi_uniforme,
+							ORG16_UNIFORMES.c_uniforme,	
+						ORG16_UNIFORMES.d_uniforme
+					FROM
+							ORG16_UNIFORMES
+					WHERE
+							ORG16_UNIFORMES.oi_uniforme = {#PARAM:@oi_uniforme} 
+		 ')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:attribute name="oi_uniforme" value="$r/@oi_uniforme"/>
+				<qry:attribute name="uniforme" value="$r/@c_uniforme + ' - ' + $r/@d_uniforme"/>
+			</qry:out>
+		</qry:select>
+		<qry:select name="RS1" doc="SOURCE">
+			<qry:xquery>
+				for $r in sql('
+   		SELECT 
+   			MAX(ORG16_UNIF_REC.f_recuento) as f_recuento,
+				ORG16_UNIF_REC.e_cantidad as cant
+			FROM 
+				ORG16_UNIF_REC
+			WHERE 
+				ORG16_UNIF_REC.oi_uniforme = {#SOURCE:@oi_uniforme}
+				AND ORG16_UNIF_REC.f_recuento &lt;= {Datetime(#SOURCE:@f_desde)} 
+			GROUP BY 
+				ORG16_UNIF_REC.e_cantidad
+			ORDER BY 
+				f_recuento ASC			
+      ')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:attribute name="recuento" value="iif($r/@cant!='', $r/@cant, '0')"/>
+				<qry:attribute name="f_recuento" value="$r/@f_recuento"/>
+			</qry:out>
+		</qry:select>
+		<qry:select name="RS2" doc="SOURCE">
+			<qry:xquery>
+				for $r in sql('
+    	SELECT 
+      	SUM(PER02_UNIF_PER.e_cantidad) as cant
+			FROM 
+				PER02_UNIF_PER
+			WHERE				
+				PER02_UNIF_PER.oi_uniforme = {#SOURCE:@oi_uniforme} AND  
+				PER02_UNIF_PER.f_desde &gt;= {Datetime(#SOURCE:@f_recuento)} AND
+				PER02_UNIF_PER.f_desde &lt;= {Datetime(#PARAMIN:@f_desde)}
+      ')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:attribute name="entregado" value="$r/@cant"/>
+			</qry:out>
+		</qry:select>
+		<qry:select name="RS2_1" doc="SOURCE">
+			<qry:xquery>
+				for $r in sql('
+    	SELECT 
+      	SUM(PER02_DEV_UNIF.e_cantidad) as cant
+			FROM 
+				PER02_DEV_UNIF, 
+				PER02_UNIF_PER
+			JOIN
+				PER02_DEV_UNIF.oi_uniforme_per INNER PER02_UNIF_PER.oi_uniforme_per
+			WHERE 				
+				PER02_DEV_UNIF.l_repone_stock = 1 AND 
+				PER02_UNIF_PER.oi_uniforme = {#SOURCE:@oi_uniforme} AND  
+				PER02_DEV_UNIF.f_dev_unif &gt;= {Datetime(#SOURCE:@f_recuento)} AND
+				PER02_DEV_UNIF.f_dev_unif &lt;= {Datetime(#PARAMIN:@f_desde)}
+      ')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:attribute name="devuelto" value="$r/@cant"/>
+			</qry:out>
+		</qry:select>
+		<qry:select name="RS3" doc="SOURCE">
+			<qry:xquery>
+				for $r in sql('
+    	SELECT 
+      	SUM(ORG16_UNIF_REP.e_cant_repuesta) as cant
+			FROM 
+				ORG16_UNIF_REP
+			WHERE 
+				ORG16_UNIF_REP.oi_uniforme = {#SOURCE:@oi_uniforme} AND  
+				ORG16_UNIF_REP.f_reposicion &gt;= {Datetime(#SOURCE:@f_recuento)} AND
+				ORG16_UNIF_REP.f_reposicion &lt;= {Datetime(#PARAMIN:@f_desde)}
+		 ')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:attribute name="repuesto" value="$r/@cant"/>
+			</qry:out>
+		</qry:select>
+		<qry:select doc="PARAM" name="MOVIMIENTOS">
+			<qry:xquery>
+				for $r in sql('
+		SELECT 
+			UNIF_PER.f_desde as fecha, 
+			UNIF_PER.e_cantidad as cant, 
+			\'ENT\' as tipo, 
+			PER02.e_numero_legajo as legajo,
+			PER01.d_ape_y_nom as apellido, 
+			\'Entrega\' as motivo,
+			UNIF_PER.o_uniforme_per,
+			PER37_MOT_ENTREGA.d_mot_entrega as d_motivo
+		FROM 
+			PER02_PERSONAL_EMP AS PER02,
+			PER01_PERSONAL AS PER01,
+			PER02_UNIF_PER AS UNIF_PER,
+			PER37_MOT_ENTREGA
+		JOIN
+			PER02.oi_personal INNER PER01.oi_personal,
+			PER02.oi_personal_emp INNER UNIF_PER.oi_personal_emp,
+			UNIF_PER.oi_mot_entrega LEFT OUTER PER37_MOT_ENTREGA.oi_mot_entrega
+		WHERE 
+			UNIF_PER.oi_uniforme = {#PARAM:@oi_uniforme} AND
+			UNIF_PER.f_desde &gt; {Datetime(#PARAM:@f_desde)} AND
+			UNIF_PER.f_desde &lt;= {Datetime(#PARAM:@f_hasta)}
+		UNION
+		SELECT 
+			PER02_DEV_UNIF.f_dev_unif as fecha, 
+			PER02_DEV_UNIF.e_cantidad as cant, 
+			\'DEV\' as tipo, 
+			PER02_PERSONAL_EMP.e_numero_legajo as legajo,
+			PER01_PERSONAL.d_ape_y_nom as apellido,
+			\'Devoluci&#243;n\' as motivo,
+			PER02_UNIF_PER.o_uniforme_per,
+			PER38_MOT_DEVOLUCION.d_mot_devolucion as d_motivo
+		FROM 
+			PER02_PERSONAL_EMP,
+			PER01_PERSONAL,
+			PER02_UNIF_PER,
+			PER02_DEV_UNIF,
+			PER38_MOT_DEVOLUCION
+	  JOIN
+	  	PER02_DEV_UNIF.oi_uniforme_per INNER PER02_UNIF_PER.oi_uniforme_per,
+	  	PER02_PERSONAL_EMP.oi_personal INNER PER01_PERSONAL.oi_personal,
+			PER02_PERSONAL_EMP.oi_personal_emp INNER PER02_UNIF_PER.oi_personal_emp,
+			PER02_DEV_UNIF.oi_mot_devolucion LEFT OUTER PER38_MOT_DEVOLUCION.oi_mot_devolucion 
+		WHERE 
+			PER02_UNIF_PER.oi_uniforme = {#PARAM:@oi_uniforme} AND
+			PER02_DEV_UNIF.f_dev_unif &gt; {Datetime(#PARAM:@f_desde)} AND
+			PER02_DEV_UNIF.f_dev_unif &lt;= {Datetime(#PARAM:@f_hasta)} AND
+			PER02_DEV_UNIF.l_repone_stock  = 1
+		UNION
+		SELECT 
+			ORG16_UNIF_REP.f_reposicion as fecha, 
+			ORG16_UNIF_REP.e_cant_repuesta as cant, 
+			\'REP\' as tipo, 
+			null as legajo,
+			null as apellido, 
+			\'Reposici&#243;n\' as motivo,
+			null as o_uniforme_per,
+			null as d_motivo
+		FROM 
+			ORG16_UNIF_REP
+		WHERE 
+			ORG16_UNIF_REP.oi_uniforme = {#PARAM:@oi_uniforme} AND
+			ORG16_UNIF_REP.f_reposicion &gt; {Datetime(#PARAM:@f_desde)} AND
+			ORG16_UNIF_REP.f_reposicion &lt;= {Datetime(#PARAM:@f_hasta)} 
+		UNION
+		SELECT 
+			ORG16_UNIF_REC.f_recuento as fecha, 
+			ORG16_UNIF_REC.e_cantidad as cant, 
+			\'REC\' as tipo, 
+			null as legajo, 
+			null as apellido,
+			\'Recuento\' as motivo,
+			null as o_uniforme_per,
+			null as d_motivo
+		FROM 
+			ORG16_UNIF_REC
+		WHERE 
+			ORG16_UNIF_REC.oi_uniforme = {#PARAM:@oi_uniforme} AND
+			ORG16_UNIF_REC.f_recuento &gt; {Datetime(#PARAM:@f_desde)} AND
+			ORG16_UNIF_REC.f_recuento &lt;= {Datetime(#PARAM:@f_hasta)}
+	 	ORDER BY 
+			fecha ASC
+	')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:if test="$r/@tipo = 'ENT'">
+					<qry:then>
+						<qry:attribute name="saldo" value="number(@saldo) - number($r/@cant)"/>
+						<qry:attribute name="salida" value="number($r/@cant)"/>
+						<qry:attribute name="entrada" value="''"/>
+					</qry:then>
+				</qry:if>
+				<qry:if test="$r/@tipo = 'DEV'">
+					<qry:then>
+						<qry:attribute name="saldo" value="number(@saldo) + number($r/@cant)"/>
+						<qry:attribute name="entrada" value="number($r/@cant)"/>
+						<qry:attribute name="salida" value="''"/>
+					</qry:then>
+				</qry:if>
+				<qry:if test="$r/@tipo = 'REC'">
+					<qry:then>
+						<qry:attribute name="entrada" value="number($r/@cant)"/>
+						<qry:attribute name="saldo" value="number($r/@cant)"/>
+						<qry:attribute name="salida" value="''"/>
+					</qry:then>
+				</qry:if>
+				<qry:if test="$r/@tipo = 'REP'">
+					<qry:then>
+						<qry:attribute name="entrada" value="number($r/@cant)"/>
+						<qry:attribute name="saldo" value="number(@saldo) + number($r/@cant)"/>
+						<qry:attribute name="salida" value="''"/>
+					</qry:then>
+				</qry:if>
+				<qry:element name="MOV">
+					<qry:attribute name="fecha" value="format_date($r/@fecha, 'dd/mm/yyyy')"/>
+					<qry:attribute name="legajo" value="iif($r/@legajo!='', $r/@legajo + ' - ' + $r/@apellido, '')"/>
+					<qry:attribute name="tipo" value="$r/@tipo"/>
+					<qry:attribute name="motivo" value="iif($r/@d_motivo!='', $r/@motivo + ' - ' +$r/@d_motivo, $r/@motivo)"/>
+					<qry:attribute name="entrada" value="../@entrada"/>
+					<qry:attribute name="salida" value="../@salida"/>
+					<qry:attribute name="saldo" value="../@saldo"/>
+					<qry:attribute name="o_uniforme_per" value="$r/@o_uniforme_per"/>
+				</qry:element>
+			</qry:out>
+		</qry:select>
+	</html:query>
+</html:html>

@@ -1,0 +1,89 @@
+<flow:flow xmlns:flow="nomad_engine.flow" xmlns:doc="nomad_engine.doc" xmlns:qry="nomad_engine.qry" extends="Nomad.Base.interface.batch.flow" name="NucleusRH.Base.Tiempos_Trabajados.Liquidacion_Personas.CONCEPTOS.flow">
+	<flow:info label="flow para NucleusRH.Base.Tiempos_Trabajados.Liquidacion_Personas.CONCEPTOS"/>
+	<flow:declare>
+		<doc:define name="FILTERDATA">
+			<FILTRO>
+				<PERSONAS/>
+			</FILTRO>
+		</doc:define>
+		<doc:define name="CONCEPTOS"/>
+		<qry:define declare="&lt;FILTRO gcustom=&quot;&quot; formato=&quot;N&quot; oi_liquidacion=&quot;5&quot; gpers=&quot;&quot; empresa=&quot;1&quot; activos=&quot;1&quot; nombre=&quot;&quot; documento=&quot;&quot; sexo=&quot;&quot; grupo_sanguineo=&quot;&quot; listlegajos=&quot;&quot; oi_indic_activo=&quot;&quot; egresado=&quot;&quot; oi_forma_pago=&quot;&quot; oi_tipo_personal=&quot;&quot; leg_list=&quot;&quot; leg_desde1=&quot;&quot; leg_desde2=&quot;&quot; leg_desde3=&quot;&quot; leg_hasta1=&quot;&quot; leg_hasta2=&quot;&quot; leg_hasta3=&quot;&quot; oi_centro_costo=&quot;&quot; oi_categoria=&quot;&quot; soloconvenio=&quot;&quot; oi_ubicacion_desde=&quot;&quot; oi_ubicacion_hasta=&quot;&quot; oi_estructura=&quot;&quot; escructura_childs=&quot;&quot; oi_afjp=&quot;&quot; oi_obra_social=&quot;&quot; oi_sindicato=&quot;&quot; legajo_reloj_desde=&quot;&quot; legajo_reloj_hasta=&quot;&quot; chksinreloj=&quot;&quot; tarjeta_desde=&quot;&quot; tarjeta_hasta=&quot;&quot; chksintarjeta=&quot;&quot; oi_horario=&quot;&quot; oi_escuadra=&quot;&quot; tipo=&quot;&quot; legID=&quot;11&quot;&gt;&lt;PERSONAS nmd-col=&quot;1&quot;&gt;&lt;ROW VALUES=&quot;11,36,37,48,64,90,121,139,178,179,181,210,220,233,238,242,252,370,384,407,415,447,492,509,510,544,578,586,588,636,670,681,692,693,697,703,711,713,723,730,755,789,801,818,830,831,846,883,903,934,947,983,1001,1002,1030,1038,1043,1046,1047,1048,1093,1097,1130,1137,1160,1275,1285,1318,1345,1360,1361,1369,1371,1380,1400,1401,1415,1452,1453,1465,1488,1490,1562,1594,1595,1605,1610,1614,1619,1623,1652,1656,1659,1660,1664,1672,1675,1677,1682,1690&quot; /&gt;&lt;ROW VALUES=&quot;1697,1698,1699,1701,1702,1703,1705,1712,1719,1729,1733,1751,1756,1759,1765,1770,1778,1795,1800,1801,1853,1870,1879,1880,1884,1885,1886,1894,1896,1911,1938,1942,1943,1961,1970,1977,1991,1995,1997,2003,2004,2041,2042,2048,2055,2074,2093,2094,2101,2104,2106,2118,2151,2154,2155,2156,2157,2168,2174,2178,2179,2184,2186,2192,2194,2195,2204,2212,2217,2220,2224,2292,2293,2298,2316,2456,2497,2498&quot; /&gt;&lt;/PERSONAS&gt;&lt;/FILTRO&gt;" name="QRY_CONCEPTOS">
+			<qry:main doc="PARAM">
+				<qry:append-doc name="FILTRO" doc-path="#PARAM:/FILTRO"/>
+				<qry:element name="ROWS">
+					<qry:insert-select name="QRY_CONCEPTOS" doc-path="#PARAM:FILTRO/PERSONAS/ROW"/>
+				</qry:element>
+			</qry:main>
+			<qry:select doc="PARAM" name="QRY_CONCEPTOS">
+				<qry:xquery>
+					for $r in sql('
+				SELECT 					
+					TTA10_LIQUIDACPERS.oi_liquidacionpers,					
+					TTA15_CONCEPTOS.c_externo,					
+					SUM(TTA10_CONC_PER.n_valor) as n_valor,										
+					PER02_PERSONAL_EMP.e_numero_legajo
+				FROM 
+					TTA10_CONC_PER, 
+					TTA10_LIQUIDACPERS, 
+					TTA15_CONCEPTOS,
+					PER02_PERSONAL_EMP					
+				JOIN 
+					TTA10_CONC_PER.oi_liquidacionpers INNER TTA10_LIQUIDACPERS.oi_liquidacionpers,
+					TTA10_CONC_PER.oi_concepto INNER TTA15_CONCEPTOS.oi_concepto,
+					TTA10_LIQUIDACPERS.oi_personal_emp INNER PER02_PERSONAL_EMP.oi_personal_emp
+				WHERE 
+					TTA10_LIQUIDACPERS.oi_liquidacion = {#FILTRO:@oi_liquidacion} 
+					{%? (string(#PARAM:@VALUES)!='') {% AND TTA10_LIQUIDACPERS.oi_personal_emp in ({%=string(#PARAM:@VALUES) %}) %} {%  %} %}
+					AND len(TTA15_CONCEPTOS.c_externo)&gt;0
+					AND TTA10_CONC_PER.n_valor != 0
+				GROUP BY            					
+					TTA10_LIQUIDACPERS.oi_liquidacionpers,					
+					TTA15_CONCEPTOS.c_externo,
+					PER02_PERSONAL_EMP.e_numero_legajo					
+			')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:if test="$r/@n_valor != '0'">
+						<qry:then>
+							<qry:element name="ROW">
+								<qry:attribute value="$r/@oi_liquidacionpers" name="oi_liquidacionpers"/>
+								<qry:attribute value="$r/@e_numero_legajo" name="e_numero_legajo"/>
+								<qry:attribute value="$r/@c_externo" name="c_externo"/>
+								<qry:attribute value="$r/@n_valor" name="cantidad"/>
+							</qry:element>
+						</qry:then>
+					</qry:if>
+				</qry:out>
+			</qry:select>
+		</qry:define>
+	</flow:declare>
+	<flow:main doc="SOURCE">
+		<flow:action name="initialize">
+			<flow:open-form doc-path="#FILTERDATA:" form-class="NucleusRH.Base.Tiempos_Trabajados.Liquidacion_Personas.CONCEPTOS.form" mode="FILTER"/>
+		</flow:action>
+	</flow:main>
+	<flow:form parent-doc="PARENTSOURCE" doc="SOURCE" mode="FILTER" name="NucleusRH.Base.Tiempos_Trabajados.Liquidacion_Personas.CONCEPTOS.form:FILTER" form-class="NucleusRH.Base.Tiempos_Trabajados.Liquidacion_Personas.CONCEPTOS.form">
+		<flow:action name="on-show">
+			<flow:call-action action="Load-FILTER"/>
+		</flow:action>
+		<flow:action name="BACK">
+			<flow:close-form/>
+		</flow:action>
+		<flow:action name="ACCEPT">
+			<flow:call-action action="Save-FILTER"/>
+			<flow:log text-path="#SOURCE:" text="PPSOURCE"/>
+			<flow:exec-method method="GenerarArchivo" priority="5" out-type="String" out-attr-path="#BATCHDOC:@batch-id" class="NucleusRH.Base.Tiempos_Trabajados.Conceptos.CONCEPTO">
+				<flow:param doc-path="#SOURCE:" type="Nomad.NSystem.Proxy.NomadXML" name="param" mode="in"/>
+				<flow:param attr-path="#SOURCE:@formato" type="Nomad.NSystem.String" mode="in" name="Mode"/>
+			</flow:exec-method>
+			<flow:open-form form-class="NucleusRH.Base.Tiempos_Trabajados.Liquidacion_Personas.CONCEPTOS.batch.form" mode="SHOW" doc-path="#BATCHDOC:"/>
+		</flow:action>
+		<flow:action name="Save-FILTER">
+			<flow:save-user-data name="FILTER-NucleusRH.Base.Tiempos_Trabajados.Liquidacion_Personas.CONCEPTOS" doc-path="#FILTERDATA:"/>
+		</flow:action>
+		<flow:action name="Load-FILTER">
+			<flow:load-user-data name="FILTER-NucleusRH.Base.Tiempos_Trabajados.Liquidacion_Personas.CONCEPTOS" doc="FILTERDATA"/>
+		</flow:action>
+	</flow:form>
+	<flow:form extends="Nomad.Base.interface.batch.form:SHOW" mode="SHOW" name="NucleusRH.Base.Tiempos_Trabajados.Liquidacion_Personas.CONCEPTOS.batch.form:SHOW" form-class="NucleusRH.Base.Tiempos_Trabajados.Liquidacion_Personas.CONCEPTOS.batch.form" doc="SOURCE"/>
+</flow:flow>

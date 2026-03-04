@@ -1,0 +1,463 @@
+<html:html xmlns:html="nomad_engine.html" xmlns:qry="nomad_engine.qry" extends="Nomad.Base.BaseReport.rpt" doc="source" name="NucleusRH.Base.Liquidacion.">
+	<html:query declare="&lt;DATOS oi_empresa=&quot;192&quot; salida=&quot;HTML&quot; oi_liquidacion=&quot;77&quot; oi_variable=&quot;&quot; report=&quot;&quot; oi_tipo_concepto=&quot;1&quot; oi_ubicaciondesde=&quot;1&quot; oi_ubicacionhasta=&quot;20&quot; gcustom=&quot;&quot; e_periodo=&quot;200808&quot; gconceptos=&quot;&quot; l_mostrarTodos=&quot;1&quot;&gt;&lt;ROWS&gt;&lt;/ROWS&gt;&lt;/DATOS&gt;">
+		<qry:main doc="SOURCE">
+			<qry:append-doc name="PARAMIN" doc-path="#SOURCE:DATOS"/>
+			<REPORT label="Listado de Conceptos por Personas">
+				<qry:attribute name="date" value="format_date(Now(),'dd/mm/yyyy HH:MM')"/>
+				<GROUPS>
+					<GROUP tag="EMP" type="title" style="width:95%;">
+						<COLS>
+							<COL name="d_empresa" label="Empresa"/>
+							<COL name="e_periodo" label="Periodo"/>
+							<qry:if test="#PARAMIN:@oi_tipo_concepto!=''">
+								<qry:then>
+									<COL name="tipo_concepto" label="Tipo de concepto"/>
+								</qry:then>
+							</qry:if>
+							<qry:if test="#PARAMIN:@oi_ubicaciondesde!=''">
+								<qry:then>
+									<COL name="ubic_des" label="Ubicaci&#243;n Desde"/>
+								</qry:then>
+							</qry:if>
+							<qry:if test="#PARAMIN:@oi_ubicacionhasta!=''">
+								<qry:then>
+									<COL name="ubic_has" label="Ubicaci&#243;n Hasta"/>
+								</qry:then>
+							</qry:if>
+							<COL name="l_mostrarTodos" label="Mostrar todos los conceptos activos">
+								<OPT id="0" value="No"/>
+								<OPT id="1" value="Si"/>
+							</COL>
+						</COLS>
+						<GROUP tag="LIQ" style="padding-left:50px;" type="table">
+							<COLS>
+								<COL name="c_liquidacion" label="C&#243;digo"/>
+								<COL name="d_liquidacion" label="Titulo"/>
+								<COL name="o_liquidacion" label="Obervaciones"/>
+							</COLS>
+						</GROUP>
+						<GROUP tag="PER" style="padding-left:50px;" type="table">
+							<COLS>
+								<COL auto="0" name="e_numero_legajo" label="Legajo"/>
+								<COL auto="0" name="d_ape_y_nom" label="Apellido y Nombre"/>
+								<COL auto="0" name="c_cuil" label="CUIL"/>
+								<COL auto="0" name="d_centro_costo" label="Centro de costos"/>
+								<COL auto="0" name="d_obra_social" label="Obra Social"/>
+								<qry:insert-select name="qry_conceptos" doc-path="#SOURCE:DATOS"/>
+								<COL auto="0" name="tot_pag" label="Total" type="num"/>
+							</COLS>
+							<FCOLS>
+								<COL auto="0" name="e_numero_legajo" label="Legajo"/>
+								<COL auto="0" name="d_ape_y_nom" label="Apellido y Nombre"/>
+								<COL auto="0" name="c_cuil" label="CUIL"/>
+								<COL auto="0" name="d_centro_costo" label="Centro de costos"/>
+								<COL auto="0" name="d_obra_social" label="Obra Social"/>
+								<qry:insert-select name="qry_conceptos1" doc-path="#SOURCE:DATOS"/>
+								<COL auto="0" name="tot_pag" label="Total" type="num"/>
+							</FCOLS>
+							<qry:append-doc name="CONCEPTOS" doc-path="."/>
+						</GROUP>
+					</GROUP>
+				</GROUPS>
+				<qry:element name="DATA">
+					<qry:element name="EMP">
+						<qry:insert-select name="qry_ubicdesde"/>
+						<qry:insert-select name="qry_ubichasta"/>
+						<qry:append-doc name="UBICACION" doc-path="."/>
+						<qry:insert-select name="qry_cabecera"/>
+						<qry:insert-select name="qry_tipo_concepto"/>
+						<qry:attribute name="ubic_des" value="(@c_ubicaciondesde) + ' - ' + (@d_ubicaciondesde)"/>
+						<qry:attribute name="ubic_has" value="(@c_ubicacionhasta) + ' - ' + (@d_ubicacionhasta)"/>
+					</qry:element>
+				</qry:element>
+			</REPORT>
+		</qry:main>
+		<qry:select name="qry_tipo_concepto" doc="SOURCE">
+			<qry:xquery>
+				for $r in sql('
+SELECT 
+  LIQ12_TIPOS_CONC.c_tipo_concepto
+  , LIQ12_TIPOS_CONC.d_tipo_concepto
+  , LIQ12_TIPOS_CONC.oi_tipo_concepto
+FROM 
+  LIQ12_TIPOS_CONC
+WHERE
+  LIQ12_TIPOS_CONC.oi_tipo_concepto = {#PARAMIN:@oi_tipo_concepto}
+			')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:attribute name="tipo_concepto" value="$r/@c_tipo_concepto + ' - ' + $r/@d_tipo_concepto" type="Nomad.NSystem.Int"/>
+			</qry:out>
+		</qry:select>
+		<qry:select name="qry_cabecera" doc="SOURCE">
+			<qry:xquery>
+				for $r in sql('
+SELECT 
+	ORG03_EMPRESAS.d_empresa
+	, ORG03_EMPRESAS.c_empresa
+FROM 
+	ORG03_EMPRESAS
+WHERE
+	ORG03_EMPRESAS.oi_empresa = {#PARAMIN:@oi_empresa}
+			')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:attribute name="d_empresa" value="$r/@c_empresa + ' - ' + $r/@d_empresa" type="Nomad.NSystem.Int"/>
+				<qry:attribute name="e_periodo" value="format_date(#PARAMIN:@e_periodo+'01','mm/yyyy')" type="Nomad.NSystem.Int"/>
+				<qry:attribute name="l_mostrarTodos" value="#PARAMIN:@l_mostrarTodos" type="Nomad.NSystem.Int"/>
+				<qry:insert-select name="qry_liquidacion"/>
+				<qry:insert-select name="qry_personas"/>
+				<qry:attribute name="tot_pag" value="0"/>
+				<qry:attribute name="d_ape_y_nom" value="'Total'"/>
+				<qry:insert-select name="qry_totales" doc-path="."/>
+				<qry:insert-select name="qry_totales3" doc-path="."/>
+			</qry:out>
+		</qry:select>
+		<qry:select name="qry_liquidacion" doc="SOURCE">
+			<qry:xquery>
+				for $r in sql('
+SELECT 
+	LIQ19_LIQUIDACION.c_liquidacion
+	, LIQ19_LIQUIDACION.o_liquidacion
+	, LIQ19_LIQUIDACION.d_titulo
+FROM 
+	LIQ19_LIQUIDACION
+WHERE
+	LIQ19_LIQUIDACION.e_periodo = {#PARAMIN:@e_periodo}
+	AND LIQ19_LIQUIDACION.oi_empresa = {#PARAMIN:@oi_empresa}
+	{%? (#PARAMIN:@l_simulacion!='') {% AND LIQ19_LIQUIDACION.l_simulacion = {#PARAMIN:@l_simulacion} %} {% %} %}
+	{%? (#PARAMIN:@oi_liquidacion!='') {% AND LIQ19_LIQUIDACION.oi_liquidacion = {#PARAMIN:@oi_liquidacion} %} {% %} %}
+			')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<LIQ>
+					<qry:attribute name="c_liquidacion" value="$r/@c_liquidacion" type="Nomad.NSystem.String"/>
+					<qry:attribute name="d_liquidacion" value="$r/@d_titulo" type="Nomad.NSystem.String"/>
+					<qry:attribute name="o_liquidacion" value="$r/@o_liquidacion" type="Nomad.NSystem.String"/>
+				</LIQ>
+			</qry:out>
+		</qry:select>
+		<qry:select name="qry_conceptos" doc="SOURCE">
+			<qry:xquery>
+				for $r in sql(' 
+SELECT     
+	LIQ96_CONCEPTOS.c_concepto
+	, max(LIQ96_CONCEPTOS.d_concepto) as d_concepto
+	, LIQ12_TIPOS_CONC.e_orden
+FROM         
+	LIQ99_LIQUIDACION AS LF
+	, LIQ20_CONC_LIQ_PER
+	, LIQ19_EJECUCIONES 
+	, LIQ19_LIQUIDACION
+	, LIQ96_CONCEPTOS 
+	, LIQ12_TIPOS_CONC
+	, LIQ99_RECIBOS AS R
+	, LIQ20_TOT_LIQ_PER AS TLP
+JOIN
+	LF.oi_liquidacion_ddo INNER LIQ19_EJECUCIONES.oi_liquidacion_ddo 
+	, LIQ19_LIQUIDACION.oi_liquidacion INNER LIQ19_EJECUCIONES.oi_liquidacion
+	, LF.oi_liquidacion_ddo INNER R.oi_liquidacion_ddo 
+	, R.oi_tot_liq_per INNER TLP.oi_tot_liq_per 
+	, LIQ96_CONCEPTOS.c_tipo_concepto INNER LIQ12_TIPOS_CONC.c_tipo_concepto 
+	, TLP.oi_tot_liq_per INNER LIQ20_CONC_LIQ_PER.oi_tot_liq_per 
+	, LIQ20_CONC_LIQ_PER.oi_concepto_ddo INNER LIQ96_CONCEPTOS.oi_concepto_ddo
+WHERE
+	LF.c_estado = \'F\'
+	AND LIQ19_LIQUIDACION.oi_empresa = {#PARAMIN:@oi_empresa}
+	AND LIQ19_LIQUIDACION.e_periodo = {#PARAMIN:@e_periodo}
+	AND LIQ12_TIPOS_CONC.l_nolistado = 0    
+	{%? (#PARAMIN:@oi_liquidacion!='')	{% AND LIQ19_LIQUIDACION.oi_liquidacion = {#PARAMIN:@oi_liquidacion} %} {% %} %}
+	{%? (#PARAMIN:@oi_tipo_concepto!='')	{% AND LIQ12_TIPOS_CONC.oi_tipo_concepto = {#PARAMIN:@oi_tipo_concepto} %} {% %} %}
+	{%? (string(#PARAMIN:ROWS/ROW/@id)!='') {% AND LIQ96_CONCEPTOS.c_concepto in (Select L.c_concepto from LIQ14_CONCEPTOS as L where L.oi_concepto in ({%=string(#PARAMIN:ROWS/ROW/@id) %})) %} {%  %} %}
+GROUP BY
+	LIQ12_TIPOS_CONC.e_orden
+	, LIQ96_CONCEPTOS.c_concepto
+
+	{%? (string(#PARAMIN:@l_mostrarTodos)='1') 
+		{% UNION 
+		SELECT 
+			L14b.c_concepto 
+			, L14b.d_concepto
+			, L12b.e_orden 
+		FROM 
+			LIQ14_CONCEPTOS as L14b
+			, LIQ12_TIPOS_CONC as L12b
+		where 
+			L14b.oi_tipo_concepto = L12b.oi_tipo_concepto
+			AND L12b.l_nolistado = 0
+			AND L14b.l_activo = 1	
+			{%? (#PARAMIN:@oi_tipo_concepto!='')	{% AND L12b.oi_tipo_concepto = {#PARAMIN:@oi_tipo_concepto} %} {% %} %}
+			{%? (string(#PARAMIN:ROWS/ROW/@id)!='') {% AND L14b.oi_concepto in ({%=string(#PARAMIN:ROWS/ROW/@id) %}) %} {%  %} %}
+		%} 
+		{%  %} 
+	%}	
+
+
+ORDER BY
+	e_orden ASC, c_concepto ASC')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:element name="COL">
+					<qry:attribute name="name" value="$r/@c_concepto"/>
+					<qry:attribute name="label" value="'[' + $r/@c_concepto + ']' + $r/@d_concepto"/>
+					<qry:attribute name="type" value="'num'"/>
+					<qry:attribute name="auto" value="1"/>
+					<qry:attribute name="style" value="'width:100px'"/>
+				</qry:element>
+			</qry:out>
+		</qry:select>
+		<qry:select name="qry_conceptos1" doc="SOURCE">
+			<qry:xquery>
+				for $r in sql(' 
+SELECT     
+	LIQ96_CONCEPTOS.c_concepto
+	, max(LIQ96_CONCEPTOS.d_concepto) as d_concepto
+	, LIQ12_TIPOS_CONC.e_orden
+FROM         
+	LIQ99_LIQUIDACION AS LF
+	, LIQ19_LIQUIDACION	
+	, LIQ20_CONC_LIQ_PER
+	, LIQ19_EJECUCIONES 
+	, LIQ96_CONCEPTOS 
+	, LIQ12_TIPOS_CONC
+	, LIQ99_RECIBOS AS R
+	, LIQ20_TOT_LIQ_PER AS TLP	
+JOIN
+	LF.oi_liquidacion_ddo INNER LIQ19_EJECUCIONES.oi_liquidacion_ddo 
+	, LIQ19_LIQUIDACION.oi_liquidacion INNER LIQ19_EJECUCIONES.oi_liquidacion	
+	, LF.oi_liquidacion_ddo INNER R.oi_liquidacion_ddo 
+	, R.oi_tot_liq_per INNER TLP.oi_tot_liq_per 
+	, LIQ96_CONCEPTOS.c_tipo_concepto INNER LIQ12_TIPOS_CONC.c_tipo_concepto 
+	, TLP.oi_tot_liq_per INNER LIQ20_CONC_LIQ_PER.oi_tot_liq_per 
+	, LIQ20_CONC_LIQ_PER.oi_concepto_ddo INNER LIQ96_CONCEPTOS.oi_concepto_ddo
+WHERE
+  LF.c_estado = \'F\'
+	AND LIQ19_LIQUIDACION.oi_empresa = {#PARAMIN:@oi_empresa}
+	AND LIQ19_LIQUIDACION.e_periodo = {#PARAMIN:@e_periodo}
+	AND LIQ12_TIPOS_CONC.l_nolistado = 0    
+	{%? (#PARAMIN:@oi_liquidacion!='')	{% AND LIQ19_LIQUIDACION.oi_liquidacion = {#PARAMIN:@oi_liquidacion} %} {% %} %}
+	{%? (#PARAMIN:@oi_tipo_concepto!='')	{% AND LIQ12_TIPOS_CONC.oi_tipo_concepto = {#PARAMIN:@oi_tipo_concepto} %} {% %} %}
+	{%? (string(#PARAMIN:ROWS/ROW/@id)!='') {% AND LIQ96_CONCEPTOS.c_concepto in (Select L.c_concepto from LIQ14_CONCEPTOS as L where L.oi_concepto in ({%=string(#PARAMIN:ROWS/ROW/@id) %})) %} {%  %} %}
+GROUP BY
+	LIQ12_TIPOS_CONC.e_orden
+	, LIQ96_CONCEPTOS.c_concepto
+
+	{%? (string(#PARAMIN:@l_mostrarTodos)='1') 
+		{% UNION 
+		SELECT 
+			L14b.c_concepto 
+			, L14b.d_concepto
+			, L12b.e_orden 
+		FROM 
+			LIQ14_CONCEPTOS as L14b
+			, LIQ12_TIPOS_CONC as L12b
+		where 
+			L14b.oi_tipo_concepto = L12b.oi_tipo_concepto
+			AND L12b.l_nolistado = 0
+			AND L14b.l_activo = 1	
+			{%? (#PARAMIN:@oi_tipo_concepto!='')	{% AND L12b.oi_tipo_concepto = {#PARAMIN:@oi_tipo_concepto} %} {% %} %}
+			{%? (string(#PARAMIN:ROWS/ROW/@id)!='') {% AND L14b.oi_concepto in ({%=string(#PARAMIN:ROWS/ROW/@id) %}) %} {%  %} %}
+		%} 
+		{%  %} 
+	%}	
+		
+ORDER BY
+	e_orden ASC, c_concepto ASC
+	')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:element name="COL">
+					<qry:attribute name="name" value="$r/@c_concepto"/>
+					<qry:attribute name="label" value="$r/@d_concepto"/>
+					<qry:attribute name="type" value="'num'"/>
+					<qry:attribute name="style" value="'text-align:right;'"/>
+				</qry:element>
+			</qry:out>
+		</qry:select>
+		<qry:select doc="PARAM" name="SECURITY">
+			<qry:xquery>
+				for $r in sql('
+				SELECT NMD_SECURITY.policy 
+				FROM NMD_SECURITY 
+				WHERE NMD_SECURITY.class=\'NucleusRH.Base.Liquidacion.Variables.VARIABLE\' 
+				AND NMD_SECURITY.id={#PARAM:@id}')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:attribute value="$r/@policy" name="policy"/>
+			</qry:out>
+		</qry:select>
+		<qry:select name="qry_personas" doc="SOURCE">
+			<qry:xquery>
+				for $r in sql(' 
+SELECT     
+	LIQ97_PERSONAL_EMP.e_numero_legajo
+	, max(LIQ97_PERSONAL_EMP.d_ape_y_nom) AS d_ape_y_nom
+	, max(ORG08_CS_COSTO.d_centro_costo) AS d_centro_costo
+	, max(LIQ97_PERSONAL_EMP.c_nro_cuil) AS c_cuil
+	, max(PER06_OBRAS_SOC.d_obra_social) AS d_obra_social
+FROM         
+	LIQ99_LIQUIDACION
+	, LIQ19_LIQUIDACION
+	, LIQ19_EJECUCIONES
+	, LIQ99_RECIBOS
+	, LIQ20_TOT_LIQ_PER
+	, LIQ97_PERSONAL_EMP
+	, ORG08_CS_COSTO
+	, PER06_OBRAS_SOC
+JOIN
+	LIQ99_LIQUIDACION.oi_liquidacion_ddo INNER LIQ19_EJECUCIONES.oi_liquidacion_ddo 
+	, LIQ19_EJECUCIONES.oi_liquidacion INNER LIQ19_LIQUIDACION.oi_liquidacion
+	, LIQ99_LIQUIDACION.oi_liquidacion_ddo INNER LIQ99_RECIBOS.oi_liquidacion_ddo 	
+	, LIQ20_TOT_LIQ_PER.oi_per_emp_ddo INNER LIQ97_PERSONAL_EMP.oi_per_emp_ddo
+	, LIQ99_RECIBOS.oi_tot_liq_per INNER LIQ20_TOT_LIQ_PER.oi_tot_liq_per
+	, LIQ97_PERSONAL_EMP.c_centro_costo_ult LEFT OUTER ORG08_CS_COSTO.c_centro_costo
+	, LIQ97_PERSONAL_EMP.c_obra_social LEFT OUTER PER06_OBRAS_SOC.c_obra_social
+WHERE
+	LIQ19_LIQUIDACION.oi_empresa = {#PARAMIN:@oi_empresa}
+	{%? (#PARAMIN:@oi_liquidacion!='')	{% AND LIQ19_LIQUIDACION.oi_liquidacion = {#PARAMIN:@oi_liquidacion} %} {% %} %}
+	AND LIQ19_LIQUIDACION.e_periodo = {#PARAMIN:@e_periodo}
+	AND LIQ99_LIQUIDACION.c_estado = \'F\'	
+	{%? (#UBICACION:@c_ubicaciondesde!='') 
+  	{% AND LIQ97_PERSONAL_EMP.c_ubicacion &gt;= {#UBICACION:@c_ubicaciondesde} %} 
+  	{%  %}
+  %}
+  {%? (#UBICACION:@c_ubicacionhasta!='') 
+  	{% AND LIQ97_PERSONAL_EMP.c_ubicacion &lt;= {#UBICACION:@c_ubicacionhasta} %} 
+  	{%  %}
+  %}	
+GROUP BY 
+	LIQ97_PERSONAL_EMP.e_numero_legajo
+ORDER BY 
+	e_numero_legajo ASC	
+			')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:element name="PER">
+					<qry:attribute name="e_numero_legajo" value="$r/@e_numero_legajo"/>
+					<qry:attribute name="d_ape_y_nom" value="$r/@d_ape_y_nom"/>
+					<qry:attribute name="c_cuil" value="$r/@c_cuil"/>
+					<qry:attribute name="d_centro_costo" value="$r/@d_centro_costo"/>
+					<qry:attribute name="d_obra_social" value="$r/@d_obra_social"/>
+					<qry:attribute name="tot_pag" value="0"/>
+					<qry:attribute name="total" value="0"/>
+					<qry:insert-select name="qry_conceptos_PER" doc-path="$r"/>
+				</qry:element>
+			</qry:out>
+		</qry:select>
+		<qry:select name="qry_conceptos_PER" doc="SOURCE">
+			<qry:xquery>
+				for $r in sql(' 
+SELECT     
+	LIQ12_TIPOS_CONC.oi_tipo_concepto
+	, LIQ14_CONCEPTOS.c_concepto
+	, sum(LIQ20_CONC_LIQ_PER.n_cantidad) AS n_cantidad
+FROM         
+	LIQ14_CONCEPTOS 
+	, LIQ12_TIPOS_CONC 
+	, LIQ20_CONC_LIQ_PER
+	, LIQ96_CONCEPTOS 
+	, LIQ99_LIQUIDACION
+	, LIQ19_LIQUIDACION
+	, LIQ19_EJECUCIONES
+	, LIQ99_RECIBOS
+	, LIQ20_TOT_LIQ_PER
+	, LIQ97_PERSONAL_EMP 
+
+JOIN
+	LIQ14_CONCEPTOS.oi_tipo_concepto INNER LIQ12_TIPOS_CONC.oi_tipo_concepto 
+	, LIQ20_CONC_LIQ_PER.oi_concepto_ddo INNER LIQ96_CONCEPTOS.oi_concepto_ddo
+	, LIQ14_CONCEPTOS.c_concepto INNER LIQ96_CONCEPTOS.c_concepto 
+	, LIQ12_TIPOS_CONC.c_tipo_concepto INNER LIQ96_CONCEPTOS.c_tipo_concepto
+	, LIQ20_TOT_LIQ_PER.oi_tot_liq_per INNER LIQ20_CONC_LIQ_PER.oi_tot_liq_per
+	, LIQ99_LIQUIDACION.oi_liquidacion_ddo INNER LIQ19_EJECUCIONES.oi_liquidacion_ddo 
+	, LIQ19_EJECUCIONES.oi_liquidacion INNER LIQ19_LIQUIDACION.oi_liquidacion
+	, LIQ99_LIQUIDACION.oi_liquidacion_ddo INNER LIQ99_RECIBOS.oi_liquidacion_ddo 	
+	, LIQ20_TOT_LIQ_PER.oi_per_emp_ddo INNER LIQ97_PERSONAL_EMP.oi_per_emp_ddo
+	, LIQ99_RECIBOS.oi_tot_liq_per INNER LIQ20_TOT_LIQ_PER.oi_tot_liq_per
+WHERE	
+	LIQ19_LIQUIDACION.oi_empresa = {#PARAMIN:@oi_empresa}
+	{%? (#PARAMIN:@oi_liquidacion!='')	{% AND LIQ19_LIQUIDACION.oi_liquidacion = {#PARAMIN:@oi_liquidacion} %} {% %} %}
+	AND LIQ19_LIQUIDACION.e_periodo = {#PARAMIN:@e_periodo}
+	AND LIQ99_LIQUIDACION.c_estado = \'F\'	
+	AND LIQ97_PERSONAL_EMP.e_numero_legajo = {#SOURCE:@e_numero_legajo} 
+	AND LIQ12_TIPOS_CONC.l_nolistado = 0
+	{%? (#PARAMIN:@oi_tipo_concepto!='')	{% AND LIQ12_TIPOS_CONC.oi_tipo_concepto = {#PARAMIN:@oi_tipo_concepto} %} {% %} %}	 
+  	{%? (string(#PARAMIN:ROWS/ROW/@id)!='') {% AND LIQ14_CONCEPTOS.oi_concepto in ({%=string(#PARAMIN:ROWS/ROW/@id) %}) %} {%  %} %}
+  	
+GROUP BY 	
+	LIQ12_TIPOS_CONC.oi_tipo_concepto
+	, LIQ14_CONCEPTOS.c_concepto
+
+  ')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:element name="attr">
+					<qry:attribute name="name" value="$r/@c_concepto"/>
+					<qry:attribute name="val" value="$r/@n_cantidad"/>
+				</qry:element>
+				<qry:attribute name="tot_pag" value="number(@tot_pag) + number($r/@n_cantidad)"/>
+			</qry:out>
+		</qry:select>
+		<qry:select name="qry_totales" doc="SOURCE">
+			<qry:xquery>
+				for $r in #CONCEPTOS:COLS/COL[@auto=1]
+			</qry:xquery>
+			<qry:out>
+				<qry:element name="attr">
+					<qry:attribute name="name" value="$r/@name"/>
+					<qry:attribute name="val" value="0"/>
+					<qry:insert-select name="qry_totales2" doc-path="#SOURCE:"/>
+				</qry:element>
+			</qry:out>
+		</qry:select>
+		<qry:select name="qry_totales2" doc="SOURCE">
+			<qry:xquery>
+				for $r in #SOURCE:PER[@total=0]/attr
+			</qry:xquery>
+			<qry:out>
+				<qry:attribute name="val" value="iif(@name=$r/@name, number(@val) + number($r/@val), @val)"/>
+				<qry:attribute name="name1" value="$r/@name"/>
+			</qry:out>
+		</qry:select>
+		<qry:select name="qry_totales3" doc="SOURCE">
+			<qry:xquery>
+				for $r in #SOURCE:PER[@total=0]/attr
+			</qry:xquery>
+			<qry:out>
+				<qry:attribute name="tot_pag" value="number(@tot_pag) + number($r/@val)"/>
+			</qry:out>
+		</qry:select>
+		<qry:select doc="SOURCE" name="qry_ubicdesde">
+			<qry:xquery>
+				for $r in sql('
+				SELECT ORG03_UBICACIONES.oi_ubicacion, 
+							 ORG03_UBICACIONES.c_ubicacion,
+							 ORG03_UBICACIONES.d_ubicacion
+				FROM ORG03_UBICACIONES
+				WHERE ORG03_UBICACIONES.oi_ubicacion = {#PARAMIN:@oi_ubicaciondesde}  
+ 
+			')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:attribute name="c_ubicaciondesde" value="$r/@c_ubicacion" type="Nomad.NSystem.String"/>
+				<qry:attribute name="d_ubicaciondesde" value="$r/@d_ubicacion" type="Nomad.NSystem.String"/>
+			</qry:out>
+		</qry:select>
+		<qry:select doc="SOURCE" name="qry_ubichasta">
+			<qry:xquery>
+				for $r in sql('
+				SELECT ORG03_UBICACIONES.oi_ubicacion, 
+							 ORG03_UBICACIONES.c_ubicacion,
+							 ORG03_UBICACIONES.d_ubicacion 
+				FROM ORG03_UBICACIONES 
+				WHERE ORG03_UBICACIONES.oi_ubicacion = {#PARAMIN:@oi_ubicacionhasta}  
+				 
+			')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:attribute name="c_ubicacionhasta" value="$r/@c_ubicacion" type="Nomad.NSystem.String"/>
+				<qry:attribute name="d_ubicacionhasta" value="$r/@d_ubicacion" type="Nomad.NSystem.String"/>
+			</qry:out>
+		</qry:select>
+	</html:query>
+</html:html>

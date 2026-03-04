@@ -1,0 +1,252 @@
+<flow:flow xmlns:flow="nomad_engine.flow" xmlns:doc="nomad_engine.doc" xmlns:qry="nomad_engine.qry" description="" extends="NucleusRH.Base.Personal.LegajoEmpresa.PERSONAL_EMP.guia.autoflow" name="NucleusRH.Base.Vacaciones.Solicitudes.guia.flow">
+	<flow:info label="Flow guia para NucleusRH.Base.Vacaciones.LegajoVacaciones.PERSONAL_EMP"/>
+	<flow:main doc="SOURCE">
+		<flow:action name="HELP">
+			<doc:load-qry qry="PRELOAD" input-doc-path="#SOURCE:" output-doc="RS"/>
+			<flow:open-form form-class="NucleusRH.Base.Personal.LegajoEmpresa.PERSONAL_EMP.guia.form" mode="SHOW" doc-path="#RS:" parent-doc-path="#SOURCE:"/>
+		</flow:action>
+	</flow:main>
+	<flow:declare>
+		<qry:define name="X2C">
+			<qry:main doc="SOURCE">
+				<qry:element name="ROW">
+					<qry:insert-select name="RS1" doc-path="#SOURCE:"/>
+				</qry:element>
+			</qry:main>
+			<qry:select name="RS1" doc="SOURCE">
+				<qry:xquery>
+					for $r in sql('
+				SELECT
+					PER02_PERSONAL_EMP.oi_personal_emp AS ID, 
+					PER02_PERSONAL_EMP.e_numero_legajo AS CODE, 
+					PER01_PERSONAL.d_ape_y_nom AS TEXT, 
+					ORG03_EMPRESAS.c_empresa, 
+					ORG03_EMPRESAS.d_empresa 
+				FROM
+					PER01_PERSONAL, 
+					PER02_PERSONAL_EMP, 
+					ORG03_EMPRESAS, 
+					VAC01_SOLICITUDES
+				JOIN
+					PER02_PERSONAL_EMP.oi_personal INNER PER01_PERSONAL.oi_personal,
+					PER02_PERSONAL_EMP.oi_empresa INNER ORG03_EMPRESAS.oi_empresa,
+					VAC01_SOLICITUDES.oi_personal_emp INNER  PER02_PERSONAL_EMP.oi_personal_emp
+				WHERE
+					PER02_PERSONAL_EMP.oi_personal_emp ={#SOURCE:helper-mess/@ID}	
+				')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:attribute name="id" value="$r/@ID" type="Nomad.NSystem.Int"/>
+					<qry:attribute name="value" value="$r/@ID" type="Nomad.NSystem.Int"/>
+					<qry:attribute name="code" value="$r/@c_empresa + ' - ' + $r/@CODE" type="Nomad.NSystem.String"/>
+					<qry:attribute name="text" value="$r/@d_empresa + ' - ' + $r/@TEXT" type="Nomad.NSystem.String"/>
+				</qry:out>
+			</qry:select>
+		</qry:define>
+		<qry:define name="C2X">
+			<qry:main doc="SOURCE">
+				<qry:element name="ROW">
+					<qry:insert-select name="RS1" doc-path="#SOURCE:"/>
+				</qry:element>
+			</qry:main>
+			<qry:select name="RS1" doc="SOURCE">
+				<qry:xquery>
+					for $r in sql('
+			SELECT 
+				ORG03_EMPRESAS.oi_empresa AS ID, 
+				ORG03_EMPRESAS.c_empresa 	AS CODE, 
+				ORG03_EMPRESAS.d_empresa AS TEXT  
+			FROM
+				ORG03_EMPRESAS 
+			WHERE 
+				ORG03_EMPRESAS.c_empresa={substring_before(#SOURCE:helper-mess/@CODE,\'-\')}  
+			')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:attribute name="SUB_SEARCH" value="substring_after(#SOURCE:helper-mess/@CODE,'-')" type="Nomad.NSystem.String"/>
+					<qry:attribute name="PARENTID" value="$r/@ID" type="Nomad.NSystem.String"/>
+					<qry:attribute name="code" value="$r/@CODE" type="Nomad.NSystem.String"/>
+					<qry:attribute name="text" value="$r/@TEXT" type="Nomad.NSystem.String"/>
+					<qry:insert-select name="RS2" doc-path="."/>
+				</qry:out>
+			</qry:select>
+			<qry:select name="RS2" doc="SOURCE">
+				<qry:xquery>
+					for $r in sql('
+			SELECT
+				PER02_PERSONAL_EMP.oi_personal_emp, 
+				PER02_PERSONAL_EMP.e_numero_legajo, 
+				PER01_PERSONAL.d_ape_y_nom
+			FROM 
+				PER02_PERSONAL_EMP, 
+				PER01_PERSONAL 
+			JOIN
+				PER02_PERSONAL_EMP.oi_personal INNER PER01_PERSONAL.oi_personal
+			WHERE
+				PER02_PERSONAL_EMP.e_numero_legajo={substring_before(#SOURCE:@SUB_SEARCH,\'-\')}  
+				AND PER02_PERSONAL_EMP.oi_empresa={#SOURCE:@PARENTID} 
+			')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:attribute name="SUB_SEARCH" value="''" type="Nomad.NSystem.String"/>
+					<qry:attribute name="PARENTID" value="''" type="Nomad.NSystem.String"/>
+					<qry:attribute name="id" value="$r/@OI_PERSONAL_EMP" type="Nomad.NSystem.Int"/>
+					<qry:attribute name="value" value="$r/@OI_PERSONAL_EMP" type="Nomad.NSystem.Int"/>
+					<qry:attribute name="code" value="#SOURCE:@CODE+'-'+$r/@E_NUMERO_LEGAJO" type="Nomad.NSystem.String"/>
+					<qry:attribute name="text" value="#SOURCE:@TEXT+' - '+$r/@D_APE_Y_NOM" type="Nomad.NSystem.String"/>
+				</qry:out>
+			</qry:select>
+		</qry:define>
+		<qry:define name="HELP">
+			<qry:main doc="SOURCE">
+				<qry:element name="ROW">
+					<qry:attribute name="PARENTID" value="#SOURCE:ROW/@PARENTID" type="Nomad.NSystem.Int"/>
+					<qry:attribute name="CODE" value="#SOURCE:ROW/@CODE" type="Nomad.NSystem.String"/>
+					<qry:attribute name="TEXT" value="#SOURCE:ROW/@TEXT" type="Nomad.NSystem.String"/>
+					<qry:insert-select name="RS2" doc-path="."/>
+					<qry:element name="ROWS">
+						<qry:insert-select name="RS1" doc-path=".."/>
+					</qry:element>
+				</qry:element>
+			</qry:main>
+			<qry:select name="RS2" doc="SOURCE">
+				<qry:xquery>
+					for $r in sql('
+			SELECT 
+				ORG03_EMPRESAS.oi_empresa AS ID, 
+				ORG03_EMPRESAS.c_empresa AS CODE, 
+				ORG03_EMPRESAS.d_empresa AS TEXT  
+			FROM 
+				ORG03_EMPRESAS 
+			WHERE
+				ORG03_EMPRESAS.oi_empresa ={#SOURCE:@PARENTID}
+			')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:attribute name="code" value="$r/@CODE" type="Nomad.NSystem.String"/>
+					<qry:attribute name="text" value="$r/@TEXT" type="Nomad.NSystem.String"/>
+				</qry:out>
+			</qry:select>
+			<qry:select name="RS1" doc="SOURCE">
+				<qry:xquery>
+					for $r in sql('
+			SELECT
+				PER02_PERSONAL_EMP.oi_personal_emp, 
+				PER02_PERSONAL_EMP.e_numero_legajo, 
+				PER01_PERSONAL.d_ape_y_nom 
+			FROM 
+				PER01_PERSONAL, 
+				PER02_PERSONAL_EMP, 
+				VAC01_SOLICITUDES
+			JOIN
+				PER01_PERSONAL.oi_personal INNER PER02_PERSONAL_EMP.oi_personal,
+				VAC01_SOLICITUDES.oi_personal_emp INNER  PER02_PERSONAL_EMP.oi_personal_emp
+			WHERE
+				PER02_PERSONAL_EMP.oi_empresa={#SOURCE:@PARENTID}
+			')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:element name="ROW">
+						<qry:attribute name="id" value="$r/@oi_personal_emp" type="Nomad.NSystem.Int"/>
+						<qry:attribute name="value" value="$r/@oi_personal_emp" type="Nomad.NSystem.Int"/>
+						<qry:attribute name="code1" value="$r/@e_numero_legajo" type="Nomad.NSystem.String"/>
+						<qry:attribute name="text1" value="$r/@d_ape_y_nom" type="Nomad.NSystem.String"/>
+						<qry:attribute name="code" value="#SOURCE:@CODE+'-'+$r/@e_numero_legajo" type="Nomad.NSystem.String"/>
+						<qry:attribute name="text" value="#SOURCE:@TEXT+'-'+$r/@d_ape_y_nom" type="Nomad.NSystem.String"/>
+					</qry:element>
+				</qry:out>
+			</qry:select>
+		</qry:define>
+		<qry:define name="PRELOAD">
+			<qry:main doc="SOURCE">
+				<qry:element name="ROW">
+					<qry:insert-select name="RS2" doc-path="#SOURCE:helper-mess"/>
+					<qry:insert-select name="RS3" doc-path="."/>
+					<qry:element name="ROWS">
+						<qry:insert-select name="RS1" doc-path=".."/>
+					</qry:element>
+				</qry:element>
+			</qry:main>
+			<qry:select name="RS3" doc="SOURCE">
+				<qry:xquery>
+					for $r in sql('
+			SELECT 
+				ORG03_EMPRESAS.oi_empresa AS ID, 
+				ORG03_EMPRESAS.c_empresa AS CODE, 
+				ORG03_EMPRESAS.d_empresa AS TEXT  
+			FROM 
+				ORG03_EMPRESAS 
+			WHERE 
+				ORG03_EMPRESAS.oi_empresa={#SOURCE:@PARENTID}
+			')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:attribute name="code" value="$r/@CODE" type="Nomad.NSystem.String"/>
+					<qry:attribute name="text" value="$r/@TEXT" type="Nomad.NSystem.String"/>
+				</qry:out>
+			</qry:select>
+			<qry:select name="RS2" doc="SOURCE">
+				<qry:xquery>
+					for $r in sql('
+			SELECT
+				PER02_PERSONAL_EMP.oi_empresa 
+			FROM 
+				PER02_PERSONAL_EMP 
+			WHERE
+				PER02_PERSONAL_EMP.oi_personal_emp={#SOURCE:@ID}
+			')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:attribute name="PARENTID" value="$r/@oi_empresa" type="Nomad.NSystem.Int"/>
+				</qry:out>
+			</qry:select>
+			<qry:select name="RS1" doc="SOURCE">
+				<qry:xquery>
+					for $r in sql('
+			SELECT
+				PER02_PERSONAL_EMP.oi_personal_emp, 
+				PER02_PERSONAL_EMP.e_numero_legajo, 
+				PER01_PERSONAL.d_ape_y_nom 
+			FROM
+				PER02_PERSONAL_EMP, 
+				PER01_PERSONAL, 
+				VAC01_SOLICITUDES
+			JOIN
+				PER02_PERSONAL_EMP.oi_personal INNER PER01_PERSONAL.oi_personal,
+				VAC01_SOLICITUDES.oi_personal_emp INNER  PER02_PERSONAL_EMP.oi_personal_emp
+			WHERE
+				PER02_PERSONAL_EMP.oi_empresa={#SOURCE:@PARENTID}
+			')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:element name="ROW">
+						<qry:attribute name="id" value="$r/@oi_personal_emp" type="Nomad.NSystem.Int"/>
+						<qry:attribute name="value" value="$r/@oi_personal_emp" type="Nomad.NSystem.Int"/>
+						<qry:attribute name="code1" value="$r/@e_numero_legajo" type="Nomad.NSystem.String"/>
+						<qry:attribute name="text1" value="$r/@d_ape_y_nom" type="Nomad.NSystem.String"/>
+						<qry:attribute name="code" value="#SOURCE:@CODE+'-'+$r/@e_numero_legajo" type="Nomad.NSystem.String"/>
+						<qry:attribute name="text" value="#SOURCE:@TEXT+'-'+$r/@d_ape_y_nom" type="Nomad.NSystem.String"/>
+					</qry:element>
+				</qry:out>
+			</qry:select>
+		</qry:define>
+	</flow:declare>
+	<flow:form name="NucleusRH.Base.Personal.LegajoEmpresa.PERSONAL_EMP.guia.form" form-class="NucleusRH.Base.Personal.LegajoEmpresa.PERSONAL_EMP.guia.form" mode="SHOW" doc="SOURCE" parent-doc="INVAL">
+		<flow:action name="on-show">
+			<doc:assign-mapping dir-apply="a-&gt;b" a-doc="INVAL" b-doc="FORM">
+				<map docA="A" docB="B">
+					<link A="#A:@id" B="#B:ctrl[@id='GRID']/@selectedRow"/>
+				</map>
+			</doc:assign-mapping>
+		</flow:action>
+		<flow:action name="RELOAD_QUERY">
+			<doc:load-qry output-doc="RS" input-doc-path="#RS:" qry="HELP"/>
+		</flow:action>
+		<flow:action name="ACCEPT">
+			<flow:exit-flow return-path="#RS:ROWS/ROW[@id={#FORM:ctrl[@id='GRID']/@selectedRow}]"/>
+		</flow:action>
+		<flow:action name="CANCEL">
+			<flow:exit-flow return-path="#INVAL:"/>
+		</flow:action>
+	</flow:form>
+</flow:flow>

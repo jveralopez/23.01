@@ -1,0 +1,140 @@
+<qry:define declare="&lt;FILTRO oi_empresa=&quot;188&quot; oi_terminal=&quot;1&quot; f_desde=&quot;20080101&quot; f_hasta=&quot;20081010&quot; FormatRPT=&quot;PDF&quot;/&gt;&#13;&#10;" xmlns:qry="XXX" name="FORMS">
+	<qry:main doc="PARAM" xmlns:qry="XXX">
+		<qry:append-doc name="FILTRO" doc-path="#PARAM:/FILTRO"/>
+		<qry:element name="FICHADASINGRESADAS">
+			<qry:attribute value="'-'" name="empresa"/>
+			<qry:attribute value="iif(#FILTRO:@f_desde='', '-', format_date(#FILTRO:@f_desde,'dd/mm/yyyy'))" name="f_desde"/>
+			<qry:attribute value="iif(#FILTRO:@f_hasta='', '-', format_date(#FILTRO:@f_hasta,'dd/mm/yyyy'))" name="f_hasta"/>
+			<qry:attribute value="./@f_desde + ' - ' + ./@f_hasta" name="f_desde_hasta"/>
+			<qry:attribute value="format_date(now(),'dd/mm/yyyy HH:MM:SS')" name="f_informe" type="Nomad.NSystem.String"/>
+			<qry:insert-select doc-path="#FILTRO:" name="QRY_PARAM_TERMINAL"/>
+			<qry:insert-select doc-path="#FILTRO:.[#FILTRO:@oi_empresa!='']" name="QRY_PARAM_EMPRESA"/>
+			<qry:element name="FICHADAS">
+				<qry:attribute value="'0'" name="cant"/>
+				<qry:insert-select doc-path="#FILTRO:" name="QRY_LEGAJOS"/>
+				<qry:insert-select doc-path=".[./@cant='0']" name="QRY_VACIO"/>
+			</qry:element>
+		</qry:element>
+	</qry:main>
+	<qry:select doc="PARAM" name="QRY_PARAM_TERMINAL">
+		<qry:xquery>
+			for $r in table('
+					SELECT TTA05_TERMINALES.c_terminal, TTA05_TERMINALES.d_terminal
+					FROM TTA05_TERMINALES
+					WHERE TTA05_TERMINALES.oi_terminal = {#PARAM:@oi_terminal}
+			')/ROWS/ROW
+		</qry:xquery>
+		<qry:out>
+			<qry:attribute value="$r/@c_terminal + ' - ' + $r/@d_terminal" name="terminal" type="Nomad.NSystem.String"/>
+		</qry:out>
+	</qry:select>
+	<qry:select doc="PARAM" name="QRY_PARAM_EMPRESA">
+		<qry:xquery>
+			for $r in table('
+						SELECT ORG03_EMPRESAS.c_empresa, ORG03_EMPRESAS.d_empresa 
+						FROM ORG03_EMPRESAS
+						WHERE ORG03_EMPRESAS.oi_empresa = {#PARAM:@oi_empresa}   					
+					')/ROWS/ROW
+		</qry:xquery>
+		<qry:out>
+			<qry:attribute value="$r/@c_empresa + ' - ' + $r/@d_empresa" name="empresa"/>
+		</qry:out>
+	</qry:select>
+	<qry:select xmlns:qry="XXX" doc="PARAM" name="QRY_LEGAJOS">
+		<qry:xquery>
+			for $r in sql('
+			SELECT TTA07_FICHADASING.oi_fichadasing,
+			PER02_PERSONAL_EMP.oi_personal_emp,
+			PER02_PERSONAL_EMP.e_numero_legajo,
+			PER01_PERSONAL.d_ape_y_nom,
+			PER02_PERSONAL_EMP.oi_empresa,
+			TTA07_FICHADASING.f_fechahora,
+			TTA07_FICHADASING.c_tipo,
+			TTA05_TERMINALES.oi_terminal,
+			TTA05_TERMINALES.c_terminal,
+			TTA05_TERMINALES.d_terminal,
+			ORG03_EMPRESAS.c_empresa,
+			ORG03_EMPRESAS.d_empresa
+			FROM TTA07_FICHADASING, PER02_PERSONAL_EMP, PER01_PERSONAL, 
+			TTA05_TERMINALES, ORG03_EMPRESAS
+			JOIN TTA07_FICHADASING.oi_personal_emp INNER PER02_PERSONAL_EMP.oi_personal_emp,
+			PER01_PERSONAL.oi_personal INNER PER02_PERSONAL_EMP.oi_personal,
+			ORG03_EMPRESAS.oi_empresa INNER PER02_PERSONAL_EMP.oi_empresa,
+			TTA07_FICHADASING.oi_terminal INNER TTA05_TERMINALES.oi_terminal			
+			WHERE TTA07_FICHADASING.oi_terminal = {#FILTRO:@oi_terminal}
+			{%? (#FILTRO:@oi_empresa!='') {% AND PER02_PERSONAL_EMP.oi_empresa={#FILTRO:@oi_empresa} %} {% %} %}
+			{%? (#FILTRO:@f_desde != '') {% AND TTA07_FICHADASING.f_fechahora &gt;= {DateTime(#FILTRO:@f_desde)} %} {%  %}   %}
+			{%? (#FILTRO:@f_hasta != '') {% AND TTA07_FICHADASING.f_fechahora &lt;= {DateTime(Number(DateTime(#FILTRO:@f_hasta))+1)} %} {%  %}   %}			
+			GROUP BY TTA07_FICHADASING.oi_fichadasing, PER02_PERSONAL_EMP.oi_personal_emp,
+			PER02_PERSONAL_EMP.e_numero_legajo, PER01_PERSONAL.d_ape_y_nom,
+			PER02_PERSONAL_EMP.oi_empresa, TTA07_FICHADASING.f_fechahora,
+			TTA07_FICHADASING.c_tipo, TTA05_TERMINALES.oi_terminal,
+			TTA05_TERMINALES.c_terminal, TTA05_TERMINALES.d_terminal,
+			ORG03_EMPRESAS.c_empresa, ORG03_EMPRESAS.d_empresa
+			ORDER BY e_numero_legajo ASC, f_fechahora ASC
+		')/ROWS/ROW
+		</qry:xquery>
+		<qry:out>
+			<qry:element name="FICHADA">
+				<qry:attribute value="$r/@oi_empresa" name="oi_empresa"/>
+				<qry:attribute value="$r/@c_empresa + ' - ' + $r/@d_empresa" name="empresa"/>
+				<qry:attribute value="$r/@oi_personal_emp" name="oi_personal_emp"/>
+				<qry:attribute value="$r/@e_numero_legajo + ' - ' + $r/@d_ape_y_nom" name="personal"/>
+				<qry:attribute value="$r/@e_numero_legajo" name="e_numero_legajo"/>
+				<qry:attribute value="format_date($r/@f_fechahora,'dd/mm/yyyy HH:MM')" name="f_fechahora"/>
+				<qry:attribute value="$r/@oi_fichada" name="oi_fichada"/>
+				<qry:attribute value="$r/@c_tipo" name="c_tipo"/>
+				<qry:insert-select doc-path="./.[@c_tipo='E']" name="QRY_ENTRADA"/>
+				<qry:insert-select doc-path="./.[@c_tipo='S']" name="QRY_SALIDA"/>
+				<qry:insert-select doc-path="./.[@c_tipo='I']" name="QRY_INDEFINIDA"/>
+				<qry:attribute value="$r/@oi_terminal" name="oi_terminal"/>
+				<qry:attribute value="$r/@c_terminal + ' - ' + $r/@d_terminal" name="terminal"/>
+				<qry:insert-select doc-path="$r" name="SECURITY"/>
+			</qry:element>
+			<qry:attribute value="'1'" name="cant"/>
+		</qry:out>
+	</qry:select>
+	<qry:select doc="PARAM" name="SECURITY">
+		<qry:xquery>
+			for $r in sql('
+			SELECT NMD_SECURITY.policy 
+			FROM NMD_SECURITY 
+			WHERE NMD_SECURITY.class=\'NucleusRH.Base.Personal.LegajoEmpresa.PERSONAL_EMP\' 
+			AND NMD_SECURITY.id={#PARAM:@oi_personal_emp}
+		')/ROWS/ROW
+		</qry:xquery>
+		<qry:out>
+			<qry:attribute value="$r/@policy" name="policy"/>
+		</qry:out>
+	</qry:select>
+	<qry:select doc="PARAM" name="QRY_ENTRADA">
+		<qry:out>
+			<qry:attribute value="'Entrada'" name="operacion"/>
+		</qry:out>
+	</qry:select>
+	<qry:select doc="PARAM" name="QRY_SALIDA">
+		<qry:out>
+			<qry:attribute value="'Salida'" name="operacion"/>
+		</qry:out>
+	</qry:select>
+	<qry:select doc="PARAM" name="QRY_INDEFINIDA">
+		<qry:out>
+			<qry:attribute value="'Indefinida'" name="operacion"/>
+		</qry:out>
+	</qry:select>
+	<qry:select doc="PARAM" name="QRY_VACIO">
+		<qry:out>
+			<qry:element name="FICHADA">
+				<qry:attribute value="'0'" name="oi_empresa"/>
+				<qry:attribute value="'0'" name="empresa"/>
+				<qry:attribute value="'0'" name="oi_terminal"/>
+				<qry:attribute value="'0'" name="terminal"/>
+				<qry:attribute value="'0'" name="oi_fichada"/>
+				<qry:attribute value="'0'" name="oi_personal_emp"/>
+				<qry:attribute value="'0'" name="personal"/>
+				<qry:attribute value="'0'" name="operacion"/>
+				<qry:attribute value="'0'" name="f_fechahora"/>
+			</qry:element>
+		</qry:out>
+	</qry:select>
+</qry:define>

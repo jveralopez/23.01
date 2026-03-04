@@ -1,0 +1,155 @@
+<INTERFACE-DEF xmlns:qry="nomad_engine.qry" code="" desc="" entermode="DOS" finalenter="1">
+	<QUERY declare="&lt;DATA interface=&quot;SICORE&quot; c_empresa=&quot;1&quot; p_periodo=&quot;200901&quot; /&gt;">
+		<qry:main doc="SOURCE">
+			<qry:element name="DATA">
+				<qry:element name="DETAILS">
+					<!--------------------------------------->
+					<qry:insert-select name="qryParam" doc-path="#SOURCE:/DATA"/>
+					<qry:insert-select name="qryDetail" doc-path="#SOURCE:/DATA"/>
+					<!-- Inserta el registro FINAL solo si existe el registro ----------->
+					<qry:insert-select name="qryDetail-ADDreg" doc-path=".[@ultRec !='']"/>
+				</qry:element>
+			</qry:element>
+		</qry:main>
+		<qry:select name="qryParam" doc="PARAM">
+			<qry:xquery>
+				for $r in SQL('
+select org26.d_valor , org26.c_parametro from org26_parametros as org26 
+						where org26.c_parametro =\'noValidarCerradas\'
+						')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:append-doc doc-path="$r" name="Param_Filtro"/>
+			</qry:out>
+		</qry:select>
+		<qry:select name="qryDetail" doc="SOURCE">
+			<qry:xquery>
+				for $r in SQL('
+						SELECT
+							TLP.oi_tot_liq_per,
+							PE.c_nro_cuil,
+							PE.e_numero_legajo,
+							PE.d_ape_y_nom,																					
+							LCASE(VAR.c_variable) as c_variable,
+							VAR.n_valor_s 							
+						FROM
+							LIQ20_TOT_LIQ_PER as TLP,
+							LIQ97_PERSONAL_EMP as PE,   							
+							LIQ99_LIQUIDACION as LIQ,
+							LIQ19_EJECUCIONES as E19,
+							LIQ19_LIQUIDACION as L19,
+							LIQ96_CONCEPTOS as LCON, 
+							LIQ20_CONC_LIQ_PER as CON,
+							LIQ20_VAR_LIQ_CONC as VAR, 
+							LIQ99_RECIBOS as REC						
+						JOIN  						
+						  L19.oi_liquidacion INNER E19.oi_liquidacion,
+						  E19.oi_liquidacion_ddo INNER LIQ.oi_liquidacion_ddo,
+						  LIQ.oi_liquidacion_ddo INNER REC.oi_liquidacion_ddo,
+						  REC.oi_tot_liq_per INNER TLP.oi_tot_liq_per,						  
+							TLP.oi_per_emp_ddo INNER PE.oi_per_emp_ddo,
+							LCON.oi_concepto_ddo INNER CON.oi_concepto_ddo,							
+							TLP.oi_tot_liq_per INNER CON.oi_tot_liq_per,
+							CON.oi_conc_liq_per INNER VAR.oi_conc_liq_per													
+						WHERE 
+							LCON.c_concepto = \'99999996\'
+							AND LIQ.c_empresa = { #SOURCE:@c_empresa }
+							AND LIQ.e_periodo = { #SOURCE:@p_periodo }
+							AND LIQ.c_estado = \'F\'
+								{%? (string(#Param_Filtro:@d_valor)!='1') 
+								{% AND L19.c_estado = \'C\' %} 
+								{%  %} 
+							%}
+                   
+						ORDER BY 
+							oi_tot_liq_per ASC
+														
+						')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:insert-select name="qryDetail-ADDreg" doc-path=".[@ultRec != $r/@oi_tot_liq_per AND @ultRec !='']"/>
+				<!-- Actualiza Campos del Proceso ------->
+				<qry:attribute name="oi_per_emp_ddo" value="$r/@oi_per_emp_ddo"/>
+				<!-- Actualiza Campos ------------------->
+				<qry:attribute name="vs_sicoreComp" value="IIF($r/@c_variable = 'vs_sicorecomp', $r/@n_valor_s, ./@vs_sicoreComp)"/>
+				<qry:attribute name="vs_sicoreFechaComp" value="IIF($r/@c_variable = 'vs_sicorefechacomp', $r/@n_valor_s, ./@vs_sicoreFechaComp)"/>
+				<qry:attribute name="vs_sicoreNumComp" value="$r/@oi_tot_liq_per"/>
+				<qry:attribute name="vs_sicoreimporteComp" value="IIF($r/@c_variable = 'vs_sicoreimportecomp',  NUMBER(./@vs_sicoreimporteComp) + IIF(./@oi_tot_liq_per = $r/@oi_tot_liq_per, NUMBER($r/@n_valor_s), 0), ./@vs_sicoreimporteComp)"/>
+				<qry:attribute name="vs_sicoreCodImp" value="IIF($r/@c_variable = 'vs_sicorecodimp', $r/@n_valor_s, ./@vs_sicoreCodImp)"/>
+				<qry:attribute name="vs_sicoreCodReg" value="IIF($r/@c_variable = 'vs_sicorecodreg', $r/@n_valor_s, ./@vs_sicoreCodReg)"/>
+				<qry:attribute name="vs_sicoreCodOpe" value="IIF($r/@c_variable = 'vs_sicorecodope', $r/@n_valor_s, ./@vs_sicoreCodOpe)"/>
+				<qry:attribute name="vs_sicoreBaseCalculo" value="IIF($r/@c_variable = 'vs_sicorebasecalculo', $r/@n_valor_s, ./@vs_sicoreBaseCalculo)"/>
+				<qry:attribute name="vs_sicoreFecEmiRet" value="IIF($r/@c_variable = 'vs_sicorefecemiret', $r/@n_valor_s, ./@vs_sicoreFecEmiRet)"/>
+				<qry:attribute name="vs_sicoreCodCond" value="IIF($r/@c_variable = 'vs_sicorecodcond', $r/@n_valor_s, ./@vs_sicoreCodCond)"/>
+				<qry:attribute name="vs_sicoreRetPracti" value="IIF($r/@c_variable = 'vs_sicoreretpracti', $r/@n_valor_s, ./@vs_sicoreRetPracti)"/>
+				<qry:attribute name="vs_sicoreImporteRetencion" value="IIF($r/@c_variable = 'vs_sicoreimporteretencion',  NUMBER(./@vs_sicoreImporteRetencion) + IIF(./@oi_tot_liq_per = $r/@oi_tot_liq_per, NUMBER($r/@n_valor_s), 0), ./@vs_sicoreImporteRetencion)"/>
+				<qry:attribute name="vs_sicorePorcExclu" value="IIF($r/@c_variable = 'vs_sicoreporcexclu', $r/@n_valor_s, ./@vs_sicorePorcExclu)"/>
+				<qry:attribute name="vs_sicoreFechaEmiBole" value="IIF($r/@c_variable = 'vs_sicorefechaemibole', $r/@n_valor_s, ./@vs_sicoreFechaEmiBole)"/>
+				<qry:attribute name="vs_sicoreTidoDocRete" value="IIF($r/@c_variable = 'vs_sicoretidodocrete', $r/@n_valor_s, ./@vs_sicoreTidoDocRete)"/>
+				<qry:attribute name="vs_sicoreNumeroDocRete" value="TRANSLATE($r/@c_nro_cuil,'-','')"/>
+				<qry:attribute name="vs_sicoreNunCertOrg" value="IIF($r/@c_variable = 'vs_sicorenuncertorg', $r/@n_valor_s, ./@vs_sicoreNunCertOrg)"/>
+				<!-- -->
+				<!-- BANDERAS --------------------------->
+				<qry:attribute name="ultRec" value="$r/@oi_tot_liq_per"/>
+				<qry:attribute name="oi_tot_liq_per" value="$r/@oi_tot_liq_per"/>
+			</qry:out>
+		</qry:select>
+		<!--------------------------------------------->
+		<!-- qryDetail-ADDreg ------------------------->
+		<qry:select name="qryDetail-ADDreg" doc="SOURCE">
+			<qry:out>
+				<qry:if test="number(#SOURCE:@vs_sicoreImporteRetencion)!=0">
+					<qry:then>
+						<qry:element name="DETAIL">
+							<!--------------------------------------------->
+							<!--------------------------------------------->
+							<qry:attribute name="e_numero_legajo" value="#SOURCE:@e_numero_legajo"/>
+							<qry:attribute name="vs_sicoreComp" value="FORMAT_NUMBER(#SOURCE:@vs_sicoreComp, 2 , 0, '', '', '0')"/>
+							<qry:attribute name="vs_sicoreFechaComp" value="FORMAT_DATE(#SOURCE:/@vs_sicoreFechaComp, 'dd/mm/yyyy')"/>
+							<qry:attribute name="vs_sicoreNumComp" value="NMD_FILLLEFT(#SOURCE:/@vs_sicoreNumComp, ' ', 16, 'R')"/>
+							<qry:attribute name="vs_sicoreimporteComp" value="FORMAT_NUMBER(#SOURCE:@vs_sicoreimporteComp, 13 , 2, ',', '', '0')"/>
+							<qry:attribute name="vs_sicoreCodImp" value="FORMAT_NUMBER(#SOURCE:@vs_sicoreCodImp, 3, 0, '', '', '0')"/>
+							<qry:attribute name="vs_sicoreCodReg" value="FORMAT_NUMBER(#SOURCE:@vs_sicoreCodReg, 3, 0, '', '', '0')"/>
+							<qry:attribute name="vs_sicoreCodOpe" value="FORMAT_NUMBER(#SOURCE:@vs_sicoreCodOpe, 1, 0, '', '', '0')"/>
+							<qry:attribute name="vs_sicoreBaseCalculo" value="FORMAT_NUMBER(#SOURCE:@vs_sicoreBaseCalculo, 11, 2, ',', '', '0')"/>
+							<qry:attribute name="vs_sicoreFecEmiRet" value="FORMAT_DATE(#SOURCE:/@vs_sicoreFecEmiRet, 'dd/mm/yyyy')"/>
+							<qry:attribute name="vs_sicoreCodCond" value="FORMAT_NUMBER(#SOURCE:@vs_sicoreCodCond, 2, 0, '', '', '0')"/>
+							<qry:attribute name="vs_sicoreRetPracti" value="FORMAT_NUMBER(#SOURCE:@vs_sicoreRetPracti, 1, 0, '', '', '0')"/>
+							<qry:attribute name="vs_sicoreImporteRetencion" value="FORMAT_NUMBER(ABS(#SOURCE:@vs_sicoreImporteRetencion), 11, 2, ',', '', '0')"/>
+							<qry:attribute name="vs_sicorePorcExclu" value="FORMAT_NUMBER(#SOURCE:@vs_sicorePorcExclu, 3, 2, ',', '', '0')"/>
+							<qry:attribute name="vs_sicoreFechaEmiBole" value="iif(#SOURCE:/@vs_sicoreFechaEmiBole!='0',FORMAT_DATE(#SOURCE:/@vs_sicoreFechaEmiBole, 'dd/mm/yyyy'),'')"/>
+							<qry:attribute name="vs_sicoreFechaEmiBole" value="NMD_FILLLEFT(@vs_sicoreFechaEmiBole, ' ', 10, 'R')"/>
+							<qry:attribute name="vs_sicoreTidoDocRete" value="FORMAT_NUMBER(#SOURCE:@vs_sicoreTidoDocRete, 2, 0, '', '', '0')"/>
+							<qry:attribute name="vs_sicoreNumeroDocRete" value="NMD_FILLRIGHT(#SOURCE:/@vs_sicoreNumeroDocRete, ' ', 20, 'R')"/>
+							<qry:attribute name="vs_sicoreNunCertOrg" value="FORMAT_NUMBER(#SOURCE:@vs_sicoreNunCertOrg, 14, 0, '', '', '0')"/>
+						</qry:element>
+					</qry:then>
+				</qry:if>
+				<!-- Pone las VARIABLES en Blanco -------->
+				<qry:attribute name="vs_sicoreComp" value="''"/>
+				<qry:attribute name="vs_sicoreFechaComp" value="''"/>
+				<qry:attribute name="vs_sicoreNumComp" value="''"/>
+				<qry:attribute name="vs_sicoreimporteComp" value="''"/>
+				<qry:attribute name="vs_sicoreCodImp" value="''"/>
+				<qry:attribute name="vs_sicoreCodReg" value="''"/>
+				<qry:attribute name="vs_sicoreCodOpe" value="''"/>
+				<qry:attribute name="vs_sicoreBaseCalculo" value="''"/>
+				<qry:attribute name="vs_sicoreFecEmiRet" value="''"/>
+				<qry:attribute name="vs_sicoreCodCond" value="''"/>
+				<qry:attribute name="vs_sicoreRetPracti" value="''"/>
+				<qry:attribute name="vs_sicoreImporteRetencion" value="''"/>
+				<qry:attribute name="vs_sicorePorcExclu" value="''"/>
+				<qry:attribute name="vs_sicoreFechaEmiBole" value="''"/>
+				<qry:attribute name="vs_sicoreTidoDocRete" value="''"/>
+				<qry:attribute name="vs_sicoreNumeroDocRete" value="''"/>
+				<qry:attribute name="vs_sicoreNunCertOrg" value="''"/>
+			</qry:out>
+		</qry:select>
+	</QUERY>
+	<DETAIL>
+		{vs_sicoreComp:2}{vs_sicoreFechaComp:10}{vs_sicoreNumComp:+16}{vs_sicoreimporteComp:16}{vs_sicoreCodImp:3}{vs_sicoreCodReg:3}{vs_sicoreCodOpe:1}{vs_sicoreBaseCalculo:14}{vs_sicoreFecEmiRet:10}{vs_sicoreCodCond:2}{vs_sicoreRetPracti:1}{vs_sicoreImporteRetencion:14}{vs_sicorePorcExclu:6}{vs_sicoreFechaEmiBole:10}{vs_sicoreTidoDocRete:2}{vs_sicoreNumeroDocRete:20}{vs_sicoreNunCertOrg:14}{space(67)}
+	</DETAIL>
+	<MESS>
+		<EMPTY mess="No se encontraron registros"/>
+	</MESS>
+</INTERFACE-DEF>

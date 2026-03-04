@@ -1,0 +1,118 @@
+<html:html xmlns:html="nomad_engine.html" xmlns:qry="nomad_engine.qry" extends="Nomad.Base.BaseReport.rpt" doc="source" name="NucleusRH.Base.Personal.Cursos">
+	<html:for-each declare="&lt;FILTRO oi_clase_org=&quot;&quot; gcustom=&quot;&quot; f_desde=&quot;&quot; f_hasta=&quot;&quot; oi_curso=&quot;&quot; gpers=&quot;&quot; empresa=&quot;1&quot; activos=&quot;&quot; nombre=&quot;neg&quot; documento=&quot;&quot; sexo=&quot;&quot; grupo_sanguineo=&quot;&quot; listlegajos=&quot;&quot; oi_indic_activo=&quot;&quot; egresado=&quot;&quot; oi_forma_pago=&quot;&quot; oi_tipo_personal=&quot;&quot; fecha_desde=&quot;&quot; fecha_hasta=&quot;&quot; oi_centro_costo=&quot;&quot; oi_convenio=&quot;&quot; soloconvenio=&quot;&quot; oi_categoria=&quot;&quot; oi_ubicacion_desde=&quot;&quot; oi_ubicacion_hasta=&quot;&quot; oi_estructura=&quot;&quot; escructura_childs=&quot;&quot; oi_contrato=&quot;&quot; oi_afjp=&quot;&quot; oi_obra_social=&quot;&quot; oi_sindicato=&quot;&quot; l_afiliado_sind=&quot;0&quot; legID=&quot;&quot; leg_where=&quot;&quot;&gt;&#13;&#10;&#9;&lt;PERSONAS&gt;&#13;&#10;&#9;&#9;&lt;ROW VALUES=&quot;1429&quot;/&gt;&#13;&#10;&#9;&lt;/PERSONAS&gt;&#13;&#10;&lt;/FILTRO&gt;">
+		<qry:main doc="PARAM">
+			<REPORT label="Listado de Cursos">
+				<qry:attribute value="format_date(now(),'dd/mm/yyyy HH:MM')" name="date"/>
+				<GROUPS>
+					<GROUP tag="CUR" type="table" noreg="No se encontraron registros de Cursos.">
+						<COLS>
+							<COL name="d_ape_y_nom" label="Nombre y Apellido" nowrap="1"/>
+							<COL name="dni" label="N&#250;mero de documento" nowrap="1"/>
+							<COL name="area_curso" label="&#193;rea del curso" nowrap="1"/>
+							<COL name="descripcion" label="Descripci&#243;n del curso" nowrap="1"/>
+							<COL name="fin_curso" label="Fecha fin de curso" nowrap="1" type="date"/>
+							<COL name="duracion_curso" label="Duraci&#243;n" nowrap="1"/>
+							<COL name="unidad_tiempo" label="Unidad de tiempo" nowrap="1"/>
+							<COL name="certificado" label="Certificado" nowrap="1"/>
+							<COL name="externo" label="Externo" nowrap="1"/>
+							<COL name="observacion" label="Observaci&#243;n" nowrap="1"/>
+						</COLS>
+					</GROUP>
+				</GROUPS>
+				<qry:element name="DATA">
+					<!--qry:element name="CUR"-->
+					<qry:append-doc name="FILTRO" doc-path="#PARAM:FILTRO"/>
+					<qry:insert-select name="QRY_SPLIT" doc-path="#PARAM:FILTRO/PERSONAS/ROW"/>
+					<!--/qry:element-->
+				</qry:element>
+				<!--qry:element name="DATA">
+<qry:insert-select doc-path="#PARAM:FILTRO/PERSONAS/ROW" name="QRY_PERSONAS"/>
+</qry:element-->
+			</REPORT>
+		</qry:main>
+		<!--qry:select doc="PARAM" name="QRY_PERSONAS">
+<qry:out>
+<qry:call>
+<FILTRO>
+<qry:attribute value="#PARAM:@values" name="values"/>
+</FILTRO>
+</qry:call>
+</qry:out>
+</qry:select-->
+		<qry:select name="QRY_SPLIT" doc="PARAM">
+			<qry:xquery>
+				for $r in SPLIT('50;{%=#PARAM:@values%}')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:insert-select doc-path="$r" name="QRY_DATOS"/>
+			</qry:out>
+		</qry:select>
+		<qry:select name="QRY_DATOS" doc="PARAM">
+			<qry:xquery>
+				for $r in sql('
+				SELECT
+					PER.d_ape_y_nom,
+					PER.c_nro_documento,
+					CUR.d_curso,
+					CPER.d_curso_ext_per,
+					CPER.f_fin_curso,
+					CPER.n_duracion,
+					CPER.l_certificado,
+					CPER.l_externo,
+					CPER.o_curso,
+					UT.d_unidad_tiempo
+				FROM
+					ORG03_EMPRESAS AS EMP,
+					PER01_PERSONAL AS PER,
+					PER02_PERSONAL_EMP AS PER2,
+					PER01_CURSOS_PER AS CPER,
+					ORG06_CURSOS AS CUR,
+					ORG25_UNIDADES_TPO AS UT
+				JOIN
+					EMP.oi_empresa INNER PER2.oi_empresa,
+					PER2.oi_personal INNER PER.oi_personal,
+					CPER.oi_personal INNER PER.oi_personal,
+					CUR.oi_curso INNER CPER.oi_curso,
+					CPER.oi_unidad_tiempo LEFT UT.oi_unidad_tiempo 
+					 
+				WHERE
+					PER2.oi_personal_emp in ({%=#PARAM:@value%})
+				 {%? (#FILTRO:@f_desde!='') 
+  				{% 	AND CPER.f_fin_curso &gt;= {Datetime(#FILTRO:@f_desde)} %}
+  				{%  %}                     
+ 				%}
+				{%? (#FILTRO:@f_hasta!='')       
+  				{% 	AND CPER.f_fin_curso &lt;= {Datetime(#FILTRO:@f_hasta)} %}
+  				{%  %}                     
+ 				%}  
+ 				{%? (#FILTRO:@oi_curso!='') 
+  				{% 	AND CPER.oi_curso = {#FILTRO:@oi_curso} %}
+  				{%  %}                     
+ 				%}
+  			
+			')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:element name="CUR">
+					<qry:attribute name="d_ape_y_nom" value="$r/@d_ape_y_nom"/>
+					<qry:attribute name="dni" value="$r/@c_nro_documento"/>
+					<qry:attribute name="area_curso" value="$r/@d_curso"/>
+					<qry:attribute name="descripcion" value="$r/@d_curso_ext_per"/>
+					<qry:attribute name="fin_curso" value="format_date($r/@f_fin_curso, 'dd/mm/yyyy')"/>
+					<qry:attribute name="duracion_curso" value="$r/@n_duracion"/>
+					<qry:attribute name="unidad_tiempo" value="$r/@d_unidad_tiempo"/>
+					<qry:attribute name="certificado" value="iif($r/@l_certificado='1', 'Si', 'No')"/>
+					<qry:attribute name="externo" value="iif($r/@l_externo='1', 'Si', 'No')"/>
+					<qry:attribute name="observacion" value="iif(($r/@o_curso)!=NULL,$r/@o_curso,'-')"/>
+				</qry:element>
+			</qry:out>
+		</qry:select>
+	</html:for-each>
+	<html:query declare="&lt;FILTRO  f_desde=&quot;20180706&quot; f_hasta=&quot;20180711&quot; oi_curso=&quot;2&quot; values=&quot;626,112&quot;/&gt;">
+		<!--<qry:select doc="PARAM" name="QRY_FAMS">
+<qry:out>
+<qry:insert-element doc-path="#PARAM:"/>
+</qry:out>
+</qry:select-->
+	</html:query>
+</html:html>

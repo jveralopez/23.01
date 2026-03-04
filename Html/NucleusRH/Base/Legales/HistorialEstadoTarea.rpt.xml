@@ -1,0 +1,128 @@
+<html:html xmlns:html="nomad_engine.html" xmlns:qry="nomad_engine.qry" name="NucleusRH.Base.Legales.HistorialEstadoTarea" doc="source" extends="Nomad.Base.BaseReport.rpt">
+	<html:query declare="&lt;PARAMS oi_tarea=&quot;2506&quot;/&gt;&#13;&#10;">
+		<qry:main name="" doc="SOURCE">
+			<qry:append-doc name="PARAMIN" doc-path="#SOURCE:PARAMS"/>
+			<REPORT label="Historial de Cambio de Estados" style="width:100%">
+				<qry:attribute name="date" value="format_date(Now(),'dd/mm/yyyy HH:MM')"/>
+				<GROUPS>
+					<GROUP tag="TAREA" type="title" label="" style="">
+						<COLS>
+							<COL name="empresa" label="Empresa" style="width:30%"/>
+							<COL name="d_carpeta" label="Carpeta" style="width:30%"/>
+							<COL name="d_tarea" label="Tarea" style="width:30%"/>
+							<COL name="estadoActual" label="Estado Actual" style="width:30%"/>
+						</COLS>
+						<GROUP tag="HIST" type="table" style="width:100%">
+							<COLS>
+								<COL name="f_hisest_tarea" label="Fecha" type="date"/>
+								<COL name="usuario_cambia" label="Usuario"/>
+								<COL name="est_ant" label="Estado Anterior"/>
+								<COL name="est_nu" label="Estado Nuevo"/>
+								<COL name="o_hisest_tarea" label="Observaci&#243;n"/>
+							</COLS>
+						</GROUP>
+					</GROUP>
+				</GROUPS>
+				<qry:element name="DATA">
+					<qry:element name="TAREA">
+						<qry:insert-select name="qry_tarea" doc-path="#PARAMIN:"/>
+					</qry:element>
+				</qry:element>
+			</REPORT>
+		</qry:main>
+		<qry:select doc="SOURCE" name="qry_tarea">
+			<qry:xquery>
+				for $r in sql('
+				SELECT
+					T.oi_tarea,
+					T.d_tarea,
+					C.d_carpeta,
+					C.c_carpeta,
+					C.oi_estado_carpeta,
+					E.c_empresa,
+					E.d_empresa
+	
+				FROM
+					LEG03_TAREAS as T,
+					LEG01_CARPETAS as C,
+					ORG03_EMPRESAS as E
+					
+				JOIN
+				T.oi_carpeta INNER C.oi_carpeta,
+				C.oi_empresa INNER E.oi_empresa
+				
+				WHERE
+					T.oi_tarea = {#SOURCE:@oi_tarea}
+			')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:attribute name="empresa" value="'[' + $r/@c_empresa +']' + ' - ' + $r/@d_empresa"/>
+				<qry:attribute name="d_carpeta" value="'[' + $r/@c_carpeta + ']' + ' - ' + $r/@d_carpeta"/>
+				<qry:attribute name="d_tarea" value="'[' + $r/@oi_tarea +']' + ' - ' + $r/@d_tarea"/>
+				<qry:insert-select name="qry_cambios" doc-path="$r"/>
+				<qry:insert-select name="getEstadoActual" doc-path="$r"/>
+			</qry:out>
+		</qry:select>
+		<qry:select doc="SOURCE" name="qry_cambios">
+			<qry:xquery>
+				for $r in sql('
+				SELECT
+					LEG03_HIST_ESTADOS.f_hisest_tarea,
+					LEG03_HIST_ESTADOS.usuario_cambia,
+					LEG03_HIST_ESTADOS.o_hisest_tarea,
+					ANT.d_estado_tarea as est_ant,
+					NU.d_estado_tarea as est_nu,
+          ANT.c_estado_tarea as c_est_ant,
+          NU.c_estado_tarea as c_est_nu
+				
+				FROM
+					LEG03_HIST_ESTADOS,
+					LEG34_ESTADOS_TAREAS as ANT,
+					LEG34_ESTADOS_TAREAS as NU
+
+				JOIN
+					LEG03_HIST_ESTADOS.oi_estado_tarea INNER NU.oi_estado_tarea,
+					LEG03_HIST_ESTADOS.oi_est_tar_ant INNER ANT.oi_estado_tarea
+				WHERE
+					LEG03_HIST_ESTADOS.oi_tarea = {#SOURCE:@oi_tarea}
+				ORDER BY
+					f_hisest_tarea DESC
+			')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:element name="HIST">
+					<qry:attribute name="f_hisest_tarea" value="format-date($r/@f_hisest_tarea, 'dd/mm/yyyy HH:MM')"/>
+					<qry:attribute name="usuario_cambia" value="$r/@usuario_cambia"/>
+					<qry:attribute name="est_ant" value="'[' + $r/@c_est_ant +']' + ' ' + $r/@est_ant"/>
+					<qry:attribute name="est_nu" value="'[' + $r/@c_est_nu +']' + ' ' +$r/@est_nu"/>
+					<qry:attribute name="o_hisest_tarea" value="$r/@o_hisest_tarea"/>
+				</qry:element>
+			</qry:out>
+		</qry:select>
+		<qry:select name="getEstadoActual" doc="PARAM">
+			<qry:xquery>
+				for $r in SQL
+			('
+			
+			 SELECT 
+			 E.d_estado_tarea, 
+			 E.c_estado_tarea
+			 
+			 FROM 
+			 LEG34_ESTADOS_TAREAS as E,
+			 LEG03_TAREAS as T
+			 
+			 JOIN
+			 E.oi_estado_tarea INNER T.oi_estado_tarea
+			 			
+			 WHERE 
+			 T.oi_tarea  = {$PARAM/@oi_tarea} 
+	 
+			')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:attribute name="estadoActual" value="'[' + $r/@c_estado_tarea +']' + ' ' +$r/@d_estado_tarea"/>
+			</qry:out>
+		</qry:select>
+	</html:query>
+</html:html>

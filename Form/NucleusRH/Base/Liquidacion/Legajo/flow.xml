@@ -1,0 +1,966 @@
+<flow:flow xmlns:flow="nomad_engine.flow" xmlns:doc="nomad_engine.doc" xmlns:qry="nomad_engine.qry" default_action="initialize" name="Nomad.Base.Liquidacion.Legajo" extends="NucleusRH.Base.Liquidacion.Legajo_Liquidacion.autoflow">
+	<flow:info label="Flow para Nomad.Base.Liquidacion.Liquidacion">
+		Flow para NucleusRH.Base.Liquidacion.Liquidacion
+	</flow:info>
+	<flow:declare>
+		<doc:define name="SUMA_IMPORTE_ANTICIPO"/>
+		<doc:define name="SUMA_IMPORTE_EMBARGO"/>
+		<qry:define declare="&lt;PERSONAS&gt;&#13;&#10;&#9;&lt;ROW VALUES=&quot;570,571,577,579,585,586,588,598,599,601,603,605,607,608,611,612,613,619,624,625,628,629,630,631,632,640,641,643,644,645,648,653,656,657,658,666,668,669,670,671,673,674,675,678,681,682,683,687,688,690,691,692,693,696,698,699,702,703,708,709,710,716,717,718,719,720,723,724,725,726,727,729,731,733,736,737,738,740,741,743,744,745,746,748,749,750,752,753,755,757,759,760,762,763,764,765,766,768,769,773&quot; /&gt;&#13;&#10;&lt;/PERSONAS&gt;" name="FILTER">
+			<qry:main doc="SOURCE">
+				<qry:element name="ROWS">
+					<qry:insert-select name="RS1" doc-path="#SOURCE:/PERSONAS/ROW"/>
+				</qry:element>
+			</qry:main>
+			<qry:select name="RS1" doc="SOURCE">
+				<qry:xquery>
+					for $r in split('1;{%=#SOURCE:@VALUES%}')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:element name="ROW">
+						<qry:attribute name="id" value="$r/@value"/>
+						<qry:attribute name="value" value="$r/@value"/>
+					</qry:element>
+				</qry:out>
+			</qry:select>
+		</qry:define>
+		<qry:define declare="&lt;ANTICIPO &#13;&#10;&#9;descr=&quot;Nuevo&quot; &#13;&#10;&#9;c_estado=&quot;S&quot; &#13;&#10;&#9;l_liquida=&quot;1&quot; &#13;&#10;&#9;e_cant_cuotas=&quot;2&quot; &#13;&#10;&#9;nmd-status=&quot;~i,n_importe,e_cant_cuotas,&quot; &#13;&#10;&#9;f_solicitud=&quot;20050505&quot; &#13;&#10;&#9;f_anticipo=&quot;20080606&quot; &#13;&#10;&#9;n_importe=&quot;400.00&quot; &#13;&#10;&#9;e_periodo=&quot;200805&quot; e_quincena=&quot;&quot; f_rechazo=&quot;&quot; f_cancelacion=&quot;&quot; o_anticipo=&quot;&quot; id=&quot;~CC07C12512BA-CC33229F77C0-000000002833&quot;&gt;&#13;&#10;&#9;&lt;DESC_ANTI nmd-col=&quot;1&quot;&gt;&lt;DESC_ANTICIPO descr=&quot;Nuevo&quot; c_estado=&quot;P&quot; nmd-status=&quot;~i,&quot; e_cuota=&quot;1&quot; f_descuento=&quot;20080505&quot; n_importe=&quot;100.00&quot; id=&quot;~CC07C12512BA-CC334F53A200-000000002883&quot; /&gt;&lt;DESC_ANTICIPO descr=&quot;Nuevo&quot; c_estado=&quot;P&quot; nmd-status=&quot;~i,&quot; e_cuota=&quot;2&quot; f_descuento=&quot;20080605&quot; n_importe=&quot;100.00&quot; id=&quot;~CC07C12512BA-CC3357F104CF-000000002893&quot; /&gt;&lt;/DESC_ANTI&gt;&lt;/ANTICIPO&gt;" name="CALCULAR_SUMA">
+			<qry:main doc="SOURCE">
+				<qry:element name="DATO">
+					<qry:attribute value="'0'" name="total"/>
+					<qry:attribute value="'0'" name="pendiente"/>
+					<qry:attribute value="'0'" name="contador"/>
+					<qry:insert-select doc-path="#SOURCE:ANTICIPO" name="SUMA"/>
+					<qry:attribute value="number(@pendiente)" name="cancelados"/>
+					<qry:attribute value="number(@total) - number(@pendiente)" name="pendiente"/>
+					<qry:attribute value="iif(number(#SOURCE:ANTICIPO/@n_importe)= number(@total),1,0)" name="bandera"/>
+					<qry:attribute value="iif(number(#SOURCE:ANTICIPO/@e_cant_cuotas)= number(@contador),1,0)" name="banderaCant"/>
+				</qry:element>
+			</qry:main>
+			<qry:select name="SUMA" doc="SOURCE">
+				<qry:xquery>
+					for $r in #SOURCE:DESC_ANTI/DESC_ANTICIPO[substring_before(@nmd-status,',')!='~d' and substring_before(@nmd-status,',')!='~x']
+				</qry:xquery>
+				<qry:out>
+					<qry:attribute name="valor" value="$r/@n_importe"/>
+					<qry:attribute name="c_estado" value="$r/@c_estado"/>
+					<qry:attribute value="number(@contador) + 1" name="contador"/>
+					<qry:insert-select doc-path="." name="SUMA_2"/>
+					<qry:insert-select doc-path=".[./@c_estado!='P']" name="SUMA_3"/>
+				</qry:out>
+			</qry:select>
+			<qry:select doc="SOURCE" name="SUMA_2">
+				<qry:xquery>
+					for $r in #SOURCE:
+				</qry:xquery>
+				<qry:out>
+					<qry:attribute value="number(#SOURCE:@total) + number(#SOURCE:@valor)" name="total"/>
+				</qry:out>
+			</qry:select>
+			<qry:select doc="SOURCE" name="SUMA_3">
+				<qry:xquery>
+					for $r in #SOURCE:
+				</qry:xquery>
+				<qry:out>
+					<qry:attribute value="number(#SOURCE:@pendiente) + number(#SOURCE:@valor)" name="pendiente"/>
+				</qry:out>
+			</qry:select>
+		</qry:define>
+		<qry:define name="CALCULAR_SUMA_EMB">
+			<qry:main doc="SOURCE">
+				<qry:element name="DATO">
+					<qry:attribute value="'0'" name="Total"/>
+					<qry:insert-select doc-path="#SOURCE:EMBARGO" name="SUMA"/>
+				</qry:element>
+			</qry:main>
+			<qry:select name="SUMA" doc="SOURCE">
+				<qry:xquery>
+					FOR $r in #SOURCE:DESC_EMB/DESC_EMB
+				</qry:xquery>
+				<qry:out>
+					<qry:attribute name="Valor" value="$r/@n_importe"/>
+					<qry:insert-select doc-path="." name="SUMA_2"/>
+				</qry:out>
+			</qry:select>
+			<qry:select doc="SOURCE" name="SUMA_2">
+				<qry:xquery>
+					for $r in #SOURCE:..
+				</qry:xquery>
+				<qry:out>
+					<qry:attribute Value="number(#SOURCE:@Total) + number(#SOURCE:@Valor)" name="Total"/>
+				</qry:out>
+			</qry:select>
+		</qry:define>
+		<qry:define declare="&lt;PERSONAS&gt;&#13;&#10;&#9;&lt;ROW VALUES=&quot;1,2,3,4,5,6&quot; /&gt;&#13;&#10;&lt;/PERSONAS&gt;" name="LIST">
+			<qry:main doc="SOURCE" maxdeep="2">
+				<qry:element name="ROWS">
+					<qry:insert-select doc-path="#SOURCE:/PERSONAS/ROW" name="sql1"/>
+				</qry:element>
+			</qry:main>
+			<qry:select doc="SOURCE" name="sql1">
+				<qry:xquery>
+					for $r in sql('
+SELECT 
+P02.oi_personal_emp,
+P02.oi_empresa,
+P02.oi_personal,
+P02.e_numero_legajo,
+P01.d_ape_y_nom,
+P01.c_personal,
+CC.d_centro_costo,
+P02.l_confidencial,
+EMP.c_empresa,
+EMP.d_empresa
+FROM	
+LIQ07_PERSONAL AS L07,
+PER02_PERSONAL_EMP AS P02,
+PER01_PERSONAL AS P01, 
+ORG08_CS_COSTO AS CC,
+ORG03_EMPRESAS as EMP
+JOIN 	
+P02.oi_personal_emp LEFT OUTER L07.oi_personal_emp,
+P02.oi_personal INNER P01.oi_personal,
+P02.oi_ctro_costo_ult INNER CC.oi_centro_costo,
+EMP.oi_empresa INNER P02.oi_empresa
+WHERE
+    	P02.oi_personal_emp in ({%=string(#SOURCE:@VALUES) %})
+')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:element name="ROW">
+						<qry:attribute name="ID-LIQ07_PERSONAL" value="$r/@oi_personal_emp" type="Nomad.NSystem.Int"/>
+						<qry:attribute name="c_personal" value="$r/@c_personal" type="Nomad.NSystem.Int"/>
+						<qry:attribute name="d_ape_y_nom" value="$r/@d_ape_y_nom" type="Nomad.NSystem.Int"/>
+						<qry:attribute name="c_personal" value="$r/@c_personal"/>
+						<qry:attribute name="d_centro_costo" value="$r/@d_centro_costo"/>
+						<qry:attribute name="l_confidencial" value="$r/@l_confidencial"/>
+						<qry:attribute name="e_numero_legajo" value="$r/@e_numero_legajo" type="Nomad.NSystem.Int"/>
+						<qry:attribute name="oi_personal" value="$r/@oi_personal" type="Nomad.NSystem.Int"/>
+						<qry:attribute name="id" value="$r/@oi_personal_emp" type="Nomad.NSystem.Int"/>
+						<qry:attribute name="oi_empresa" value="'[' + $r/@c_empresa + '] ' + $r/@d_empresa"/>
+						<qry:attribute name="oi_personal" value="'[' + $r/@c_personal + '] ' + $r/@d_ape_y_nom"/>
+					</qry:element>
+				</qry:out>
+			</qry:select>
+		</qry:define>
+		<qry:define name="LIST:NucleusRH.Base.Liquidacion.Legajo_Liquidacion.DEDUC_IG">
+			<qry:include name="NucleusRH.Base.Liquidacion.Items_Deducibles_de_Ganancias.ITEM_IG.INFO"/>
+			<qry:include name="NucleusRH.Base.Liquidacion.Entidades_Deduccion_IG.ENTIDAD_IG.INFO"/>
+			<qry:main doc="PARAM" maxdeep="2">
+				<qry:element name="ROWS">
+					<qry:insert-select doc-path="#PARAM:./DEDUC_IG[substring_before(@nmd-status,',')!='~d' and substring_before(@nmd-status,',')!='~x']" name="sql1"/>
+				</qry:element>
+			</qry:main>
+			<qry:select doc="PARAM" name="sql1">
+				<qry:xquery>
+					for $r in #PARAM:
+				</qry:xquery>
+				<qry:out>
+					<qry:element name="ROW">
+						<qry:attribute name="id" value="$r/@id"/>
+						<qry:attribute name="c_tipo" value="$r/@c_tipo"/>
+						<qry:attribute name="e_periodo_des" value="iif($r/@e_periodo_des!='',format_date($r/@e_periodo_des+'01', 'yyyy-mm'),'')"/>
+						<qry:attribute name="e_periodo_has" value="iif($r/@e_periodo_has!='',format_date($r/@e_periodo_has+'01', 'yyyy-mm'), '')"/>
+						<qry:attribute name="e_anio" value="$r/@e_anio"/>
+						<qry:attribute name="n_importe" value="$r/@n_importe"/>
+						<qry:attribute name="CODE" value="$r/@CODE"/>
+						<qry:attribute name="TEXT" value="$r/@TEXT"/>
+						<qry:if test="$r/oi_item_ig/@value!=''">
+							<qry:then>
+								<qry:element name="oi_item_ig">
+									<qry:attribute name="OI_FIND" value="$r/oi_item_ig/@value"/>
+									<qry:insert-select name="NucleusRH.Base.Liquidacion.Items_Deducibles_de_Ganancias.ITEM_IG.QUERY" doc-path="."/>
+								</qry:element>
+								<qry:attribute name="oi_item_ig" value="'['+oi_item_ig/ROW/@COD+'] '+oi_item_ig/ROW/@DES"/>
+							</qry:then>
+						</qry:if>
+						<qry:if test="$r/oi_entidad_ig/@value!=''">
+							<qry:then>
+								<qry:element name="oi_entidad_ig">
+									<qry:attribute name="OI_FIND" value="$r/oi_entidad_ig/@value"/>
+									<qry:insert-select name="NucleusRH.Base.Liquidacion.Entidades_Deduccion_IG.ENTIDAD_IG.QUERY" doc-path="."/>
+								</qry:element>
+								<qry:attribute name="oi_entidad_ig" value="'['+oi_entidad_ig/ROW/@COD+'] '+oi_entidad_ig/ROW/@DES"/>
+							</qry:then>
+						</qry:if>
+					</qry:element>
+				</qry:out>
+			</qry:select>
+		</qry:define>
+		<doc:define name="TFDistribucionCCosto"/>
+		<qry:define declare="&#9;&lt;PERSONAL_EMP ID-LIQ07_PERSONAL=&quot;11462&quot; c_cta_bancaria=&quot;1597800-5-264-0&quot; c_tarjeta=&quot;1&quot; c_cbu=&quot;3483500298521&quot; n_bruto_ant=&quot;2000&quot; n_deduc_ant=&quot;1200&quot; n_reten_ant=&quot;500&quot; n_bruto_nr_ant=&quot;630&quot; n_ap_jub_ant=&quot;300&quot; n_ap_os_ant=&quot;310&quot; n_ap_ley_ant=&quot;120&quot; l_agente_ret=&quot;0&quot; l_liq_final=&quot;0&quot; id=&quot;11462&quot; f_ingreso=&quot;20040103132159&quot; e_numero_legajo=&quot;1&quot; f_antiguedad_rec=&quot;20031101&quot; e_q_renov_ctrato=&quot;0&quot; l_eventual=&quot;0&quot; l_confidencial=&quot;0&quot; f_desde_ccosto=&quot;20080103132159&quot; f_desde_categoria=&quot;20080104&quot; f_desde_calendario=&quot;20080103132159&quot; l_disponib_viajar=&quot;0&quot; descr=&quot;[1] AILAN, PABLO MARCELO&quot; text=&quot;AILAN, PABLO MARCELO&quot;&gt;&#13;&#10;&#9;&#9;&lt;oi_sucursal value=&quot;11&quot;/&gt;&#13;&#10;&#9;&#9;&lt;oi_empresa value=&quot;164&quot;/&gt;&#13;&#10;&#9;&#9;&lt;oi_personal value=&quot;399&quot;/&gt;&#13;&#10;&#9;&#9;&lt;oi_contrato/&gt;&#13;&#10;&#9;&#9;&lt;oi_posicion_ult/&gt;&#13;&#10;&#9;&#9;&lt;oi_unidad_tiempo/&gt;&#13;&#10;&#9;&#9;&lt;oi_agencia/&gt;&#13;&#10;&#9;&#9;&lt;oi_puesto_ult/&gt;&#13;&#10;&#9;&#9;&lt;oi_ctro_costo_ult value=&quot;286&quot;/&gt;&#13;&#10;&#9;&#9;&lt;oi_categoria_ult value=&quot;215&quot;/&gt;&#13;&#10;&#9;&#9;&lt;oi_calendario_ult value=&quot;1&quot;/&gt;&#13;&#10;&#9;&#9;&lt;oi_funcion/&gt;&#13;&#10;&#9;&#9;&lt;oi_tipo_personal value=&quot;1&quot;/&gt;&#13;&#10;&#9;&#9;&lt;oi_obra_social value=&quot;18&quot;/&gt;&#13;&#10;&#9;&#9;&lt;oi_motivo_eg_per/&gt;&#13;&#10;&#9;&#9;&lt;oi_plan_os/&gt;&#13;&#10;&#9;&#9;&lt;oi_sindicato value=&quot;258&quot;/&gt;&#13;&#10;&#9;&#9;&lt;oi_art/&gt;&#13;&#10;&#9;&#9;&lt;oi_tipo_servicio/&gt;&#13;&#10;&#9;&#9;&lt;oi_seguro_soc/&gt;&#13;&#10;&#9;&#9;&lt;oi_prestadora/&gt;&#13;&#10;&#9;&#9;&lt;oi_plan_presta/&gt;&#13;&#10;&#9;&#9;&lt;oi_indic_activo value=&quot;1&quot;/&gt;&#13;&#10;&#9;&#9;&lt;oi_sit_laboral/&gt;&#13;&#10;&#9;&#9;&lt;oi_forma_pago/&gt;&#13;&#10;&#9;&#9;&lt;oi_ubicacion/&gt;&#13;&#10;&#9;&#9;&lt;oi_equipo_mov_ult/&gt;&#13;&#10;&#9;&#9;&lt;oi_empresa_vinc/&gt;&#13;&#10;&#9;&#9;&lt;DISTRIB_COS&gt;&#13;&#10;&#9;&#9;&#9;&lt;DISTRIB_COS id=&quot;6&quot; oi_personal_emp=&quot;11462&quot; n_p_distrib=&quot;80&quot; descr=&quot;[1] AILAN, PABLO MARCELO - [6] 6&quot;&gt;&#13;&#10;&#9;&#9;&#9;&#9;&lt;oi_centro_costo value=&quot;288&quot;/&gt;&#13;&#10;&#9;&#9;&#9;&lt;/DISTRIB_COS&gt;&#13;&#10;&#9;&#9;&#9;&lt;DISTRIB_COS id=&quot;5&quot; oi_personal_emp=&quot;11462&quot; n_p_distrib=&quot;20&quot; descr=&quot;[1] AILAN, PABLO MARCELO - [5] 5&quot;&gt;&#13;&#10;&#9;&#9;&#9;&#9;&lt;oi_centro_costo value=&quot;289&quot;/&gt;&#13;&#10;&#9;&#9;&#9;&lt;/DISTRIB_COS&gt;&#13;&#10;&#9;&#9;&lt;/DISTRIB_COS&gt;&#13;&#10;&#9;&#9;&lt;VAL_VAREF&gt;&#13;&#10;&#9;&#9;&#9;&lt;VAL_VAREF id=&quot;196&quot; oi_personal_emp=&quot;11462&quot; n_valor=&quot;1&quot; descr=&quot;[1] AILAN, PABLO MARCELO - [196] 196&quot;&gt;&#13;&#10;&#9;&#9;&#9;&#9;&lt;oi_variable value=&quot;1360&quot;/&gt;&#13;&#10;&#9;&#9;&#9;&lt;/VAL_VAREF&gt;&#13;&#10;&#9;&#9;&#9;&lt;VAL_VAREF id=&quot;197&quot; oi_personal_emp=&quot;11462&quot; n_valor=&quot;1&quot; descr=&quot;[1] AILAN, PABLO MARCELO - [197] 197&quot;&gt;&#13;&#10;&#9;&#9;&#9;&#9;&lt;oi_variable value=&quot;1422&quot;/&gt;&#13;&#10;&#9;&#9;&#9;&lt;/VAL_VAREF&gt;&#13;&#10;&#9;&#9;&#9;&lt;VAL_VAREF id=&quot;198&quot; oi_personal_emp=&quot;11462&quot; n_valor=&quot;1&quot; descr=&quot;[1] AILAN, PABLO MARCELO - [198] 198&quot;&gt;&#13;&#10;&#9;&#9;&#9;&#9;&lt;oi_variable value=&quot;1427&quot;/&gt;&#13;&#10;&#9;&#9;&#9;&lt;/VAL_VAREF&gt;&#13;&#10;&#9;&#9;&#9;&lt;VAL_VAREF id=&quot;199&quot; oi_personal_emp=&quot;11462&quot; n_valor=&quot;6&quot; descr=&quot;[1] AILAN, PABLO MARCELO - [199] 199&quot;&gt;&#13;&#10;&#9;&#9;&#9;&#9;&lt;oi_variable value=&quot;1447&quot;/&gt;&#13;&#10;&#9;&#9;&#9;&lt;/VAL_VAREF&gt;&#13;&#10;&#9;&#9;&#9;&lt;VAL_VAREF id=&quot;200&quot; oi_personal_emp=&quot;11462&quot; n_valor=&quot;13&quot; descr=&quot;[1] AILAN, PABLO MARCELO - [200] 200&quot;&gt;&#13;&#10;&#9;&#9;&#9;&#9;&lt;oi_variable value=&quot;1446&quot;/&gt;&#13;&#10;&#9;&#9;&#9;&lt;/VAL_VAREF&gt;&#13;&#10;&#9;&#9;&#9;&lt;VAL_VAREF id=&quot;201&quot; oi_personal_emp=&quot;11462&quot; n_valor=&quot;1&quot; descr=&quot;[1] AILAN, PABLO MARCELO - [201] 201&quot;&gt;&#13;&#10;&#9;&#9;&#9;&#9;&lt;oi_variable value=&quot;1366&quot;/&gt;&#13;&#10;&#9;&#9;&#9;&lt;/VAL_VAREF&gt;&#13;&#10;&#9;&#9;&#9;&lt;VAL_VAREF id=&quot;202&quot; oi_personal_emp=&quot;11462&quot; n_valor=&quot;1&quot; descr=&quot;[1] AILAN, PABLO MARCELO - [202] 202&quot;&gt;&#13;&#10;&#9;&#9;&#9;&#9;&lt;oi_variable value=&quot;1425&quot;/&gt;&#13;&#10;&#9;&#9;&#9;&lt;/VAL_VAREF&gt;&#13;&#10;&#9;&#9;&#9;&lt;VAL_VAREF id=&quot;203&quot; oi_personal_emp=&quot;11462&quot; n_valor=&quot;98&quot; descr=&quot;[1] AILAN, PABLO MARCELO - [203] 203&quot;&gt;&#13;&#10;&#9;&#9;&#9;&#9;&lt;oi_variable value=&quot;1223&quot;/&gt;&#13;&#10;&#9;&#9;&#9;&lt;/VAL_VAREF&gt;&#13;&#10;&#9;&#9;&#9;&lt;VAL_VAREF id=&quot;204&quot; oi_personal_emp=&quot;11462&quot; n_valor=&quot;543&quot; descr=&quot;[1] AILAN, PABLO MARCELO - [204] 204&quot;&gt;&#13;&#10;&#9;&#9;&#9;&#9;&lt;oi_variable value=&quot;1258&quot;/&gt;&#13;&#10;&#9;&#9;&#9;&lt;/VAL_VAREF&gt;&#13;&#10;&#9;&#9;&#9;&lt;VAL_VAREF id=&quot;205&quot; oi_personal_emp=&quot;11462&quot; n_valor=&quot;33.870000&quot; descr=&quot;[1] AILAN, PABLO MARCELO - [205] 205&quot;&gt;&#13;&#10;&#9;&#9;&#9;&#9;&lt;oi_variable value=&quot;1359&quot;/&gt;&#13;&#10;&#9;&#9;&#9;&lt;/VAL_VAREF&gt;&#13;&#10;&#9;&#9;&#9;&lt;VAL_VAREF id=&quot;206&quot; oi_personal_emp=&quot;11462&quot; n_valor=&quot;1000&quot; descr=&quot;[1] AILAN, PABLO MARCELO - [206] 206&quot;&gt;&#13;&#10;&#9;&#9;&#9;&#9;&lt;oi_variable value=&quot;1358&quot;/&gt;&#13;&#10;&#9;&#9;&#9;&lt;/VAL_VAREF&gt;&#13;&#10;&#9;&#9;&lt;/VAL_VAREF&gt;&#13;&#10;&#9;&#9;&lt;DEDUC_IG&gt;&#13;&#10;&#9;&#9;&#9;&lt;DEDUC_IG id=&quot;9&quot; oi_personal_emp=&quot;11462&quot; f_fecha=&quot;20070428&quot; n_importe=&quot;200&quot; descr=&quot;[1] AILAN, PABLO MARCELO - [9] 9&quot;&gt;&#13;&#10;&#9;&#9;&#9;&#9;&lt;oi_item_ig value=&quot;41&quot;/&gt;&#13;&#10;&#9;&#9;&#9;&#9;&lt;oi_entidad_ig value=&quot;1&quot;/&gt;&#13;&#10;&#9;&#9;&#9;&lt;/DEDUC_IG&gt;&#13;&#10;&#9;&#9;&#9;&lt;DEDUC_IG id=&quot;10&quot; oi_personal_emp=&quot;11462&quot; f_fecha=&quot;20070101&quot; n_importe=&quot;100&quot; descr=&quot;[1] AILAN, PABLO MARCELO - [10] 10&quot;&gt;&#13;&#10;&#9;&#9;&#9;&#9;&lt;oi_item_ig value=&quot;10&quot;/&gt;&#13;&#10;&#9;&#9;&#9;&#9;&lt;oi_entidad_ig value=&quot;1&quot;/&gt;&#13;&#10;&#9;&#9;&#9;&lt;/DEDUC_IG&gt;&#13;&#10;&#9;&#9;&#9;&lt;DEDUC_IG id=&quot;11&quot; oi_personal_emp=&quot;11462&quot; f_fecha=&quot;20070220&quot; n_importe=&quot;300&quot; descr=&quot;[1] AILAN, PABLO MARCELO - [11] 11&quot;&gt;&#13;&#10;&#9;&#9;&#9;&#9;&lt;oi_item_ig value=&quot;10&quot;/&gt;&#13;&#10;&#9;&#9;&#9;&#9;&lt;oi_entidad_ig value=&quot;10&quot;/&gt;&#13;&#10;&#9;&#9;&#9;&lt;/DEDUC_IG&gt;&#13;&#10;&#9;&#9;&#9;&lt;DEDUC_IG id=&quot;12&quot; oi_personal_emp=&quot;11462&quot; f_fecha=&quot;20070403&quot; n_importe=&quot;3000&quot; descr=&quot;[1] AILAN, PABLO MARCELO - [12] 12&quot;&gt;&#13;&#10;&#9;&#9;&#9;&#9;&lt;oi_item_ig value=&quot;41&quot;/&gt;&#13;&#10;&#9;&#9;&#9;&#9;&lt;oi_entidad_ig value=&quot;1&quot;/&gt;&#13;&#10;&#9;&#9;&#9;&lt;/DEDUC_IG&gt;&#13;&#10;&#9;&#9;&#9;&lt;DEDUC_IG id=&quot;13&quot; oi_personal_emp=&quot;11462&quot; f_fecha=&quot;20070806&quot; n_importe=&quot;2220&quot; descr=&quot;[1] AILAN, PABLO MARCELO - [13] 13&quot;&gt;&#13;&#10;&#9;&#9;&#9;&#9;&lt;oi_item_ig value=&quot;41&quot;/&gt;&#13;&#10;&#9;&#9;&#9;&#9;&lt;oi_entidad_ig value=&quot;2&quot;/&gt;&#13;&#10;&#9;&#9;&#9;&lt;/DEDUC_IG&gt;&#13;&#10;&#9;&#9;&#9;&lt;DEDUC_IG id=&quot;14&quot; oi_personal_emp=&quot;11462&quot; f_fecha=&quot;20070806&quot; n_importe=&quot;2000&quot; descr=&quot;[1] AILAN, PABLO MARCELO - [14] 14&quot;&gt;&#13;&#10;&#9;&#9;&#9;&#9;&lt;oi_item_ig value=&quot;40&quot;/&gt;&#13;&#10;&#9;&#9;&#9;&#9;&lt;oi_entidad_ig value=&quot;3&quot;/&gt;&#13;&#10;&#9;&#9;&#9;&lt;/DEDUC_IG&gt;&#13;&#10;&#9;&#9;&#9;&lt;DEDUC_IG id=&quot;15&quot; oi_personal_emp=&quot;11462&quot; f_fecha=&quot;20070106&quot; n_importe=&quot;250&quot; descr=&quot;[1] AILAN, PABLO MARCELO - [15] 15&quot;&gt;&#13;&#10;&#9;&#9;&#9;&#9;&lt;oi_item_ig value=&quot;6&quot;/&gt;&#13;&#10;&#9;&#9;&#9;&#9;&lt;oi_entidad_ig value=&quot;1&quot;/&gt;&#13;&#10;&#9;&#9;&#9;&lt;/DEDUC_IG&gt;&#13;&#10;&#9;&#9;&#9;&lt;DEDUC_IG id=&quot;16&quot; oi_personal_emp=&quot;11462&quot; f_fecha=&quot;20070206&quot; n_importe=&quot;400&quot; descr=&quot;[1] AILAN, PABLO MARCELO - [16] 16&quot;&gt;&#13;&#10;&#9;&#9;&#9;&#9;&lt;oi_item_ig value=&quot;6&quot;/&gt;&#13;&#10;&#9;&#9;&#9;&#9;&lt;oi_entidad_ig value=&quot;2&quot;/&gt;&#13;&#10;&#9;&#9;&#9;&lt;/DEDUC_IG&gt;&#13;&#10;&#9;&#9;&#9;&lt;DEDUC_IG id=&quot;17&quot; oi_personal_emp=&quot;11462&quot; f_fecha=&quot;20070306&quot; n_importe=&quot;300&quot; descr=&quot;[1] AILAN, PABLO MARCELO - [17] 17&quot;&gt;&#13;&#10;&#9;&#9;&#9;&#9;&lt;oi_item_ig value=&quot;6&quot;/&gt;&#13;&#10;&#9;&#9;&#9;&#9;&lt;oi_entidad_ig value=&quot;3&quot;/&gt;&#13;&#10;&#9;&#9;&#9;&lt;/DEDUC_IG&gt;&#13;&#10;&#9;&#9;&#9;&lt;DEDUC_IG id=&quot;18&quot; oi_personal_emp=&quot;11462&quot; f_fecha=&quot;20070406&quot; n_importe=&quot;800&quot; descr=&quot;[1] AILAN, PABLO MARCELO - [18] 18&quot;&gt;&#13;&#10;&#9;&#9;&#9;&#9;&lt;oi_item_ig value=&quot;6&quot;/&gt;&#13;&#10;&#9;&#9;&#9;&#9;&lt;oi_entidad_ig value=&quot;4&quot;/&gt;&#13;&#10;&#9;&#9;&#9;&lt;/DEDUC_IG&gt;&#13;&#10;&#9;&#9;&#9;&lt;DEDUC_IG id=&quot;19&quot; oi_personal_emp=&quot;11462&quot; f_fecha=&quot;20070506&quot; n_importe=&quot;200&quot; descr=&quot;[1] AILAN, PABLO MARCELO - [19] 19&quot;&gt;&#13;&#10;&#9;&#9;&#9;&#9;&lt;oi_item_ig value=&quot;6&quot;/&gt;&#13;&#10;&#9;&#9;&#9;&#9;&lt;oi_entidad_ig value=&quot;5&quot;/&gt;&#13;&#10;&#9;&#9;&#9;&lt;/DEDUC_IG&gt;&#13;&#10;&#9;&#9;&#9;&lt;DEDUC_IG id=&quot;20&quot; oi_personal_emp=&quot;11462&quot; f_fecha=&quot;20070606&quot; n_importe=&quot;300&quot; descr=&quot;[1] AILAN, PABLO MARCELO - [20] 20&quot;&gt;&#13;&#10;&#9;&#9;&#9;&#9;&lt;oi_item_ig value=&quot;6&quot;/&gt;&#13;&#10;&#9;&#9;&#9;&#9;&lt;oi_entidad_ig value=&quot;6&quot;/&gt;&#13;&#10;&#9;&#9;&#9;&lt;/DEDUC_IG&gt;&#13;&#10;&#9;&#9;&#9;&lt;DEDUC_IG id=&quot;21&quot; oi_personal_emp=&quot;11462&quot; f_fecha=&quot;20070706&quot; n_importe=&quot;400&quot; descr=&quot;[1] AILAN, PABLO MARCELO - [21] 21&quot;&gt;&#13;&#10;&#9;&#9;&#9;&#9;&lt;oi_item_ig value=&quot;6&quot;/&gt;&#13;&#10;&#9;&#9;&#9;&#9;&lt;oi_entidad_ig value=&quot;7&quot;/&gt;&#13;&#10;&#9;&#9;&#9;&lt;/DEDUC_IG&gt;&#13;&#10;&#9;&#9;&#9;&lt;DEDUC_IG id=&quot;22&quot; oi_personal_emp=&quot;11462&quot; f_fecha=&quot;20070705&quot; n_importe=&quot;200&quot; descr=&quot;[1] AILAN, PABLO MARCELO - [22] 22&quot;&gt;&#13;&#10;&#9;&#9;&#9;&#9;&lt;oi_item_ig value=&quot;6&quot;/&gt;&#13;&#10;&#9;&#9;&#9;&#9;&lt;oi_entidad_ig value=&quot;8&quot;/&gt;&#13;&#10;&#9;&#9;&#9;&lt;/DEDUC_IG&gt;&#13;&#10;&#9;&#9;&#9;&lt;DEDUC_IG id=&quot;23&quot; oi_personal_emp=&quot;11462&quot; f_fecha=&quot;20070806&quot; n_importe=&quot;300&quot; descr=&quot;[1] AILAN, PABLO MARCELO - [23] 23&quot;&gt;&#13;&#10;&#9;&#9;&#9;&#9;&lt;oi_item_ig value=&quot;6&quot;/&gt;&#13;&#10;&#9;&#9;&#9;&#9;&lt;oi_entidad_ig value=&quot;9&quot;/&gt;&#13;&#10;&#9;&#9;&#9;&lt;/DEDUC_IG&gt;&#13;&#10;&#9;&#9;&#9;&lt;DEDUC_IG id=&quot;24&quot; oi_personal_emp=&quot;11462&quot; f_fecha=&quot;20070906&quot; n_importe=&quot;555&quot; descr=&quot;[1] AILAN, PABLO MARCELO - [24] 24&quot;&gt;&#13;&#10;&#9;&#9;&#9;&#9;&lt;oi_item_ig value=&quot;6&quot;/&gt;&#13;&#10;&#9;&#9;&#9;&#9;&lt;oi_entidad_ig value=&quot;10&quot;/&gt;&#13;&#10;&#9;&#9;&#9;&lt;/DEDUC_IG&gt;&#13;&#10;&#9;&#9;&#9;&lt;DEDUC_IG id=&quot;25&quot; oi_personal_emp=&quot;11462&quot; f_fecha=&quot;20071006&quot; n_importe=&quot;564&quot; descr=&quot;[1] AILAN, PABLO MARCELO - [25] 25&quot;&gt;&#13;&#10;&#9;&#9;&#9;&#9;&lt;oi_item_ig value=&quot;6&quot;/&gt;&#13;&#10;&#9;&#9;&#9;&#9;&lt;oi_entidad_ig value=&quot;11&quot;/&gt;&#13;&#10;&#9;&#9;&#9;&lt;/DEDUC_IG&gt;&#13;&#10;&#9;&#9;&#9;&lt;DEDUC_IG id=&quot;26&quot; oi_personal_emp=&quot;11462&quot; f_fecha=&quot;20071106&quot; n_importe=&quot;564&quot; descr=&quot;[1] AILAN, PABLO MARCELO - [26] 26&quot;&gt;&#13;&#10;&#9;&#9;&#9;&#9;&lt;oi_item_ig value=&quot;6&quot;/&gt;&#13;&#10;&#9;&#9;&#9;&#9;&lt;oi_entidad_ig value=&quot;12&quot;/&gt;&#13;&#10;&#9;&#9;&#9;&lt;/DEDUC_IG&gt;&#13;&#10;&#9;&#9;&#9;&lt;DEDUC_IG id=&quot;27&quot; oi_personal_emp=&quot;11462&quot; f_fecha=&quot;20071206&quot; n_importe=&quot;555&quot; descr=&quot;[1] AILAN, PABLO MARCELO - [27] 27&quot;&gt;&#13;&#10;&#9;&#9;&#9;&#9;&lt;oi_item_ig value=&quot;6&quot;/&gt;&#13;&#10;&#9;&#9;&#9;&#9;&lt;oi_entidad_ig value=&quot;13&quot;/&gt;&#13;&#10;&#9;&#9;&#9;&lt;/DEDUC_IG&gt;&#13;&#10;&#9;&#9;&lt;/DEDUC_IG&gt;&#13;&#10;&#9;&#9;&lt;VAL_VAREA&gt;&#13;&#10;&#9;&#9;&#9;&lt;VAL_VAREA id=&quot;214&quot; oi_personal_emp=&quot;11462&quot; n_valor=&quot;3440&quot; descr=&quot;[1] AILAN, PABLO MARCELO - [214] 214&quot;&gt;&#13;&#10;&#9;&#9;&#9;&#9;&lt;oi_variable value=&quot;10&quot;/&gt;&#13;&#10;&#9;&#9;&#9;&lt;/VAL_VAREA&gt;&#13;&#10;&#9;&#9;&#9;&lt;VAL_VAREA id=&quot;213&quot; oi_personal_emp=&quot;11462&quot; n_valor=&quot;3440&quot; descr=&quot;[1] AILAN, PABLO MARCELO - [213] 213&quot;&gt;&#13;&#10;&#9;&#9;&#9;&#9;&lt;oi_variable value=&quot;11&quot;/&gt;&#13;&#10;&#9;&#9;&#9;&lt;/VAL_VAREA&gt;&#13;&#10;&#9;&#9;&#9;&lt;VAL_VAREA id=&quot;170&quot; oi_personal_emp=&quot;11462&quot; n_valor=&quot;-378.400000&quot; descr=&quot;[1] AILAN, PABLO MARCELO - [170] 170&quot;&gt;&#13;&#10;&#9;&#9;&#9;&#9;&lt;oi_variable value=&quot;273&quot;/&gt;&#13;&#10;&#9;&#9;&#9;&lt;/VAL_VAREA&gt;&#13;&#10;&#9;&#9;&#9;&lt;VAL_VAREA id=&quot;171&quot; oi_personal_emp=&quot;11462&quot; n_valor=&quot;-589.800000&quot; descr=&quot;[1] AILAN, PABLO MARCELO - [171] 171&quot;&gt;&#13;&#10;&#9;&#9;&#9;&#9;&lt;oi_variable value=&quot;277&quot;/&gt;&#13;&#10;&#9;&#9;&#9;&lt;/VAL_VAREA&gt;&#13;&#10;&#9;&#9;&#9;&lt;VAL_VAREA id=&quot;172&quot; oi_personal_emp=&quot;11462&quot; n_valor=&quot;3446&quot; descr=&quot;[1] AILAN, PABLO MARCELO - [172] 172&quot;&gt;&#13;&#10;&#9;&#9;&#9;&#9;&lt;oi_variable value=&quot;278&quot;/&gt;&#13;&#10;&#9;&#9;&#9;&lt;/VAL_VAREA&gt;&#13;&#10;&#9;&#9;&lt;/VAL_VAREA&gt;&#13;&#10;&#9;&#9;&lt;EMBARGOS&gt;&#13;&#10;&#9;&#9;&#9;&lt;EMBARGO id=&quot;6&quot; oi_personal_emp=&quot;11462&quot; e_nro_oficio=&quot;1&quot; f_oficio=&quot;20080129&quot; f_recepcion=&quot;20080129&quot; c_tipo_embargo=&quot;OC&quot; l_liquida=&quot;0&quot; f_inactivo=&quot;20080130&quot; f_finalizado=&quot;20080130&quot; c_estado=&quot;F&quot; l_sueldo_bruto=&quot;0&quot; l_sueldo_neto=&quot;0&quot; n_monto_total=&quot;100&quot; n_monto_pend=&quot;0&quot; descr=&quot;[1] AILAN, PABLO MARCELO - [1]&quot;&gt;&#13;&#10;&#9;&#9;&#9;&#9;&lt;oi_sucursal/&gt;&#13;&#10;&#9;&#9;&#9;&#9;&lt;DESC_EMB&gt;&#13;&#10;&#9;&#9;&#9;&#9;&#9;&lt;DESC_EMB id=&quot;1&quot; oi_embargo=&quot;6&quot; f_descuento=&quot;20080130&quot; n_importe=&quot;100&quot; descr=&quot;[1] AILAN, PABLO MARCELO - [1]  - [1] 1&quot;&gt;&#13;&#10;&#9;&#9;&#9;&#9;&#9;&#9;&lt;oi_liquidacion/&gt;&#13;&#10;&#9;&#9;&#9;&#9;&#9;&lt;/DESC_EMB&gt;&#13;&#10;&#9;&#9;&#9;&#9;&lt;/DESC_EMB&gt;&#13;&#10;&#9;&#9;&#9;&#9;&lt;CONC_EMB_CA/&gt;&#13;&#10;&#9;&#9;&#9;&lt;/EMBARGO&gt;&#13;&#10;&#9;&#9;&#9;&lt;EMBARGO id=&quot;7&quot; oi_personal_emp=&quot;11462&quot; e_nro_oficio=&quot;65654&quot; f_oficio=&quot;20080129&quot; f_recepcion=&quot;20080129&quot; c_tipo_embargo=&quot;CAM&quot; l_liquida=&quot;1&quot; f_inactivo=&quot;20080130&quot; c_estado=&quot;N&quot; l_sueldo_bruto=&quot;0&quot; l_sueldo_neto=&quot;0&quot; n_monto_fijo=&quot;0&quot; descr=&quot;[1] AILAN, PABLO MARCELO - [65654]&quot;&gt;&#13;&#10;&#9;&#9;&#9;&#9;&lt;oi_sucursal/&gt;&#13;&#10;&#9;&#9;&#9;&#9;&lt;DESC_EMB/&gt;&#13;&#10;&#9;&#9;&#9;&#9;&lt;CONC_EMB_CA/&gt;&#13;&#10;&#9;&#9;&#9;&lt;/EMBARGO&gt;&#13;&#10;&#9;&#9;&lt;/EMBARGOS&gt;&#13;&#10;&#9;&#9;&lt;ANTICIPOS&gt;&#13;&#10;&#9;&#9;&#9;&lt;ANTICIPO id=&quot;11&quot; oi_personal_emp=&quot;11462&quot; f_solicitud=&quot;20080129&quot; f_anticipo=&quot;20080129&quot; n_importe=&quot;100&quot; e_cant_cuotas=&quot;2&quot; e_periodo=&quot;200802&quot; l_liquida=&quot;0&quot; n_imp_pendiente=&quot;0&quot; c_estado=&quot;C&quot; f_cancelacion=&quot;20080129&quot; descr=&quot;[1] AILAN, PABLO MARCELO - [20080129] 20080129&quot;&gt;&#13;&#10;&#9;&#9;&#9;&#9;&lt;DESC_ANTI&gt;&#13;&#10;&#9;&#9;&#9;&#9;&#9;&lt;DESC_ANTICIPO id=&quot;9&quot; oi_anticipo=&quot;11&quot; e_cuota=&quot;1&quot; n_importe=&quot;50&quot; c_estado=&quot;D&quot; descr=&quot;[1] AILAN, PABLO MARCELO - [20080129] 20080129 - [9] 9&quot;&gt;&#13;&#10;&#9;&#9;&#9;&#9;&#9;&#9;&lt;oi_liquidacion/&gt;&#13;&#10;&#9;&#9;&#9;&#9;&#9;&lt;/DESC_ANTICIPO&gt;&#13;&#10;&#9;&#9;&#9;&#9;&#9;&lt;DESC_ANTICIPO id=&quot;10&quot; oi_anticipo=&quot;11&quot; e_cuota=&quot;2&quot; f_descuento=&quot;20080501&quot; n_importe=&quot;50&quot; c_estado=&quot;P&quot; descr=&quot;[1] AILAN, PABLO MARCELO - [20080129] 20080129 - [10] 10&quot;&gt;&#13;&#10;&#9;&#9;&#9;&#9;&#9;&#9;&lt;oi_liquidacion/&gt;&#13;&#10;&#9;&#9;&#9;&#9;&#9;&lt;/DESC_ANTICIPO&gt;&#13;&#10;&#9;&#9;&#9;&#9;&lt;/DESC_ANTI&gt;&#13;&#10;&#9;&#9;&#9;&lt;/ANTICIPO&gt;&#13;&#10;&#9;&#9;&lt;/ANTICIPOS&gt;&#13;&#10;&#9;&#9;&lt;PARAM_PER&gt;&#13;&#10;&#9;&#9;&#9;&lt;PARAM_PER id=&quot;30&quot; oi_personal_emp=&quot;11462&quot; d_valor=&quot;11&quot; descr=&quot;[1] AILAN, PABLO MARCELO - [30] 30&quot;&gt;&#13;&#10;&#9;&#9;&#9;&#9;&lt;oi_parametro value=&quot;1&quot;/&gt;&#13;&#10;&#9;&#9;&#9;&lt;/PARAM_PER&gt;&#13;&#10;&#9;&#9;&lt;/PARAM_PER&gt;&#13;&#10;&#9;&#9;&lt;ALQ_PER/&gt;&#13;&#10;&#9;&#9;&lt;CATEG_PER&gt;&#13;&#10;&#9;&#9;&#9;&lt;CATEGORIA_PER id=&quot;233&quot; oi_personal_emp=&quot;11462&quot; f_ingreso=&quot;20080103132159&quot; f_egreso=&quot;20080104&quot; descr=&quot;[1] AILAN, PABLO MARCELO - [14] VENDEDOR D&quot;&gt;&#13;&#10;&#9;&#9;&#9;&#9;&lt;oi_categoria value=&quot;14&quot;/&gt;&#13;&#10;&#9;&#9;&#9;&#9;&lt;oi_motivo_cambio/&gt;&#13;&#10;&#9;&#9;&#9;&lt;/CATEGORIA_PER&gt;&#13;&#10;&#9;&#9;&#9;&lt;CATEGORIA_PER id=&quot;269&quot; oi_personal_emp=&quot;11462&quot; f_ingreso=&quot;20080104&quot; descr=&quot;[1] AILAN, PABLO MARCELO - [001] Peon&quot;&gt;&#13;&#10;&#9;&#9;&#9;&#9;&lt;oi_categoria value=&quot;215&quot;/&gt;&#13;&#10;&#9;&#9;&#9;&#9;&lt;oi_motivo_cambio/&gt;&#13;&#10;&#9;&#9;&#9;&lt;/CATEGORIA_PER&gt;&#13;&#10;&#9;&#9;&lt;/CATEG_PER&gt;&#13;&#10;&#9;&#9;&lt;CCOSTO_PER&gt;&#13;&#10;&#9;&#9;&#9;&lt;CCOSTO_PER id=&quot;524&quot; oi_personal_emp=&quot;11462&quot; f_ingreso=&quot;20080103132159&quot; descr=&quot;[1] AILAN, PABLO MARCELO - [999] Administraci&amp;#243;n General&quot;&gt;&#13;&#10;&#9;&#9;&#9;&#9;&lt;oi_centro_costo value=&quot;286&quot;/&gt;&#13;&#10;&#9;&#9;&#9;&#9;&lt;oi_motivo_cambio/&gt;&#13;&#10;&#9;&#9;&#9;&lt;/CCOSTO_PER&gt;&#13;&#10;&#9;&#9;&lt;/CCOSTO_PER&gt;&#13;&#10;&#9;&#9;&lt;CONTR_PER/&gt;&#13;&#10;&#9;&#9;&lt;DSANG_PER/&gt;&#13;&#10;&#9;&#9;&lt;NOT_CTR_TEMP/&gt;&#13;&#10;&#9;&#9;&lt;POSIC_PER/&gt;&#13;&#10;&#9;&#9;&lt;PUESTO_PER/&gt;&#13;&#10;&#9;&#9;&lt;TIPOSP_PER&gt;&#13;&#10;&#9;&#9;&#9;&lt;TIPOP_PER id=&quot;307&quot; oi_personal_emp=&quot;11462&quot; f_ingreso=&quot;20080103132159&quot; descr=&quot;[1] AILAN, PABLO MARCELO - [1] Mensualizado&quot;&gt;&#13;&#10;&#9;&#9;&#9;&#9;&lt;oi_tipo_personal value=&quot;1&quot;/&gt;&#13;&#10;&#9;&#9;&#9;&#9;&lt;oi_motivo_cambio/&gt;&#13;&#10;&#9;&#9;&#9;&lt;/TIPOP_PER&gt;&#13;&#10;&#9;&#9;&lt;/TIPOSP_PER&gt;&#13;&#10;&#9;&#9;&lt;LICEN_PER&gt;&#13;&#10;&#9;&#9;&#9;&lt;LICENCIA_PER id=&quot;72&quot; oi_personal_emp=&quot;11462&quot; f_inicio=&quot;20080210&quot; f_fin=&quot;20080310&quot; e_cant_dias=&quot;30&quot; l_bloqueada=&quot;0&quot; descr=&quot;[1] AILAN, PABLO MARCELO - [20080210]&quot;&gt;&#13;&#10;&#9;&#9;&#9;&#9;&lt;oi_licencia value=&quot;7&quot;/&gt;&#13;&#10;&#9;&#9;&#9;&lt;/LICENCIA_PER&gt;&#13;&#10;&#9;&#9;&lt;/LICEN_PER&gt;&#13;&#10;&#9;&#9;&lt;INGRESOS_PER&gt;&#13;&#10;&#9;&#9;&#9;&lt;INGRESOS_PER id=&quot;113&quot; oi_personal_emp=&quot;11462&quot; f_ingreso=&quot;20080103132159&quot; descr=&quot;[1] AILAN, PABLO MARCELO - [20080103132159]&quot;&gt;&#13;&#10;&#9;&#9;&#9;&#9;&lt;oi_motivo_eg_per/&gt;&#13;&#10;&#9;&#9;&#9;&lt;/INGRESOS_PER&gt;&#13;&#10;&#9;&#9;&lt;/INGRESOS_PER&gt;&#13;&#10;&#9;&#9;&lt;BENEF_PER/&gt;&#13;&#10;&#9;&#9;&lt;EPP_PER/&gt;&#13;&#10;&#9;&#9;&lt;UNIF_PER/&gt;&#13;&#10;&#9;&#9;&lt;BS_CARGO_PER/&gt;&#13;&#10;&#9;&#9;&lt;TEMP_PER/&gt;&#13;&#10;&#9;&#9;&lt;CALENDARIO_PER&gt;&#13;&#10;&#9;&#9;&#9;&lt;CALENDARIO_PER id=&quot;109&quot; oi_personal_emp=&quot;11462&quot; f_desde=&quot;20080103132159&quot; descr=&quot;[1] AILAN, PABLO MARCELO - [STD] Estandard&quot;&gt;&#13;&#10;&#9;&#9;&#9;&#9;&lt;oi_calendario value=&quot;1&quot;/&gt;&#13;&#10;&#9;&#9;&#9;&#9;&lt;oi_motivo_cambio/&gt;&#13;&#10;&#9;&#9;&#9;&lt;/CALENDARIO_PER&gt;&#13;&#10;&#9;&#9;&lt;/CALENDARIO_PER&gt;&#13;&#10;&#9;&#9;&lt;EQUIPO_PER/&gt;&#13;&#10;&#9;&#9;&lt;REMUN_PER/&gt;&#13;&#10;&#9;&lt;/PERSONAL_EMP&gt;&#13;&#10;" name="ValidarDistribucionCCosto">
+			<qry:main doc="SOURCE">
+				<qry:element name="ROW">
+					<qry:attribute name="suma" value="0"/>
+					<qry:insert-select doc-path="#SOURCE:PERSONAL_EMP" name="VALIDAR"/>
+					<qry:attribute name="PREG" value="iif(@suma=1 or @suma=0, 1, 0)"/>
+				</qry:element>
+			</qry:main>
+			<qry:select name="VALIDAR" doc="SOURCE">
+				<qry:xquery>
+					for $r in #SOURCE:DISTRIB_COS/DISTRIB_COS[not(starts_with(@nmd-status,'~d,')) and not(starts_with(@nmd-status,'~x,'))]
+				</qry:xquery>
+				<qry:out>
+					<qry:attribute name="suma" value="number(@suma) + $r/@n_p_distrib"/>
+				</qry:out>
+			</qry:select>
+		</qry:define>
+		<doc:define name="FILTERDATA">
+			<FILTRO>
+				<PERSONAS/>
+			</FILTRO>
+		</doc:define>
+		<doc:define name="CARGOPER">
+			<FILTRO>
+				<PARAMS id="" cargo=""/>
+			</FILTRO>
+		</doc:define>
+		<qry:define declare="&lt;PARAMS id=&quot;11445&quot; cargo=&quot;1&quot;/&gt;" name="LIST:VARPA_CARGO">
+			<!--qry:include name="NucleusRH.Base.Liquidacion.Variables.VARIABLE.INFO"/-->
+			<qry:main doc="SOURCE">
+				<qry:element name="ROWS">
+					<qry:insert-select name="QRY_VARPA_CARGO" doc-path="#SOURCE:PARAMS"/>
+				</qry:element>
+			</qry:main>
+			<qry:select name="QRY_VARPA_CARGO" doc="PARAM">
+				<qry:xquery>
+					for $r in sql('
+		SELECT 
+			LIQ07_VARPA_CARGO.oi_varpa_cargo,
+			LIQ07_VARPA_CARGO.e_periodo,
+			LIQ07_VARPA_CARGO.n_valor,
+			LIQ09_VARIABLES.c_variable,
+			LIQ09_VARIABLES.d_variable
+		FROM
+			LIQ07_VARPA_CARGO,
+			LIQ09_VARIABLES
+		JOIN
+			LIQ07_VARPA_CARGO.oi_variable INNER LIQ09_VARIABLES.oi_variable
+		WHERE
+			LIQ07_VARPA_CARGO.oi_personal_emp = {#PARAM:@id} and
+			LIQ07_VARPA_CARGO.oi_cargo = {#PARAM:@cargo}
+			')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:element name="ROW">
+						<qry:attribute name="id" value="$r/@oi_varpa_cargo"/>
+						<qry:attribute name="oi_variable" value="'[' + $r/@c_variable + ']' + $r/@d_variable"/>
+						<qry:attribute name="e_periodo" value="$r/@e_periodo"/>
+						<qry:attribute name="n_valor" value="$r/@n_valor"/>
+						<!--qry:if test="$r/oi_variable/@value!=''">
+					<qry:then>
+						<qry:element name="oi_variable">
+							<qry:attribute name="OI_FIND" value="$r/oi_variable/@value"/>
+							<qry:insert-select name="NucleusRH.Base.Liquidacion.Variables.VARIABLE.QUERY" doc-path="."/>
+						</qry:element>
+						<qry:attribute name="oi_variable" value="'['+oi_variable/ROW/@COD+'] '+oi_variable/ROW/@DES"/>
+					</qry:then>
+				</qry:if-->
+					</qry:element>
+				</qry:out>
+			</qry:select>
+		</qry:define>
+		<qry:define name="LIST:VAREF_CARGO" declare="&lt;PARAMS id=&quot;11445&quot; cargo=&quot;1&quot;/&gt;">
+			<qry:main doc="SOURCE">
+				<qry:element name="ROWS">
+					<qry:insert-select name="QRY_VAREF_CARGO" doc-path="#SOURCE:PARAMS"/>
+				</qry:element>
+			</qry:main>
+			<qry:select name="QRY_VAREF_CARGO" doc="PARAM">
+				<qry:xquery>
+					for $r in sql('
+		SELECT 
+			LIQ07_VAREF_CARGO.oi_varef_cargo,
+			LIQ07_VAREF_CARGO.n_valor,
+			LIQ09_VARIABLES.c_variable,
+			LIQ09_VARIABLES.d_variable
+		FROM
+			LIQ07_VAREF_CARGO,
+			LIQ09_VARIABLES
+		JOIN
+			LIQ07_VAREF_CARGO.oi_variable INNER LIQ09_VARIABLES.oi_variable
+		WHERE
+			LIQ07_VAREF_CARGO.oi_personal_emp = {#PARAM:@id} and
+			LIQ07_VAREF_CARGO.oi_cargo = {#PARAM:@cargo}
+			')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:element name="ROW">
+						<qry:attribute name="id" value="$r/@oi_varef_cargo"/>
+						<qry:attribute name="oi_variable" value="'[' + $r/@c_variable + ']' + $r/@d_variable"/>
+						<qry:attribute name="n_valor" value="$r/@n_valor"/>
+					</qry:element>
+				</qry:out>
+			</qry:select>
+		</qry:define>
+		<doc:define name="CARGO_ANT"/>
+		<doc:define name="DDOCARGO" class="NucleusRH.Base.Personal.LegajoEmpresa.CARGO"/>
+		<doc:define name="FOTO">
+			<DATO/>
+		</doc:define>
+		<qry:define declare="&lt;PERSONAL_EMP text=&quot;Alvarez, Emanuel&quot; descr=&quot;[1] Alvarez, Emanuel&quot; l_disponib_viajar=&quot;0&quot; f_desde_calendario=&quot;20080401&quot; f_desde_ccosto=&quot;20080401&quot; l_confidencial=&quot;0&quot; l_eventual=&quot;0&quot; e_q_renov_ctrato=&quot;0&quot; e_numero_legajo=&quot;1&quot; f_ingreso=&quot;20080401&quot; id=&quot;13941&quot; ID-TTA04_PERSONAL=&quot;11565&quot;&gt;&#13;&#10;  &lt;oi_mensaje nmd-agr=&quot;1&quot; /&gt;&#13;&#10;  &lt;oi_empresa value=&quot;196&quot; nmd-agr=&quot;1&quot; /&gt;&#13;&#10;  &lt;oi_personal value=&quot;11571&quot; nmd-agr=&quot;1&quot; /&gt;&#13;&#10;  &lt;oi_contrato nmd-agr=&quot;1&quot; /&gt;&#13;&#10;  &lt;oi_posicion_ult nmd-agr=&quot;1&quot; /&gt;&#13;&#10;  &lt;oi_unidad_tiempo nmd-agr=&quot;1&quot; /&gt;&#13;&#10;  &lt;oi_agencia nmd-agr=&quot;1&quot; /&gt;&#13;&#10;  &lt;oi_puesto_ult nmd-agr=&quot;1&quot; /&gt;&#13;&#10;  &lt;oi_ctro_costo_ult value=&quot;288&quot; nmd-agr=&quot;1&quot; /&gt;&#13;&#10;  &lt;oi_categoria_ult nmd-agr=&quot;1&quot; /&gt;&#13;&#10;  &lt;oi_calendario_ult value=&quot;1&quot; nmd-agr=&quot;1&quot; /&gt;&#13;&#10;  &lt;oi_funcion nmd-agr=&quot;1&quot; /&gt;&#13;&#10;  &lt;oi_tipo_personal value=&quot;1&quot; nmd-agr=&quot;1&quot; /&gt;&#13;&#10;  &lt;oi_obra_social nmd-agr=&quot;1&quot; /&gt;&#13;&#10;  &lt;oi_motivo_eg_per nmd-agr=&quot;1&quot; /&gt;&#13;&#10;  &lt;oi_plan_os nmd-agr=&quot;1&quot; /&gt;&#13;&#10;  &lt;oi_sindicato nmd-agr=&quot;1&quot; /&gt;&#13;&#10;  &lt;oi_art nmd-agr=&quot;1&quot; /&gt;&#13;&#10;  &lt;oi_tipo_servicio nmd-agr=&quot;1&quot; /&gt;&#13;&#10;  &lt;oi_seguro_soc nmd-agr=&quot;1&quot; /&gt;&#13;&#10;  &lt;oi_prestadora nmd-agr=&quot;1&quot; /&gt;&#13;&#10;  &lt;oi_plan_presta nmd-agr=&quot;1&quot; /&gt;&#13;&#10;  &lt;oi_indic_activo value=&quot;1&quot; nmd-agr=&quot;1&quot; /&gt;&#13;&#10;  &lt;oi_sit_laboral nmd-agr=&quot;1&quot; /&gt;&#13;&#10;  &lt;oi_forma_pago nmd-agr=&quot;1&quot; /&gt;&#13;&#10;  &lt;oi_ubicacion nmd-agr=&quot;1&quot; /&gt;&#13;&#10;  &lt;oi_equipo_mov_ult nmd-agr=&quot;1&quot; /&gt;&#13;&#10;  &lt;oi_empresa_vinc nmd-agr=&quot;1&quot; /&gt;&#13;&#10;  &lt;NOVEDADES nmd-col=&quot;1&quot;&gt;&#13;&#10;    &lt;NOVEDAD descr=&quot;[1] Alvarez, Emanuel - [20080908] 20080908&quot; e_horafin=&quot;960&quot; e_horainicio=&quot;780&quot; f_fecha=&quot;20080908&quot; d_novedad=&quot;gdfgfd&quot; oi_personal_emp=&quot;11565&quot; id=&quot;4&quot;&gt;&#13;&#10;      &lt;oi_tipohora value=&quot;4&quot; nmd-agr=&quot;1&quot; /&gt;&#13;&#10;      &lt;oi_estructura value=&quot;2&quot; nmd-agr=&quot;1&quot; /&gt;&#13;&#10;    &lt;/NOVEDAD&gt;&#13;&#10;    &lt;NOVEDAD descr=&quot;[1] Alvarez, Emanuel - [20080910] 20080910&quot; e_horafin=&quot;960&quot; e_horainicio=&quot;870&quot; f_fecha=&quot;20080910&quot; d_novedad=&quot;Se retira para ir al medico&quot; oi_personal_emp=&quot;11565&quot; id=&quot;9&quot;&gt;&#13;&#10;      &lt;oi_tipohora value=&quot;1005&quot; nmd-agr=&quot;1&quot; /&gt;&#13;&#10;      &lt;oi_estructura value=&quot;2&quot; nmd-agr=&quot;1&quot; /&gt;&#13;&#10;    &lt;/NOVEDAD&gt;&#13;&#10;    &lt;NOVEDAD descr=&quot;[1] Alvarez, Emanuel - [20080910] 20080910&quot; e_horafin=&quot;1320&quot; e_horainicio=&quot;1020&quot; f_fecha=&quot;20080910&quot; d_novedad=&quot;nofrmal&quot; oi_personal_emp=&quot;11565&quot; id=&quot;5&quot;&gt;&#13;&#10;      &lt;oi_tipohora value=&quot;1000&quot; nmd-agr=&quot;1&quot; /&gt;&#13;&#10;      &lt;oi_estructura value=&quot;2&quot; nmd-agr=&quot;1&quot; /&gt;&#13;&#10;    &lt;/NOVEDAD&gt;&#13;&#10;    &lt;NOVEDAD descr=&quot;[1] Alvarez, Emanuel - [20080912] 20080912&quot; e_horafin=&quot;360&quot; e_horainicio=&quot;120&quot; f_fecha=&quot;20080912&quot; d_novedad=&quot;pg&quot; oi_personal_emp=&quot;11565&quot; id=&quot;6&quot;&gt;&#13;&#10;      &lt;oi_tipohora value=&quot;1011&quot; nmd-agr=&quot;1&quot; /&gt;&#13;&#10;      &lt;oi_estructura value=&quot;2&quot; nmd-agr=&quot;1&quot; /&gt;&#13;&#10;    &lt;/NOVEDAD&gt;&#13;&#10;  &lt;/NOVEDADES&gt;&#13;&#10;  &lt;HORARIOSPERS nmd-col=&quot;1&quot;&gt;&#13;&#10;    &lt;HORARIOPERS descr=&quot;[1] Alvarez, Emanuel - [20080707] Fijo de 08 a 16 Con Horas Extras&quot; f_fechaInicio=&quot;20080707&quot; oi_personal_emp=&quot;11565&quot; id=&quot;1876&quot;&gt;&#13;&#10;      &lt;oi_horario value=&quot;48&quot; nmd-agr=&quot;1&quot; /&gt;&#13;&#10;      &lt;oi_escuadra nmd-agr=&quot;1&quot; /&gt;&#13;&#10;    &lt;/HORARIOPERS&gt;&#13;&#10;  &lt;/HORARIOSPERS&gt;&#13;&#10;  &lt;TIPOSHORAAUT nmd-col=&quot;1&quot;&gt;&#13;&#10;    &lt;TIPOHORAAUT descr=&quot;[1] Alvarez, Emanuel - [20080825] 20080829&quot; c_estado=&quot;P&quot; e_horainicio=&quot;960&quot; e_horafin=&quot;1440&quot; f_hasta=&quot;20080829&quot; f_desde=&quot;20080825&quot; d_tipohoraaut=&quot;HE&quot; oi_personal_emp=&quot;11565&quot; id=&quot;13&quot; /&gt;&#13;&#10;    &lt;TIPOHORAAUT descr=&quot;[1] Alvarez, Emanuel - [20080826] 20080829&quot; c_estado=&quot;P&quot; e_horainicio=&quot;300&quot; e_horafin=&quot;780&quot; f_hasta=&quot;20080829&quot; f_desde=&quot;20080826&quot; d_tipohoraaut=&quot;Extra 100&quot; oi_personal_emp=&quot;11565&quot; id=&quot;12&quot; /&gt;&#13;&#10;  &lt;/TIPOSHORAAUT&gt;&#13;&#10;  &lt;ALQ_PER nmd-col=&quot;1&quot; /&gt;&#13;&#10;  &lt;CATEG_PER nmd-col=&quot;1&quot; /&gt;&#13;&#10;  &lt;CCOSTO_PER nmd-col=&quot;1&quot;&gt;&#13;&#10;    &lt;CCOSTO_PER descr=&quot;[1] Alvarez, Emanuel - [1000] Administraci&amp;#243;n&quot; f_ingreso=&quot;20080401&quot; oi_personal_emp=&quot;11565&quot; id=&quot;632&quot;&gt;&#13;&#10;      &lt;oi_centro_costo value=&quot;288&quot; nmd-agr=&quot;1&quot; /&gt;&#13;&#10;      &lt;oi_motivo_cambio nmd-agr=&quot;1&quot; /&gt;&#13;&#10;    &lt;/CCOSTO_PER&gt;&#13;&#10;  &lt;/CCOSTO_PER&gt;&#13;&#10;  &lt;CONTR_PER nmd-col=&quot;1&quot; /&gt;&#13;&#10;  &lt;DSANG_PER nmd-col=&quot;1&quot; /&gt;&#13;&#10;  &lt;NOT_CTR_TEMP nmd-col=&quot;1&quot; /&gt;&#13;&#10;  &lt;POSIC_PER nmd-col=&quot;1&quot; /&gt;&#13;&#10;  &lt;PUESTO_PER nmd-col=&quot;1&quot; /&gt;&#13;&#10;  &lt;TIPOSP_PER nmd-col=&quot;1&quot;&gt;&#13;&#10;    &lt;TIPOP_PER descr=&quot;[1] Alvarez, Emanuel - [1] Mensualizado &quot; f_ingreso=&quot;20080401&quot; oi_personal_emp=&quot;11565&quot; id=&quot;408&quot;&gt;&#13;&#10;      &lt;oi_tipo_personal value=&quot;1&quot; nmd-agr=&quot;1&quot; /&gt;&#13;&#10;      &lt;oi_motivo_cambio nmd-agr=&quot;1&quot; /&gt;&#13;&#10;    &lt;/TIPOP_PER&gt;&#13;&#10;  &lt;/TIPOSP_PER&gt;&#13;&#10;  &lt;LICEN_PER nmd-col=&quot;1&quot;&gt;&#13;&#10;    &lt;LICENCIA_PER descr=&quot;[1] Alvarez, Emanuel - [20080908] &quot; l_bloqueada=&quot;0&quot; e_anio_corresp=&quot;2008&quot; e_cant_dias=&quot;2&quot; f_fin=&quot;20080909&quot; f_inicio=&quot;20080908&quot; oi_personal_emp=&quot;11565&quot; id=&quot;78&quot;&gt;&#13;&#10;      &lt;oi_licencia value=&quot;1&quot; nmd-agr=&quot;1&quot; /&gt;&#13;&#10;    &lt;/LICENCIA_PER&gt;&#13;&#10;  &lt;/LICEN_PER&gt;&#13;&#10;  &lt;INGRESOS_PER nmd-col=&quot;1&quot;&gt;&#13;&#10;    &lt;INGRESOS_PER descr=&quot;[1] Alvarez, Emanuel - [20080401] &quot; f_ingreso=&quot;20080401&quot; oi_personal_emp=&quot;11565&quot; id=&quot;216&quot;&gt;&#13;&#10;      &lt;oi_motivo_eg_per nmd-agr=&quot;1&quot; /&gt;&#13;&#10;    &lt;/INGRESOS_PER&gt;&#13;&#10;  &lt;/INGRESOS_PER&gt;&#13;&#10;  &lt;BENEF_PER nmd-col=&quot;1&quot; /&gt;&#13;&#10;  &lt;EPP_PER nmd-col=&quot;1&quot; /&gt;&#13;&#10;  &lt;UNIF_PER nmd-col=&quot;1&quot; /&gt;&#13;&#10;  &lt;BS_CARGO_PER nmd-col=&quot;1&quot; /&gt;&#13;&#10;  &lt;TEMP_PER nmd-col=&quot;1&quot; /&gt;&#13;&#10;  &lt;CALENDARIO_PER nmd-col=&quot;1&quot;&gt;&#13;&#10;    &lt;CALENDARIO_PER descr=&quot;[1] Alvarez, Emanuel - [STD] Estandard&quot; f_desde=&quot;20080401&quot; oi_personal_emp=&quot;11565&quot; id=&quot;211&quot;&gt;&#13;&#10;      &lt;oi_calendario value=&quot;1&quot; nmd-agr=&quot;1&quot; /&gt;&#13;&#10;      &lt;oi_motivo_cambio nmd-agr=&quot;1&quot; /&gt;&#13;&#10;    &lt;/CALENDARIO_PER&gt;&#13;&#10;  &lt;/CALENDARIO_PER&gt;&#13;&#10;  &lt;EQUIPO_PER nmd-col=&quot;1&quot; /&gt;&#13;&#10;  &lt;REMUN_PER nmd-col=&quot;1&quot; /&gt;&#13;&#10;&lt;/PERSONAL_EMP&gt;&#13;&#10;" name="QRY_FOTO_PER">
+			<qry:main doc="SOURCE">
+				<qry:element name="DATOS">
+					<qry:insert-select doc-path="#SOURCE:PERSONAL_EMP" name="RS1"/>
+				</qry:element>
+			</qry:main>
+			<qry:select name="RS1" doc="SOURCE">
+				<qry:xquery>
+					for $r in SQL('
+			SELECT
+				PER01_PERSONAL.oi_foto
+			FROM
+				PER01_PERSONAL, PER02_PERSONAL_EMP
+			JOIN
+				PER01_PERSONAL.oi_personal INNER PER02_PERSONAL_EMP.oi_personal
+			WHERE
+				PER02_PERSONAL_EMP.oi_personal_emp = {#SOURCE:@id} 
+		')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:attribute value="$r/@oi_foto" name="oi_foto"/>
+				</qry:out>
+			</qry:select>
+		</qry:define>
+		<doc:define name="FILTERPER">
+			<FILTRO>
+				<PERSONAS>
+					<ROW/>
+				</PERSONAS>
+			</FILTRO>
+		</doc:define>
+	</flow:declare>
+	<flow:main doc="SOURCE">
+		<flow:action name="initialize">
+			<flow:open-form form-class="NucleusRH.Base.Liquidacion.Legajo.filter.form" doc-path="#FILTERDATA:" mode="BASIC"/>
+		</flow:action>
+		<flow:action name="initializeReporte">
+			<flow:log text="logLegajoLiquidacion" text-path="#SOURCE:"/>
+			<doc:load-qry input-doc-path="#SOURCE:" qry="FILTER" output-doc="QRY"/>
+			<doc:new-object class="NucleusRH.Base.Liquidacion.Legajo_Liquidacion.PERSONAL_EMP" doc="DDO"/>
+			<flow:open-form form-class="NucleusRH.Base.Liquidacion.Legajo_Liquidacion.PERSONAL_EMP.noreg.autoform" parent-doc-path="#QRY:" mode="SHOW" doc-path="#DDO:" iter-index="#QRY:ROW/@value"/>
+		</flow:action>
+		<flow:action name="filterLegajos">
+			<doc:set-attribute to-attr-path="#FILTERPER:PERSONAS/ROW/@VALUES" from-attr-path="#SOURCE:@VALUE"/>
+			<doc:assign-value from-path="#FILTERPER:" to-doc="FILTERDATA"/>
+			<doc:load-qry input-doc-path="#FILTERDATA:PERSONAS" qry="FILTER" output-doc="QRY"/>
+			<doc:new-object class="NucleusRH.Base.Liquidacion.Legajo_Liquidacion.PERSONAL_EMP" doc="DDO"/>
+			<flow:open-form iter-index="#QRY:ROW/@id" parent-doc-path="#QRY:" doc-path="#DDO:" mode="SHOW" form-class="NucleusRH.Base.Liquidacion.Legajo_Liquidacion.PERSONAL_EMP.noreg.autoform"/>
+		</flow:action>
+	</flow:main>
+	<flow:group name="Legajo">
+		<flow:form name="NucleusRH.Base.Liquidacion.Legajo.filter.form:BASIC" form-class="NucleusRH.Base.Liquidacion.Legajo.filter.form" doc="FILTERDATA" extends="NucleusRH.Base.Liquidacion.Legajo_Liquidacion.PERSONAL_EMP.filter.autoform:FILTER" mode="BASIC">
+			<flow:action name="on-show">
+				<flow:call-action action="inits-DDO"/>
+			</flow:action>
+			<flow:action name="FILTER">
+				<flow:call-action action="Save-FILTER"/>
+				<flow:call-action action="open-flow-SHOW"/>
+			</flow:action>
+			<flow:action name="open-flow-SHOW">
+				<doc:load-qry qry="FILTER" input-doc-path="#FILTERDATA:PERSONAS" output-doc="QRY"/>
+				<flow:open-form iter-index="#QRY:ROW/@id" parent-doc-path="#QRY:" doc-path="#DDO:" mode="SHOW" form-class="NucleusRH.Base.Liquidacion.Legajo_Liquidacion.PERSONAL_EMP.noreg.autoform"/>
+			</flow:action>
+			<flow:action name="Load-FILTER">
+				<flow:load-user-data name="FILTER-NucleusRH.Base.Liquidacion.Legajo_Liquidacion" doc="FILTERDATA"/>
+			</flow:action>
+			<flow:action name="Save-FILTER">
+				<flow:save-user-data name="FILTER-NucleusRH.Base.Liquidacion.Legajo_Liquidacion" doc-path="#FILTERDATA:"/>
+			</flow:action>
+		</flow:form>
+		<flow:form extends="NucleusRH.Base.Liquidacion.Legajo_Liquidacion.PERSONAL_EMP.noreg.autoform:EDIT" parent-doc="PARENTSOURCE" doc="SOURCE" name="NucleusRH.Base.Liquidacion.Legajo_Liquidacion.PERSONAL_EMP.noreg.form:EDIT" form-class="NucleusRH.Base.Liquidacion.Legajo_Liquidacion.PERSONAL_EMP.noreg.autoform" mode="SHOW">
+			<flow:action name="open-flow-SHOW">
+				<flow:open-form parent-doc-path="#QRY:" iter-index="#QRY:ROW/@id" doc-path="#DDO:" mode="SHOW" form-class="NucleusRH.Base.Liquidacion.Legajo.Legajo.form"/>
+			</flow:action>
+			<flow:action name="open-flow-LIST">
+				<flow:open-form iter-index="#QRY_LIST:ROW/@id" parent-doc-path="#QRY_LIST:" doc-path="#DDO:" mode="LIST" form-class="NucleusRH.Base.Liquidacion.Legajo.Legajo.form"/>
+			</flow:action>
+			<flow:action name="goto-list">
+				<doc:load-qry output-doc="QRY_LIST" qry="LIST" input-doc-path="#FILTERDATA:PERSONAS"/>
+				<flow:call-action action="open-flow-LIST"/>
+			</flow:action>
+			<flow:action name="goto-show">
+				<flow:call-action action="open-flow-SHOW"/>
+			</flow:action>
+		</flow:form>
+		<flow:form name="NucleusRH.Base.Liquidacion.Legajo.Legajo.form:EDIT" parent-doc="PARENTSOURCE" extends="NucleusRH.Base.Liquidacion.Legajo_Liquidacion.PERSONAL_EMP.autoform:EDIT" form-class="NucleusRH.Base.Liquidacion.Legajo.Legajo.form" mode="EDIT" doc="SOURCE">
+			<flow:action name="SAVE">
+				<flow:log text-path="#DDO:" text="Log04"/>
+				<doc:load-qry output-doc="TFDistribucionCCosto" input-doc-path=" #DDO:" qry="ValidarDistribucionCCosto"/>
+				<flow:log text-path="#TFDistribucionCCosto:" text="TFDistribucionCCosto"/>
+				<flow:call-action else="NOVALIDA" eq="1" if="#TFDistribucionCCosto:@PREG" action="VALIDA"/>
+			</flow:action>
+			<flow:action name="NOVALIDA">
+				<flow:message message="La distribuci&#243;n de Centros de Costo debe sumar 1, recuerde que 0.5 equivale al 50%"/>
+			</flow:action>
+			<flow:action name="VALIDA">
+				<flow:call-action action="save-DDO"/>
+				<flow:close-form next-action="After-Change"/>
+			</flow:action>
+			<flow:action name="save-DDO">
+				<doc:save-object class="NucleusRH.Base.Liquidacion.Legajo_Liquidacion.PERSONAL_EMP" doc="DDO"/>
+			</flow:action>
+		</flow:form>
+		<flow:form name="NucleusRH.Base.Liquidacion.Legajo.Legajo.form:SHOW" parent-doc="PARENTSOURCE" extends="NucleusRH.Base.Liquidacion.Legajo_Liquidacion.PERSONAL_EMP.autoform:SHOW" form-class="NucleusRH.Base.Liquidacion.Legajo.Legajo.form" mode="SHOW" doc="SOURCE">
+			<flow:action name="open-flow-EDIT">
+				<flow:open-form form-class="NucleusRH.Base.Liquidacion.Legajo.Legajo.form" mode="EDIT" parent-doc-path="#PARENTSOURCE:" doc-path="#DDO:"/>
+			</flow:action>
+			<flow:action name="REFRESH">
+				<flow:call-action action="After-Change"/>
+			</flow:action>
+			<flow:action name="After-Change">
+				<doc:iter-refresh/>
+				<doc:iter-move value-path="#DDO:@id"/>
+				<doc:load-qry output-doc="FOTO" input-doc-path="#DDO:" qry="QRY_FOTO_PER"/>
+			</flow:action>
+			<flow:action name="on-show">
+				<doc:load-qry output-doc="FOTO" input-doc-path="#DDO:" qry="QRY_FOTO_PER"/>
+			</flow:action>
+			<flow:action name="After-Back">
+				<doc:iter-refresh/>
+				<doc:load-qry output-doc="FOTO" input-doc-path="#DDO:" qry="QRY_FOTO_PER"/>
+			</flow:action>
+			<flow:action name="on-move-iterator">
+				<flow:call-action action="load-DDO"/>
+				<doc:load-qry output-doc="FOTO" input-doc-path="#DDO:" qry="QRY_FOTO_PER"/>
+			</flow:action>
+		</flow:form>
+		<flow:form extends="NucleusRH.Base.Liquidacion.Legajo_Liquidacion.PERSONAL_EMP.autoform:LIST" parent-doc="PARENTSOURCE" doc="SOURCE" name="NucleusRH.Base.Liquidacion.Legajo_Liquidacion.PERSONAL_EMP.form:LIST" form-class="NucleusRH.Base.Liquidacion.Legajo.Legajo.form" mode="LIST">
+			<flow:action name="open-flow-EDIT">
+				<doc:load-qry output-doc="FOTO" input-doc-path="#DDO:" qry="QRY_FOTO_PER"/>
+				<flow:open-form doc-path="#DDO:" mode="EDIT" form-class="NucleusRH.Base.Liquidacion.Legajo.Legajo.form"/>
+			</flow:action>
+			<flow:action name="REFRESH">
+				<flow:call-action action="on-show"/>
+			</flow:action>
+			<flow:action name="After-Change">
+				<!--doc:load-qry output-doc="QRY_LIST" qry="LIST" input-doc-path="#QRY:"/>
+	<doc:set-attribute to-attr-path="#FORM:ctrl[@id='LIST']/@xval" from-attr-path="#DDO:@id"/-->
+			</flow:action>
+			<flow:action name="After-Back">
+				<doc:load-qry output-doc="QRY_LIST" qry="LIST" input-doc-path="#QRY:"/>
+			</flow:action>
+		</flow:form>
+	</flow:group>
+	<flow:group name="EMBARGOS">
+		<flow:form name="NucleusRH.Base.Liquidacion.Legajo_Liquidacion.EMBARGO.noreg.form:SHOW" mode="SHOW" form-class="NucleusRH.Base.Liquidacion.Legajo_Liquidacion.EMBARGO.noreg.autoform" extends="NucleusRH.Base.Liquidacion.Legajo_Liquidacion.EMBARGO.noreg.autoform:SHOW" doc="SOURCE" parent-doc="PARENTSOURCE">
+			<flow:action name="open-flow-SHOW">
+				<flow:open-form iter-index="#PARENTSOURCE:EMBARGO/@id" parent-doc-path="#PARENTSOURCE:" doc-path="#PARENTSOURCE:" mode="SHOW" form-class="NucleusRH.Base.Liquidacion.Legajo.Legajo.Embargos.form"/>
+			</flow:action>
+			<flow:action name="open-flow-LIST">
+				<flow:open-form iter-index="#PARENTSOURCE:EMBARGO/@id" parent-doc-path="#PARENTSOURCE:" doc-path="#PARENTSOURCE:" mode="LIST" form-class="NucleusRH.Base.Liquidacion.Legajo.Legajo.Embargos.form"/>
+			</flow:action>
+			<flow:action name="load-child-LIST">
+				<doc:load-qry output-doc="QRY_LIST" input-doc-path="#PARENTSOURCE:" qry="LIST:NucleusRH.Base.Liquidacion.Legajo_Liquidacion.EMBARGO"/>
+			</flow:action>
+		</flow:form>
+		<flow:form name="NucleusRH.Base.Liquidacion.Legajo_Liquidacion.EMBARGO.noreg.form:EDIT" mode="EDIT" form-class="NucleusRH.Base.Liquidacion.Legajo_Liquidacion.EMBARGO.noreg.autoform" extends="NucleusRH.Base.Liquidacion.Legajo_Liquidacion.EMBARGO.noreg.autoform:EDIT" doc="SOURCE" parent-doc="PARENTSOURCE">
+			<flow:action name="on-move-iterator">
+				<flow:open-form form-class="NucleusRH.Base.Liquidacion.Legajo.Legajo.Embargos.form" mode="EDIT" doc-path="#PARENTSOURCE:" parent-doc-path="#PARENTSOURCE:" iter-index="#PARENTSOURCE:EMBARGO/@id"/>
+			</flow:action>
+			<flow:action name="on-empty-iterator">
+				<doc:new-object class="NucleusRH.Base.Liquidacion.Legajo_Liquidacion.EMBARGO" doc="NEWDDO"/>
+				<doc:set-attribute from-value="I" to-attr-path="#NEWDDO:@c_estado"/>
+				<flow:open-form form-class="NucleusRH.Base.Liquidacion.Legajo.Legajo.Embargos.form" mode="NEW" doc-path="#NEWDDO:" parent-doc-path="#PARENTSOURCE:"/>
+			</flow:action>
+			<flow:action name="ADD">
+				<doc:new-object class="NucleusRH.Base.Liquidacion.Legajo_Liquidacion.EMBARGO" doc="NEWDDO"/>
+				<doc:set-attribute from-value="I" to-attr-path="#NEWDDO:@c_estado"/>
+				<flow:open-form form-class="NucleusRH.Base.Liquidacion.Legajo.Legajo.Embargos.form" mode="NEW" doc-path="#NEWDDO:" parent-doc-path="#PARENTSOURCE:"/>
+			</flow:action>
+			<flow:action name="open-flow-EDIT">
+				<flow:open-form iter-index="#PARENTSOURCE:EMBARGO/@id" parent-doc-path="#PARENTSOURCE:" doc-path="#PARENTSOURCE:" mode="EDIT" form-class="NucleusRH.Base.Liquidacion.Legajo.Legajo.Embargos.form"/>
+			</flow:action>
+			<flow:action name="open-flow-LIST">
+				<flow:open-form iter-index="#PARENTSOURCE:EMBARGO/@id" parent-doc-path="#PARENTSOURCE:" doc-path="#PARENTSOURCE:" mode="LIST_EDIT" form-class="NucleusRH.Base.Liquidacion.Legajo.Legajo.Embargos.form"/>
+			</flow:action>
+		</flow:form>
+		<flow:form name="NucleusRH.Base.Liquidacion.Legajo.Legajo.Embargos.form:SHOW" extends="NucleusRH.Base.Liquidacion.Legajo_Liquidacion.EMBARGO.autoform:SHOW" form-class="NucleusRH.Base.Liquidacion.Legajo.Legajo.Embargos.form" mode="SHOW" doc="SOURCE" parent-doc="PARENTSOURCE" doc-path="/EMBARGO[@id='{#iter-cursor:@value}']">
+			<flow:action name="SAVEEMBARGO">
+				<doc:save-object doc="DDO" class="NucleusRH.Base.Liquidacion.Legajo_Liquidacion.PERSONAL_EMP"/>
+			</flow:action>
+			<flow:action name="CALL:DESC_EMB_SHOW">
+				<flow:open-form iter-index="#SOURCE:DESC_EMB/DESC_EMB/@id" parent-doc-path="#SOURCE:DESC_EMB" doc-path="#SOURCE:DESC_EMB" mode="SHOW" form-class="NucleusRH.Base.Liquidacion.Legajo_Liquidacion.DESC_EMB.noreg.autoform"/>
+			</flow:action>
+		</flow:form>
+		<flow:form name="NucleusRH.Base.Liquidacion.Legajo.Legajo.Embargos.form:NEW" extends="NucleusRH.Base.Liquidacion.Legajo_Liquidacion.EMBARGO.autoform:NEW" form-class="NucleusRH.Base.Liquidacion.Legajo.Legajo.Embargos.form" mode="NEW" doc="SOURCE" parent-doc="PARENTSOURCE"/>
+		<flow:form name="NucleusRH.Base.Liquidacion.Legajo.Legajo.Embargos.form:EDIT" extends="NucleusRH.Base.Liquidacion.Legajo_Liquidacion.EMBARGO.autoform:EDIT" form-class="NucleusRH.Base.Liquidacion.Legajo.Legajo.Embargos.form" mode="EDIT" doc="SOURCE" parent-doc="PARENTSOURCE" doc-path="/EMBARGO[@id='{#iter-cursor:@value}']">
+			<flow:action name="CALL:DESC_EMB_SHOW">
+				<flow:open-form iter-index="#SOURCE:DESC_EMB/DESC_EMB/@id" parent-doc-path="#SOURCE:DESC_EMB" doc-path="#SOURCE:DESC_EMB" mode="SHOW" form-class="NucleusRH.Base.Liquidacion.Legajo_Liquidacion.DESC_EMB.noreg.autoform"/>
+			</flow:action>
+			<flow:action name="on-show">
+				<doc:load-qry qry="CALCULAR_SUMA_EMB" output-doc="SUMA_IMPORTE_EMBARGO" input-doc-path="#SOURCE:"/>
+				<flow:log text-path="#SOURCE:" text="soursum2"/>
+				<flow:log text-path="#SUMA_IMPORTE_EMBARGO:" text="summmm2"/>
+			</flow:action>
+			<flow:action name="on-move-iterator">
+				<doc:load-qry qry="CALCULAR_SUMA_EMB" output-doc="SUMA_IMPORTE_EMBARGO" input-doc-path="#SOURCE:"/>
+				<flow:log text-path="#SOURCE:" text="soursum1"/>
+				<flow:log text-path="#SUMA_IMPORTE_EMBARGO:" text="summmm1"/>
+			</flow:action>
+			<flow:action name="new-DDO">
+				<doc:new-object class="NucleusRH.Base.Liquidacion.Legajo_Liquidacion.EMBARGO" doc="NEWDDO"/>
+				<doc:set-attribute from-value="I" to-attr-path="#NEWDDO:@c_estado"/>
+			</flow:action>
+			<flow:action name="open-flow-ADD">
+				<flow:open-form form-class="NucleusRH.Base.Liquidacion.Legajo.Legajo.Embargos.form" mode="NEW" doc-path="#NEWDDO:" parent-doc-path="#PARENTSOURCE:"/>
+			</flow:action>
+		</flow:form>
+		<flow:form name="NucleusRH.Base.Liquidacion.Legajo.Legajo.Embargos.form:LIST" extends="NucleusRH.Base.Liquidacion.Legajo_Liquidacion.EMBARGO.autoform:LIST" doc-path="/EMBARGO[@id='{#iter-cursor:@value}']" parent-doc="PARENTSOURCE" doc="SOURCE" form-class="NucleusRH.Base.Liquidacion.Legajo.Legajo.Embargos.form" mode="LIST"/>
+		<flow:form extends="NucleusRH.Base.Liquidacion.Legajo_Liquidacion.EMBARGO.autoform:LIST_EDIT" doc-path="/EMBARGO[@id='{#iter-cursor:@value}']" parent-doc="PARENTSOURCE" doc="SOURCE" name="NucleusRH.Base.Liquidacion.Legajo.Legajo.Embargos.form:list_edit" form-class="NucleusRH.Base.Liquidacion.Legajo.Legajo.Embargos.form" mode="LIST_EDIT"/>
+	</flow:group>
+	<flow:group name="ANTICIPOS">
+		<flow:form name="NucleusRH.Base.Liquidacion.Legajo_Liquidacion.ANTICIPO.noreg.form:SHOW" mode="SHOW" form-class="NucleusRH.Base.Liquidacion.Legajo_Liquidacion.ANTICIPO.noreg.autoform" extends="NucleusRH.Base.Liquidacion.Legajo_Liquidacion.ANTICIPO.noreg.autoform:SHOW" doc="SOURCE" parent-doc="PARENTSOURCE">
+			<flow:action name="open-flow-SHOW">
+				<flow:open-form iter-index="#PARENTSOURCE:ANTICIPO/@id" parent-doc-path="#PARENTSOURCE:" doc-path="#PARENTSOURCE:" mode="SHOW" form-class="NucleusRH.Base.Liquidacion.Legajo.Legajo.Anticipos.form"/>
+			</flow:action>
+			<flow:action name="open-flow-LIST">
+				<flow:open-form iter-index="#PARENTSOURCE:ANTICIPO/@id" parent-doc-path="#PARENTSOURCE:" doc-path="#PARENTSOURCE:" mode="LIST" form-class="NucleusRH.Base.Liquidacion.Legajo.Legajo.Anticipos.form"/>
+			</flow:action>
+		</flow:form>
+		<flow:form name="NucleusRH.Base.Liquidacion.Legajo_Liquidacion.ANTICIPO.noreg.form:EDIT" mode="EDIT" form-class="NucleusRH.Base.Liquidacion.Legajo_Liquidacion.ANTICIPO.noreg.autoform" extends="NucleusRH.Base.Liquidacion.Legajo_Liquidacion.ANTICIPO.noreg.autoform:EDIT" doc="SOURCE" parent-doc="PARENTSOURCE">
+			<flow:action name="new-DDO">
+				<doc:new-object class="NucleusRH.Base.Liquidacion.Legajo_Liquidacion.ANTICIPO" doc="NEWDDO"/>
+			</flow:action>
+			<flow:action name="open-flow-EDIT">
+				<flow:open-form iter-index="#PARENTSOURCE:ANTICIPO/@id" parent-doc-path="#PARENTSOURCE:" doc-path="#PARENTSOURCE:" mode="EDIT" form-class="NucleusRH.Base.Liquidacion.Legajo.Legajo.Anticipos.form"/>
+			</flow:action>
+			<flow:action name="open-flow-ADD">
+				<flow:open-form parent-doc-path="#PARENTSOURCE:" doc-path="#NEWDDO:" mode="NEW" form-class="NucleusRH.Base.Liquidacion.Legajo.Legajo.Anticipos.form"/>
+			</flow:action>
+			<flow:action name="open-flow-LIST">
+				<flow:open-form iter-index="#PARENTSOURCE:ANTICIPO/@id" parent-doc-path="#PARENTSOURCE:" doc-path="#PARENTSOURCE:" mode="LIST_EDIT" form-class="NucleusRH.Base.Liquidacion.Legajo.Legajo.Anticipos.form"/>
+			</flow:action>
+			<flow:action name="SAVE">
+				<flow:log text-path="#DDO:" text="Log03"/>
+				<flow:close-form next-action="SAVE"/>
+			</flow:action>
+		</flow:form>
+		<flow:form name="NucleusRH.Base.Liquidacion.Legajo.Legajo.Anticipos.form:SHOW" mode="SHOW" form-class="NucleusRH.Base.Liquidacion.Legajo.Legajo.Anticipos.form" doc="SOURCE" parent-doc="PARENTSOURCE" doc-path="/ANTICIPO[@id='{#iter-cursor:@value}']" extends="NucleusRH.Base.Liquidacion.Legajo_Liquidacion.ANTICIPO.autoform:SHOW"/>
+		<flow:form name="NucleusRH.Base.Liquidacion.Legajo.Legajo.Anticipos.form:EDIT" mode="EDIT" form-class="NucleusRH.Base.Liquidacion.Legajo.Legajo.Anticipos.form" doc="SOURCE" parent-doc="PARENTSOURCE" doc-path="/ANTICIPO[@id='{#iter-cursor:@value}']" extends="NucleusRH.Base.Liquidacion.Legajo_Liquidacion.ANTICIPO.autoform:EDIT">
+			<flow:action name="new-DDO">
+				<doc:new-object class="NucleusRH.Base.Liquidacion.Legajo_Liquidacion.ANTICIPO" doc="NEWDDO"/>
+			</flow:action>
+			<flow:action name="on-show">
+				<doc:load-qry input-doc-path="#SOURCE:" output-doc="SUMA_IMPORTE_ANTICIPO" qry="CALCULAR_SUMA"/>
+			</flow:action>
+			<flow:action name="on-move-iterator">
+				<doc:load-qry input-doc-path="#SOURCE:" output-doc="SUMA_IMPORTE_ANTICIPO" qry="CALCULAR_SUMA"/>
+			</flow:action>
+			<flow:action name="open-flow-ADD">
+				<flow:open-form form-class="NucleusRH.Base.Liquidacion.Legajo.Legajo.Anticipos.form" mode="NEW" doc-path="#NEWDDO:" parent-doc-path="#PARENTSOURCE:"/>
+			</flow:action>
+			<flow:action name="SAVE">
+				<!--doc:load-qry output-doc="TFDistribucionCCosto" input-doc-path=" #DDO:" qry="ValidarDistribucionCCosto"/>
+	<flow:log text-path="#TFDistribucionCCosto:" text="TFDistribucionCCosto"/>
+	<flow:call-action else="NOVALIDA" eq="1" if="#TFDistribucionCCosto:@PREG" action="VALIDA"/-->
+				<flow:log text-path="#DDO:" text="Log02"/>
+				<flow:close-form next-action="SAVE"/>
+			</flow:action>
+			<flow:action name="OTORGAR">
+				<doc:load-qry input-doc-path="#SOURCE:" output-doc="SUMA_IMPORTE_ANTICIPO" qry="CALCULAR_SUMA"/>
+				<flow:call-action eq="1" if="#SOURCE:@l_liquida" else="AnticipoCompleto" action="Automatica"/>
+			</flow:action>
+			<flow:action name="AnticipoCompleto">
+				<doc:set-attribute from-value="O" to-attr-path="#SOURCE:@c_estado"/>
+				<flow:call-action action="SAVE"/>
+			</flow:action>
+			<flow:action name="AnticipoIncompleto">
+				<flow:message message="Para Otorgar el anticipo debe cargar el plan de descuento completo y la suma de las cuotas debe ser igual al monto del anticipo."/>
+			</flow:action>
+			<flow:action name="ValidarCantidad">
+				<flow:call-action if="#SUMA_IMPORTE_ANTICIPO:@banderaCant" else="AnticipoIncompleto" eq="1" action="AnticipoCompleto"/>
+			</flow:action>
+			<flow:action name="CANCELAR">
+				<flow:exec-method class="NucleusRH.Base.Liquidacion.Legajo_Liquidacion.PERSONAL_EMP" this-doc="DDO" method="CANCELARANTICIPOS"/>
+				<flow:call-action action="SAVE"/>
+			</flow:action>
+			<flow:action name="RECHAZAR">
+				<flow:exec-method class="NucleusRH.Base.Liquidacion.Legajo_Liquidacion.PERSONAL_EMP" this-doc="DDO" method="RECHAZARANTICIPOS"/>
+				<flow:log text-path="#DDO:" text="Log01"/>
+				<flow:call-action action="SAVE"/>
+			</flow:action>
+			<flow:action name="Automatica">
+				<flow:call-action eq="1" if="#SUMA_IMPORTE_ANTICIPO:@bandera" else="AnticipoIncompleto" action="ValidarCantidad"/>
+			</flow:action>
+		</flow:form>
+		<flow:form name="NucleusRH.Base.Liquidacion.Legajo.Legajo.Anticipos.form:NEW" mode="NEW" form-class="NucleusRH.Base.Liquidacion.Legajo.Legajo.Anticipos.form" doc="SOURCE" parent-doc="PARENTSOURCE" extends="NucleusRH.Base.Liquidacion.Legajo_Liquidacion.ANTICIPO.autoform:NEW">
+			<flow:action name="on-show">
+				<doc:set-attribute from-value="" to-attr-path="#SUMA_IMPORTE_ANTICIPO:@Total"/>
+			</flow:action>
+			<flow:action name="ACCEPT">
+				<doc:check-ak show-msg="1" parent-doc-path="#PARENTSOURCE:" doc-path="#SOURCE:"/>
+				<doc:add-object doc-path="#SOURCE:" parent-doc-path="#PARENTSOURCE:"/>
+				<doc:set-attribute to-attr-path="#QRY_ID:@id" from-attr-path="#SOURCE:@id"/>
+				<flow:close-form next-action="After-Change"/>
+			</flow:action>
+		</flow:form>
+		<flow:form extends="NucleusRH.Base.Liquidacion.Legajo_Liquidacion.ANTICIPO.autoform:LIST" doc-path="/ANTICIPO[@id='{#iter-cursor:@value}']" parent-doc="PARENTSOURCE" doc="SOURCE" name="NucleusRH.Base.Liquidacion.Legajo.Legajo.Anticipos.form:LIST" form-class="NucleusRH.Base.Liquidacion.Legajo.Legajo.Anticipos.form" mode="LIST"/>
+		<flow:form extends="NucleusRH.Base.Liquidacion.Legajo_Liquidacion.ANTICIPO.autoform:LIST_EDIT" doc-path="/ANTICIPO[@id='{#iter-cursor:@value}']" parent-doc="PARENTSOURCE" doc="SOURCE" name="NucleusRH.Base.Liquidacion.Legajo.Legajo.Anticipos.form:LIST_EDIT" form-class="NucleusRH.Base.Liquidacion.Legajo.Legajo.Anticipos.form" mode="LIST_EDIT">
+			<flow:action name="open-flow-ADD">
+				<flow:open-form parent-doc-path="#PARENTSOURCE:" doc-path="#NEWDDO:" mode="NEW" form-class="NucleusRH.Base.Liquidacion.Legajo.Legajo.Anticipos.form"/>
+			</flow:action>
+			<flow:action name="open-flow-LIST">
+				<flow:open-form iter-index="#PARENTSOURCE:ANTICIPO/@id" parent-doc-path="#PARENTSOURCE:" doc-path="#PARENTSOURCE:" mode="LIST_EDIT" form-class="NucleusRH.Base.Liquidacion.Legajo.Legajo.Anticipos.form"/>
+			</flow:action>
+			<flow:action name="new-DDO">
+				<doc:new-object class="NucleusRH.Base.Liquidacion.Legajo_Liquidacion.ANTICIPO" doc="NEWDDO"/>
+			</flow:action>
+		</flow:form>
+	</flow:group>
+	<flow:group Name="DESC_ANTICIPO">
+		<flow:form extends="NucleusRH.Base.Liquidacion.Legajo_Liquidacion.DESC_ANTICIPO.noreg.autoform:EDIT" form-class="NucleusRH.Base.Liquidacion.Legajo_Liquidacion.DESC_ANTICIPO.noreg.autoform" parent-doc="PARENTSOURCE" doc="SOURCE" name="NucleusRH.Base.Liquidacion.Legajo_Liquidacion.DESC_ANTICIPO.noreg.form:EDIT" mode="EDIT">
+			<flow:action name="open-flow-EDIT">
+				<flow:open-form iter-index="#PARENTSOURCE:DESC_ANTICIPO/@id" parent-doc-path="#PARENTSOURCE:" doc-path="#PARENTSOURCE:" mode="EDIT" form-class="NucleusRH.Base.Liquidacion.Legajo.Anticipo.Descuento.form"/>
+			</flow:action>
+			<flow:action name="open-flow-ADD">
+				<flow:open-form parent-doc-path="#PARENTSOURCE:" doc-path="#NEWDDO:" mode="NEW" form-class="NucleusRH.Base.Liquidacion.Legajo.Anticipo.Descuento.form"/>
+			</flow:action>
+			<flow:action name="open-flow-LIST">
+				<flow:open-form iter-index="#PARENTSOURCE:DESC_ANTICIPO/@id" parent-doc-path="#PARENTSOURCE:" doc-path="#PARENTSOURCE:" mode="LIST_EDIT" form-class="NucleusRH.Base.Liquidacion.Legajo.Anticipo.Descuento.form"/>
+			</flow:action>
+		</flow:form>
+		<flow:form extends="NucleusRH.Base.Liquidacion.Legajo_Liquidacion.DESC_ANTICIPO.autoform:LIST_EDIT" doc-path="/DESC_ANTICIPO[@id='{#iter-cursor:@value}']" parent-doc="PARENTSOURCE" doc="SOURCE" name="NucleusRH.Base.Liquidacion.Legajo.Anticipo.Descuento.form:LIST_EDIT" form-class="NucleusRH.Base.Liquidacion.Legajo.Anticipo.Descuento.form" mode="LIST_EDIT">
+			<flow:action name="open-flow-ADD">
+				<flow:open-form parent-doc-path="#PARENTSOURCE:" doc-path="#NEWDDO:" mode="NEW" form-class="NucleusRH.Base.Liquidacion.Legajo.Anticipo.Descuento.form"/>
+			</flow:action>
+		</flow:form>
+		<flow:form extends="NucleusRH.Base.Liquidacion.Legajo_Liquidacion.DESC_ANTICIPO.autoform:EDIT" form-class="NucleusRH.Base.Liquidacion.Legajo.Anticipo.Descuento.form" doc-path="/DESC_ANTICIPO[@id='{#iter-cursor:@value}']" parent-doc="PARENTSOURCE" doc="SOURCE" name="NucleusRH.Base.Liquidacion.Legajo.Anticipo.Descuento.form:EDIT" mode="EDIT">
+			<flow:action name="open-flow-ADD">
+				<flow:open-form parent-doc-path="#PARENTSOURCE:" doc-path="#NEWDDO:" mode="NEW" form-class="NucleusRH.Base.Liquidacion.Legajo.Anticipo.Descuento.form"/>
+			</flow:action>
+		</flow:form>
+		<flow:form extends="NucleusRH.Base.Liquidacion.Legajo_Liquidacion.DESC_ANTICIPO.autoform:NEW" parent-doc="PARENTSOURCE" doc="SOURCE" name="NucleusRH.Base.Liquidacion.Legajo.Anticipo.Descuento.form:NEW" form-class="NucleusRH.Base.Liquidacion.Legajo.Anticipo.Descuento.form" mode="NEW"/>
+	</flow:group>
+	<flow:group name="DEDUC_IG">
+		<flow:form extends="NucleusRH.Base.Liquidacion.Legajo_Liquidacion.DEDUC_IG.noreg.autoform:SHOW" parent-doc="PARENTSOURCE" doc="SOURCE" name="NucleusRH.Base.Liquidacion.Legajo_Liquidacion.DEDUC_IG.noreg.form:SHOW" form-class="NucleusRH.Base.Liquidacion.Legajo_Liquidacion.DEDUC_IG.noreg.autoform" mode="SHOW">
+			<flow:action name="open-flow-SHOW">
+				<flow:open-form iter-index="#PARENTSOURCE:DEDUC_IG/@id" parent-doc-path="#PARENTSOURCE:" doc-path="#PARENTSOURCE:" mode="SHOW" form-class="NucleusRH.Base.Liquidacion.Legajo.DEDUC_IG.form"/>
+			</flow:action>
+			<flow:action name="open-flow-LIST">
+				<flow:open-form iter-index="#PARENTSOURCE:DEDUC_IG/@id" parent-doc-path="#PARENTSOURCE:" doc-path="#PARENTSOURCE:" mode="LIST" form-class="NucleusRH.Base.Liquidacion.Legajo.DEDUC_IG.form"/>
+			</flow:action>
+		</flow:form>
+		<flow:form extends="NucleusRH.Base.Liquidacion.Legajo_Liquidacion.DEDUC_IG.autoform:SHOW" doc-path="/DEDUC_IG[@id='{#iter-cursor:@value}']" parent-doc="PARENTSOURCE" doc="SOURCE" name="NucleusRH.Base.Liquidacion.Legajo.DEDUC_IG.form:SHOW" form-class="NucleusRH.Base.Liquidacion.Legajo.DEDUC_IG.form" mode="SHOW"/>
+		<flow:form extends="NucleusRH.Base.Liquidacion.Legajo_Liquidacion.DEDUC_IG.autoform:LIST" doc-path="/DEDUC_IG[@id='{#iter-cursor:@value}']" parent-doc="PARENTSOURCE" doc="SOURCE" name="NucleusRH.Base.Liquidacion.Legajo.DEDUC_IG.form:LIST" form-class="NucleusRH.Base.Liquidacion.Legajo.DEDUC_IG.form" mode="LIST"/>
+		<flow:form extends="NucleusRH.Base.Liquidacion.Legajo_Liquidacion.DEDUC_IG.autoform:LIST_EDIT" doc-path="/DEDUC_IG[@id='{#iter-cursor:@value}']" parent-doc="PARENTSOURCE" doc="SOURCE" name="NucleusRH.Base.Liquidacion.Legajo.DEDUC_IG.form:LIST_EDIT" form-class="NucleusRH.Base.Liquidacion.Legajo.DEDUC_IG.form" mode="LIST_EDIT">
+			<flow:action name="open-flow-ADD">
+				<flow:open-form parent-doc-path="#PARENTSOURCE:" doc-path="#NEWDDO:" mode="NEW" form-class="NucleusRH.Base.Liquidacion.Legajo.DEDUC_IG.form"/>
+			</flow:action>
+			<flow:action name="open-flow-LIST">
+				<flow:open-form iter-index="#PARENTSOURCE:DEDUC_IG/@id" parent-doc-path="#PARENTSOURCE:" doc-path="#PARENTSOURCE:" mode="LIST_EDIT" form-class="NucleusRH.Base.Liquidacion.Legajo.DEDUC_IG.form"/>
+			</flow:action>
+		</flow:form>
+		<flow:form extends="NucleusRH.Base.Liquidacion.Legajo_Liquidacion.DEDUC_IG.noreg.autoform:EDIT" parent-doc="PARENTSOURCE" doc="SOURCE" name="NucleusRH.Base.Liquidacion.Legajo_Liquidacion.DEDUC_IG.noreg.form:EDIT" form-class="NucleusRH.Base.Liquidacion.Legajo_Liquidacion.DEDUC_IG.noreg.autoform" mode="EDIT">
+			<flow:action name="open-flow-EDIT">
+				<flow:open-form iter-index="#PARENTSOURCE:DEDUC_IG/@id" parent-doc-path="#PARENTSOURCE:" doc-path="#PARENTSOURCE:" mode="EDIT" form-class="NucleusRH.Base.Liquidacion.Legajo.DEDUC_IG.form"/>
+			</flow:action>
+			<flow:action name="open-flow-ADD">
+				<flow:open-form parent-doc-path="#PARENTSOURCE:" doc-path="#NEWDDO:" mode="NEW" form-class="NucleusRH.Base.Liquidacion.Legajo.DEDUC_IG.form"/>
+			</flow:action>
+			<flow:action name="open-flow-LIST">
+				<flow:open-form iter-index="#PARENTSOURCE:DEDUC_IG/@id" parent-doc-path="#PARENTSOURCE:" doc-path="#PARENTSOURCE:" mode="LIST_EDIT" form-class="NucleusRH.Base.Liquidacion.Legajo.DEDUC_IG.form"/>
+			</flow:action>
+		</flow:form>
+		<flow:form extends="NucleusRH.Base.Liquidacion.Legajo_Liquidacion.DEDUC_IG.autoform:EDIT" doc-path="/DEDUC_IG[@id='{#iter-cursor:@value}']" parent-doc="PARENTSOURCE" doc="SOURCE" name="NucleusRH.Base.Liquidacion.Legajo.DEDUC_IG.form:EDIT" form-class="NucleusRH.Base.Liquidacion.Legajo.DEDUC_IG.form" mode="EDIT">
+			<flow:action name="open-flow-ADD">
+				<flow:open-form parent-doc-path="#PARENTSOURCE:" doc-path="#NEWDDO:" mode="NEW" form-class="NucleusRH.Base.Liquidacion.Legajo.DEDUC_IG.form"/>
+			</flow:action>
+		</flow:form>
+		<flow:form extends="NucleusRH.Base.Liquidacion.Legajo_Liquidacion.DEDUC_IG.autoform:NEW" parent-doc="PARENTSOURCE" doc="SOURCE" name="NucleusRH.Base.Liquidacion.Legajo.DEDUC_IG.form:NEW" form-class="NucleusRH.Base.Liquidacion.Legajo.DEDUC_IG.form" mode="NEW"/>
+	</flow:group>
+	<flow:group name="DISTRIB_COS">
+		<flow:form name="NucleusRH.Base.Liquidacion.Legajo_Liquidacion.DISTRIB_COS.noreg.form:SHOW" extends="NucleusRH.Base.Liquidacion.Legajo_Liquidacion.DISTRIB_COS.noreg.autoform:SHOW" parent-doc="PARENTSOURCE" doc="SOURCE" form-class="NucleusRH.Base.Liquidacion.Legajo_Liquidacion.DISTRIB_COS.noreg.autoform" mode="SHOW">
+			<flow:action name="on-move-iterator">
+				<flow:open-form iter-index="#PARENTSOURCE:DISTRIB_COS/@id" parent-doc-path="#PARENTSOURCE:" doc-path="#PARENTSOURCE:" mode="SHOW" form-class="NucleusRH.Base.Liquidacion.Legajo.DISTRIB_COS.form"/>
+			</flow:action>
+		</flow:form>
+		<flow:form name="NucleusRH.Base.Liquidacion.Legajo.DISTRIB_COS.form:SHOW" extends="NucleusRH.Base.Liquidacion.Legajo_Liquidacion.DISTRIB_COS.autoform:SHOW" parent-doc="PARENTSOURCE" doc="SOURCE" form-class="NucleusRH.Base.Liquidacion.Legajo.DISTRIB_COS.form" mode="SHOW"/>
+		<flow:form extends="NucleusRH.Base.Liquidacion.Legajo_Liquidacion.DISTRIB_COS.noreg.autoform:EDIT" parent-doc="PARENTSOURCE" doc="SOURCE" name="NucleusRH.Base.Liquidacion.Legajo_Liquidacion.DISTRIB_COS.noreg.form:EDIT" form-class="NucleusRH.Base.Liquidacion.Legajo_Liquidacion.DISTRIB_COS.noreg.autoform" mode="EDIT">
+			<flow:action name="on-move-iterator">
+				<flow:open-form iter-index="#PARENTSOURCE:DISTRIB_COS/@id" parent-doc-path="#PARENTSOURCE:" doc-path="#PARENTSOURCE:" mode="EDIT" form-class="NucleusRH.Base.Liquidacion.Legajo.DISTRIB_COS.form"/>
+			</flow:action>
+			<flow:action name="ADD">
+				<doc:new-object doc="NEWDDO" class="NucleusRH.Base.Liquidacion.Legajo_Liquidacion.DISTRIB_COS"/>
+				<doc:add-object doc-path="#NEWDDO:" parent-doc-path="#PARENTSOURCE:"/>
+				<flow:open-form iter-index="#PARENTSOURCE:DISTRIB_COS/@id" parent-doc-path="#PARENTSOURCE:" doc-path="#PARENTSOURCE:" mode="EDIT" form-class="NucleusRH.Base.Liquidacion.Legajo.DISTRIB_COS.form"/>
+			</flow:action>
+		</flow:form>
+		<flow:form extends="NucleusRH.Base.Liquidacion.Legajo_Liquidacion.DISTRIB_COS.autoform:EDIT" parent-doc="PARENTSOURCE" doc="SOURCE" name="NucleusRH.Base.Liquidacion.Legajo.DISTRIB_COS.form:EDIT" form-class="NucleusRH.Base.Liquidacion.Legajo.DISTRIB_COS.form" mode="EDIT"/>
+	</flow:group>
+	<flow:group Name="ING_MENSUAL">
+		<flow:form extends="NucleusRH.Base.Liquidacion.Legajo_Liquidacion.ING_MENSUAL.noreg.autoform:SHOW" parent-doc="PARENTSOURCE" doc="SOURCE" name="NucleusRH.Base.Liquidacion.Legajo_Liquidacion.ING_MENSUAL.noreg.form:SHOW" form-class="NucleusRH.Base.Liquidacion.Legajo_Liquidacion.ING_MENSUAL.noreg.autoform" mode="SHOW">
+			<flow:action name="open-flow-SHOW">
+				<flow:open-form iter-index="#PARENTSOURCE:ING_MENSUAL/@id" parent-doc-path="#PARENTSOURCE:" doc-path="#PARENTSOURCE:" mode="SHOW" form-class="NucleusRH.Base.Liquidacion.Legajo_Liquidacion.ING_MENSUAL.form"/>
+			</flow:action>
+			<flow:action name="open-flow-LIST">
+				<flow:open-form iter-index="#PARENTSOURCE:ING_MENSUAL/@id" parent-doc-path="#PARENTSOURCE:" doc-path="#PARENTSOURCE:" mode="LIST" form-class="NucleusRH.Base.Liquidacion.Legajo_Liquidacion.ING_MENSUAL.form"/>
+			</flow:action>
+		</flow:form>
+		<flow:form extends="NucleusRH.Base.Liquidacion.Legajo_Liquidacion.ING_MENSUAL.autoform:SHOW" doc-path="/ING_MENSUAL[@id='{#iter-cursor:@value}']" parent-doc="PARENTSOURCE" doc="SOURCE" name="NucleusRH.Base.Liquidacion.Legajo_Liquidacion.ING_MENSUAL.form:SHOW" form-class="NucleusRH.Base.Liquidacion.Legajo_Liquidacion.ING_MENSUAL.form" mode="SHOW"/>
+		<flow:form extends="NucleusRH.Base.Liquidacion.Legajo_Liquidacion.ING_MENSUAL.autoform:LIST" doc-path="/ING_MENSUAL[@id='{#iter-cursor:@value}']" parent-doc="PARENTSOURCE" doc="SOURCE" name="NucleusRH.Base.Liquidacion.Legajo_Liquidacion.ING_MENSUAL.form:LIST" form-class="NucleusRH.Base.Liquidacion.Legajo_Liquidacion.ING_MENSUAL.form" mode="LIST"/>
+		<flow:form extends="NucleusRH.Base.Liquidacion.Legajo_Liquidacion.ING_MENSUAL.autoform:LIST_EDIT" doc-path="/ING_MENSUAL[@id='{#iter-cursor:@value}']" parent-doc="PARENTSOURCE" doc="SOURCE" name="NucleusRH.Base.Liquidacion.Legajo_Liquidacion.ING_MENSUAL.form:LIST_EDIT" form-class="NucleusRH.Base.Liquidacion.Legajo_Liquidacion.ING_MENSUAL.form" mode="LIST_EDIT">
+			<flow:action name="open-flow-ADD">
+				<flow:open-form parent-doc-path="#PARENTSOURCE:" doc-path="#NEWDDO:" mode="NEW" form-class="NucleusRH.Base.Liquidacion.Legajo_Liquidacion.ING_MENSUAL.form"/>
+			</flow:action>
+			<flow:action name="open-flow-LIST">
+				<flow:open-form iter-index="#PARENTSOURCE:ING_MENSUAL/@id" parent-doc-path="#PARENTSOURCE:" doc-path="#PARENTSOURCE:" mode="LIST_EDIT" form-class="NucleusRH.Base.Liquidacion.Legajo_Liquidacion.ING_MENSUAL.form"/>
+			</flow:action>
+		</flow:form>
+		<flow:form extends="NucleusRH.Base.Liquidacion.Legajo_Liquidacion.ING_MENSUAL.noreg.autoform:EDIT" parent-doc="PARENTSOURCE" doc="SOURCE" name="NucleusRH.Base.Liquidacion.Legajo_Liquidacion.ING_MENSUAL.noreg.form:EDIT" form-class="NucleusRH.Base.Liquidacion.Legajo_Liquidacion.ING_MENSUAL.noreg.autoform" mode="EDIT">
+			<flow:action name="open-flow-EDIT">
+				<flow:open-form iter-index="#PARENTSOURCE:ING_MENSUAL/@id" parent-doc-path="#PARENTSOURCE:" doc-path="#PARENTSOURCE:" mode="EDIT" form-class="NucleusRH.Base.Liquidacion.Legajo_Liquidacion.ING_MENSUAL.form"/>
+			</flow:action>
+			<flow:action name="open-flow-ADD">
+				<flow:open-form parent-doc-path="#PARENTSOURCE:" doc-path="#NEWDDO:" mode="NEW" form-class="NucleusRH.Base.Liquidacion.Legajo_Liquidacion.ING_MENSUAL.form"/>
+			</flow:action>
+			<flow:action name="open-flow-LIST">
+				<flow:open-form iter-index="#PARENTSOURCE:ING_MENSUAL/@id" parent-doc-path="#PARENTSOURCE:" doc-path="#PARENTSOURCE:" mode="LIST_EDIT" form-class="NucleusRH.Base.Liquidacion.Legajo_Liquidacion.ING_MENSUAL.form"/>
+			</flow:action>
+		</flow:form>
+		<flow:form extends="NucleusRH.Base.Liquidacion.Legajo_Liquidacion.ING_MENSUAL.autoform:EDIT" doc-path="/ING_MENSUAL[@id='{#iter-cursor:@value}']" parent-doc="PARENTSOURCE" doc="SOURCE" name="NucleusRH.Base.Liquidacion.Legajo_Liquidacion.ING_MENSUAL.form:EDIT" form-class="NucleusRH.Base.Liquidacion.Legajo_Liquidacion.ING_MENSUAL.form" mode="EDIT">
+			<flow:action name="open-flow-ADD">
+				<flow:open-form parent-doc-path="#PARENTSOURCE:" doc-path="#NEWDDO:" mode="NEW" form-class="NucleusRH.Base.Liquidacion.Legajo_Liquidacion.ING_MENSUAL.form"/>
+			</flow:action>
+		</flow:form>
+		<flow:form extends="NucleusRH.Base.Liquidacion.Legajo_Liquidacion.ING_MENSUAL.autoform:NEW" parent-doc="PARENTSOURCE" doc="SOURCE" name="NucleusRH.Base.Liquidacion.Legajo_Liquidacion.ING_MENSUAL.form:NEW" form-class="NucleusRH.Base.Liquidacion.Legajo_Liquidacion.ING_MENSUAL.form" mode="NEW"/>
+	</flow:group>
+	<flow:group name="CARGO">
+		<flow:form form-class="NucleusRH.Base.Personal.LegajoEmpresa.CARGOLiq.form" name="NucleusRH.Base.Personal.LegajoEmpresa.CARGOLiq.form:SHOW" doc-path="/CARGO[@id='{#iter-cursor:@value}']" extends="NucleusRH.Base.Personal.LegajoEmpresa.CARGO.autoform:SHOW" doc="SOURCE" parent-doc="PARENTSOURCE" mode="SHOW">
+			<flow:action name="CALL:VAREF_CARGO">
+				<flow:call-action action="load-cargo"/>
+				<flow:open-form iter-index="#DDO:VAREF_CARGO/VAREF_CARGO/@id" parent-doc-path="#DDO:VAREF_CARGO" doc-path="#DDO:VAREF_CARGO" mode="SHOW" form-class="NucleusRH.Base.Liquidacion.Legajo_Liquidacion.VAREF_CARGO.noreg.autoform"/>
+			</flow:action>
+			<flow:action name="CALL:VARPA_CARGO">
+				<flow:call-action action="load-cargo"/>
+				<flow:open-form iter-index="#DDO:VARPA_CARGO/VARPA_CARGO/@id" parent-doc-path="#DDO:VARPA_CARGO" doc-path="#DDO:VARPA_CARGO" mode="SHOW" form-class="NucleusRH.Base.Liquidacion.Legajo_Liquidacion.VARPA_CARGO.noreg.autoform"/>
+			</flow:action>
+			<flow:action name="load-cargo">
+				<doc:set-attribute from-attr-path="#FORM:ctrl[@id='oi_cargo']/@xval" to-attr-path="#CARGOPER:PARAMS/@cargo"/>
+				<doc:set-attribute to-attr-path="#CARGOPER:PARAMS/@id" from-attr-path="#DDO:@id"/>
+			</flow:action>
+			<flow:action name="CHANGE">
+				<flow:log text="SOURCE_JP" text-path="#SOURCE:"/>
+				<flow:exec-method out-doc="DDOCARGO" out-type="Nomad.NSystem.Object" class="NucleusRH.Base.Liquidacion.Legajo_Liquidacion.PERSONAL_EMP" method="chgCargo">
+					<flow:param attr-path="#SOURCE:@id" name="id" mode="in" type="Nomad.NSystem.Int"/>
+				</flow:exec-method>
+				<flow:log text-path="#DDOCARGO:" text="DDOCARGO_JP"/>
+				<doc:set-attribute from-attr-path="#SOURCE:@id" to-attr-path="#CARGO_ANT:@id"/>
+				<doc:set-attribute from-attr-path="#SOURCE:@f_ingreso" to-attr-path="#CARGO_ANT:@f_ingreso"/>
+				<flow:open-form form-class="NucleusRH.Base.Personal.LegajoEmpresa.CARGOLiq.form" doc-path="#DDOCARGO:" parent-doc-path="#PARENTSOURCE:" mode="NEW"/>
+			</flow:action>
+			<flow:action name="After-Back-show">
+				<flow:call-action action="LIST"/>
+			</flow:action>
+		</flow:form>
+		<flow:form parent-doc="PARENTSOURCE" doc="SOURCE" name="NucleusRH.Base.Personal.LegajoEmpresa.CARGO.noreg.autoform:SHOW" form-class="NucleusRH.Base.Personal.LegajoEmpresa.CARGO.noreg.autoform" mode="SHOW">
+			<flow:action name="open-flow-SHOW">
+				<flow:open-form form-class="NucleusRH.Base.Personal.LegajoEmpresa.CARGOLiq.form" iter-index="#PARENTSOURCE:CARGO/@id" parent-doc-path="#PARENTSOURCE:" doc-path="#PARENTSOURCE:" mode="SHOW"/>
+			</flow:action>
+			<flow:action name="open-flow-LIST">
+				<flow:open-form form-class="NucleusRH.Base.Personal.LegajoEmpresa.CARGOLiq.form" iter-index="#PARENTSOURCE:CARGO/@id" parent-doc-path="#PARENTSOURCE:" doc-path="#PARENTSOURCE:" mode="LIST"/>
+			</flow:action>
+			<flow:action name="load-child-LIST">
+				<doc:load-qry output-doc="QRY_LIST" input-doc-path="#PARENTSOURCE:" qry="LIST:NucleusRH.Base.Personal.LegajoEmpresa.CARGO"/>
+			</flow:action>
+			<flow:action name="--------------------------------------------"/>
+			<flow:action name="on-show"/>
+			<flow:action name="on-move-iterator">
+				<doc:set-attribute from-attr-path="#iter-cursor:@value" to-attr-path="#QRY_ID:@id"/>
+				<flow:call-action action="goto-list"/>
+			</flow:action>
+			<flow:action name="empty"/>
+			<flow:action name="After-Back">
+				<flow:close-form next-action="After-Back"/>
+			</flow:action>
+			<flow:action name="BACK">
+				<flow:close-form next-action="After-Back"/>
+			</flow:action>
+			<flow:action name="PARENT">
+				<flow:close-form next-action="PARENT"/>
+			</flow:action>
+			<flow:action name="goto-list">
+				<flow:call-action action="load-child-LIST"/>
+				<flow:call-action action="open-flow-LIST"/>
+			</flow:action>
+			<flow:action name="goto-show">
+				<flow:call-action action="open-flow-SHOW"/>
+			</flow:action>
+		</flow:form>
+		<flow:form form-class="NucleusRH.Base.Personal.LegajoEmpresa.CARGOLiq.form" name="NucleusRH.Base.Personal.LegajoEmpresa.CARGOLiq.form:LIST" doc-path="/CARGO[@id='{#iter-cursor:@value}']" extends="NucleusRH.Base.Personal.LegajoEmpresa.CARGO.autoform:LIST" doc="SOURCE" parent-doc="PARENTSOURCE" mode="LIST">
+			<flow:action name="CALL:VAREF_CARGO">
+				<flow:call-action action="load-cargo"/>
+				<flow:open-form parent-doc-path="#DDO:VAREF_CARGO" doc-path="#DDO:VAREF_CARGO" iter-index="#DDO:VAREF_CARGO/VAREF_CARGO/@id" mode="SHOW" form-class="NucleusRH.Base.Liquidacion.Legajo_Liquidacion.VAREF_CARGO.noreg.autoform"/>
+			</flow:action>
+			<flow:action name="CALL:VARPA_CARGO">
+				<flow:call-action action="load-cargo"/>
+				<flow:open-form iter-index="#DDO:VARPA_CARGO/VARPA_CARGO/@id" parent-doc-path="#DDO:VARPA_CARGO" doc-path="#DDO:VARPA_CARGO" mode="SHOW" form-class="NucleusRH.Base.Liquidacion.Legajo_Liquidacion.VARPA_CARGO.noreg.autoform"/>
+			</flow:action>
+			<flow:action name="load-cargo">
+				<doc:set-attribute to-attr-path="#CARGOPER:PARAMS/@cargo" from-attr-path="#FORM:ctrl[@id='LIST']/@xval"/>
+				<doc:set-attribute to-attr-path="#CARGOPER:PARAMS/@id" from-attr-path="#DDO:@id"/>
+				<doc:load-object id-path="#DDO:@id" class="NucleusRH.Base.Liquidacion.Legajo_Liquidacion.PERSONAL_EMP" doc="DDO"/>
+			</flow:action>
+			<flow:action name="CHANGE">
+				<flow:exec-method out-doc="DDOCARGO" out-type="Nomad.NSystem.Object" class="NucleusRH.Base.Liquidacion.Legajo_Liquidacion.PERSONAL_EMP" method="chgCargo">
+					<flow:param attr-path="#FORM:ctrl[@id='LIST']/@xval" name="id" mode="in" type="Nomad.NSystem.Int"/>
+				</flow:exec-method>
+				<flow:log text-path="#DDOCARGO:" text="DDOCARGO_JP"/>
+				<doc:set-attribute from-attr-path="#FORM:ctrl[@id='LIST']/@xval" to-attr-path="#CARGO_ANT:@id"/>
+				<doc:set-attribute from-attr-path="#PARENTSOURCE:CARGO[@id={#FORM:ctrl[@id='LIST']/@xval}]/@f_ingreso" to-attr-path="#CARGO_ANT:@f_ingreso"/>
+				<flow:open-form form-class="NucleusRH.Base.Personal.LegajoEmpresa.CARGOLiq.form" doc-path="#DDOCARGO:" parent-doc-path="#PARENTSOURCE:" mode="NEW"/>
+			</flow:action>
+			<flow:action name="After-Back-show">
+				<doc:load-qry input-doc-path="#DDO:CARGOS" output-doc="QRY_LIST" qry="LIST:NucleusRH.Base.Personal.LegajoEmpresa.CARGO"/>
+			</flow:action>
+		</flow:form>
+		<flow:form form-class="NucleusRH.Base.Personal.LegajoEmpresa.CARGOLiq.form" name="NucleusRH.Base.Personal.LegajoEmpresa.CARGOLiq.form:EDIT" parent-doc="PARENTSOURCE" doc-path="/CARGO[@id='{#iter-cursor:@value}']" extends="NucleusRH.Base.Personal.LegajoEmpresa.CARGO.autoform:EDIT" mode="EDIT" doc="SOURCE"/>
+		<flow:form parent-doc="PARENTSOURCE" doc="SOURCE" name="NucleusRH.Base.Personal.LegajoEmpresa.CARGO.noreg.autoform:EDIT" form-class="NucleusRH.Base.Personal.LegajoEmpresa.CARGO.noreg.autoform" mode="EDIT">
+			<flow:action name="new-DDO">
+				<doc:new-object doc="NEWDDO" class="NucleusRH.Base.Personal.LegajoEmpresa.CARGO"/>
+			</flow:action>
+			<flow:action name="delete-DDO">
+				<doc:delete-object doc-path="#PARENTSOURCE:CARGO[@id='{#FORM:ctrl[@id='LIST']/@xval}']" class="NucleusRH.Base.Personal.LegajoEmpresa.CARGO"/>
+			</flow:action>
+			<flow:action name="open-flow-EDIT">
+				<flow:open-form form-class="NucleusRH.Base.Personal.LegajoEmpresa.CARGOLiq.form" iter-index="#PARENTSOURCE:CARGO/@id" parent-doc-path="#PARENTSOURCE:" doc-path="#PARENTSOURCE:" mode="EDIT"/>
+			</flow:action>
+			<flow:action name="open-flow-ADD">
+				<flow:open-form form-class="NucleusRH.Base.Personal.LegajoEmpresa.CARGO.autoform" parent-doc-path="#PARENTSOURCE:" doc-path="#NEWDDO:" mode="NEW"/>
+			</flow:action>
+			<flow:action name="open-flow-LIST">
+				<flow:open-form iter-index="#PARENTSOURCE:CARGO/@id" parent-doc-path="#PARENTSOURCE:" doc-path="#PARENTSOURCE:" mode="LIST_EDIT" form-class="NucleusRH.Base.Personal.LegajoEmpresa.CARGOLiq.form"/>
+			</flow:action>
+			<flow:action name="load-child-LIST">
+				<doc:load-qry output-doc="QRY_LIST" input-doc-path="#PARENTSOURCE:" qry="LIST:NucleusRH.Base.Personal.LegajoEmpresa.CARGO"/>
+			</flow:action>
+			<flow:action name="--------------------------------------------"/>
+			<flow:action name="on-show"/>
+			<flow:action name="on-move-iterator">
+				<doc:set-attribute from-attr-path="#iter-cursor:@value" to-attr-path="#QRY_ID:@id"/>
+				<flow:call-action action="goto-list"/>
+			</flow:action>
+			<flow:action name="on-empty-iterator">
+				<flow:call-action action="new-DDO"/>
+				<flow:call-action action="open-flow-ADD"/>
+			</flow:action>
+			<flow:action name="ADD">
+				<flow:call-action action="new-DDO"/>
+				<flow:call-action action="open-flow-ADD"/>
+			</flow:action>
+			<flow:action name="empty"/>
+			<flow:action name="After-Change">
+				<doc:iter-refresh/>
+			</flow:action>
+			<flow:action name="After-Back">
+				<flow:close-form next-action="After-Back"/>
+			</flow:action>
+			<flow:action name="BACK">
+				<flow:close-form next-action="After-Back"/>
+			</flow:action>
+			<flow:action name="PARENT">
+				<flow:close-form next-action="PARENT"/>
+			</flow:action>
+			<flow:action name="goto-list">
+				<flow:call-action action="load-child-LIST"/>
+				<flow:call-action action="open-flow-LIST"/>
+			</flow:action>
+			<flow:action name="goto-edit">
+				<flow:call-action action="open-flow-EDIT"/>
+			</flow:action>
+		</flow:form>
+		<flow:form extends="NucleusRH.Base.Personal.LegajoEmpresa.CARGO.autoform:LIST_EDIT" form-class="NucleusRH.Base.Personal.LegajoEmpresa.CARGOLiq.form" name="NucleusRH.Base.Personal.LegajoEmpresa.CARGOLiq.form:LIST_EDIT" mode="LIST_EDIT" parent-doc="PARENTSOURCE" doc="SOURCE"/>
+		<flow:form form-class="NucleusRH.Base.Personal.LegajoEmpresa.CARGOLiq.form" name="NucleusRH.Base.Personal.LegajoEmpresa.CARGOLiq.form:NEW" extends="NucleusRH.Base.Personal.LegajoEmpresa.CARGO.autoform:NEW" parent-doc="PARENTSOURCE" doc="SOURCE" mode="NEW">
+			<flow:action name="GUARDAR">
+				<flow:exec-method class="NucleusRH.Base.Liquidacion.Legajo_Liquidacion.PERSONAL_EMP" method="setCargo">
+					<flow:param mode="inout" doc="DDO" name="DDO" type="Nomad.NSystem.Object"/>
+					<flow:param doc="DDOCARGO" name="NEWDDO" mode="in" type="Nomad.NSystem.Object"/>
+					<flow:param name="id_ant" attr-path="#CARGO_ANT:@id" mode="in" type="Nomad.NSystem.Int"/>
+				</flow:exec-method>
+				<flow:log text="DDO_G_JP" text-path="#DDO:"/>
+				<flow:close-form next-action="After-Back-show"/>
+			</flow:action>
+			<flow:action name="on-show">
+				<flow:log text="SOURCENEW_JP" text-path="#SOURCE:"/>
+				<flow:log text-path="#CARGO_ANT:" text="CARGO_ANT_JP"/>
+			</flow:action>
+		</flow:form>
+	</flow:group>
+	<flow:group name="VARPA_CARGO">
+		<flow:form doc-path="/VARPA_CARGO[@id='{#iter-cursor:@value}']" parent-doc="PARENTSOURCE" doc="SOURCE" extends="NucleusRH.Base.Liquidacion.Legajo_Liquidacion.VARPA_CARGO.autoform:LIST" mode="LIST" form-class="NucleusRH.Base.Liquidacion.Legajo_Liquidacion.VARPA_CARGO.form" name="NucleusRH.Base.Liquidacion.Legajo_Liquidacion.VARPA_CARGO.form:LIST"/>
+		<flow:form parent-doc="PARENTSOURCE" doc="SOURCE" doc-path="/VARPA_CARGO[@id='{#iter-cursor:@value}']" extends="NucleusRH.Base.Liquidacion.Legajo_Liquidacion.VARPA_CARGO.autoform:SHOW" mode="SHOW" form-class="NucleusRH.Base.Liquidacion.Legajo_Liquidacion.VARPA_CARGO.form" name="NucleusRH.Base.Liquidacion.Legajo_Liquidacion.VARPA_CARGO.form:SHOW"/>
+		<flow:form parent-doc="PARENTSOURCE" doc="SOURCE" name="NucleusRH.Base.Liquidacion.Legajo_Liquidacion.VARPA_CARGO.noreg.autoform:SHOW" form-class="NucleusRH.Base.Liquidacion.Legajo_Liquidacion.VARPA_CARGO.noreg.autoform" mode="SHOW">
+			<flow:action name="open-flow-SHOW">
+				<flow:open-form iter-index="#QRY_LIST:ROW/@id" parent-doc-path="#PARENTSOURCE:" doc-path="#PARENTSOURCE:" mode="SHOW" form-class="NucleusRH.Base.Liquidacion.Legajo_Liquidacion.VARPA_CARGO.form"/>
+			</flow:action>
+			<flow:action name="open-flow-LIST">
+				<flow:open-form form-class="NucleusRH.Base.Liquidacion.Legajo_Liquidacion.VARPA_CARGO.form" iter-index="#QRY_LIST:ROW/@id" parent-doc-path="#PARENTSOURCE:" doc-path="#PARENTSOURCE:" mode="LIST"/>
+			</flow:action>
+			<flow:action name="load-child-LIST">
+				<doc:load-qry input-doc-path="#CARGOPER:PARAMS" output-doc="QRY_LIST" qry="LIST:VARPA_CARGO"/>
+				<flow:log text-path="#QRY_LIST:" text="JP_QRYLIST"/>
+			</flow:action>
+			<flow:action name="--------------------------------------------"/>
+			<flow:action name="on-show"/>
+			<flow:action name="on-move-iterator">
+				<doc:set-attribute from-attr-path="#iter-cursor:@value" to-attr-path="#QRY_ID:@id"/>
+				<flow:call-action action="goto-list"/>
+			</flow:action>
+			<flow:action name="empty"/>
+			<flow:action name="After-Back">
+				<flow:close-form next-action="After-Back"/>
+			</flow:action>
+			<flow:action name="BACK">
+				<flow:close-form next-action="After-Back"/>
+			</flow:action>
+			<flow:action name="PARENT">
+				<flow:close-form next-action="PARENT"/>
+			</flow:action>
+			<flow:action name="goto-list">
+				<flow:call-action action="load-child-LIST"/>
+				<flow:call-action action="open-flow-LIST"/>
+			</flow:action>
+			<flow:action name="goto-show">
+				<flow:call-action action="open-flow-SHOW"/>
+			</flow:action>
+		</flow:form>
+	</flow:group>
+	<flow:group name="VAREF_CARGO">
+		<flow:form parent-doc="PARENTSOURCE" doc="SOURCE" name="NucleusRH.Base.Liquidacion.Legajo_Liquidacion.VAREF_CARGO.noreg.autoform:SHOW" form-class="NucleusRH.Base.Liquidacion.Legajo_Liquidacion.VAREF_CARGO.noreg.autoform" mode="SHOW">
+			<flow:action name="open-flow-SHOW">
+				<flow:open-form iter-index="#QRY_LIST:ROW/@id" parent-doc-path="#PARENTSOURCE:" doc-path="#PARENTSOURCE:" mode="SHOW" form-class="NucleusRH.Base.Liquidacion.Legajo_Liquidacion.VAREF_CARGO.form"/>
+			</flow:action>
+			<flow:action name="open-flow-LIST">
+				<flow:open-form iter-index="#QRY_LIST:ROW/@id" parent-doc-path="#PARENTSOURCE:" doc-path="#PARENTSOURCE:" mode="LIST" form-class="NucleusRH.Base.Liquidacion.Legajo_Liquidacion.VAREF_CARGO.form"/>
+			</flow:action>
+			<flow:action name="--------------------------------------------"/>
+			<flow:action name="on-show"/>
+			<flow:action name="on-move-iterator">
+				<doc:set-attribute from-attr-path="#iter-cursor:@value" to-attr-path="#QRY_ID:@id"/>
+				<flow:call-action action="goto-list"/>
+			</flow:action>
+			<flow:action name="empty"/>
+			<flow:action name="After-Back">
+				<flow:close-form next-action="After-Back"/>
+			</flow:action>
+			<flow:action name="BACK">
+				<flow:close-form next-action="After-Back"/>
+			</flow:action>
+			<flow:action name="PARENT">
+				<flow:close-form next-action="PARENT"/>
+			</flow:action>
+			<flow:action name="goto-list">
+				<flow:call-action action="load-child-LIST"/>
+				<flow:call-action action="open-flow-LIST"/>
+			</flow:action>
+			<flow:action name="goto-show">
+				<flow:call-action action="open-flow-SHOW"/>
+			</flow:action>
+			<flow:action name="load-child-LIST">
+				<doc:load-qry input-doc-path="#CARGOPER:PARAMS" output-doc="QRY_LIST" qry="LIST:VAREF_CARGO"/>
+				<flow:log text-path="#QRY_LIST:" text="JP_QRYLIST"/>
+			</flow:action>
+		</flow:form>
+		<flow:form doc-path="/VAREF_CARGO[@id='{#iter-cursor:@value}']" parent-doc="PARENTSOURCE" extends="NucleusRH.Base.Liquidacion.Legajo_Liquidacion.VAREF_CARGO.autoform:SHOW" doc="SOURCE" mode="SHOW" form-class="NucleusRH.Base.Liquidacion.Legajo_Liquidacion.VAREF_CARGO.form" name="NucleusRH.Base.Liquidacion.Legajo_Liquidacion.VAREF_CARGO.form:SHOW"/>
+		<flow:form parent-doc="PARENTSOURCE" doc-path="/VAREF_CARGO[@id='{#iter-cursor:@value}']" doc="SOURCE" extends="NucleusRH.Base.Liquidacion.Legajo_Liquidacion.VAREF_CARGO.autoform:LIST" mode="LIST" form-class="NucleusRH.Base.Liquidacion.Legajo_Liquidacion.VAREF_CARGO.form" name="NucleusRH.Base.Liquidacion.Legajo_Liquidacion.VAREF_CARGO.form:LIST"/>
+	</flow:group>
+</flow:flow>

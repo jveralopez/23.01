@@ -1,0 +1,323 @@
+<ALERT xmlns:qry="nomad_engine.qry" name="VENCIMIENTO.CONVENIO.SOPORTE.alert" label="Vencimiento de Convenios por Cliente">
+	<PARAMS>
+		<PARAM label="Cantidad de d&#237;as al vencimiento" name="CantDias" type="int" req="1"/>
+		<PARAM name="CodCliente" type="string" label="C&#243;digo de Cliente" req="0"/>
+	</PARAMS>
+	<QRY declare="&lt;PARAMS CantDias=&quot;30&quot; CodCliente=&quot;&quot; /&gt;">
+		<qry:main doc="PARAMS">
+			<qry:append-doc name="PARAMIN" doc-path="$PARAMS/PARAMS"/>
+			<qry:element name="ROWS">
+				<qry:attribute name="FDESDE" value="now-date()"/>
+				<qry:attribute name="FHASTA" value="now-date() + #PARAMIN:@CantDias"/>
+				<qry:if test="#PARAMIN:@CodCliente!=''">
+					<qry:then>
+						<qry:attribute name="CODCLIENTE" value="upper-case(#PARAMIN:@CodCliente)"/>
+					</qry:then>
+				</qry:if>
+				<TODOS>
+					<qry:attribute name="FDESDE" value="now-date()"/>
+					<qry:attribute name="FHASTA" value="now-date() + #PARAMIN:@CantDias"/>
+					<qry:if test="#PARAMIN:@CodCliente!=''">
+						<qry:then>
+							<qry:attribute name="CODCLIENTE" value="upper-case(#PARAMIN:@CodCliente)"/>
+						</qry:then>
+					</qry:if>
+					<!-- Trae los ultimos convenios de soporte por cada cliente -->
+					<qry:insert-select name="QRY_ULT_SOPORT_CLIENTE" doc-path="."/>
+					<!-- Trae la informacion de los convenios de soporte por cliente que vencen-->
+					<qry:insert-select name="QRY_VENC_CONVENIO" doc-path="."/>
+					<!--Trae la informacion de los clientes sin convenios o convenios ya vencidos-->
+					<qry:insert-select name="QRY_CLIENTES_SIN_CONVENIO" doc-path="."/>
+				</TODOS>
+			</qry:element>
+		</qry:main>
+		<qry:select name="QRY_ULT_SOPORT_CLIENTE" doc="PARAM">
+			<qry:xquery>
+				for $r in sql('
+				 
+			SELECT
+				PRY08_CLIENTES.oi_cliente,
+				MAX(PRY08_SOPORTE.oi_soporte) AS ultimo 
+				
+			FROM
+				PRY08_CLIENTES,
+				PRY08_SOPORTE
+				
+			JOIN 
+				PRY08_CLIENTES.oi_cliente INNER PRY08_SOPORTE.oi_cliente
+
+			GROUP BY 	PRY08_CLIENTES.oi_cliente
+			
+			
+				
+		')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:if test="@IDs!=''">
+					<qry:then>
+						<qry:attribute name="IDs" value="concat(@IDs,', ',$r/@ultimo)"/>
+					</qry:then>
+					<qry:else>
+						<qry:attribute name="IDs" value="$r/@ultimo"/>
+					</qry:else>
+				</qry:if>
+			</qry:out>
+		</qry:select>
+		<qry:select doc="PARAM" name="QRY_COUNT">
+			<qry:xquery>
+				for $r in sql('
+				 
+			SELECT
+				COUNT(PRY08_CLIENTES.oi_cliente) as cantidad
+
+			FROM
+				PRY08_CLIENTES,
+				PRY08_SOPORTE
+				
+			JOIN 
+				PRY08_CLIENTES.oi_cliente INNER PRY08_SOPORTE.oi_cliente 
+				
+			WHERE
+				
+				((
+                ISNOTNULL(PRY08_SOPORTE.f_hasta) AND
+			   	PRY08_SOPORTE.f_hasta &lt;= {Datetime(#PARAM:@FHASTA)}  AND
+				PRY08_SOPORTE.f_hasta &gt;= {Datetime(#PARAM:@FDESDE)}
+				)  
+     			OR
+     			(
+                ISNULL(PRY08_SOPORTE.f_hasta) AND
+                ADDYEARS(PRY08_SOPORTE.f_desde, 1) &lt;= {Datetime(#PARAM:@FHASTA)}  AND
+				ADDYEARS(PRY08_SOPORTE.f_desde, 1) &gt;= {Datetime(#PARAM:@FDESDE)}
+				))
+
+				{%? (#PARAM:@CODCLIENTE!='')
+				{% AND PRY08_CLIENTES.c_cliente = {#PARAM:@CODCLIENTE}  %}  {% %}        
+				%}
+				
+				{%? (#PARAM:@IDs!='')
+				{% AND PRY08_SOPORTE.oi_soporte IN ( {%=#PARAM:@IDs%})  %}  {% %}        
+				%}                 
+
+		')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:attribute name="CANTIDAD" value="$r/@cantidad"/>
+			</qry:out>
+		</qry:select>
+		<qry:select doc="PARAM" name="QRY_VENC_CONVENIO">
+			<qry:xquery>
+				for $r in sql('
+			SELECT
+				PRY08_CLIENTES.c_cliente,
+				PRY08_CLIENTES.d_nom_cliente,
+				PRY08_CLIENTES.d_nom_contacto,
+				PRY08_SOPORTE.f_desde,
+				PRY08_SOPORTE.f_hasta,
+				PRY08_SOPORTE.n_cantidad_horas,
+				PRY08_CLIENTES.d_email
+				
+			FROM
+				PRY08_CLIENTES,
+				PRY08_SOPORTE
+				
+			JOIN 
+				PRY08_CLIENTES.oi_cliente INNER PRY08_SOPORTE.oi_cliente
+
+			WHERE
+
+                ((
+                ISNOTNULL(PRY08_SOPORTE.f_hasta) AND
+			   	PRY08_SOPORTE.f_hasta &lt;= {Datetime(#PARAM:@FHASTA)}  AND
+				PRY08_SOPORTE.f_hasta &gt;= {Datetime(#PARAM:@FDESDE)}
+				)  
+     			OR
+     			(
+                ISNULL(PRY08_SOPORTE.f_hasta) AND
+                ADDYEARS(PRY08_SOPORTE.f_desde, 1) &lt;= {Datetime(#PARAM:@FHASTA)}  AND
+				ADDYEARS(PRY08_SOPORTE.f_desde, 1) &gt;= {Datetime(#PARAM:@FDESDE)}
+				))
+
+				{%? (#PARAM:@CODCLIENTE!='')
+				{% AND PRY08_CLIENTES.c_cliente = {#PARAM:@CODCLIENTE}  %}  {% %}        
+				%}
+				
+				{%? (#PARAM:@IDs!='')
+				{% AND PRY08_SOPORTE.oi_soporte IN ( {%=#PARAM:@IDs%})  %}  {% %}        
+				%}                  
+
+			ORDER BY
+				c_cliente ASC, 
+				d_nom_cliente ASC,
+				f_desde ASC
+					      
+				
+		')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:element name="CLIENTE">
+					<qry:attribute name="CODCLIENTE" value="$r/@c_cliente"/>
+					<qry:attribute name="NOMCLIENTE" value="$r/@d_nom_cliente"/>
+					<qry:if test="$r/@d_nom_contacto=''">
+						<qry:then>
+							<qry:attribute name="CONTACTO" value="'-'"/>
+						</qry:then>
+						<qry:else>
+							<qry:attribute name="CONTACTO" value="$r/@d_nom_contacto"/>
+						</qry:else>
+					</qry:if>
+					<qry:attribute name="FECHADESDE" value="$r/@f_desde"/>
+					<qry:if test="$r/@f_hasta=''">
+						<qry:then>
+							<qry:attribute name="FECHAHASTA" value="$r/@f_desde+10000"/>
+						</qry:then>
+						<qry:else>
+							<qry:attribute name="FECHAHASTA" value="$r/@f_hasta"/>
+						</qry:else>
+					</qry:if>
+					<qry:attribute name="CANTHORAS" value="$r/@n_cantidad_horas"/>
+					<qry:attribute name="MAIL" value="$r/@d_email"/>
+					<qry:insert-select name="sql1" doc-path="$r"/>
+				</qry:element>
+			</qry:out>
+		</qry:select>
+		<qry:select doc="PARAM" name="QRY_CLIENTES_SIN_CONVENIO">
+			<qry:xquery>
+				for $r in sql('
+			SELECT
+				PRY08_CLIENTES.c_cliente,
+				PRY08_CLIENTES.d_nom_cliente,
+				PRY08_CLIENTES.d_nom_contacto,
+				PRY08_CLIENTES.d_email,
+				PRY08_SOPORTE.f_hasta,
+				ADDYEARS(PRY08_SOPORTE.f_desde, 1) as f_hasta_calculada
+				
+			FROM
+				PRY08_CLIENTES,
+				PRY08_SOPORTE
+				
+			JOIN 
+				PRY08_CLIENTES.oi_cliente LEFT OUTER PRY08_SOPORTE.oi_cliente
+
+			WHERE
+
+                ((
+                ISNULL(PRY08_SOPORTE.oi_soporte) 
+				)  
+     			OR
+     			(	
+     				(
+					ISNOTNULL(PRY08_SOPORTE.f_hasta) AND
+					PRY08_SOPORTE.f_hasta &lt; NOW() 
+					{%? (#PARAM:@IDs!='')
+					{% AND PRY08_SOPORTE.oi_soporte IN ( {%=#PARAM:@IDs%})  %}  {% %}        
+					%}
+					)  
+     				OR
+     				(
+     				ISNULL(PRY08_SOPORTE.f_hasta) AND
+        			ADDYEARS(PRY08_SOPORTE.f_desde, 1) &lt; NOW()
+        			{%? (#PARAM:@IDs!='')
+					{% AND PRY08_SOPORTE.oi_soporte IN ( {%=#PARAM:@IDs%})  %}  {% %}        
+					%}
+     				)
+					
+				))
+
+				{%? (#PARAM:@CODCLIENTE!='')
+				{% AND PRY08_CLIENTES.c_cliente = {#PARAM:@CODCLIENTE}  %}  {% %}        
+				%}
+				                
+
+			ORDER BY
+				c_cliente ASC, 
+				d_nom_cliente ASC
+					      
+				
+		')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:element name="SINCONVENIO">
+					<qry:attribute name="CODCLIENTE" value="$r/@c_cliente"/>
+					<qry:attribute name="NOMCLIENTE" value="$r/@d_nom_cliente"/>
+					<qry:if test="$r/@d_nom_contacto=''">
+						<qry:then>
+							<qry:attribute name="CONTACTO" value="'-'"/>
+						</qry:then>
+						<qry:else>
+							<qry:attribute name="CONTACTO" value="$r/@d_nom_contacto"/>
+						</qry:else>
+					</qry:if>
+					<qry:attribute name="MAIL" value="$r/@d_email"/>
+					<qry:if test="$r/@f_hasta=''">
+						<qry:then>
+							<qry:attribute name="FECHAULT" value="$r/@f_hasta_calculada"/>
+						</qry:then>
+						<qry:else>
+							<qry:attribute name="FECHAULT" value="$r/@f_hasta"/>
+						</qry:else>
+					</qry:if>
+					<qry:insert-select name="sql1" doc-path="$r"/>
+				</qry:element>
+			</qry:out>
+		</qry:select>
+		<qry:select doc="PARAM" name="sql1">
+			<qry:xquery>
+				for $r in file('Nomad\\Base\\Login\\Entidades\\{%=#PARAM:@oi_usuario_sistema%}.ENTIDAD.XML')/ENTIDAD
+			</qry:xquery>
+			<qry:out>
+				<qry:attribute name="MAIL" value="nmd-replace(string($r/MAILS/MAIL[@PRINCIPAL=1]/@EMAIL),',',';')"/>
+			</qry:out>
+		</qry:select>
+	</QRY>
+	<MAILS>
+		<MAIL group="TODOS" suject="[Alertas NucleusRH] Vencimiento de Convenios de Soporte">
+			**Los siguientes clientes tienen convenios de soporte que vencen en los pr&#243;ximos d&#237;as:**
+        
+         
+^Cliente			^Contacto ^Mail			^Fecha Desde			^Fecha Hasta			^Cantidad Horas     ^ 
+{%FOR-EACH CLIENTE%}| [{% @CLIENTE.CODCLIENTE %}] {% @CLIENTE.NOMCLIENTE %}   |{% @CLIENTE.CONTACTO %}| {% @CLIENTE.MAIL %}|{% @CLIENTE.FECHADESDE %}  | {% @CLIENTE.FECHAHASTA %} |{% @CLIENTE.CANTHORAS %}|
+{%END CLIENTE%} 
+
+**Los siguientes clientes no tienen convenios de soporte en este momento** 
+
+^Cliente			^Contacto ^Mail			^Fecha &#218;ltimo Convenio			^ 
+{%FOR-EACH SINCONVENIO%}| [{% @SINCONVENIO.CODCLIENTE %}] {% @SINCONVENIO.NOMCLIENTE %}   |{% @SINCONVENIO.CONTACTO %}| {% @SINCONVENIO.MAIL %}| {% @SINCONVENIO.FECHAULT %} |
+{%END SINCONVENIO%}
+		</MAIL>
+		<MAIL group="CLIENTE" suject="[Alertas NucleusRH] Vencimiento de Convenio de Soporte">
+			Nos comunicamos para informarle que el d&#237;a {% @CLIENTE.FECHAHASTA %} vence el convenio de soporte para {% @CLIENTE.NOMCLIENTE %}.
+
+**Atte.**
+
+**Nucleus S.A.**
+		</MAIL>
+		<MAIL group="SINCONVENIO" suject="[Alertas NucleusRH] Vencimiento de Convenio de Soporte">
+			Nos comunicamos para informarle que en estos momentos el cliente {% @SINCONVENIO.NOMCLIENTE %} se encuentra sin convenio de soporte.
+
+**Atte.**
+
+**Nucleus S.A.**
+		</MAIL>
+	</MAILS>
+	<GROUPS>
+		<GROUP label="Sin Agrupar" name="TODOS"/>
+		<GROUP name="CLIENTE" label="Por Cliente">
+			<FIELD type="string" label="C&#243;digo Cliente" name="CODCLIENTE"/>
+			<FIELD type="string" label="Nombre Cliente" name="NOMCLIENTE"/>
+			<FIELD name="CONTACTO" type="string" label="Contacto"/>
+			<FIELD label="E-Mail" type="string" name="MAIL"/>
+			<FIELD label="Inicio de Convenio de Soporte" name="FECHADESDE" type="date"/>
+			<FIELD name="FECHAHASTA" label="Fin de Convenio de Soporte" type="date"/>
+			<FIELD label="Cantidad de Horas" name="CANTHORAS" type="double"/>
+		</GROUP>
+		<GROUP label="Por Clientes Sin Convenio de Soporte" name="SINCONVENIO">
+			<FIELD type="string" label="C&#243;digo Cliente" name="CODCLIENTE"/>
+			<FIELD type="string" label="Nombre Cliente" name="NOMCLIENTE"/>
+			<FIELD name="CONTACTO" type="string" label="Contacto"/>
+			<FIELD label="E-Mail" type="string" name="MAIL"/>
+			<FIELD name="FECHAULT" label="Fecha del &#218;ltimo Convenio" type="date"/>
+		</GROUP>
+	</GROUPS>
+	<ENUMS/>
+</ALERT>

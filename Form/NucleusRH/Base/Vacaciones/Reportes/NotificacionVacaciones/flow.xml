@@ -1,0 +1,294 @@
+<flow:flow xmlns:flow="nomad_engine.flow" xmlns:doc="nomad_engine.doc" xmlns:qry="nomad_engine.qry" name="NucleusRH.Base.Vacaciones.Reportes.NotificacionVacaciones.flow" extends="Nomad.Base.flow">
+	<flow:info label="Flow para NucleusRH.Base.Vacaciones.Reportes.NotificacionVacaciones"/>
+	<flow:declare>
+		<doc:define name="QRY"/>
+		<doc:define name="FILTERDATA">
+			<FILTRO oi_empresa="" l_reimprime="0" oi_estructura="">
+				<PERSONAS/>
+			</FILTRO>
+		</doc:define>
+		<doc:define name="PARAM"/>
+		<doc:define name="DATOS"/>
+		<doc:define name="PARAMETERS">
+			<PARAMETERS l_reimprime="" oi_empresa="">
+				<ESTRUCTURAS/>
+				<PERSONAS/>
+			</PARAMETERS>
+		</doc:define>
+		<doc:define name="REPORT">
+			<DATA empty-attr=""/>
+		</doc:define>
+		<qry:define declare="&lt;FILTRO oi_empresa=&quot;&quot; l_reimprime=&quot;1&quot; oi_estructura=&quot;&quot; gcustom=&quot;&quot; f_notifica=&quot;&quot; gpers=&quot;&quot; empresa=&quot;10&quot; activos=&quot;&quot; nombre=&quot;&quot; documento=&quot;&quot; sexo=&quot;&quot; grupo_sanguineo=&quot;&quot; listlegajos=&quot;914&quot; oi_indic_activo=&quot;&quot; egresado=&quot;&quot; oi_forma_pago=&quot;&quot; oi_tipo_personal=&quot;&quot; fecha_desde=&quot;&quot; fecha_hasta=&quot;&quot; oi_centro_costo=&quot;&quot; oi_convenio=&quot;&quot; soloconvenio=&quot;&quot; oi_categoria=&quot;&quot; oi_ubicacion_desde=&quot;&quot; oi_ubicacion_hasta=&quot;&quot; escructura_childs=&quot;&quot; oi_contrato=&quot;&quot; oi_afjp=&quot;&quot; oi_obra_social=&quot;&quot; oi_sindicato=&quot;&quot; l_afiliado_sind=&quot;0&quot;&gt;&lt;ROWS&gt;&lt;ROW id=&quot;16648&quot; /&gt;&lt;/ROWS&gt;&lt;/FILTRO&gt;" name="GET_PERSONAS">
+			<qry:main doc="SOURCE">
+				<qry:append-doc name="FILTER" doc-path="#SOURCE:FILTRO"/>
+				<qry:element name="PARAM">
+					<qry:insert-select name="GET_FECHA"/>
+					<qry:attribute name="oi_empresa" value="#SOURCE:FILTRO/@oi_empresa"/>
+					<qry:attribute name="l_reimprime" value="#SOURCE:FILTRO/@l_reimprime"/>
+				</qry:element>
+			</qry:main>
+			<qry:select doc="PARAM" name="GET_FECHA">
+				<qry:xquery>
+					for $r in sql('
+				SELECT 
+					ORG26_PARAMETROS.d_valor 
+				FROM 
+					ORG26_PARAMETROS 
+				WHERE 
+					ORG26_PARAMETROS.c_modulo = \'VAC\' 
+					AND ORG26_PARAMETROS.c_parametro = \'NOTIF\'
+			')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:append-doc name="FECHA" doc-path="."/>
+					<qry:attribute name="valor" value="datetime(number(datetime(now()))-number($r/@d_valor))"/>
+					<qry:element name="PERSONAS">
+						<qry:insert-select name="RS1" doc-path="."/>
+					</qry:element>
+				</qry:out>
+			</qry:select>
+			<qry:select name="RS1" doc="SOURCE">
+				<qry:xquery>
+					for $r in sql('
+				SELECT 
+					PER02_PERSONAL_EMP.oi_personal_emp, 
+					PER02_PERSONAL_EMP.e_numero_legajo, 
+					PER01_PERSONAL.d_ape_y_nom, 
+					VAC01_NOTIF.f_inicio, 
+					VAC01_NOTIF.f_fin, 
+					VAC02_ESTADOS_SOL.oi_estado_solic,					
+					VAC01_NOTIF.e_dias_sol,
+					VAC01_SOLICITUDES.l_notificada,
+					VAC01_SOLICITUDES.oi_solicitud,
+					VAC01_PERSONAL.f_inicio_vac,
+					VAC01_NOTIF.oi_notif,
+					VAC04_PERIODOS.c_periodo
+				FROM 
+					VAC01_SOLICITUDES, 
+					VAC02_ESTADOS_SOL, 
+					PER01_PERSONAL,
+					PER02_PERSONAL_EMP,
+					VAC01_PERSONAL, 
+					VAC01_NOTIF,
+					VAC04_PERIODOS
+ 				JOIN
+					VAC01_NOTIF.oi_solicitud INNER VAC01_SOLICITUDES.oi_solicitud,
+					VAC01_NOTIF.oi_periodo INNER VAC04_PERIODOS.oi_periodo,
+					VAC01_SOLICITUDES.oi_estado_solic INNER VAC02_ESTADOS_SOL.oi_estado_solic,
+					VAC01_SOLICITUDES.oi_personal_emp INNER PER02_PERSONAL_EMP.oi_personal_emp,
+					VAC01_PERSONAL.oi_personal_emp INNER PER02_PERSONAL_EMP.oi_personal_emp,
+					PER02_PERSONAL_EMP.oi_personal INNER PER01_PERSONAL.oi_personal
+				WHERE 
+					PER02_PERSONAL_EMP.oi_personal_emp IN ({%=string(#FILTER:PERSONAS/ROW/@values) %})
+					{%? (string(#FILTER:@l_reimprime)!='1')
+						{% AND VAC01_NOTIF.l_notificada = \'0\' %}
+						{% %} 
+					%}
+					AND VAC02_ESTADOS_SOL.c_estado_solic IN (\'A\',\'L\') 
+					AND VAC01_NOTIF.f_inicio &gt;= {Datetime(#FECHA:@valor)}
+				ORDER BY e_numero_legajo ASC	
+			')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:element name="PERSONA">
+						<qry:attribute name="oi_personal_emp" value="$r/@oi_personal_emp"/>
+						<qry:attribute name="f_notifica" value="#FILTER:@f_notifica"/>
+						<qry:attribute name="e_numero_legajo" value="$r/@e_numero_legajo"/>
+						<qry:attribute name="d_ape_y_nom" value="$r/@d_ape_y_nom"/>
+						<qry:attribute name="f_desde_solicitud" value="$r/@f_inicio"/>
+						<qry:attribute name="f_hasta_solicitud" value="$r/@f_fin"/>
+						<qry:attribute name="f_inicio_vac" value="$r/@f_inicio_vac"/>
+						<qry:attribute name="oi_estado_solic" value="$r/@oi_estado_solic"/>
+						<qry:attribute name="l_notificada" value="$r/@l_notificada"/>
+						<qry:attribute name="oi_solicitud" value="$r/@oi_solicitud"/>
+						<qry:attribute name="e_dias_solicitud" value="$r/@e_dias_sol"/>
+						<qry:attribute name="oi_notif" value="$r/@oi_notif"/>
+						<qry:attribute name="c_periodo" value="$r/@c_periodo"/>
+					</qry:element>
+				</qry:out>
+			</qry:select>
+		</qry:define>
+		<qry:define declare="&lt;PARAM l_reimprime=&quot;1&quot; valor=&quot;19991107092958&quot;&gt;&#13;&#10;&#9;&lt;PERSONAS nmd-col=&quot;1&quot;&gt;&#13;&#10;&#9;&#9;&lt;PERSONA e_dias_solicitud=&quot;4&quot; oi_solicitud=&quot;555&quot; l_notificada=&quot;1&quot; oi_estado_solic=&quot;2&quot; f_hasta_solicitud=&quot;20131108&quot; f_desde_solicitud=&quot;20131105&quot; d_ape_y_nom=&quot;Krepler, Anibal&quot; e_numero_legajo=&quot;2&quot; f_notifica=&quot;20130716&quot; oi_personal_emp=&quot;11566&quot; chk_seleccion=&quot;1&quot; /&gt;&#13;&#10;&#9;&#9;&lt;PERSONA e_dias_solicitud=&quot;3&quot; oi_solicitud=&quot;756&quot; l_notificada=&quot;1&quot; oi_estado_solic=&quot;2&quot; f_hasta_solicitud=&quot;20130424&quot; f_desde_solicitud=&quot;20130422&quot; d_ape_y_nom=&quot;Krepler, Anibal&quot; e_numero_legajo=&quot;2&quot; f_notifica=&quot;20130716&quot; oi_personal_emp=&quot;11566&quot; chk_seleccion=&quot;1&quot; /&gt;&#13;&#10;&#9;&#9;&lt;PERSONA e_dias_solicitud=&quot;2&quot; oi_solicitud=&quot;757&quot; l_notificada=&quot;1&quot; oi_estado_solic=&quot;2&quot; f_hasta_solicitud=&quot;20130503&quot; f_desde_solicitud=&quot;20130502&quot; d_ape_y_nom=&quot;Krepler, Anibal&quot; e_numero_legajo=&quot;2&quot; f_notifica=&quot;20130716&quot; oi_personal_emp=&quot;11566&quot; chk_seleccion=&quot;&quot; /&gt;&#13;&#10;&#9;&#9;&lt;PERSONA e_dias_solicitud=&quot;5&quot; oi_solicitud=&quot;758&quot; l_notificada=&quot;1&quot; oi_estado_solic=&quot;2&quot; f_hasta_solicitud=&quot;20130531&quot; f_desde_solicitud=&quot;20130527&quot; d_ape_y_nom=&quot;Krepler, Anibal&quot; e_numero_legajo=&quot;2&quot; f_notifica=&quot;20130716&quot; oi_personal_emp=&quot;11566&quot; chk_seleccion=&quot;&quot; /&gt;&#13;&#10;&#9;&#9;&lt;PERSONA e_dias_solicitud=&quot;6&quot; oi_solicitud=&quot;556&quot; l_notificada=&quot;1&quot; oi_estado_solic=&quot;2&quot; f_hasta_solicitud=&quot;20121110&quot; f_desde_solicitud=&quot;20121105&quot; d_ape_y_nom=&quot;Menzeguez, Lidia Romina&quot; e_numero_legajo=&quot;3&quot; f_notifica=&quot;20130716&quot; oi_personal_emp=&quot;11567&quot; chk_seleccion=&quot;1&quot; /&gt;&#13;&#10;&#9;&#9;&lt;PERSONA e_dias_solicitud=&quot;3&quot; oi_solicitud=&quot;558&quot; l_notificada=&quot;1&quot; oi_estado_solic=&quot;2&quot; f_hasta_solicitud=&quot;20121108&quot; f_desde_solicitud=&quot;20121106&quot; d_ape_y_nom=&quot;Menzeguez, Lidia Romina&quot; e_numero_legajo=&quot;3&quot; f_notifica=&quot;20130716&quot; oi_personal_emp=&quot;11567&quot; chk_seleccion=&quot;1&quot; /&gt;&#13;&#10;&#9;&#9;&lt;PERSONA e_dias_solicitud=&quot;4&quot; oi_solicitud=&quot;559&quot; l_notificada=&quot;1&quot; oi_estado_solic=&quot;2&quot; f_hasta_solicitud=&quot;20121128&quot; f_desde_solicitud=&quot;20121125&quot; d_ape_y_nom=&quot;Menzeguez, Lidia Romina&quot; e_numero_legajo=&quot;3&quot; f_notifica=&quot;20130716&quot; oi_personal_emp=&quot;11567&quot; chk_seleccion=&quot;1&quot; /&gt;&#13;&#10;&#9;&#9;&lt;PERSONA e_dias_solicitud=&quot;7&quot; oi_solicitud=&quot;854&quot; l_notificada=&quot;1&quot; oi_estado_solic=&quot;4&quot; f_hasta_solicitud=&quot;20130721&quot; f_desde_solicitud=&quot;20130715&quot; d_ape_y_nom=&quot;ARMELLINI, MARCELO FABIAN&quot; e_numero_legajo=&quot;21&quot; f_notifica=&quot;20130716&quot; oi_personal_emp=&quot;13888&quot; chk_seleccion=&quot;&quot; /&gt;&#13;&#10;&#9;&#9;&lt;PERSONA e_dias_solicitud=&quot;6&quot; oi_solicitud=&quot;454&quot; l_notificada=&quot;1&quot; oi_estado_solic=&quot;4&quot; f_hasta_solicitud=&quot;20121024&quot; f_desde_solicitud=&quot;20121019&quot; d_ape_y_nom=&quot;Alvarez, Emanuel&quot; e_numero_legajo=&quot;2075258136&quot; f_notifica=&quot;20130716&quot; oi_personal_emp=&quot;11565&quot; chk_seleccion=&quot;&quot; /&gt;&#13;&#10;&#9;&lt;/PERSONAS&gt;&#13;&#10;&lt;/PARAM&gt;" name="qry_filter">
+			<qry:main doc="SOURCE">
+				<qry:element name="DATOS">
+					<qry:attribute name="oi_empresa" value="#SOURCE:PARAM/@oi_empresa"/>
+					<qry:attribute name="l_reimprime" value="#SOURCE:PARAM/@l_reimprime"/>
+					<qry:element name="PERSONAS">
+						<qry:insert-select doc-path="#SOURCE:PARAM" name="sql1"/>
+					</qry:element>
+				</qry:element>
+			</qry:main>
+			<qry:select doc="PARAM" name="sql1">
+				<qry:xquery>
+					for $r in #PARAM:PERSONAS/PERSONA[@chk_seleccion=1]
+				</qry:xquery>
+				<qry:out>
+					<qry:insert-element doc-path="$r"/>
+				</qry:out>
+			</qry:select>
+		</qry:define>
+		<qry:define declare="&lt;PERSONAS nmd-col=&quot;1&quot;&gt;&#13;&#10;&#9;&lt;PERSONA fecha_emision=&quot;25/08/2017&quot; fecha_emision1=&quot;25 de agosto de 2017&quot; antig=&quot;25 a&#241;os 8 meses.&quot; f_ingreso=&quot;01/04/1992&quot; dias_tomados_ant=&quot;0&quot; dias_pendientes=&quot;24&quot; dias_otorgados=&quot;4&quot; dias_generados=&quot;28&quot; e_cant_dias=&quot;4&quot; periodo=&quot;2017&quot; f_desde=&quot;12/07/2017&quot; f_hasta=&quot;15/07/2017&quot; f_desde1=&quot;mi&#233;rcoles 12 de julio de 2017&quot; f_hasta1=&quot;s&#225;bado 15 de julio de 2017&quot; f_reintegro=&quot;16/07/2017&quot; c_cuit=&quot;30-123456789-5&quot; d_empresa=&quot;Diesel Lange S.R.L.&quot; c_empresa=&quot;1&quot; d_ape_y_nom=&quot;Peppino , N&#233;stor Ra&#250;l&quot; domicilio=&quot;Acevedo 112 - Capital Federal &quot; d_localidad=&quot;Capital Federal &quot; e_numero_legajo=&quot;13&quot; oi_personal_emp=&quot;83&quot;&gt;&#13;&#10;&#9;&#9;&lt;PERIODO e_ano=&quot;2017&quot; cant_dias=&quot;4&quot; periodo=&quot;2017&quot; /&gt;&#13;&#10;&#9;&lt;/PERSONA&gt;&#13;&#10;&#9;&lt;PERSONA fecha_emision=&quot;25/08/2017&quot; fecha_emision1=&quot;25 de agosto de 2017&quot; antig=&quot;26 a&#241;os 10 meses.&quot; f_ingreso=&quot;01/02/1991&quot; dias_tomados_ant=&quot;0&quot; dias_pendientes=&quot;17&quot; dias_otorgados=&quot;11&quot; dias_generados=&quot;28&quot; e_cant_dias=&quot;11&quot; periodo=&quot;2017&quot; f_desde=&quot;04/08/2017&quot; f_hasta=&quot;14/08/2017&quot; f_desde1=&quot;viernes 04 de agosto de 2017&quot; f_hasta1=&quot;lunes 14 de agosto de 2017&quot; f_reintegro=&quot;15/08/2017&quot; c_cuit=&quot;30-123456789-5&quot; d_empresa=&quot;Diesel Lange S.R.L.&quot; c_empresa=&quot;1&quot; d_ape_y_nom=&quot;Uriguen , Osvaldo Fabi&#225;n&quot; domicilio=&quot;Acevedo 112 - Capital Federal &quot; d_localidad=&quot;Capital Federal &quot; e_numero_legajo=&quot;16&quot; oi_personal_emp=&quot;137&quot;&gt;&#13;&#10;&#9;&#9;&lt;PERIODO e_ano=&quot;2017&quot; cant_dias=&quot;11&quot; periodo=&quot;2017&quot; /&gt;&#13;&#10;&#9;&lt;/PERSONA&gt;&#13;&#10;&lt;/PERSONAS&gt;" name="DATOS_REPORTE">
+			<qry:main doc="SOURCE">
+				<qry:element name="PERSONAS">
+					<qry:insert-select doc-path="#SOURCE:PERSONAS/PERSONA" name="RS1"/>
+				</qry:element>
+			</qry:main>
+			<qry:select name="RS1" doc="SOURCE">
+				<qry:xquery>
+					for $r in sql('
+				SELECT 
+					PER02_PERSONAL_EMP.oi_personal_emp, 
+					PER02_PERSONAL_EMP.e_numero_legajo, 
+					PER01_PERSONAL.d_ape_y_nom,
+					PER01_PERSONAL.c_nro_cuil,
+					ORG03_EMPRESAS.c_empresa,
+					ORG03_EMPRESAS.d_empresa,
+					ORG03_EMPRESAS.c_cuit, 
+					ORG03_EMPRESAS.d_calle,
+					ORG03_EMPRESAS.e_numero,
+					ORG19_LOCALIDADES.d_localidad,
+					ORG03_EMPRESAS.oi_logotipo,
+					ORG03_EMPRESAS.oi_firma_emp 					
+				FROM 
+					PER01_PERSONAL,
+					PER02_PERSONAL_EMP,
+					ORG03_EMPRESAS,
+					ORG19_LOCALIDADES
+				JOIN
+					PER02_PERSONAL_EMP.oi_personal INNER PER01_PERSONAL.oi_personal,
+					PER02_PERSONAL_EMP.oi_empresa INNER ORG03_EMPRESAS.oi_empresa,
+					ORG03_EMPRESAS.oi_localidad LEFT OUTER ORG19_LOCALIDADES.oi_localidad
+					
+				WHERE 
+					PER02_PERSONAL_EMP.oi_personal_emp = {#SOURCE:@oi_personal_emp} 
+				ORDER BY e_numero_legajo ASC	
+				')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:element name="PERSONA">
+						<qry:attribute name="c_nro_cuil" value="concat(nmd_left($r/@c_nro_cuil,2),'-',nmd_right(nmd_left($r/@c_nro_cuil,10),8),'-',nmd_right($r/@c_nro_cuil,1))"/>
+						<qry:attribute name="oi_personal_emp" value="$r/@oi_personal_emp"/>
+						<qry:attribute name="e_numero_legajo" value="$r/@e_numero_legajo"/>
+						<qry:attribute name="d_localidad" value="substring-before($r/@d_localidad,'(')"/>
+						<qry:attribute name="domicilio" value="iif(@d_localidad!='', $r/@d_calle + ' ' + $r/@e_numero + ' - ' + @d_localidad,$r/@d_calle + ' ' + $r/@e_numero)"/>
+						<qry:attribute name="d_ape_y_nom" value="$r/@d_ape_y_nom"/>
+						<qry:attribute name="c_empresa" value="$r/@c_empresa"/>
+						<qry:attribute name="d_empresa" value="$r/@d_empresa"/>
+						<qry:attribute name="c_cuit" value="$r/@c_cuit"/>
+						<qry:attribute name="f_reintegro" value="format_date(#SOURCE:@f_reintegro,'dd/mm/yyyy')"/>
+						<qry:attribute name="f_hasta1" value="format_date(#SOURCE:@f_hasta,'ddd ') + format_date(#SOURCE:@f_hasta,'dd') + ' de ' + format_date(#SOURCE:@f_hasta,'mmm') + ' de ' + format_date(#SOURCE:@f_hasta,'yyyy')"/>
+						<qry:attribute name="f_desde1" value="format_date(#SOURCE:@f_desde,'ddd ') + format_date(#SOURCE:@f_desde,'dd') + ' de ' + format_date(#SOURCE:@f_desde,'mmm') + ' de ' + format_date(#SOURCE:@f_desde,'yyyy')"/>
+						<qry:attribute name="f_hasta" value="format_date(#SOURCE:@f_hasta,'dd/mm/yyyy')"/>
+						<qry:attribute name="f_desde" value="format_date(#SOURCE:@f_desde,'dd/mm/yyyy')"/>
+						<qry:attribute name="periodo" value="#SOURCE:@periodo"/>
+						<qry:attribute name="e_cant_dias" value="#SOURCE:@e_cant_dias"/>
+						<qry:attribute name="dias_generados" value="#SOURCE:@dias_generados"/>
+						<qry:attribute name="dias_otorgados" value="#SOURCE:@dias_otorgados"/>
+						<qry:attribute name="dias_pendientes" value="#SOURCE:@dias_pendientes"/>
+						<qry:attribute name="dias_tomados_ant" value="#SOURCE:@dias_tomados_ant"/>
+						<qry:attribute name="f_ingreso" value="#SOURCE:@f_ingreso"/>
+						<qry:attribute name="antig" value="#SOURCE:@antig"/>
+						<qry:attribute name="e_ano" value="#SOURCE:@e_ano"/>
+						<qry:attribute name="d_motivo_solic" value="#SOURCE:@d_motivo_solic"/>
+						<qry:attribute name="oi_logotipo" value="$r/@oi_logotipo"/>
+						<qry:attribute name="oi_firma_emp" value="$r/@oi_firma_emp"/>
+						<qry:if test="#SOURCE:@f_notifica!=''">
+							<qry:then>
+								<qry:attribute name="fecha_emision1" value="format_date(#SOURCE:@f_notifica,'dd') + ' de ' + format_date(#SOURCE:@f_notifica,'mmm') + ' de ' + format_date(#SOURCE:@f_notifica,'yyyy')"/>
+								<qry:attribute name="fecha_emision" value="format_date(#SOURCE:@f_notifica,'dd/mm/yyyy')"/>
+							</qry:then>
+							<qry:else>
+								<qry:attribute name="fecha_emision1" value="format_date(now(),'dd') + ' de ' + format_date(now(),'mmm') + ' de ' + format_date(now(),'yyyy')"/>
+								<qry:attribute name="fecha_emision" value="format_date(now(),'dd/mm/yyyy')"/>
+							</qry:else>
+						</qry:if>
+						<qry:insert-select doc-path="#SOURCE:PERIODO" name="RS2"/>
+						<qry:insert-select name="RS3"/>
+					</qry:element>
+				</qry:out>
+			</qry:select>
+			<qry:select name="RS2" doc="SOURCE">
+				<qry:out>
+					<qry:element name="PERIODO">
+						<qry:attribute name="periodo" value="#SOURCE:@periodo"/>
+						<qry:attribute name="cant_dias" value="#SOURCE:@cant_dias"/>
+						<qry:attribute name="e_ano" value="#SOURCE:@e_ano"/>
+					</qry:element>
+				</qry:out>
+			</qry:select>
+			<qry:select name="RS3" doc="SOURCE">
+				<qry:xquery>
+					for $r in sql('
+				SELECT 
+					PER01_PERSONAL.d_ape_y_nom
+				FROM 
+					PER01_PERSONAL,
+					PER02_PERSONAL_EMP,
+					ORG03_FUNCIONES
+				JOIN
+					PER02_PERSONAL_EMP.oi_personal INNER PER01_PERSONAL.oi_personal,
+					PER02_PERSONAL_EMP.oi_funcion LEFT OUTER ORG03_FUNCIONES.oi_funcion
+				WHERE 
+					ORG03_FUNCIONES.c_funcion=\'001\'
+				')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:attribute name="d_ape_y_nom1" value="$r/@d_ape_y_nom"/>
+				</qry:out>
+			</qry:select>
+		</qry:define>
+	</flow:declare>
+	<flow:main doc="SOURCE">
+		<flow:action name="initialize">
+			<flow:open-form doc-path="#FILTERDATA:" form-class="NucleusRH.Base.Vacaciones.Reportes.NotificacionVacaciones.filter.form" mode="FILTER"/>
+		</flow:action>
+	</flow:main>
+	<flow:form doc="SOURCE" name="NucleusRH.Base.Vacaciones.Reportes.NotificacionVacaciones.filter.form" form-class="NucleusRH.Base.Vacaciones.Reportes.NotificacionVacaciones.filter.form" mode="FILTER">
+		<flow:action name="BACK">
+			<flow:close-form/>
+		</flow:action>
+		<flow:action name="on-show">
+			<flow:call-action action="Load-FILTER"/>
+			<flow:attach-doc doc-path="#SOURCE:PERSONAS" attach-id="ARRB"/>
+		</flow:action>
+		<flow:action name="FILTER">
+			<flow:call-action action="Save-FILTER"/>
+			<flow:log text="valoresFILTERDATA" text-path="#FILTERDATA:"/>
+			<doc:load-qry qry="GET_PERSONAS" input-doc-path="#FILTERDATA:" output-doc="PARAM"/>
+			<flow:open-form form-class="NucleusRH.Base.Vacaciones.Reportes.NotificacionVacaciones.form" parent-doc-path="#PARAM:" doc-path="#PARAM:" mode="SHOW"/>
+		</flow:action>
+		<flow:action name="Save-FILTER">
+			<flow:save-user-data doc-path="#SOURCE:" name="FILTER-NucleusRH.Base.Vacaciones.Reportes.NotificacionVacaciones"/>
+		</flow:action>
+		<flow:action name="Load-FILTER">
+			<flow:load-user-data doc="SOURCE" name="FILTER-NucleusRH.Base.Vacaciones.Reportes.NotificacionVacaciones"/>
+		</flow:action>
+	</flow:form>
+	<flow:form form-class="NucleusRH.Base.Vacaciones.Reportes.NotificacionVacaciones.form" name="NucleusRH.Base.Vacaciones.Reportes.NotificacionVacaciones.form" mode="SHOW" doc="SOURCE">
+		<flow:action name="BACK">
+			<flow:close-form/>
+		</flow:action>
+		<flow:action name="ACCEPT">
+			<flow:log text-path="#PARAM:" text="jprPreMetodo"/>
+			<doc:load-qry output-doc="PARAM" input-doc-path="#PARAM:" qry="qry_filter"/>
+			<flow:log text-path="#PARAM:" text="jprMetodo"/>
+			<flow:exec-method out-type="Nomad.NSystem.Document.NmdXmlDocument" out-doc="DATOS" class="NucleusRH.Base.Vacaciones.LegajoVacaciones.PERSONAL_EMP" method="Datos_Notificacion">
+				<flow:param name="personas" doc="PARAM" mode="in" type="Nomad.NSystem.Object"/>
+				<flow:param attr-path="#PARAM:@l_reimprime" type="Nomad.NSystem.Boolean" name="l_reimprime" mode="in"/>
+			</flow:exec-method>
+			<flow:log text-path="#DATOS:" text="jprPostMetodo"/>
+			<doc:load-qry qry="DATOS_REPORTE" output-doc="DATOS" input-doc-path="#DATOS:"/>
+			<flow:log text-path="#DATOS:" text="jprReporte"/>
+			<flow:exec-method priority="5" out-type="Nomad.NSystem.String" class="Nomad.Base.Report.GeneralReport.REPORT" method="ExecReportFO" out-attr-path="#BATCHDOC:@batch-id">
+				<flow:param value="NucleusRH.Base.Vacaciones.NotificacionVacaciones.rpt" type="Nomad.NSystem.String" mode="in" name="report-name"/>
+				<flow:param type="Nomad.NSystem.Proxy.NomadXML" doc-path="#DATOS:" mode="in" name="report-param"/>
+			</flow:exec-method>
+			<flow:open-form form-class="Nomad.base.batch.report.form" mode="BATCH" doc-path="#BATCHDOC:"/>
+		</flow:action>
+	</flow:form>
+	<flow:form mode="BATCH" form-class="NucleusRH.Base.Vacaciones.Reportes.NotificacionVacaciones.Reportes.form" name="NucleusRH.Base.Vacaciones.Reportes.NotificacionVacaciones.Reportes.form" doc="source">
+		<flow:action name="BACK">
+			<flow:exit-flow return-path="#DATOS:"/>
+		</flow:action>
+	</flow:form>
+</flow:flow>

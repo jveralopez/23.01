@@ -1,0 +1,161 @@
+<flow:flow default_action="HELP" extends="Nomad.parent.guia.flow" xmlns:doc="nomad_engine.form" xmlns:qry="nomad_engine.form" xmlns:flow="nomad_engine.form" name="NucleusRH.Base.Organizacion.Convenios.CATEGORIA.guia">
+	<flow:info label="Flow guia para NucleusRH.Base.Organizacion.Convenios.CATEGORIA"/>
+	<flow:main doc="SOURCE">
+		<flow:action name="OPEN-GUIA">
+			<flow:open-form parent-doc-path="#SOURCE:" doc-path="#RS:" mode="SHOW" form-class="NucleusRH.Base.Organizacion.Convenios.CATEGORIA.guia.form"/>
+		</flow:action>
+	</flow:main>
+	<flow:declare>
+		<qry:define name="X2C">
+			<qry:main doc="SOURCE">
+				<qry:element name="ROW">
+					<qry:insert-select doc-path="#SOURCE:" name="RS1"/>
+				</qry:element>
+			</qry:main>
+			<qry:select doc="SOURCE" name="RS1">
+				<qry:xquery>
+					for $r in sql('SELECT t.oi_categoria as ID, t.c_categoria as CODE, t.d_categoria as TEXT, t.n_valor_hora, t.oi_convenio as PID FROM ORG18_CATEGORIAS as t WHERE t.oi_categoria={#SOURCE:helper-mess/@ID} ORDER BY CODE asc')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:attribute value="$r/@ID" name="id"/>
+					<qry:attribute value="$r/@ID" name="value"/>
+					<qry:attribute value="$r/@CODE" name="code"/>
+					<qry:attribute value="$r/@TEXT" name="text"/>
+					<qry:attribute value="$r/@n_valor_hora" name="n_valor_hora"/>
+					<qry:attribute type="Nomad.NSystem.Int" value="$r/@PID" name="PID"/>
+					<qry:insert-select doc-path="." name="RS2"/>
+				</qry:out>
+			</qry:select>
+			<qry:select doc="SOURCE" name="RS2">
+				<qry:xquery>
+					for $r in sql('SELECT t.oi_convenio as ID, t.c_convenio as CODE, t.d_convenio as TEXT, SEC.policy  FROM ORG18_CONVENIOS as t, NMD_SECURITY(class=\'NucleusRH.Base.Organizacion.Convenios.CONVENIO\') as SEC JOIN t.oi_convenio LEFT OUTER SEC.id  WHERE t.oi_convenio={#SOURCE:@PID} ORDER BY CODE asc')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:attribute value="$r/@CODE+'-'+#SOURCE:@CODE" name="code"/>
+					<qry:attribute value="$r/@TEXT+'-'+#SOURCE:@TEXT" name="text"/>
+				</qry:out>
+			</qry:select>
+		</qry:define>
+		<qry:define name="C2X">
+			<qry:main doc="SOURCE">
+				<qry:append-doc doc-path="#SOURCE:helper-mess" name="INDOC"/>
+				<qry:element name="ROW">
+					<qry:insert-select doc-path="#SOURCE:" name="RS1"/>
+				</qry:element>
+			</qry:main>
+			<qry:select doc="SOURCE" name="RS1">
+				<qry:xquery>
+					for $r in sql('SELECT t.oi_convenio as ID, t.c_convenio as CODE, t.d_convenio as TEXT, SEC.policy  FROM ORG18_CONVENIOS as t, NMD_SECURITY(class=\'NucleusRH.Base.Organizacion.Convenios.CONVENIO\') as SEC JOIN t.oi_convenio LEFT OUTER SEC.id  WHERE t.c_convenio={substring_before(#INDOC:@CODE,\'-\')}  ORDER BY CODE asc')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:attribute value="$r/@policy" name="policy"/>
+					<qry:attribute value="substring_after(#INDOC:@CODE,'-')" name="SUB_SEARCH"/>
+					<qry:attribute value="$r/@ID" name="PARENTID"/>
+					<qry:attribute value="$r/@CODE" name="code"/>
+					<qry:attribute value="$r/@TEXT" name="text"/>
+					<qry:insert-select doc-path="." name="RS2"/>
+				</qry:out>
+			</qry:select>
+			<qry:select doc="SOURCE" name="RS2">
+				<qry:xquery>
+					for $r in sql('SELECT t.oi_categoria as ID, t.c_categoria as CODE, t.d_categoria as TEXT, t.oi_convenio as PID FROM ORG18_CATEGORIAS as t WHERE t.c_categoria={substring_before(#SOURCE:@SUB_SEARCH,\'-\')}  AND t.oi_convenio={#SOURCE:@PARENTID} ORDER BY CODE asc')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:attribute value="$r/@policy" name="policy"/>
+					<qry:attribute value="''" name="SUB_SEARCH"/>
+					<qry:attribute value="''" name="PARENTID"/>
+					<qry:attribute value="$r/@ID" name="id"/>
+					<qry:attribute value="$r/@ID" name="value"/>
+					<qry:attribute value="#SOURCE:@CODE+'-'+$r/@CODE" name="code"/>
+					<qry:attribute value="#SOURCE:@TEXT+'-'+$r/@TEXT" name="text"/>
+				</qry:out>
+			</qry:select>
+		</qry:define>
+		<qry:define name="HELP">
+			<qry:main doc="SOURCE">
+				<qry:element name="ROW">
+					<qry:attribute value="#SOURCE:ROW/@PARENTID" name="PARENTID"/>
+					<qry:attribute value="#SOURCE:ROW/@CODE" name="CODE"/>
+					<qry:attribute value="#SOURCE:ROW/@TEXT" name="TEXT"/>
+					<qry:attribute value="#SOURCE:ROW/@FILTER" name="FILTER"/>
+					<qry:insert-select doc-path="." name="RS2"/>
+					<qry:element name="ROWS">
+						<qry:insert-select doc-path=".." name="RS1"/>
+					</qry:element>
+				</qry:element>
+			</qry:main>
+			<qry:select doc="SOURCE" name="RS2">
+				<qry:xquery>
+					for $r in sql('SELECT t.oi_convenio as ID, t.c_convenio as CODE, t.d_convenio as TEXT, SEC.policy  FROM ORG18_CONVENIOS as t, NMD_SECURITY(class=\'NucleusRH.Base.Organizacion.Convenios.CONVENIO\') as SEC JOIN t.oi_convenio LEFT OUTER SEC.id  WHERE t.oi_convenio={#SOURCE:@PARENTID} ORDER BY CODE asc')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:attribute value="$r/@CODE" name="code"/>
+					<qry:attribute value="$r/@TEXT" name="text"/>
+				</qry:out>
+			</qry:select>
+			<qry:select doc="SOURCE" name="RS1">
+				<qry:xquery>
+					for $r in sql('SELECT t.oi_categoria as ID, t.c_categoria as CODE, t.d_categoria as TEXT, t.n_valor_hora, t.oi_convenio as PID FROM ORG18_CATEGORIAS as t WHERE  t.oi_convenio={#SOURCE:@PARENTID} ORDER BY CODE asc')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:element name="ROW">
+						<qry:attribute value="$r/@ID" name="id"/>
+						<qry:attribute value="$r/@ID" name="value"/>
+						<qry:attribute value="$r/@CODE" name="code1"/>
+						<qry:attribute value="$r/@TEXT" name="text1"/>
+						<qry:attribute value="$r/@n_valor_hora" name="n_valor_hora"/>
+						<qry:attribute value="#SOURCE:@CODE+'-'+$r/@CODE" name="code"/>
+						<qry:attribute value="#SOURCE:@TEXT+'-'+$r/@TEXT" name="text"/>
+					</qry:element>
+				</qry:out>
+			</qry:select>
+		</qry:define>
+		<qry:define name="PRELOAD">
+			<qry:main doc="SOURCE">
+				<qry:append-doc doc-path="#SOURCE:helper-mess" name="HM"/>
+				<qry:element name="ROW">
+					<qry:insert-select doc-path="#SOURCE:helper-mess" name="RS2"/>
+					<qry:insert-select doc-path="." name="RS3"/>
+					<qry:element name="ROWS">
+						<qry:insert-select doc-path=".." name="RS1"/>
+					</qry:element>
+					<qry:attribute value="substring(#HM:@TEXT,1+string_length(./@TEXT))" name="FILTER"/>
+				</qry:element>
+			</qry:main>
+			<qry:select doc="SOURCE" name="RS3">
+				<qry:xquery>
+					for $r in sql('SELECT t.oi_convenio as ID, t.c_convenio as CODE, t.d_convenio as TEXT, SEC.policy  FROM ORG18_CONVENIOS as t, NMD_SECURITY(class=\'NucleusRH.Base.Organizacion.Convenios.CONVENIO\') as SEC JOIN t.oi_convenio LEFT OUTER SEC.id  WHERE t.oi_convenio={#SOURCE:@PARENTID} ORDER BY CODE asc')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:attribute value="$r/@CODE" name="code"/>
+					<qry:attribute value="$r/@TEXT" name="text"/>
+				</qry:out>
+			</qry:select>
+			<qry:select doc="SOURCE" name="RS2">
+				<qry:xquery>
+					for $r in sql('select t.oi_convenio from ORG18_CATEGORIAS as t where t.oi_categoria={#SOURCE:@ID}')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:attribute value="$r/@oi_convenio" name="PARENTID"/>
+				</qry:out>
+			</qry:select>
+			<qry:select doc="SOURCE" name="RS1">
+				<qry:xquery>
+					for $r in sql('SELECT t.oi_categoria as ID, t.c_categoria as CODE, t.d_categoria as TEXT, t.n_valor_hora, t.oi_convenio as PID FROM ORG18_CATEGORIAS as t WHERE  t.oi_convenio={#SOURCE:@PARENTID} ORDER BY CODE asc')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:element name="ROW">
+						<qry:attribute value="$r/@ID" name="id"/>
+						<qry:attribute value="$r/@ID" name="value"/>
+						<qry:attribute value="$r/@CODE" name="code1"/>
+						<qry:attribute value="$r/@TEXT" name="text1"/>
+						<qry:attribute value="$r/@n_valor_hora" name="n_valor_hora"/>
+						<qry:attribute value="#SOURCE:@CODE+'-'+$r/@CODE" name="code"/>
+						<qry:attribute value="#SOURCE:@TEXT+'-'+$r/@TEXT" name="text"/>
+					</qry:element>
+				</qry:out>
+			</qry:select>
+		</qry:define>
+	</flow:declare>
+	<flow:form extends="nomad.parent.guia.form:SHOW" parent-doc="INVAL" doc="SOURCE" mode="SHOW" name="NucleusRH.Base.Organizacion.Convenios.CATEGORIA.guia.form:SHOW" form-class="NucleusRH.Base.Organizacion.Convenios.CATEGORIA.guia.form"/>
+</flow:flow>

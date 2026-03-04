@@ -1,0 +1,319 @@
+<html:html xmlns:html="nomad_engine.html" xmlns:qry="nomad_engine.qry" xmlns:xsl="http://www.w3.org/1999/XSL/Transform" name="Aniversarios" extends="NucleusRH.Base.Configuracion.GadgetBASE.rpt" doc="source">
+	<html:query declare="&lt;PARAMS seldate=&quot;00&quot; /&gt;">
+		<qry:main doc="SOURCE">
+			<qry:element name="MAIN">
+				<qry:attribute name="timestamp" value="concat(FORMAT_DATE(Now()+1, 'yyyymmdd'), '000000')"/>
+				<qry:element name="DATA">
+					<qry:attribute name="ut" value="#PROXY:@TOKEN"/>
+					<qry:attribute name="seldate" value="#SOURCE:PARAMS/@seldate"/>
+					<qry:if test="@seldate = ''">
+						<qry:then>
+							<qry:attribute name="seldate" value="'13'"/>
+						</qry:then>
+					</qry:if>
+					<qry:if test="@seldate = '13'">
+						<qry:then>
+							<qry:attribute name="mes" value="'hoy'"/>
+							<qry:attribute name="selmes" value="'13'"/>
+						</qry:then>
+						<qry:else>
+							<qry:if test="@seldate = '00'">
+								<qry:then>
+									<qry:attribute name="mes" value="FORMAT_DATE(Now(), 'mmm')"/>
+									<qry:attribute name="selmes" value="FORMAT_DATE(Now(), 'mm')"/>
+								</qry:then>
+								<qry:else>
+									<qry:attribute name="mes" value="FORMAT_DATE(DATETIME('2009' + @seldate + '01'), 'mmm')"/>
+									<qry:attribute name="selmes" value="FORMAT_DATE(DATETIME('2009' + @seldate + '01'), 'mm')"/>
+								</qry:else>
+							</qry:if>
+						</qry:else>
+					</qry:if>
+					<qry:insert-select doc-path="." name="qry_legajos"/>
+					<qry:attribute name="oi_personal_ant" value=""/>
+				</qry:element>
+			</qry:element>
+		</qry:main>
+		<qry:select name="qry_legajos" doc="SOURCE">
+			<qry:xquery>
+				for $r in sql(' 
+				SELECT
+					per.oi_personal,
+					per.d_nombres,
+					per.d_apellido,
+			 	  pemp.f_ingreso,
+					GETDAY(pemp.f_ingreso) as dia,
+					per.oi_foto
+
+				FROM
+			   	PER01_PERSONAL as per,
+					PER02_PERSONAL_EMP as pemp,
+					ORG04_PUESTOS as pues,
+					ORG03_EMPRESAS as emp,
+					ORG19_LOCALIDADES as loc
+                
+				JOIN 
+					per.oi_personal INNER pemp.oi_personal,
+					pemp.oi_puesto_ult LEFT OUTER pues.oi_puesto,
+					pemp.oi_empresa LEFT OUTER emp.oi_empresa,
+					emp.oi_localidad LEFT OUTER loc.oi_localidad
+
+				WHERE
+					pemp.oi_indic_activo = 1
+				  {%? (#SOURCE:@selmes = '13')
+				      {% and GETMONTH(pemp.f_ingreso) = {%=STRING(month_from_dateTime(Now()))%} and GETDAY(pemp.f_ingreso) = {%=STRING(day_from_dateTime(Now()))%} %}
+				      {% and GETMONTH(pemp.f_ingreso) = {#SOURCE:@selmes} %}
+				  %}
+
+			   	ORDER BY 
+			   		dia ASC, d_nombres ASC, d_apellido ASC
+
+			')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:attribute name="col" value="number(./@col) + 1"/>
+				<qry:attribute name="col" value="IIF(./@col = '4', 1, ./@col)"/>
+				<qry:attribute name="rtipo" value="IIF(number(./@rtipo) = 1, 0, 1)"/>
+				<qry:element name="LEGAJO">
+					<qry:attribute name="primero" value="IIF($r/@oi_personal = ../@oi_personal_ant, 0, 1)"/>
+					<qry:attribute name="oi_foto" value="IIF($r/@oi_foto = '', '0', $r/@oi_foto)"/>
+					<qry:attribute name="dia" value="FORMAT_DATE($r/@f_ingreso, 'dd')"/>
+					<qry:attribute name="nombre" value="$r/@d_nombres + ' ' + $r/@d_apellido"/>
+					<qry:attribute name="nombre_cap" value="nmd_capital(@nombre)"/>
+					<qry:attribute name="oi_personal" value="$r/@oi_personal"/>
+					<qry:attribute name="loc_empresa" value="$r/@d_localidad"/>
+					<qry:attribute name="f_ingreso" value="$r/@f_ingreso"/>
+					<qry:attribute name="mesdia" value="FORMAT_DATE($r/@f_ingreso, 'dd-mm')"/>
+					<qry:attribute name="cant" value="Number(format_date(now(), 'yyyy')) - Number(format_date(@f_ingreso, 'yyyy'))"/>
+					<qry:attribute name="puesto" value="$r/@d_puesto"/>
+					<qry:attribute name="empresa" value="$r/@d_empresa + ' - ' + $r/@d_localidad"/>
+					<qry:attribute name="col" value="../@col"/>
+					<qry:attribute name="rtipo" value="../@rtipo"/>
+				</qry:element>
+				<qry:attribute name="oi_personal_ant" value="$r/@oi_personal"/>
+			</qry:out>
+		</qry:select>
+	</html:query>
+	<html:xslt>
+		<xsl:template name="MainReport" match="DATA">
+			<body bgcolor="#F2F2EC" scroll="no">
+				<table class="tabla_detail estilo1" cellspacing="0" cellpadding="0">
+					<tr>
+						<th>
+							Aniversarios
+						</th>
+					</tr>
+					<tr>
+						<td class="titu_1 underline" height="28px">
+							<xsl:text>
+								Fecha:&#160;
+							</xsl:text>
+							<SELECT id="cboDate" name="cboDate" onChange="ChangeDate(this);">
+								<OPTION VALUE="13">
+									<xsl:if test="@seldate = '13'">
+										<xsl:attribute name="selected">
+											<xsl:value-of select="@seldate"/>
+										</xsl:attribute>
+									</xsl:if>
+									Hoy
+								</OPTION>
+								<OPTION VALUE="00">
+									<xsl:if test="@seldate = '00'">
+										<xsl:attribute name="selected">
+											<xsl:value-of select="@seldate"/>
+										</xsl:attribute>
+									</xsl:if>
+									Mes actual
+								</OPTION>
+								<OPTION VALUE="01">
+									<xsl:if test="@seldate = '01'">
+										<xsl:attribute name="selected">
+											<xsl:value-of select="@seldate"/>
+										</xsl:attribute>
+									</xsl:if>
+									Enero
+								</OPTION>
+								<OPTION VALUE="02">
+									<xsl:if test="@seldate = '02'">
+										<xsl:attribute name="selected">
+											<xsl:value-of select="@seldate"/>
+										</xsl:attribute>
+									</xsl:if>
+									Febrero
+								</OPTION>
+								<OPTION VALUE="03">
+									<xsl:if test="@seldate = '03'">
+										<xsl:attribute name="selected">
+											<xsl:value-of select="@seldate"/>
+										</xsl:attribute>
+									</xsl:if>
+									Marzo
+								</OPTION>
+								<OPTION VALUE="04">
+									<xsl:if test="@seldate = '04'">
+										<xsl:attribute name="selected">
+											<xsl:value-of select="@seldate"/>
+										</xsl:attribute>
+									</xsl:if>
+									Abril
+								</OPTION>
+								<OPTION VALUE="05">
+									<xsl:if test="@seldate = '05'">
+										<xsl:attribute name="selected">
+											<xsl:value-of select="@seldate"/>
+										</xsl:attribute>
+									</xsl:if>
+									Mayo
+								</OPTION>
+								<OPTION VALUE="06">
+									<xsl:if test="@seldate = '06'">
+										<xsl:attribute name="selected">
+											<xsl:value-of select="@seldate"/>
+										</xsl:attribute>
+									</xsl:if>
+									Junio
+								</OPTION>
+								<OPTION VALUE="07">
+									<xsl:if test="@seldate = '07'">
+										<xsl:attribute name="selected">
+											<xsl:value-of select="@seldate"/>
+										</xsl:attribute>
+									</xsl:if>
+									Julio
+								</OPTION>
+								<OPTION VALUE="08">
+									<xsl:if test="@seldate = '08'">
+										<xsl:attribute name="selected">
+											<xsl:value-of select="@seldate"/>
+										</xsl:attribute>
+									</xsl:if>
+									Agosto
+								</OPTION>
+								<OPTION VALUE="09">
+									<xsl:if test="@seldate = '09'">
+										<xsl:attribute name="selected">
+											<xsl:value-of select="@seldate"/>
+										</xsl:attribute>
+									</xsl:if>
+									Septiembre
+								</OPTION>
+								<OPTION VALUE="10">
+									<xsl:if test="@seldate = '10'">
+										<xsl:attribute name="selected">
+											<xsl:value-of select="@seldate"/>
+										</xsl:attribute>
+									</xsl:if>
+									Octubre
+								</OPTION>
+								<OPTION VALUE="11">
+									<xsl:if test="@seldate = '11'">
+										<xsl:attribute name="selected">
+											<xsl:value-of select="@seldate"/>
+										</xsl:attribute>
+									</xsl:if>
+									Noviembre
+								</OPTION>
+								<OPTION VALUE="12">
+									<xsl:if test="@seldate = '12'">
+										<xsl:attribute name="selected">
+											<xsl:value-of select="@seldate"/>
+										</xsl:attribute>
+									</xsl:if>
+									Diciembre
+								</OPTION>
+							</SELECT>
+						</td>
+					</tr>
+					<tr>
+						<td>
+							<div>
+								<table style="width:100%;font-size: 11px;" class="tabla_noticia estilo1">
+									<xsl:for-each select="LEGAJO[@primero = 1]">
+										<tr>
+											<td height="40px" class="img_back underline">
+												<xsl:if test="@oi_foto != '0'">
+													<xsl:attribute name="style">
+														<xsl:value-of select="concat('background-image:url(data:image/jpg;base64,(#IMAGE.DB(x36;NucleusRH.Base.Personal.Imagenes.HEAD;', @oi_foto, ')#))')"/>
+													</xsl:attribute>
+												</xsl:if>
+												<xsl:if test="@oi_foto = '0'">
+													<xsl:attribute name="style">
+														<xsl:value-of select="'padding-left: 2px;'"/>
+													</xsl:attribute>
+												</xsl:if>
+												<span class="row_estilo_1">
+													<xsl:value-of select="@dia"/>
+												</span>
+												<span>
+													&#160;|&#160;
+												</span>
+												<a>
+													<xsl:attribute name="href">
+														<xsl:value-of select="concat('javascript:Detail(', @oi_personal, ')')"/>
+													</xsl:attribute>
+													<xsl:value-of select="@nombre_cap"/>
+												</a>
+												<span>
+													&#160;[
+												</span>
+												<span>
+													<xsl:value-of select="@cant"/>
+												</span>
+												<span>
+													]&#160;
+												</span>
+											</td>
+										</tr>
+									</xsl:for-each>
+								</table>
+							</div>
+						</td>
+					</tr>
+				</table>
+			</body>
+		</xsl:template>
+		<xsl:template name="ReportSCRIPT">
+			function Detail(poiPer) {
+				var dir;
+
+				dir = "../../../ReportViewer.aspx?";
+				dir = dir + "report={#PROXY.APP#}.NucleusRH.Base.Personal.BuscadorLegajos.GEN.GADGET";
+				dir = dir + "{#CHAR.AMP#}oi_personal=" + poiPer;
+                
+				window.open(dir, 'Buscador', 'width=800,height=600,resizable=yes');
+			}
+
+			function ChangeDate(objCbo) {
+				
+				var dir;
+
+				dir = "../../../ReportViewer.aspx?";
+				dir = dir + "report={#PROXY.APP#}.NucleusRH.Base.Personal.Aniversarios.GEN.GADGET";
+				dir = dir + "{#CHAR.AMP#}seldate=" + objCbo.value;
+		
+				document.location = dir;
+				return;
+			}
+		</xsl:template>
+		<xsl:template name="GADGET_PARAM">
+			<param name="seldate" label="Mes" type="ENUM">
+				<ROWS>
+					<row id="00" text="Mes actual"/>
+					<row id="01" text="Enero"/>
+					<row id="02" text="Febrero"/>
+					<row id="03" text="Marzo"/>
+					<row id="04" text="Abril"/>
+					<row id="05" text="Mayo"/>
+					<row id="06" text="Junio"/>
+					<row id="07" text="Julio"/>
+					<row id="08" text="Agosto"/>
+					<row id="09" text="Septiembre"/>
+					<row id="10" text="Octubre"/>
+					<row id="11" text="Noviembre"/>
+					<row id="12" text="Diciembre"/>
+					<row id="13" text="Hoy"/>
+				</ROWS>
+			</param>
+		</xsl:template>
+	</html:xslt>
+</html:html>

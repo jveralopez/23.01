@@ -1,0 +1,238 @@
+<form:Form xmlns:form="nomad_engine.form" xmlns:qry="nomad_engine.qry" extends="NucleusRH.Base.Menu.Menu.form" default_mode="SHOW" name="Menu">
+	<form:Resources>
+		<form:Resource declare="&lt;PARAM entity=&quot;001AA0E914F9-492165BF01C5-297648230029&quot;/&gt;" name="qry:folders">
+			<qry:main>
+				<qry:element name="tree">
+					<qry:element name="group">
+						<qry:attribute value="'1'" name="id"/>
+						<qry:attribute value="'Carpetas'" name="label"/>
+						<qry:insert-select name="sql-bandeja"/>
+					</qry:element>
+				</qry:element>
+			</qry:main>
+			<qry:select name="sql-bandeja">
+				<qry:xquery>
+					for $r in file('Nomad\\Base\\Mail\\UsuariosBandejas\\{%= #PROXY:@etty %}.USUARIO_BANDEJA.XML')/USUARIO_BANDEJA/BANDEJAS/BANDEJA
+				</qry:xquery>
+				<qry:out>
+					<qry:element name="item">
+						<qry:attribute value="0" name="count"/>
+						<qry:attribute value="$r/@id" name="id"/>
+						<qry:insert-select name="sql-correo" doc-path="$r/CORREOS/CORREO"/>
+						<qry:attribute value="iif(./@count!='0',$r/@nombre + ' ('+ ./@count +')', $r/@nombre)" name="label"/>
+					</qry:element>
+				</qry:out>
+			</qry:select>
+			<qry:select name="sql-correo" doc="PARAM">
+				<qry:out>
+					<qry:insert-select name="sql-datos-correo" doc-path="#PARAM:/OI_MAIL"/>
+				</qry:out>
+			</qry:select>
+			<qry:select name="sql-datos-correo" doc="PARAM">
+				<qry:xquery>
+					for $r in file('Nomad\\Base\\Mail\\InputMails\\{%= #PARAM:@id %}.MAIL.XML')/MAIL[@fecha_lectura='']
+				</qry:xquery>
+				<qry:out>
+					<qry:attribute value="Number(./@count) + 1" name="count"/>
+				</qry:out>
+			</qry:select>
+		</form:Resource>
+		<form:Resource declare="&lt;PARAM id-folder=&quot;5C3C2EB72D60-5C454AFA0331-000000000007&quot; /&gt;" name="qry:mails">
+			<qry:main doc="PARAM">
+				<qry:append-doc name="INVAL" doc-path="#PARAM:/PARAM"/>
+				<qry:element name="rows">
+					<qry:insert-select name="sql-bandeja" doc-path="#PARAM:/PARAM"/>
+				</qry:element>
+			</qry:main>
+			<qry:select name="sql-bandeja" doc="PARAM">
+				<qry:xquery>
+					for $r in file('Nomad\\Base\\Mail\\UsuariosBandejas\\{%= #PROXY:@etty %}.USUARIO_BANDEJA.XML')/USUARIO_BANDEJA/BANDEJAS/BANDEJA[@id='{%= #PARAM:@id-folder %}']
+				</qry:xquery>
+				<qry:out>
+					<qry:insert-select name="sql-correo" doc-path="$r/CORREOS/CORREO"/>
+				</qry:out>
+			</qry:select>
+			<qry:select name="sql-correo" doc="PARAM">
+				<qry:out>
+					<qry:insert-select name="sql-datos-correo" doc-path="#PARAM:/OI_MAIL"/>
+				</qry:out>
+			</qry:select>
+			<qry:select name="sql-datos-correo" doc="PARAM">
+				<qry:xquery>
+					for $r in file('Nomad\\Base\\Mail\\InputMails\\{%= #PARAM:@id %}.MAIL.XML')/MAIL
+				</qry:xquery>
+				<qry:out>
+					<qry:element name="row">
+						<qry:attribute value="$r/@id" name="id"/>
+						<qry:attribute value="format_date($r/@FECHA_CREACION,'dd/mm/yyyy hh:MM')" name="date"/>
+						<qry:attribute value="$r/ENTIDAD/@value" name="from"/>
+						<qry:attribute value="$r/@asunto" name="subject"/>
+						<qry:attribute value="$r/@FECHA_LECTURA" name="fecha_lectura"/>
+						<qry:attribute value="iif($r/@FECHA_LECTURA!='','1','0')" name="read"/>
+						<qry:attribute value="iif($r/@FECHA_LECTURA!='','Listas/emailopen.gif','Listas/email.gif')" name="img"/>
+						<qry:insert-select name="sql-entidad" doc-path="$r/ENTIDAD"/>
+					</qry:element>
+				</qry:out>
+			</qry:select>
+			<qry:select doc="PARAM" name="sql-entidad">
+				<qry:xquery>
+					for $r in file('Nomad\\Base\\Login\\Entidades\\{%=#PARAM:@value%}.ENTIDAD.XML')/ENTIDAD
+				</qry:xquery>
+				<qry:out>
+					<qry:attribute name="idety" value="$r/@id"/>
+					<qry:attribute name="from" value="$r/@DES"/>
+				</qry:out>
+			</qry:select>
+		</form:Resource>
+	</form:Resources>
+	<form:Scripts>
+		var CLASS_TREE = null;
+var item_selected = null;
+function OnLoad()
+{    	
+	NomadTimeout("Load();", 25, "Cargando mensajes...");	  			
+}
+
+function LoadEmpty(objTREE, objGROUP)
+{
+	objTREE.SetXML(objGROUP.FullId,"&lt;TREE/&gt;")
+}
+
+function Load()
+{	
+	onLoad();
+	var np = GetProxy();
+	var nSQL = np.SQLService();
+      	 	
+	var resultxt=nSQL.Get(Ctrl("main").getResource("qry:folders"), "&lt;PARAM entity=\""+np.Etty()+"\"/&gt;");	
+	CLASS_TREE=clsClientTree("contFOLDERS","itemid","CLOCK.ico","folder-close.ico","folder.ico","folder.ico",false,LoadEmpty,null,showMail);
+	CLASS_TREE.SetXML(null, resultxt);	
+	CLASS_TREE.ClickExpGroup('1'); 
+	
+	if (item_selected != null)
+	{		
+		CLASS_TREE.SetSelectedId(item_selected.FullId);
+		showMail(CLASS_TREE, item_selected);		
+	}	
+}
+
+function showMail(tree, item)
+{	
+	var np = GetProxy();
+	var nSQL = np.SQLService(); 		
+	
+	item_selected = item;
+	var id_folder = item.Id;
+	var file = item.Tag;			
+	var xQry = nSQL.Get(Ctrl("main").getResource("qry:mails"), "&lt;PARAM entity=\"" + np.Etty() + "\" file=\"" + file + "\" id-folder=\"" + id_folder + "\" /&gt;");
+	                     	
+	Ctrl("mails").processResult(xQry);
+}
+
+function ViewMail()
+{
+	item_selected = CLASS_TREE.GetItem(Ctrl('itemid').GetXValue());
+	if(Ctrl("mails").TotalRowsCount() &gt;0)
+	{
+		Ctrl("mails").SetSelectAttrValue("img",'Listas/emailopen.gif');	
+		UnRead();				
+		NomadTimeout('getFormInMain("Nomad.Base.Mail.InputMails.flow","initialize","&lt;MAIL id=\\\"' + Ctrl("mails").GetXValue() + '\\\"/&gt;", false);', 1000, "Abriendo correo...");		
+	}
+	else
+	{
+		alert("No hay ningun mensaje seleccionado");
+	}      	
+}
+
+function NewMail()
+{ 
+	getFormInMain("Nomad.Base.Mail.OutputMails.flow","NEW","", false);	
+}
+
+function DelMail()
+{
+	item_selected = CLASS_TREE.GetItem(Ctrl('itemid').GetXValue());
+	if(Ctrl("mails").TotalRowsCount() &gt;0)
+	{		
+	  if (Ctrl("mails").GetSelectAttrValue("img") == 'Listas/email.gif')
+	  {
+			UnRead();	  
+	  }        	  	  
+	  NomadTimeout("Del();", 100, "Eliminando correo...");	  			
+	}
+	else
+	{
+		alert("No hay ningun mensaje seleccionado");
+	}	
+} 
+
+function Del()
+{
+		//Cargo el metodo
+		var proxy=new NomadProxy();
+		var RPC=new NomadXML(proxy.DDOService().Get("Nomad.Base.Mail.InputMails.MAIL", Ctrl("mails").GetXValue()));
+		RPC.SetAttr("nmd-status","~d,");
+		RPC.FirstChild().SetAttr("nmd-status","~d,");
+		proxy.DDOService().Set("Nomad.Base.Mail.InputMails.MAIL", RPC.ToString());				
+		showMail(CLASS_TREE, item_selected);		
+}
+
+function UnRead()
+{ 		
+		var spl = item_selected.Label.split("(");
+		if(spl.length&gt;1)
+		{		
+			count = spl[spl.length - 1];
+			count =  parseInt(count.substr(0,count.length - 1)) - 1;		
+			
+			spl.length--;				
+			if (count !=0)
+			{			
+				item_selected.Label = spl.join("(") + "(" + count.toString() + ")";
+				
+			}
+			else
+			{
+				item_selected.Label = spl.join("(");
+			}
+		}
+		CLASS_TREE.Draw("1");
+}
+	</form:Scripts>
+	<form:Center height="100%" width="100%">
+		<form:Columns height="290px" width="100%" name="Cols2" separation="10px"/>
+		<form:Hidden nvalue="#source:@entity" name="entity"/>
+		<form:Hidden name="itemid"/>
+		<form:Line width="90%" name="l1"/>
+		<form:Columns height="200px" width="100%" name="main_columnsFOLDERS">
+			<form:Column align="center" valign="top" separation="0" width="15%" name="main_columnsFOLDERC1">
+				<form:Container rheight="180px" name="contFOLDERS" rwidth="15" borderwidth="1"/>
+			</form:Column>
+			<form:Column align="center" valign="top" width="85%" name="main_columnsFOLDERC2" separation="0">
+				<form:ListView width="100%" rows="4" name="mails">
+					<form:LVColumns>
+						<form:LVColumn label="Fecha-Hora" attrname="date" type="string" name="date"/>
+						<form:LVColumn type="string" align="left" sorteable="1" width="50px" label="De" attrname="from" name="from"/>
+						<form:LVColumn attrname="subject" type="string" label="Asunto" name="subject"/>
+					</form:LVColumns>
+					<form:SButtons>
+						<form:SButton img="refresh" descrip="Actualizar lista de mensajes" name="REFRESH">
+							<form:Event action="OnLoad" name="onclick" runat="client"/>
+						</form:SButton>
+						<form:SButton descrip="Crear nuevo mensaje" img="new" name="NEW">
+							<form:Event action="NewMail" name="onclick" runat="client"/>
+						</form:SButton>
+						<form:SButton descrip="Leer mensaje" img="search" name="VIEW">
+							<form:Event action="ViewMail" name="onclick" runat="client"/>
+						</form:SButton>
+						<form:SButton mess="&#191;Est&#225; seguro que desa eliminar el mensaje?" descrip="Eliminar mensaje" img="del" name="DEL">
+							<form:Event action="DelMail" name="onclick" runat="client"/>
+						</form:SButton>
+					</form:SButtons>
+					<form:Event name="onDoubleClick" action="ViewMail" runat="client"/>
+				</form:ListView>
+			</form:Column>
+		</form:Columns>
+	</form:Center>
+	<form:Event action="OnLoad" name="onload" runat="client"/>
+</form:Form>

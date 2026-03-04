@@ -1,0 +1,442 @@
+<html:html xmlns:html="nomad_engine.html" xmlns:qry="nomad_engine.qry" xmlns:xsl="http://www.w3.org/1999/XSL/Transform" doc="source" name="NucleusRH.Base.Sanciones.Notificacion">
+	<html:query declare="&lt;DATO oi_personal_emp=&quot;11566&quot; oi_sancion_per=&quot;327&quot; /&gt;">
+		<qry:main doc="PARAM">
+			<qry:element name="DATOS">
+				<qry:insert-select doc-path="#PARAM:DATO" name="sql1"/>
+			</qry:element>
+		</qry:main>
+		<qry:select name="sql1" doc="PARAM">
+			<qry:xquery>
+				for $r in sql('
+					SELECT
+						SAN03_SANCION_PER.oi_sancion_per,
+						PER01_PERSONAL.d_ape_y_nom,
+						PER01_PERSONAL.c_nro_documento,
+						PER02_PERSONAL_EMP.e_numero_legajo,
+						ORG03_EMPRESAS.d_empresa,
+						SAN01_MOTIVOS_SANC.o_motivo_sancion,
+						SAN02_SANCIONES.d_sancion,						
+						SAN03_SANCION_PER.o_sancion,
+						SAN03_SANCION_PER.f_fechahora_sanc,
+						PER02_PERSONAL_EMP.oi_personal_emp
+					FROM
+						SAN03_SANCION_PER,
+						PER02_PERSONAL_EMP,
+						PER01_PERSONAL,
+						SAN02_SANCIONES,
+						SAN01_MOTIVOS_SANC,
+						SAN05_TIPOS_SAN,
+						ORG03_EMPRESAS
+					JOIN
+						SAN03_SANCION_PER.oi_personal_emp INNER	PER02_PERSONAL_EMP.oi_personal_emp,
+						PER02_PERSONAL_EMP.oi_empresa INNER ORG03_EMPRESAS.oi_empresa,
+						PER02_PERSONAL_EMP.oi_personal INNER PER01_PERSONAL.oi_personal,
+						SAN03_SANCION_PER.oi_sancion INNER SAN02_SANCIONES.oi_sancion,
+						SAN02_SANCIONES.oi_tipo_san INNER SAN05_TIPOS_SAN.oi_tipo_san,
+						SAN03_SANCION_PER.oi_motivo_sancion INNER SAN01_MOTIVOS_SANC.oi_motivo_sancion
+					WHERE
+						SAN03_SANCION_PER.oi_sancion_per = {#PARAM:@oi_sancion_per}
+			')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:attribute name="f_emision" value="format_date(now(), 'dd/mm/yyyy HH:MM')"/>
+				<qry:attribute name="oi_sancion_per" value="$r/@oi_sancion_per"/>
+				<qry:attribute name="oi_personal_emp" value="$r/@oi_personal_emp"/>
+				<qry:attribute name="d_ape_y_nom" value="$r/@d_ape_y_nom"/>
+				<qry:attribute name="e_numero_legajo" value="$r/@e_numero_legajo"/>
+				<qry:attribute name="c_nro_documento" value="$r/@c_nro_documento"/>
+				<qry:attribute name="d_empresa" value="$r/@d_empresa"/>
+				<qry:attribute name="o_motivo_sancion" value="$r/@o_motivo_sancion"/>
+				<qry:attribute name="d_sancion" value="$r/@d_sancion"/>
+				<qry:attribute name="o_sancion" value="$r/@o_sancion"/>
+				<qry:attribute name="f_sancion" value="format_date($r/@f_fechahora_sanc, 'dd/mm/yyyy')"/>
+				<qry:attribute name="h_sancion" value="format_date($r/@f_fechahora_sanc, 'HH:MM')"/>
+				<qry:element name="SUSPENSIONES">
+					<qry:insert-select name="sql2" doc-path="$r"/>
+				</qry:element>
+				<qry:insert-select name="qry_logo" doc-path="$r"/>
+			</qry:out>
+		</qry:select>
+		<qry:select name="sql2" doc="PARAM">
+			<qry:xquery>
+				for $r in sql('
+					SELECT
+						SAN03_SUSP_PER.oi_suspension_per,
+						SAN03_SUSP_PER.f_fechahora_ini,
+						SAN03_SUSP_PER.f_fechahora_fin,
+						SAN03_SUSP_PER.e_dias_susp						
+					FROM
+						SAN03_SUSP_PER						
+					WHERE
+						SAN03_SUSP_PER.oi_sancion_per = {#PARAM:@oi_sancion_per}
+			')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:element name="SUSP">
+					<qry:attribute name="oi_suspension_per" value="$r/@oi_suspension_per"/>
+					<qry:attribute name="f_fechahora_ini" value="format_date($r/@f_fechahora_ini, 'dd/mm/yyyy')"/>
+					<qry:attribute name="f_fechahora_fin" value="format_date($r/@f_fechahora_fin, 'dd/mm/yyyy')"/>
+					<qry:attribute name="e_dias_susp" value="$r/@e_dias_susp"/>
+				</qry:element>
+			</qry:out>
+		</qry:select>
+		<qry:select doc="PARAM" name="qry_logo">
+			<qry:xquery>
+				for $r in sql('
+			SELECT 
+				ORG03_EMPRESAS.oi_logotipo, 
+				PER19_IMAGENES.o_imagen 
+			FROM 
+				ORG03_EMPRESAS, 
+				PER02_PERSONAL_EMP, 
+				PER19_IMAGENES
+			JOIN 
+				ORG03_EMPRESAS.oi_empresa INNER PER02_PERSONAL_EMP.oi_empresa,
+				ORG03_EMPRESAS.oi_logotipo LEFT OUTER PER19_IMAGENES.oi_imagen_per 
+			WHERE 
+				PER02_PERSONAL_EMP.oi_personal_emp = {#PARAM:@oi_personal_emp}
+				')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:attribute name="oi_logotipo" value="iif($r/@oi_logotipo!='',$r/@oi_logotipo,'no')"/>
+			</qry:out>
+		</qry:select>
+	</html:query>
+	<html:xslt>
+		<xsl:template match="/DATOS">
+			<html>
+				<head>
+					<meta http-equiv="Content-Type" content="text/html; charset=utf-8"/>
+					<style media="screen">
+						body {
+          font-family:verdana;
+          font-weight:normal;
+          background-color:#B0B0B0;
+          font-size:12px;
+          width:100%;
+          margin:30px;}
+
+          .title {
+          font-size:15px;
+          font-weight:bold;}
+
+          .table_table_style {
+          border: none;
+          border-collapse: collapse;
+          background-color:#FFFFFF;
+          font-size: 11px;
+          font-family: verdana;
+          width:100%;}
+
+          .table_title_style {
+          border:none;
+          font-family:verdana;
+          background-color:#FFFFFF;
+          font-size:12px;
+          font-weight:normal;
+          width:100%;}
+
+          .group_td {
+          padding-left:30px; }
+
+          .coll_img {
+          padding:0px; margin:0px;
+          font-weight:bold;
+          text-align:center;
+          cursor:pointer;
+          border:1px solid black;
+          font-size:8px;
+          width:12px;
+          height:12px;}
+
+          .table_span_style {
+          font-weight:bold;
+
+          }
+
+          tfoot {
+          font-weight:bold;
+          }
+
+          .stitle {
+          width:100%;
+          background-color:#FFFFFF;
+          }
+          
+          .divmarco {
+          border:solid 1px #555555;
+          border-top:solid 2px #555555;
+          border-right:solid 8px #555555;
+          background-color:white;
+          margin:0px; 
+          padding:20px;
+          width:100%;
+          height:100%}
+ 
+          .scontent {
+          width:100%;
+          aheight:100%;
+          background-color:#FFFFFF; }
+					</style>
+					<style media="print">
+						body {
+					font-family:verdana;
+					font-weight:normal; 
+					background-color:white; 
+					font-size:8pt;
+					width:20cm;}
+					
+					.titulo {
+					font-size:11pt;
+					font-weight:bold;}
+					
+					.table_table_style {
+					border: none; 
+					border-collapse: collapse; 
+					font-size: 8pt; 
+					font-family: verdana;
+					width:100%;}
+					
+					.table_title_style {
+					border:none; 
+					font-family:verdana;
+					font-size:9pt;
+					font-weight:normal;
+					width:100%;}
+					
+					.table_span_style {
+					font-weight:bold;
+					}
+					
+					.group_td {
+					padding-left:30px; }
+					
+					.coll_img {
+					display:none;}
+					
+					.stitle {
+					background-color:#FFFFFF; 
+					border:none;}
+					
+					.scontent {
+					background-color:#FFFFFF; 
+					border:none;}
+					</style>
+					<style media="all">
+						.table_table_style td {
+					border: solid 1px black; 
+					padding-left: 3px; 
+					padding-right: 3px;
+					text-align: left;}
+					
+					.table_table_style td#num{
+					mso-number-format:0.00;
+					text-align:right;}
+					
+					.table_table_style th {
+					border:solid 1px black;
+					background-color:#BBBBBB; 
+					border-bottom:solid 2px black;
+					padding-left: 3px; 
+					padding-right: 3px;
+					text-align: center;}
+					
+					.table_title_style span#label {
+					font-weight: bold; }
+					</style>
+				</head>
+				<body bgcolor="#F6F6F1">
+					<div class="divmarco">
+						<table width="100%" class="stitle" border="0" style="">
+							<tr>
+								<td align="right">
+									<img height="120px">
+										<xsl:choose>
+											<xsl:when test="@oi_logotipo = 'no'">
+												<xsl:attribute name="src">
+													<xsl:value-of select="'Images/Reports/unknown-person.jpg'"/>
+												</xsl:attribute>
+											</xsl:when>
+											<xsl:otherwise>
+												<xsl:attribute name="src">
+													<xsl:value-of select="concat('NomadFile.aspx?mode=DB&amp;class=NucleusRH.Base.Personal.Imagenes.HEAD&amp;height=120&amp;id=', @oi_logotipo)"/>
+												</xsl:attribute>
+											</xsl:otherwise>
+										</xsl:choose>
+									</img>
+								</td>
+							</tr>
+							<tr>
+								<th>
+									<span style="font-weight:bold;">
+										<a>
+											Notificaci&#243;n de Sanci&#243;n
+										</a>
+									</span>
+								</th>
+							</tr>
+							<tr>
+								<th>
+									<br/>
+								</th>
+							</tr>
+						</table>
+						<table class="table_title_style" border="0">
+							<thead style="display: table-header-group;">
+								<tr valign="top">
+									<td>
+										<b>
+											Fecha de Emisi&#243;n:&#160;
+										</b>
+										<xsl:value-of select="@f_emision"/>
+										<br/>
+									</td>
+								</tr>
+							</thead>
+						</table>
+						<table class="table_title_style" border="0">
+							<thead style="display: table-header-group;">
+								<tr>
+									<td>
+										<text>
+											Por medio de la presente se notifica a&#160;
+										</text>
+										<span style="font-weight:bold;">
+											<xsl:value-of select="@d_ape_y_nom"/>
+										</span>
+										<text>
+											&#160;n&#250;mero de documento&#160;
+										</text>
+										<span style="font-weight:bold;">
+											<xsl:value-of select="@c_nro_documento"/>
+										</span>
+										<text>
+											&#160;de la Empresa&#160;
+										</text>
+										<span style="font-weight:bold;">
+											<xsl:value-of select="@d_empresa"/>
+										</span>
+										<text>
+											&#160;y n&#250;mero de legajo&#160;
+										</text>
+										<span style="font-weight:bold;">
+											<xsl:value-of select="@e_numero_legajo"/>
+										</span>
+										<text>
+											&#160;que atento a su falta&#160;
+										</text>
+										<span style="font-weight:bold;">
+											<xsl:value-of select="@o_motivo_sancion"/>
+										</span>
+										<text>
+											&#160;impartida el d&#237;a&#160;
+										</text>
+										<span style="font-weight:bold;">
+											<xsl:value-of select="@f_sancion"/>
+										</span>
+										<text>
+											&#160;a las&#160;
+										</text>
+										<span style="font-weight:bold;">
+											<xsl:value-of select="@h_sancion"/>
+											<text>
+												hs.
+											</text>
+										</span>
+										<text>
+											&#160;queda Sancionado mediante&#160;
+										</text>
+										<span style="font-weight:bold;">
+											<xsl:value-of select="@d_sancion"/>
+											<text>
+												.
+											</text>
+										</span>
+									</td>
+								</tr>
+							</thead>
+						</table>
+						<br/>
+						<xsl:if test="SUSPENSIONES/SUSP">
+							<table class="table_title_style" border="0">
+								<tr>
+									<td nowrap="1">
+										<text>
+											La mencionada Sanci&#243;n aplicada, acarrea el siguiente esquema de suspensiones sobre el cual queda Ud. debidamente informado:
+										</text>
+									</td>
+								</tr>
+							</table>
+							<table VALIGN="top" class="table_table_style" cellspacing="0" cellpadding="0" border="0" style="width:50%">
+								<thead style="display: table-header-group;">
+									<span class="table_span_style"/>
+									<tr>
+										<th nowrap="1" style="width:33%;text-align:center">
+											Fecha Inicio
+										</th>
+										<th nowrap="1" style="width:33%;text-align:center">
+											Fecha de Fin (Inclusive)
+										</th>
+										<th nowrap="1" style="width:33%;text-align:center">
+											Cantidad de D&#237;as
+										</th>
+									</tr>
+								</thead>
+								<tbody>
+									<xsl:apply-templates select="SUSPENSIONES/SUSP"/>
+								</tbody>
+							</table>
+						</xsl:if>
+						<br/>
+						<xsl:if test="@o_sancion != ''">
+							<p align="justify">
+								<b>
+									Observaciones:&#160;
+								</b>
+								<xsl:value-of select="@o_sancion"/>
+							</p>
+						</xsl:if>
+						<br/>
+						<br/>
+						<br/>
+						<br/>
+						<br/>
+						<br/>
+						<br/>
+						<br/>
+						<br/>
+						<table class="table_title_style" border="0" cellspacing="70">
+							<thead style="display: table-header-group;">
+								<tr>
+									<td/>
+									<td/>
+								</tr>
+								<tr>
+									<td style="text-align:center;border-top:1px dotted black;">
+										Firma Responsable
+									</td>
+									<td style="text-align:center;border-top:1px dotted black;">
+										Firma Empleado
+									</td>
+								</tr>
+							</thead>
+						</table>
+					</div>
+				</body>
+			</html>
+		</xsl:template>
+		<xsl:template match="SUSP">
+			<tr>
+				<td style="width:33%;text-align:center">
+					<xsl:value-of select="@f_fechahora_ini"/>
+				</td>
+				<td style="width:33%;text-align:center">
+					<xsl:value-of select="@f_fechahora_fin"/>
+				</td>
+				<td style="width:33%;text-align:center">
+					<xsl:value-of select="@e_dias_susp"/>
+				</td>
+			</tr>
+		</xsl:template>
+	</html:xslt>
+</html:html>

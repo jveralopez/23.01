@@ -1,0 +1,59 @@
+<html:html xmlns:html="nomad_engine.html" xmlns:qry="nomad_engine.qry" xmlns:xsl="http://www.w3.org/1999/XSL/Transform" name="NucleusRH.Base.QuejasyReclamos.Reclamos.rpt" extends="Nomad.Base.BaseReport.rpt" doc="source">
+	<html:query declare="&lt;PARAM oi_oficina=&quot;18&quot;/&gt;" name="">
+		<qry:main doc="PARAM">
+			<qry:element name="ROWS">
+				<qry:insert-select name="sql1" doc-path="#PARAM:PARAM"/>
+			</qry:element>
+		</qry:main>
+		<qry:select name="sql1" doc="PARAM">
+			<qry:xquery>
+				for $r in SQL('
+					SELECT 
+						QYR08_OFICINAS.c_oficina
+					FROM 
+						QYR08_OFICINAS
+					WHERE 
+						QYR08_OFICINAS.oi_oficina = {#PARAM:@oi_oficina}
+			')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:attribute name="c_oficina" value="'OFI:'+$r/@c_oficina"/>
+				<qry:insert-select name="sql2" doc-path="$r"/>
+			</qry:out>
+		</qry:select>
+		<qry:select name="sql2" doc="PARAM">
+			<qry:xquery>
+				for $r in FILE('Nomad\\Base\\Workflow\\WorkflowConfig\\{%=#PROXY:@app%}.NucleusRH.Base.QuejasyReclamos.Reclamo.WF.XML')/WF/ETAPAS/ETAPA[@USA_DIVISION=1]/RESPONSABLES/RESPONSABLE
+			WHERE $r/@DIVISION = '{%=#PARAM:@c_oficina%}'
+			</qry:xquery>
+			<qry:out>
+				<qry:element name="ROW">
+					<qry:insert-select name="ENTIDAD" doc-path="$r/ENTIDAD"/>
+				</qry:element>
+			</qry:out>
+		</qry:select>
+		<qry:select name="ENTIDAD" doc="DOC">
+			<qry:xquery>
+				for $r in FILE('Nomad\\Base\\Login\\Entidades\\{%=#DOC:@VALUE %}.ENTIDAD.XML')/ENTIDAD
+			</qry:xquery>
+			<qry:out>
+				<qry:attribute name="d_usuario" value="$r/@DES"/>
+			</qry:out>
+		</qry:select>
+	</html:query>
+	<html:xslt>
+		<xsl:template match="ROWS">
+			<xsl:for-each select="ROW">
+				<tr>
+					<td style="font-family:verdana; font-weight:bold;font-size:11px;">
+						<b>
+							Personal:&#160;
+						</b>
+						<xsl:value-of select="@d_usuario"/>
+						<br/>
+					</td>
+				</tr>
+			</xsl:for-each>
+		</xsl:template>
+	</html:xslt>
+</html:html>

@@ -1,0 +1,203 @@
+<html:html xmlns:html="nomad_engine.html" xmlns:qry="nomad_engine.qry" xmlns:xsl="http://www.w3.org/1999/XSL/Transform" name="SolicitudVacaciones" doc="source" extends="NucleusRH.Base.Configuracion.GadgetBASE.rpt">
+	<html:query declare="&lt;PARAMS  oi_solicitud=&quot;254&quot;/&gt;">
+		<qry:main doc="SOURCE">
+			<qry:element name="MAIN">
+				<qry:element name="DATA">
+					<qry:attribute name="oi_solicitud" value="#SOURCE:PARAMS/@oi_solicitud"/>
+					<qry:insert-select name="qrySolicitud" doc-path="."/>
+				</qry:element>
+			</qry:element>
+		</qry:main>
+		<qry:select name="qrySolicitud" doc="SOURCE">
+			<qry:xquery>
+				for $r in sql('		
+					SELECT      
+						PER01_PERSONAL.d_ape_y_nom,        
+						ORG03_EMPRESAS.c_empresa,
+						ORG03_EMPRESAS.d_empresa,
+						PER02_PERSONAL_EMP.e_numero_legajo, 
+						VAC01_SOLICITUDES.f_solicitud,
+						VAC02_ESTADOS_SOL.c_estado_solic,
+						VAC02_ESTADOS_SOL.d_estado_solic,  
+						VAC01_SOLICITUDES.f_desde_solicitud,
+						VAC01_SOLICITUDES.f_hasta_solicitud,
+						VAC01_SOLICITUDES.f_interrupcion,
+						VAC01_SOLICITUDES.e_dias_solicitud,
+						VAC01_SOLICITUDES.d_motivo_solic,
+						VAC01_SOLICITUDES.l_notificada
+						 
+					FROM
+						VAC01_SOLICITUDES,
+						VAC02_ESTADOS_SOL,
+						PER02_PERSONAL_EMP,
+						PER01_PERSONAL,
+						ORG03_EMPRESAS
+						 
+					JOIN
+						VAC01_SOLICITUDES.oi_estado_solic INNER VAC02_ESTADOS_SOL.oi_estado_solic,
+						VAC01_SOLICITUDES.oi_personal_emp INNER PER02_PERSONAL_EMP.oi_personal_emp,
+						PER02_PERSONAL_EMP.oi_personal INNER PER01_PERSONAL.oi_personal,
+						PER02_PERSONAL_EMP.oi_empresa INNER ORG03_EMPRESAS.oi_empresa                     				
+
+  					WHERE 
+  						VAC01_SOLICITUDES.oi_solicitud = {%= #SOURCE:@oi_solicitud%}
+  					
+				')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:attribute name="d_ape_y_nom" value="$r/@d_ape_y_nom"/>
+				<qry:attribute name="empresa" value="concat('[',$r/@c_empresa,'] ',$r/@d_empresa)"/>
+				<qry:attribute name="e_numero_legajo" value="$r/@e_numero_legajo"/>
+				<qry:attribute name="f_solicitud" value="format-date($r/@f_solicitud,'dd/mm/yyyy')"/>
+				<qry:attribute name="estado" value="concat('[',$r/@c_estado_solic,'] ',$r/@d_estado_solic)"/>
+				<qry:attribute name="f_desde_solicitud" value="format-date($r/@f_desde_solicitud,'dd/mm/yyyy')"/>
+				<qry:attribute name="f_hasta_solicitud" value="format-date($r/@f_hasta_solicitud,'dd/mm/yyyy')"/>
+				<qry:attribute name="f_interrupcion" value="format-date($r/@f_interrupcion,'dd/mm/yyyy')"/>
+				<qry:attribute name="e_dias_solicitud" value="$r/@e_dias_solicitud"/>
+				<qry:attribute name="d_motivo_solic" value="$r/@d_motivo_solic"/>
+				<qry:if test="$r/@l_notificada=0">
+					<qry:then>
+						<qry:attribute name="l_notificada" value="'No'"/>
+					</qry:then>
+					<qry:else>
+						<qry:attribute name="l_notificada" value="'Si'"/>
+					</qry:else>
+				</qry:if>
+			</qry:out>
+		</qry:select>
+	</html:query>
+	<html:xslt>
+		<xsl:template name="MainReport" match="DATA">
+			<body bgcolor="#F2F2EC" scroll="no">
+				<table class="tabla_detail estilo1" style="width:100%; height:30%" cellspacing="0" cellpadding="0">
+					<tr>
+						<th>
+							Solicitud de Vacaciones
+						</th>
+					</tr>
+					<tr>
+						<td>
+							<table style="width:100%" class="tabla_noticia estilo1">
+								<!--Datos del Legajo-->
+								<tr style="font-size:14px; ">
+									<td style="padding-left:15px">
+										<label style="font-weight:bold">
+											Datos del Legajo
+										</label>
+									</td>
+								</tr>
+								<tr style="font-size:12px; ">
+									<td style="padding-left:15px">
+										<label style="font-weight:bold">
+											Apellido y Nombre:
+										</label>
+										<xsl:value-of select="concat(' ',@d_ape_y_nom)"/>
+									</td>
+								</tr>
+								<tr style="font-size:12px;">
+									<td style="padding-left:15px">
+										<label style="font-weight:bold">
+											Empresa:
+										</label>
+										<xsl:value-of select="concat(' ',@empresa)"/>
+									</td>
+								</tr>
+								<tr style="font-size:12px;">
+									<td style="padding-left:15px;">
+										<label style="font-weight:bold">
+											N&#250;mero de Legajo:
+										</label>
+										<xsl:value-of select="concat(' ',@e_numero_legajo)"/>
+									</td>
+								</tr>
+								<tr style="font-size:12px;">
+									<td style="padding-left:15px; border-bottom:1px solid #C0C0C0">
+										<p>
+											&#160;
+										</p>
+									</td>
+								</tr>
+								<!--Fin de los Datos del Legajo-->
+								<!--Datos de la Solicitud de Vacaciones-->
+								<tr style="font-size:14px; ">
+									<td style="padding-left:15px">
+										<label style="font-weight:bold">
+											Datos de la Solicitud
+										</label>
+									</td>
+								</tr>
+								<tr style="font-size:12px;">
+									<td style="padding-left:15px;">
+										<label style="font-weight:bold">
+											Fecha Desde:
+										</label>
+										<xsl:value-of select="concat(' ',@f_desde_solicitud)"/>
+									</td>
+								</tr>
+								<tr style="font-size:12px;">
+									<td style="padding-left:15px;">
+										<label style="font-weight:bold">
+											Fecha Hasta:
+										</label>
+										<xsl:value-of select="concat(' ',@f_hasta_solicitud)"/>
+									</td>
+								</tr>
+								<tr style="font-size:12px;">
+									<td style="padding-left:15px;">
+										<label style="font-weight:bold">
+											Cantidad D&#237;as Solicitados:
+										</label>
+										<xsl:value-of select="concat(' ',@e_dias_solicitud)"/>
+									</td>
+								</tr>
+								<tr style="font-size:12px;">
+									<td style="padding-left:15px">
+										<label style="font-weight:bold">
+											Estado:
+										</label>
+										<xsl:value-of select="concat(' ',@estado)"/>
+									</td>
+								</tr>
+								<tr style="font-size:12px; ">
+									<td style="padding-left:15px">
+										<label style="font-weight:bold">
+											Fecha Solicitud:
+										</label>
+										<xsl:value-of select="concat(' ',@f_solicitud)"/>
+									</td>
+								</tr>
+								<tr style="font-size:12px; ">
+									<td style="padding-left:15px">
+										<label style="font-weight:bold">
+											Notificada:
+										</label>
+										<xsl:value-of select="concat(' ',@l_notificada)"/>
+									</td>
+								</tr>
+								<tr style="font-size:12px;">
+									<td style="padding-left:15px;">
+										<label style="font-weight:bold">
+											Fecha Interrumpci&#243;n:
+										</label>
+										<xsl:value-of select="concat(' ',@f_interrupcion)"/>
+									</td>
+								</tr>
+								<tr style="font-size:12px;">
+									<td style="padding-left:15px">
+										<label style="font-weight:bold">
+											Motivo de Solicitud:
+										</label>
+										<xsl:value-of select="concat(' ',@d_motivo_solic)"/>
+									</td>
+								</tr>
+								<!--Fin de la Solicitud de Vacaciones-->
+							</table>
+						</td>
+					</tr>
+				</table>
+			</body>
+		</xsl:template>
+		<xsl:template name="ReportSCRIPT"/>
+		<xsl:template name="GADGET_PARAM"/>
+	</html:xslt>
+</html:html>

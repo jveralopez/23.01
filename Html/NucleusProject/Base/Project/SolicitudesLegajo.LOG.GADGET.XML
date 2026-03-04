@@ -1,0 +1,305 @@
+<html:html xmlns:html="nomad_engine.html" xmlns:qry="nomad_engine.qry" xmlns:xsl="http://www.w3.org/1999/XSL/Transform" name="Solicitudes" extends="NucleusRH.Base.Configuracion.GadgetBASE.rpt" doc="source">
+	<html:query declare="&lt;PARAMS  /&gt;">
+		<qry:main doc="SOURCE">
+			<qry:element name="MAIN">
+				<qry:element name="DATA">
+					<qry:attribute name="hoy" value="format-date(Now(),'dd/mm/yy')"/>
+					<qry:attribute name="cant_sol" value="0"/>
+					<qry:attribute name="cant_vencidas" value="0"/>
+					<qry:insert-select doc-path="." name="qry_solicitudes"/>
+				</qry:element>
+			</qry:element>
+		</qry:main>
+		<qry:select doc="SOURCE" name="qry_solicitudes">
+			<qry:xquery>
+				for $r in sql('		
+				SELECT 
+					s.oi_solicitud,
+					s.f_solicitud,
+  					s.c_solicitud,
+  					s.d_solicitud,
+  					s.f_estim_implem,
+  					cli.d_nom_cliente
+  					
+				FROM 
+					PRY07_SOLICITUDES as s,
+					PRY05_RECURSOS as re,
+	         	    PER01_PERSONAL as pe,
+	         		PRY08_CLIENTES as cli,
+	          		PRY08_CONTACTOS as con
+					
+				JOIN 
+				  	s.oi_recurso INNER re.oi_recurso,
+		        	re.oi_personal INNER pe.oi_personal,
+		        	s.oi_contacto INNER con.oi_contacto,
+		        	con.oi_cliente INNER cli.oi_cliente
+					
+			    WHERE 
+			        pe.oi_usuario_sistema = {#PROXY:@ETTY} 
+			        AND s.c_estado NOT IN (5,6,7)
+
+  				ORDER BY 
+  					f_estim_implem ASC 
+  					
+				')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:attribute name="cant_sol" value="number(@cant_sol)+1"/>
+				<qry:if test="$r/@f_estim_implem &lt;=  Now()">
+					<qry:then>
+						<qry:attribute name="cant_vencidas" value="number(@cant_vencidas)+1"/>
+					</qry:then>
+					<qry:else>
+						<qry:attribute name="cant_vencidas" value="number(@cant_vencidas)+0"/>
+					</qry:else>
+				</qry:if>
+				<qry:element name="SOLICITUD">
+					<qry:attribute name="oi_solicitud" value="$r/@oi_solicitud"/>
+					<qry:attribute name="d_solicitud" value="'[' + $r/@c_solicitud + '] ' + $r/@d_solicitud"/>
+					<qry:attribute name="f_solicitud" value="format-date($r/@f_solicitud, 'dd/mm/yyyy')"/>
+					<qry:attribute name="f_estim_implem" value="format-date($r/@f_estim_implem, 'dd/mm/yyyy')"/>
+					<qry:attribute name="d_nom_cliente" value="$r/@d_nom_cliente"/>
+					<qry:if test="$r/@f_estim_implem=''">
+						<qry:then>
+							<qry:attribute name="color" value="'#FFFFFF'"/>
+						</qry:then>
+						<qry:else>
+							<qry:if test="number(format-date(now(),'yyyymmdd'))&gt;number(format-date($r/@f_estim_implem,'yyyymmdd'))">
+								<qry:then>
+									<qry:attribute name="color" value="'#FFC7CE'"/>
+									<qry:attribute name="colortext" value="'#B73A4D'"/>
+								</qry:then>
+								<qry:else>
+									<qry:if test="(datetime($r/@f_estim_implem)-now())&lt;=3">
+										<qry:then>
+											<qry:attribute name="color" value="'#FFEB9C'"/>
+											<qry:attribute name="colortext" value="'#AD8A0A'"/>
+										</qry:then>
+										<qry:else>
+											<qry:attribute name="color" value="'#FFFFFF'"/>
+										</qry:else>
+									</qry:if>
+								</qry:else>
+							</qry:if>
+						</qry:else>
+					</qry:if>
+				</qry:element>
+			</qry:out>
+		</qry:select>
+	</html:query>
+	<html:xslt>
+		<xsl:template name="MainReport" match="DATA">
+			<body bgcolor="#F2F2EC" scroll="no">
+				<table class="tabla_detail estilo1" cellspacing="0" cellpadding="0">
+					<tr>
+						<th>
+							<xsl:value-of select="concat('Mis Solicitudes al  ',./@hoy,':    ',./@cant_vencidas,' vencidas de ',./@cant_sol,' sin cerrar')"/>
+						</th>
+					</tr>
+					<tr>
+						<td>
+							<div>
+								<table style="width:100%;font-size: 11px;" class="tabla_noticia estilo1">
+									<tr>
+										<th style="width:25%;">
+											Cliente
+										</th>
+										<th style="width:50%;">
+											Solicitud
+										</th>
+										<th style="width:10%;">
+											Creaci&#243;n
+										</th>
+										<th style="width:8%;">
+											Fin estimado
+										</th>
+										<th style="width:7%;">
+											Cerrar
+										</th>
+									</tr>
+									<xsl:for-each select="SOLICITUD">
+										<tr>
+											<xsl:attribute name="style">
+												<xsl:value-of select="concat('background-color:',@color,';color:',@colortext)"/>
+											</xsl:attribute>
+											<td height="40px" class="img_back underline">
+												<xsl:value-of select="@d_nom_cliente"/>
+											</td>
+											<td height="40px" class="img_back underline">
+												<a>
+													<xsl:attribute name="style">
+														<xsl:value-of select="concat('color:',@colortext)"/>
+													</xsl:attribute>
+													<xsl:attribute name="href">
+														<xsl:value-of select="concat('javascript:Detail(', @oi_solicitud, ')')"/>
+													</xsl:attribute>
+													<xsl:value-of select="@d_solicitud"/>
+												</a>
+											</td>
+											<td height="40px" class="img_back underline">
+												<xsl:value-of select="@f_solicitud"/>
+											</td>
+											<td height="40px" class="img_back underline">
+												<xsl:if test="@f_estim_implem">
+													<xsl:value-of select="@f_estim_implem"/>
+												</xsl:if>
+												<xsl:if test="not(@f_estim_implem)">
+													&#160;
+												</xsl:if>
+											</td>
+											<td colspan="2" style="cursor:pointer;text-align:center;height:25px;" class="underline" id="btn_cerrar" name="btn_cerrar" onclick="Cerrar(this.getAttribute('oi_solicitud'));">
+												<xsl:attribute name="oi_solicitud">
+													<xsl:value-of select="@oi_solicitud"/>
+												</xsl:attribute>
+												<img width="16px" onMouseOver="this.style.cssText='background-color:#8DBCEF;'" onMouseOut="this.style.cssText='background-color: none'">
+													<xsl:attribute name="src">
+														<xsl:value-of select="'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAAGXRFWHRTb2Z0d2FyZQBBZG9iZSBJbWFnZVJlYWR5ccllPAAAAe5JREFUeNqkk89KG1EUxr+ZubnUjJaipgtNtTZKxE1AVIi4yM5tF30Hoe/iA3TnQkTBRbZFKApCAl1142CJqLR0ZUNJJpPJZP70nJvcEK0SpAPfzD3n5vedM2dujCRJ8D+XODIMGMA4aYfibdLkCKZO+kxlP5FcwRla7MytrHxcLhazMp2WT5HcbeB5gVOp5H44Dqd2RdTb217a2Mi6vi/h+6O6lu9WV7M3jsPd7ppsQJqMTVO6rgtWdn8fev1YrpskkhlmzZBuLJ8qN5tNLJfLqgw/OX4sxyaaE2G/L8/z0Gq1cLy4iA+1mjKcOzhQ+RrFpmniy9oaUqkUMpkMNDcwCIIAYRhiwraxNz2NwskJLMtSgJQSZwSr6Xa7aDca/xowHFB7Xr0OO47vwazx4W9PJpozu2xK6hCY3N1hLIqQPz29BwshULq8RJp+x5JUTHODIRpkkKbv/GYI/ra+jq+FgjJgbV5dKYMX1KHmBh1ImgFv3pZKCr4geJZiVjWfV+2e53K9LqiQ5kSnfzwjmuIY+cxT8J3g+aF35nWVYJ1rx3HQ6R1pWNd0ewu8bkdRfkYI2zYMi/8M4oF0juGq7//8FUWHh0DF4L2XwMIW8H4KKFL8asRR/vObwHOg3ACu2YA6x0S/wHMunmHzrwADAPb07huzEp/RAAAAAElFTkSuQmCC'"/>
+													</xsl:attribute>
+												</img>
+											</td>
+										</tr>
+									</xsl:for-each>
+								</table>
+							</div>
+						</td>
+					</tr>
+				</table>
+			</body>
+		</xsl:template>
+		<xsl:template name="ReportSCRIPT">
+			<xsl:value-of select="';'"/>
+			function clsResult() {   
+		
+			this.processResult = function(xmlString) { 
+				var xmlResult = new NomadXML(xmlString);
+				if(xmlResult.GetAttr("result")=="OK")
+					{
+					var objWindow = parent.parent.GetRootWindow();
+					objWindow.location.reload(true);
+					}
+				else
+					if(xmlResult.GetAttr("result")=="ERROR")
+						alert("No se pudo cerrar la solicitud seleccionada.");	
+    			}
+		}
+	
+		function clsMain() {   
+		
+			this.SetActive = function(){
+   			}      
+   			
+   			this.OnActivate = function(){
+   			}
+		}
+
+		function Cerrar(oi_solicitud) {
+		
+		var name="NucleusProject.Base.Project.Solicitudes.CAMBIOS.guia.flow";
+		var action="CERRAR_GADGET";
+		var xmlContent = new NomadXML('DATA'); 
+		var objResult = new clsResult();    
+		
+        xmlContent.SetAttr("id",oi_solicitud.toString());
+                      
+		//Obtengo la ventana raiz
+		var objWindow = parent.parent.GetRootWindow();   
+		
+		objWindow.Ctrl = function(){return new clsMain(); }
+		objWindow.openNewFlowWait(name, action, xmlContent.ToString(), objResult , "L");      
+
+		}     
+		 
+		function Detail(poiSolicitud) {
+				var dir;                          
+				
+				dir = "../../../ReportViewer.aspx?";
+				dir = dir + "report={#PROXY.APP#}.NucleusProject.Base.Project.Solicitud.GEN.GADGET";
+				dir = dir + "{#CHAR.AMP#}oi_solicitud=" + poiSolicitud;
+                
+				window.open(dir, 'Buscador', 'width=900,height=600,resizable=yes');
+			}
+		</xsl:template>
+		<xsl:template name="GADGET_PARAM"/>
+		<xsl:template name="MainTemplate" match="MAIN">
+			<html>
+				<xsl:attribute name="nmd_timestamp">
+					<xsl:value-of select="@timestamp"/>
+				</xsl:attribute>
+				<head>
+					<META charset="UTF-8"/>
+					<META HTTP-EQUIV="PRAGMA" CONTENT="NO-CACHE"/>
+					<META HTTP-EQUIV="CACHE-CONTROL" CONTENT="NO-CACHE"/>
+					<script src="../../../Scripts/engComm.js" type="text/javascript" charset="ISO-8859-1" language="javascript">
+						//matias
+					</script>
+					<script src="../../../Scripts/engReport.js" type="text/javascript" charset="ISO-8859-1" language="javascript">
+						//matias
+					</script>
+					<script src="../../../Scripts/nmdXML.js" type="text/javascript" charset="ISO-8859-1" language="javascript">
+						//matias
+					</script>
+					<script src="../../../Scripts/NEngine.js" type="text/javascript" charset="ISO-8859-1" language="javascript">
+						//matias
+					</script>
+					<script src="../../../Scripts/NSubEngine.js" type="text/javascript" charset="ISO-8859-1" language="javascript">
+						//matias
+					</script>
+					<STYLE>
+						<xsl:call-template name="BaseSTYLE"/>
+						<xsl:call-template name="ReportSTYLE"/>
+					</STYLE>
+					<xsl:call-template name="ReportLINKSTYLE"/>
+					<script type="text/javascript" language="javascript">
+						<xsl:call-template name="ReportSCRIPT"/>
+						function ChangeStyleSB (pObj, pOver) {
+						var imgSrc = pObj.src;
+
+						if (pOver)
+							imgSrc = imgSrc.replace("_n.", "_o.");
+						else
+							imgSrc = imgSrc.replace("_o.", "_n.");
+						
+						pObj.src = imgSrc;
+					}
+
+					function ChangeStyleBut (pObj, pImg, pOver) {
+						var objImg;
+						var objTxt;
+                        
+						if (pObj) {
+							var typeTxt = typeof(pObj);
+                            
+							if (typeTxt.toUpperCase() == "STRING")
+								objTxt = document.getElementById(pObj);
+							else 
+								objTxt = pObj;
+
+							var strCName = objTxt.className;
+	
+							if (pOver)
+								strCName = strCName.replace("Button_n", "Button_o");
+							else
+								strCName = strCName.replace("Button_o", "Button_n");
+							
+							objTxt.className = strCName; 
+
+			           	}
+						
+						if (pImg) {
+							var typeImg = typeof(pImg);
+
+							if (typeImg.toUpperCase() == "STRING")
+								objImg = document.getElementById(pImg);
+							else 
+								objImg = pImg;
+
+							ChangeStyleSB(objImg, pOver);
+			           	}
+					}
+					</script>
+				</head>
+				<xsl:apply-templates select="DATA"/>
+			</html>
+		</xsl:template>
+	</html:xslt>
+</html:html>

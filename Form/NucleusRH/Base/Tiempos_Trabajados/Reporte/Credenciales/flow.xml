@@ -1,0 +1,163 @@
+<flow:flow extends="Nomad.Base.report.Crystal.flow" xmlns:flow="nomad_engine.form" xmlns:doc="nomad_engine.form" xmlns:qry="nomad_engine.form" name="ReporteCredenciales">
+	<flow:info label="ReporteCredenciales"/>
+	<flow:declare>
+		<doc:define name="FILTERDATA">
+			<FILTRO incluir="" oi_empresa="">
+				<PERSONAS/>
+			</FILTRO>
+		</doc:define>
+		<doc:define name="PERSONAS"/>
+		<doc:define name="EMPRESAS"/>
+		<qry:define declare="&lt;FILTRO incluir=&quot;C&quot; oi_empresa=&quot;187&quot; FormatRPT=&quot;PDF&quot;&gt;&#13;&#10;  &lt;PERSONAS/&gt;&#13;&#10; &#13;&#10;&lt;/FILTRO&gt;" name="QRY_PERSONAS">
+			<qry:main doc="PARAM" xmlns:qry="XXX">
+				<qry:append-doc name="FILTRO" doc-path="#PARAM:/FILTRO"/>
+				<qry:element name="ROWS">
+					<qry:insert-select doc-path="#FILTRO:/.[#FILTRO:@incluir='P']" name="QRY_LEGAJOS_PROPIOS"/>
+					<qry:insert-select doc-path="#FILTRO:/.[#FILTRO:@incluir='T']" name="QRY_LEGAJOS_PROPIOS"/>
+					<qry:insert-select doc-path="#FILTRO:/.[#FILTRO:@incluir='C']" name="QRY_LEGAJOS_CONTRATISTAS"/>
+					<qry:insert-select doc-path="#FILTRO:/.[#FILTRO:@incluir='T']" name="QRY_LEGAJOS_CONTRATISTAS"/>
+				</qry:element>
+			</qry:main>
+			<qry:select xmlns:qry="XXX" doc="PARAM" name="QRY_LEGAJOS_PROPIOS">
+				<qry:xquery>
+					for $r in sql('
+				SELECT PER02_PERSONAL_EMP.oi_personal_emp
+				FROM PER02_PERSONAL_EMP
+				WHERE PER02_PERSONAL_EMP.oi_empresa = {#PARAM:@oi_empresa}
+				{%? (string(#FILTRO:PERSONAS/PERSONA/@id)!='') 
+				{% AND PER02_PERSONAL_EMP.oi_personal_emp in ({%=string(#FILTRO:PERSONAS/PERSONA/@id)%}) %} 
+				{%  %} 
+			%}
+			')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:element name="ROW">
+						<qry:insert-select doc-path="$r" name="QRY_DATOS_PER"/>
+					</qry:element>
+				</qry:out>
+			</qry:select>
+			<qry:select xmlns:qry="XXX" doc="PARAM" name="QRY_LEGAJOS_CONTRATISTAS">
+				<qry:xquery>
+					for $r in sql('
+				SELECT PER02_PERSONAL_EMP.oi_personal_emp	
+				FROM PER02_PERSONAL_EMP
+				WHERE PER02_PERSONAL_EMP.oi_empresa_vinc = {#PARAM:@oi_empresa}
+				{%? (string(#FILTRO:PERSONAS/PERSONA/@id)!='') 
+				{% AND PER02_PERSONAL_EMP.oi_personal_emp in ({%=string(#FILTRO:PERSONAS/PERSONA/@id)%}) %} 
+				{%  %} 
+			%}
+			')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:element name="ROW">
+						<qry:insert-select doc-path="$r" name="QRY_DATOS_PER"/>
+					</qry:element>
+				</qry:out>
+			</qry:select>
+			<qry:select xmlns:qry="XXX" doc="PARAM" name="QRY_DATOS_PER">
+				<qry:xquery>
+					for $r in sql('
+				SELECT PER01_PERSONAL.oi_personal, PER01_PERSONAL.oi_foto
+				FROM PER02_PERSONAL_EMP, PER01_PERSONAL
+				JOIN PER02_PERSONAL_EMP.oi_personal INNER PER01_PERSONAL.oi_personal
+				WHERE PER02_PERSONAL_EMP.oi_personal_emp = {#PARAM:@oi_personal_emp}
+			')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:attribute value="$r/@oi_personal" name="oi_personal"/>
+					<qry:attribute value="$r/@oi_foto" name="oi_imagen"/>
+				</qry:out>
+			</qry:select>
+		</qry:define>
+		<qry:define declare="&lt;FILTRO incluir=&quot;T&quot; oi_empresa=&quot;187&quot; FormatRPT=&quot;PDF&quot;&gt;&lt;PERSONAS /&gt;&lt;/FILTRO&gt;" name="QRY_EMPRESAS">
+			<qry:main doc="PARAM" xmlns:qry="XXX">
+				<qry:append-doc name="FILTRO" doc-path="#PARAM:/FILTRO"/>
+				<qry:element name="EMPRESAS">
+					<qry:insert-select doc-path="#FILTRO:" name="QRY_EMPRESA"/>
+				</qry:element>
+			</qry:main>
+			<qry:select xmlns:qry="XXX" doc="PARAM" name="QRY_EMPRESA">
+				<qry:xquery>
+					for $r in sql('
+				SELECT ORG03_EMPRESAS.oi_empresa, ORG03_EMPRESAS.oi_logotipo
+				FROM ORG03_EMPRESAS
+				WHERE ORG03_EMPRESAS.oi_empresa = {#PARAM:@oi_empresa}
+			')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:element name="EMPRESA">
+						<qry:attribute value="$r/@oi_empresa" name="oi_empresa"/>
+						<qry:attribute value="$r/@oi_logotipo" name="oi_imagen"/>
+					</qry:element>
+				</qry:out>
+			</qry:select>
+		</qry:define>
+	</flow:declare>
+	<flow:main doc="SOURCE">
+		<flow:action name="initialize">
+			<flow:open-form form-class="NucleusRH.Base.Tiempos_Trabajados.Reporte.Credenciales.filter.form" doc-path="#SOURCE:" mode="FILTER"/>
+		</flow:action>
+	</flow:main>
+	<flow:form name="NucleusRH.Base.Tiempos_Trabajados.Reporte.Credenciales.filter.form:FILTER" parent-doc="PARENTSOURCE" doc="SOURCE" mode="FILTER" form-class="NucleusRH.Base.Tiempos_Trabajados.Reporte.Credenciales.filter.form">
+		<flow:action name="BACK">
+			<flow:close-form/>
+		</flow:action>
+		<flow:action name="ACCEPT">
+			<doc:assign-mapping dir-apply="a-&gt;b" b-doc="FILTERDATA" a-doc="FORM">
+				<map docB="B" docA="A">
+					<submap path-docB="#B:PERSONAS" path-docA="#A:ctrl[@id='grdPersonal']/rows">
+						<map docB="B" docA="A">
+							<link B="#B:@id" A="#A:columns/ctrl[@id='oi_personal_emp']/@xval"/>
+						</map>
+						<ProtoA/>
+						<ProtoB>
+							<PERSONA id=""/>
+						</ProtoB>
+					</submap>
+				</map>
+			</doc:assign-mapping>
+			<flow:log text="ppfilterdata" text-path="#FILTERDATA:"/>
+			<doc:load-qry output-doc="PERSONAS" input-doc-path="#FILTERDATA:" qry="QRY_PERSONAS"/>
+			<flow:log text="pppers" text-path="#PERSONAS:"/>
+			<doc:load-qry output-doc="EMPRESAS" input-doc-path="#FILTERDATA:" qry="QRY_EMPRESAS"/>
+			<flow:log text="ppempresa" text-path="#EMPRESAS:"/>
+			<flow:call-action action="Save-FILTER"/>
+			<flow:call-action if="#FILTERDATA:@FormatRPT" action="ACCEPTpdf" eq="PDF"/>
+			<flow:call-action if="#FILTERDATA:@FormatRPT" action="ACCEPTxls" eq="XLS"/>
+			<flow:call-action if="#FILTERDATA:@FormatRPT" action="ACCEPTrtf" eq="RTF"/>
+		</flow:action>
+		<flow:action name="ACCEPTpdf">
+			<flow:exec-method out-attr-path="#FILTERDATA:@batch-id" out-type="String" priority="5" method="execute" class="Nomad.NSystem.Crystal.NmdCrystalBatch">
+				<flow:param value="NucleusRH.Base.Tiempos_Trabajados.Credenciales\Credenciales.def" name="report-name" mode="in" type="Nomad.NSystem.String"/>
+				<flow:param name="report-param" mode="in" type="Nomad.NSystem.Object" doc="FILTERDATA"/>
+				<flow:param attr-path="#FILTERDATA:@file-name" name="report-file" mode="in" type="Nomad.NSystem.String"/>
+			</flow:exec-method>
+			<flow:open-form form-class="Nomad.base.batch.report.form" mode="BATCH" doc-path="#FILTERDATA:"/>
+		</flow:action>
+		<flow:action name="ACCEPTxls">
+			<flow:exec-method out-attr-path="#FILTERDATA:@batch-id" out-type="String" priority="5" method="execute" class="Nomad.NSystem.Crystal.NmdCrystalBatch">
+				<flow:param value="NucleusRH.Base.Tiempos_Trabajados.Credenciales\CredencialesXLS.def" name="report-name" mode="in" type="Nomad.NSystem.String"/>
+				<flow:param name="report-param" mode="in" type="Nomad.NSystem.Object" doc="FILTERDATA"/>
+				<flow:param attr-path="#FILTERDATA:@file-name" name="report-file" mode="in" type="Nomad.NSystem.String"/>
+			</flow:exec-method>
+			<flow:open-form form-class="Nomad.base.batch.report.form" mode="BATCH" doc-path="#FILTERDATA:"/>
+		</flow:action>
+		<flow:action name="ACCEPTrtf">
+			<flow:exec-method out-attr-path="#FILTERDATA:@batch-id" out-type="String" priority="5" method="execute" class="Nomad.NSystem.Crystal.NmdCrystalBatch">
+				<flow:param value="NucleusRH.Base.Tiempos_Trabajados.Credenciales\CredencialesRTF.def" name="report-name" mode="in" type="Nomad.NSystem.String"/>
+				<flow:param name="report-param" mode="in" type="Nomad.NSystem.Object" doc="FILTERDATA"/>
+				<flow:param attr-path="#FILTERDATA:@file-name" name="report-file" mode="in" type="Nomad.NSystem.String"/>
+			</flow:exec-method>
+			<flow:open-form form-class="Nomad.base.batch.report.form" mode="BATCH" doc-path="#FILTERDATA:"/>
+		</flow:action>
+		<flow:action name="Save-FILTER">
+			<flow:save-user-data name="FILTER-NucleusRH.Base.Tiempos_Trabajados.Reporte.Credenciales" doc-path="#FILTERDATA:"/>
+		</flow:action>
+		<flow:action name="Load-FILTER">
+			<flow:load-user-data name="FILTER-NucleusRH.Base.Tiempos_Trabajados.Reporte.Credenciales" doc="FILTERDATA"/>
+		</flow:action>
+		<flow:action name="on-open">
+			<flow:call-action action="Load-FILTER"/>
+		</flow:action>
+	</flow:form>
+</flow:flow>

@@ -1,0 +1,444 @@
+<form:Form xmlns:form="nomad_engine.form" xmlns:qry="nomad_engine.qry" default_mode="SHOW" doc="SOURCE" name="NucleusProject.Base.Project.Tareas.TAREA.guia">
+	<form:Title>
+		<form:RowAligner name="title">
+			<form:Row name="row1">
+				<form:Label label="Seleccione una Tarea" nowrap="1" style="S3 LCol_w" name="GEN"/>
+			</form:Row>
+		</form:RowAligner>
+	</form:Title>
+	<form:Center height="100%" width="100%">
+		<form:RowAligner name="buttonlinks">
+			<form:Row name="row_top">
+				<form:TextBox label="Buscar" name="buscar" length="32" xsize="24" ysize="1" descr="Texto a Buscar" required="False">
+					<form:Event runat="client" name="onpressenter" action="FilterGrid"/>
+					<form:SButtons>
+						<form:SButton visible="SHOW" descrip="Filtrar los Registros." name="Search" label="Buscar" img="filter">
+							<form:Event runat="client" name="onclick" action="FilterGrid"/>
+						</form:SButton>
+					</form:SButtons>
+				</form:TextBox>
+				<form:Blank visible="PROY" width="15px" name="bl1"/>
+				<form:ComboBox visible="PROY" xsize="40" mode="OPT" required="0" label="Estado" nvalue="#source:@c_estado" name="c_estado">
+					<options>
+						<option text="Todos" value="Todos"/>
+						<option text="Inicializada" value="I"/>
+						<option text="Trabajando" value="T"/>
+						<option text="Pausada" value="P"/>
+						<option text="Finalizada" value="F"/>
+						<option text="Anulada" value="A"/>
+						<option text="Derivada a Testing" value="D"/>
+					</options>
+					<form:SButtons>
+						<form:SButton descrip="Filtrar los Registros." name="Search" label="Buscar" img="filter">
+							<form:Event runat="client" name="onclick" action="FilterGrid"/>
+						</form:SButton>
+					</form:SButtons>
+				</form:ComboBox>
+			</form:Row>
+		</form:RowAligner>
+		<form:Blank name="blank_iter01"/>
+		<form:Container height="90%" width="90%" border="1" rheight="80" rwidth="95" name="CONT_PROJECT_TREE" label="Proyectos" borderwidth="2"/>
+		<form:Hidden name="TREE_ID"/>
+		<form:Hidden nvalue="#SOURCE:@oi_tarea" name="OI_TAREA"/>
+		<form:Hidden nvalue="#SOURCE:@oi_proyecto" name="OI_PROYECTO"/>
+		<form:Hidden nvalue="#SOURCE:@ESTADOS" name="ESTADOS"/>
+	</form:Center>
+	<form:Bottom>
+		<form:RowAligner name="bottom">
+			<form:Row name="rowbottom">
+				<form:Button name="ACCEPT" label="Aceptar" img="OK" descrip="Aceptar" note="Aceptar">
+					<form:Event runat="server" name="onclick" action="ACCEPT"/>
+				</form:Button>
+				<form:Button name="CANCEL" label="Cancelar" img="CANCEL" descrip="Cancelar" note="Cancelar">
+					<form:Event runat="server" name="onclick" action="CANCEL"/>
+				</form:Button>
+			</form:Row>
+		</form:RowAligner>
+	</form:Bottom>
+	<form:Resources>
+		<form:Resource declare="&lt;DATA ESTADOS=&quot;FIT&quot; /&gt;" name="qry:project-root">
+			<qry:main doc="PARAM">
+				<qry:element name="tree">
+					<qry:insert-select doc-path="#PARAM:." name="sql1"/>
+				</qry:element>
+			</qry:main>
+			<qry:select doc="PARAM" name="sql1">
+				<qry:xquery>
+					for $r in sql('
+				SELECT 
+					P.oi_proyecto as id,
+					P.c_proyecto as cod,
+					P.d_proyecto as des,
+					P.c_estado as estado,
+					T.c_image as img
+				FROM 
+					PRY01_PROYECTOS as P,
+					PRY09_TIPOS_PROYECTO as T
+				JOIN
+					P.oi_tipo_proyecto inner T.oi_tipo_proyecto
+				WHERE
+					contain({#PARAM:@estados}, P.c_estado) and
+					isNull(P.oi_proyecto_parent)
+				ORDER BY 
+					cod ASC
+				')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:element name="group">
+						<qry:attribute name="id" value="$r/@id"/>
+						<qry:attribute name="label" value="$r/@cod+'-'+$r/@des"/>
+						<qry:attribute value="iif($r/@estado='L','proyecto_L.ico',$r/@img+'_'+$r/@estado+'.ico')" name="imgOpen"/>
+						<qry:attribute value="iif($r/@estado='L','proyecto_L.ico',$r/@img+'_'+$r/@estado+'.ico')" name="imgClose"/>
+						<qry:attribute name="tag" value="'proyecto-root&amp;'+$r/@estado"/>
+					</qry:element>
+				</qry:out>
+			</qry:select>
+		</form:Resource>
+		<form:Resource declare="&lt;DATA id=&quot;1&quot; /&gt;" name="qry:project-child">
+			<qry:main doc="PARAM">
+				<qry:element name="tree">
+					<qry:insert-select doc-path="#PARAM:/DATA" name="sql2"/>
+					<qry:insert-select doc-path="#PARAM:/DATA" name="sql1"/>
+				</qry:element>
+			</qry:main>
+			<qry:select doc="PARAM" name="sql1">
+				<qry:xquery>
+					for $r in sql('
+				SELECT 
+					P.oi_proyecto as id,
+					P.c_proyecto as cod,
+					P.d_proyecto as des,
+					P.c_estado as estado,
+					T.c_image as img
+				FROM 
+					PRY01_PROYECTOS as P,
+					PRY09_TIPOS_PROYECTO as T
+				JOIN
+					P.oi_tipo_proyecto inner T.oi_tipo_proyecto
+				WHERE
+					contain({#PARAM:@estados}, P.c_estado) and
+					P.oi_proyecto_parent={#PARAM:@id}   
+				ORDER BY 
+					cod ASC
+				')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:element name="group">
+						<qry:attribute value="$r/@id" name="id"/>
+						<qry:attribute name="label" value="$r/@cod+'-'+$r/@des"/>
+						<qry:attribute value="iif($r/@estado='L','proyecto_L.ico',$r/@img+'_'+$r/@estado+'.ico')" name="imgOpen"/>
+						<qry:attribute value="iif($r/@estado='L','proyecto_L.ico',$r/@img+'_'+$r/@estado+'.ico')" name="imgClose"/>
+						<qry:attribute name="tag" value="'proyecto-child&amp;'+$r/@estado"/>
+					</qry:element>
+				</qry:out>
+			</qry:select>
+			<qry:select doc="PARAM" name="sql2">
+				<qry:xquery>
+					for $r in sql('
+				SELECT 
+					T.l_mos_objetivos as sobj,
+					T.l_mos_tarea as star
+				FROM 
+					PRY01_PROYECTOS as P,
+					PRY09_TIPOS_PROYECTO as T
+				JOIN
+					P.oi_tipo_proyecto inner T.oi_tipo_proyecto
+				WHERE
+					P.oi_proyecto={#PARAM:@id}
+				')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:element name="group">
+						<qry:attribute value="iif($r/@star='1','','1')" name="hts:delete"/>
+						<qry:attribute value="'P_'+#PARAM:@id" name="id"/>
+						<qry:attribute name="label" value="'Tareas'"/>
+						<qry:attribute value="'tareas.ico'" name="imgOpen"/>
+						<qry:attribute value="'tareas.ico'" name="imgClose"/>
+						<qry:attribute name="tag" value="'tarea-group'"/>
+					</qry:element>
+				</qry:out>
+			</qry:select>
+		</form:Resource>
+		<form:Resource declare="&lt;DATA ID=&quot;416&quot; ESTADOS=&quot;'T','D'&quot; /&gt;" name="qry:tarea">
+			<qry:main doc="PARAM">
+				<qry:element name="tree">
+					<qry:insert-select doc-path="#PARAM:/DATA" name="sql1"/>
+				</qry:element>
+			</qry:main>
+			<qry:select doc="PARAM" name="sql1">
+				<qry:xquery>
+					for $r in sql('
+				SELECT 
+					T.oi_tarea as id,
+					T.oi_proyecto as oi_proyecto,
+					T.c_tarea as cod,
+					T.d_tarea as des,
+					T.c_estado as estado
+				FROM 
+					PRY02_TAREAS as T
+				WHERE
+					T.oi_proyecto={#PARAM:@id} and
+					contain({#PARAM:@estados}, T.c_estado)
+				ORDER BY
+					cod ASC
+				')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:element name="item">
+						<qry:attribute value="$r/@id" name="id"/>
+						<qry:attribute name="label" value="$r/@cod+'-'+$r/@des"/>
+						<qry:attribute value="'tarea_'+$r/@estado+'.ico'" name="img"/>
+						<qry:attribute name="tag" value="'tarea&amp;'+$r/@estado+'&amp;'+$r/@oi_proyecto"/>
+					</qry:element>
+				</qry:out>
+			</qry:select>
+		</form:Resource>
+		<form:Resource declare="&lt;DATA txt=&quot;&quot; ESTADOS=&quot;AP&quot;/&gt;" name="qry:project-find">
+			<qry:main doc="PARAM">
+				<qry:element name="tree">
+					<qry:insert-select name="sql1" doc-path="#PARAM:/DATA"/>
+				</qry:element>
+			</qry:main>
+			<qry:select doc="PARAM" name="sql1">
+				<qry:xquery>
+					for $r in sql('
+				SELECT 
+					T.oi_tarea as id,    
+					T.oi_proyecto as oi_proyecto,
+					P.c_proyecto as Pcod,
+					P.d_proyecto as Pdes,
+					T.c_tarea as cod,
+					T.d_tarea as des,
+					T.c_estado as estado
+				FROM 
+					PRY01_PROYECTOS as P,
+					PRY02_TAREAS as T
+				WHERE
+					P.oi_proyecto=T.oi_proyecto 
+					  
+					{%? (#PARAM:@txt!="") 
+					{%                    
+						{%? (contains(#PARAM:@txt,'-'))
+						 {%  and (
+							(contain(P.c_proyecto,{substring_before(#PARAM:@txt,\'-\')}) or
+							contain(P.d_proyecto,{substring_before(#PARAM:@txt,\'-\')})) and
+							(contain(T.c_tarea,{substring_after(#PARAM:@txt,\'-\')}) or
+							contain(T.d_tarea,{substring_after(#PARAM:@txt,\'-\')}))  )
+						 %}
+						 {%  and (
+							contain(P.c_proyecto,{#PARAM:@txt}) or
+							contain(P.d_proyecto,{#PARAM:@txt}) or
+							contain(T.c_tarea,{#PARAM:@txt}) or
+							contain(T.d_tarea,{#PARAM:@txt})  )
+						 %}
+						%}
+					
+					%}
+					{% %}	%}
+				   
+					{%? (#PARAM:@ESTADOS='Todos') {% %} {% {%?  (#PARAM:@ESTADOS='')
+					   {%  %} {% and contain({#PARAM:@estados}, T.c_estado) %}  %} %}  %}
+					 
+					
+				ORDER BY
+					cod ASC
+				')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:element name="item">
+						<qry:attribute value="$r/@id" name="id"/>
+						<qry:attribute name="label" value="$r/@cod+'-'+$r/@des+' ('+$r/@Pcod+'-'+$r/@Pdes+')'"/>
+						<qry:attribute value="'tarea_'+$r/@estado+'.ico'" name="img"/>
+						<qry:attribute name="tag" value="'tarea&amp;'+$r/@estado+'&amp;'+$r/@oi_proyecto"/>
+					</qry:element>
+				</qry:out>
+			</qry:select>
+		</form:Resource>
+		<form:Resource declare="&lt;DATA oi_tarea=&quot;1621&quot; /&gt;" name="qry:path">
+			<qry:main doc="PARAM">
+				<qry:element name="TAREA">
+					<qry:insert-select name="sql1" doc-path="#PARAM:/DATA"/>
+					<qry:attribute value="'./'+@FullId" name="FullId"/>
+				</qry:element>
+			</qry:main>
+			<qry:select doc="PARAM" name="sql1">
+				<qry:xquery>
+					for $r in sql('
+				SELECT 
+					T.oi_tarea,
+					T.oi_proyecto,
+					T.oi_proyecto as oi_proyecto_parent
+				FROM 
+					PRY02_TAREAS as T
+				WHERE
+					T.oi_tarea={#PARAM:@oi_tarea}
+				')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:attribute value="'P_'+$r/@oi_proyecto+'/'+$r/@oi_tarea" name="FullId"/>
+					<qry:insert-select name="sql2" doc-path="$r"/>
+				</qry:out>
+			</qry:select>
+			<qry:select doc="PARAM" name="sql2">
+				<qry:xquery>
+					for $r in sql('
+				SELECT 
+					P.oi_proyecto,
+					P.oi_proyecto_parent
+				FROM 
+					PRY01_PROYECTOS as P
+				WHERE
+					P.oi_proyecto={#PARAM:@oi_proyecto_parent}
+				')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:attribute value="$r/@oi_proyecto+'/'+@FullId" name="FullId"/>
+					<qry:insert-select name="sql2" doc-path="$r"/>
+				</qry:out>
+			</qry:select>
+		</form:Resource>
+	</form:Resources>
+	<form:Scripts>
+		var GROUP_TREE;
+var nSQL;        
+var Estados;
+
+
+function onClick()
+{                   
+	var MyITEM;
+	var MyGROUP;
+	var MyOBJ;
+  
+
+	MyITEM =GROUP_TREE.GetItem(Ctrl("TREE_ID").GetXValue());
+	MyGROUP=GROUP_TREE.GetGroup(Ctrl("TREE_ID").GetXValue());
+	           
+	MyOBJ=(MyITEM?MyITEM:MyGROUP);
+	if (MyOBJ)
+	{   
+		var subtag=MyOBJ.Tag.split("&amp;")[0];
+
+		switch (subtag)
+		{
+		 	case "tarea":               
+		 		Ctrl("OI_TAREA").SetXValue(MyITEM.Id);
+		 		Ctrl("OI_PROYECTO").SetXValue(MyOBJ.Tag.split("&amp;")[2]);
+				CtrlEnabled("ACCEPT", true);
+		 	break;
+
+			default:
+				CtrlEnabled("ACCEPT", false);
+			break;
+		}             
+	} else
+		CtrlEnabled("ACCEPT", false);
+}
+
+function LoadChilds(objTree, objGroup)
+{                        
+	var subtag=objGroup.Tag.split("&amp;")[0];
+	switch (subtag)
+	{
+		case "root": 
+			objTree.SetXML(objGroup.FullId, nSQL.Get(Ctrl("main").getResource("qry:project-root"), '&lt;DATA ESTADOS="'+Estados+'" /&gt;'));
+		break;
+		
+		case "find":
+			objTree.SetXML(objGroup.FullId, "&lt;tree/&gt;");
+		break;
+
+		case "proyecto-root":
+		case "proyecto-child":  
+			objTree.SetXML(objGroup.FullId, nSQL.Get(Ctrl("main").getResource("qry:project-child"), '&lt;DATA ID="'+objGroup.Id+'" ESTADOS="'+Estados+'" /&gt;'));
+		break;
+    
+		case "tarea-group": 
+			objTree.SetXML(objGroup.FullId, nSQL.Get(Ctrl("main").getResource("qry:tarea"), '&lt;DATA ID="'+objGroup.Id.substr(2)+'" ESTADOS="'+Estados+'" /&gt;'));
+		break;
+
+ 		default:
+			alert("LoadChilds:"+objGroup.Tag+" "+objGroup.Id);
+		break;
+	}
+
+}
+
+function FilterGrid()
+{ 
+	var objGroup;
+	
+	if(Ctrl("main").GetMode() == "PROY")
+	{ 
+	 	if (Ctrl("buscar").GetXValue()!="" || Ctrl("c_estado").GetXValue() != "")  
+		{ 
+			CtrlEnabled("ACCEPT", false);
+			
+			objGroup=GROUP_TREE.GetGroup(".");
+			if (objGroup.isExpanded) GROUP_TREE.ContractGroup(objGroup);
+			
+			GROUP_TREE.SetXML("*", nSQL.Get(Ctrl("main").getResource("qry:project-find"), '&lt;DATA txt="'+Ctrl("buscar").GetXValue()+'" ESTADOS="'+Ctrl("c_estado").GetXValue()+'" /&gt;'));
+	    	
+			objGroup=GROUP_TREE.GetGroup("*");
+			if (!objGroup.isExpanded) GROUP_TREE.ExpandGroup(objGroup,true);
+		}
+	} 
+	else
+	{ 
+	  if (Ctrl("buscar").GetXValue()!="")  
+		{                       
+			CtrlEnabled("ACCEPT", false);
+			
+			objGroup=GROUP_TREE.GetGroup(".");
+			if (objGroup.isExpanded) GROUP_TREE.ContractGroup(objGroup);
+			
+			GROUP_TREE.SetXML("*", nSQL.Get(Ctrl("main").getResource("qry:project-find"), '&lt;DATA txt="'+Ctrl("buscar").GetXValue()+'" ESTADOS="'+Estados+'" /&gt;'));
+	    	
+			objGroup=GROUP_TREE.GetGroup("*");
+			if (!objGroup.isExpanded) GROUP_TREE.ExpandGroup(objGroup,true);
+		}
+	}	
+}
+
+function Accept()
+{              
+}
+
+function OnLoad()
+{
+	fullId="";
+	nSQL=GetProxy().SQLService();
+	
+	if(Ctrl("main").GetMode() == "PROY")
+	{  
+		Estados=Ctrl("ESTADOS").GetXValue();
+		Ctrl("c_estado").SetXValue("Todos");
+	} 
+	else
+	{
+	 Estados="'T','D'";
+	}
+  
+ 	oi_tarea=Ctrl("OI_TAREA").GetXValue();
+ 	if (oi_tarea!="")
+ 	{
+ 		fullId=new NomadXML(nSQL.Get(Ctrl("main").getResource("qry:path"), '&lt;DATA oi_tarea="'+oi_tarea+'" ESTADOS="'+Estados+'" /&gt;'));
+ 		fullId=fullId.GetAttr("fullId");
+ 	} 
+ 	
+	GROUP_TREE=clsClientTree("CONT_PROJECT_TREE","TREE_ID","CLOCK.ico","folder-close.ico","folder.ico","item.ico",false,LoadChilds,null,onClick);	
+
+	//Cargo los proyectos
+	GROUP_TREE.SetXML(null, '&lt;tree&gt;&lt;group id="." label="Proyectos" imgOpen="cabinet.ico" imgClose="cabinet-close.ico" tag="root" /&gt;&lt;group id="*" label="Resultado" imgOpen="cabinet.ico" imgClose="cabinet-close.ico" tag="find" /&gt;&lt;/tree&gt;');                                                         
+	if (fullId=="")
+	{
+		CtrlEnabled("ACCEPT", false);
+		GROUP_TREE.ClickExpGroup(".");
+	} else
+	{
+		GROUP_TREE.SetSelectedId(fullId);
+	}
+}
+	</form:Scripts>
+	<form:Event action="OnLoad" name="OnLoad" runat="client"/>
+</form:Form>

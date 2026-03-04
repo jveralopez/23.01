@@ -1,0 +1,349 @@
+<html:html doc="source" name="NucleusRH.Base.Liquidacion.ListadoObraSocial" xmlns:html="nomad:html" xmlns:qry="nomad:query" xmlns:xsl="http://www.w3.org/1999/XSL/Transform">
+	<html:query declare="&lt;DATOS c_empresa=&quot;TadeoCz&quot; e_periodo=&quot;200809&quot;&gt;&#13;&#10;&#9;&lt;OSS&gt;&#13;&#10;&#9;&#9;&lt;OS id=&quot;18&quot;/&gt;&#13;&#10;&#9;&lt;/OSS&gt;&#13;&#10;&lt;/DATOS&gt;">
+		<qry:main doc="SOURCE">
+			<qry:append-doc name="PARAMIN" doc-path="#SOURCE:DATOS"/>
+			<qry:element name="DATOS">
+				<qry:insert-select doc-path="#SOURCE:DATOS" name="qry_cabecera"/>
+				<qry:element name="OSS">
+					<qry:insert-select doc-path="#SOURCE:DATOS" name="qry_obras_soc"/>
+				</qry:element>
+			</qry:element>
+		</qry:main>
+		<qry:select doc="SOURCE" name="qry_cabecera">
+			<qry:xquery>
+				for $r in sql('
+				SELECT MAX(LIQ93_EMPRESAS.oi_empresa_ddo) AS oi_empresa_ddo
+				FROM LIQ93_EMPRESAS
+				WHERE LIQ93_EMPRESAS.c_empresa = {#SOURCE:@c_empresa}
+			')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:attribute name="oi_empresa_ddo" value="$r/@oi_empresa_ddo" type="Nomad.NSystem.String"/>
+				<qry:attribute name="e_periodo" value="format_date(datetime(#SOURCE:@e_periodo+'01'),'mm/yyyy')" type="Nomad.NSystem.String"/>
+				<qry:attribute name="f_emision" value="format_date(now(),'dd/mm/yyyy HH:MM')"/>
+				<qry:insert-select doc-path="." name="qry_empresa"/>
+			</qry:out>
+		</qry:select>
+		<qry:select doc="SOURCE" name="qry_empresa">
+			<qry:xquery>
+				for $r in sql('
+				SELECT LIQ93_EMPRESAS.d_empresa
+				FROM LIQ93_EMPRESAS
+				WHERE LIQ93_EMPRESAS.oi_empresa_ddo = {#SOURCE:@oi_empresa_ddo}
+			')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:attribute name="d_empresa" value="$r/@d_empresa" type="Nomad.NSystem.String"/>
+			</qry:out>
+		</qry:select>
+		<qry:select doc="SOURCE" name="qry_obras_soc">
+			<qry:xquery>
+				for $r in sql('
+				SELECT PER06_OBRAS_SOC.c_obra_social, PER06_OBRAS_SOC.d_obra_social
+				FROM PER06_OBRAS_SOC
+				WHERE PER06_OBRAS_SOC.c_obra_social IN (SELECT LIQ97_PERSONAL_EMP.c_obra_social FROM LIQ97_PERSONAL_EMP WHERE LIQ97_PERSONAL_EMP.c_empresa = \'{%=#PARAMIN:@c_empresa%}\')
+				{%? (string(#SOURCE:OSS/OS/@id)!='') {% AND PER06_OBRAS_SOC.oi_obra_social IN ({%=string(#SOURCE:OSS/OS/@id) %}) %} {%  %} %}
+				
+			')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:element name="OS">
+					<qry:attribute name="c_obra_social" value="$r/@c_obra_social" type="Nomad.NSystem.String"/>
+					<qry:attribute name="d_obra_social" value="$r/@d_obra_social" type="Nomad.NSystem.String"/>
+					<qry:element name="PERSONAS">
+						<qry:insert-select doc-path="." name="qry_personas"/>
+					</qry:element>
+					<qry:insert-select doc-path="." name="qry_total"/>
+				</qry:element>
+			</qry:out>
+		</qry:select>
+		<qry:select doc="SOURCE" name="qry_personas">
+			<qry:xquery>
+				for $r in sql('
+				SELECT 
+				LIQ97_PERSONAL_EMP.e_numero_legajo, LIQ97_PERSONAL_EMP.c_nro_cuil, 
+				LIQ97_PERSONAL_EMP.d_ape_y_nom, LIQ97_PERSONAL_EMP.f_ingreso,
+				LIQ20_TOT_LIQ_PER.n_totsret as n_totsret, LIQ20_TOT_LIQ_PER.n_osdesc,
+				LIQ20_TOT_LIQ_PER.n_oscontr, LIQ20_TOT_LIQ_PER.n_osapvol,
+				LIQ99_LIQUIDACION.c_liquidacion
+				FROM 
+				LIQ20_TOT_LIQ_PER, LIQ99_LIQUIDACION, LIQ97_PERSONAL_EMP, LIQ99_RECIBOS
+				JOIN
+				LIQ20_TOT_LIQ_PER.oi_tot_liq_per INNER LIQ99_RECIBOS.oi_tot_liq_per,
+				LIQ20_TOT_LIQ_PER.oi_per_emp_ddo INNER LIQ97_PERSONAL_EMP.oi_per_emp_ddo,
+				LIQ99_RECIBOS.oi_liquidacion_ddo INNER LIQ99_LIQUIDACION.oi_liquidacion_ddo
+				
+				WHERE 
+				LIQ99_LIQUIDACION.c_empresa = {#PARAMIN:@c_empresa} AND 
+				LIQ99_LIQUIDACION.e_periodo = {#PARAMIN:@e_periodo} AND
+				LIQ97_PERSONAL_EMP.c_obra_social = {#SOURCE:../@c_obra_social}
+				
+			')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:attribute name="n_totsret" value="number(./@n_totsret) + number($r/@n_totsret)"/>
+				<qry:attribute name="n_osdesc" value="number(./@n_osdesc) + number($r/@n_osdesc)"/>
+				<qry:attribute name="n_oscontr" value="number(./@n_oscontr) + number($r/@n_oscontr)"/>
+				<qry:attribute name="n_osapvol" value="number(./@n_osapvol) + number($r/@n_osapvol)"/>
+				<qry:element name="PERSONA">
+					<qry:attribute value="$r/@e_numero_legajo" name="e_numero_legajo"/>
+					<qry:attribute value="$r/@c_nro_cuil" name="c_nro_cuil"/>
+					<qry:attribute value="$r/@d_ape_y_nom" name="d_ape_y_nom"/>
+					<qry:attribute value="format_date($r/@f_ingreso,'dd/mm/yyyy')" name="f_ingreso"/>
+					<qry:attribute value="abs($r/@n_totsret)" name="n_totsret"/>
+					<qry:attribute value="abs($r/@n_osdesc)" name="n_osdesc"/>
+					<qry:attribute value="abs($r/@n_oscontr)" name="n_oscontr"/>
+					<qry:attribute value="abs($r/@n_osapvol)" name="n_osapvol"/>
+					<qry:attribute value="$r/@c_liquidacion" name="c_liquidacion"/>
+				</qry:element>
+			</qry:out>
+		</qry:select>
+		<qry:select doc="SOURCE" name="qry_total">
+			<qry:xquery>
+				for $r in #SOURCE:PERSONAS
+			</qry:xquery>
+			<qry:out>
+				<qry:attribute name="tot_sueldo" value="abs($r/@n_totsret)"/>
+				<qry:attribute name="tot_descuentos" value="abs($r/@n_osdesc)"/>
+				<qry:attribute name="tot_contribuciones" value="abs($r/@n_oscontr)"/>
+				<qry:attribute name="tot_aportesvol" value="abs($r/@n_osapvol)"/>
+				<qry:attribute name="total_format" value="abs(number($r/@n_oscontr) - number($r/@n_osapvol) - number($r/@n_osdesc))"/>
+			</qry:out>
+		</qry:select>
+	</html:query>
+	<html:xslt>
+		<xsl:template match="DATOS">
+			<html>
+				<head>
+					<style>
+						table{ border:1px solid black; font-size:10pt; border-collapse: collapse; }
+				 	td{ border:solid 1px black; }
+				 	.head{ font-weight:bold; text-align:center;}
+				 	.title{ font-size:8pt; }
+				 	.title1{ font-size:14pt; background-color:#DDDDDD; text-align:left; }
+				 	.space{ background-color:#AAAAAA; font-size:2px; }
+					</style>
+				</head>
+				<body>
+					<xsl:apply-templates select="OSS"/>
+				</body>
+			</html>
+		</xsl:template>
+		<xsl:template match="OSS">
+			<xsl:for-each select="OS">
+				<table border="1" width="100%" cellpadding="2px">
+					<thead style="display: table-header-group">
+						<tr>
+							<td class="title1" colspan="7" style="border-right:none">
+								<span align="left">
+									PLANILLA DE APORTES Y CONTRIBUCIONES - OBRAS SOCIALES
+								</span>
+								<span style="margin-left: 50px">
+									<xsl:value-of select="../../@d_empresa"/>
+								</span>
+							</td>
+							<td class="title1" colspan="2" style="border-left:none; font-size:10px">
+								<span align="left">
+									<b>
+										Fecha de Emisi&#243;n:
+									</b>
+								</span>
+								<span style="text-align:right;">
+									<xsl:value-of select="../../@f_emision"/>
+								</span>
+							</td>
+						</tr>
+						<tr>
+							<td style="font-weight:bold" align="left" colspan="7">
+								<span style="margin-left: 50px">
+									Obra Social:&#160;
+								</span>
+								<xsl:value-of select="@d_obra_social"/>
+							</td>
+							<td class="head" colspan="2">
+								<span>
+									Per&#237;odo:&#160;
+								</span>
+								<xsl:value-of select="../../@e_periodo"/>
+							</td>
+						</tr>
+						<xsl:if test="PERSONAS/PERSONA">
+							<tr>
+								<td class="head" nowrap="1">
+									<span>
+										Nro. Legajo
+									</span>
+								</td>
+								<td class="head" nowrap="1">
+									<span>
+										CUIL
+									</span>
+								</td>
+								<td class="head" nowrap="1">
+									<span>
+										Apellido y Nombre
+									</span>
+								</td>
+								<td class="head" nowrap="1">
+									<span>
+										Fecha de Ingreso
+									</span>
+								</td>
+								<td class="head" nowrap="1">
+									<span>
+										Liquidaci&#243;n
+									</span>
+								</td>
+								<td class="head" nowrap="1">
+									<span>
+										Remuneraci&#243;n
+									</span>
+								</td>
+								<td class="head" nowrap="1">
+									<span>
+										Descuento
+									</span>
+								</td>
+								<td class="head" nowrap="1">
+									<span>
+										Contribuci&#243;n
+									</span>
+								</td>
+								<td class="head" nowrap="1">
+									<span>
+										Aporte Voluntario
+									</span>
+								</td>
+							</tr>
+						</xsl:if>
+					</thead>
+					<xsl:if test="not(PERSONAS/PERSONA)">
+						<td colspan="9" align="center">
+							<b>
+								NO HAY REGISTROS
+							</b>
+						</td>
+					</xsl:if>
+					<xsl:for-each select="PERSONAS/PERSONA">
+						<tr>
+							<td align="Center" nowrap="1">
+								<xsl:value-of select="@e_numero_legajo"/>
+								&#160;
+							</td>
+							<td align="Center" nowrap="1">
+								<xsl:value-of select="@c_nro_cuil"/>
+								&#160;
+							</td>
+							<td align="left" nowrap="1">
+								<xsl:value-of select="@d_ape_y_nom"/>
+								&#160;
+							</td>
+							<td align="Center" nowrap="1">
+								<xsl:value-of select="@f_ingreso"/>
+								&#160;
+							</td>
+							<td align="left" nowrap="1">
+								<xsl:value-of select="@c_liquidacion"/>
+								&#160;
+							</td>
+							<td align="right" nowrap="1">
+								<xsl:attribute name="x:num" namespace="urn:schemas-microsoft-com:office:excel">
+									<xsl:value-of select="@n_totsret"/>
+								</xsl:attribute>
+								<xsl:value-of select="format-number(@n_totsret, '###,###,##0.00')"/>
+								&#160;
+							</td>
+							<td align="right" nowrap="1">
+								<xsl:attribute name="x:num" namespace="urn:schemas-microsoft-com:office:excel">
+									<xsl:value-of select="@n_osdesc"/>
+								</xsl:attribute>
+								<xsl:value-of select="format-number(@n_osdesc, '###,###,##0.00')"/>
+								&#160;
+							</td>
+							<td align="right" nowrap="1">
+								<xsl:attribute name="x:num" namespace="urn:schemas-microsoft-com:office:excel">
+									<xsl:value-of select="@n_oscontr"/>
+								</xsl:attribute>
+								<xsl:value-of select="format-number(@n_oscontr, '###,###,##0.00')"/>
+								&#160;
+							</td>
+							<td align="right" nowrap="1">
+								<xsl:attribute name="x:num" namespace="urn:schemas-microsoft-com:office:excel">
+									<xsl:value-of select="@n_osapvol"/>
+								</xsl:attribute>
+								<xsl:value-of select="format-number(@n_osapvol, '###,###,##0.00')"/>
+								&#160;
+							</td>
+						</tr>
+					</xsl:for-each>
+					<xsl:if test="PERSONAS/PERSONA">
+						<xsl:call-template name="Totales"/>
+					</xsl:if>
+				</table>
+				<xsl:if test="position() != last()">
+					<p style="page-break-after: always; margin-top:0px; margin-bottom:0px">
+						&#160;
+					</p>
+				</xsl:if>
+			</xsl:for-each>
+		</xsl:template>
+		<xsl:template name="Totales">
+			<tr>
+				<td colspan="3">
+					<b>
+						Cantidad de Legajos:&#160;
+					</b>
+					<xsl:value-of select="count(PERSONAS/PERSONA)"/>
+				</td>
+				<td align="right" colspan="2">
+					<strong>
+						Subtotales
+					</strong>
+				</td>
+				<td align="right">
+					<xsl:attribute name="x:num" namespace="urn:schemas-microsoft-com:office:excel">
+						<xsl:value-of select="@tot_sueldo"/>
+					</xsl:attribute>
+					<xsl:value-of select="format-number(@tot_sueldo, '###,###,##0.00')"/>
+					&#160;
+				</td>
+				<td align="right">
+					<xsl:attribute name="x:num" namespace="urn:schemas-microsoft-com:office:excel">
+						<xsl:value-of select="@tot_descuentos"/>
+					</xsl:attribute>
+					<xsl:value-of select="format-number(@tot_descuentos, '###,###,##0.00')"/>
+					&#160;
+				</td>
+				<td align="right">
+					<xsl:attribute name="x:num" namespace="urn:schemas-microsoft-com:office:excel">
+						<xsl:value-of select="@tot_contribuciones"/>
+					</xsl:attribute>
+					<xsl:value-of select="format-number(@tot_contribuciones, '###,###,##0.00')"/>
+					&#160;
+				</td>
+				<td align="right">
+					<xsl:attribute name="x:num" namespace="urn:schemas-microsoft-com:office:excel">
+						<xsl:value-of select="@tot_aportesvol"/>
+					</xsl:attribute>
+					<xsl:value-of select="format-number(@tot_aportesvol, '###,###,##0.00')"/>
+					&#160;
+				</td>
+			</tr>
+			<tr>
+				<td align="right" colspan="8">
+					<b>
+						Total
+					&#160;
+					</b>
+				</td>
+				<td align="right">
+					<xsl:attribute name="x:num" namespace="urn:schemas-microsoft-com:office:excel">
+						<xsl:value-of select="@total_format"/>
+					</xsl:attribute>
+					<xsl:value-of select="format-number(@total_format, '###,###,##0.00')"/>
+					&#160;
+				</td>
+			</tr>
+		</xsl:template>
+	</html:xslt>
+</html:html>

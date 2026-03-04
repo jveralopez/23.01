@@ -1,0 +1,173 @@
+<html:html xmlns:html="nomad_engine.html" xmlns:qry="nomad_engine.qry" extends="Nomad.Base.BaseReport.rpt" name="NucleusRH.Base.Personal.LegajoOrganigrama" doc="source">
+	<html:query declare="&lt;FILTRO oi_empresa=&quot;9&quot;&gt;&#13;&#10;&#9;&lt;PERSONAS/&gt;&#13;&#10; &#13;&#10;&lt;/FILTRO&gt;">
+		<qry:main doc="SOURCE">
+			<qry:append-doc name="PARAMIN" doc-path="#SOURCE:FILTRO"/>
+			<REPORT label="Legajos por Organigrama">
+				<GROUPS>
+					<GROUP tag="FECHA" type="title">
+						<COLS>
+							<COL name="f_informe" label="Fecha de Emisi&#243;n"/>
+						</COLS>
+						<GROUP tag="ORG" type="title_collapse">
+							<COLS>
+								<COL name="clase_org" label="Organigrama"/>
+							</COLS>
+							<GROUP tag="ESTR" type="title_collapse">
+								<COLS>
+									<COL name="unidad_org" label="Estructura"/>
+								</COLS>
+								<GROUP tag="LEG" label="Legajos" type="table" style="width:100%">
+									<COLS>
+										<COL name="empresa" label="Empresa" style="width:25%;"/>
+										<COL name="e_numero_legajo" label="Legajo" style="text-align:right;width:15%"/>
+										<COL name="d_ape_y_nom" label="Apellido y Nombre" style="width:60%"/>
+									</COLS>
+								</GROUP>
+							</GROUP>
+						</GROUP>
+					</GROUP>
+				</GROUPS>
+				<qry:element name="DATA">
+					<qry:element name="FECHA">
+						<qry:attribute value="format_date(now(),'dd/mm/yyyy HH:MM')" name="f_informe"/>
+						<qry:insert-select name="QRY_CLASE_ORG" doc-path="#PARAMIN:"/>
+					</qry:element>
+				</qry:element>
+			</REPORT>
+		</qry:main>
+		<qry:select name="QRY_CLASE_ORG" doc="SOURCE">
+			<qry:xquery>
+				for $r in sql('
+				SELECT 
+					ORG02_CLASES_ORG.oi_clase_org,
+					ORG02_CLASES_ORG.c_clase_org,
+					ORG02_CLASES_ORG.d_clase_org
+				FROM 
+					ORG02_CLASES_ORG
+				WHERE
+					ORG02_CLASES_ORG.c_estado = \'V\' 
+				ORDER BY 
+					oi_clase_org ASC 				
+			')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:element name="ORG">
+					<qry:attribute name="visible" value="'0'"/>
+					<qry:attribute name="oi_clase_org" value="$r/@oi_clase_org"/>
+					<qry:attribute name="clase_org" value="$r/@c_clase_org + ' - ' + $r/@d_clase_org"/>
+					<qry:insert-select name="QRY_ESTRUCTURAS" doc-path="$r"/>
+					<qry:insert-select name="QRY_VISIBLE" doc-path="."/>
+				</qry:element>
+			</qry:out>
+		</qry:select>
+		<qry:select name="QRY_VISIBLE" doc="SOURCE">
+			<qry:xquery>
+				for $r in #SOURCE:ESTR[@visible='1']
+			</qry:xquery>
+			<qry:out>
+				<qry:attribute name="visible" value="'1'"/>
+			</qry:out>
+		</qry:select>
+		<qry:select name="QRY_ESTRUCTURAS" doc="SOURCE">
+			<qry:xquery>
+				for $r in sql('
+				SELECT 
+					ORG02_CLASES_ORG.oi_estructura_org AS oi_estructura
+				FROM 
+					ORG02_CLASES_ORG
+				WHERE 
+					ORG02_CLASES_ORG.oi_clase_org = {#SOURCE:@oi_clase_org} 
+			')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:element name="ESTR">
+					<qry:attribute name="visible" value="'0'"/>
+					<qry:insert-select name="QRY_UNIDAD_ORG" doc-path="$r"/>
+					<qry:attribute name="oi_estructura" value="$r/@oi_estructura"/>
+					<qry:insert-select name="QRY_LEGAJOS" doc-path="$r"/>
+				</qry:element>
+				<qry:insert-select name="QRY_ESTR_SIG" doc-path="$r"/>
+			</qry:out>
+		</qry:select>
+		<qry:select name="QRY_ESTR_SIG" doc="SOURCE">
+			<qry:xquery>
+				for $r in sql('
+				SELECT 
+					ORG02_ESTRUCTURAS.oi_estructura
+				FROM 
+					ORG02_ESTRUCTURAS
+				WHERE 
+					ORG02_ESTRUCTURAS.oi_estr_padre = {#SOURCE:@oi_estructura} 
+			')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:element name="ESTR">
+					<qry:attribute name="visible" value="'0'"/>
+					<qry:attribute name="oi_estructura" value="$r/@oi_estructura"/>
+					<qry:insert-select name="QRY_UNIDAD_ORG" doc-path="$r"/>
+					<qry:insert-select name="QRY_LEGAJOS" doc-path="$r"/>
+				</qry:element>
+				<qry:insert-select name="QRY_ESTR_SIG" doc-path="$r"/>
+			</qry:out>
+		</qry:select>
+		<qry:select name="QRY_UNIDAD_ORG" doc="SOURCE">
+			<qry:xquery>
+				for $r in sql('
+				SELECT 
+					ORG01_UNI_ORG.oi_unidad_org,
+					ORG01_UNI_ORG.c_unidad_org,
+					ORG01_UNI_ORG.d_unidad_org
+				FROM 
+					ORG01_UNI_ORG, ORG02_ESTRUCTURAS
+				JOIN 
+					ORG01_UNI_ORG.oi_unidad_org INNER ORG02_ESTRUCTURAS.oi_unidad_org  
+				WHERE 
+					ORG02_ESTRUCTURAS.oi_estructura = {#SOURCE:@oi_estructura} 
+			')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:attribute name="oi_unidad_org" value="$r/@oi_unidad_org"/>
+				<qry:attribute name="unidad_org" value="$r/@c_unidad_org + '-' + $r/@d_unidad_org"/>
+			</qry:out>
+		</qry:select>
+		<qry:select name="QRY_LEGAJOS" doc="SOURCE">
+			<qry:xquery>
+				for $r in sql('
+				SELECT 
+					ORG02_ESTRUC_PERS.oi_estruc_pers,
+					PER02_PERSONAL_EMP.oi_personal_emp,
+					PER02_PERSONAL_EMP.e_numero_legajo,
+					PER01_PERSONAL.d_ape_y_nom,
+					ORG03_EMPRESAS.c_empresa,
+					ORG03_EMPRESAS.d_empresa
+				FROM 
+					ORG02_ESTRUC_PERS, PER02_PERSONAL_EMP, PER01_PERSONAL, ORG03_EMPRESAS
+				JOIN 
+					ORG02_ESTRUC_PERS.oi_personal_emp INNER PER02_PERSONAL_EMP.oi_personal_emp,
+					ORG03_EMPRESAS.oi_empresa INNER PER02_PERSONAL_EMP.oi_empresa,
+					PER02_PERSONAL_EMP.oi_personal INNER PER01_PERSONAL.oi_personal
+				WHERE 
+					ORG02_ESTRUC_PERS.oi_estructura = {#SOURCE:@oi_estructura} 
+					{%? (#PARAMIN:@oi_empresa!='') 
+						{% AND ORG03_EMPRESAS.oi_empresa = {#PARAMIN:@oi_empresa} %} 
+						{% %} 
+					%}
+					{%? (string(#PARAMIN:PERSONAS/PERSONA/@id)!='') 
+						{% AND PER02_PERSONAL_EMP.oi_personal_emp in ({%=string(#PARAMIN:PERSONAS/PERSONA/@id)%}) %} 
+						{%  %} 
+					%}			
+			')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:element name="LEG">
+					<qry:attribute name="oi_estruc_per" value="$r/@oi_estruc_per"/>
+					<qry:attribute name="oi_personal_emp" value="$r/@oi_personal_emp"/>
+					<qry:attribute name="empresa" value="$r/@c_empresa + '-' + $r/@d_empresa"/>
+					<qry:attribute name="e_numero_legajo" value="$r/@e_numero_legajo"/>
+					<qry:attribute name="d_ape_y_nom" value="$r/@d_ape_y_nom"/>
+				</qry:element>
+				<qry:attribute name="visible" value="'1'"/>
+			</qry:out>
+		</qry:select>
+	</html:query>
+</html:html>

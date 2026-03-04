@@ -1,0 +1,218 @@
+<flow:flow xmlns:flow="nomad_engine.flow" xmlns:doc="nomad_engine.doc" xmlns:qry="nomad_engine.qry" extends="NucleusWF.Base.Definicion.Workflows.PROCESS.MAIN.STD.autoflow" default_action="DESIGN" name="NucleusWF.Base.Definicion.Workflows.PROCESS.flow">
+	<flow:info label="Flow guia para NucleusWF.Base.Definicion.Organigramas.ESTRUCTURA"/>
+	<flow:declare>
+		<doc:define name="PARENT"/>
+		<doc:define name="SELECT">
+			<DATA id=""/>
+		</doc:define>
+		<qry:define name="MAXCODE" declare="&lt;DATA PARENT=&quot;103&quot; /&gt;">
+			<qry:main doc="SOURCE">
+				<ROW max-value="1">
+					<qry:insert-select name="sql1" doc-path="#SOURCE:DATA"/>
+				</ROW>
+			</qry:main>
+			<qry:select name="sql1" doc="SOURCE">
+				<qry:xquery>
+					for $r in SQL('
+select
+  max(right(\'0000000000\'||WRK05_ESTRUCTURA.c_estructura,10)) as cod
+from
+  WRK05_ESTRUCTURA
+where             
+	 WRK05_ESTRUCTURA.oi_organigrama={$SOURCE/@PARENT}
+  			')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:attribute name="max-value" value="number($r/@cod)+1"/>
+				</qry:out>
+			</qry:select>
+		</qry:define>
+		<doc:define name="AUX"/>
+		<qry:define name="ROLES" declare="&lt;DATA PARENT=&quot;103&quot; /&gt;">
+			<qry:main doc="SOURCE">
+				<ROWS>
+					<qry:insert-select name="sql1" doc-path="#SOURCE:DATA"/>
+				</ROWS>
+			</qry:main>
+			<qry:select name="sql1" doc="SOURCE">
+				<qry:xquery>
+					for $r in SQL('
+select
+  WRK05_ROLES.c_role,
+  WRK05_ROLES.d_role
+from
+  WRK05_ROLES
+where             
+	 WRK05_ROLES.oi_organigrama={$SOURCE/@PARENT}
+  			')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<option>
+						<qry:attribute name="value" value="$r/@c_role"/>
+						<qry:attribute name="text" value="$r/@d_role"/>
+					</option>
+				</qry:out>
+			</qry:select>
+		</qry:define>
+		<doc:define name="ROLES"/>
+		<qry:define name="FIND-WF">
+			<qry:main doc="SOURCE">
+				<ROWS>
+					<qry:insert-select name="sql1" doc-path="#SOURCE:DATA"/>
+				</ROWS>
+			</qry:main>
+			<qry:select name="sql1" doc="SOURCE">
+				<qry:xquery>
+					for $r in SQL('
+select
+  WRK01_PROCESS.oi_wf
+from
+  WRK01_PROCESS
+where             
+	 WRK01_PROCESS.oi_process={$SOURCE/@PARENT}
+  			')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:attribute name="wf" value="$r/@oi_wf"/>
+				</qry:out>
+			</qry:select>
+		</qry:define>
+		<doc:define name="DATA">
+			<DATA search="" id="" chk_node="1" chk_text="0" chk_form="0" chk_script="0"/>
+		</doc:define>
+		<doc:define name="REPORTDOM"/>
+	</flow:declare>
+	<flow:main doc="SOURCE">
+		<flow:action name="DETAIL">
+			<doc:set-attribute from-attr-path="#SOURCE:@PARENT" to-attr-path="#SELECT:@PARENT"/>
+			<doc:load-qry input-doc-path="#SOURCE:" output-doc="AUX" qry="FIND-WF"/>
+			<doc:set-attribute from-attr-path="#AUX:@wf" to-attr-path="#SELECT:@WF"/>
+			<flow:open-form mode="DESIGN" parent-doc-path="#SOURCE:" doc-path="#SELECT:" form-class="NucleusWF.Base.Definicion.Workflows.PROCESS.form"/>
+		</flow:action>
+		<flow:action name="NODE_DEL">
+			<flow:exec-method class="NucleusWF.Base.Definicion.Workflows.PROCESS" method="NodeDEL">
+				<flow:param attr-path="#SOURCE:@PARENT" type="Nomad.NSystem.Int" mode="in" name="oi_process"/>
+				<flow:param attr-path="#SOURCE:@ID" type="Nomad.NSystem.Int" mode="in" name="oi_node"/>
+			</flow:exec-method>
+			<flow:exit-flow return-path="#SOURCE:"/>
+		</flow:action>
+		<flow:action name="PARAM_LEFT">
+			<flow:exec-method class="NucleusWF.Base.Definicion.Workflows.PROCESS" method="ParamLEFT">
+				<flow:param attr-path="#SOURCE:@PARENT" type="Nomad.NSystem.Int" mode="in" name="oi_node"/>
+				<flow:param attr-path="#SOURCE:@ID" type="Nomad.NSystem.Int" mode="in" name="e_subproceso"/>
+			</flow:exec-method>
+			<flow:exit-flow return-path="#SOURCE:"/>
+		</flow:action>
+		<flow:action name="PARAM_RIGHT">
+			<flow:exec-method class="NucleusWF.Base.Definicion.Workflows.PROCESS" method="ParamRIGHT">
+				<flow:param attr-path="#SOURCE:@PARENT" type="Nomad.NSystem.Int" mode="in" name="oi_node"/>
+				<flow:param attr-path="#SOURCE:@ID" type="Nomad.NSystem.Int" mode="in" name="e_subproceso"/>
+			</flow:exec-method>
+			<flow:exit-flow return-path="#SOURCE:"/>
+		</flow:action>
+		<flow:action name="PARAM_DEL">
+			<flow:exec-method class="NucleusWF.Base.Definicion.Workflows.PROCESS" method="ParamDEL">
+				<flow:param attr-path="#SOURCE:@PARENT" type="Nomad.NSystem.Int" mode="in" name="oi_node"/>
+				<flow:param attr-path="#SOURCE:@ID" type="Nomad.NSystem.Int" mode="in" name="e_subproceso"/>
+			</flow:exec-method>
+			<flow:exit-flow return-path="#SOURCE:"/>
+		</flow:action>
+		<flow:action name="NODE_DOWN">
+			<flow:exec-method method="NodeDOWN" class="NucleusWF.Base.Definicion.Workflows.PROCESS">
+				<flow:param attr-path="#SOURCE:@PARENT" type="Nomad.NSystem.Int" mode="in" name="oi_process"/>
+				<flow:param attr-path="#SOURCE:@ID" type="Nomad.NSystem.Int" mode="in" name="oi_node"/>
+			</flow:exec-method>
+			<flow:exit-flow return-path="#SOURCE:"/>
+		</flow:action>
+		<flow:action name="NODE_UP">
+			<flow:exec-method method="NodeUP" class="NucleusWF.Base.Definicion.Workflows.PROCESS">
+				<flow:param attr-path="#SOURCE:@PARENT" type="Nomad.NSystem.Int" mode="in" name="oi_process"/>
+				<flow:param attr-path="#SOURCE:@ID" type="Nomad.NSystem.Int" mode="in" name="oi_node"/>
+			</flow:exec-method>
+			<flow:exit-flow return-path="#SOURCE:"/>
+		</flow:action>
+		<flow:action name="ROLE_INICIA">
+			<flow:exec-method method="RoleInicia" class="NucleusWF.Base.Definicion.Workflows.PROCESS">
+				<flow:param attr-path="#SOURCE:@PARENT" type="Nomad.NSystem.Int" mode="in" name="oi_process"/>
+				<flow:param attr-path="#SOURCE:@ID" type="Nomad.NSystem.Int" mode="in" name="oi_role"/>
+			</flow:exec-method>
+			<flow:exit-flow return-path="#SOURCE:"/>
+		</flow:action>
+		<flow:action name="ROLE_NO_INICIA">
+			<flow:exec-method method="RoleNoInicia" class="NucleusWF.Base.Definicion.Workflows.PROCESS">
+				<flow:param attr-path="#SOURCE:@PARENT" type="Nomad.NSystem.Int" mode="in" name="oi_process"/>
+				<flow:param attr-path="#SOURCE:@ID" type="Nomad.NSystem.Int" mode="in" name="oi_role"/>
+			</flow:exec-method>
+			<flow:exit-flow return-path="#SOURCE:"/>
+		</flow:action>
+		<flow:action name="PUBLICAR">
+			<flow:exec-method out-attr-path="#SELECT:@batch-id" priority="4" method="Publicar" class="NucleusWF.Base.Definicion.Workflows.WF">
+				<flow:param attr-path="#SOURCE:@PARENT" type="Nomad.NSystem.Int" mode="in" name="oi_wf"/>
+			</flow:exec-method>
+			<flow:open-form form-class="Nomad.base.batchtolist.form" mode="BATCH" parent-doc-path="#SELECT:" doc-path="#SELECT:"/>
+		</flow:action>
+		<flow:action name="ACT_ELIMINAR">
+			<flow:exec-method out-attr-path="#SELECT:@batch-id" priority="4" method="Eliminar" class="NucleusWF.Base.Definicion.Workflows.WF">
+				<flow:param attr-path="#SOURCE:@PARENT" type="Nomad.NSystem.Int" mode="in" name="oi_wf"/>
+			</flow:exec-method>
+			<flow:open-form form-class="Nomad.base.batchtolist.form" mode="BATCH" parent-doc-path="#SELECT:" doc-path="#SELECT:"/>
+		</flow:action>
+		<flow:action name="ACT_FINALIZAR">
+			<flow:exec-method method="Finalizar" out-attr-path="#SELECT:@batch-id" priority="4" class="NucleusWF.Base.Definicion.Workflows.WF">
+				<flow:param attr-path="#SOURCE:@PARENT" type="Nomad.NSystem.Int" mode="in" name="oi_wf"/>
+			</flow:exec-method>
+			<flow:open-form form-class="Nomad.base.batchtolist.form" mode="BATCH" parent-doc-path="#SELECT:" doc-path="#SELECT:"/>
+		</flow:action>
+		<flow:action name="ACT_DETENER">
+			<flow:exec-method method="Detener" out-attr-path="#SELECT:@batch-id" priority="4" class="NucleusWF.Base.Definicion.Workflows.WF">
+				<flow:param attr-path="#SOURCE:@PARENT" type="Nomad.NSystem.Int" mode="in" name="oi_wf"/>
+			</flow:exec-method>
+			<flow:open-form form-class="Nomad.base.batchtolist.form" mode="BATCH" parent-doc-path="#SELECT:" doc-path="#SELECT:"/>
+		</flow:action>
+		<flow:action name="ACT_ACTIVAR">
+			<flow:exec-method method="Activar" out-attr-path="#SELECT:@batch-id" priority="4" class="NucleusWF.Base.Definicion.Workflows.WF">
+				<flow:param attr-path="#SOURCE:@PARENT" type="Nomad.NSystem.Int" mode="in" name="oi_wf"/>
+			</flow:exec-method>
+			<flow:open-form form-class="Nomad.base.batchtolist.form" mode="BATCH" parent-doc-path="#SELECT:" doc-path="#SELECT:"/>
+		</flow:action>
+		<flow:action name="ACT_PUBLICAR">
+			<flow:exec-method method="Republicar" out-attr-path="#SELECT:@batch-id" priority="4" class="NucleusWF.Base.Definicion.Workflows.WF">
+				<flow:param attr-path="#SOURCE:@PARENT" type="Nomad.NSystem.Int" mode="in" name="oi_wf"/>
+			</flow:exec-method>
+			<flow:open-form form-class="Nomad.base.batchtolist.form" mode="BATCH" parent-doc-path="#SELECT:" doc-path="#SELECT:"/>
+		</flow:action>
+		<flow:action name="ACT_PAUSAR">
+			<flow:exec-method method="Pausar" out-attr-path="#SELECT:@batch-id" priority="4" class="NucleusWF.Base.Definicion.Workflows.WF">
+				<flow:param attr-path="#SOURCE:@PARENT" type="Nomad.NSystem.Int" mode="in" name="oi_wf"/>
+			</flow:exec-method>
+			<flow:open-form form-class="Nomad.base.batchtolist.form" mode="BATCH" parent-doc-path="#SELECT:" doc-path="#SELECT:"/>
+		</flow:action>
+		<flow:action name="CLEAN">
+			<flow:exec-method method="EliminarDebug" out-attr-path="#SELECT:@batch-id" priority="4" class="NucleusWF.Base.Definicion.Workflows.WF">
+				<flow:param attr-path="#SOURCE:@PARENT" type="Nomad.NSystem.Int" mode="in" name="oi_wf"/>
+			</flow:exec-method>
+			<flow:open-form form-class="Nomad.base.batchtolist.form" mode="BATCH" parent-doc-path="#SELECT:" doc-path="#SELECT:"/>
+		</flow:action>
+	</flow:main>
+	<flow:form name="NucleusWF.Base.Definicion.Workflows.PROCESS.form:DESIGN" mode="DESIGN" parent-doc="PARENT" doc="SOURCE" form-class="NucleusWF.Base.Definicion.Workflows.PROCESS.form">
+		<flow:action name="on-show"/>
+		<flow:action name="BACK">
+			<flow:close-form/>
+		</flow:action>
+		<flow:action name="FILTER">
+			<doc:set-attribute from-attr-path="#SOURCE:@WF" to-attr-path="#DATA:@id"/>
+			<doc:set-attribute from-attr-path="#SOURCE:@PARENT" to-attr-path="#DATA:@oi_process"/>
+			<flow:log text-path="#DATA:" text="chueka-DATA"/>
+			<flow:html-gen template-file="NucleusWF.Base.Definicion.Search.rpt" input-doc-path="#DATA:" out-file-path="#REPORTDOM:@report"/>
+		</flow:action>
+		<flow:action name="REFRESH_SEARCH">
+			<flow:call-action action="FILTER"/>
+		</flow:action>
+	</flow:form>
+	<flow:form form-class="Nomad.base.batchtolist.form" name="Nomad.base.batchtolist.form:BATCH" mode="BATCH" parent-doc="PARENT" doc="SOURCE">
+		<flow:action name="on-show"/>
+		<flow:action name="EXIT">
+			<flow:exit-flow return-path="#SELECT:"/>
+		</flow:action>
+	</flow:form>
+</flow:flow>

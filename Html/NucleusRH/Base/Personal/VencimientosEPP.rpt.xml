@@ -1,0 +1,117 @@
+<html:html xmlns:html="nomad_engine.html" xmlns:qry="nomad_engine.qry" name="NucleusRH.Base.Personal.VencimientosEPP" extends="Nomad.Base.BaseReport.rpt" doc="source">
+	<html:query declare="&lt;FILTRO f_desde=&quot;20010101&quot; f_hasta=&quot;20101010&quot; oi_empresa=&quot;9&quot; oi_clase_org=&quot;5&quot; oi_localidad=&quot;&quot; oi_categoria=&quot;&quot; oi_convenio=&quot;&quot;&gt;&#13;&#10;  &lt;ESTRUCTURAS /&gt;&#13;&#10;  &lt;PERSONAS nmd-col=&quot;1&quot;&gt;&#13;&#10;    &lt;PERSONA id=&quot;233&quot; /&gt;&#13;&#10;    &lt;PERSONA id=&quot;235&quot; /&gt;&#13;&#10;    &lt;PERSONA id=&quot;240&quot; /&gt;&#13;&#10;  &lt;/PERSONAS&gt;&#13;&#10;&lt;/FILTRO&gt;&#13;&#10;">
+		<qry:main doc="SOURCE">
+			<qry:append-doc name="FILTRO" doc-path="#SOURCE:/FILTRO"/>
+			<REPORT label="Vencimientos Elementos de Protecci&#243;n Personal">
+				<GROUPS>
+					<GROUP tag="EMP" type="title">
+						<COLS>
+							<COL name="f_informe" label="Fecha de Emisi&#243;n"/>
+							<COL name="empresa" label="Empresa"/>
+						</COLS>
+						<GROUP tag="EPP" type="table">
+							<COLS>
+								<COL name="e_numero_legajo" label="Legajo" align="right" style="text-align:right;width:10%;"/>
+								<COL name="d_ape_y_nom" label="Apellido y Nombre" style="width:25%;"/>
+								<COL name="elemento_pp" label="EPP" style="width:20%;"/>
+								<COL name="f_entrega" label="Fecha Entrega" style="text-align:center;width:10%" type="date"/>
+								<COL name="f_vencimiento" label="Fecha Vencimiento" style="text-align:center;width:10%;" type="date"/>
+								<COL name="e_cantidad" label="Cantidad" style="text-align:right;width:5%;"/>
+								<COL name="c_talle" label="Talle" style="width:5%"/>
+								<COL name="c_marca" label="Marca" style="width:10%"/>
+								<COL name="duracion" label="Duraci&#243;n" style="width:5%"/>
+							</COLS>
+						</GROUP>
+					</GROUP>
+				</GROUPS>
+				<qry:element name="DATA">
+					<qry:insert-select name="QRY_EMPRESA" doc-path="#FILTRO:"/>
+				</qry:element>
+			</REPORT>
+		</qry:main>
+		<qry:select doc="PARAM" name="QRY_EMPRESA">
+			<qry:xquery>
+				for $r in sql('
+					SELECT ORG03_EMPRESAS.oi_empresa,
+					ORG03_EMPRESAS.c_empresa,
+					ORG03_EMPRESAS.d_empresa
+					FROM ORG03_EMPRESAS
+					WHERE ORG03_EMPRESAS.oi_empresa = {#PARAM:@oi_empresa}
+			')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:element name="EMP">
+					<qry:attribute value="format_date(now(),'dd/mm/yyyy HH:MM')" name="f_informe"/>
+					<qry:attribute value="$r/@oi_empresa" name="oi_empresa"/>
+					<qry:attribute value="$r/@c_empresa + ' - ' + $r/@d_empresa" name="empresa"/>
+					<qry:insert-select name="QRY_EPP" doc-path="#FILTRO:"/>
+				</qry:element>
+			</qry:out>
+		</qry:select>
+		<qry:select doc="PARAM" name="QRY_EPP">
+			<qry:xquery>
+				for $r in sql('
+			SELECT PER02_PERSONAL_EMP.oi_personal_emp,			
+			PER02_PERSONAL_EMP.e_numero_legajo,
+			PER01_PERSONAL.d_ape_y_nom,
+			PER02_EPP_PER.oi_elemento_pp,
+			PER02_EPP_PER.oi_epp_per,
+			PER02_EPP_PER.f_entrega,
+			PER02_EPP_PER.c_talle,
+			PER02_EPP_PER.c_marca,
+			PER02_EPP_PER.e_cantidad,
+			ORG25_UNIDADES_TPO.n_coef_dias,
+			ORG25_UNIDADES_TPO.d_unidad_tiempo,
+			ORG07_ELEMENTOS_PP.c_elemento_pp,
+			ORG07_ELEMENTOS_PP.d_elemento_pp,			
+			ORG07_ELEMENTOS_PP.e_duracion			
+			FROM PER02_PERSONAL_EMP, PER01_PERSONAL,
+			PER02_EPP_PER, ORG07_ELEMENTOS_PP, ORG25_UNIDADES_TPO			
+			JOIN PER01_PERSONAL.oi_personal INNER PER02_PERSONAL_EMP.oi_personal,
+			PER02_EPP_PER.oi_personal_emp INNER PER02_PERSONAL_EMP.oi_personal_emp,
+			PER02_EPP_PER.oi_elemento_pp INNER ORG07_ELEMENTOS_PP.oi_elemento_pp,
+			ORG07_ELEMENTOS_PP.oi_unidad_tiempo INNER ORG25_UNIDADES_TPO.oi_unidad_tiempo 
+			WHERE PER02_PERSONAL_EMP.oi_empresa = {#FILTRO:@oi_empresa}			
+			AND (ADDDAYS(PER02_EPP_PER.f_entrega, (ORG07_ELEMENTOS_PP.e_duracion * ORG25_UNIDADES_TPO.n_coef_dias)) &gt;= {Datetime(#FILTRO:@f_desde)}
+					AND ADDDAYS(PER02_EPP_PER.f_entrega, (ORG07_ELEMENTOS_PP.e_duracion * ORG25_UNIDADES_TPO.n_coef_dias)) &lt;= {Datetime(#FILTRO:@f_hasta)}			
+					OR ADDDAYS(PER02_EPP_PER.f_entrega, (ORG07_ELEMENTOS_PP.e_duracion * ORG25_UNIDADES_TPO.n_coef_dias)) &lt;= now()
+		  		AND PER02_EPP_PER.l_repuesto = 0)				
+			{%? (string(#FILTRO:PERSONAS/PERSONA/@id)!='') 
+				{% AND PER02_PERSONAL_EMP.oi_personal_emp in ({%=string(#FILTRO:PERSONAS/PERSONA/@id)%}) %} 
+				{%  %} 
+			%}
+		')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:element name="EPP">
+					<qry:attribute value="$r/@oi_personal_emp" name="oi_personal_emp"/>
+					<qry:attribute value="$r/@oi_epp_per" name="oi_epp_per"/>
+					<qry:attribute value="$r/@oi_elemento_pp" name="oi_elemento_pp"/>
+					<qry:attribute value="format_date($r/@f_entrega, 'dd/mm/yyyy')" name="f_entrega"/>
+					<qry:attribute value="format_date(Datetime(Number(Datetime($r/@f_entrega)) + ($r/@e_duracion * $r/@n_coef_dias)), 'dd/mm/yyyy')" name="f_vencimiento"/>
+					<qry:attribute value="$r/@c_elemento_pp + ' - ' + $r/@d_elemento_pp" name="elemento_pp"/>
+					<qry:attribute value="$r/@e_cantidad" name="e_cantidad"/>
+					<qry:attribute value="$r/@c_talle" name="c_talle"/>
+					<qry:attribute value="$r/@c_marca" name="c_marca"/>
+					<qry:attribute value="$r/@e_duracion + ' ' + $r/@d_unidad_tiempo" name="duracion"/>
+					<qry:attribute value="$r/@d_ape_y_nom" name="d_ape_y_nom"/>
+					<qry:attribute value="$r/@e_numero_legajo" name="e_numero_legajo"/>
+					<qry:insert-select doc-path="$r" name="SECURITY"/>
+				</qry:element>
+			</qry:out>
+		</qry:select>
+		<qry:select doc="PARAM" name="SECURITY">
+			<qry:xquery>
+				for $r in sql('
+			SELECT NMD_SECURITY.policy 
+			FROM NMD_SECURITY 
+			WHERE NMD_SECURITY.class=\'NucleusRH.Base.Personal.LegajoEmpresa.PERSONAL_EMP\' 
+			AND NMD_SECURITY.id={#PARAM:@oi_personal_emp}
+		')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:attribute value="$r/@policy" name="policy"/>
+			</qry:out>
+		</qry:select>
+	</html:query>
+</html:html>

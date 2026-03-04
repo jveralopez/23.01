@@ -1,0 +1,138 @@
+<qry:define xmlns:qry="nomad_engine.qry" name="remuneracionesDC" declare="&lt;FILTRO oi_clase_org=&quot;&quot; oi_estructura=&quot;&quot; oi_categoria=&quot;17&quot;  oi_empresa=&quot;164&quot; file-name=&quot;&quot; batch-id=&quot;&quot; f_des=&quot;&quot; f_has=&quot;&quot; FormatRPT=&quot;PDF&quot;&gt;&lt;PERSONAS /&gt;&lt;/FILTRO&gt;&#13;&#10;">
+	<qry:main doc="PARAM">
+		<qry:append-doc name="FILTRO" doc-path="#PARAM:/FILTRO"/>
+		<qry:insert-select name="filtro_empresa" doc-path="#FILTRO:"/>
+	</qry:main>
+	<qry:select doc="PARAM" name="filtro_empresa">
+		<qry:xquery>
+			for $r in table('
+	  					select oi_empresa ,d_empresa from org03_empresas where oi_empresa= {#FILTRO:@oi_empresa}
+					')/ROWS/ROW
+		</qry:xquery>
+		<qry:out>
+			<qry:element name="DATOS">
+				<qry:attribute value="'0'" name="cant"/>
+				<qry:attribute type="Nomad.NSystem.String" value="$r/@d_empresa" name="d_empresa"/>
+				<qry:attribute type="Nomad.NSystem.String" value="$r/@oi_empresa" name="oi_empresa"/>
+				<qry:attribute value="iif(#FILTRO:@oi_categoria='' ,'Todas las Categor&#237;as',$r/@d_categoria)" name="FiltroCategoria" type="Nomad.NSystem.String"/>
+				<qry:insert-select name="QRY_NomCateg" doc-path="#FILTRO:"/>
+				<qry:insert-select name="QRY_DatosPersonas" doc-path="#FILTRO:"/>
+				<qry:insert-select doc-path=".[@cant='0']" name="QRY_VACIO"/>
+			</qry:element>
+		</qry:out>
+	</qry:select>
+	<qry:select doc="ParamC" name="QRY_NomCateg">
+		<qry:xquery>
+			for $r in sql(' 
+		select OrgCat.d_categoria , OrgCat.c_categoria ,
+					OrgConv.d_convenio , OrgConv.c_convenio
+		from ORG18_CATEGORIAS as OrgCat	, ORG18_CONVENIOS as OrgConv       
+		JOIN  OrgConv.oi_convenio   INNER  OrgCat.oi_convenio 
+		where OrgCat.oi_categoria= {#FILTRO:@oi_categoria}
+  ')/ROWS/ROW
+		</qry:xquery>
+		<qry:out>
+			<qry:attribute value="iif(#FILTRO:@oi_categoria='' ,'Todas las Categor&#237;a',$r/@d_categoria)" name="FiltroCategoria" type="Nomad.NSystem.String"/>
+			<qry:attribute type="Nomad.NSystem.String" value="$r/@c_categoria" name="c_categoria"/>
+			<qry:attribute type="Nomad.NSystem.String" value="$r/@d_categoria" name="d_categoria"/>
+			<qry:attribute type="Nomad.NSystem.String" value="$r/@c_convenio" name="c_convenio"/>
+			<qry:attribute type="Nomad.NSystem.String" value="$r/@d_convenio" name="d_convenio"/>
+		</qry:out>
+	</qry:select>
+	<qry:select doc="PARAM" name="QRY_VACIO">
+		<qry:out>
+			<qry:element name="PERSONAS">
+				<qry:attribute type="Nomad.NSystem.String" value="'0'" name="e_numero_legajo"/>
+				<qry:attribute type="Nomad.NSystem.String" value="'0'" name="e_periodo"/>
+				<qry:attribute type="Nomad.NSystem.String" value="'0'" name="oi_empresa"/>
+				<qry:attribute type="Nomad.NSystem.String" value="'0'" name="c_categoria"/>
+				<qry:attribute type="Nomad.NSystem.String" value="'0'" name="d_categoria"/>
+				<qry:attribute type="Nomad.NSystem.String" value="'0'" name="d_ape_y_nom"/>
+				<qry:attribute type="Nomad.NSystem.String" value="'0'" name="f_ingreso"/>
+				<qry:attribute type="Nomad.NSystem.String" value="'0'" name="f_antiguedad_rec"/>
+				<qry:attribute type="Nomad.NSystem.String" value="'0'" name="n_ult_remun"/>
+				<qry:attribute type="Nomad.NSystem.String" value="'0'" name="n_sueldoConform"/>
+				<qry:attribute type="Nomad.NSystem.String" value="'0'" name="n_sueldo_basico"/>
+			</qry:element>
+		</qry:out>
+	</qry:select>
+	<qry:select doc="PARAM" name="QRY_DatosPersonas">
+		<qry:xquery>
+			&#32;&#32;&#32;for $r in sql('
+
+
+select 	  Per02_emp.e_numero_legajo as e_numero_legajo
+   , max(l19liq.e_periodo) as e_periodo
+	,    	  L19LIQ.oi_empresa as oi_empresa
+	,  OrgCat.c_categoria    	 as c_categoria    
+	,  OrgCat.d_categoria    	as d_categoria    
+	,  Per01_emp.d_ape_y_nom as d_ape_y_nom    
+	,  Per02_emp.f_ingreso as f_ingreso    	 
+	,  Per02_emp.f_antiguedad_rec as f_antiguedad_rec
+	,  sum(l20_tlp.n_totsret)  as n_totsret
+	,  sum(l20_tlp.n_totnsret) as n_totnsret 
+	,  sum(L20_TLP.n_sbasico) as n_sueldoConform   	 
+	,  sum(L20_TLP.n_sbasico) as n_sueldo_basico
+
+from  LIQ19_LIQUIDACION as L19LIQ  ,  PER02_PERSONAL_EMP AS Per02_emp    
+		, PER01_PERSONAL AS Per01_emp      , LIQ19_EJECUCIONES as L19EJE        
+		, LIQ99_LIQUIDACION  as L99LIQ     , LIQ99_RECIBOS as L99Rcbo           
+		, LIQ20_TOT_LIQ_PER as L20_TLP     , ORG18_CATEGORIAS as OrgCat         
+		, ORG18_CONVENIOS as OrgConv       , LIQ01_TIPOS_LIQ  AS L01_tipos      
+
+
+JOIN 	L19LIQ.oi_empresa  INNER  Per02_emp.oi_empresa       ,
+			Per01_emp.oi_personal  INNER  Per02_emp.oi_personal  ,
+			L19EJE.oi_liquidacion  INNER  L19LIQ.oi_liquidacion  ,
+			L99LIQ.oi_liquidacion_ddo  INNER  L19EJE.oi_liquidacion_ddo ,
+			L99Rcbo.oi_liquidacion_ddo  INNER  L99LIQ.oi_liquidacion_ddo ,
+			L99Rcbo.e_numero_legajo     INNER  Per02_emp.e_numero_legajo ,   
+			L20_TLP.oi_tot_liq_per  INNER  L99Rcbo.oi_tot_liq_per   ,
+			Per02_emp.oi_categoria_ult  INNER  OrgCat.oi_categoria  ,
+			OrgConv.oi_convenio   INNER  OrgCat.oi_convenio         ,
+			L01_tipos.oi_tipo_liq  INNER  L19LIQ.oi_tipo_liq  
+
+ where 	L19LIQ.oi_empresa = {%=#FILTRO:@oi_empresa%}    
+ 					and L01_tipos.c_tipo_liq=\'1\'
+				and L99LIQ.c_estado  =  \'F\'	  
+				and OrgConv.c_convenio not in (\'00\')
+ {%? (string(#FILTRO:PERSONAS/PERSONA/@id)!='') 
+				{% AND Per02_emp.oi_personal_emp in 
+				     ({%=string(#FILTRO:PERSONAS/PERSONA/@id) %}) 
+				%}
+				{% %}
+  %}
+
+ {%? (string(#FILTRO:@oi_categoria)!='') 
+	{% AND Per02_emp.oi_categoria_ult = (
+			{%=string(#FILTRO:@oi_categoria) %}) 
+	%}
+	{% %}
+	%}
+GROUP BY 
+Per02_emp.e_numero_legajo , L19LIQ.oi_empresa
+, OrgCat.c_categoria    	, OrgCat.d_categoria    
+, Per01_emp.d_ape_y_nom   , Per02_emp.f_ingreso
+, Per02_emp.f_antiguedad_rec
+
+
+')/ROWS/ROW
+		</qry:xquery>
+		<qry:out>
+			<qry:attribute value="'1'" name="cant"/>
+			<qry:element name="PERSONAS">
+				<qry:attribute type="Nomad.NSystem.String" value="$r/@e_numero_legajo" name="e_numero_legajo"/>
+				<qry:attribute type="Nomad.NSystem.String" value="$r/@e_periodo" name="e_periodo"/>
+				<qry:attribute type="Nomad.NSystem.String" value="$r/@oi_empresa" name="oi_empresa"/>
+				<qry:attribute type="Nomad.NSystem.String" value="$r/@c_categoria" name="c_categoria"/>
+				<qry:attribute type="Nomad.NSystem.String" value="$r/@d_categoria" name="d_categoria"/>
+				<qry:attribute type="Nomad.NSystem.String" value="$r/@d_ape_y_nom" name="d_ape_y_nom"/>
+				<qry:attribute value="format_date($r/@f_ingreso,'dd/mm/yyyy')" type="Nomad.NSystem.String" name="f_ingreso"/>
+				<qry:attribute value="format_date($r/@f_antiguedad_rec,'dd/mm/yyyy')" type="Nomad.NSystem.String" name="f_antiguedad_rec"/>
+				<qry:attribute type="Nomad.NSystem.String" value="FORMAT_NUMBER($r/@n_sueldoConform, 10, 2, '.', '', '')" name="n_sueldoConform"/>
+				<qry:attribute type="Nomad.NSystem.String" value="FORMAT_NUMBER($r/@n_sueldo_basico, 10, 2, '.', '', '')" name="n_sueldo_basico"/>
+				<qry:attribute type="Nomad.NSystem.String" value="FORMAT_NUMBER(number($r/@n_totnsret) + number($r/@n_totsret), 10, 2, '.', '', '')" name="n_ult_remun"/>
+			</qry:element>
+		</qry:out>
+	</qry:select>
+</qry:define>

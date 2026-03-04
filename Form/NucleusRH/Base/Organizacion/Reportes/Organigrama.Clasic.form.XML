@@ -1,0 +1,1910 @@
+<form:Form xmlns:form="nomad_engine.form" xmlns:qry="nomad_engine.qry" name="NucleusRH.Base.Organizacion.Clases_Organizativas.ORGANIGRAMA" doc="source">
+	<form:Scripts>
+		var g_OC=null;               //Cache de QUERY               
+var g_mode;                  //0: All/completo, 1: All/estructura, 2: Solo/estructura
+var g_oi_estr1_show =null;   //Modo Organigrama
+var g_oi_estr2_show =null;   //Modo Estructura
+var g_oi_estr_root  =null;   //Estructura Raiz
+var g_oi_estr_select=null;   //Estructura Seleccionada
+var g_oi_legajo_select=null; //Legajo Seleccionado
+var g_deep=3;                //Cantidad de Niveles
+var g_lst_Estr=null;         //Lista de Estructuras Visibles
+var g_stack=new Array();     //Stack de Navegacion entre estructuras
+
+function OrgGetCache(MODE, KEY)
+{                                     
+	var objMODE;
+	if (g_OC==null) g_OC=new Array(); 
+	objMODE=g_OC[MODE];	if (objMODE?false:true) objMODE=g_OC[MODE]=new Array();
+	return objMODE[KEY]?objMODE[KEY]:null;
+}       
+
+function OrgAddCache(MODE, KEY, OBJ)
+{
+	var objMODE;
+	if (g_OC==null) g_OC=new Array(); 
+	objMODE=g_OC[MODE];	if (objMODE?false:true) objMODE=g_OC[MODE]=new Array();
+	objMODE[KEY]=OBJ;
+}       
+
+function OrgClearCache()
+{
+	g_OC=new Array(); 
+}       
+
+function QueryCache(Name, Param)
+{
+	 var rv=OrgGetCache(Name,Param);
+	 if (rv!=null) return rv;
+	 
+	 rv = GetProxy().SQLService().GetXML(Ctrl("main").getResource(Name), Param);
+	 
+	 OrgAddCache(Name,Param,rv);
+	 return rv;
+}
+                                        
+function LoadOrg(oi_estructura,deep)
+{                  
+	return QueryCache("qry:ORGANIGRAMA_SIMPLE", '&lt;PARAM oi_estructura="'+oi_estructura+'" deep="'+deep+'" /&gt;');
+}                             
+
+function LoadEstr(oi_estructura,oi_estructura_root)
+{                               
+	return QueryCache("qry:ORGANIGRAMA", '&lt;PARAM oi_estructura="'+oi_estructura+'" oi_estructura_root="'+oi_estructura_root+'" /&gt;');
+}                                  
+
+function GetHTMLSimple(oi_estructura, deep)
+{  
+	return Replace(GenerarHTMLUnidadAll(LoadOrg(oi_estructura,deep),true),"{nbsp}","&amp;nbsp;");
+}
+
+function GetHTMLEstruct(oi_estructura)
+{
+	return Replace(GenerarHTMLUnidad(LoadEstr(oi_estructura,g_oi_estr_root)),"{nbsp}","&amp;nbsp;");
+}
+
+function Normalize(strin)
+{
+	var retstr;                                 
+	retstr=strin;
+	retstr=Replace(retstr," ","&amp;nbsp;")
+	return retstr; 
+}
+
+function GenerateHTMLDivSimple(uniTree)
+{
+	var TextDiv, MyIMG, imgName;
+	
+	g_lst_Estr["K"+uniTree.GetAttr("oi_estructura")]=uniTree;
+	              
+	if (uniTree.GetAttr("fic")=="1")
+	{                                                     
+		if (uniTree.GetAttr("oi_estructura")==g_oi_estr_select) TextDiv=Ctrl("main").getResource("html:DIV_SIMPLE_FIC_SEL");   
+		                                                   else TextDiv=Ctrl("main").getResource("html:DIV_SIMPLE_FIC");   
+		
+		TextDiv=Replace(TextDiv, "{UNIDAD}",Normalize(uniTree.GetAttr("unidad")==""?"-":uniTree.GetAttr("unidad")));
+		TextDiv=Replace(TextDiv, "{OI_ESTRUCTURA}",uniTree.GetAttr("oi_estructura"));
+	} else 
+	if (uniTree.GetAttr("l_staff")=="1")
+	{
+		TextDiv=Ctrl("main").getResource("html:DIV_SIMPLE_STAFF");   
+		TextDiv=Replace(TextDiv, "{UNIDAD}",Normalize(uniTree.GetAttr("unidad")==""?"-":uniTree.GetAttr("unidad")));
+		TextDiv=Replace(TextDiv, "{OI_ESTRUCTURA}",uniTree.GetAttr("oi_estructura"));
+		TextDiv=Replace(TextDiv, "{OI_LEGAJO}",uniTree.GetAttr("oi_legajo")==""?"null":uniTree.GetAttr("oi_legajo"));
+	} else
+	if (uniTree.GetAttr("nombre")!="")
+	{
+		TextDiv=Ctrl("main").getResource("html:DIV_SIMPLE"+(uniTree.GetAttr("Vista")!=""?"_VISTA":""));
+		TextDiv=Replace(TextDiv, "{UNIDAD}"       ,Normalize(uniTree.GetAttr("unidad")==""?"-":uniTree.GetAttr("unidad")));
+		TextDiv=Replace(TextDiv, "{NOMBRE}"       ,Normalize(uniTree.GetAttr("nombre")==""?"-":uniTree.GetAttr("nombre")));
+		TextDiv=Replace(TextDiv, "{EMPRESA}"      ,Normalize(uniTree.GetAttr("empresa")==""?"-":uniTree.GetAttr("empresa")));
+		TextDiv=Replace(TextDiv, "{LEGAJO}"       ,Normalize(uniTree.GetAttr("legajo")==""?"-":uniTree.GetAttr("legajo")));
+		TextDiv=Replace(TextDiv, "{E_MAIL}"       ,Normalize(uniTree.GetAttr("mail")==""?"-":uniTree.GetAttr("mail")));
+		TextDiv=Replace(TextDiv, "{OI_ESTRUCTURA}",uniTree.GetAttr("oi_estructura"));
+		TextDiv=Replace(TextDiv, "{OI_LEGAJO}"    ,uniTree.GetAttr("oi_legajo"));
+		TextDiv=Replace(TextDiv, "{OI_PESONAL}"   ,uniTree.GetAttr("oi_pesonal"));
+		
+		if (uniTree.GetAttr("foto")!="")
+		{
+		    var crc = CRC32("PARAMS:mode=DB|class=NucleusRH.Base.Personal.Imagenes.HEAD|id="+ uniTree.GetAttr("foto"));
+			imgName="../../../NomadFile.aspx?ut="+GetProxy().UserToken()+"&amp;mode=DB&amp;class=NucleusRH.Base.Personal.Imagenes.HEAD&amp;id="+uniTree.GetAttr("foto")+"&amp;width=48&amp;height=48&amp;crc="+crc;
+		} else
+		{        
+			imgName="../images/organigrama/defaultimg.JPG";
+		} 
+		TextDiv=Replace(TextDiv, "{FOTO}",imgName);
+		
+	} else             
+	if (uniTree.GetAttr("extern")!="")
+	{
+		TextDiv=Ctrl("main").getResource("html:DIV_SIMPLE_EXTERN");
+		TextDiv=Replace(TextDiv, "{UNIDAD}",Normalize(uniTree.GetAttr("unidad")==""?"-":uniTree.GetAttr("unidad")));
+		TextDiv=Replace(TextDiv, "{OI_ESTRUCTURA}" ,uniTree.GetAttr("oi_estructura"));
+		TextDiv=Replace(TextDiv, "{OI_LEGAJO}"     ,uniTree.GetAttr("oi_legajo")==""?"null":uniTree.GetAttr("oi_legajo"));
+		TextDiv=Replace(TextDiv, "{OI_CLASE_ORG}"  ,uniTree.GetAttr("oi_clase_org"));
+		TextDiv=Replace(TextDiv, "{OI_CLASE_HIJA}" ,uniTree.GetAttr("oi_clase_hija"));
+		TextDiv=Replace(TextDiv, "{OI_ESTR_PARENT}",uniTree.GetAttr("oi_estr_parent"));
+	} else
+	{
+		TextDiv=Ctrl("main").getResource("html:DIV_SIMPLE_NORESP"+(uniTree.GetAttr("Vista")!=""?"_VISTA":""));
+		TextDiv=Replace(TextDiv, "{UNIDAD}",Normalize(uniTree.GetAttr("unidad")==""?"-":uniTree.GetAttr("unidad")));
+		TextDiv=Replace(TextDiv, "{OI_ESTRUCTURA}",uniTree.GetAttr("oi_estructura"));
+		TextDiv=Replace(TextDiv, "{OI_LEGAJO}",uniTree.GetAttr("oi_legajo")==""?"null":uniTree.GetAttr("oi_legajo"));
+	}  
+	
+	if (uniTree.GetAttr("oi_estructura")==g_oi_estr_select)
+	{      
+		TextDiv=Replace(TextDiv,"url(../images/organigrama/unidad1.jpg)","url(../images/organigrama/unidad3.jpg)");
+		TextDiv=Replace(TextDiv,"url(../images/organigrama/unidad2.jpg)","url(../images/organigrama/unidad3.jpg)");
+	}
+
+	return TextDiv;
+		
+}
+
+function GenerarHTMLUnidadAll(uniTree, isRoot)
+{
+	var TextTable, SubTable, auxTable, t, m, cur;
+	
+
+	TextDiv=GenerateHTMLDivSimple(uniTree);
+ 
+	m=-1;
+	if (uniTree.FindElement("unidades")!=null) 
+		for (cur=uniTree.FindElement("unidades").FirstChild(); cur!=null; cur=cur.Next()) 
+			if (cur.GetAttr("l_staff")!="1") 
+				m++;
+				
+	if (uniTree.FindElement("externas")!=null)				
+		for (cur=uniTree.FindElement("externas").FirstChild(); cur!=null; cur=cur.Next()) 
+			m++;
+ 
+	
+	if (m!=-1)
+	{                           
+		if (isRoot &amp;&amp; uniTree.GetAttr("oi_estructura")!=g_oi_estr_root.toString())
+			TextTable=Ctrl("main").getResource("html:TABLABASE_SIMPLE_PARENTHIDE");   
+		else                                                            
+			TextTable=Ctrl("main").getResource("html:TABLABASE_SIMPLE");   
+		TextTable=Replace(TextTable, "{DIV SIMPLE}",TextDiv);
+		TextTable=Replace(TextTable, "{OI_ESTRUCTURA}",uniTree.GetAttr("oi_estructura"));
+		TextTable=Replace(TextTable, "{OI_ESTR_PADRE}",uniTree.GetAttr("oi_estr_padre"));
+		TextTable=Replace(TextTable, "{OI_LEGAJO}",uniTree.GetAttr("oi_legajo")==""?"null":uniTree.GetAttr("oi_legajo"));
+		
+		for (cur=uniTree.FindElement("unidades").FirstChild(); cur!=null; cur=cur.Next()) 
+			if (cur.GetAttr("l_staff")=="1")
+			{
+				TextTable=Replace(TextTable, "{STAFF}",GenerateHTMLDivSimple(cur,false));
+				TextTable=Replace(TextTable, "{NO-STAFF}",Ctrl("main").getResource("html:DIV_SIMPLE_NO_STAFF"));
+				break;
+			}
+		TextTable=Replace(TextTable, "{STAFF}","&amp;nbsp;");
+		TextTable=Replace(TextTable, "{NO-STAFF}","&amp;nbsp;");
+
+		SubTable="";
+		for (t=0; t&lt;=m; t++)
+		{          
+			if (t==0)	SubTable+=Ctrl("main").getResource("html:LINE00");
+			     else SubTable+=Ctrl("main").getResource("html:LINE01");
+				
+			if (t==m)	SubTable+=Ctrl("main").getResource("html:LINE11");
+			     else SubTable+=Ctrl("main").getResource("html:LINE10");
+		}
+		TextTable=Replace(TextTable, "{LINEAS}",SubTable);
+		
+
+
+		if (uniTree.FindElement("unidades")!=null) 
+		{
+			SubTable=""; 
+			for (cur=uniTree.FindElement("unidades").FirstChild(); cur!=null; cur=cur.Next()) 
+				if (cur.GetAttr("l_staff")!="1")
+				{
+					auxTable=Ctrl("main").getResource("html:TABLASUB_SIMPLE");
+					auxTable=Replace(auxTable, "{UNIDAD}",GenerarHTMLUnidadAll(cur,false));
+					
+					SubTable+=auxTable;
+				}
+		} 
+		                              
+		if (uniTree.FindElement("externas")!=null) 
+		{
+			for (cur=uniTree.FindElement("externas").FirstChild(); cur!=null; cur=cur.Next()) 
+			{                               
+				auxTable=Ctrl("main").getResource("html:TABLASUB_SIMPLE");
+				auxTable=Replace(auxTable, "{UNIDAD}",GenerarHTMLUnidadAll(cur,false));
+				
+				SubTable+=auxTable;
+			}
+		}
+		TextTable=Replace(TextTable, "{ORGANIGRAMAS HIJOS}",SubTable);
+	} else
+	{         
+		var staff=null;
+		if (uniTree.FindElement("unidades")!=null) 
+			for (cur=uniTree.FindElement("unidades").FirstChild(); cur!=null; cur=cur.Next()) 
+				if (cur.GetAttr("l_staff")=="1") 
+					staff=cur;
+	   
+	  if (staff!=null)
+	  {         
+			TextTable=Ctrl("main").getResource("html:TABLABASE_SIMPLE_STAFF");
+			TextTable=Replace(TextTable, "{DIV SIMPLE}",TextDiv);
+			TextTable=Replace(TextTable, "{OI_ESTRUCTURA}",uniTree.GetAttr("oi_estructura"));
+			TextTable=Replace(TextTable, "{OI_ESTR_PADRE}",uniTree.GetAttr("oi_estr_padre"));
+			TextTable=Replace(TextTable, "{OI_LEGAJO}",uniTree.GetAttr("oi_legajo")==""?"null":uniTree.GetAttr("oi_legajo"));
+			TextTable=Replace(TextTable, "{STAFF}",GenerateHTMLDivSimple(staff));
+	  } else
+	  {        
+			if (uniTree.GetAttr("child_count")!="0")
+				TextTable=Ctrl("main").getResource("html:TABLABASE_SIMPLE_CHILDHIDE");
+			else
+			if (isRoot &amp;&amp; uniTree.GetAttr("oi_estructura")!=g_oi_estr_root.toString())
+				TextTable=Ctrl("main").getResource("html:TABLABASE_SIMPLE_NOCHILD_PARENTHIDE");
+			else                                                                 
+				TextTable=Ctrl("main").getResource("html:TABLABASE_SIMPLE_NOCHILD");
+			
+	                                     
+			TextTable=Replace(TextTable, "{DIV SIMPLE}",TextDiv);
+			TextTable=Replace(TextTable, "{OI_ESTRUCTURA}",uniTree.GetAttr("oi_estructura"));
+			TextTable=Replace(TextTable, "{OI_ESTR_PADRE}",uniTree.GetAttr("oi_estr_padre"));
+			TextTable=Replace(TextTable, "{OI_LEGAJO}",uniTree.GetAttr("oi_legajo")==""?"null":uniTree.GetAttr("oi_legajo"));
+		}
+	}  
+	
+	return TextTable;
+}
+
+function GenerarUnidad(uniTree)
+{
+	var TextTable, SubTable, auxTable, auxPER, t, MyIMG, imgName, personaResp, personaFirst;
+	
+	g_lst_Estr["K"+uniTree.GetAttr("oi_estructura")]=uniTree;
+	
+	personaResp=null; personaFirst=uniTree.FindElement("Personas").FirstChild();
+	
+	if (personaFirst!=null)
+		if (personaFirst.GetAttr("resp")=="1") 
+		{ 
+			personaResp=personaFirst; 
+			personaFirst=personaResp.Next(); 
+		}
+	
+	if (personaResp!=null &amp;&amp; personaFirst!=null)
+		TextTable=Ctrl("main").getResource("html:TABLAUNIDAD");
+	else
+	if (personaResp!=null &amp;&amp; personaFirst==null)
+		TextTable=Ctrl("main").getResource("html:TABLAUNIDAD_NOCHILD");
+	else
+		TextTable=Ctrl("main").getResource("html:TABLAUNIDAD_CHILD");
+  
+	TextTable=Replace(TextTable,"{OI_ESTRUCTURA}",uniTree.GetAttr("oi_estructura"));
+	TextTable=Replace(TextTable,"{UNIDAD}"       ,uniTree.GetAttr("unidad"));
+ 
+	TextTable=Replace(TextTable,"{OI_PERSONAL}",(personaResp &amp;&amp; personaResp.GetAttr("oi_personal")?Normalize(personaResp.GetAttr("oi_personal")):""));
+	TextTable=Replace(TextTable,"{OI_LEGAJO}"  ,(personaResp &amp;&amp; personaResp.GetAttr("oi_legajo")  ?Normalize(personaResp.GetAttr("oi_legajo")  ):""));
+
+	TextTable=Replace(TextTable,"{PUESTO}"     ,(personaResp &amp;&amp; personaResp.GetAttr("puesto")     ?Normalize(personaResp.GetAttr("puesto")     ):"-"));
+	TextTable=Replace(TextTable,"{POSICION}"   ,(personaResp &amp;&amp; personaResp.GetAttr("posicion")   ?Normalize(personaResp.GetAttr("posicion")   ):"-"));
+	TextTable=Replace(TextTable,"{EMPRESA}"    ,(personaResp &amp;&amp; personaResp.GetAttr("empresa")    ?Normalize(personaResp.GetAttr("empresa")    ):"-"));
+	TextTable=Replace(TextTable,"{LEGAJO}"     ,(personaResp &amp;&amp; personaResp.GetAttr("legajo")     ?Normalize(personaResp.GetAttr("legajo")     ):"-"));
+	TextTable=Replace(TextTable,"{NOMBRE}"     ,(personaResp &amp;&amp; personaResp.GetAttr("nombre")     ?Normalize(personaResp.GetAttr("nombre")     ):"-"));
+	TextTable=Replace(TextTable,"{MAIL}"       ,(personaResp &amp;&amp; personaResp.GetAttr("mail")       ?Normalize(personaResp.GetAttr("mail")       ):"-"));
+	TextTable=Replace(TextTable,"{TELEFONO}"   ,(personaResp &amp;&amp; personaResp.GetAttr("telefono")   ?Normalize(personaResp.GetAttr("telefono")   ):"-"));
+  
+	if (personaResp &amp;&amp; personaResp.GetAttr("foto")!="")
+	{
+		var crc = CRC32("PARAMS:mode=DB|class=NucleusRH.Base.Personal.Imagenes.HEAD|id="+ personaResp.GetAttr("foto"));
+		imgName="../../../NomadFile.aspx?ut="+GetProxy().UserToken()+"&amp;mode=DB&amp;class=NucleusRH.Base.Personal.Imagenes.HEAD&amp;id="+personaResp.GetAttr("foto")+"&amp;width=100&amp;height=100&amp;crc="+crc;
+	} else
+	{        
+		imgName="../images/organigrama/defaultimg.JPG";
+	} 
+	TextTable=Replace(TextTable,"{FOTO}",imgName);
+
+	SubTable="";
+	for (cur=personaFirst; cur!=null; cur=cur.Next())
+	{
+		
+		if (cur.GetAttr("oi_legajo")==g_oi_legajo_select)
+			auxTable=Ctrl("main").getResource("html:LINEABASE_SELECT");
+		else                                                 
+			auxTable=Ctrl("main").getResource("html:LINEABASE");
+	               
+		
+		auxTable=Replace(auxTable,"{OI_ESTRUCTURA}"  ,(uniTree.GetAttr("oi_estructura")?Normalize(uniTree.GetAttr("oi_estructura")):""));
+		auxTable=Replace(auxTable,"{UNIDAD}"         ,(uniTree.GetAttr("unidad")       ?Normalize(uniTree.GetAttr("unidad")       ):"-"));
+
+		auxTable=Replace(auxTable,"{OI_PERSONAL}"    ,(cur &amp;&amp; cur.GetAttr("oi_personal")?Normalize(cur.GetAttr("oi_personal")):""));
+		auxTable=Replace(auxTable,"{OI_LEGAJO}"      ,(cur &amp;&amp; cur.GetAttr("oi_legajo")  ?Normalize(cur.GetAttr("oi_legajo")  ):""));
+	
+		auxTable=Replace(auxTable,"{PUESTO}"         ,(cur &amp;&amp; cur.GetAttr("puesto")     ?Normalize(cur.GetAttr("puesto")     ):"-"));
+		auxTable=Replace(auxTable,"{POSICION}"       ,(cur &amp;&amp; cur.GetAttr("posicion")   ?Normalize(cur.GetAttr("posicion")   ):"-"));
+		auxTable=Replace(auxTable,"{EMPRESA}"        ,(cur &amp;&amp; cur.GetAttr("empresa")    ?Normalize(cur.GetAttr("empresa")    ):"-"));
+		auxTable=Replace(auxTable,"{LEGAJO}"         ,(cur &amp;&amp; cur.GetAttr("legajo")     ?Normalize(cur.GetAttr("legajo")     ):"-"));
+		auxTable=Replace(auxTable,"{NOMBRE}"         ,(cur &amp;&amp; cur.GetAttr("nombre")     ?Normalize(cur.GetAttr("nombre")     ):"-"));
+		auxTable=Replace(auxTable,"{MAIL}"           ,(cur &amp;&amp; cur.GetAttr("mail")       ?Normalize(cur.GetAttr("mail")       ):"-"));
+		auxTable=Replace(auxTable,"{TELEFONO}"       ,(cur &amp;&amp; cur.GetAttr("telefono")   ?Normalize(cur.GetAttr("telefono")   ):"-"));
+
+		SubTable+=auxTable;
+	}
+	TextTable=Replace(TextTable, "{LISTA DE CHILDS}",SubTable);
+
+	if (uniTree.GetAttr("oi_estructura")==g_oi_estr_select)
+	{      
+		TextTable=Replace(TextTable,"url(../images/organigrama/unidad4.jpg)","url(../images/organigrama/unidad6.jpg)");
+		TextTable=Replace(TextTable,"url(../images/organigrama/unidad5.jpg)","url(../images/organigrama/unidad6.jpg)");
+	}
+	return TextTable;
+}
+
+function GenerarHTMLUnidad(uniTree)
+{
+	var TextTable, SubTable, auxTable, t, cur;
+
+	TextTable=Ctrl("main").getResource("html:TABLABASE");
+	TextTable=Replace(TextTable, "{UNIDAD}",GenerarUnidad(uniTree));
+
+	if (uniTree.FindElement("oi_estr_padre")==null || uniTree.GetAttr("oi_estructura")==g_oi_estr_root.toString())
+		SubTable=Ctrl("main").getResource("html:NO_PARENT");
+	else
+		SubTable=GenerateHTMLDivSimple(uniTree.FindElement("oi_estr_padre"));	
+	TextTable=Replace(TextTable,"{DIV PARENT SIMPLE}",SubTable);
+	
+
+	for (cur=uniTree.FindElement("unidades").FirstChild(); cur!=null; cur=cur.Next())
+		if (cur.GetAttr("l_staff")=="1") 
+		{ 
+			TextTable=Replace(TextTable, "{STAFF}",GenerateHTMLDivSimple(cur));
+			TextTable=Replace(TextTable, "{NO-STAFF}",Ctrl("main").getResource("html:DIV_SIMPLE_NO_STAFF"));
+			break;
+		}
+	TextTable=Replace(TextTable, "{STAFF}","&amp;nbsp;");
+	TextTable=Replace(TextTable, "{NO-STAFF}","&amp;nbsp;");
+ 	
+	SubTable=""; m=-1;
+	if (uniTree.FindElement("unidades")!=null) 
+		for (cur=uniTree.FindElement("unidades").FirstChild(); cur!=null; cur=cur.Next()) 
+			if (cur.GetAttr("l_staff")!="1") 
+				m++;
+				
+	if (uniTree.FindElement("externas")!=null)				
+		for (cur=uniTree.FindElement("externas").FirstChild(); cur!=null; cur=cur.Next()) 
+			m++;
+
+	for (t=0; t&lt;=m; t++)
+	{          
+		if (t==0)	SubTable+=Ctrl("main").getResource("html:LINE00");
+		     else SubTable+=Ctrl("main").getResource("html:LINE01");
+			
+		if (t==m)	SubTable+=Ctrl("main").getResource("html:LINE11");
+		     else SubTable+=Ctrl("main").getResource("html:LINE10");
+	}	
+	TextTable=Replace(TextTable,"{LINEAS}",SubTable);
+
+	if (m!=-1)
+	{
+		SubTable=""; 
+		if (uniTree.FindElement("unidades")!=null)
+			for (cur=uniTree.FindElement("unidades").FirstChild(); cur!=null; cur=cur.Next()) 
+				if (cur.GetAttr("l_staff")!="1")
+				{          
+					auxTable=Ctrl("main").getResource("html:TABLASUB");
+					auxTable=Replace(auxTable, "{UNIDAD}",GenerateHTMLDivSimple(cur));
+					
+					SubTable+=auxTable;
+				}
+		
+		if (uniTree.FindElement("externas")!=null)
+			for (cur=uniTree.FindElement("externas").FirstChild(); cur!=null; cur=cur.Next()) 
+			{                               
+				auxTable=Ctrl("main").getResource("html:TABLASUB");
+				auxTable=Replace(auxTable, "{UNIDAD}",GenerateHTMLDivSimple(cur));
+				
+				SubTable+=auxTable;
+			}
+
+	} else
+		SubTable=Ctrl("main").getResource("html:NO_CHILD");
+		
+		               
+	TextTable=Replace(TextTable, "{ORGANIGRAMAS HIJOS}",SubTable);			               
+	TextTable=Replace(TextTable,"{nbsp}","&amp;nbsp;");
+	
+	return TextTable;
+}
+                 
+function DrawHTML()
+{
+	var HTML;       
+	
+	g_lst_Estr=new Array();
+	switch(g_mode)
+	{
+		case 0: //All/completo   
+			HTML=GetHTMLSimple(g_oi_estr_root , 100000);
+		break;
+		
+		case 1: //All/estructura
+			HTML=GetHTMLSimple(g_oi_estr1_show, g_deep);
+		break;                             
+		
+		case 2: //Solo/estructura
+			HTML=GetHTMLEstruct(g_oi_estr2_show);
+		break;
+	}
+	
+	Ctrl("contORG").SetInner(HTML);
+	
+	ButtonRefresh();
+}                 
+
+function OnLoad()
+{              
+	//Estado
+	if (Ctrl("oi_estructura_root").GetXValue()!="")
+	{
+		g_mode        =1; //All/estructura
+		g_oi_estr_root=Ctrl("oi_estructura_root").GetXValue(); //Estructura RAIZ
+		g_deep        =parseInt(Ctrl("deep").GetXValue(),10); //Cantidad de NIVELES
+		Ctrl("estado").SetXValue(QueryCache("qry:ESTADO", '&lt;PARAM oi_clase_org="'+Ctrl("oi_clase_org").GetXValue()+'"/&gt;').GetAttr("c_estado"));	
+	
+	} else
+	if (Ctrl("oi_clase_org").GetXValue()!="")
+	{
+		g_mode        =1; //All/estructura
+		g_oi_estr_root=QueryCache("qry:ORGANIGRAMA_SIMPLE", '&lt;PARAM oi_clase_org="'+Ctrl("oi_clase_org").GetXValue()+'" deep="1" /&gt;').GetAttrInt("oi_estructura"); //Estructura RAIZ
+		g_deep        =10000; //Cantidad de NIVELES
+		Ctrl("estado").SetXValue(QueryCache("qry:ESTADO", '&lt;PARAM oi_clase_org="'+Ctrl("oi_clase_org").GetXValue()+'"/&gt;').GetAttr("c_estado"));	
+	} else
+	{
+		g_mode        = 1; //All/estructura
+		g_oi_estr_root=107; //Estructura RAIZ
+		g_deep        =10000; //Cantidad de NIVELES
+		Ctrl("estado").SetXValue('V');	
+	}
+	
+	g_oi_estr1_show=g_oi_estr_root;
+	g_oi_estr2_show=g_oi_estr_root;
+	DrawHTML();
+}
+
+function EstructuraDblClick(oi_estructura)
+{
+	var MyOBJ=null;            
+	
+	if (oi_estructura?false:true)            
+	{
+		oi_estructura=g_stack[g_stack.length-1];
+		g_stack.length--;
+	} else
+		MyOBJ=g_lst_Estr["K"+oi_estructura];
+
+	if (g_mode==2)                                   
+	{
+		g_oi_estr2_show   =oi_estructura;
+		g_oi_estr_select  =null; //Estructura Seleccionada
+		g_oi_legajo_select=null; //Legajo Seleccionado
+		DrawHTML();
+	} else
+	{
+		if (MyOBJ &amp;&amp; MyOBJ.GetAttr("extern")=="1")   
+			g_stack.push(g_oi_estr1_show);
+			
+		g_mode=1;                     
+		g_oi_estr_select=null;
+		g_oi_legajo_select=null;
+		g_oi_estr1_show=oi_estructura;
+		DrawHTML();
+	}
+}
+
+function EstructuraClick(oi_estructura, oi_legajo)
+{                                                                 
+	if (g_oi_estr_select==oi_estructura &amp;&amp; g_oi_legajo_select==oi_legajo) return;
+	g_oi_estr_select=oi_estructura;                                  
+	g_oi_legajo_select=oi_legajo;
+	DrawHTML();
+}
+
+
+function ZoomIn()
+{                
+	Ctrl("contORG").ZoomIn();
+}
+
+function ZoomOut()
+{                
+	Ctrl("contORG").ZoomOut();
+}
+
+function ButtonRefresh()
+{                           
+	var MyOBJ=null;
+	CtrlEnabled("ZOOM_IN" ,getBrowser()=="ie"?true:false);
+	CtrlEnabled("ZOOM_OUT",getBrowser()=="ie"?true:false);
+	CtrlEnabled("ALL" ,(g_mode==2)?true:false);
+	
+	MyOBJ=g_oi_estr_select?g_lst_Estr["K"+g_oi_estr_select]:null;
+	if (MyOBJ &amp;&amp; MyOBJ.GetAttr("fic")=="1")
+	{
+		CtrlEnabled("ESTR"  ,false);
+		CtrlEnabled("PERS"  ,false);
+		CtrlEnabled("SEARCH",false);
+	} else
+	{	
+		CtrlEnabled("ESTR"  ,(g_mode!=2 &amp;&amp; g_oi_estr_select!=null)?true:false);
+		CtrlEnabled("PERS"  ,(g_mode!=2 &amp;&amp; g_oi_estr_select!=null)?true:false);
+		CtrlEnabled("SEARCH",(g_mode!=2 &amp;&amp; g_oi_estr_select!=null)?true:false);
+	}
+	
+	CtrlEnabled("PERSONA",g_oi_legajo_select==null?false:true);
+	CtrlEnabled("LEGAJO" ,g_oi_legajo_select==null?false:true);
+	CtrlEnabled("REPORTE",g_oi_legajo_select==null?false:true);
+	
+	ExternButtonRefresh();
+}
+
+function ExternButtonRefresh() {}
+                                        
+
+function Leg2Per(oi_legajo)
+{
+	var obj=QueryCache("qry:PERSONAL", '&lt;PARAM oi_legajo="'+oi_legajo+'" /&gt;');
+	return obj.GetAttr("oi_personal");
+}
+
+function ShowPersonal()
+{                          
+	var oi_personal=Leg2Per(g_oi_legajo_select);
+	openNewFlowWait("NucleusRH.Base.Personal.Legajo.flow","ORGANIGRAMA",'&lt;ID VALUE="'+oi_personal+'" /&gt;',new ObjtectResult(),"L");
+}
+
+function ShowLegajo()
+{                      
+	openNewFlowWait("NucleusRH.Base.Personal.LegajoEmpresa.flow","ORGANIGRAMA",'&lt;ID VALUE="'+g_oi_legajo_select+'" /&gt;',new ObjtectResult(),"L");
+}
+
+function ShowReporte()
+{
+	openNewFlowWait("NucleusRH.Base.Personal.Reportes.Legajo.flow","ORGANIGRAMA",'&lt;ID VALUE="'+g_oi_legajo_select+'" /&gt;',new ObjtectResult(),"L");
+}
+
+function ObjtectResult() { this.processResult= function(xmlin) { } }
+
+
+function ShowOrganigrama()
+{
+	g_mode            =1; //All/estructura
+	//g_oi_estr1_show   =g_oi_estr2_show;
+	g_oi_estr_select  =null; //Estructura Seleccionada
+	g_oi_legajo_select=null; //Legajo Seleccionado
+	
+	DrawHTML();
+}
+
+function ShowEstructura()
+{
+	g_mode            =2; //All/estructura
+	g_oi_estr2_show   =g_oi_estr_select;
+	g_oi_estr_select  =null; //Estructura Seleccionada
+	g_oi_legajo_select=null; //Legajo Seleccionado
+	
+	DrawHTML();
+}
+ 
+function SearchResult() 
+{ 
+	this.processResult= function(xmlin) 
+	{ 
+		var rs=new NomadXML(xmlin); 
+		if (rs.GetAttr("value")!="")
+		{                     
+			var MyOBJ=g_lst_Estr["K"+g_oi_estr_select];
+			if (MyOBJ &amp;&amp; MyOBJ.GetAttr("extern")=="1")   
+				g_stack.push(g_oi_estr1_show);
+		
+			EstructuraDblClick(rs.GetAttrInt("value"),null);
+		}
+	} 
+} 
+ 
+function Buscar()
+{                                                                                                                    
+	if (g_oi_estr_select==null) return;
+	openNewFlowWait("NucleusRH.Base.Organizacion.Clases_Organizativas.ESTRUCTURA.guia.flow","HELP",'&lt;helper-mess id="'+g_oi_estr_select+'" oi_clase_org="'+g_lst_Estr["K"+g_oi_estr_select].GetAttr("oi_clase_org")+'" /&gt;',new SearchResult(),"L");
+}
+ 
+function ShowPersonas()
+{                                   
+	if (g_oi_estr_select==null) return;
+	openNewFlowWait("NucleusRH.Base.Organizacion.Reportes.Organigrama.flow","personas",'&lt;PARAM oi_estructura="'+g_oi_estr_select+'" /&gt;',new SearchResult(),"L");
+}
+	</form:Scripts>
+	<form:Title>
+		<form:RowAligner name="title">
+			<form:Row name="row1">
+				<form:Label label="Reporte de Organigrama - " name="GEN" style="S3 LCol_w" nowrap="1"/>
+				<form:Label dynamic="1" nvalue="#CLASE_ORG:@d_clase_org" nowrap="1" align="center" style="S3 LCol_w" label="-" name="ti_02"/>
+			</form:Row>
+		</form:RowAligner>
+	</form:Title>
+	<form:Center height="100%" width="100%">
+		<form:Container rheight="95" name="contORG" borderwidth="0" rwidth="99"/>
+		<form:Hidden name="oi_estructura_root" nvalue="#source:@oi_estructura_org"/>
+		<form:Hidden name="oi_clase_org" nvalue="#source:@oi_clase_org"/>
+		<form:Hidden name="estado"/>
+		<form:Hidden name="deep" nvalue="#source:@deep"/>
+	</form:Center>
+	<form:Resources>
+		<form:Resource declare="&lt;PARAM oi_clase_org=&quot;11&quot; /&gt;" name="qry:ESTADO">
+			<qry:main doc="PARAM">
+				<qry:insert-select doc-path="#PARAM:/PARAM" name="qry_estado"/>
+			</qry:main>
+			<qry:select doc="PARAM" name="qry_estado">
+				<qry:xquery>
+					for $r in sql('
+					SELECT 
+						ORG02_CLASES_ORG.c_estado					
+					FROM 
+						ORG02_CLASES_ORG					
+					WHERE 
+						ORG02_CLASES_ORG.oi_clase_org = {#PARAM:@oi_clase_org}
+				')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:element name="estado">
+						<qry:attribute name="c_estado" value="$r/@c_estado"/>
+					</qry:element>
+				</qry:out>
+			</qry:select>
+		</form:Resource>
+		<form:Resource declare="&lt;PARAM oi_estructura=&quot;104&quot; oi_estructura_root=&quot;103&quot; /&gt;          &#13;&#10;" name="qry:ORGANIGRAMA">
+			<qry:main doc="PARAM">
+				<qry:insert-select doc-path="#PARAM:/PARAM" name="qry_padre"/>
+			</qry:main>
+			<qry:select doc="PARAM" name="qry_padre">
+				<qry:xquery>
+					for $r in sql('
+			SELECT ORG01_UNI_ORG.c_unidad_org, 	ORG01_UNI_ORG.d_unidad_org, 
+			ORG02_ESTRUCTURAS.oi_estr_padre, ORG02_ESTRUCTURAS.l_staff, ORG02_ESTRUCTURAS.oi_estructura, 
+			ORG01_TIPOS_UNI.c_tipo_uni_org
+			FROM ORG02_ESTRUCTURAS, ORG01_UNI_ORG, ORG01_TIPOS_UNI				
+			JOIN ORG02_ESTRUCTURAS.oi_unidad_org INNER ORG01_UNI_ORG.oi_unidad_org,
+			ORG01_UNI_ORG.oi_tipo_uni_org INNER ORG01_TIPOS_UNI.oi_tipo_uni_org
+			WHERE ORG02_ESTRUCTURAS.oi_estructura = {#PARAM:@oi_estructura}
+		')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:element name="unidad">
+						<qry:attribute name="fic" value="iif($r/@c_tipo_uni_org='FIC',1,0)"/>
+						<qry:attribute name="l_staff" value="$r/@l_staff"/>
+						<qry:attribute name="unidad_completo" value="'(' + $r/@c_tipo_uni_org + ') ' + $r/@c_unidad_org +  ' - ' +  $r/@d_unidad_org"/>
+						<qry:attribute name="unidad" value="$r/@d_unidad_org"/>
+						<qry:attribute name="oi_unidad_org" value="$r/@oi_unidad_org"/>
+						<qry:attribute name="oi_estructura" value="$r/@oi_estructura"/>
+						<qry:insert-select doc-path="$r/.[@oi_estructura!=#PARAM:@oi_estructura_root]" name="qry_superior"/>
+						<qry:element name="Personas">
+							<qry:insert-select doc-path=".." name="qry_Personas"/>
+						</qry:element>
+						<qry:element name="unidades">
+							<qry:insert-select doc-path=".." name="qry_child"/>
+						</qry:element>
+						<qry:element name="externas">
+							<qry:insert-select doc-path=".." name="qry_child_ext"/>
+						</qry:element>
+					</qry:element>
+				</qry:out>
+			</qry:select>
+			<qry:select doc="PARAM" name="qry_Personas">
+				<qry:xquery>
+					for $r in sql('
+	SELECT 
+		ORG03_EMPRESAS.c_empresa,
+		ORG03_EMPRESAS.d_empresa,  
+		PER01_PERSONAL.oi_personal, 
+		PER01_PERSONAL.oi_foto,
+		PER01_PERSONAL.d_ape_y_nom, 
+		PER01_PERSONAL.d_email,
+		PER01_PERSONAL.te_celular, 
+		PER02_PERSONAL_EMP.oi_personal_emp, 
+		PER02_PERSONAL_EMP.e_numero_legajo,
+		PER02_PERSONAL_EMP.oi_posicion_ult,  
+		ORG02_ESTRUC_PERS.l_responsable,
+		PER02_PERSONAL_EMP.oi_indic_activo
+	FROM 
+		ORG03_EMPRESAS, 
+		PER02_PERSONAL_EMP, 
+		PER01_PERSONAL, 
+		ORG02_ESTRUC_PERS
+	JOIN 
+		PER02_PERSONAL_EMP.oi_personal INNER PER01_PERSONAL.oi_personal,
+		ORG03_EMPRESAS.oi_empresa INNER PER02_PERSONAL_EMP.oi_empresa, 
+		PER02_PERSONAL_EMP.oi_personal_emp INNER ORG02_ESTRUC_PERS.oi_personal_emp
+	WHERE 
+		ORG02_ESTRUC_PERS.oi_estructura = {#PARAM:@oi_estructura}
+	AND (ORG02_ESTRUC_PERS.l_staff=0 OR ISNULL(ORG02_ESTRUC_PERS.l_staff))
+	ORDER BY c_empresa ASC, e_numero_legajo ASC, l_responsable DESC
+')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:element name="persona">
+						<qry:attribute name="oi_personal" value="$r/@oi_personal"/>
+						<qry:attribute name="oi_legajo" value="$r/@oi_personal_emp"/>
+						<qry:attribute name="color" value="iif($r/@oi_indic_activo!=1,'#800000','#000000')"/>
+						<qry:attribute name="empresa" value="$r/@c_empresa + '-' + $r/@d_empresa"/>
+						<qry:attribute name="legajo" value="$r/@e_numero_legajo"/>
+						<qry:attribute name="nombre" value="$r/@d_ape_y_nom"/>
+						<qry:attribute name="telefono" value="$r/@te_celular"/>
+						<qry:attribute name="foto" value="$r/@oi_foto"/>
+						<qry:attribute name="mail" value="$r/@d_email"/>
+						<qry:attribute name="resp" value="$r/@l_responsable"/>
+						<qry:insert-select name="qry_Posisiones" doc-path="$r"/>
+					</qry:element>
+				</qry:out>
+			</qry:select>
+			<qry:select doc="PARAM" name="qry_Posisiones">
+				<qry:xquery>
+					for $r in sql('
+		SELECT 
+			ORG04_PUESTOS.oi_puesto,
+			ORG04_PUESTOS.c_puesto,
+			ORG04_PUESTOS.d_puesto,
+			ORG04_POSICIONES.oi_posicion,
+			ORG04_POSICIONES.c_posicion,
+			ORG04_POSICIONES.d_posicion
+		FROM 
+			ORG04_PUESTOS, 
+			ORG04_POSICIONES
+		JOIN 
+			ORG04_PUESTOS.oi_puesto INNER ORG04_POSICIONES.oi_puesto
+		WHERE 
+			ORG04_POSICIONES.oi_posicion = {#PARAM:@oi_posicion_ult}
+')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:attribute name="oi_posicion" value="$r/@oi_posicion"/>
+					<qry:attribute name="posicion" value="$r/@c_posicion + '-' + $r/@d_posicion"/>
+					<qry:attribute name="oi_puesto" value="$r/@oi_puesto"/>
+					<qry:attribute name="puesto" value="$r/@c_puesto + '-' + $r/@d_puesto"/>
+				</qry:out>
+			</qry:select>
+			<qry:select doc="PARAM" name="qry_child">
+				<qry:xquery>
+					for $r in sql('		
+			SELECT ORG01_UNI_ORG.c_unidad_org, ORG01_UNI_ORG.d_unidad_org,  
+			ORG02_ESTRUCTURAS.oi_estructura, ORG02_ESTRUCTURAS.l_staff, ORG01_TIPOS_UNI.c_tipo_uni_org
+			FROM ORG02_ESTRUCTURAS, ORG01_UNI_ORG, ORG01_TIPOS_UNI
+			JOIN ORG02_ESTRUCTURAS.oi_unidad_org INNER ORG01_UNI_ORG.oi_unidad_org,
+			ORG01_UNI_ORG.oi_tipo_uni_org INNER ORG01_TIPOS_UNI.oi_tipo_uni_org
+			WHERE ORG02_ESTRUCTURAS.oi_estr_padre = {#PARAM:@oi_estructura}
+	')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:element name="unidad">
+						<qry:attribute name="fic" value="iif($r/@c_tipo_uni_org='FIC',1,0)"/>
+						<qry:attribute name="l_staff" value="$r/@l_staff"/>
+						<qry:attribute name="unidad_completo" value="'(' + $r/@c_tipo_uni_org + ') ' + $r/@c_unidad_org +  ' - ' +  $r/@d_unidad_org"/>
+						<qry:attribute name="unidad" value="$r/@d_unidad_org"/>
+						<qry:attribute name="oi_unidad_org" value="$r/@oi_unidad_org"/>
+						<qry:attribute name="oi_estructura" value="$r/@oi_estructura"/>
+						<qry:insert-select doc-path="." name="qry_minimo_personas"/>
+					</qry:element>
+				</qry:out>
+			</qry:select>
+			<qry:select doc="PARAM" name="qry_child_ext">
+				<qry:xquery>
+					for $r in sql('		
+			SELECT 
+				ORG02_CLASES_HIJAS.oi_clase_hija,
+				ORG02_CLASES_ORG.oi_clase_org, 
+				ORG02_CLASES_ORG.c_clase_org, 
+				ORG02_CLASES_ORG.d_clase_org, 
+				ORG02_CLASES_ORG.oi_estructura_org
+			FROM      
+				ORG02_CLASES_HIJAS, 
+				ORG02_CLASES_ORG
+			JOIN 
+				ORG02_CLASES_HIJAS.oi_clase_org INNER ORG02_CLASES_ORG.oi_clase_org
+			WHERE 
+				ORG02_CLASES_HIJAS.oi_estructura = {#PARAM:@oi_estructura}
+	')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:element name="unidad">
+						<qry:attribute name="oi_clase_hija" value="$r/@oi_clase_hija"/>
+						<qry:attribute name="oi_clase_org" value="$r/@oi_clase_org"/>
+						<qry:attribute name="unidad" value="$r/@c_clase_org + '-' + $r/@d_clase_org"/>
+						<qry:attribute name="oi_estructura" value="$r/@oi_estructura_org"/>
+						<qry:attribute name="extern" value="1"/>
+					</qry:element>
+				</qry:out>
+			</qry:select>
+			<qry:select doc="PARAM" name="qry_superior">
+				<qry:xquery>
+					for $r in sql('
+			SELECT ORG01_UNI_ORG.c_unidad_org, ORG01_UNI_ORG.d_unidad_org, 
+			ORG02_ESTRUCTURAS.oi_estr_padre, ORG02_ESTRUCTURAS.oi_estructura, 
+			ORG01_TIPOS_UNI.c_tipo_uni_org
+			FROM ORG02_ESTRUCTURAS, ORG01_UNI_ORG, ORG01_TIPOS_UNI
+			JOIN ORG02_ESTRUCTURAS.oi_unidad_org INNER ORG01_UNI_ORG.oi_unidad_org,
+			ORG01_UNI_ORG.oi_tipo_uni_org INNER ORG01_TIPOS_UNI.oi_tipo_uni_org
+			WHERE	ORG02_ESTRUCTURAS.oi_estructura = {#PARAM:@oi_estr_padre}
+		')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:element name="oi_estr_padre">
+						<qry:attribute name="fic" value="iif($r/@c_tipo_uni_org='FIC',1,0)"/>
+						<qry:attribute name="nombre_completo" value="'(' + $r/@c_tipo_uni_org + ') ' + $r/@c_unidad_org +  ' - ' +  $r/@d_unidad_org"/>
+						<qry:attribute name="unidad" value="$r/@d_unidad_org"/>
+						<qry:attribute name="oi_unidad_org" value="$r/@oi_unidad_org"/>
+						<qry:attribute name="oi_estructura" value="$r/@oi_estructura"/>
+						<qry:attribute name="oi_estr_padre" value="$r/@oi_estr_padre"/>
+						<qry:insert-select doc-path="." name="qry_minimo_personas"/>
+					</qry:element>
+				</qry:out>
+			</qry:select>
+			<qry:select doc="PARAM" name="qry_minimo_personas">
+				<qry:xquery>
+					for $r in sql('
+		SELECT 
+			ORG03_EMPRESAS.c_empresa, 
+			PER01_PERSONAL.oi_personal, 
+			PER01_PERSONAL.oi_foto,
+			PER01_PERSONAL.d_ape_y_nom, 
+			PER01_PERSONAL.d_email,
+			PER02_PERSONAL_EMP.oi_personal_emp, 
+			PER02_PERSONAL_EMP.e_numero_legajo,
+			PER02_PERSONAL_EMP.oi_indic_activo
+		FROM 
+			ORG03_EMPRESAS, 
+			PER02_PERSONAL_EMP, 
+			PER01_PERSONAL, 
+			ORG02_ESTRUC_PERS
+		JOIN 
+			PER02_PERSONAL_EMP.oi_personal INNER PER01_PERSONAL.oi_personal,
+			ORG03_EMPRESAS.oi_empresa INNER PER02_PERSONAL_EMP.oi_empresa, 
+			PER02_PERSONAL_EMP.oi_personal_emp INNER ORG02_ESTRUC_PERS.oi_personal_emp
+		WHERE 
+			ORG02_ESTRUC_PERS.oi_estructura = {#PARAM:@oi_estructura}
+		AND (ORG02_ESTRUC_PERS.l_staff=0 OR ISNULL(ORG02_ESTRUC_PERS.l_staff))
+		AND ORG02_ESTRUC_PERS.l_responsable = 1
+')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:attribute name="oi_personal" value="$r/@oi_personal"/>
+					<qry:attribute name="oi_legajo" value="$r/@oi_personal_emp"/>
+					<qry:attribute name="color" value="iif($r/@oi_indic_activo!=1,'#800000','#000000')"/>
+					<qry:attribute name="empresa" value="$r/@c_empresa"/>
+					<qry:attribute name="legajo" value="$r/@e_numero_legajo"/>
+					<qry:attribute name="nombre" value="$r/@d_ape_y_nom"/>
+					<qry:attribute name="foto" value="$r/@oi_foto"/>
+					<qry:attribute name="mail" value="$r/@d_email"/>
+				</qry:out>
+			</qry:select>
+		</form:Resource>
+		<form:Resource name="html:TABLABASE">
+			<TABLE border="0" cellspacing="0" cellpadding="0" style="font-family:verdana;" align="center">
+				<TR>
+					<TD colspan="2" style="border:none;padding-left:10px;padding-right:10px;" align="center">
+						{DIV PARENT SIMPLE}
+					</TD>
+				</TR>
+				<TR>
+					<TD style="border-right:solid 1px #000000; font-size:4px;" width="50%">
+						{nbsp}
+					</TD>
+					<TD style="border-left:solid 1px #000000; font-size:4px;" width="50%">
+						{nbsp}
+					</TD>
+				</TR>
+				<TR>
+					<TD colspan="2" style="border:none;" align="center">
+						<TABLE border="0" cellspacing="0" cellpadding="0">
+							<TR>
+								<TD>
+									{UNIDAD}
+								</TD>
+								<TD>
+									{STAFF}
+								</TD>
+							</TR>
+						</TABLE>
+					</TD>
+				</TR>
+				<TR>
+					<TD style="border-right:solid 1px #000000; font-size:6px;" width="50%">
+						{nbsp}
+					</TD>
+					<TD style="border-left:solid 1px #000000; font-size:6px;" width="50%">
+						{nbsp}
+					</TD>
+				</TR>
+				<TR>
+					<TD colspan="2" style="border:none" align="center">
+						<TABLE cellpadding="0" cellspacing="0" border="0">
+							<TR>
+								{LINEAS}
+							</TR>
+							<TR>
+								{ORGANIGRAMAS HIJOS}
+							</TR>
+						</TABLE>
+					</TD>
+				</TR>
+			</TABLE>
+		</form:Resource>
+		<form:Resource name="html:LINEABASE">
+			<TR>
+				<TD style="color:#000000;width:50px;border-bottom:1px dotted #000000;" onclick="EstructuraClick({OI_ESTRUCTURA},{OI_LEGAJO}); event.cancelBubble=true;">
+					{LEGAJO}
+				</TD>
+				<TD style="color:#000000;width:135px;border-bottom:1px dotted #000000;" onclick="EstructuraClick({OI_ESTRUCTURA},{OI_LEGAJO}); event.cancelBubble=true;">
+					{NOMBRE}
+				</TD>
+				<TD style="color:#000000;width:80px;border-bottom:1px dotted #000000;" onclick="EstructuraClick({OI_ESTRUCTURA},{OI_LEGAJO}); event.cancelBubble=true;">
+					{EMPRESA}
+				</TD>
+			</TR>
+		</form:Resource>
+		<form:Resource name="html:LINE00">
+			<TD style="border-right:solid 1px #000000; font-size:6px;">
+				{nbsp}
+			</TD>
+		</form:Resource>
+		<form:Resource name="html:LINE11">
+			<TD style="border-left:solid 1px #000000; font-size:6px;">
+				{nbsp}
+			</TD>
+		</form:Resource>
+		<form:Resource name="html:LINE01">
+			<TD style="border-right:solid 1px #000000;border-top:solid 2px #000000; font-size:6px;">
+				{nbsp}
+			</TD>
+		</form:Resource>
+		<form:Resource name="html:LINE10">
+			<TD style="border-left:solid 1px #000000;border-top:solid 2px #000000; font-size:6px;">
+				{nbsp}
+			</TD>
+		</form:Resource>
+		<form:Resource name="html:TABLAUNIDAD">
+			<TABLE width="400px" height="300px" cellspacing="0" cellpadding="0" style="background-repeat:no-repeat;background-image:url(../images/organigrama/unidad4.jpg);table-layout:fixed;color:#000000;background-color:#C0C0C0;font-size:9px;cursor:pointer;" onclick="EstructuraClick('{OI_ESTRUCTURA}','{OI_LEGAJO}');">
+				<TR>
+					<TD rowspan="6" width="120px" valign="top" style="padding-left:10px;padding-top:10px">
+						<IMG src="{FOTO}" width="100px" height="100px" onclick="Select('{OI_PERSONAL}','{OI_PERSONAL_EMP}',this,event);" style="cursor:pointer;"/>
+					</TD>
+					<TD style="font-size:12px;font-weight:bold;padding-top:10px;height:30px;">
+						{UNIDAD}
+					</TD>
+				</TR>
+				<TR style="color:{COLOR};height:14px;">
+					<TD>
+						Nombre: {NOMBRE}
+					</TD>
+				</TR>
+				<TR style="color:{COLOR};height:14px;">
+					<TD>
+						Correo: {MAIL}
+					</TD>
+				</TR>
+				<TR style="color:{COLOR};height:14px;">
+					<TD>
+						Telefono: {TELEFONO}
+					</TD>
+				</TR>
+				<TR style="color:{COLOR};height:14px;">
+					<TD>
+						Legajo: {LEGAJO} ({EMPRESA})
+					</TD>
+				</TR>
+				<TR style="color:{COLOR};height:14px;">
+					<TD>
+						Posici&#243;n: {POSICION} ({PUESTO})
+					</TD>
+				</TR>
+				<TR>
+					<TD colspan="2" style="padding-left:10px;padding-right:10px;padding-bottom:10px;" valign="top" align="center">
+						<TABLE border="0" cellspacing="1px" cellpadding="1px" style="font-family:verdana;color:#000000;font-size:9px;font-weight:bold;table-layout:fixed;width:380px;">
+							<TR>
+								<TD style="padding-left:5px;border-bottom:1px solid #000000;width:50px;">
+									Legajo
+								</TD>
+								<TD style="padding-left:5px;border-bottom:1px solid #000000;width:135px;">
+									Persona
+								</TD>
+								<TD style="padding-left:5px;border-bottom:1px solid #000000;width:80px;">
+									Empresa
+								</TD>
+								<TD style="padding-left:5px;border-bottom:1px solid #000000;width:15px;">
+									{nbsp}
+								</TD>
+							</TR>
+						</TABLE>
+						<DIV style="width:380px;height:155px;overflow-y:scroll;overflow-x:hidden;">
+							<TABLE border="0" cellspacing="1px" cellpadding="1px" style="font-family:verdana;color:#000000;font-size:9px;table-layout:fixed;width:365px;">
+								{LISTA DE CHILDS}
+							</TABLE>
+						</DIV>
+					</TD>
+				</TR>
+			</TABLE>
+		</form:Resource>
+		<form:Resource name="html:TABLAUNIDAD_NOCHILD">
+			<TABLE width="400px" height="300px" cellspacing="0" cellpadding="0" style="background-repeat:no-repeat;background-image:url(../images/organigrama/unidad4.jpg);table-layout:fixed;color:#000000;background-color:#C0C0C0;font-size:9px;cursor:pointer;" onclick="EstructuraClick('{OI_ESTRUCTURA}','{OI_LEGAJO}');">
+				<TR>
+					<TD rowspan="5" width="120px" valign="top" style="padding-left:10px;padding-top:10px">
+						<IMG src="{FOTO}" width="100px" height="100px" onclick="Select('{OI_PERSONAL}','{OI_PERSONAL_EMP}',this,event);" style="cursor:pointer;"/>
+					</TD>
+					<TD style="font-size:12px;font-weight:bold;padding-top:10px">
+						{UNIDAD}
+					</TD>
+				</TR>
+				<TR style="color:{COLOR};height:14px;">
+					<TD>
+						Apellido y Nombre
+					</TD>
+				</TR>
+				<TR style="color:{COLOR};height:14px;">
+					<TD style="padding-left:10px;">
+						{NOMBRE}
+					</TD>
+				</TR>
+				<TR style="color:{COLOR};height:14px;">
+					<TD>
+						Correo Electronico
+					</TD>
+				</TR>
+				<TR style="color:{COLOR};height:14px;">
+					<TD style="padding-left:10px;">
+						<A href="mailto:{MAIL}" style="text-decoration:none;color:black">
+							{MAIL}
+						</A>
+					</TD>
+				</TR>
+				<TR>
+					<TD colspan="2" style="color:{COLOR};padding-left:10px;">
+						Empresa
+					</TD>
+				</TR>
+				<TR>
+					<TD colspan="2" style="color:{COLOR};padding-left:20px;">
+						{EMPRESA}
+					</TD>
+				</TR>
+				<TR>
+					<TD colspan="2" style="color:{COLOR};padding-left:10px;">
+						Puesto
+					</TD>
+				</TR>
+				<TR>
+					<TD colspan="2" style="color:{COLOR};padding-left:20px;">
+						{PUESTO}
+					</TD>
+				</TR>
+				<TR>
+					<TD colspan="2" style="color:{COLOR};padding-left:10px;">
+						Posici&#243;n
+					</TD>
+				</TR>
+				<TR>
+					<TD colspan="2" style="color:{COLOR};padding-left:20px;">
+						{POSICION}
+					</TD>
+				</TR>
+				<TR>
+					<TD colspan="2" style="color:{COLOR};padding-left:10px;">
+						Legajo
+					</TD>
+				</TR>
+				<TR>
+					<TD colspan="2" style="color:{COLOR};padding-left:20px;">
+						{LEGAJO}
+					</TD>
+				</TR>
+				<TR>
+					<TD colspan="2" style="color:{COLOR};padding-left:10px;">
+						Telefono
+					</TD>
+				</TR>
+				<TR>
+					<TD colspan="2" style="color:{COLOR};padding-left:20px;padding-bottom:10px;">
+						{TELEFONO}
+					</TD>
+				</TR>
+			</TABLE>
+		</form:Resource>
+		<form:Resource name="html:TABLAUNIDAD_CHILD">
+			<TABLE width="400px" height="300px" cellspacing="0" cellpadding="0" style="background-repeat:no-repeat;background-image:url(../images/organigrama/unidad5.jpg);table-layout:fixed;color:#000000;background-color:#C0C0C0;font-size:9px;cursor:pointer;" onclick="EstructuraClick('{OI_ESTRUCTURA}',null);">
+				<TR>
+					<TD style="height:30px;font-size:12px;font-weight:bold;padding-top:10px" align="center">
+						{UNIDAD}
+					</TD>
+				</TR>
+				<TR>
+					<TD style="padding-left:10px;padding-right:10px;padding-bottom:10px;" valign="top" align="center">
+						<TABLE border="0" cellspacing="1px" cellpadding="1px" style="font-family:verdana;color:#000000;font-size:9px;font-weight:bold;table-layout:fixed;width:380px;">
+							<TR>
+								<TD style="padding-left:5px;border-bottom:1px solid #000000;width:50px;">
+									Legajo
+								</TD>
+								<TD style="padding-left:5px;border-bottom:1px solid #000000;width:135px;">
+									Persona
+								</TD>
+								<TD style="padding-left:5px;border-bottom:1px solid #000000;width:80px;">
+									Empresa
+								</TD>
+								<TD style="padding-left:5px;border-bottom:1px solid #000000;width:15px;">
+									{nbsp}
+								</TD>
+							</TR>
+						</TABLE>
+						<DIV style="width:380px;height:240px;overflow-y:scroll;overflow-x:hidden;">
+							<TABLE border="0" cellspacing="1px" cellpadding="1px" style="font-family:verdana;color:#000000;font-size:9px;table-layout:fixed;width:365px;">
+								{LISTA DE CHILDS}
+							</TABLE>
+						</DIV>
+					</TD>
+				</TR>
+			</TABLE>
+		</form:Resource>
+		<form:Resource name="html:TABLASUB">
+			<TD colspan="2">
+				<DIV style="width:250px;margin-left:10;margin-right:10;">
+					{UNIDAD}
+				</DIV>
+			</TD>
+		</form:Resource>
+		<form:Resource name="html:ENLACE">
+			<TD style="border-right:solid 1px #000000; font-size:4px;">
+				{nbsp}
+			</TD>
+			<TD style="border-left:solid 1px #000000; font-size:4px;">
+				{nbsp}
+			</TD>
+		</form:Resource>
+		<form:Resource name="html:BOTONDW">
+			<TD colspan="2" style="border:none;" align="center">
+				<DIV style="border:solid 2px #000000;width:20px;">
+					<IMG style="cursor:pointer;" SRC="skins/images/down_o.gif" onclick="CargarEstructura({OI_ESTRUCTURA})"/>
+				</DIV>
+			</TD>
+		</form:Resource>
+		<form:Resource name="html:BOTONNO">
+			<TD colspan="2" style="border:none;" align="center">
+				<DIV style="border:solid 2px #000000;width:20px;">
+					<IMG SRC="skins/images/cancel_n.gif"/>
+				</DIV>
+			</TD>
+		</form:Resource>
+		<form:Resource declare="&lt;PARAM oi_estructura=&quot;107&quot; deep=&quot;10000&quot; /&gt;" name="qry:ORGANIGRAMA_SIMPLE">
+			<qry:main Doc="PARAM">
+				<qry:append-doc doc-path="#PARAM:/PARAM" name="PARAMIN"/>
+				<qry:if test="#PARAMIN:@oi_estructura=''">
+					<qry:then>
+						<qry:insert-select doc-path="#PARAMIN:" name="qry_clase_padre"/>
+					</qry:then>
+					<qry:else>
+						<qry:create-doc name="PP"/>
+						<qry:insert-select doc-path="#PARAMIN:" name="qry_find" to-element="$PP"/>
+						<qry:insert-select doc-path="$PP" name="qry_padre"/>
+					</qry:else>
+				</qry:if>
+			</qry:main>
+			<qry:select doc="PARAM" name="qry_clase_padre">
+				<qry:xquery>
+					for $r in sql('
+					SELECT 
+						ORG02_CLASES_ORG.oi_clase_org, ORG02_CLASES_ORG.oi_estructura_org AS oi_estructura
+					FROM 
+						ORG02_CLASES_ORG
+					WHERE 
+						ORG02_CLASES_ORG.oi_clase_org = {#PARAM:@oi_clase_org}
+				')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:insert-select doc-path="$r" name="qry_padre"/>
+				</qry:out>
+			</qry:select>
+			<qry:select doc="PARAM" name="qry_find">
+				<qry:out>
+					<qry:attribute name="id" value="$PARAM/@oi_estructura"/>
+					<qry:attribute name="oi_estructura" value="$PARAM/@oi_estructura"/>
+					<qry:insert-select doc-path="." name="qry_org"/>
+					<qry:insert-select doc-path="." name="qry_up"/>
+				</qry:out>
+			</qry:select>
+			<qry:select doc="PARAM" name="qry_up">
+				<qry:xquery>
+					for $r in sql('
+					SELECT 
+						ORG02_ESTRUCTURAS.oi_estr_padre as id
+					FROM               
+						ORG02_ESTRUCTURAS
+					WHERE
+							ORG02_ESTRUCTURAS.oi_estructura = {#PARAM:@id}
+				')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:insert-select doc-path="$r" name="qry_org"/>
+					<qry:insert-select doc-path="$r" name="qry_up"/>
+				</qry:out>
+			</qry:select>
+			<qry:select doc="PARAM" name="qry_org">
+				<qry:xquery>
+					for $r in sql('
+					SELECT 
+						ORG02_CLASES_ORG.oi_clase_org
+					FROM               
+						ORG02_CLASES_ORG
+					WHERE
+							ORG02_CLASES_ORG.oi_estructura_org = {#PARAM:@id}
+				')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:attribute name="oi_clase_org" value="$r/@oi_clase_org"/>
+				</qry:out>
+			</qry:select>
+			<qry:select doc="PARAM" name="qry_padre">
+				<qry:xquery>
+					for $r in sql('
+					SELECT ORG01_UNI_ORG.c_unidad_org, ORG01_UNI_ORG.d_unidad_org, 
+					ORG02_ESTRUCTURAS.oi_estr_padre, ORG02_ESTRUCTURAS.l_staff, ORG02_ESTRUCTURAS.oi_estructura, 
+					ORG01_TIPOS_UNI.c_tipo_uni_org
+					FROM ORG02_ESTRUCTURAS, ORG01_UNI_ORG, ORG01_TIPOS_UNI
+					JOIN ORG02_ESTRUCTURAS.oi_unidad_org INNER ORG01_UNI_ORG.oi_unidad_org,
+					ORG01_UNI_ORG.oi_tipo_uni_org INNER ORG01_TIPOS_UNI.oi_tipo_uni_org
+					WHERE	ORG02_ESTRUCTURAS.oi_estructura = {#PARAM:@oi_estructura}
+				')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:element name="unidad">
+						<qry:attribute name="oi_clase_org" value="$PARAM/@oi_clase_org"/>
+						<qry:attribute name="fic" value="iif($r/@c_tipo_uni_org='FIC',1,0)"/>
+						<qry:attribute name="deep" value="#PARAMIN:@deep"/>
+						<qry:attribute name="l_staff" value="$r/@l_staff"/>
+						<qry:attribute name="unidad_completo" value="'(' + $r/@c_tipo_uni_org + ') ' + $r/@c_unidad_org +  ' - ' +  $r/@d_unidad_org"/>
+						<qry:attribute name="unidad" value="$r/@d_unidad_org"/>
+						<qry:attribute name="oi_unidad_org" value="$r/@oi_unidad_org"/>
+						<qry:attribute name="oi_estructura" value="$r/@oi_estructura"/>
+						<qry:attribute name="oi_estr_padre" value="$r/@oi_estr_padre"/>
+						<qry:insert-select doc-path="." name="qry_Vista"/>
+						<qry:insert-select doc-path="." name="qry_Personas"/>
+						<qry:insert-select doc-path="." name="qry_count_Personas"/>
+						<qry:if test="Number(@deep)&gt;1">
+							<qry:then>
+								<qry:element name="unidades">
+									<qry:insert-select doc-path=".." name="qry_child"/>
+								</qry:element>
+								<qry:element name="externas">
+									<qry:insert-select doc-path=".." name="qry_child_ext"/>
+								</qry:element>
+								<qry:attribute name="child_count" value="Number(./unidades/@child_count)+Number(./externas/@child_count)"/>
+							</qry:then>
+							<qry:else>
+								<qry:insert-select doc-path="." name="qry_count_child"/>
+							</qry:else>
+						</qry:if>
+					</qry:element>
+				</qry:out>
+			</qry:select>
+			<qry:select doc="PARAM" name="qry_child">
+				<qry:xquery>
+					for $r in sql('		
+					SELECT ORG01_UNI_ORG.c_unidad_org, ORG01_UNI_ORG.d_unidad_org,  
+					ORG02_ESTRUCTURAS.oi_estructura, ORG02_ESTRUCTURAS.l_staff, ORG01_TIPOS_UNI.c_tipo_uni_org
+					FROM ORG02_ESTRUCTURAS, ORG01_UNI_ORG, ORG01_TIPOS_UNI
+					JOIN ORG02_ESTRUCTURAS.oi_unidad_org INNER ORG01_UNI_ORG.oi_unidad_org,
+					ORG01_UNI_ORG.oi_tipo_uni_org INNER ORG01_TIPOS_UNI.oi_tipo_uni_org
+					WHERE ORG02_ESTRUCTURAS.oi_estr_padre = {#PARAM:@oi_estructura}  
+					ORDER BY oi_estructura ASC
+			')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:attribute name="child_count" value="Number(@child_count)+1"/>
+					<qry:element name="unidad">
+						<qry:attribute name="fic" value="iif($r/@c_tipo_uni_org='FIC',1,0)"/>
+						<qry:attribute name="deep" value="Number(../../@deep)-1"/>
+						<qry:attribute name="l_staff" value="$r/@l_staff"/>
+						<qry:attribute name="unidad_completo" value="'(' + $r/@c_tipo_uni_org + ') ' + $r/@c_unidad_org +  ' - ' +  $r/@d_unidad_org"/>
+						<qry:attribute name="unidad" value="$r/@d_unidad_org"/>
+						<qry:attribute name="oi_clase_org" value="../../@oi_clase_org"/>
+						<qry:attribute name="oi_unidad_org" value="$r/@oi_unidad_org"/>
+						<qry:attribute name="oi_estructura" value="$r/@oi_estructura"/>
+						<qry:attribute name="oi_estr_padre" value="#PARAM:@oi_estructura"/>
+						<qry:insert-select doc-path="." name="qry_Vista"/>
+						<qry:insert-select doc-path="." name="qry_Personas"/>
+						<qry:insert-select doc-path="." name="qry_count_Personas"/>
+						<qry:if test="Number(@deep)&gt;1">
+							<qry:then>
+								<qry:element name="unidades">
+									<qry:insert-select doc-path=".." name="qry_child"/>
+								</qry:element>
+								<qry:element name="externas">
+									<qry:insert-select doc-path=".." name="qry_child_ext"/>
+								</qry:element>
+								<qry:attribute name="child_count" value="Number(./unidades/@child_count)+Number(./externas/@child_count)"/>
+							</qry:then>
+							<qry:else>
+								<qry:insert-select doc-path="." name="qry_count_child"/>
+							</qry:else>
+						</qry:if>
+					</qry:element>
+				</qry:out>
+			</qry:select>
+			<qry:select doc="PARAM" name="qry_child_ext">
+				<qry:xquery>
+					for $r in sql('		
+					SELECT 
+						ORG02_CLASES_HIJAS.oi_clase_hija,
+						ORG02_CLASES_HIJAS.oi_estructura,
+						ORG02_CLASES_ORG.oi_clase_org, 
+						ORG02_CLASES_ORG.c_clase_org, 
+						ORG02_CLASES_ORG.d_clase_org, 
+						ORG02_CLASES_ORG.oi_estructura_org
+					FROM      
+						ORG02_CLASES_HIJAS,
+						ORG02_CLASES_ORG
+					JOIN 
+						ORG02_CLASES_HIJAS.oi_clase_org INNER ORG02_CLASES_ORG.oi_clase_org
+					WHERE 
+						ORG02_CLASES_HIJAS.oi_estructura = {#PARAM:@oi_estructura}
+			')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:attribute name="child_count" value="Number(@child_count)+1"/>
+					<qry:element name="unidad">
+						<qry:attribute name="deep" value="Number(../../@deep)-1"/>
+						<qry:attribute name="oi_clase_hija" value="$r/@oi_clase_hija"/>
+						<qry:attribute name="oi_clase_org" value="$r/@oi_clase_org"/>
+						<qry:attribute name="unidad" value="$r/@c_clase_org + '-' + $r/@d_clase_org"/>
+						<qry:attribute name="oi_estructura" value="$r/@oi_estructura_org"/>
+						<qry:attribute name="oi_estr_parent" value="$r/@oi_estructura"/>
+						<qry:attribute name="extern" value="1"/>
+						<qry:attribute name="child_count" value="1"/>
+						<qry:insert-select doc-path="." name="qry_Vista"/>
+					</qry:element>
+				</qry:out>
+			</qry:select>
+			<qry:select doc="PARAM" name="qry_Personas">
+				<qry:xquery>
+					for $r in sql('
+				SELECT 
+					ORG03_EMPRESAS.c_empresa, 
+					PER01_PERSONAL.oi_personal, 
+					PER01_PERSONAL.oi_foto,
+					PER01_PERSONAL.d_ape_y_nom, 
+					PER01_PERSONAL.d_email,
+					PER02_PERSONAL_EMP.oi_personal_emp, 
+					PER02_PERSONAL_EMP.e_numero_legajo,
+					PER02_PERSONAL_EMP.oi_indic_activo
+				FROM 
+					ORG03_EMPRESAS, 
+					PER02_PERSONAL_EMP, 
+					PER01_PERSONAL, 
+					ORG02_ESTRUC_PERS
+				JOIN 
+					PER02_PERSONAL_EMP.oi_personal INNER PER01_PERSONAL.oi_personal,
+					ORG03_EMPRESAS.oi_empresa INNER PER02_PERSONAL_EMP.oi_empresa, 
+					PER02_PERSONAL_EMP.oi_personal_emp INNER ORG02_ESTRUC_PERS.oi_personal_emp
+				WHERE 
+					ORG02_ESTRUC_PERS.oi_estructura = {#PARAM:@oi_estructura}
+				AND (ORG02_ESTRUC_PERS.l_staff=0 OR ISNULL(ORG02_ESTRUC_PERS.l_staff))
+				AND ORG02_ESTRUC_PERS.l_responsable = 1
+		')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:attribute name="oi_personal" value="$r/@oi_personal"/>
+					<qry:attribute name="oi_legajo" value="$r/@oi_personal_emp"/>
+					<qry:attribute name="color" value="iif($r/@oi_indic_activo!=1,'#800000','#000000')"/>
+					<qry:attribute name="empresa" value="$r/@c_empresa"/>
+					<qry:attribute name="legajo" value="$r/@e_numero_legajo"/>
+					<qry:attribute name="nombre" value="$r/@d_ape_y_nom"/>
+					<qry:attribute name="foto" value="$r/@oi_foto"/>
+					<qry:attribute name="mail" value="$r/@d_email"/>
+				</qry:out>
+			</qry:select>
+			<qry:select name="qry_count_Personas" doc="PARAM">
+				<qry:xquery>
+					for $r in sql('
+				SELECT 
+					COUNT(ORG02_ESTRUC_PERS.oi_personal_emp) AS cantidad					
+				FROM 				
+					ORG02_ESTRUC_PERS				
+				WHERE 
+					ORG02_ESTRUC_PERS.oi_estructura = {#PARAM:@oi_estructura}				
+		')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:attribute name="cant_legajos" value="$r/@cantidad"/>
+				</qry:out>
+			</qry:select>
+			<qry:select name="qry_count_child" doc="PARAM">
+				<qry:xquery>
+					for $r in sql('
+					SELECT 
+						count(ORG02_ESTRUCTURAS.oi_estructura) as cnt
+					FROM 
+						ORG02_ESTRUCTURAS, ORG01_UNI_ORG, ORG01_TIPOS_UNI
+						
+					JOIN 
+						ORG02_ESTRUCTURAS.oi_unidad_org INNER ORG01_UNI_ORG.oi_unidad_org,
+						ORG01_UNI_ORG.oi_tipo_uni_org INNER ORG01_TIPOS_UNI.oi_tipo_uni_org
+						
+					WHERE	
+						ORG02_ESTRUCTURAS.oi_estr_padre = {#PARAM:@oi_estructura}
+				')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:attribute name="child_count" value="Number(@child_count)+Number($r/@cnt)"/>
+					<qry:insert-select doc-path="." name="qry_count_extern"/>
+				</qry:out>
+			</qry:select>
+			<qry:select name="qry_count_extern" doc="PARAM">
+				<qry:xquery>
+					for $r in sql('
+					SELECT 
+						count(ORG02_CLASES_HIJAS.oi_clase_hija) as cnt
+					FROM      
+						ORG02_CLASES_HIJAS,
+						ORG02_CLASES_ORG
+					JOIN 
+						ORG02_CLASES_HIJAS.oi_clase_org INNER ORG02_CLASES_ORG.oi_clase_org
+					WHERE 
+						ORG02_CLASES_HIJAS.oi_estructura = {#PARAM:@oi_estructura}
+				')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:attribute name="child_count" value="Number(@child_count)+Number($r/@cnt)"/>
+				</qry:out>
+			</qry:select>
+			<qry:select name="qry_vista" doc="PARAM">
+				<qry:xquery>
+					for $r in sql('
+					SELECT 
+						ORG42_VISTAS.oi_vista
+					FROM      
+						ORG42_VISTAS
+					WHERE 
+						ORG42_VISTAS.oi_estructura = {#PARAM:@oi_estructura}
+				')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:attribute name="vista" value="$r/@oi_vista"/>
+				</qry:out>
+			</qry:select>
+		</form:Resource>
+		<form:Resource name="html:TABLABASE_SIMPLE">
+			<TABLE border="0" cellspacing="0" cellpadding="0" align="center">
+				<TR>
+					<TD colspan="2" style="border:none;padding-left:10px;padding-right:10px;" align="center">
+						{DIV SIMPLE}
+					</TD>
+				</TR>
+				<TR>
+					<TD style="border-right:solid 1px #000000; font-size:6px;" width="50%">
+						{NO-STAFF}
+					</TD>
+					<TD style="border-left:solid 1px #000000; font-size:6px;" width="50%">
+						{STAFF}
+					</TD>
+				</TR>
+				<TR>
+					<TD colspan="2" style="border:none" align="center">
+						<TABLE cellpadding="0" cellspacing="0" border="0">
+							<TR>
+								{LINEAS}
+							</TR>
+							<TR>
+								{ORGANIGRAMAS HIJOS}
+							</TR>
+						</TABLE>
+					</TD>
+				</TR>
+			</TABLE>
+		</form:Resource>
+		<form:Resource name="html:TABLASUB_SIMPLE">
+			<TD colspan="2" valign="top">
+				{UNIDAD}
+			</TD>
+		</form:Resource>
+		<form:Resource name="html:TABLABASE_SIMPLE_NOCHILD">
+			<TABLE border="0" cellspacing="0" cellpadding="0" align="center">
+				<TR>
+					<TD colspan="2" style="border:none;padding-left:10px;padding-right:10px;" align="center">
+						{DIV SIMPLE}
+					</TD>
+				</TR>
+			</TABLE>
+		</form:Resource>
+		<form:Resource name="html:TABLAPERSONA">
+			<TABLE width="100%" cellspacing="0" cellpadding="0" style="font-size:9px;">
+				<TR>
+					<TD style="background-color:#0000A0;color:#FFFFFF;font-size:10px;font-weight:bold;" colspan="2" align="center">
+						{NOMBRE}
+					</TD>
+				</TR>
+				<TR>
+					<TD rowspan="5" width="60px">
+						<IMG src="{FOTO}" width="55px" height="65px"/>
+					</TD>
+					<TD width="190">
+						{POSICION}
+					</TD>
+				</TR>
+				<TR>
+					<TD>
+						{TELEFONO}
+					</TD>
+				</TR>
+				<TR>
+					<TD>
+						<A href="mailto:{MAIL}" style="text-decoration:none;color:black">
+							{MAIL}
+						</A>
+					</TD>
+				</TR>
+				<TR>
+					<TD>
+						{COSTO}
+					</TD>
+				</TR>
+			</TABLE>
+		</form:Resource>
+		<form:Resource name="html:DIV_SIMPLE">
+			<TABLE title="{UNIDAD}" cellpadding="0" cellspacing="0" style="background-repeat:no-repeat;background-image:url(../images/organigrama/unidad1.jpg);table-layout:fixed;color:#000000;font-family:verdana;font-size:10px;width:250px;height:80px;cursor:pointer;" onclick="EstructuraClick({OI_ESTRUCTURA},{OI_LEGAJO});" ondblclick="EstructuraDblClick({OI_ESTRUCTURA});">
+				<TR>
+					<TD rowspan="2" style="width:58px;padding-left:5px;padding-right:5px;">
+						<IMG src="{FOTO}" width="48px" height="48px"/>
+					</TD>
+					<TD style="width:170px;padding-right:5px;font-weight:bold;">
+						{UNIDAD}
+					</TD>
+				</TR>
+				<TR>
+					<TD style="width:190px;padding-right:5px;">
+						{NOMBRE}
+					</TD>
+				</TR>
+			</TABLE>
+		</form:Resource>
+		<form:Resource name="html:DIV_SIMPLE_NORESP">
+			<TABLE title="{UNIDAD}" cellpadding="0" cellspacing="0" style="background-repeat:no-repeat;background-image:url(../images/organigrama/unidad2.jpg);table-layout:fixed;color:#000000;font-family:verdana;font-size:10px;font-weight:bold;width:250px;height:80px;cursor:pointer;" onclick="EstructuraClick({OI_ESTRUCTURA},{OI_LEGAJO});" ondblclick="EstructuraDblClick({OI_ESTRUCTURA});">
+				<TR>
+					<TD style="padding-left:5px;padding-right:5px;" align="center" valign="middle">
+						{UNIDAD}
+					</TD>
+				</TR>
+			</TABLE>
+		</form:Resource>
+		<form:Resource name="html:DIV_SIMPLE_EXTERN">
+			<TABLE title="{UNIDAD}" cellpadding="0" cellspacing="0" style="background-repeat:no-repeat;background-image:url(../images/organigrama/unidad2.jpg);table-layout:fixed;color:#000000;font-family:verdana;font-size:10px;font-weight:bold;width:250px;height:80px;cursor:pointer;" onclick="EstructuraClick({OI_ESTRUCTURA},{OI_LEGAJO});" ondblclick="EstructuraDblClick({OI_ESTRUCTURA});">
+				<TR>
+					<TD style="padding-left:5px;padding-right:5px;" align="center" valign="middle">
+						{UNIDAD}
+					</TD>
+				</TR>
+				<TR>
+					<TD align="center" valign="middle">
+						<img src="../images/organigrama/organigrama.gif"/>
+					</TD>
+				</TR>
+			</TABLE>
+		</form:Resource>
+		<form:Resource name="html:NO_PARENT">
+			<DIV style="font-size:1px;width:6px;height:6px;background-color:#000000;">
+				{nbsp}
+			</DIV>
+		</form:Resource>
+		<form:Resource name="html:NO_CHILD">
+			<TD>
+				<DIV style="font-size:1px;width:6px;height:6px;background-color:#000000;">
+					{nbsp}
+				</DIV>
+			</TD>
+		</form:Resource>
+		<form:Resource name="html:DIV_SIMPLE_STAFF">
+			<TABLE title="{UNIDAD}" cellpadding="0" cellspacing="0" style="margin-top:5px;margin-bottom:5px;table-layout:fixed;color:#000000;font-family:verdana;font-size:10px;font-weight:bold;width:280px;height:80px;">
+				<TR>
+					<TD style="border-bottom:2px dotted black;width:30px;">
+						{nbsp}
+					</TD>
+					<TD rowspan="2" style="padding-left:5px;padding-right:5px;background-repeat:no-repeat;background-image:url(../images/organigrama/unidad2.jpg);cursor:pointer;" onclick="EstructuraClick({OI_ESTRUCTURA},{OI_LEGAJO});" ondblclick="EstructuraDblClick({OI_ESTRUCTURA});" align="center" valign="middle">
+						{UNIDAD}
+					</TD>
+				</TR>
+				<TR>
+					<TD style="border-top:2px dotted black;">
+						{nbsp}
+					</TD>
+				</TR>
+			</TABLE>
+		</form:Resource>
+		<form:Resource name="html:TABLABASE_SIMPLE_STAFF">
+			<TABLE border="0" cellspacing="0" cellpadding="0" align="center">
+				<TR>
+					<TD colspan="2" style="border:none;padding-left:10px;padding-right:10px;" align="center">
+						{DIV SIMPLE}
+					</TD>
+				</TR>
+				<TR>
+					<TD style="height:20px;border-right:dotted 2px #000000; font-size:6px;">
+						<TABLE border="0" cellpadding="0" cellspacing="0" style="table-layout:fixed;color:#000000;font-family:verdana;font-size:10px;font-weight:bold;width:280px;height:20px;">
+							<TR>
+								<TD>
+									{nbsp}
+								</TD>
+							</TR>
+						</TABLE>
+					</TD>
+					<TD rowspan="2">
+						{STAFF}
+					</TD>
+				</TR>
+				<TR>
+					<TD>
+						{nbsp}
+					</TD>
+				</TR>
+			</TABLE>
+		</form:Resource>
+		<form:Resource name="html:TABLABASE_SIMPLE_CHILDHIDE">
+			<TABLE border="0" cellspacing="0" cellpadding="0" align="center">
+				<TR>
+					<TD colspan="2" style="border:none;padding-left:10px;padding-right:10px;" align="center">
+						{DIV SIMPLE}
+					</TD>
+				</TR>
+				<TR>
+					<TD style="border-right:solid 1px #000000; font-size:6px;" width="50%">
+						{nbsp}
+					</TD>
+					<TD style="border-left:solid 1px #000000; font-size:6px;" width="50%">
+						{nbsp}
+					</TD>
+				</TR>
+				<TR>
+					<TD colspan="2" style="border:none" align="center">
+						<img src="../images/SmallButtons/down_n.gif" border="0" style="cursor:pointer" title="Presione para navegar hacia abajo en el organigrama" onmouseover="GenericImgChgStyle(this,'OVER');" onmouseout="GenericImgChgStyle(this,'NORMAL');" onclick="EstructuraDblClick({OI_ESTRUCTURA});"/>
+					</TD>
+				</TR>
+			</TABLE>
+		</form:Resource>
+		<form:Resource name="html:DIV_SIMPLE_ROOT">
+			<TABLE title="{UNIDAD}" cellpadding="0" cellspacing="0" style="background-repeat:no-repeat;background-image:url(../images/organigrama/unidad1.jpg);table-layout:fixed;color:#000000;font-family:verdana;font-size:10px;width:250px;height:80px;cursor:pointer;" onclick="SelectEstrInOrgAll({OI_ESTRUCTURA}, {OI_LEGAJO}, this, true);" ondblclick="DRAWEstructura({OI_ESTRUCTURA});">
+				<TR>
+					<TD colspan="2" style="border:none" align="center">
+						<DIV style="font-size:1px;width:6px;height:6px;background-color:#000000;">
+							{nbsp}
+						</DIV>
+					</TD>
+				</TR>
+				<TR>
+					<TD style="border-right:solid 1px #000000; font-size:6px;" width="50%">
+						{nbsp}
+					</TD>
+					<TD style="border-left:solid 1px #000000; font-size:6px;" width="50%">
+						{nbsp}
+					</TD>
+				</TR>
+				<TR>
+					<TD rowspan="2" style="width:58px;padding-left:5px;padding-right:5px;">
+						<IMG src="{FOTO}" width="48px" height="48px"/>
+					</TD>
+					<TD style="width:190px;padding-right:5px;font-weight:bold;">
+						{UNIDAD}
+					</TD>
+				</TR>
+				<TR>
+					<TD style="width:190px;padding-right:5px;">
+						{NOMBRE}
+					</TD>
+				</TR>
+			</TABLE>
+		</form:Resource>
+		<form:Resource name="html:TABLABASE_SIMPLE_PARENTHIDE">
+			<TABLE border="0" cellspacing="0" cellpadding="0" align="center">
+				<TR>
+					<TD colspan="2" style="border:none" align="center">
+						<img src="../images/SmallButtons/up_n.gif" border="0" style="cursor:pointer" title="Presione para navegar hacia arriba en el organigrama" onmouseover="GenericImgChgStyle(this,'OVER');" onmouseout="GenericImgChgStyle(this,'NORMAL');" onclick="EstructuraDblClick({OI_ESTR_PADRE});"/>
+					</TD>
+				</TR>
+				<TR>
+					<TD style="border-right:solid 1px #000000; font-size:6px;" width="50%">
+						{nbsp}
+					</TD>
+					<TD style="border-left:solid 1px #000000; font-size:6px;" width="50%">
+						{nbsp}
+					</TD>
+				</TR>
+				<TR>
+					<TD colspan="2" style="border:none;padding-left:10px;padding-right:10px;" align="center">
+						{DIV SIMPLE}
+					</TD>
+				</TR>
+				<TR>
+					<TD style="border-right:solid 1px #000000; font-size:6px;" width="50%">
+						{nbsp}
+					</TD>
+					<TD style="border-left:solid 1px #000000; font-size:6px;" width="50%">
+						{STAFF}
+					</TD>
+				</TR>
+				<TR>
+					<TD colspan="2" style="border:none" align="center">
+						<TABLE cellpadding="0" cellspacing="0" border="0">
+							<TR>
+								{LINEAS}
+							</TR>
+							<TR>
+								{ORGANIGRAMAS HIJOS}
+							</TR>
+						</TABLE>
+					</TD>
+				</TR>
+			</TABLE>
+		</form:Resource>
+		<form:Resource name="html:TABLABASE_SIMPLE_NOCHILD_PARENTHIDE">
+			<TABLE border="0" cellspacing="0" cellpadding="0" align="center">
+				<TR>
+					<TD colspan="2" style="border:none" align="center">
+						<img src="../images/SmallButtons/up_n.gif" border="0" style="cursor:pointer" title="Presione para navegar hacia arriba en el organigrama" onmouseover="GenericImgChgStyle(this,'OVER');" onmouseout="GenericImgChgStyle(this,'NORMAL');" onclick="EstructuraDblClick({OI_ESTR_PADRE});"/>
+					</TD>
+				</TR>
+				<TR>
+					<TD style="border-right:solid 1px #000000; font-size:6px;" width="50%">
+						{nbsp}
+					</TD>
+					<TD style="border-left:solid 1px #000000; font-size:6px;" width="50%">
+						{nbsp}
+					</TD>
+				</TR>
+				<TR>
+					<TD colspan="2" style="border:none;padding-left:10px;padding-right:10px;" align="center">
+						{DIV SIMPLE}
+					</TD>
+				</TR>
+			</TABLE>
+		</form:Resource>
+		<form:Resource declare="&lt;PARAM oi_legajo=&quot;2&quot;  /&gt;" name="qry:PERSONAL">
+			<qry:main doc="PARAM">
+				<qry:element name="ROW">
+					<qry:insert-select doc-path="#PARAM:/PARAM" name="qry"/>
+				</qry:element>
+			</qry:main>
+			<qry:select doc="PARAM" name="qry">
+				<qry:xquery>
+					for $r in sql('
+					SELECT L.oi_personal
+					FROM PER02_PERSONAL_EMP as L
+					WHERE L.oi_personal_emp = {#PARAM:@oi_legajo}
+				')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:attribute name="oi_personal" value="$r/@oi_personal"/>
+				</qry:out>
+			</qry:select>
+		</form:Resource>
+		<form:Resource name="html:LINEABASE_SELECT">
+			<TR>
+				<TD style="background-color:#85BFD5;color:#000000;width:50px;border-bottom:1px dotted #000000;" onclick="EstructuraClick({OI_ESTRUCTURA},{OI_LEGAJO}); event.cancelBubble=true;">
+					{LEGAJO}
+				</TD>
+				<TD style="background-color:#85BFD5;color:#000000;width:135px;border-bottom:1px dotted #000000;" onclick="EstructuraClick({OI_ESTRUCTURA},{OI_LEGAJO}); event.cancelBubble=true;">
+					{NOMBRE}
+				</TD>
+				<TD style="background-color:#85BFD5;color:#000000;width:80px;border-bottom:1px dotted #000000;" onclick="EstructuraClick({OI_ESTRUCTURA},{OI_LEGAJO}); event.cancelBubble=true;">
+					{EMPRESA}
+				</TD>
+			</TR>
+		</form:Resource>
+		<form:Resource name="html:DIV_SIMPLE_NO_STAFF">
+			<TABLE title="{UNIDAD}" cellpadding="0" cellspacing="0" style="margin-top:5px;margin-bottom:5px;table-layout:fixed;color:#000000;font-family:verdana;font-size:10px;font-weight:bold;width:280px;height:80px;">
+				<TR>
+					<TD>
+						{nbsp}
+					</TD>
+				</TR>
+			</TABLE>
+		</form:Resource>
+		<form:Resource name="html:DIV_SIMPLE_VISTA">
+			<TABLE title="{UNIDAD}" cellpadding="0" cellspacing="0" style="background-repeat:no-repeat;background-image:url(../images/organigrama/unidad1.jpg);table-layout:fixed;color:#000000;font-family:verdana;font-size:10px;width:250px;height:80px;cursor:pointer;" onclick="EstructuraClick({OI_ESTRUCTURA},{OI_LEGAJO});" ondblclick="EstructuraDblClick({OI_ESTRUCTURA});">
+				<TR>
+					<TD rowspan="2" style="width:58px;padding-left:5px;padding-right:5px;">
+						<IMG src="{FOTO}" width="48px" height="48px"/>
+					</TD>
+					<TD style="width:170px;padding-right:5px;font-weight:bold;">
+						{UNIDAD}
+					</TD>
+					<TD style="width:20px;padding-right:5px;">
+						<IMG src="../Images/organigrama/Vista.gif" title="Existe una Vista asociada"/>
+					</TD>
+				</TR>
+				<TR>
+					<TD colspan="2" style="width:190px;padding-right:5px;">
+						{NOMBRE}
+					</TD>
+				</TR>
+			</TABLE>
+		</form:Resource>
+		<form:Resource name="html:DIV_SIMPLE_NORESP_VISTA">
+			<TABLE title="{UNIDAD}" cellpadding="0" cellspacing="0" style="background-repeat:no-repeat;background-image:url(../images/organigrama/unidad2.jpg);table-layout:fixed;color:#000000;font-family:verdana;font-size:10px;font-weight:bold;width:250px;height:80px;cursor:pointer;" onclick="EstructuraClick({OI_ESTRUCTURA},{OI_LEGAJO});" ondblclick="EstructuraDblClick({OI_ESTRUCTURA});">
+				<TR>
+					<TD style="padding-left:5px;padding-right:5px;" align="center" valign="middle">
+						{UNIDAD}
+					</TD>
+					<TD style="width:20px;padding-right:5px;">
+						<IMG src="../Images/organigrama/Vista.gif" title="Existe una Vista asociada"/>
+					</TD>
+				</TR>
+			</TABLE>
+		</form:Resource>
+		<form:Resource name="html:DIV_SIMPLE_FIC">
+			<TABLE title="Unidad ficticia" cellpadding="0" cellspacing="0" style="table-layout:fixed;color:#000000;font-family:verdana;font-size:10px;font-weight:bold;width:250px;height:80px;cursor:pointer;" onclick="EstructuraClick({OI_ESTRUCTURA},null);">
+				<TR>
+					<TD style="border-right:solid 1px #000000; font-size:6px;">
+						{nbsp}
+					</TD>
+					<TD style="border-left:solid 1px #000000; font-size:6px;">
+						{nbsp}
+					</TD>
+				</TR>
+			</TABLE>
+		</form:Resource>
+		<form:Resource name="html:DIV_SIMPLE_FIC_SEL">
+			<TABLE title="Unidad ficticia" cellpadding="0" cellspacing="0" style="table-layout:fixed;color:#000000;font-family:verdana;font-size:10px;font-weight:bold;width:250px;height:80px;cursor:pointer;" onclick="EstructuraClick({OI_ESTRUCTURA},null);">
+				<TR>
+					<TD style="border-right:solid 3px #0000A0; font-size:6px;">
+						{nbsp}
+					</TD>
+					<TD style="border-left:solid 3px #0000A0; font-size:6px;">
+						{nbsp}
+					</TD>
+				</TR>
+			</TABLE>
+		</form:Resource>
+	</form:Resources>
+	<form:Bottom>
+		<form:RowAligner name="bottom">
+			<form:Row name="rowbottom">
+				<form:Button note="Completo" descrip="Completo" img="org" label="Completo" name="ALL">
+					<form:Event action="ShowOrganigrama" name="onclick" runat="client"/>
+				</form:Button>
+				<form:Button img="properties" note="Consultar" descrip="Consultar" label="Consultar" name="ESTR">
+					<form:Event action="ShowEstructura" name="onclick" runat="client"/>
+				</form:Button>
+				<form:Button img="group" note="Consultar Legajos" descrip="Consultar Legajos" label="Personas" name="PERS">
+					<form:Event action="ShowPersonas" name="onclick" runat="client"/>
+				</form:Button>
+				<form:Blank width="30px" name="SEP1" descrip="separador"/>
+				<form:Button note="Acercar" descrip="Buscar" img="search" label="Buscar" name="SEARCH">
+					<form:Event action="Buscar" name="onclick" runat="client"/>
+				</form:Button>
+				<form:Blank width="30px" name="SEP2" descrip="separador"/>
+				<form:Button note="Acercar" descrip="Acercar" img="zoomin" label="Acercar" name="ZOOM_IN">
+					<form:Event action="ZoomIn" name="onclick" runat="client"/>
+				</form:Button>
+				<form:Button img="zoomout" note="Alejar" descrip="Alejar" label="Alejar" name="ZOOM_OUT">
+					<form:Event action="ZoomOut" name="onclick" runat="client"/>
+				</form:Button>
+				<form:Blank width="30px" name="SEP3" descrip="separador"/>
+				<form:Button note="Cancelar" descrip="Cancelar" img="BACK" label="Volver" name="BACK">
+					<form:Event action="BACK" name="onclick" runat="server"/>
+				</form:Button>
+			</form:Row>
+		</form:RowAligner>
+	</form:Bottom>
+	<form:Event action="OnLoad" runat="client" name="onLoad"/>
+	<form:Right collapse="1" width="150px">
+		<form:VGroup label="Personal" collapse="1" width="100%" name="vgPERSONAL_BASE">
+			<form:Link label="Persona" name="PERSONA" allowimg="1" note="La lista de mail se utiliza cuando se quieren enviar notificaciones automaitcas a la entidad desde el Sistema.\\&#13;&#10;" descrip="Ir a la Informacion de la Persona">
+				<form:Event action="ShowPersonal" name="onclick" runat="client"/>
+			</form:Link>
+			<form:Link descrip="Ir a la Informacion del Legajo de la Persona" allowimg="1" label="Legajo" name="LEGAJO">
+				<form:Event action="ShowLegajo" name="onclick" runat="client"/>
+			</form:Link>
+			<form:Link name="REPORTE" allowimg="1" descrip="Ir al Reporte del Legajo" label="Reporte">
+				<form:Event action="ShowReporte" name="onclick" runat="client"/>
+			</form:Link>
+		</form:VGroup>
+	</form:Right>
+</form:Form>

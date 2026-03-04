@@ -1,0 +1,93 @@
+<flow:flow name="NucleusRH.Base.Tiempos_Trabajados.FichadasIng.ESPERANZAPER.guia.flow" extends="Nomad.simple.guia.flow" xmlns:doc="nomad_engine.form" xmlns:qry="nomad_engine.form" xmlns:flow="nomad_engine.form">
+	<flow:info label="Flow guia para NucleusRH.Base.Tiempos_Trabajados.Personal.ESPERANZAPER.guia.flow"/>
+	<flow:main doc="SOURCE">
+		<flow:action name="HELP">
+			<flow:log text-path="#SOURCE:" text="ppsource"/>
+			<doc:load-qry output-doc="QRY_LIST" qry="LIST" input-doc-path="#SOURCE:"/>
+			<flow:open-form form-class="NucleusRH.Base.Tiempos_Trabajados.FichadasIng.ESPERANZAPER.guia.form" doc-path="#SOURCE:" mode="EDIT"/>
+		</flow:action>
+	</flow:main>
+	<flow:declare>
+		<qry:define declare="&lt;DATA oi_personal_emp=&quot;11565&quot; fecha=&quot;20080802080000&quot; /&gt;" name="LIST">
+			<qry:main doc="SOURCE">
+				<qry:element name="ROWS">
+					<qry:insert-select doc-path="#SOURCE:DATA" name="RS1"/>
+				</qry:element>
+			</qry:main>
+			<qry:select name="RS1" doc="SOURCE">
+				<qry:xquery>
+					for $r in sql(' 
+				SELECT TTA07_FICHADASING.oi_personal_emp, TTA07_FICHADASING.oi_fichadasing, 
+				TTA07_FICHADASING.f_fechahora, TTA07_FICHADASING.c_tipo, 				
+				TTA07_FICHADASING.c_estado, TTA07_FICHADASING.oi_liquidacion
+				FROM TTA07_FICHADASING
+				WHERE TTA07_FICHADASING.oi_personal_emp = {#SOURCE:@oi_personal_emp}
+				AND TTA07_FICHADASING.f_fechahora &gt;= {DateTime(Number(DateTime(#SOURCE:@fecha))-1)}
+				AND TTA07_FICHADASING.f_fechahora &lt;= {DateTime(Number(DateTime(#SOURCE:@fecha))+2)}
+				ORDER BY f_fechahora ASC, c_tipo ASC
+			')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:element name="ROW">
+						<qry:attribute name="value" value="$r/@oi_personal_emp"/>
+						<qry:attribute name="id" value="$r/@oi_fichadasing"/>
+						<qry:attribute name="f_fechahora" value="$r/@f_fechahora" type="Nomad.NSystem.String"/>
+						<qry:attribute name="c_tipo" value="$r/@c_tipo"/>
+						<qry:attribute name="img" value="iif($r/@oi_liquidacion!='','Listas/LOCK.ICO','')"/>
+						<qry:attribute name="c_estado" value="$r/@c_estado"/>
+						<qry:insert-select doc-path="./.[@c_estado='A']" name="QRY_ANULADA_SI"/>
+						<qry:insert-select doc-path="./.[@c_estado!='A']" name="QRY_ANULADA_NO"/>
+						<qry:insert-select doc-path="." name="SECURITY"/>
+					</qry:element>
+				</qry:out>
+			</qry:select>
+			<qry:select doc="PARAM" name="QRY_ANULADA_SI">
+				<qry:out>
+					<qry:attribute value="1" name="l_anulada"/>
+				</qry:out>
+			</qry:select>
+			<qry:select doc="PARAM" name="QRY_ANULADA_NO">
+				<qry:out>
+					<qry:attribute value="0" name="l_anulada"/>
+				</qry:out>
+			</qry:select>
+			<qry:select doc="PARAM" name="QRY_ENTRADA">
+				<qry:out>
+					<qry:attribute value="'right_gre.gif'" name="img"/>
+				</qry:out>
+			</qry:select>
+			<qry:select doc="PARAM" name="QRY_SALIDA">
+				<qry:out>
+					<qry:attribute value="'left_red.gif'" name="img"/>
+				</qry:out>
+			</qry:select>
+			<qry:select doc="PARAM" name="QRY_INDEFINIDA">
+				<qry:out>
+					<qry:attribute value="'ukn.ico'" name="img"/>
+				</qry:out>
+			</qry:select>
+			<qry:select doc="PARAM" name="SECURITY">
+				<qry:xquery>
+					for $r in sql('
+				SELECT NMD_SECURITY.policy 
+				FROM NMD_SECURITY 
+				WHERE NMD_SECURITY.class=\'NucleusRH.Base.Tiempos_Trabajados.FichadasIng.FICHADASING\' 
+				AND NMD_SECURITY.id={#PARAM:@id}
+			')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:attribute value="$r/@policy" name="policy"/>
+				</qry:out>
+			</qry:select>
+		</qry:define>
+		<doc:define name="QRY_LIST"/>
+	</flow:declare>
+	<flow:form form-class="NucleusRH.Base.Tiempos_Trabajados.FichadasIng.ESPERANZAPER.guia.form" name="NucleusRH.Base.Tiempos_Trabajados.FichadasIng.ESPERANZAPER.guia.form:EDIT" mode="EDIT" parent-doc="INVAL" doc="REPORT">
+		<flow:action name="BACK">
+			<flow:close-form/>
+		</flow:action>
+		<flow:action name="on-show">
+			<flow:attach-doc doc-path="#QRY_LIST:" attach-id="RS"/>
+		</flow:action>
+	</flow:form>
+</flow:flow>

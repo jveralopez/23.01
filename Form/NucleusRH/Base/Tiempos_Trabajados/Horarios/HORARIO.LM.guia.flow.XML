@@ -1,0 +1,108 @@
+<flow:flow name="NucleusRH.Base.Tiempos_Trabajados.Horarios.HORARIO.LM.guia.flow" xmlns:doc="nomad_engine.form" xmlns:qry="nomad_engine.form" xmlns:flow="nomad_engine.form">
+	<flow:main doc="SOURCE">
+		<flow:action name="HELP">
+			<doc:load-qry output-doc="RS" input-doc-path="#SOURCE:" qry="HELP"/>
+			<flow:open-form form-class="NucleusRH.Base.Tiempos_Trabajados.Horarios.HORARIO.LM.guia.form" parent-doc-path="#SOURCE:" doc-path="#RS:" mode="SHOW"/>
+		</flow:action>
+	</flow:main>
+	<flow:declare>
+		<doc:define name="RS"/>
+		<doc:define name="OUT"/>
+		<qry:define declare="&lt;helper-mess&gt;&lt;rows&gt;&lt;row oi_horario=&quot;8&quot; /&gt;&lt;/rows&gt;&lt;/helper-mess&gt;" name="HELP">
+			<qry:main doc="SOURCE">
+				<qry:element name="ROWS">
+					<qry:insert-select name="RS1" doc-path="#SOURCE:"/>
+					<qry:insert-select name="RS2" doc-path="#SOURCE:"/>
+				</qry:element>
+			</qry:main>
+			<qry:select doc="SOURCE" name="RS1">
+				<qry:xquery>
+					for $r in sql('
+        SELECT TTA02_HORARIOS.oi_horario, TTA02_HORARIOS.c_horario, TTA02_HORARIOS.d_horario
+        FROM TTA02_HORARIOS
+        WHERE  
+        {%? (string(#SOURCE:helper-mess/ROWS/ROW/@oi_horario)!='') 
+		        {%  TTA02_HORARIOS.oi_horario IN ({%=string(#SOURCE:helper-mess/ROWS/ROW/@oi_horario)%}) %} 
+		        {% 1 = 2 %} 
+        %}                        
+        ')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:element name="ROW">
+						<qry:attribute type="Nomad.NSystem.Int" value="$r/@oi_horario" name="id"/>
+						<qry:attribute type="Nomad.NSystem.Int" value="$r/@oi_horario" name="value"/>
+						<qry:attribute type="Nomad.NSystem.String" value="$r/@c_horario" name="code"/>
+						<qry:attribute type="Nomad.NSystem.String" value="$r/@d_horario" name="text"/>
+						<qry:attribute type="Nomad.NSystem.Boolean" value="1" name="check"/>
+						<qry:insert-select doc-path="." name="SECURITY"/>
+					</qry:element>
+				</qry:out>
+			</qry:select>
+			<qry:select doc="SOURCE" name="RS2">
+				<qry:xquery>
+					for $r in sql('
+        SELECT TTA02_HORARIOS.oi_horario, TTA02_HORARIOS.c_horario, TTA02_HORARIOS.d_horario
+        FROM TTA02_HORARIOS
+				WHERE
+        {%? (string(#SOURCE:helper-mess/ROWS/ROW/@oi_horario)!='') 
+        		{%  TTA02_HORARIOS.oi_horario NOT IN ({%=string(#SOURCE:helper-mess/ROWS/ROW/@oi_horario)%}) %} 
+        		{% 1 = 1 %}
+        %} 
+         ')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:element name="ROW">
+						<qry:attribute type="Nomad.NSystem.Int" value="$r/@oi_horario" name="id"/>
+						<qry:attribute type="Nomad.NSystem.Int" value="$r/@oi_horario" name="value"/>
+						<qry:attribute type="Nomad.NSystem.String" value="$r/@c_horario" name="code"/>
+						<qry:attribute type="Nomad.NSystem.String" value="$r/@d_horario" name="text"/>
+						<qry:attribute type="Nomad.NSystem.Boolean" value="0" name="check"/>
+						<qry:insert-select doc-path="." name="SECURITY"/>
+					</qry:element>
+				</qry:out>
+			</qry:select>
+			<qry:select doc="PARAM" name="SECURITY">
+				<qry:xquery>
+					for $r in sql('
+				SELECT NMD_SECURITY.policy 
+				FROM NMD_SECURITY 
+				WHERE NMD_SECURITY.class=\'NucleusRH.Base.Tiempos_Trabajados.Horarios.HORARIO\' 
+				AND NMD_SECURITY.id={#PARAM:@id}
+			')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:attribute value="$r/@policy" name="policy"/>
+				</qry:out>
+			</qry:select>
+		</qry:define>
+		<qry:define name="PRUEBA">
+			<qry:main doc="SOURCE">
+				<qry:element name="helper-mess">
+					<qry:element name="rows">
+						<qry:insert-select name="RS1" doc-path="#SOURCE:"/>
+					</qry:element>
+				</qry:element>
+			</qry:main>
+			<qry:select doc="SOURCE" name="RS1">
+				<qry:xquery>
+					for $r in #SOURCE:ROWS/ROW[@check=1]
+				</qry:xquery>
+				<qry:out>
+					<qry:element name="row">
+						<qry:attribute type="Nomad.NSystem.Int" value="$r/@id" name="oi_horario"/>
+					</qry:element>
+				</qry:out>
+			</qry:select>
+		</qry:define>
+	</flow:declare>
+	<flow:form name="NucleusRH.Base.Tiempos_Trabajados.Horarios.HORARIO.LM.guia.form:SHOW" form-class="NucleusRH.Base.Tiempos_Trabajados.Horarios.HORARIO.LM.guia.form" parent-doc="INVAL" doc="SOURCE" mode="SHOW">
+		<flow:action name="on-show"/>
+		<flow:action name="ACCEPT">
+			<doc:load-qry output-doc="OUT" input-doc-path="#SOURCE:" qry="PRUEBA"/>
+			<flow:exit-flow return-path="#OUT:"/>
+		</flow:action>
+		<flow:action name="CANCEL">
+			<flow:close-form/>
+		</flow:action>
+	</flow:form>
+</flow:flow>

@@ -1,0 +1,573 @@
+<flow:flow xmlns:flow="nomad_engine.flow" xmlns:doc="nomad_engine.doc" xmlns:qry="nomad_engine.qry" name="NucleusWF.Base.Definicion.Workflows.FORM_GROUP" default_action="DETAIL">
+	<flow:info label="Flow guia para NucleusWF.Base.Definicion.Organigramas.ESTRUCTURA"/>
+	<flow:declare>
+		<doc:define name="PARENT"/>
+		<doc:define name="METHOD"/>
+		<doc:define name="SELECT"/>
+		<qry:define declare="&lt;PARAMS ID=&quot;18&quot; PARENT=&quot;10&quot; /&gt;" name="GetModeGroup">
+			<qry:main doc="SOURCE">
+				<qry:element name="ROW">
+					<qry:insert-select doc-path="#SOURCE:PARAMS" name="sql1"/>
+				</qry:element>
+			</qry:main>
+			<qry:select doc="PARAM" name="sql1">
+				<qry:xquery>
+					for $r in SQL('
+			SELECT                
+				FRM_GRP.c_mode
+			FROM
+				WRK01_FORM_GROUPS as FRM_GRP
+			WHERE
+				FRM_GRP.oi_form_group = {#PARAM:@PARENT}
+			')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:attribute name="c_mode" value="$r/@c_mode"/>
+				</qry:out>
+			</qry:select>
+		</qry:define>
+		<doc:define name="FORM_MODE"/>
+		<doc:define name="DDO"/>
+		<qry:define name="GetOrder" declare="&lt;PARAMS PARENT=&quot;18&quot; /&gt;">
+			<qry:main doc="SOURCE">
+				<qry:element name="ROW">
+					<qry:attribute name="e_order" value="0"/>
+					<qry:insert-select doc-path="#SOURCE:PARAMS" name="sql1"/>
+				</qry:element>
+			</qry:main>
+			<qry:select doc="PARAM" name="sql1">
+				<qry:xquery>
+					for $r in SQL('
+			SELECT
+				MAX(FIELD.e_order) as e_order
+			FROM
+				WRK01_FORM_GROUPS as FRM_GRP,
+				WRK01_FORM_FIELDS as FIELD
+			JOIN
+				FRM_GRP.oi_form_group LEFT OUTER FIELD.oi_form_group
+			WHERE
+				FRM_GRP.oi_form_group = {#PARAM:@PARENT}
+			
+			')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:attribute name="e_order" value="iif($r/@e_order='',1,$r/@e_order+1)"/>
+				</qry:out>
+			</qry:select>
+		</qry:define>
+		<qry:define name="IMAGENES">
+			<qry:main doc="SOURCE">
+				<ROWS>
+					<qry:attribute name="cod" value="0"/>
+					<qry:append-doc name="CODES" doc-path="."/>
+					<qry:insert-select name="sql1" doc-path="."/>
+					<qry:attribute name="cod" value="''"/>
+				</ROWS>
+			</qry:main>
+			<qry:select doc="PARAM" name="sql1">
+				<qry:xquery>
+					for $r in FS('Web\\Skins\\Default\\Images\\Workflow\\Buttons\\')/LIST/FILE[ends-with(@NAME,'.gif') OR ends-with(@NAME,'.jpg') OR ends-with(@NAME,'.jpeg')]
+				</qry:xquery>
+				<qry:out>
+					<option>
+						<qry:attribute name="cod" value="Number(#CODES:@cod)+1"/>
+						<qry:append-doc name="CODES" doc-path="."/>
+						<qry:attribute name="NAME" value="$r/@NAME"/>
+						<qry:attribute name="value" value="$r/@NAME"/>
+						<qry:attribute name="text" value="$r/@NAME"/>
+					</option>
+				</qry:out>
+			</qry:select>
+		</qry:define>
+		<doc:define name="IMAGENES"/>
+		<qry:define declare="&lt;PARAMS PARENT=&quot;505&quot; /&gt;" name="VARIABLES">
+			<qry:include name="NucleusWF.Base.Definicion.Workflows.WF.VariablesInternas"/>
+			<qry:main doc="SOURCE">
+				<ROWS>
+					<qry:create-doc name="INTVARS"/>
+					<qry:insert-select name="InternalVars" doc-path="" to-element="$INTVARS"/>
+					<qry:append-doc name="APPEND" doc-path="#SOURCE:PARAMS"/>
+					<qry:insert-select name="sql0" doc-path="#SOURCE:PARAMS"/>
+					<qry:attribute name="c_var_group" value="''"/>
+				</ROWS>
+			</qry:main>
+			<qry:select doc="PARAM" name="sql0">
+				<qry:xquery>
+					for $r in SQL('
+			SELECT
+				wfg.c_var_group
+			FROM
+				WRK01_FORM_GROUPS AS wfg
+			WHERE			                              
+				wfg.oi_form_group = {#APPEND:@PARENT}
+			')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:attribute name="c_var_group" value="$r/@c_var_group"/>
+					<qry:if test="$r/@c_var_group=''">
+						<qry:then>
+							<qry:insert-select name="sql2" doc-path="#APPEND:"/>
+							<qry:insert-select name="sql3" doc-path="#APPEND:"/>
+						</qry:then>
+						<qry:else>
+							<qry:insert-select name="sql1" doc-path="#APPEND:"/>
+						</qry:else>
+					</qry:if>
+				</qry:out>
+			</qry:select>
+			<qry:select doc="PARAM" name="sql1">
+				<qry:xquery>
+					for $r in SQL('
+			SELECT
+				wg.c_var_group,
+				wv.c_var,
+				wv.d_var
+			FROM
+				WRK01_FORM_GROUPS AS wfg,
+				WRK01_FORMS AS wf,
+				WRK01_GROUPS AS wg,
+				WRK01_VARS AS wv
+			JOIN
+				wfg.oi_form INNER wf.oi_form
+			WHERE			                              
+				wfg.oi_form_group = {#APPEND:@PARENT} AND
+				wfg.c_var_group = wg.c_var_group AND
+				wf.oi_wf = wg.oi_wf AND
+				wg.oi_var_group = wv.oi_var_group
+			')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<option>
+						<qry:attribute name="value" value="$r/@c_var_group+'.'+$r/@c_var"/>
+						<qry:attribute name="text" value="$r/@d_var"/>
+					</option>
+				</qry:out>
+			</qry:select>
+			<qry:select doc="PARAM" name="sql2">
+				<qry:xquery>
+					for $r in SQL('
+			SELECT
+				wg.c_var_group,
+				wv.c_var,
+				wv.d_var
+			FROM
+				WRK01_FORM_GROUPS AS wfg,
+				WRK01_FORMS AS wfs,
+				WRK01_WF as wf,
+				WRK01_GROUPS AS wg,
+				WRK01_VARS AS wv
+			JOIN
+				wfg.oi_form INNER wfs.oi_form,
+				wfs.oi_wf INNER wf.oi_wf,
+				wf.oi_wf INNER wg.oi_wf,
+				wg.oi_var_group INNER wv.oi_var_group				
+			WHERE			                              
+				wfg.oi_form_group = {#APPEND:@PARENT} AND
+				wg.c_mode IN (\'MAIN\', \'AUX\', \'HIST\')
+			')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<option>
+						<qry:attribute name="value" value="$r/@c_var_group+'.'+$r/@c_var"/>
+						<qry:attribute name="text" value="$r/@d_var"/>
+					</option>
+				</qry:out>
+			</qry:select>
+			<qry:select doc="" name="sql3">
+				<qry:xquery>
+					for $r in $INTVARS/GROUP/VAR
+				</qry:xquery>
+				<qry:out>
+					<option>
+						<qry:attribute name="value" value="$r/../@name+'.'+$r/@name"/>
+						<qry:attribute name="text" value="$r/@label"/>
+					</option>
+					<!--option value="Instancia.Numero" text="Nro de la Instancia"/>
+			<option value="Instancia.Descripcion" text="Descripci&#243;n de la Instancia"/>
+			<option value="Instancia.Estado" text="Estado de la Instancia"/>
+			<option value="Instancia.Fecha_Inicio" text="Fecha de Inicio de la Instancia"/>
+			<option value="Instancia.Fecha_Advertencia" text="Fecha de Advertencia de la Instancia"/>
+			<option value="Instancia.Fecha_Vencimiento" text="Fecha de Vencimiento de la Instancia"/>
+			<option value="Instancia.Proxima_a_Vencer" text="Instancia Pr&#243;xima a Vencer"/>
+			<option value="Instancia.Vencida" text="Instancia Vencida"/>
+			<option value="Solicitante.Nombre" text="Nombre del Usuario Solicitante"/>
+			<option value="Solicitante.Mail" text="Mail del Usuario Solicitante"/>
+			<option value="Solicitante.Telefono" text="Tel&#233;fono del Usuario Solicitante"/>
+			<option value="Solicitante.Rol" text="Rol del Usuario Solicitante"/>
+			<option value="Proceso.Fecha_Inicio" text="Fecha de Inicio del Proceso"/>
+			<option value="Proceso.Fecha_Advertencia" text="Fecha de Advertencia del Proceso"/>
+			<option value="Proceso.Fecha_Vencimiento" text="Fecha de Vencimiento del Proceso"/>
+			<option value="Proceso.Proximo_a_Vencer" text="Proceso Pr&#243;ximo a Vencer"/>
+			<option value="Proceso.Vencida" text="Proceso Vencido"/>
+			<option value="Asignado.Fecha_Asignacion" text="Fecha de Asignaci&#243;n"/>
+			<option value="Asignado.Nombre" text="Nombre del Usuario Asignado"/>
+			<option value="Asignado.Mail" text="Mail del Usuario Asignado"/>
+			<option value="Asignado.Telefono" text="Tel&#233;fono del Usuario Asignado"/>
+			<option value="Asignado.Rol" text="Rol del Usuario Asignado"/>
+			<option value="Delegador.Fecha_Delegacion" text="Fecha de Delegaci&#243;n"/>
+			<option value="Delegador.Comentario" text="Comentario del Delegador"/>
+			<option value="Delegador.Nombre" text="Nombre del Usuario Delegador"/>
+			<option value="Delegador.Mail" text="Mail del Usuario Delegador"/>
+			<option value="Delegador.Telefono" text="Tel&#233;fono del Usuario Delegador"/>
+			<option value="Delegador.Rol" text="Rol del Usuario Delegador"/-->
+				</qry:out>
+			</qry:select>
+		</qry:define>
+		<doc:define name="VARIABLES"/>
+		<doc:define name="ORDER">
+			<ROW/>
+		</doc:define>
+		<qry:define name="VARIABLES-2" declare="&lt;PARAMS PARENT=&quot;227&quot; /&gt;">
+			<qry:main doc="SOURCE">
+				<ROWS>
+					<qry:append-doc name="APPEND" doc-path="#SOURCE:PARAMS"/>
+					<qry:insert-select name="sql0" doc-path="#SOURCE:PARAMS"/>
+					<qry:attribute name="c_var_group" value="''"/>
+				</ROWS>
+			</qry:main>
+			<qry:select doc="PARAM" name="sql0">
+				<qry:xquery>
+					for $r in SQL('
+			SELECT
+				wfg.c_var_group
+			FROM
+				WRK01_FORM_GROUPS AS wfg
+			WHERE			                              
+				wfg.oi_form_group = {#APPEND:@PARENT}
+			')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:attribute name="c_var_group" value="$r/@c_var_group"/>
+					<qry:if test="$r/@c_var_group=''">
+						<qry:then>
+							<qry:insert-select name="sql2" doc-path="#APPEND:"/>
+						</qry:then>
+						<qry:else>
+							<qry:insert-select name="sql1" doc-path="#APPEND:"/>
+						</qry:else>
+					</qry:if>
+				</qry:out>
+			</qry:select>
+			<qry:select doc="PARAM" name="sql1">
+				<qry:xquery>
+					for $r in SQL('
+			SELECT
+				wg.c_var_group,
+				wv.c_var,
+				wv.d_var
+			FROM
+				WRK01_FORM_GROUPS AS wfg,
+				WRK01_FORMS AS wf,
+				WRK01_GROUPS AS wg,
+				WRK01_VARS AS wv
+			JOIN
+				wfg.oi_form INNER wf.oi_form
+			WHERE			                              
+				wfg.oi_form_group = {#APPEND:@PARENT} AND
+				wfg.c_var_group = wg.c_var_group AND
+				wf.oi_wf = wg.oi_wf AND
+				wg.oi_var_group = wv.oi_var_group
+			')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<option>
+						<qry:attribute name="value" value="$r/@c_var_group+'.'+$r/@c_var"/>
+						<qry:attribute name="text" value="$r/@c_var_group+'.'+$r/@c_var + ' - ' + $r/@d_var"/>
+					</option>
+				</qry:out>
+			</qry:select>
+			<qry:select doc="PARAM" name="sql2">
+				<qry:xquery>
+					for $r in SQL('
+			SELECT
+				wg.c_var_group,
+				wv.c_var,
+				wv.d_var
+			FROM
+				WRK01_FORM_GROUPS AS wfg,
+				WRK01_FORMS AS wfs,
+				WRK01_WF as wf,
+				WRK01_GROUPS AS wg,
+				WRK01_VARS AS wv
+			JOIN
+				wfg.oi_form INNER wfs.oi_form,
+				wfs.oi_wf INNER wf.oi_wf,
+				wf.oi_wf INNER wg.oi_wf,
+				wg.oi_var_group INNER wv.oi_var_group				
+			WHERE			                              
+				wfg.oi_form_group = {#APPEND:@PARENT} AND
+				wg.c_mode IN (\'MAIN\', \'AUX\', \'HIST\')
+			')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<option>
+						<qry:attribute name="value" value="$r/@c_var_group+'.'+$r/@c_var"/>
+						<qry:attribute name="text" value="$r/@c_var_group+'.'+$r/@c_var + ' - ' + $r/@d_var"/>
+					</option>
+				</qry:out>
+			</qry:select>
+		</qry:define>
+		<doc:define name="VARIABLES_PADRE"/>
+		<qry:define name="VARIABLES_PADRE" declare="&lt;PARAMS PARENT=&quot;227&quot; /&gt;">
+			<qry:main doc="SOURCE">
+				<ROWS>
+					<qry:append-doc name="APPEND" doc-path="#SOURCE:PARAMS"/>
+					<qry:insert-select name="sql0" doc-path="#SOURCE:PARAMS"/>
+					<qry:attribute name="c_var_group" value="''"/>
+				</ROWS>
+			</qry:main>
+			<qry:select doc="PARAM" name="sql0">
+				<qry:xquery>
+					for $r in SQL('
+			SELECT
+				wfg.c_var_group
+			FROM
+				WRK01_FORM_GROUPS AS wfg
+			WHERE			                              
+				wfg.oi_form_group = {#APPEND:@PARENT}
+			')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:attribute name="c_var_group" value="$r/@c_var_group"/>
+					<qry:if test="$r/@c_var_group!=''">
+						<qry:then>
+							<qry:insert-select name="sql1" doc-path="#APPEND:"/>
+						</qry:then>
+						<qry:else/>
+					</qry:if>
+					<qry:insert-select name="sql2" doc-path="#APPEND:"/>
+					<qry:insert-select name="sql3" doc-path="#APPEND:"/>
+				</qry:out>
+			</qry:select>
+			<qry:select doc="PARAM" name="sql1">
+				<qry:xquery>
+					for $r in SQL('
+			SELECT
+				wg.c_var_group,
+				wv.c_var,
+				wv.d_var
+			FROM
+				WRK01_FORM_GROUPS AS wfg,
+				WRK01_FORMS AS wf,
+				WRK01_GROUPS AS wg,
+				WRK01_VARS AS wv
+			JOIN
+				wfg.oi_form INNER wf.oi_form
+			WHERE			                              
+				wfg.oi_form_group = {#APPEND:@PARENT} AND
+				wfg.c_var_group = wg.c_var_group AND
+				wf.oi_wf = wg.oi_wf AND
+				wg.oi_var_group = wv.oi_var_group
+			')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<option>
+						<qry:attribute name="value" value="$r/@c_var_group+'.'+$r/@c_var"/>
+						<qry:attribute name="text" value="$r/@d_var"/>
+					</option>
+				</qry:out>
+			</qry:select>
+			<qry:select doc="PARAM" name="sql2">
+				<qry:xquery>
+					for $r in SQL('
+			SELECT
+				wg.c_var_group,
+				wv.c_var,
+				wv.d_var
+			FROM
+				WRK01_FORM_GROUPS AS wfg,
+				WRK01_FORMS AS wfs,
+				WRK01_WF as wf,
+				WRK01_GROUPS AS wg,
+				WRK01_VARS AS wv
+			JOIN
+				wfg.oi_form INNER wfs.oi_form,
+				wfs.oi_wf INNER wf.oi_wf,
+				wf.oi_wf INNER wg.oi_wf,
+				wg.oi_var_group INNER wv.oi_var_group				
+			WHERE			                              
+				wfg.oi_form_group = {#APPEND:@PARENT} AND
+				wg.c_mode IN (\'MAIN\', \'AUX\', \'HIST\')
+			')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<option>
+						<qry:attribute name="value" value="$r/@c_var_group+'.'+$r/@c_var"/>
+						<qry:attribute name="text" value="$r/@d_var"/>
+					</option>
+				</qry:out>
+			</qry:select>
+			<qry:select doc="" name="sql3">
+				<qry:out>
+					<option value="Instancia.Numero" text="Nro de la Instancia"/>
+					<option value="Instancia.Descripcion" text="Descripci&#243;n de la Instancia"/>
+					<option value="Instancia.Estado" text="Estado de la Instancia"/>
+					<option value="Instancia.Fecha_Inicio" text="Fecha de Inicio de la Instancia"/>
+					<option value="Instancia.Fecha_Advertencia" text="Fecha de Advertencia de la Instancia"/>
+					<option value="Instancia.Fecha_Vencimiento" text="Fecha de Vencimiento de la Instancia"/>
+					<option value="Instancia.Proxima_a_Vencer" text="Instancia Pr&#243;xima a Vencer"/>
+					<option value="Instancia.Vencida" text="Instancia Vencida"/>
+					<option value="Solicitante.Nombre" text="Nombre del Usuario Solicitante"/>
+					<option value="Solicitante.Mail" text="Mail del Usuario Solicitante"/>
+					<option value="Solicitante.Telefono" text="Tel&#233;fono del Usuario Solicitante"/>
+					<option value="Solicitante.Rol" text="Rol del Usuario Solicitante"/>
+					<option value="Proceso.Fecha_Inicio" text="Fecha de Inicio del Proceso"/>
+					<option value="Proceso.Fecha_Advertencia" text="Fecha de Advertencia del Proceso"/>
+					<option value="Proceso.Fecha_Vencimiento" text="Fecha de Vencimiento del Proceso"/>
+					<option value="Proceso.Proximo_a_Vencer" text="Proceso Pr&#243;ximo a Vencer"/>
+					<option value="Proceso.Vencida" text="Proceso Vencido"/>
+					<option value="Asignado.Fecha_Asignacion" text="Fecha de Asignaci&#243;n"/>
+					<option value="Asignado.Nombre" text="Nombre del Usuario Asignado"/>
+					<option value="Asignado.Mail" text="Mail del Usuario Asignado"/>
+					<option value="Asignado.Telefono" text="Tel&#233;fono del Usuario Asignado"/>
+					<option value="Asignado.Rol" text="Rol del Usuario Asignado"/>
+					<option value="Delegador.Fecha_Delegacion" text="Fecha de Delegaci&#243;n"/>
+					<option value="Delegador.Comentario" text="Comentario del Delegador"/>
+					<option value="Delegador.Nombre" text="Nombre del Usuario Delegador"/>
+					<option value="Delegador.Mail" text="Mail del Usuario Delegador"/>
+					<option value="Delegador.Telefono" text="Tel&#233;fono del Usuario Delegador"/>
+					<option value="Delegador.Rol" text="Rol del Usuario Delegador"/>
+				</qry:out>
+			</qry:select>
+		</qry:define>
+	</flow:declare>
+	<flow:main doc="SOURCE">
+		<flow:action name="FORM_FIELD_ADD">
+			<flow:log text-path="#SOURCE:" text="LOG_ADD"/>
+			<doc:set-attribute from-attr-path="#SOURCE:@PARENT" to-attr-path="#SELECT:@PARENT"/>
+			<doc:load-qry qry="GetModeGroup" output-doc="FORM_MODE" input-doc-path="#SOURCE:"/>
+			<doc:load-qry qry="GetOrder" output-doc="ORDER" input-doc-path="#SOURCE:"/>
+			<doc:new-object class="NucleusWF.Base.Definicion.Workflows.FIELD" doc="DDO"/>
+			<doc:set-attribute from-attr-path="#ORDER:@e_order" to-attr-path="#DDO:@e_order"/>
+			<flow:call-action else="OPEN_FORM_GEN_ADD" action="OPEN_FORM_BUT_ADD" eq="BUT" if="#FORM_MODE:@c_mode"/>
+		</flow:action>
+		<flow:action name="FORM_FIELD_EDIT">
+			<doc:set-attribute from-attr-path="#SOURCE:@ID" to-attr-path="#SELECT:@ID"/>
+			<doc:set-attribute from-attr-path="#SOURCE:@PARENT" to-attr-path="#SELECT:@PARENT"/>
+			<flow:log text-path="#SOURCE:" text="LOG1"/>
+			<doc:new-object class="NucleusWF.Base.Definicion.Workflows.FIELD" doc="DDO"/>
+			<doc:load-object class="NucleusWF.Base.Definicion.Workflows.FIELD" id-path="#SOURCE:@ID" doc="DDO" load-child="0" load-all="1"/>
+			<doc:load-qry qry="GetModeGroup" input-doc-path="#SOURCE:" output-doc="FORM_MODE"/>
+			<flow:call-action else="OPEN_FORM_GEN_EDIT" action="OPEN_FORM_BUT_EDIT" eq="BUT" if="#FORM_MODE:@c_mode"/>
+		</flow:action>
+		<flow:action name="OPEN_FORM_BUT_ADD">
+			<flow:open-form mode="BUT_ADD" form-class="NucleusWF.Base.Definicion.Workflows.FIELD.form" parent-doc-path="#SOURCE:" doc-path="#SELECT:"/>
+		</flow:action>
+		<flow:action name="OPEN_FORM_GEN_ADD">
+			<flow:open-form mode="GEN_ADD" form-class="NucleusWF.Base.Definicion.Workflows.FIELD.form" parent-doc-path="#SOURCE:" doc-path="#SELECT:"/>
+		</flow:action>
+		<flow:action name="OPEN_FORM_BUT_EDIT">
+			<flow:open-form mode="BUT_EDIT" form-class="NucleusWF.Base.Definicion.Workflows.FIELD.form" parent-doc-path="#SOURCE:" doc-path="#SELECT:"/>
+		</flow:action>
+		<flow:action name="OPEN_FORM_GEN_EDIT">
+			<flow:open-form mode="GEN_EDIT" form-class="NucleusWF.Base.Definicion.Workflows.FIELD.form" parent-doc-path="#SOURCE:" doc-path="#SELECT:"/>
+		</flow:action>
+	</flow:main>
+	<flow:form parent-doc="PARENTSOURCE" name="NucleusWF.Base.Definicion.Workflows.FIELD.form:BUT_ADD" mode="BUT_ADD" form-class="NucleusWF.Base.Definicion.Workflows.FIELD.form" doc="SOURCE">
+		<flow:action name="on-show">
+			<doc:load-qry output-doc="IMAGENES" qry="IMAGENES"/>
+			<flow:attach-doc doc-path="#IMAGENES:" attach-id="IMAGENES"/>
+			<flow:log text-path="#PARENTSOURCE:" text="logchueka"/>
+			<doc:load-qry input-doc-path="#PARENTSOURCE:" output-doc="VARIABLES" qry="VARIABLES"/>
+			<flow:attach-doc doc-path="#VARIABLES:" attach-id="VARIABLES"/>
+		</flow:action>
+		<flow:action name="CANCEL">
+			<flow:close-form/>
+		</flow:action>
+		<flow:action name="SAVE">
+			<flow:call-action action="INT-VALIDATE"/>
+			<flow:call-action action="INT-SAVE"/>
+			<flow:close-form/>
+		</flow:action>
+		<flow:action name="INT-VALIDATE"/>
+		<flow:action name="INT-SAVE">
+			<doc:new-object class="NucleusWF.Base.Definicion.Workflows.FORM_GROUP" doc="PARENT"/>
+			<doc:load-object class="NucleusWF.Base.Definicion.Workflows.FORM_GROUP" id-path="#PARENTSOURCE:@PARENT" doc="PARENT" load-child="0" load-all="1"/>
+			<doc:add-object parent-doc-path="#PARENT:FORM_FIELDS" doc-path="#DDO:"/>
+			<doc:save-object class="NucleusWF.Base.Definicion.Workflows.FORM_GROUP" doc="PARENT"/>
+		</flow:action>
+	</flow:form>
+	<flow:form parent-doc="PARENTSOURCE" name="NucleusWF.Base.Definicion.Workflows.FIELD.form:GEN_ADD" mode="GEN_ADD" form-class="NucleusWF.Base.Definicion.Workflows.FIELD.form" doc="SOURCE">
+		<flow:action name="on-show">
+			<doc:load-qry output-doc="IMAGENES" qry="IMAGENES"/>
+			<flow:attach-doc doc-path="#IMAGENES:" attach-id="IMAGENES"/>
+			<doc:load-qry input-doc-path="#PARENTSOURCE:" output-doc="VARIABLES" qry="VARIABLES"/>
+			<flow:attach-doc doc-path="#VARIABLES:" attach-id="VARIABLES"/>
+			<doc:load-qry output-doc="VARIABLES_PADRE" qry="VARIABLES_PADRE" input-doc-path="#PARENTSOURCE:"/>
+			<flow:attach-doc doc-path="#VARIABLES_PADRE:" attach-id="VARIABLES_PADRE"/>
+		</flow:action>
+		<flow:action name="CANCEL">
+			<flow:close-form/>
+		</flow:action>
+		<flow:action name="SAVE">
+			<flow:call-action action="INT-VALIDATE"/>
+			<flow:call-action action="INT-SAVE"/>
+			<flow:close-form/>
+		</flow:action>
+		<flow:action name="INT-VALIDATE"/>
+		<flow:action name="INT-SAVE">
+			<doc:new-object class="NucleusWF.Base.Definicion.Workflows.FORM_GROUP" doc="PARENT"/>
+			<doc:load-object class="NucleusWF.Base.Definicion.Workflows.FORM_GROUP" id-path="#PARENTSOURCE:@PARENT" doc="PARENT" load-child="0" load-all="1"/>
+			<doc:add-object parent-doc-path="#PARENT:FORM_FIELDS" doc-path="#DDO:"/>
+			<doc:save-object class="NucleusWF.Base.Definicion.Workflows.FORM_GROUP" doc="PARENT"/>
+		</flow:action>
+	</flow:form>
+	<flow:form parent-doc="PARENTSOURCE" name="NucleusWF.Base.Definicion.Workflows.FIELD.form:BUT_EDIT" mode="BUT_EDIT" form-class="NucleusWF.Base.Definicion.Workflows.FIELD.form" doc="SOURCE">
+		<flow:action name="on-show">
+			<doc:load-qry output-doc="IMAGENES" qry="IMAGENES"/>
+			<flow:attach-doc doc-path="#IMAGENES:" attach-id="IMAGENES"/>
+			<doc:load-qry qry="VARIABLES-2" input-doc-path="#PARENTSOURCE:" output-doc="VARIABLES"/>
+			<flow:attach-doc doc-path="#VARIABLES:" attach-id="VARIABLES"/>
+		</flow:action>
+		<flow:action name="CANCEL">
+			<flow:close-form/>
+		</flow:action>
+		<flow:action name="SAVE">
+			<flow:call-action action="INT-VALIDATE"/>
+			<flow:call-action action="INT-SAVE"/>
+			<flow:close-form/>
+		</flow:action>
+		<flow:action name="INT-VALIDATE"/>
+		<flow:action name="INT-SAVE">
+			<doc:save-object class="NucleusWF.Base.Definicion.Workflows.FIELD" doc="DDO"/>
+		</flow:action>
+		<flow:action name="DELETE">
+			<flow:call-action action="INT-DELETE"/>
+			<flow:close-form/>
+		</flow:action>
+		<flow:action name="INT-DELETE">
+			<doc:load-object class="NucleusWF.Base.Definicion.Workflows.FORM_GROUP" id-path="#SOURCE:@ID" doc="DDO" load-child="1" load-all="1"/>
+			<doc:delete-object doc-path="#DDO:"/>
+			<doc:save-object class="NucleusWF.Base.Definicion.Workflows.FORM_GROUP" doc="DDO"/>
+		</flow:action>
+	</flow:form>
+	<flow:form parent-doc="PARENTSOURCE" name="NucleusWF.Base.Definicion.Workflows.FIELD.form:GEN_EDIT" mode="GEN_EDIT" form-class="NucleusWF.Base.Definicion.Workflows.FIELD.form" doc="SOURCE">
+		<flow:action name="on-show">
+			<doc:load-qry output-doc="IMAGENES" qry="IMAGENES"/>
+			<flow:attach-doc doc-path="#IMAGENES:" attach-id="IMAGENES"/>
+			<doc:load-qry qry="VARIABLES-2" input-doc-path="#PARENTSOURCE:" output-doc="VARIABLES"/>
+			<flow:attach-doc doc-path="#VARIABLES:" attach-id="VARIABLES"/>
+		</flow:action>
+		<flow:action name="CANCEL">
+			<flow:close-form/>
+		</flow:action>
+		<flow:action name="SAVE">
+			<flow:call-action action="INT-VALIDATE"/>
+			<flow:call-action action="INT-SAVE"/>
+			<flow:close-form/>
+		</flow:action>
+		<flow:action name="INT-VALIDATE"/>
+		<flow:action name="INT-SAVE">
+			<doc:save-object class="NucleusWF.Base.Definicion.Workflows.FIELD" doc="DDO"/>
+		</flow:action>
+		<flow:action name="DELETE">
+			<flow:call-action action="INT-DELETE"/>
+			<flow:close-form/>
+		</flow:action>
+		<flow:action name="INT-DELETE">
+			<doc:load-object class="NucleusWF.Base.Definicion.Workflows.FORM_GROUP" id-path="#SOURCE:@ID" doc="DDO" load-child="1" load-all="1"/>
+			<doc:delete-object doc-path="#DDO:"/>
+			<doc:save-object class="NucleusWF.Base.Definicion.Workflows.FORM_GROUP" doc="DDO"/>
+		</flow:action>
+	</flow:form>
+</flow:flow>

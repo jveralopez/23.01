@@ -1,0 +1,229 @@
+<INTERFACE-DEF xmlns:qry="nomad_engine.qry" desc="" entermode="DOS" finalenter="1">
+	<FOR-EACH declare="&lt;DATA c_empresa=&quot;1&quot; interface=&quot;SICOSS42&quot; p_periodo=&quot;202211&quot; /&gt;">
+		<qry:main doc="SOURCE">
+			<qry:element name="XXX">
+				<qry:element name="DETAILS">
+					<qry:attribute name="c_empresa" value="#SOURCE:./@c_empresa"/>
+					<qry:attribute name="p_periodo" value="#SOURCE:./@p_periodo"/>
+					<qry:insert-select name="qryRecibos" doc-path="#SOURCE:."/>
+					<qry:if test="number(@count) &gt; 0">
+						<qry:then>
+							<qry:call>
+								<FILTRO>
+									<qry:attribute name="ois" value="substring(../../@ois,1)"/>
+								</FILTRO>
+							</qry:call>
+							<qry:attribute name="count" value="''"/>
+							<qry:attribute name="ois" value="''"/>
+						</qry:then>
+					</qry:if>
+				</qry:element>
+			</qry:element>
+		</qry:main>
+		<qry:select name="qryRecibos" doc="SOURCE">
+			<qry:xquery>
+				for $r in SQL(' 
+SELECT                          
+LIQ97_PERSONAL_EMP.c_personal,
+LIQ20_TOT_LIQ_PER.oi_tot_liq_per
+FROM 
+LIQ99_LIQUIDACION, 
+LIQ99_RECIBOS,     
+LIQ97_PERSONAL_EMP,
+LIQ20_TOT_LIQ_PER
+JOIN                                                                     
+LIQ97_PERSONAL_EMP.oi_per_emp_ddo INNER LIQ20_TOT_LIQ_PER.oi_per_emp_ddo,
+LIQ99_LIQUIDACION.oi_liquidacion_ddo INNER LIQ99_RECIBOS.oi_liquidacion_ddo,
+LIQ99_RECIBOS.oi_tot_liq_per INNER LIQ20_TOT_LIQ_PER.oi_tot_liq_per
+WHERE 
+LIQ99_LIQUIDACION.c_estado = \'F\'
+AND LIQ99_LIQUIDACION.c_tipo_liq = \'6\'
+AND LIQ99_LIQUIDACION.e_periodo = {#SOURCE:@p_periodo}					
+AND LIQ99_LIQUIDACION.c_empresa = {#SOURCE:@c_empresa}
+ORDER BY 
+c_personal ASC, oi_tot_liq_per ASC
+')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:if test="@count &gt;= 100">
+					<qry:then>
+						<qry:call>
+							<FILTRO>
+								<qry:attribute name="ois" value="substring(../../@ois,1)"/>
+							</FILTRO>
+						</qry:call>
+						<qry:attribute name="count" value="''"/>
+						<qry:attribute name="ois" value="''"/>
+					</qry:then>
+				</qry:if>
+				<qry:attribute name="count" value="number(@count)+1"/>
+				<qry:attribute name="ois" value="@ois + ',' + $r/@oi_tot_liq_per"/>
+			</qry:out>
+		</qry:select>
+	</FOR-EACH>
+	<QUERY declare="&lt;FILTRO ois=&quot;282877,284644,285075,299462,301088,297128,282978,295122,298574,284505,297515,297860,297807,284181,297482,300184,300388,289951,294259,285494,285112,297313,282067,298913,293698,299375,295960,299581,284647,284766,295002,299569,299455,290705,297529,295701,295847,295217,300181,301195,293772,284587,287654,296690,290262,288533,293681,301116,285887,295133&quot;/&gt;">
+		<qry:main doc="SOURCE">
+			<ROWS>
+				<qry:append-doc name="ROWS" doc-path="."/>
+				<qry:insert-select name="qryPersonas" doc-path="#SOURCE:."/>
+				<qry:insert-select name="qryDetail" doc-path="#SOURCE:."/>
+				<qry:insert-select name="qryFinal" doc-path="." to-element="./DETAIL"/>
+			</ROWS>
+		</qry:main>
+		<qry:select name="qryPersonas" doc="SOURCE">
+			<qry:xquery>
+				for $r in SQL(' 
+SELECT 
+LIQ97_PERSONAL_EMP.c_personal AS c_personal,
+LIQ97_PERSONAL_EMP.c_nro_cuil AS c_nro_cuil,
+LIQ97_PERSONAL_EMP.d_ape_y_nom AS d_ape_y_nom,
+LIQ20_TOT_LIQ_PER.oi_tot_liq_per,
+LIQ17_ZONAS_SIJP.c_zona_sijp
+FROM 
+LIQ99_LIQUIDACION, 
+LIQ97_PERSONAL_EMP,
+LIQ99_RECIBOS,
+LIQ20_TOT_LIQ_PER,
+ORG03_UBICACIONES,
+LIQ15_UBICACIONES,
+LIQ17_ZONAS_SIJP,
+ORG03_EMPRESAS
+JOIN 
+LIQ97_PERSONAL_EMP.oi_per_emp_ddo INNER LIQ20_TOT_LIQ_PER.oi_per_emp_ddo,
+LIQ99_LIQUIDACION.oi_liquidacion_ddo INNER LIQ99_RECIBOS.oi_liquidacion_ddo,
+LIQ99_RECIBOS.oi_tot_liq_per INNER LIQ20_TOT_LIQ_PER.oi_tot_liq_per,
+ORG03_UBICACIONES.c_ubicacion INNER LIQ97_PERSONAL_EMP.c_ubicacion,
+LIQ15_UBICACIONES.oi_ubicacion INNER  ORG03_UBICACIONES.oi_ubicacion,
+LIQ17_ZONAS_SIJP.oi_zona_sijp INNER LIQ15_UBICACIONES.oi_zona_sijp,
+ORG03_EMPRESAS.oi_empresa INNER LIQ15_UBICACIONES.oi_empresa,
+LIQ99_LIQUIDACION.c_empresa INNER ORG03_EMPRESAS.c_empresa
+WHERE 
+LIQ20_TOT_LIQ_PER.oi_tot_liq_per in ({%=#SOURCE:@ois %})
+ORDER BY 
+c_personal ASC, oi_tot_liq_per ASC
+')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<DETAIL>
+					<qry:attribute name="c_personal" value="$r/@c_personal"/>
+					<qry:attribute name="c_nro_cuil" value="$r/@c_nro_cuil"/>
+					<qry:attribute name="d_ape_y_nom" value="$r/@d_ape_y_nom"/>
+					<qry:attribute name="oi_tot_liq_per" value="$r/@oi_tot_liq_per"/>
+					<qry:attribute name="c_zona_sijp" value="$r/@c_zona_sijp"/>
+				</DETAIL>
+			</qry:out>
+		</qry:select>
+		<qry:select name="qryDetail" doc="SOURCE">
+			<qry:xquery>
+				for $r in SQL('
+SELECT 
+LIQ20_TOT_LIQ_PER.oi_tot_liq_per, 
+LIQ96_CONCEPTOS.c_concepto, 
+LIQ20_CONC_LIQ_PER.n_valor
+FROM                  
+LIQ20_TOT_LIQ_PER,
+LIQ20_CONC_LIQ_PER, 
+LIQ96_CONCEPTOS
+JOIN
+LIQ20_TOT_LIQ_PER.oi_tot_liq_per INNER LIQ20_CONC_LIQ_PER.oi_tot_liq_per,
+LIQ20_CONC_LIQ_PER.oi_concepto_ddo INNER LIQ96_CONCEPTOS.oi_concepto_ddo    
+WHERE
+LIQ20_TOT_LIQ_PER.oi_tot_liq_per in ({%=#SOURCE:@ois %})
+')/ROWS/ROW, $s in $ROWS/DETAIL
+JOIN $s/@oi_tot_liq_per inner $r/@oi_tot_liq_per
+			</qry:xquery>
+			<qry:out>
+				<qry:insert-select name="qryValor" doc-path="$r" to-element="$s"/>
+			</qry:out>
+		</qry:select>
+		<qry:select name="qryValor" doc="SOURCE">
+			<qry:out>
+				<qry:attribute name-calc="'C_'+#SOURCE:@c_concepto" value="#SOURCE:@n_valor"/>
+			</qry:out>
+		</qry:select>
+		<qry:select name="qryFinal" doc="SOURCE">
+			<qry:out>
+				<qry:attribute name="c_nro_cuil" value="NMD_REPLACE(#SOURCE:@c_nro_cuil, '-', '')"/>
+				<qry:attribute name="d_ape_y_nom" value="NMD_FILLRIGHT(#SOURCE:/@d_ape_y_nom, ' ', 30, 'L')"/>
+				<qry:if test="#SOURCE:@C_70000500 = '1'">
+					<qry:then>
+						<qry:attribute name="Conyuge" value="'T'"/>
+					</qry:then>
+					<qry:else>
+						<qry:attribute name="Conyuge" value="'F'"/>
+					</qry:else>
+				</qry:if>
+				<qry:attribute name="CantidadHijos" value="FORMAT_NUMBER(#SOURCE:@C_70000600, 2, 0, '', '', '0')"/>
+				<qry:attribute name="Situacion" value="FORMAT_NUMBER(#SOURCE:@C_70000700, 2, 0, '', '', '0')"/>
+				<qry:attribute name="Condicion" value="FORMAT_NUMBER(#SOURCE:@C_70000800, 2, 0, '', '', '0')"/>
+				<qry:attribute name="Actividad" value="FORMAT_NUMBER(#SOURCE:@C_70000900, 3, 0, '', '', '0')"/>
+				<qry:attribute name="Zona" value="FILL_LEFT(#SOURCE:@c_zona_sijp,' ',2)"/>
+				<qry:attribute name="PorcentajeAporteAdicionalSS" value="FORMAT_NUMBER(#SOURCE:@C_70001100, 2, 2, ',', '', '0')"/>
+				<qry:attribute name="ModalidadContratacion" value="FORMAT_NUMBER(#SOURCE:@C_70001200, 3, 0, '', '', '0')"/>
+				<qry:attribute name="CodigoObraSocial" value="FORMAT_NUMBER(#SOURCE:@C_70001300, 6, 0, '', '', '0')"/>
+				<qry:attribute name="CantidadAdherentes" value="FORMAT_NUMBER(#SOURCE:@C_70001400, 2, 0, '', '', '0')"/>
+				<qry:attribute name="RemuneracionTotal" value="FORMAT_NUMBER(#SOURCE:@C_70001500, 9, 2, ',', '', '0')"/>
+				<qry:attribute name="RemuneracionImponible1" value="FORMAT_NUMBER(#SOURCE:@C_70001600, 9, 2, ',', '', '0')"/>
+				<qry:attribute name="AsignacionesFamiliares" value="FORMAT_NUMBER(#SOURCE:@C_70001700, 6, 2, ',', '', '0')"/>
+				<qry:attribute name="ImporteAporteVoluntario" value="FORMAT_NUMBER(#SOURCE:@C_70001800, 6, 2, ',', '', '0')"/>
+				<qry:attribute name="ImporteAdicionalOS" value="FORMAT_NUMBER(#SOURCE:@C_70001900, 6, 2, ',', '', '0')"/>
+				<qry:attribute name="ImporteExcedentesAportesSS" value="FORMAT_NUMBER(#SOURCE:@C_70002000, 6, 2, ',', '', '0')"/>
+				<qry:attribute name="ImporteExcedentesAportesOS" value="FORMAT_NUMBER(#SOURCE:@C_70002100, 6, 2, ',', '', '0')"/>
+				<qry:attribute name="Localidad" value="NMD_FILLRIGHT(#SOURCE:/@C_70002200, ' ', 50, 'L')"/>
+				<qry:attribute name="RemuneracionImponible2" value="FORMAT_NUMBER(#SOURCE:@C_70002300, 9, 2, ',', '', '0')"/>
+				<qry:attribute name="RemuneracionImponible3" value="FORMAT_NUMBER(#SOURCE:@C_70002400, 9, 2, ',', '', '0')"/>
+				<qry:attribute name="RemuneracionImponible4" value="FORMAT_NUMBER(#SOURCE:@C_70002500, 9, 2, ',', '', '0')"/>
+				<qry:attribute name="Siniestrado" value="FORMAT_NUMBER(#SOURCE:@C_70002600, 2, 0, '', '', '0')"/>
+				<qry:attribute name="CorrespondeReduccion" value="FORMAT_NUMBER(#SOURCE:@C_70002700, 1, 0, '', '', '0')"/>
+				<qry:attribute name="LRT" value="FORMAT_NUMBER(#SOURCE:@C_70002800, 6, 2, ',', '', '0')"/>
+				<qry:attribute name="TipoEmpresa" value="NMD_FILLLEFT(#SOURCE:/@C_70002900, '0', 1, 'R')"/>
+				<qry:attribute name="AporteAdicionalOS" value="FORMAT_NUMBER(#SOURCE:@C_70003000, 6, 2, ',', '', '0')"/>
+				<qry:attribute name="Regimen" value="FORMAT_NUMBER(#SOURCE:@C_70003100, 1, 0, '', '', '0')"/>
+				<qry:attribute name="SituacionRevista1" value="FORMAT_NUMBER(#SOURCE:@C_70003200, 2, 0, '', '', '0')"/>
+				<qry:attribute name="DiasSituacionRevista1" value="FORMAT_NUMBER(#SOURCE:@C_70003300, 2, 0, '', '', '0')"/>
+				<qry:attribute name="SituacionRevista2" value="FORMAT_NUMBER(#SOURCE:@C_70003400, 2, 0, '', '', '0')"/>
+				<qry:attribute name="DiasSituacionRevista2" value="FORMAT_NUMBER(#SOURCE:@C_70003500, 2, 0, '', '', '0')"/>
+				<qry:attribute name="SituacionRevista3" value="FORMAT_NUMBER(#SOURCE:@C_70003600, 2, 0, '', '', '0')"/>
+				<qry:attribute name="DiasSituacionRevista3" value="FORMAT_NUMBER(#SOURCE:@C_70003700, 2, 0, '', '', '0')"/>
+				<qry:attribute name="SueldomasAdicionales" value="FORMAT_NUMBER(#SOURCE:@C_70003800, 9, 2, ',', '', '0')"/>
+				<qry:attribute name="SAC" value="FORMAT_NUMBER(#SOURCE:@C_70003900, 9, 2, ',', '', '0')"/>
+				<qry:attribute name="HorasExtra" value="FORMAT_NUMBER(#SOURCE:@C_70004000, 9, 2, ',', '', '0')"/>
+				<qry:attribute name="ZonaDesfavorable" value="FORMAT_NUMBER(#SOURCE:@C_70004100, 9, 2, ',', '', '0')"/>
+				<qry:attribute name="Vacaciones" value="FORMAT_NUMBER(#SOURCE:@C_70004200, 9, 2, ',', '', '0')"/>
+				<qry:attribute name="CantidadDiasTrabajados" value="FORMAT_NUMBER(#SOURCE:@C_70004300, 9, 0, '', '', '0')"/>
+				<qry:attribute name="RemuneracionImponible5" value="FORMAT_NUMBER(#SOURCE:@C_70004400, 9, 2, ',', '', '0')"/>
+				<qry:attribute name="Convencionado" value="FORMAT_NUMBER(#SOURCE:@C_70004500, 1, 0, '', '', '0')"/>
+				<qry:attribute name="RemuneracionImponible6" value="FORMAT_NUMBER(#SOURCE:@C_70004600, 9, 2, ',', '', '0')"/>
+				<qry:attribute name="TipoOperacion" value="FORMAT_NUMBER(#SOURCE:@C_70004700, 1, 0, '', '', '0')"/>
+				<qry:attribute name="Adicionales" value="FORMAT_NUMBER(#SOURCE:@C_70004800, 9, 2, ',', '', '0')"/>
+				<qry:attribute name="Premios" value="FORMAT_NUMBER(#SOURCE:@C_70004900, 9, 2, ',', '', '0')"/>
+				<qry:attribute name="RemuneracionImponible8" value="FORMAT_NUMBER(#SOURCE:@C_70005000, 9, 2, ',', '', '0')"/>
+				<qry:attribute name="RemuneracionImponible7" value="FORMAT_NUMBER(#SOURCE:@C_70005100, 9, 2, ',', '', '0')"/>
+				<qry:attribute name="CantidadHorasExtras" value="FORMAT_NUMBER(#SOURCE:@C_70005200, 3, 0, '', '', '0')"/>
+				<qry:attribute name="ConceptosnoRemunerativos" value="FORMAT_NUMBER(#SOURCE:@C_70005300, 9, 2, ',', '', '0')"/>
+				<qry:attribute name="Maternidad" value="FORMAT_NUMBER(#SOURCE:@C_70005400, 9, 2, ',', '', '0')"/>
+				<qry:attribute name="RectificacionRemuneracion" value="FORMAT_NUMBER(#SOURCE:@C_70005500, 6, 2, ',', '', '0')"/>
+				<qry:attribute name="RemuneracionImponible9" value="FORMAT_NUMBER(#SOURCE:@C_70005600, 9, 2, ',', '', '0')"/>
+				<qry:attribute name="ContribucionTareaDiferencial" value="FORMAT_NUMBER(#SOURCE:@C_70005700, 6, 2, ',', '', '0')"/>
+				<qry:attribute name="HorasTrabajadas" value="FORMAT_NUMBER(#SOURCE:@C_70005800, 3, 0, '', '', '0')"/>
+				<qry:if test="#SOURCE:@C_70005900 = '1'">
+					<qry:then>
+						<qry:attribute name="SeguroColectivoVidaObligatorio" value="'1'"/>
+					</qry:then>
+					<qry:else>
+						<qry:attribute name="SeguroColectivoVidaObligatorio" value="'0'"/>
+					</qry:else>
+				</qry:if>
+				<qry:attribute name="ImporteaDetraerLey27430" value="FORMAT_NUMBER(#SOURCE:@C_70006000, 9, 2, ',', '', '0')"/>
+				<qry:attribute name="IncrementoSalarial" value="FORMAT_NUMBER(#SOURCE:@C_70006010, 9, 2, ',', '', '0')"/>
+				<qry:attribute name="RemuneracionImponible11" value="FORMAT_NUMBER(#SOURCE:@C_70006020, 9, 2, ',', '', '0')"/>
+			</qry:out>
+		</qry:select>
+	</QUERY>
+	<DETAIL>
+		{c_nro_cuil:11}{d_ape_y_nom}{Conyuge:1}{CantidadHijos:2}{Situacion:2}{Condicion:2}{Actividad:3}{Zona:2}{PorcentajeAporteAdicionalSS:5}{ModalidadContratacion:3}{CodigoObraSocial:6}{CantidadAdherentes:2}{RemuneracionTotal:12}{RemuneracionImponible1:12}{AsignacionesFamiliares:9}{ImporteAporteVoluntario:9}{ImporteAdicionalOS:9}{ImporteExcedentesAportesSS:9}{ImporteExcedentesAportesOS:9}{Localidad:50}{RemuneracionImponible2:12}{RemuneracionImponible3:12}{RemuneracionImponible4:12}{Siniestrado:2}{CorrespondeReduccion:1}{LRT:9}{TipoEmpresa:1}{AporteAdicionalOS:9}{Regimen:1}{SituacionRevista1:2}{DiasSituacionRevista1:2}{SituacionRevista2:2}{DiasSituacionRevista2:2}{SituacionRevista3:2}{DiasSituacionRevista3:2}{SueldomasAdicionales:12}{SAC:12}{HorasExtra:12}{ZonaDesfavorable:12}{Vacaciones:12}{CantidadDiasTrabajados:9}{RemuneracionImponible5:12}{Convencionado:1}{RemuneracionImponible6:12}{TipoOperacion:1}{Adicionales:12}{Premios:12}{RemuneracionImponible8:12}{RemuneracionImponible7:12}{CantidadHorasExtras:3}{ConceptosnoRemunerativos:12}{Maternidad:12}{RectificacionRemuneracion:9}{RemuneracionImponible9:12}{ContribucionTareaDiferencial:9}{HorasTrabajadas:3}{SeguroColectivoVidaObligatorio:1}{ImporteaDetraerLey27430:12}{IncrementoSalarial:12}{RemuneracionImponible11:12}
+	</DETAIL>
+	<MESS>
+		<EMPTY mess="No se encontraron registros."/>
+	</MESS>
+</INTERFACE-DEF>

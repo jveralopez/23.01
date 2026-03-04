@@ -1,0 +1,361 @@
+<flow:flow xmlns:flow="nomad_engine.flow" xmlns:qry="nomad_engine.qry" xmlns:doc="nomad_engine.doc" default_action="initializeFilter" name="NucleusRH.Base.Vacaciones.Solicitudes" extends="NucleusRH.Base.Vacaciones.LegajoVacaciones.autoflow">
+	<flow:declare>
+		<qry:define declare="&lt;FILTRO f_fin=&quot;20240131&quot; f_ini=&quot;20240101&quot; gcustom=&quot;&quot; gpers=&quot;&quot; empresa=&quot;1&quot; activos=&quot;&quot; nombre=&quot;&quot; documento=&quot;&quot; sexo=&quot;&quot; grupo_sanguineo=&quot;&quot; listlegajos=&quot;&quot; oi_indic_activo=&quot;&quot; egresado=&quot;&quot; oi_forma_pago=&quot;&quot; oi_tipo_personal=&quot;&quot; fecha_desde=&quot;&quot; fecha_hasta=&quot;&quot; cb_confidenciales=&quot;&quot; oi_grupo_ccosto=&quot;&quot; oi_centro_costo=&quot;&quot; oi_convenio=&quot;&quot; soloconvenio=&quot;&quot; oi_categoria=&quot;&quot; oi_ubicacion_desde=&quot;&quot; oi_ubicacion_hasta=&quot;&quot; oi_estructura=&quot;&quot; escructura_childs=&quot;&quot; oi_contrato=&quot;&quot; oi_oficina_pago=&quot;&quot; oi_afjp=&quot;&quot; oi_obra_social=&quot;&quot; oi_sindicato=&quot;&quot; l_afiliado_sind=&quot;0&quot; oi_departamento=&quot;&quot; oi_sector=&quot;&quot; legID=&quot;&quot; leg_where=&quot;&quot; nom_where=&quot;&quot;&gt;&#13;&#10;&#9;&lt;PERSONAS&gt;&#13;&#10;&#9;&#9;&lt;ROW VALUES=&quot;1,101,201,302,401,501,601&quot;/&gt;&#13;&#10;&#9;&lt;/PERSONAS&gt;&#13;&#10;&lt;/FILTRO&gt;" name="qry_FiltroAgregarSolicitud">
+			<qry:main doc="SOURCE">
+				<DATOS>
+					<ROWS>
+						<qry:insert-select doc-path="#SOURCE:FILTRO" name="RS1"/>
+					</ROWS>
+					<SELECT/>
+				</DATOS>
+			</qry:main>
+			<qry:select name="RS1" doc="SOURCE">
+				<qry:xquery>
+					for $r in sql('                                     
+				SELECT
+	    			VAC01_PERSONAL.oi_personal_emp,
+	    			VAC01_SOLICITUDES.oi_solicitud AS ID, 
+					VAC01_SOLICITUDES.f_desde_solicitud,
+					VAC01_SOLICITUDES.f_hasta_solicitud,
+					VAC01_SOLICITUDES.e_dias_solicitud,
+					VAC01_SOLICITUDES.d_motivo_solic,
+					VAC01_SOLICITUDES.l_automatica,
+					VAC02_ESTADOS_SOl.d_estado_solic,
+					VAC02_ESTADOS_SOl.oi_estado_solic,
+					PER02_PERSONAL_EMP.e_numero_legajo,
+					PER01_PERSONAL.d_ape_y_nom,
+					ORG03_EMPRESAS.c_empresa,
+					ORG03_EMPRESAS.d_empresa
+				FROM 
+					VAC01_PERSONAL,
+					PER02_PERSONAL_EMP,
+					PER01_PERSONAL,
+					ORG03_EMPRESAS,
+					VAC01_SOLICITUDES,
+					VAC02_ESTADOS_SOL
+				JOIN
+					VAC01_PERSONAL.oi_personal_emp INNER PER02_PERSONAL_EMP.oi_personal_emp,
+					PER02_PERSONAL_EMP.oi_empresa INNER ORG03_EMPRESAS.oi_empresa,
+					PER02_PERSONAL_EMP.oi_personal INNER PER01_PERSONAL.oi_personal,
+					VAC02_ESTADOS_SOL.oi_estado_solic INNER VAC01_SOLICITUDES.oi_estado_solic,
+					VAC01_PERSONAL.oi_personal_emp INNER VAC01_SOLICITUDES.oi_personal_emp
+	      WHERE
+					VAC02_ESTADOS_SOL.c_estado_solic =\'S\'
+					AND VAC01_PERSONAL.oi_personal_emp in ({%=string(#SOURCE:PERSONAS/ROW/@VALUES) %})
+					AND VAC01_SOLICITUDES.f_desde_solicitud &gt;= {DateTime(#SOURCE:@f_ini)}
+				AND VAC01_SOLICITUDES.f_hasta_solicitud &lt;= {DateTime(#SOURCE:@f_fin)} 																	
+		  ')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:element name="ROW">
+						<qry:attribute name="id" value="$r/@ID" type="Nomad.NSystem.Int"/>
+						<qry:attribute name="label" value="'['+$r/@c_empresa+'-'+$r/@e_numero_legajo+'] '+$r/@d_empresa+'-'+$r/@d_ape_y_nom"/>
+						<qry:attribute name="empresa" value="'['+$r/@c_empresa+'] '+$r/@d_empresa"/>
+						<qry:attribute name="legajo" value="'['+$r/@e_numero_legajo+'] '+$r/@d_ape_y_nom"/>
+						<qry:attribute name="oi_personal_emp" value="$r/@oi_personal_emp"/>
+						<qry:attribute name="desde" value="$r/@f_desde_solicitud" type="Nomad.NSystem.Int"/>
+						<qry:attribute name="hasta" value="$r/@f_hasta_solicitud" type="Nomad.NSystem.String"/>
+						<qry:attribute name="dias" value="$r/@e_dias_solicitud" type="Nomad.NSystem.String"/>
+						<qry:attribute name="estado" value="$r/@d_estado_solic" type="Nomad.NSystem.String"/>
+						<qry:attribute name="auto" value="$r/@l_automatica" type="Nomad.NSystem.String"/>
+						<qry:attribute name="oi_solicitud" value="$r/@oi_solicitud"/>
+					</qry:element>
+				</qry:out>
+			</qry:select>
+		</qry:define>
+		<qry:define name="qry_FiltroExcedentes">
+			<qry:main doc="SOURCE">
+				<qry:element name="DATOS">
+					<qry:element name="PERSONAS">
+						<qry:insert-select name="RS1" doc-path="#SOURCE:DATOS"/>
+					</qry:element>
+				</qry:element>
+			</qry:main>
+			<qry:select name="RS1" doc="SOURCE">
+				<qry:xquery>
+					for $r in #SOURCE:PERSONAS/PERSONA[@Resultado='0']
+				</qry:xquery>
+				<qry:out>
+					<qry:element name="PERSONA">
+						<qry:attribute name="id" value="$r/@ID" type="Nomad.NSystem.Int"/>
+						<qry:attribute name="oi_personal_emp" value="$r/@oi_personal_emp"/>
+						<qry:attribute name="f_desde_solicitud" value="$r/@f_desde_solicitud" type="Nomad.NSystem.Int"/>
+						<qry:attribute name="f_hasta_solicitud" value="$r/@f_hasta_solicitud" type="Nomad.NSystem.String"/>
+						<qry:attribute name="e_dias_solicitud" value="$r/@e_dias_solicitud" type="Nomad.NSystem.String"/>
+						<qry:attribute name="d_motivo_solic" value="$r/@d_motivo_solic" type="Nomad.NSystem.Int"/>
+						<qry:attribute name="oi_estado_solic" value="$r/@oi_estado_solic" type="Nomad.NSystem.String"/>
+						<qry:attribute name="chk_seleccion" value="'0'"/>
+						<qry:attribute name="oi_solicitud" value="$r/@oi_solicitud"/>
+						<qry:attribute name="Resultado" value="0"/>
+						<qry:attribute value="$r/@MaxDiasSol" name="MaxDiasSol"/>
+						<qry:attribute value="$r/@MaxDiasAnt" name="MaxDiasAnt"/>
+					</qry:element>
+				</qry:out>
+			</qry:select>
+		</qry:define>
+		<qry:define declare="&lt;FILTRO f_fin=&quot;20101231&quot; f_ini=&quot;20000101&quot; gcustom=&quot;&quot; gpers=&quot;&quot; oi_empresa=&quot;&quot; activos=&quot;&quot; nombre=&quot;Damian&quot; documento=&quot;&quot; legajo_desde=&quot;&quot; legajo_hasta=&quot;&quot; oi_indic_activo=&quot;&quot; egresado=&quot;&quot; oi_forma_pago=&quot;&quot; oi_tipo_personal=&quot;&quot; oi_centro_costo=&quot;&quot; oi_categoria=&quot;&quot; oi_ubicacion=&quot;&quot; oi_estructura=&quot;&quot; escructura_childs=&quot;&quot; oi_afjp=&quot;&quot; oi_obra_social=&quot;&quot; oi_sindicato=&quot;&quot;&gt;&lt;ROWS&gt;&lt;ROW id=&quot;229&quot; /&gt;&lt;/ROWS&gt;&lt;/FILTRO&gt;" name="qry_FiltroSolicitudAprobada">
+			<qry:main doc="SOURCE">
+				<DATOS>
+					<ROWS>
+						<qry:insert-select doc-path="#SOURCE:FILTRO" name="RS1"/>
+					</ROWS>
+					<SELECT/>
+				</DATOS>
+			</qry:main>
+			<qry:select name="RS1" doc="SOURCE">
+				<qry:xquery>
+					for $r in sql('                                     
+				SELECT
+	    			VAC01_PERSONAL.oi_personal_emp,
+	    			VAC01_SOLICITUDES.oi_solicitud AS ID, 
+					VAC01_SOLICITUDES.f_desde_solicitud,
+					VAC01_SOLICITUDES.f_hasta_solicitud,
+					VAC01_SOLICITUDES.e_dias_solicitud,
+					VAC01_SOLICITUDES.d_motivo_solic,
+					VAC01_SOLICITUDES.l_automatica,
+					VAC02_ESTADOS_SOl.d_estado_solic,
+					VAC02_ESTADOS_SOl.oi_estado_solic,
+					PER02_PERSONAL_EMP.e_numero_legajo,
+					PER01_PERSONAL.d_ape_y_nom,
+					ORG03_EMPRESAS.c_empresa,
+					ORG03_EMPRESAS.d_empresa
+				FROM 
+					VAC01_PERSONAL,
+					PER02_PERSONAL_EMP,
+					PER01_PERSONAL,
+					ORG03_EMPRESAS,
+					VAC01_SOLICITUDES,
+					VAC02_ESTADOS_SOL
+				JOIN
+					VAC01_PERSONAL.oi_personal_emp INNER PER02_PERSONAL_EMP.oi_personal_emp,
+					PER02_PERSONAL_EMP.oi_empresa INNER ORG03_EMPRESAS.oi_empresa,
+					PER02_PERSONAL_EMP.oi_personal INNER PER01_PERSONAL.oi_personal,
+					VAC02_ESTADOS_SOL.oi_estado_solic INNER VAC01_SOLICITUDES.oi_estado_solic,
+					VAC01_PERSONAL.oi_personal_emp INNER VAC01_SOLICITUDES.oi_personal_emp
+	      WHERE
+					VAC02_ESTADOS_SOL.c_estado_solic =\'A\'
+					AND VAC01_PERSONAL.oi_personal_emp in ({%=string(#SOURCE:PERSONAS/ROW/@values) %})
+					AND VAC01_SOLICITUDES.f_desde_solicitud &gt;= {DateTime(#SOURCE:@f_ini)}
+				AND VAC01_SOLICITUDES.f_hasta_solicitud &lt;= {DateTime(#SOURCE:@f_fin)} 																	
+		  ')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:element name="ROW">
+						<qry:attribute name="id" value="$r/@ID" type="Nomad.NSystem.Int"/>
+						<qry:attribute name="label" value="'['+$r/@c_empresa+'-'+$r/@e_numero_legajo+'] '+$r/@d_empresa+'-'+$r/@d_ape_y_nom"/>
+						<qry:attribute name="empresa" value="'['+$r/@c_empresa+'] '+$r/@d_empresa"/>
+						<qry:attribute name="legajo" value="'['+$r/@e_numero_legajo+'] '+$r/@d_ape_y_nom"/>
+						<qry:attribute name="oi_personal_emp" value="$r/@oi_personal_emp"/>
+						<qry:attribute name="desde" value="$r/@f_desde_solicitud" type="Nomad.NSystem.Int"/>
+						<qry:attribute name="hasta" value="$r/@f_hasta_solicitud" type="Nomad.NSystem.String"/>
+						<qry:attribute name="dias" value="$r/@e_dias_solicitud" type="Nomad.NSystem.String"/>
+						<qry:attribute name="estado" value="$r/@d_estado_solic" type="Nomad.NSystem.String"/>
+						<qry:attribute name="auto" value="$r/@l_automatica" type="Nomad.NSystem.String"/>
+						<qry:attribute name="oi_solicitud" value="$r/@oi_solicitud"/>
+					</qry:element>
+				</qry:out>
+			</qry:select>
+		</qry:define>
+		<qry:define name="qry_FiltroSeleccionados">
+			<qry:main doc="SOURCE">
+				<qry:element name="DATOS">
+					<qry:element name="PERSONAS">
+						<qry:insert-select name="RS1" doc-path="#SOURCE:DATOS"/>
+					</qry:element>
+				</qry:element>
+			</qry:main>
+			<qry:select name="RS1" doc="SOURCE">
+				<qry:xquery>
+					for $r in #SOURCE:PERSONAS/PERSONA[@chk_seleccion='1']
+				</qry:xquery>
+				<qry:out>
+					<qry:element name="PERSONA">
+						<qry:attribute name="id" value="$r/@id" type="Nomad.NSystem.Int"/>
+						<qry:attribute name="codigo" value="$r/@codigo" type="Nomad.NSystem.String"/>
+						<qry:attribute value="$r/@oi_personal_emp" type="Nomad.NSystem.String" name="oi_personal_emp"/>
+						<qry:attribute name="desde" value="$r/@desde" type="Nomad.NSystem.Int"/>
+						<qry:attribute name="hasta" value="$r/@hasta" type="Nomad.NSystem.String"/>
+						<qry:attribute name="dias" value="$r/@dias" type="Nomad.NSystem.String"/>
+						<qry:attribute name="motivo" value="$r/@motivo" type="Nomad.NSystem.Int"/>
+						<qry:attribute type="Nomad.NSystem.String" value="$r/@c_estado_solic" name="c_estado_solic"/>
+						<qry:attribute value="$r/@chk_seleccion" name="chk_seleccion"/>
+						<qry:attribute value="$r/@oi_solicitud" name="oi_solicitud"/>
+						<qry:attribute name="Resultado" value="0"/>
+						<qry:attribute value="$r/@MaxDiasSol" name="MaxDiasSol"/>
+						<qry:attribute value="$r/@MaxDiasAnt" name="MaxDiasAnt"/>
+						<qry:attribute value="$r/@sPersona" name="sPersona" type="Nomad.NSystem.String"/>
+					</qry:element>
+				</qry:out>
+			</qry:select>
+		</qry:define>
+		<doc:define name="DDO_Selected"/>
+		<doc:define name="FILTERDATA">
+			<FILTRO f_fin="" f_ini="">
+				<PERSONAS/>
+			</FILTRO>
+		</doc:define>
+		<doc:define name="FILTERDATAMETODO">
+			<DATOS>
+				<FILTRO oi_personal_emp="" oi_empresa="" oi_estructura="" f_fin="" f_ini="">
+					<PERSONAS/>
+				</FILTRO>
+			</DATOS>
+		</doc:define>
+		<doc:define name="DDO_Sol"/>
+		<doc:define name="DDO_SolExecedentes"/>
+		<doc:define name="xmlListaAceptarSol"/>
+	</flow:declare>
+	<flow:main doc="SOURCE">
+		<flow:action name="show-batch-form">
+			<flow:open-form mode="BATCH" form-class="nomad.base.batch.form" parent-doc-path="#SOURCE:" doc-path="#SOURCE:"/>
+		</flow:action>
+		<flow:action name="show-report">
+			<flow:open-form parent-doc-path="#SOURCE:" doc-path="#SOURCE:" mode="SHOW" form-class="nomad.report.batch.form"/>
+		</flow:action>
+		<flow:action name="initializeFilter">
+			<flow:open-form doc-path="#FILTERDATA:" mode="FILTER" form-class="NucleusRH.Base.Vacaciones.Solicitudes.Aprobar.Filtro.form"/>
+		</flow:action>
+		<flow:action name="initializeFilterLiquidar">
+			<flow:open-form doc-path="#FILTERDATA:" mode="FILTER" form-class="NucleusRH.Base.Vacaciones.Solicitudes.Liquidar.Filtro.form"/>
+		</flow:action>
+	</flow:main>
+	<flow:info label="Flow para NucleusRH.Base.Vacaciones.Periodos"/>
+	<flow:form parent-doc="PARENTSOURCE" doc="SOURCE" mode="FILTER" form-class="NucleusRH.Base.Vacaciones.Solicitudes.Aprobar.Filtro.form" name="NucleusRH.Base.Vacaciones.Solicitudes.Aprobar.Filtro.form">
+		<flow:action name="BACK">
+			<flow:close-form/>
+		</flow:action>
+		<flow:action name="on-show">
+			<flow:call-action action="Load-FILTER"/>
+		</flow:action>
+		<flow:action name="FILTER">
+			<flow:call-action action="Save-FILTER"/>
+			<doc:load-qry qry="qry_FiltroAgregarSolicitud" input-doc-path="#FILTERDATA:" output-doc="DDO_Sol"/>
+			<flow:open-form mode="EDIT" doc-path="#DDO_Sol:" parent-doc-path="#DDO_Sol:" form-class="NucleusRH.Base.Vacaciones.Solicitudes.AprobarRechazar.form"/>
+		</flow:action>
+		<flow:action name="Load-FILTER">
+			<flow:load-user-data name="FILTER-NucleusRH.Base.Vacaciones.Solcitudes2" doc="FILTERDATA"/>
+		</flow:action>
+		<flow:action name="Save-FILTER">
+			<flow:save-user-data name="FILTER-NucleusRH.Base.Vacaciones.Solcitudes2" doc-path="#FILTERDATA:"/>
+		</flow:action>
+	</flow:form>
+	<flow:form name="NucleusRH.Base.Vacaciones.Solicitudes.AprobarRechazar.form" form-class="NucleusRH.Base.Vacaciones.Solicitudes.AprobarRechazar.form" mode="EDIT" doc="SOURCE" parent-doc="PARENTSOURCE">
+		<flow:action name="ACEPTAR">
+			<flow:exec-method class="NucleusRH.Base.Vacaciones.LegajoVacaciones.SOLICITUD" method="AprobarSolic_Selec">
+				<flow:param type="Nomad.NSystem.Proxy.NomadXML" mode="in" doc="DDO_Sol" name="xmlListaDoc"/>
+				<flow:param type="Nomad.NSystem.Boolean" name="force" mode="in" value="0"/>
+			</flow:exec-method>
+			<flow:load-user-data doc="DDO_Sol" name="RESULT"/>
+			<flow:attach-doc doc-path="#SOURCE:ROWS" attach-id="RS"/>
+		</flow:action>
+		<flow:action name="BACK">
+			<flow:close-form next-action="Load-FILTER"/>
+		</flow:action>
+		<flow:action name="on-show">
+			<flow:attach-doc doc-path="#SOURCE:ROWS" attach-id="RS"/>
+		</flow:action>
+		<flow:action name="RECHAZAR">
+			<flow:exec-method class="NucleusRH.Base.Vacaciones.LegajoVacaciones.SOLICITUD" method="Rechazar_Solic">
+				<flow:param type="Nomad.NSystem.Proxy.NomadXML" mode="in" doc="DDO_Sol" name="xmlListaDoc"/>
+			</flow:exec-method>
+			<flow:load-user-data doc="DDO_Sol" name="RESULT"/>
+			<flow:attach-doc doc-path="#SOURCE:ROWS" attach-id="RS"/>
+		</flow:action>
+		<flow:action name="AUTORIZAR">
+			<flow:exec-method class="NucleusRH.Base.Vacaciones.LegajoVacaciones.SOLICITUD" method="AprobarSolic_Selec">
+				<flow:param type="Nomad.NSystem.Proxy.NomadXML" mode="in" doc="DDO_Sol" name="xmlListaDoc"/>
+				<flow:param type="Nomad.NSystem.Boolean" name="force" mode="in" value="1"/>
+			</flow:exec-method>
+			<flow:load-user-data doc="DDO_Sol" name="RESULT"/>
+			<flow:attach-doc doc-path="#SOURCE:ROWS" attach-id="RS"/>
+		</flow:action>
+	</flow:form>
+	<flow:form name="NucleusRH.Base.Vacaciones.Solicitudes.Excedentes.form" form-class="NucleusRH.Base.Vacaciones.Solicitudes.Excedentes.form" mode="EDIT" doc="SOURCE" parent-doc="PARENTSOURCE">
+		<flow:action name="ACEPTAR">
+			<flow:exec-method class="NucleusRH.Base.Vacaciones.LegajoVacaciones.SOLICITUD" method="AprobarSolic_Selec">
+				<flow:param mode="inout" doc="SOURCE" type="Nomad.NSystem.Object" name="xmlListaDoc"/>
+				<flow:param name="TipoEjecucion" mode="in" type="Nomad.NSystem.String" value="FORZAR"/>
+			</flow:exec-method>
+			<flow:log text="LLEGOELDDO" text-path="#DDO_Sol:"/>
+			<flow:close-form/>
+		</flow:action>
+		<flow:action name="After-Cancel"/>
+		<flow:action name="After-Change"/>
+		<flow:action name="After-Back"/>
+		<flow:action name="BACK">
+			<flow:close-form/>
+		</flow:action>
+	</flow:form>
+	<flow:form extends="NucleusRH.Base.Vacaciones.LegajoVacaciones.SOLICITUD.noreg.autoform:SHOW" parent-doc="PARENTSOURCE" doc="SOURCE" name="NucleusRH.Base.Vacaciones.Solicitudes.Excedentes.noreg.form" form-class="NucleusRH.Base.Vacaciones.Solicitudes.Excedentes.noreg.form" mode="SHOW">
+		<flow:action name="on-move-iterator">
+			<flow:log text-path="#SOURCE:" text="entroAExcedentesNolog"/>
+			<flow:open-form parent-doc-path="#SOURCE:" doc-path="#SOURCE:" mode="EDIT" form-class="NucleusRH.Base.Vacaciones.Solicitudes.Excedentes.form"/>
+		</flow:action>
+		<flow:action name="on-show"/>
+		<flow:action name="empty"/>
+		<flow:action name="BACK">
+			<flow:close-form next-action="BACK"/>
+		</flow:action>
+	</flow:form>
+	<flow:group name="Liquidar">
+		<flow:form form-class="NucleusRH.Base.Vacaciones.Solicitudes.Liquidar.Filtro.form" name="NucleusRH.Base.Vacaciones.Solicitudes.Liquidar.Filtro.form" parent-doc="PARENTSOURCE" doc="SOURCE" mode="FILTER">
+			<flow:action name="FILTER">
+				<flow:call-action action="Save-FILTER"/>
+				<doc:load-qry qry="qry_FiltroSolicitudAprobada" input-doc-path="#FILTERDATA:" output-doc="DDO_Sol"/>
+				<flow:open-form parent-doc-path="#DDO_Sol:" doc-path="#DDO_Sol:" mode="EDIT" form-class="NucleusRH.Base.Vacaciones.Solicitudes.Liquidar.form"/>
+			</flow:action>
+			<flow:action name="Save-FILTER">
+				<flow:save-user-data name="FILTER-NucleusRH.Base.Vacaciones.Solcitudes.Liquidar2" doc-path="#FILTERDATA:"/>
+			</flow:action>
+			<flow:action name="Load-FILTER">
+				<flow:load-user-data name="FILTER-NucleusRH.Base.Vacaciones.Solcitudes.Liquidar2" doc="FILTERDATA"/>
+			</flow:action>
+			<flow:action name="on-show">
+				<flow:call-action action="Load-FILTER"/>
+			</flow:action>
+			<flow:action name="BACK">
+				<flow:close-form/>
+			</flow:action>
+		</flow:form>
+		<flow:form parent-doc="PARENTSOURCE" doc="SOURCE" name="NucleusRH.Base.Vacaciones.Solicitudes.Liquidar.noreg.form" form-class="NucleusRH.Base.Vacaciones.Solicitudes.Liquidar.noreg.form" mode="SHOW">
+			<flow:action name="on-move-iterator">
+				<flow:open-form parent-doc-path="#SOURCE:" doc-path="#SOURCE:" mode="EDIT" form-class="NucleusRH.Base.Vacaciones.Solicitudes.Excedentes.form"/>
+			</flow:action>
+			<flow:action name="on-show"/>
+			<flow:action name="empty"/>
+			<flow:action name="BACK">
+				<flow:close-form/>
+			</flow:action>
+		</flow:form>
+		<flow:form name="NucleusRH.Base.Vacaciones.Solicitudes.Liquidar.form:EDIT" form-class="NucleusRH.Base.Vacaciones.Solicitudes.Liquidar.form" mode="EDIT" doc="SOURCE" parent-doc="PARENTSOURCE">
+			<flow:action name="ACEPTAR">
+				<flow:exec-method out-attr-path="#BATCHDOC:@batch-id" priority="6" class="NucleusRH.Base.Vacaciones.LegajoVacaciones.SOLICITUD" method="Liquidar_Selec">
+					<flow:param type="Nomad.NSystem.Proxy.NomadXML" mode="in" doc="SOURCE" name="xmlListaDoc"/>
+				</flow:exec-method>
+				<flow:load-user-data doc="DDO_Sol" name="RESULT"/>
+				<flow:attach-doc doc-path="#SOURCE:ROWS" attach-id="RS"/>
+				<flow:open-form form-class="nomad.base.batchtolist.form" mode="BATCH" doc-path="#BATCHDOC:"/>
+			</flow:action>
+			<flow:action name="BACK">
+				<flow:close-form/>
+			</flow:action>
+			<flow:action name="on-show">
+				<flow:attach-doc doc-path="#SOURCE:ROWS" attach-id="RS"/>
+			</flow:action>
+		</flow:form>
+	</flow:group>
+	<flow:form name="NucleusRH.Base.Vacaciones.Solicitudes.Liquidar.form:SELECTED" mode="Selected" form-class="NucleusRH.Base.Vacaciones.Solicitudes.Liquidar.form" doc="SOURCE" parent-doc="PARENTSOURCE">
+		<flow:action name="on-move-iterator">
+			<flow:log text-path="#SOURCE:" text="ejecutaLiqSelec"/>
+			<flow:exec-method class="NucleusRH.Base.Vacaciones.LegajoVacaciones.SOLICITUD" method="Liquidar_Solic_Per">
+				<flow:param mode="in" doc="SOURCE" type="Nomad.NSystem.Object" name="xmlListaDoc"/>
+			</flow:exec-method>
+			<flow:log text-path="#SOURCE:" text="PasoLiQSel"/>
+			<flow:close-form/>
+		</flow:action>
+		<flow:action name="BACK">
+			<flow:close-form/>
+		</flow:action>
+		<flow:action name="on-show"/>
+	</flow:form>
+</flow:flow>

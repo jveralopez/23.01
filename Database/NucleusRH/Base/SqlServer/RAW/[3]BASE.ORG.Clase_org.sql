@@ -1,0 +1,2 @@
+ALTER TABLE ORG02_ESTRUCTURAS
+ADD oi_clase int null

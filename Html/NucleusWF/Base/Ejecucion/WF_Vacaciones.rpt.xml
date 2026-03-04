@@ -1,0 +1,408 @@
+<html:html xmlns:html="nomad_engine.html" xmlns:qry="nomad_engine.qry" xmlns:xsl="http://www.w3.org/1999/XSL/Transform" name="NucleusWF.Base.Ejecucion.WF_Vacaciones.rpt" extends="NucleusWF.Base.Ejecucion.BaseInicioWF.rpt" doc="source">
+	<html:query declare="&lt;PARAMS oi_usuario_sistema=&quot;acenci&quot;/&gt;">
+		<qry:include name="NucleusRH.Base.Personal.Legajo.PERSONAL.QRY_INICIO_WFs"/>
+		<qry:main doc="SOURCE">
+			<qry:append-doc name="FILTER" doc-path="#SOURCE:PARAMS"/>
+			<qry:element name="REPORTE">
+				<qry:element name="PERSONAS">
+					<qry:insert-select name="qry_DatosPersonales" doc-path="#SOURCE:PARAMS"/>
+				</qry:element>
+				<qry:element name="LEGAJOS">
+					<qry:attribute name="cant_leg" value="0"/>
+					<qry:insert-select name="qry_Legajos" doc-path=""/>
+				</qry:element>
+			</qry:element>
+		</qry:main>
+		<qry:select name="qry_Legajos" doc="PARAM">
+			<qry:xquery>
+				for $r in SQL('
+SELECT
+LEG.e_numero_legajo,EMP.d_empresa,LEG.oi_personal_emp,EMP.oi_empresa,CONV.c_convenio,
+CONV.d_convenio,LEG.oi_categoria_ult,CAT.c_categoria, CAT.d_categoria, LEG.f_ingreso,
+GETYEAR(LEG.f_ingreso) as anio_ingreso, GETYEAR(now()) as anio_hoy
+
+FROM
+PER01_PERSONAL as PER,
+PER02_PERSONAL_EMP as LEG,
+ORG03_EMPRESAS as EMP,
+ORG18_CONVENIOS as CONV,
+ORG18_CATEGORIAS as CAT
+
+
+JOIN
+PER.oi_personal INNER LEG.oi_personal,
+LEG.oi_empresa INNER EMP.oi_empresa,
+LEG.oi_categoria_ult LEFT CAT.oi_categoria,
+CAT.oi_convenio LEFT CONV.oi_convenio
+
+WHERE
+PER.oi_usuario_sistema = {#FILTER:@oi_usuario_sistema}
+
+')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:attribute name="cant_leg" value="@cant_leg + 1"/>
+				<LEGAJO>
+					<qry:attribute name="n_leg" value="../@cant_leg"/>
+					<qry:attribute name="id_legajo" value="$r/@oi_personal_emp"/>
+					<qry:attribute name="nombre_empresa" value="'Empresa ' + $r/@d_empresa"/>
+					<qry:attribute name="num_legajo" value="'Leg. ' + $r/@e_numero_legajo"/>
+					<qry:attribute name="empresa_legajo" value="@nombre_empresa + ' - ' + @num_legajo "/>
+					<qry:attribute name="id_empresa" value="$r/@oi_empresa"/>
+					<qry:attribute name="href" value="'#'+@id_empresa"/>
+					<qry:attribute name="id_input_radio" value="'legajo_'+@id_legajo"/>
+					<qry:attribute name="id_div_collapse" value="'heading_'+@id_legajo"/>
+					<qry:attribute name="f_ingreso" value="format_date($r/@f_ingreso,'dd/mm/yyyy')"/>
+					<qry:attribute name="antiguedad" value="$r/@anio_hoy - $r/@anio_ingreso"/>
+					<qry:attribute name="antiguedad" value="iif(@antiguedad = 1,@antiguedad + ' a&#241;o',@antiguedad + ' a&#241;os')"/>
+					<qry:if test="$r/@oi_categoria_ult != null">
+						<qry:then>
+							<qry:attribute name="convenio" value="$r/@c_convenio + ' - ' + $r/@d_convenio"/>
+							<qry:attribute name="categoria" value="$r/@c_categoria + ' - ' + $r/@d_categoria"/>
+						</qry:then>
+						<qry:else>
+							<qry:attribute name="convenio" value="'-'"/>
+							<qry:attribute name="categoria" value="'-'"/>
+						</qry:else>
+					</qry:if>
+					<qry:element name="CTA_CTE">
+						<qry:attribute name="saldo" value="0"/>
+						<qry:attribute name="cantidad" value="0"/>
+						<qry:insert-select name="qry_cta_cte" doc-path="$r"/>
+					</qry:element>
+				</LEGAJO>
+			</qry:out>
+		</qry:select>
+		<qry:select name="qry_cta_cte" doc="PARAM">
+			<qry:xquery>
+				for $r in SQL('
+MAXSIZE 5
+SELECT
+CTA_CTE.e_dias_pend,
+CTA_CTE.e_dias_gen,
+CTA_CTE.e_dias_otorg,
+CTA_CTE.e_ano as anio
+
+FROM
+VAC01_CTA_CTE_VAC as CTA_CTE
+
+WHERE
+CTA_CTE.oi_personal_emp = {#PARAM:@oi_personal_emp} AND
+CTA_CTE.e_dias_pend &gt; 0
+
+ORDER BY
+anio DESC
+
+')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:attribute name="saldo" value="number(@saldo) + number($r/@e_dias_pend)"/>
+				<qry:attribute name="saldo" value="iif(@saldo != 1,@saldo + ' d&#237;as',@saldo + ' d&#237;a')"/>
+				<qry:attribute name="cantidad" value="@cantidad + 1"/>
+				<qry:element name="INSTANCIA">
+					<qry:attribute name="periodo" value="$r/@anio"/>
+					<qry:attribute name="d_generados" value="$r/@e_dias_gen"/>
+					<qry:attribute name="d_tomados" value="iif($r/@e_dias_otorg = null,0,$r/@e_dias_otorg)"/>
+					<qry:attribute name="d_pendientes" value="$r/@e_dias_pend"/>
+				</qry:element>
+			</qry:out>
+		</qry:select>
+	</html:query>
+	<html:xslt>
+		<xsl:template match="LEGAJO">
+			<xsl:if test="@n_leg = 1">
+				<input type="hidden" id="oi_personal_emp">
+					<xsl:attribute name="value">
+						<xsl:value-of select="@id_legajo"/>
+					</xsl:attribute>
+				</input>
+				<input type="hidden" id="valida_extra">
+					<xsl:choose>
+						<xsl:when test="CTA_CTE/@cantidad = 0">
+							<xsl:attribute name="value">
+								<xsl:text>
+									0
+								</xsl:text>
+							</xsl:attribute>
+						</xsl:when>
+						<xsl:otherwise>
+							<xsl:attribute name="value">
+								<xsl:text>
+									1
+								</xsl:text>
+							</xsl:attribute>
+						</xsl:otherwise>
+					</xsl:choose>
+				</input>
+			</xsl:if>
+			<div class="panel panel-default">
+				<div class="panel-heading pointer" role="button" data-toggle="collapse" data-parent="#accordion" aria-expanded="true" aria-controls="collapseOne" onclick="BlanquearParam2(this.id)">
+					<xsl:attribute name="id">
+						<xsl:value-of select="@id_div_collapse"/>
+					</xsl:attribute>
+					<xsl:attribute name="href">
+						<xsl:value-of select="@href"/>
+					</xsl:attribute>
+					<xsl:if test="CTA_CTE/@cantidad = 0">
+						<xsl:attribute name="class">
+							<xsl:text>
+								panel-heading pointer sinCtaCte
+							</xsl:text>
+						</xsl:attribute>
+					</xsl:if>
+					<h4 class="panel-title">
+						<a>
+							<xsl:attribute name="name">
+								<xsl:value-of select="@id_input_radio"/>
+							</xsl:attribute>
+							<xsl:value-of select="@empresa_legajo"/>
+						</a>
+						<div class="radio-legajo">
+							<input name="legajo" type="radio">
+								<xsl:attribute name="id">
+									<xsl:value-of select="@id_input_radio"/>
+								</xsl:attribute>
+								<xsl:choose>
+									<xsl:when test="@n_leg = 1">
+										<xsl:attribute name="checked">
+											true
+										</xsl:attribute>
+									</xsl:when>
+									<xsl:otherwise>
+										<xsl:attribute name="disabled">
+											true
+										</xsl:attribute>
+									</xsl:otherwise>
+								</xsl:choose>
+							</input>
+						</div>
+					</h4>
+				</div>
+				<div role="tabpanel" aria-expanded="false">
+					<xsl:attribute name="id">
+						<xsl:value-of select="@id_empresa"/>
+					</xsl:attribute>
+					<xsl:attribute name="aria-labelledby">
+						<xsl:value-of select="@id_div_collapse"/>
+					</xsl:attribute>
+					<xsl:choose>
+						<xsl:when test="@n_leg = 1">
+							<xsl:attribute name="class">
+								panel-collapse collapse in
+							</xsl:attribute>
+						</xsl:when>
+						<xsl:otherwise>
+							<xsl:attribute name="class">
+								panel-collapse collapse
+							</xsl:attribute>
+						</xsl:otherwise>
+					</xsl:choose>
+					<div class="panel-body">
+						<div style="height: 25px;">
+							<div class="convenio-saldo">
+								<label class="control-label label-convenio">
+									Convenio:
+								</label>
+								<p class="p-convenio">
+									<xsl:value-of select="@convenio"/>
+								</p>
+							</div>
+							<div class="convenio-saldo">
+								<label class="control-label label-convenio">
+									Saldo:
+								</label>
+								<p class="p-convenio">
+									<xsl:value-of select="CTA_CTE/@saldo"/>
+								</p>
+							</div>
+						</div>
+						<div style="height: 25px;">
+							<div class="convenio-saldo">
+								<label class="control-label label-convenio">
+									Categor&#237;a:
+								</label>
+								<p class="p-convenio">
+									<xsl:value-of select="@categoria"/>
+								</p>
+							</div>
+							<div class="convenio-saldo">
+								<label class="control-label label-convenio">
+									Antig&#252;edad:
+								</label>
+								<p class="p-convenio">
+									<xsl:value-of select="@antiguedad"/>
+								</p>
+							</div>
+						</div>
+						<div style="height: 25px;">
+							<div class="convenio-saldo">
+								<label class="control-label label-convenio">
+									Fecha de ingreso:
+								</label>
+								<p class="p-convenio">
+									<xsl:value-of select="@f_ingreso"/>
+								</p>
+							</div>
+						</div>
+						<div id="panel-mis-vacaciones" class="panel panel-primary">
+							<div class="panel-heading">
+								Mis Vacaciones
+							</div>
+							<div class="table-responsive">
+								<table id="table-vacaciones" class="table table-sm table-hover table-striped">
+									<thead>
+										<tr>
+											<th>
+												Per&#237;odo
+											</th>
+											<th>
+												D&#237;as Generados
+											</th>
+											<th>
+												D&#237;as Tomados
+											</th>
+											<th>
+												D&#237;as Pendientes
+											</th>
+										</tr>
+									</thead>
+									<xsl:choose>
+										<xsl:when test="CTA_CTE/@cantidad != 0">
+											<tbody>
+												<xsl:apply-templates select="CTA_CTE/INSTANCIA"/>
+											</tbody>
+										</xsl:when>
+										<xsl:otherwise>
+											<tfoot>
+												<tr>
+													<td style="text-align:center;" colspan="4">
+														No existen datos en su cuenta corriente de vacaciones
+													</td>
+												</tr>
+											</tfoot>
+										</xsl:otherwise>
+									</xsl:choose>
+								</table>
+							</div>
+						</div>
+					</div>
+				</div>
+			</div>
+		</xsl:template>
+		<xsl:template match="INSTANCIA">
+			<tr>
+				<td>
+					<xsl:value-of select="@periodo"/>
+				</td>
+				<td>
+					<xsl:value-of select="@d_generados"/>
+				</td>
+				<td>
+					<xsl:value-of select="@d_tomados"/>
+				</td>
+				<td>
+					<xsl:value-of select="@d_pendientes"/>
+				</td>
+			</tr>
+		</xsl:template>
+		<xsl:template name="BODY_CUSTOM">
+			<div class="row wfVacaciones">
+				<div class="panel-group" id="accordion" role="tablist" aria-multiselectable="false">
+					<xsl:apply-templates select="LEGAJOS/LEGAJO"/>
+				</div>
+			</div>
+		</xsl:template>
+		<xsl:template name="JAVASCRIPT_CUSTOM">
+			<script type="text/javascript">
+				function SetParam(param,valor){
+this.parent.SetParam(param,valor);
+}
+
+function SetMsgError(id_wf,msgError){
+this.parent.SetMsgError(id_wf,msgError);
+}
+
+function BlanquearParam2(id){
+var legajo = id.substr(8);
+
+//Desabilito todos los radio y habilito solamente el que tengo seleccioanado
+$("input[type=radio]").prop("disabled", true);
+$("#legajo_"+legajo).prop("disabled", false);
+
+//Selecciono el radio del legajo.
+$("#legajo_"+legajo).prop("checked", true); 
+
+//Seteo el valor del legajo que iniciara el WF
+this.SetParam("oi_personal_emp",legajo);
+
+//Setea una validacion a true/false dependiendo de si tiene datos en la cta cte.
+var className = document.getElementById(id).className;
+if(className.indexOf("sinCtaCte") != -1){
+SetMsgError("VACA_PEDIDO_VACACIONES","No puede solicitar las vacaciones ya que no hay datos en la cuenta corriente para este legajo");
+}else{
+SetMsgError("VACA_PEDIDO_VACACIONES","");
+}
+}
+
+$(document).ready(function(){
+var oi_legajo = $("#oi_personal_emp").attr("value");
+SetParam("oi_personal_emp",oi_legajo);
+
+if($("#valida_extra").attr("value") == 0){
+SetMsgError("VACA_PEDIDO_VACACIONES","No puede solicitar las vacaciones ya que no hay datos en la cuenta corriente para este legajo");
+}
+});
+			</script>
+		</xsl:template>
+		<xsl:template name="CSS_CUSTOM">
+			.wfVacaciones {
+margin-top: 10px;
+}
+
+.label-convenio{
+font-size: 16px;
+margin-bottom: 0px;
+float: left;
+margin-right: 3px;
+}
+
+.radio-legajo{
+float:right!important;
+}
+
+#panel-mis-vacaciones {
+width: 70%;
+margin: auto;
+} 
+
+#panel-mis-vacaciones .panel-heading {
+font-weight: 600;
+}
+
+#table-vacaciones thead tr  th, #table-vacaciones tbody tr  td{
+text-align: center;
+}
+
+tfoot tr{
+background-color: #f9f9f9;
+}
+
+.convenio-saldo{
+width: 50%;
+float: left;
+}
+
+.convenio-saldo label{
+margin-left: 30%;
+}
+
+.p-convenio{
+margin: 2px 0 5px;
+}
+
+.pointer{
+cursor: pointer;
+}
+		</xsl:template>
+	</html:xslt>
+</html:html>

@@ -1,0 +1,864 @@
+<html:html xmlns:html="nomad_engine.html" xmlns:qry="nomad_engine.qry" xmlns:xsl="http://www.w3.org/1999/XSL/Transform" doc="source" name="NucleusRH.Base.Liquidacion.Recibo">
+	<html:query declare="&lt;PARAMS oi_tot_liq_per=&quot;13906&quot; c_concepto=&quot;1&quot; c_concepto1=&quot;90000002&quot; /&gt;">
+		<qry:main doc="PARAM">
+			<qry:element name="datos">
+				<qry:insert-select doc-path="#PARAM:/PARAMS" name="qry_concepto"/>
+			</qry:element>
+		</qry:main>
+		<qry:select doc="PARAM" name="qry_concepto">
+			<qry:xquery>
+				for $r in sql('
+select 
+CON.c_concepto, 
+CON.d_concepto, 
+CON.c_tipo_concepto, 
+TCO.d_tipo_concepto, 
+CON.ca_fig_recibo, 
+CON.ca_acum_ganancia, 
+CON.l_ej_ajuste, 
+CON.l_activo, 
+CON.t_formula, 
+CON.e_secuencia,
+CON.e_etapa,  
+CON.l_retroactivo,
+LIQ.e_periodo,
+CON.c_version
+from 
+liq20_tot_liq_per as REC, 
+liq99_liquidacion as LIQ, 
+liq96_conceptos as CON,
+LIQ12_TIPOS_CONC as TCO
+where
+REC.oi_liquidacion_ddo=LIQ.oi_liquidacion_ddo and
+CON.oi_cab_conc_ddo=LIQ.oi_cab_conc_ddo and
+CON.c_tipo_concepto=TCO.c_tipo_concepto and
+REC.oi_tot_liq_per = {#PARAM:@oi_tot_liq_per} and
+CON.c_concepto = {#PARAM:@c_concepto}
+')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:element name="CONCEPTO">
+					<qry:attribute name="oi_tot_liq_per" value="#PARAM:@oi_tot_liq_per"/>
+					<qry:attribute name="c_concepto" value="$r/@c_concepto"/>
+					<qry:attribute name="d_concepto" value="$r/@d_concepto"/>
+					<qry:attribute name="e_periodo" value="$r/@e_periodo"/>
+					<qry:attribute name="c_tipo_concepto" value="$r/@c_tipo_concepto"/>
+					<qry:attribute name="d_tipo_concepto" value="$r/@d_tipo_concepto"/>
+					<qry:switch test="$r/@ca_fig_recibo">
+						<qry:case value="N">
+							<qry:attribute name="ca_fig_recibo" value="'No'"/>
+						</qry:case>
+						<qry:case value="S">
+							<qry:attribute name="ca_fig_recibo" value="'Si'"/>
+						</qry:case>
+						<qry:case value="I">
+							<qry:attribute name="ca_fig_recibo" value="'Solo Importe'"/>
+						</qry:case>
+						<qry:default>
+							<qry:attribute name="ca_fig_recibo" value="$r/@ca_fig_recibo"/>
+						</qry:default>
+					</qry:switch>
+					<qry:switch test="$r/@ca_acum_ganancia">
+						<qry:case value="N">
+							<qry:attribute name="ca_acum_ganancia" value="'No Acumula'"/>
+						</qry:case>
+						<qry:case value="H">
+							<qry:attribute name="ca_acum_ganancia" value="'Acumula Haberes'"/>
+						</qry:case>
+						<qry:case value="D">
+							<qry:attribute name="ca_acum_ganancia" value="'Acumula Deducciones'"/>
+						</qry:case>
+						<qry:default>
+							<qry:attribute name="ca_acum_ganancia" value="$r/@ca_acum_ganancia"/>
+						</qry:default>
+					</qry:switch>
+					<qry:attribute name="l_ej_ajuste" value="iif($r/@l_ej_ajuste='1','Si','No')"/>
+					<qry:attribute name="t_formula" value="$r/@t_formula"/>
+					<qry:attribute name="e_secuencia" value="$r/@e_secuencia"/>
+					<qry:attribute name="e_etapa" value="$r/@e_etapa"/>
+					<qry:attribute name="l_activo" value="iif($r/@l_activo='1','Si','No')"/>
+					<qry:attribute name="l_retroactivo" value="iif($r/@l_retroactivo='1','Si','No')"/>
+					<qry:switch test="$r/@c_version">
+						<qry:case value="">
+							<qry:attribute name="c_version" value="'1.0'"/>
+						</qry:case>
+						<qry:case value="1">
+							<qry:attribute name="c_version" value="'1.0'"/>
+						</qry:case>
+						<qry:case value="2">
+							<qry:attribute name="c_version" value="'2.0'"/>
+						</qry:case>
+						<qry:default>
+							<qry:attribute name="c_version" value="$r/@c_version"/>
+						</qry:default>
+					</qry:switch>
+					<qry:insert-select name="qry_variables" doc-path="#PARAM:"/>
+				</qry:element>
+			</qry:out>
+		</qry:select>
+		<qry:select name="qry_variables" doc="PARAM">
+			<qry:xquery>
+				for $r in FILEIO('RECIBOS\\{%=#PROXY:@App %}\\{%=#PARAM:@oi_tot_liq_per %}.recibo.xml')/RECIBO/CONCEPTOS/CONCEPTO[@COD=#PARAM:@c_concepto]
+			</qry:xquery>
+			<qry:out>
+				<cargo>
+					<qry:attribute name="manual" value="$r/@manual"/>
+					<qry:attribute name="error" value="$r/@error"/>
+					<qry:attribute name="cantidad" value="$r/@cantidad"/>
+					<qry:attribute name="valor" value="$r/@valor"/>
+					<qry:attribute name="cargo" value="$r/@cargo"/>
+					<qry:if test="$r/@cargo!=''">
+						<qry:then>
+							<qry:attribute name="show" value="1"/>
+							<qry:attribute name="materia" value="$r/../../CARGOS/CARGO[number($r/@cargo)]/@Materia"/>
+							<qry:attribute name="categoria" value="$r/../../CARGOS/CARGO[number($r/@cargo)]/@Categoria"/>
+							<qry:attribute name="centrocosto" value="$r/../../CARGOS/CARGO[number($r/@cargo)]/@CentroCosto"/>
+						</qry:then>
+					</qry:if>
+					<entrada>
+						<qry:insert-element name="VAR" doc-path="$r/VAR[@tipo='IN']"/>
+					</entrada>
+					<salida>
+						<qry:insert-element name="VAR" doc-path="$r/VAR[@tipo='OUT']"/>
+					</salida>
+					<locales>
+						<qry:insert-element name="VAR" doc-path="$r/VAR[@tipo='LOC']"/>
+					</locales>
+					<acumuladores>
+						<qry:insert-element name="VAR" doc-path="$r/VAR[@tipo='ACC' or @tipo='ACV' or @tipo='AUTO']"/>
+					</acumuladores>
+				</cargo>
+			</qry:out>
+		</qry:select>
+	</html:query>
+	<html:xslt>
+		<xsl:template match="/datos">
+			<html>
+				<head>
+					<LINK href="../Skins/_Default/Styles/GReport.css" type="text/css" rel="stylesheet"/>
+					<STYLE>
+						body{background-color:#FFFFFF;}
+.img
+{
+width:1px;
+font-size:1px;
+}
+
+.tabla
+{
+cellpadding: 0;
+cellspacing: 0;
+border-collapse: collapse;
+font-family:verdana;
+font-weight: normal;
+font-style: normal;
+font-size: 10px;
+}
+.tabla td
+{
+text-align:left;
+border: 1px solid black;
+padding: 2px;	
+}
+.tabla th
+{
+text-align:center;
+font-weight: bold;
+font-size: 12px;
+border: 1px solid black;
+padding: 2px;	
+}
+.tabla pre
+{
+text-align:left;
+font-family:verdana;
+font-weight: normal;
+font-size: 10px;
+font-style: normal;
+padding: 2px;	
+}
+.mute
+{
+cellpadding: 0;
+cellspacing: 0;
+border-collapse: collapse;
+
+font-family:verdana;
+font-weight: normal;
+font-style: normal;
+font-size: 10px;
+
+border: none;
+padding: 0px;	
+}
+.mute td
+{
+border: none;
+padding: 0px;	
+}
+
+.tablain
+{
+cellpadding: 0;
+cellspacing: 0;
+border-collapse: collapse;
+font-family:verdana;
+font-weight: normal;
+font-style: normal;
+font-size: 10px;
+}
+.tablain td
+{
+text-align:left;               
+border: none;
+border-bottom: 1px solid black;
+padding: 2px;	
+}
+.tablain th
+{
+text-align:center;
+font-weight: bold;
+font-size: 12px;
+border: none;
+border-bottom: 1px solid black;
+padding: 2px;	
+}
+					</STYLE>
+				</head>
+				<body>
+					<table width="100%">
+						<tr>
+							<td>
+								<xsl:apply-templates select="CONCEPTO"/>
+								<xsl:if test="count(CONCEPTO)=0">
+									<span style="text-align:center;width:100%;font-size:24px;font-weight:800;">
+										No se encontro el Recibo
+									</span>
+								</xsl:if>
+							</td>
+						</tr>
+					</table>
+				</body>
+			</html>
+		</xsl:template>
+		<xsl:template match="CONCEPTO">
+			<table class="tabla" width="800px">
+				<tr>
+					<th colspan="5">
+						CONCEPTO
+					</th>
+				</tr>
+				<tr>
+					<td>
+						<b>
+							Codigo:&#160;
+						</b>
+						<xsl:value-of select="@c_concepto"/>
+						<br/>
+						<b>
+							Descripcion:&#160;
+						</b>
+						<xsl:value-of select="@d_concepto"/>
+						<br/>
+					</td>
+					<td>
+						<b>
+							Tipo:&#160;
+						</b>
+						<xsl:value-of select="@d_tipo_concepto"/>
+						<br/>
+						<b>
+							Version:&#160;
+						</b>
+						<xsl:value-of select="@c_version"/>
+						<br/>
+					</td>
+					<td>
+						<b>
+							Secuencia:&#160;
+						</b>
+						<xsl:value-of select="@e_secuencia"/>
+						<br/>
+						<b>
+							Etapa:&#160;
+						</b>
+						<xsl:choose>
+							<xsl:when test="@e_etapa=1">
+								Por Cargos
+							</xsl:when>
+							<xsl:when test="@e_etapa=2">
+								Pos Cargos
+							</xsl:when>
+							<xsl:otherwise>
+								Pre Cargos
+							</xsl:otherwise>
+						</xsl:choose>
+						<br/>
+					</td>
+					<td>
+						<b>
+							Acumula Ganancia:&#160;
+						</b>
+						<xsl:value-of select="@ca_acum_ganancia"/>
+						<br/>
+						<b>
+							Figura en Recibo:&#160;
+						</b>
+						<xsl:value-of select="@ca_fig_recibo"/>
+						<br/>
+					</td>
+					<td>
+						<b>
+							Ejecuta en Ajuste:&#160;
+						</b>
+						<xsl:value-of select="@l_ej_ajuste"/>
+						<br/>
+						<b>
+							Retroactivo:&#160;
+						</b>
+						<xsl:value-of select="@l_retroactivo"/>
+						<br/>
+					</td>
+				</tr>
+			</table>
+			<br/>
+			<xsl:for-each select="cargo">
+				<table class="tabla" width="100%">
+					<xsl:if test="@show=1">
+						<tr>
+							<th colspan="4" style="text-align:left;font-size:12px;font-weight:normal;">
+								<xsl:if test="@centrocosto!=''">
+									<b>
+										Centro&#160;de&#160;Costo:&#160;
+									</b>
+									<xsl:value-of select="@centrocosto"/>
+									<br/>
+								</xsl:if>
+								<xsl:if test="@categoria!=''">
+									<b>
+										Categoria:&#160;
+									</b>
+									<xsl:value-of select="@categoria"/>
+									<br/>
+								</xsl:if>
+								<xsl:if test="@materia!=''">
+									<b>
+										Materia:&#160;
+									</b>
+									<xsl:value-of select="@materia"/>
+									<br/>
+								</xsl:if>
+							</th>
+						</tr>
+					</xsl:if>
+					<tr>
+						<th colspan="4">
+							VARIABLES
+						</th>
+					</tr>
+					<tr>
+						<td style="padding:0;" VALIGN="top" colspan="4">
+							<table class="mute" style="width:100%;">
+								<tr>
+									<xsl:if test="entrada/VAR">
+										<td style="padding:0;border-right:1px solid black;" VALIGN="top">
+											<table class="tablain" style="width:100%;">
+												<tr>
+													<th colspan="3">
+														Entrada
+													</th>
+												</tr>
+												<tr>
+													<td colspan="2">
+														Nombre
+													</td>
+													<td style="border-left:1px solid #AAAAAA;text-align:center;">
+														Valor
+													</td>
+												</tr>
+												<xsl:for-each select="entrada/VAR">
+													<tr>
+														<td class="img">
+															<img src="./Images/Reports/search_n.gif" title="detalles de la Variable" style="cursor:pointer;">
+																<xsl:attribute name="onclick">
+																	<xsl:value-of select="concat('opener.ShowREPORT(&quot;NucleusRH.Base.Liquidacion.ReciboVariable.rpt&quot;,&quot;oi_tot_liq_per=',../../../@oi_tot_liq_per,'|c_variable=',@nombre,'|cargo=',@cargo,'&quot;);')"/>
+																</xsl:attribute>
+															</img>
+														</td>
+														<td>
+															<xsl:value-of select="@nombre"/>
+															<xsl:if test="@perlabel">
+																<xsl:value-of select="concat('[',@perlabel,']')"/>
+															</xsl:if>
+														</td>
+														<td style="border-left:1px solid #AAAAAA;text-align:right;">
+															<xsl:value-of select="@valor_e"/>
+														</td>
+													</tr>
+												</xsl:for-each>
+											</table>
+										</td>
+									</xsl:if>
+									<xsl:if test="salida/VAR">
+										<td style="padding:0;border-right:1px solid black;" VALIGN="top">
+											<table class="tablain" style="width:100%;">
+												<tr>
+													<th colspan="4">
+														Entrada/Salida
+													</th>
+												</tr>
+												<tr>
+													<td colspan="2">
+														Nombre
+													</td>
+													<td style="border-left:1px solid #AAAAAA;text-align:center;">
+														Entrada
+													</td>
+													<td style="border-left:1px solid #AAAAAA;text-align:center;">
+														Salida
+													</td>
+												</tr>
+												<xsl:for-each select="salida/VAR">
+													<tr>
+														<td class="img">
+															<img src="./Images/Reports/search_n.gif" title="detalles de la Variable" style="cursor:pointer;">
+																<xsl:attribute name="onclick">
+																	<xsl:value-of select="concat('opener.ShowREPORT(&quot;NucleusRH.Base.Liquidacion.ReciboVariable.rpt&quot;,&quot;oi_tot_liq_per=',../../../@oi_tot_liq_per,'|c_variable=',@nombre,'&quot;);')"/>
+																</xsl:attribute>
+															</img>
+														</td>
+														<td>
+															<xsl:value-of select="@nombre"/>
+															<xsl:if test="@perlabel">
+																<xsl:value-of select="concat('[',@perlabel,']')"/>
+															</xsl:if>
+														</td>
+														<td style="border-left:1px solid #AAAAAA;text-align:right;">
+															<xsl:value-of select="@valor_e"/>
+														</td>
+														<td style="border-left:1px solid #AAAAAA;text-align:right;">
+															<xsl:value-of select="@valor_s"/>
+														</td>
+													</tr>
+												</xsl:for-each>
+											</table>
+										</td>
+									</xsl:if>
+									<xsl:if test="locales/VAR">
+										<td style="padding:0;border-right:1px solid black;" VALIGN="top">
+											<table class="tablain" style="width:100%;">
+												<tr>
+													<th colspan="2">
+														Locales
+													</th>
+												</tr>
+												<tr>
+													<td>
+														Nombre
+													</td>
+													<td style="border-left:1px solid #AAAAAA;text-align:center;">
+														Valor
+													</td>
+												</tr>
+												<xsl:for-each select="locales/VAR">
+													<tr>
+														<td>
+															<xsl:value-of select="@nombre"/>
+														</td>
+														<td style="border-left:1px solid #AAAAAA;text-align:right;">
+															<xsl:value-of select="@valor_e"/>
+														</td>
+													</tr>
+												</xsl:for-each>
+											</table>
+										</td>
+									</xsl:if>
+									<xsl:if test="acumuladores/VAR">
+										<td style="padding:0;" VALIGN="top">
+											<table class="tablain" style="width:100%;">
+												<tr>
+													<th colspan="5">
+														Acumuladores
+													</th>
+												</tr>
+												<tr>
+													<td colspan="2">
+														Nombre
+													</td>
+													<td>
+														Tipo
+													</td>
+													<td style="border-left:1px solid #AAAAAA;text-align:center;">
+														Entrada
+													</td>
+													<td style="border-left:1px solid #AAAAAA;text-align:center;">
+														Salida
+													</td>
+												</tr>
+												<xsl:for-each select="acumuladores/VAR">
+													<tr>
+														<td class="img">
+															<img src="./Images/Reports/search_n.gif" title="detalles de la Variable" style="cursor:pointer;">
+																<xsl:attribute name="onclick">
+																	<xsl:value-of select="concat('opener.ShowREPORT(&quot;NucleusRH.Base.Liquidacion.ReciboVariable.rpt&quot;,&quot;oi_tot_liq_per=',../../../@oi_tot_liq_per,'|c_variable=',@nombre,'&quot;);')"/>
+																</xsl:attribute>
+															</img>
+														</td>
+														<td>
+															<xsl:value-of select="@nombre"/>
+															<xsl:if test="@perlabel">
+																<xsl:value-of select="concat('[',@perlabel,']')"/>
+															</xsl:if>
+														</td>
+														<td>
+															<xsl:value-of select="@tipo"/>
+														</td>
+														<td style="border-left:1px solid #AAAAAA;text-align:right;">
+															<xsl:value-of select="@valor_e"/>
+														</td>
+														<td style="border-left:1px solid #AAAAAA;text-align:right;">
+															<xsl:value-of select="@valor_s"/>
+														</td>
+													</tr>
+												</xsl:for-each>
+											</table>
+										</td>
+									</xsl:if>
+								</tr>
+							</table>
+						</td>
+					</tr>
+				</table>
+				<br/>
+				<xsl:if test="*/VAR[@periodo!='']">
+					<xsl:variable name="periodo">
+						<xsl:value-of select="../@e_periodo"/>
+					</xsl:variable>
+					<table class="tabla" width="100%">
+						<tr>
+							<th colspan="4">
+								VARIABLES POR PERIODO / VALORES DE ENTRADA
+							</th>
+						</tr>
+						<tr>
+							<td style="padding:0;" VALIGN="top" colspan="4">
+								<table class="tablain" style="width:100%;">
+									<tr>
+										<td colspan="2">
+											Nombre
+										</td>
+										<xsl:if test="($periodo mod 100) &lt; 1">
+											<td style="border-left:1px solid #AAAAAA;text-align:center;">
+												<xsl:value-of select="concat('ENE-',substring($periodo - 100,1,4))"/>
+											</td>
+										</xsl:if>
+										<xsl:if test="($periodo mod 100) &lt; 2">
+											<td style="border-left:1px solid #AAAAAA;text-align:center;">
+												<xsl:value-of select="concat('FEB-',substring($periodo - 100,1,4))"/>
+											</td>
+										</xsl:if>
+										<xsl:if test="($periodo mod 100) &lt; 3">
+											<td style="border-left:1px solid #AAAAAA;text-align:center;">
+												<xsl:value-of select="concat('MAR-',substring($periodo - 100,1,4))"/>
+											</td>
+										</xsl:if>
+										<xsl:if test="($periodo mod 100) &lt; 4">
+											<td style="border-left:1px solid #AAAAAA;text-align:center;">
+												<xsl:value-of select="concat('ABR-',substring($periodo - 100,1,4))"/>
+											</td>
+										</xsl:if>
+										<xsl:if test="($periodo mod 100) &lt; 5">
+											<td style="border-left:1px solid #AAAAAA;text-align:center;">
+												<xsl:value-of select="concat('MAY-',substring($periodo - 100,1,4))"/>
+											</td>
+										</xsl:if>
+										<xsl:if test="($periodo mod 100) &lt; 6">
+											<td style="border-left:1px solid #AAAAAA;text-align:center;">
+												<xsl:value-of select="concat('JUN-',substring($periodo - 100,1,4))"/>
+											</td>
+										</xsl:if>
+										<xsl:if test="($periodo mod 100) &lt; 7">
+											<td style="border-left:1px solid #AAAAAA;text-align:center;">
+												<xsl:value-of select="concat('JUL-',substring($periodo - 100,1,4))"/>
+											</td>
+										</xsl:if>
+										<xsl:if test="($periodo mod 100) &lt; 8">
+											<td style="border-left:1px solid #AAAAAA;text-align:center;">
+												<xsl:value-of select="concat('AGO-',substring($periodo - 100,1,4))"/>
+											</td>
+										</xsl:if>
+										<xsl:if test="($periodo mod 100) &lt; 9">
+											<td style="border-left:1px solid #AAAAAA;text-align:center;">
+												<xsl:value-of select="concat('SEP-',substring($periodo - 100,1,4))"/>
+											</td>
+										</xsl:if>
+										<xsl:if test="($periodo mod 100) &lt; 10">
+											<td style="border-left:1px solid #AAAAAA;text-align:center;">
+												<xsl:value-of select="concat('OCT-',substring($periodo - 100,1,4))"/>
+											</td>
+										</xsl:if>
+										<xsl:if test="($periodo mod 100) &lt; 11">
+											<td style="border-left:1px solid #AAAAAA;text-align:center;">
+												<xsl:value-of select="concat('NOV-',substring($periodo - 100,1,4))"/>
+											</td>
+										</xsl:if>
+										<xsl:if test="($periodo mod 100) &lt; 12">
+											<td style="border-left:1px solid #AAAAAA;text-align:center;">
+												<xsl:value-of select="concat('DIC-',substring($periodo - 100,1,4))"/>
+											</td>
+										</xsl:if>
+										<xsl:if test="($periodo mod 100) &gt;= 1">
+											<td style="border-left:1px solid #AAAAAA;text-align:center;">
+												<xsl:value-of select="concat('ENE-',substring($periodo,1,4))"/>
+											</td>
+										</xsl:if>
+										<xsl:if test="($periodo mod 100) &gt;= 2">
+											<td style="border-left:1px solid #AAAAAA;text-align:center;">
+												<xsl:value-of select="concat('FEB-',substring($periodo,1,4))"/>
+											</td>
+										</xsl:if>
+										<xsl:if test="($periodo mod 100) &gt;= 3">
+											<td style="border-left:1px solid #AAAAAA;text-align:center;">
+												<xsl:value-of select="concat('MAR-',substring($periodo,1,4))"/>
+											</td>
+										</xsl:if>
+										<xsl:if test="($periodo mod 100) &gt;= 4">
+											<td style="border-left:1px solid #AAAAAA;text-align:center;">
+												<xsl:value-of select="concat('ABR-',substring($periodo,1,4))"/>
+											</td>
+										</xsl:if>
+										<xsl:if test="($periodo mod 100) &gt;= 5">
+											<td style="border-left:1px solid #AAAAAA;text-align:center;">
+												<xsl:value-of select="concat('MAY-',substring($periodo,1,4))"/>
+											</td>
+										</xsl:if>
+										<xsl:if test="($periodo mod 100) &gt;= 6">
+											<td style="border-left:1px solid #AAAAAA;text-align:center;">
+												<xsl:value-of select="concat('JUN-',substring($periodo,1,4))"/>
+											</td>
+										</xsl:if>
+										<xsl:if test="($periodo mod 100) &gt;= 7">
+											<td style="border-left:1px solid #AAAAAA;text-align:center;">
+												<xsl:value-of select="concat('JUL-',substring($periodo,1,4))"/>
+											</td>
+										</xsl:if>
+										<xsl:if test="($periodo mod 100) &gt;= 8">
+											<td style="border-left:1px solid #AAAAAA;text-align:center;">
+												<xsl:value-of select="concat('AGO-',substring($periodo,1,4))"/>
+											</td>
+										</xsl:if>
+										<xsl:if test="($periodo mod 100) &gt;= 9">
+											<td style="border-left:1px solid #AAAAAA;text-align:center;">
+												<xsl:value-of select="concat('SEP-',substring($periodo,1,4))"/>
+											</td>
+										</xsl:if>
+										<xsl:if test="($periodo mod 100) &gt;= 10">
+											<td style="border-left:1px solid #AAAAAA;text-align:center;">
+												<xsl:value-of select="concat('OCT-',substring($periodo,1,4))"/>
+											</td>
+										</xsl:if>
+										<xsl:if test="($periodo mod 100) &gt;= 11">
+											<td style="border-left:1px solid #AAAAAA;text-align:center;">
+												<xsl:value-of select="concat('NOV-',substring($periodo,1,4))"/>
+											</td>
+										</xsl:if>
+										<xsl:if test="($periodo mod 100) &gt;= 12">
+											<td style="border-left:1px solid #AAAAAA;text-align:center;">
+												<xsl:value-of select="concat('DIC-',substring($periodo,1,4))"/>
+											</td>
+										</xsl:if>
+									</tr>
+									<xsl:for-each select="*/VAR[@periodo!='']">
+										<tr>
+											<td class="img" width="16px">
+												<img src="./Images/Reports/search_n.gif" title="detalles de la Variable" style="cursor:pointer;">
+													<xsl:attribute name="onclick">
+														<xsl:value-of select="concat('opener.ShowREPORT(&quot;NucleusRH.Base.Liquidacion.ReciboVariable.rpt&quot;,&quot;oi_tot_liq_per=',../../../@oi_tot_liq_per,'|c_variable=',@nombre,'&quot;);')"/>
+													</xsl:attribute>
+												</img>
+											</td>
+											<td style="border-left:none;text-align:left;">
+												<xsl:value-of select="@nombre"/>
+											</td>
+											<xsl:if test="($periodo mod 100) &lt; 1">
+												<td style="border-left:1px solid #AAAAAA;text-align:center;">
+													<xsl:value-of select="VAR[@nombre=concat(substring($periodo - 100,1,4),'01')]/@valor_e"/>
+												</td>
+											</xsl:if>
+											<xsl:if test="($periodo mod 100) &lt; 2">
+												<td style="border-left:1px solid #AAAAAA;text-align:center;">
+													<xsl:value-of select="VAR[@nombre=concat(substring($periodo - 100,1,4),'02')]/@valor_e"/>
+												</td>
+											</xsl:if>
+											<xsl:if test="($periodo mod 100) &lt; 3">
+												<td style="border-left:1px solid #AAAAAA;text-align:center;">
+													<xsl:value-of select="VAR[@nombre=concat(substring($periodo - 100,1,4),'03')]/@valor_e"/>
+												</td>
+											</xsl:if>
+											<xsl:if test="($periodo mod 100) &lt; 4">
+												<td style="border-left:1px solid #AAAAAA;text-align:center;">
+													<xsl:value-of select="VAR[@nombre=concat(substring($periodo - 100,1,4),'04')]/@valor_e"/>
+												</td>
+											</xsl:if>
+											<xsl:if test="($periodo mod 100) &lt; 5">
+												<td style="border-left:1px solid #AAAAAA;text-align:center;">
+													<xsl:value-of select="VAR[@nombre=concat(substring($periodo - 100,1,4),'05')]/@valor_e"/>
+												</td>
+											</xsl:if>
+											<xsl:if test="($periodo mod 100) &lt; 6">
+												<td style="border-left:1px solid #AAAAAA;text-align:center;">
+													<xsl:value-of select="VAR[@nombre=concat(substring($periodo - 100,1,4),'06')]/@valor_e"/>
+												</td>
+											</xsl:if>
+											<xsl:if test="($periodo mod 100) &lt; 7">
+												<td style="border-left:1px solid #AAAAAA;text-align:center;">
+													<xsl:value-of select="VAR[@nombre=concat(substring($periodo - 100,1,4),'07')]/@valor_e"/>
+												</td>
+											</xsl:if>
+											<xsl:if test="($periodo mod 100) &lt; 8">
+												<td style="border-left:1px solid #AAAAAA;text-align:center;">
+													<xsl:value-of select="VAR[@nombre=concat(substring($periodo - 100,1,4),'08')]/@valor_e"/>
+												</td>
+											</xsl:if>
+											<xsl:if test="($periodo mod 100) &lt; 9">
+												<td style="border-left:1px solid #AAAAAA;text-align:center;">
+													<xsl:value-of select="VAR[@nombre=concat(substring($periodo - 100,1,4),'09')]/@valor_e"/>
+												</td>
+											</xsl:if>
+											<xsl:if test="($periodo mod 100) &lt; 10">
+												<td style="border-left:1px solid #AAAAAA;text-align:center;">
+													<xsl:value-of select="VAR[@nombre=concat(substring($periodo - 100,1,4),'10')]/@valor_e"/>
+												</td>
+											</xsl:if>
+											<xsl:if test="($periodo mod 100) &lt; 11">
+												<td style="border-left:1px solid #AAAAAA;text-align:center;">
+													<xsl:value-of select="VAR[@nombre=concat(substring($periodo - 100,1,4),'11')]/@valor_e"/>
+												</td>
+											</xsl:if>
+											<xsl:if test="($periodo mod 100) &lt; 12">
+												<td style="border-left:1px solid #AAAAAA;text-align:center;">
+													<xsl:value-of select="VAR[@nombre=concat(substring($periodo - 100,1,4),'12')]/@valor_e"/>
+												</td>
+											</xsl:if>
+											<xsl:if test="($periodo mod 100) &gt;= 1">
+												<td style="border-left:1px solid #AAAAAA;text-align:center;">
+													<xsl:value-of select="VAR[@nombre=concat(substring($periodo,1,4),'01')]/@valor_e"/>
+												</td>
+											</xsl:if>
+											<xsl:if test="($periodo mod 100) &gt;= 2">
+												<td style="border-left:1px solid #AAAAAA;text-align:center;">
+													<xsl:value-of select="VAR[@nombre=concat(substring($periodo,1,4),'02')]/@valor_e"/>
+												</td>
+											</xsl:if>
+											<xsl:if test="($periodo mod 100) &gt;= 3">
+												<td style="border-left:1px solid #AAAAAA;text-align:center;">
+													<xsl:value-of select="VAR[@nombre=concat(substring($periodo,1,4),'03')]/@valor_e"/>
+												</td>
+											</xsl:if>
+											<xsl:if test="($periodo mod 100) &gt;= 4">
+												<td style="border-left:1px solid #AAAAAA;text-align:center;">
+													<xsl:value-of select="VAR[@nombre=concat(substring($periodo,1,4),'04')]/@valor_e"/>
+												</td>
+											</xsl:if>
+											<xsl:if test="($periodo mod 100) &gt;= 5">
+												<td style="border-left:1px solid #AAAAAA;text-align:center;">
+													<xsl:value-of select="VAR[@nombre=concat(substring($periodo,1,4),'05')]/@valor_e"/>
+												</td>
+											</xsl:if>
+											<xsl:if test="($periodo mod 100) &gt;= 6">
+												<td style="border-left:1px solid #AAAAAA;text-align:center;">
+													<xsl:value-of select="VAR[@nombre=concat(substring($periodo,1,4),'06')]/@valor_e"/>
+												</td>
+											</xsl:if>
+											<xsl:if test="($periodo mod 100) &gt;= 7">
+												<td style="border-left:1px solid #AAAAAA;text-align:center;">
+													<xsl:value-of select="VAR[@nombre=concat(substring($periodo,1,4),'07')]/@valor_e"/>
+												</td>
+											</xsl:if>
+											<xsl:if test="($periodo mod 100) &gt;= 8">
+												<td style="border-left:1px solid #AAAAAA;text-align:center;">
+													<xsl:value-of select="VAR[@nombre=concat(substring($periodo,1,4),'08')]/@valor_e"/>
+												</td>
+											</xsl:if>
+											<xsl:if test="($periodo mod 100) &gt;= 9">
+												<td style="border-left:1px solid #AAAAAA;text-align:center;">
+													<xsl:value-of select="VAR[@nombre=concat(substring($periodo,1,4),'09')]/@valor_e"/>
+												</td>
+											</xsl:if>
+											<xsl:if test="($periodo mod 100) &gt;= 10">
+												<td style="border-left:1px solid #AAAAAA;text-align:center;">
+													<xsl:value-of select="VAR[@nombre=concat(substring($periodo,1,4),'10')]/@valor_e"/>
+												</td>
+											</xsl:if>
+											<xsl:if test="($periodo mod 100) &gt;= 11">
+												<td style="border-left:1px solid #AAAAAA;text-align:center;">
+													<xsl:value-of select="VAR[@nombre=concat(substring($periodo,1,4),'11')]/@valor_e"/>
+												</td>
+											</xsl:if>
+											<xsl:if test="($periodo mod 100) &gt;= 12">
+												<td style="border-left:1px solid #AAAAAA;text-align:center;">
+													<xsl:value-of select="VAR[@nombre=concat(substring($periodo,1,4),'12')]/@valor_e"/>
+												</td>
+											</xsl:if>
+										</tr>
+									</xsl:for-each>
+								</table>
+							</td>
+						</tr>
+					</table>
+					<br/>
+				</xsl:if>
+				<table class="tabla" width="500px">
+					<tr>
+						<th colspan="4">
+							RESULTADO
+						</th>
+					</tr>
+					<tr>
+						<th>
+							Valor
+						</th>
+						<th>
+							Cantidad
+						</th>
+						<th>
+							Manual
+						</th>
+						<th>
+							Error
+						</th>
+					</tr>
+					<tr>
+						<td style="text-align:right;">
+							<xsl:value-of select="@valor"/>
+						</td>
+						<td style="text-align:right;">
+							<xsl:value-of select="@cantidad"/>
+						</td>
+						<td style="text-align:center;">
+							<xsl:value-of select="@manual"/>
+						</td>
+						<td style="text-align:center;">
+							<xsl:value-of select="@error"/>
+						</td>
+					</tr>
+				</table>
+				<br/>
+			</xsl:for-each>
+			<table class="tabla" width="100%">
+				<tr>
+					<th>
+						FORMULA
+					</th>
+				</tr>
+				<tr>
+					<td>
+						<pre>
+							<xsl:value-of select="@t_formula"/>
+						</pre>
+					</td>
+				</tr>
+			</table>
+		</xsl:template>
+	</html:xslt>
+</html:html>

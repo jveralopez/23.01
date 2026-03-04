@@ -1,0 +1,91 @@
+<form:Form xmlns:form="nomad_engine.form" xmlns:qry="nomad_engine.qry" extends="NucleusRH.Base.Personal.LegajoEmpresa.PERSONAL_EMP.BUSCAR2.form" name="NucleusRH.Base.Liquidacion.Legajo.filter.form" doc="source" default_mode="BASIC">
+	<form:Center width="100%">
+		<form:VGroup visible="0" nvalue="#source:@gcustom" border="1" width="90%" label="Criterios de selecci&#243;n particulares" name="vgroupDatosCustom" collapse="1"/>
+		<form:VGroup nvalue="#source:@gpers" border="1" width="90%" collapse="1" label="Criterios de selecci&#243;n de personas" name="vgroupDatosPers">
+			<form:Tab name="tab_filtro">
+				<form:Panels>
+					<form:Panel name="panliquidacion" label="Liquidaci&#243;n">
+						<form:Columns width="95%" height="130px" name="cols_liquidacion">
+							<form:Column valign="top" align="left" name="col1_liquidacion">
+								<form:ComboBox nvalue="#source:@oi_banco" name="oi_banco" label="Banco" queryname1="NucleusRH.Base.Liquidacion.Bancos.BANCO.INFO" xsize="40" mode="QRY" required="0"/>
+								<form:ComboBox queryname1="NucleusRH.Base.Liquidacion.Bancos.SUCURSAL.INFO" prev="oi_banco" label="Sucursal" name="oi_sucursal" nvalue="#source:@oi_sucursal" xsize="40" mode="QRY" required="0"/>
+							</form:Column>
+						</form:Columns>
+					</form:Panel>
+				</form:Panels>
+			</form:Tab>
+		</form:VGroup>
+	</form:Center>
+	<form:Scripts>
+		function Filtrar()
+{   
+	if (arrFILTER.length==0)
+ 	{             
+ 		alert("No hay legajos filtrados.");
+ 		return false;
+ 	}
+	
+	FillArray(100);
+	
+	Ctrl("main").DoEvent("FILTER");
+}
+
+function enable_custom_buttons()
+{
+	CtrlEnabled("btnFILTER", arrFILTER.length&gt;0?true:false);
+}
+	</form:Scripts>
+	<form:Event action="FILTER" name="FILTER" runat="server"/>
+	<form:Resources>
+		<form:Resource declare="&lt;PARAM empresa=&quot;1&quot; oi_banco=&quot;1&quot; oi_sucursal=&quot;&quot;/&gt;" name="qry_panliquidacion">
+			<qry:main name="qry" doc="SOURCE">
+				<qry:element name="ROWS">
+					<qry:insert-select name="sql1" doc-path="#SOURCE:/PARAM"/>
+				</qry:element>
+			</qry:main>
+			<qry:select name="sql1" doc="SOURCE">
+				<qry:xquery>
+					for $r in sql('     
+{%?(number(#SOURCE:@maxsize)&gt;0) {% maxsize {%= 1+#SOURCE:@maxsize %} %} {% %} %}			
+SELECT 
+EMP.d_empresa as em, 
+LEG.oi_personal_emp as id, 
+LEG.e_numero_legajo as le, 
+SEC.policy
+FROM 
+PER01_PERSONAL as PER, 
+PER02_PERSONAL_EMP as LEG, 
+ORG03_EMPRESAS as EMP,
+LIQ07_PERSONAL AS LIQ07, 
+LIQ22_BANCOS_SUCUR AS SUC,
+LIQ22_BANCOS AS BANCO,
+NMD_SECURITY(class=\'NucleusRH.Base.Personal.LegajoEmpresa.PERSONAL_EMP\') as SEC
+JOIN 
+PER.oi_personal INNER LEG.oi_personal,
+LEG.oi_empresa INNER EMP.oi_empresa,
+LEG.oi_personal_emp INNER LIQ07.oi_personal_emp,
+LIQ07.oi_sucursal INNER SUC.oi_sucursal,
+SUC.oi_banco INNER BANCO.oi_banco,
+LEG.oi_personal_emp LEFT OUTER SEC.id
+WHERE 1=1
+{%?(#SOURCE:@activos='1') {% and LEG.oi_indic_activo= \'1\' %} {% %} %}
+{%?(#SOURCE:@empresa!='') {% and LEG.oi_empresa = {#SOURCE:@empresa} %} {% %} %}
+{%?(#SOURCE:@oi_banco!='') {% and BANCO.oi_banco = {#SOURCE:@oi_banco} %} {% %} %}
+{%?(#SOURCE:@oi_sucursal!='') {% and SUC.oi_sucursal = {#SOURCE:@oi_sucursal} %} {% %} %}
+{%?(#SOURCE:@where!='') {% and {%=#SOURCE:@where %} %} {% %} %}
+
+ORDER BY em ASC, le ASC
+')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:element name="R">
+						<qry:attribute name="id" value="$r/@id"/>
+					</qry:element>
+				</qry:out>
+			</qry:select>
+			<qry:params>
+				##activos,empresa,oi_banco,oi_sucursal,where,maxsize##
+			</qry:params>
+		</form:Resource>
+	</form:Resources>
+</form:Form>

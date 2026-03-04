@@ -1,0 +1,68 @@
+<flow:flow xmlns:flow="nomad_engine.flow" xmlns:doc="nomad_engine.doc" xmlns:qry="nomad_engine.qry" description="Ejectuar MDX" default_action="initialize" extends="Nomad.Base.flow" name="NucleusRH.Base.Indicadores">
+	<flow:info label="Flow para NucleusRH.Base.Indicadores.LogTCO">
+		Flow para NucleusRH.Base.Indicadores.LogTCO
+	</flow:info>
+	<flow:declare>
+		<doc:define name="LOGDATA">
+			<DATA/>
+		</doc:define>
+		<qry:define declare="&lt;param modulo=&quot;personal&quot;/&gt;" name="logQRY">
+			<qry:main doc="SOURCE">
+				<qry:append-doc doc-path="#SOURCE:" name="param"/>
+				<qry:element name="log-tco">
+					<qry:insert-select name="qry_FindLast"/>
+				</qry:element>
+			</qry:main>
+			<qry:select name="qry_FindLast">
+				<qry:xquery>
+					for $r in sql ('SELECT MAX (TCO01_EJECUCIONES.f_Inicio_ejec ) as f_Inicio_ejec FROM TCO01_EJECUCIONES WHERE TCO01_EJECUCIONES.c_modulo_tco={#param:\param\@modulo} ')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:insert-select doc-path="$r" name="qry_Result"/>
+				</qry:out>
+			</qry:select>
+			<qry:select doc="doc_result" name="qry_Result">
+				<qry:xquery>
+					for $r in sql (' SELECT TCO01_EJECUCIONES.c_ejecucion, TCO01_EJECUCIONES.c_estado , TCO01_EJECUCIONES.f_Inicio_ejec FROM TCO01_EJECUCIONES WHERE TCO01_EJECUCIONES.c_modulo_tco={#param:\param\@modulo} and TCO01_EJECUCIONES.f_Inicio_ejec = {DateTime(#doc_result:@f_Inicio_ejec)}')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:attribute value="$r/@c_ejecucion" name="c_ejecucion_F"/>
+					<qry:attribute value="$r/@c_estado" name="c_estado_F"/>
+					<qry:attribute value="iif($r/@c_estado='C',1,(iif($r/@c_estado='E',10,0)))" name="n_estado_F"/>
+					<qry:attribute value="$r/@f_Inicio_ejec" name="Fecha_Max"/>
+					<qry:element name="datos">
+						<qry:insert-select doc-path="$r" name="qry_ResultDIM"/>
+					</qry:element>
+				</qry:out>
+			</qry:select>
+			<qry:select doc="doc_resultDIM" name="qry_ResultDIM">
+				<qry:xquery>
+					for $r in sql ('SELECT  TCO01_EJECUCIONES.c_modulo_tco ,  TCO01_ERRORES.t_error
+FROM TCO01_EJECUCIONES , TCO01_DETALLE ,TCO01_ERRORES
+JOIN TCO01_EJECUCIONES.oi_ejecucion  INNER TCO01_DETALLE.oi_ejecucion ,
+ TCO01_DETALLE.oi_det_eje  INNER TCO01_ERRORES.oi_det_eje 
+WHERE TCO01_EJECUCIONES.c_ejecucion = {#doc_resultDIM:@c_ejecucion}
+  and TCO01_ERRORES.l_logusuario=1')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:element name="datos">
+						<qry:attribute value="$r/@c_modulo_tco" name="c_modulo_tco"/>
+						<qry:attribute name="t_error" value="$r/@t_error"/>
+					</qry:element>
+				</qry:out>
+			</qry:select>
+		</qry:define>
+	</flow:declare>
+	<flow:main doc="SOURCE">
+		<flow:action name="initialize">
+			<doc:load-qry input-doc-path="#SOURCE:" output-doc="LOGDATA" qry="logQRY"/>
+			<doc:set-attribute from-value="Init" to-attr-path="#LOGDATA:@action"/>
+			<flow:open-form form-class="NucleusRH.Base.Indicadores.LogTCO.form" doc-path="#LOGDATA:" mode="SHOW"/>
+		</flow:action>
+	</flow:main>
+	<flow:form form-class="NucleusRH.Base.Indicadores.LogTCO.form" name="NucleusRH.Base.Indicadores.LogTCO.form:SHOW" mode="SHOW" doc="SOURCE">
+		<flow:action name="VOLVER_CLICK">
+			<flow:close-form/>
+		</flow:action>
+	</flow:form>
+</flow:flow>

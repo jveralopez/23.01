@@ -1,0 +1,417 @@
+<html:html xmlns:html="nomad_engine.html" xmlns:qry="nomad_engine.qry" xmlns:xsl="http://www.w3.org/1999/XSL/Transform" extends="NucleusWF.Base.Ejecucion.BaseInicioWF.rpt" doc="source" name="NucleusWF.Base.Ejecucion.RecibosDeSueldo.rpt">
+	<html:query declare="&lt;PARAMS oi_usuario_sistema=&quot;mzucchero&quot;/&gt;">
+		<qry:include name="NucleusRH.Base.Personal.Legajo.PERSONAL.QRY_INICIO_WFs"/>
+		<qry:main doc="SOURCE">
+			<qry:append-doc name="FILTER" doc-path="#SOURCE:PARAMS"/>
+			<qry:element name="REPORTE">
+				<qry:element name="PERSONAS">
+					<qry:insert-select name="qry_DatosPersonales" doc-path="#SOURCE:PARAMS"/>
+				</qry:element>
+				<qry:element name="LEGAJOS">
+					<qry:attribute name="cant_leg" value="0"/>
+					<qry:insert-select name="qry_Legajos" doc-path=""/>
+				</qry:element>
+			</qry:element>
+		</qry:main>
+		<qry:select name="qry_Legajos">
+			<qry:xquery>
+				for $r in SQL('
+SELECT
+LEG.e_numero_legajo,
+EMP.d_empresa,
+LEG.oi_personal_emp,
+EMP.oi_empresa
+
+FROM
+PER01_PERSONAL as PER,
+PER02_PERSONAL_EMP as LEG,
+ORG03_EMPRESAS as EMP
+JOIN
+PER.oi_personal INNER LEG.oi_personal,
+LEG.oi_empresa INNER EMP.oi_empresa
+WHERE
+PER.oi_usuario_sistema = {#FILTER:@oi_usuario_sistema}			
+')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:attribute name="cant_leg" value="@cant_leg + 1"/>
+				<LEGAJO>
+					<qry:attribute name="n_leg" value="../@cant_leg"/>
+					<qry:attribute name="id_legajo" value="$r/@oi_personal_emp"/>
+					<qry:attribute name="nombre_empresa" value="'Empresa ' + $r/@d_empresa"/>
+					<qry:attribute name="num_legajo" value="'Leg. ' + $r/@e_numero_legajo"/>
+					<qry:attribute name="empresa_legajo" value="@nombre_empresa + ' - ' + @num_legajo"/>
+					<qry:attribute name="id_empresa" value="$r/@oi_empresa"/>
+					<qry:attribute name="href" value="'#'+@id_empresa"/>
+					<qry:attribute name="id_input_radio" value="'legajo_'+@id_legajo"/>
+					<qry:attribute name="id_div_collapse" value="'heading_'+@id_legajo"/>
+					<qry:attribute name="c_leg" value="LEGAJOS/@cant_leg"/>
+					<RECIBOS>
+						<qry:attribute name="cantidad" value="0"/>
+						<qry:insert-select name="QRY_RECIBOS" doc-path="$r"/>
+					</RECIBOS>
+				</LEGAJO>
+			</qry:out>
+		</qry:select>
+		<qry:select name="QRY_RECIBOS" doc="PARAM">
+			<qry:xquery>
+				for $r in SQL('
+MAXSIZE 6
+SELECT
+LIQ01_TIPOS_LIQ.d_tipo_liq,                   
+LIQ19_EJECUCIONES.oi_liquidacion,
+LIQ19_EJECUCIONES.oi_ejecucion,
+LIQ20_TOT_LIQ_PER.oi_tot_liq_per,
+LIQ20_TOT_LIQ_PER.f_cierre,
+LIQ20_TOT_LIQ_PER.n_totpag, 
+LIQ25_PERSONAL_LIQ.oi_personal_liq,
+LIQ97_PERSONAL_EMP.e_numero_legajo, 
+LIQ97_PERSONAL_EMP.d_ape_y_nom, 
+LIQ99_LIQUIDACION.c_liquidacion, 
+LIQ99_LIQUIDACION.d_titulo,
+LIQ99_LIQUIDACION.e_periodo, 
+LIQ99_LIQUIDACION.f_pago,  
+LIQ99_LIQUIDACION.f_liquidacion,
+
+PER02_PERSONAL_EMP.oi_personal_emp,
+
+ORG03_EMPRESAS.oi_empresa,
+ORG03_EMPRESAS.c_empresa, 
+ORG03_EMPRESAS.d_empresa
+
+FROM
+LIQ25_PERSONAL_LIQ, 
+LIQ19_EJECUCIONES, 
+LIQ99_LIQUIDACION,
+LIQ99_RECIBOS, 
+LIQ20_TOT_LIQ_PER, 
+ORG03_EMPRESAS, 
+LIQ97_PERSONAL_EMP, 
+PER02_PERSONAL_EMP, 
+LIQ19_LIQUIDACION,
+LIQ01_TIPOS_LIQ
+WHERE
+LIQ19_LIQUIDACION.oi_liquidacion = LIQ19_EJECUCIONES.oi_liquidacion AND
+LIQ25_PERSONAL_LIQ.oi_liquidacion = LIQ19_EJECUCIONES.oi_liquidacion AND
+LIQ19_EJECUCIONES.oi_liquidacion_ddo = LIQ99_LIQUIDACION.oi_liquidacion_ddo AND
+LIQ99_LIQUIDACION.oi_liquidacion_ddo = LIQ99_RECIBOS.oi_liquidacion_ddo AND
+LIQ99_RECIBOS.oi_tot_liq_per = LIQ20_TOT_LIQ_PER.oi_tot_liq_per AND
+LIQ20_TOT_LIQ_PER.oi_per_emp_ddo = LIQ97_PERSONAL_EMP.oi_per_emp_ddo AND
+LIQ97_PERSONAL_EMP.e_numero_legajo = PER02_PERSONAL_EMP.e_numero_legajo AND
+LIQ25_PERSONAL_LIQ.oi_personal_emp = PER02_PERSONAL_EMP.oi_personal_emp AND
+LIQ97_PERSONAL_EMP.c_empresa = ORG03_EMPRESAS.c_empresa AND
+LIQ99_LIQUIDACION.c_estado = \'F\' AND  
+ISNOTNULL(LIQ20_TOT_LIQ_PER.f_cierre) AND  
+LIQ19_LIQUIDACION.oi_tipo_liq != 6 AND
+LIQ19_LIQUIDACION.oi_tipo_liq = LIQ01_TIPOS_LIQ.oi_tipo_liq AND
+PER02_PERSONAL_EMP.oi_personal_emp = {#PARAM:@oi_personal_emp} AND
+LIQ99_LIQUIDACION.f_pago &lt; ADDDAYS(now(), -1)                         
+ORDER BY 
+f_liquidacion DESC
+')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:attribute name="cantidad" value="@cant + 1"/>
+				<RECIBO>
+					<qry:attribute name="id" value="$r/@oi_tot_liq_per"/>
+					<qry:attribute name="oi_tot_liq_per" value="$r/@oi_tot_liq_per"/>
+					<qry:attribute name="e_numero_legajo" value="$r/@e_numero_legajo"/>
+					<qry:attribute name="d_ape_y_nom" value="$r/@d_ape_y_nom"/>
+					<qry:attribute name="liquidacion" value="$r/@d_titulo"/>
+					<qry:attribute name="empresa" value="$r/@c_empresa + '-' + $r/@d_empresa"/>
+					<qry:attribute name="periodo" value="format-date($r/@e_periodo+'01','mm/yyyy')"/>
+					<qry:attribute name="periodo_pago" value="format-date($r/@f_pago,'dd/mm/yyyy')"/>
+					<qry:attribute name="n_tot_pago" value="format_number($r/@n_totpag,'###,###,##0.00')"/>
+					<qry:attribute name="f_cierre" value="$r/@f_cierre"/>
+					<qry:attribute name="oi_personal_liq" value="$r/@oi_personal_liq"/>
+					<qry:attribute name="oi_personal_emp" value="$r/@oi_personal_emp"/>
+					<qry:attribute name="oi_empresa" value="$r/@oi_empresa"/>
+					<qry:attribute name="oi_liquidacion" value="'oi_liquidacion_'+$r/@oi_liquidacion"/>
+					<qry:attribute name="tipo_liquidacion" value="$r/@d_tipo_liq"/>
+				</RECIBO>
+			</qry:out>
+		</qry:select>
+	</html:query>
+	<html:xslt>
+		<xsl:template match="LEGAJO">
+			<xsl:if test="@n_leg = 1">
+				<input type="hidden" id="oi_personal_emp">
+					<xsl:attribute name="value">
+						<xsl:value-of select="@id_legajo"/>
+					</xsl:attribute>
+				</input>
+			</xsl:if>
+			<div class="panel panel-default">
+				<div class="panel-heading pointer" role="button" data-toggle="collapse" data-parent="#accordionRS" aria-expanded="true" aria-controls="collapseOne" onclick="BlanquearParam2(this.id)">
+					<xsl:attribute name="id">
+						<xsl:value-of select="@id_div_collapse"/>
+					</xsl:attribute>
+					<xsl:attribute name="href">
+						<xsl:value-of select="@href"/>
+					</xsl:attribute>
+					<h4 class="panel-title">
+						<a onclick="BlanquearParam(this.name)">
+							<xsl:attribute name="name">
+								<xsl:value-of select="@id_input_radio"/>
+							</xsl:attribute>
+							<xsl:value-of select="@empresa_legajo"/>
+						</a>
+						<div class="radio-legajo">
+							<input name="legajo" type="radio">
+								<xsl:attribute name="id">
+									<xsl:value-of select="@id_input_radio"/>
+								</xsl:attribute>
+								<xsl:choose>
+									<xsl:when test="@n_leg = 1">
+										<xsl:attribute name="checked">
+											true
+										</xsl:attribute>
+									</xsl:when>
+									<xsl:otherwise>
+										<xsl:attribute name="disabled">
+											true
+										</xsl:attribute>
+									</xsl:otherwise>
+								</xsl:choose>
+							</input>
+						</div>
+					</h4>
+				</div>
+				<div role="tabpanel" aria-expanded="false">
+					<xsl:attribute name="id">
+						<xsl:value-of select="@id_empresa"/>
+					</xsl:attribute>
+					<xsl:attribute name="aria-labelledby">
+						<xsl:value-of select="@id_div_collapse"/>
+					</xsl:attribute>
+					<xsl:choose>
+						<xsl:when test="@n_leg = 1">
+							<xsl:attribute name="class">
+								panel-collapse collapse in
+							</xsl:attribute>
+						</xsl:when>
+						<xsl:otherwise>
+							<xsl:attribute name="class">
+								panel-collapse collapse
+							</xsl:attribute>
+						</xsl:otherwise>
+					</xsl:choose>
+					<div class="panel-body">
+						<div id="panel-recibos" class="panel panel-primary">
+							<div class="panel-heading">
+								Recibos de Sueldo
+							</div>
+							<div class="table-responsive">
+								<table id="table-recibos" class="table table-sm table-hover table-striped">
+									<thead>
+										<tr>
+											<th style="width:50px; max-width:50px;">
+												Marque
+											</th>
+											<th>
+												Liquidaci&#243;n
+											</th>
+											<th>
+												Per&#237;odo
+											</th>
+											<th>
+												Per&#237;odo Pago
+											</th>
+											<th>
+												Tipo Liquidaci&#243;n
+											</th>
+										</tr>
+									</thead>
+									<tbody>
+										<xsl:choose>
+											<xsl:when test="./RECIBOS/@cantidad = 0">
+												<tr>
+													<td colspan="5">
+														No existen recibos de sueldo
+													</td>
+												</tr>
+											</xsl:when>
+											<xsl:otherwise>
+												<xsl:apply-templates select="RECIBOS/RECIBO"/>
+											</xsl:otherwise>
+										</xsl:choose>
+										<!--tr id="oi_recibo_1" onclick="selectRecibo(this.id)">
+			<td>
+				<img class="img-responsive img-tilde" alt="Imagen con tilde">
+					<xsl:attribute name="src">
+						Images/Reports/tilde.jpg
+					</xsl:attribute>
+					<xsl:attribute name="style">
+						display:none;
+					</xsl:attribute>
+				</img>
+			</td>
+			<td>
+				Junio 2017
+			</td>
+			<td>
+				06/2017
+			</td>
+			<td>
+				07/2017
+			</td>
+		</tr>
+		<tr id="oi_recibo_2" onclick="selectRecibo(this.id)">
+			<td>
+				<img class="img-responsive img-tilde" alt="Imagen con tilde">
+					<xsl:attribute name="src">
+						Images/Reports/tilde.jpg
+					</xsl:attribute>
+					<xsl:attribute name="style">
+						display:none;
+					</xsl:attribute>
+				</img>
+			</td>
+			<td>
+				Mayo 2017
+			</td>
+			<td>
+				05/2017
+			</td>
+			<td>
+				06/2017
+			</td>
+		</tr-->
+									</tbody>
+								</table>
+							</div>
+						</div>
+					</div>
+				</div>
+			</div>
+		</xsl:template>
+		<xsl:template name="BODY_CUSTOM">
+			<div id="reciboSueldo" class="row">
+				<div class="panel-group" id="accordionRS" role="tablist" aria-multiselectable="false">
+					<xsl:apply-templates select="LEGAJOS/LEGAJO"/>
+				</div>
+			</div>
+		</xsl:template>
+		<xsl:template name="JAVASCRIPT_CUSTOM">
+			<script type="text/javascript">
+				$(document).ready(function(){
+			var oi_legajo = $("#oi_personal_emp").attr("value");
+			SetParam("oi_legajo",oi_legajo);
+		});
+		
+		function SetParam(param,valor){
+			this.parent.SetParam(param,valor);
+		}
+
+		function BlanquearParam(name){
+			//Desabilito el btn aceptar
+			this.parent.EnabledBtnSend(false);
+			//Desabilito todos los radio y habilito solamente el que tengo seleccioanado
+			$("input[type=radio]").prop("disabled", true);
+			$("#"+name).prop("disabled", false);
+			//Selecciono el radio del legajo.
+			$("#"+name).prop("checked", true);
+			//Seteo el valor del legajo que iniciara el WF
+			var legajo = name.substr(7);
+			this.SetParam("oi_legajo",legajo);
+			//Seteo la liquidacion a undefined
+			this.SetParam("oi_liquidacion",undefined);
+			//Saco el tilde a la fila que este seleccionada en el momento
+			$('img.img-tilde').hide();
+		}
+		
+		function BlanquearParam2(id){
+			var legajo = id.substr(8);
+			
+			//Desabilito el btn aceptar
+			this.parent.EnabledBtnSend(false);
+			
+			//Desabilito todos los radio y habilito solamente el que tengo seleccioanado
+			$("input[type=radio]").prop("disabled", true);
+			$("#legajo_"+legajo).prop("disabled", false);
+			
+			//Selecciono el radio del legajo.
+			$("#legajo_"+legajo).prop("checked", true);
+			
+			//Seteo el valor del legajo que iniciara el WF
+			this.SetParam("oi_legajo",legajo);            
+			
+			//Seteo la liquidacion a undefined
+			this.SetParam("oi_liquidacion",undefined);
+			//Saco el tilde a la fila que este seleccionada en el momento
+			$('img.img-tilde').hide();
+		}
+
+		function selectRecibo(nameLiq){
+			$('img.img-tilde').hide();
+			$('#'+nameLiq+' td:first img').show();
+			
+			this.parent.EnabledBtnSend(true);
+			
+			var id_liq = nameLiq.substr(15);
+			this.SetParam("oi_liquidacion", id_liq);
+		}
+			</script>
+		</xsl:template>
+		<xsl:template match="RECIBO">
+			<tr onclick="selectRecibo(this.id)">
+				<xsl:attribute name="id">
+					<xsl:value-of select="@oi_liquidacion"/>
+				</xsl:attribute>
+				<td>
+					<img class="img-responsive img-tilde" alt="Imagen con tilde">
+						<xsl:attribute name="src">
+							Images/Reports/tilde.jpg
+						</xsl:attribute>
+						<xsl:attribute name="style">
+							display:none;
+						</xsl:attribute>
+					</img>
+				</td>
+				<td>
+					<xsl:value-of select="@liquidacion"/>
+				</td>
+				<td>
+					<xsl:value-of select="@periodo"/>
+				</td>
+				<td>
+					<xsl:value-of select="@periodo_pago"/>
+				</td>
+				<td>
+					<xsl:value-of select="@tipo_liquidacion"/>
+				</td>
+			</tr>
+		</xsl:template>
+		<xsl:template name="CSS_CUSTOM">
+			#reciboSueldo{
+		margin-top: 10px;
+	}
+	
+	#panel-recibos{
+		margin:auto;
+		width:70%;
+	}          
+	
+	#table-recibos tbody tr{
+		cursor:pointer;
+	}
+	
+	.img-tilde{
+		width: 23px;
+		margin: auto;
+	}
+	
+	#table-recibos tbody tr td, #table-recibos thead tr th{
+		text-align: center;
+	}
+	
+	.radio-legajo{
+	float:right!important;
+	}
+	
+	.pointer{
+		cursor: pointer;
+	}
+		</xsl:template>
+	</html:xslt>
+</html:html>

@@ -1,0 +1,175 @@
+<flow:flow xmlns:flow="nomad_engine.flow" xmlns:doc="nomad_engine.doc" xmlns:qry="nomad_engine.qry" name="NucleusRH.Base.Organizacion.Reportes.Organigrama" default_action="personas">
+	<flow:info label="Flow para NucleusRH.Base.Organizacion.Reportes.Organigrama"/>
+	<flow:declare>
+		<doc:define name="DDO"/>
+		<doc:define name="NEWDDO"/>
+		<doc:define name="QRY"/>
+		<doc:define name="PARAMETERS"/>
+		<doc:define name="CLASE_ORG"/>
+		<qry:define name="FILTER_ATRIB">
+			<qry:main doc="SOURCE">
+				<qry:element name="PARAMETERS">
+					<qry:attribute type="Nomad.NSystem.String" value="1" name="chkMostrarLeg"/>
+					<qry:attribute type="Nomad.NSystem.String" value="1" name="chkAcumCostos"/>
+					<qry:attribute type="Nomad.NSystem.String" value="" name="report"/>
+				</qry:element>
+			</qry:main>
+		</qry:define>
+		<qry:define declare="&lt;PARAMETERS oi_clase_org=&quot;1&quot;/&gt;" name="CLASE_ORG">
+			<qry:main doc="SOURCE">
+				<qry:element name="PARAMETERS">
+					<qry:insert-select doc-path="#SOURCE:PARAMETERS" name="RS1"/>
+				</qry:element>
+			</qry:main>
+			<qry:select name="RS1" doc="SOURCE">
+				<qry:xquery>
+					for $r in sql('
+				SELECT 
+					ORG02_CLASES_ORG.c_clase_org, 
+					ORG02_CLASES_ORG.d_clase_org,
+					ORG02_CLASES_ORG.c_estado,
+					ORG02_CLASES_ORG.f_desde_vigencia,
+					ORG02_CLASES_ORG.f_hasta_vigencia					
+				FROM 
+					ORG02_CLASES_ORG
+				WHERE 
+					ORG02_CLASES_ORG.oi_clase_org = {#SOURCE:@oi_clase_org}
+			')ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:attribute name="d_clase_org" value="'[' + $r/@c_clase_org + ']' + ' ' +  $r/@d_clase_org"/>
+					<qry:attribute name="f_desde_vigencia" value="format_date($r/@f_desde_vigencia, 'dd/mm/yyyy')"/>
+					<qry:attribute name="f_hasta_vigencia" value="format_date($r/@f_hasta_vigencia, 'dd/mm/yyyy')"/>
+					<qry:attribute name="c_estado" value="$r/@c_estado"/>
+					<qry:if test="$r/@c_estado = 'V'">
+						<qry:then>
+							<qry:attribute name="estado" value="'Vigente'"/>
+							<qry:attribute name="d_clase_org" value="@d_clase_org + ': ' + @estado + ' desde el ' + @f_desde_vigencia"/>
+						</qry:then>
+					</qry:if>
+					<qry:if test="$r/@c_estado = 'R'">
+						<qry:then>
+							<qry:attribute name="estado" value="'Rechazado'"/>
+							<qry:attribute name="d_clase_org" value="@d_clase_org + ': ' + @estado"/>
+						</qry:then>
+					</qry:if>
+					<qry:if test="$r/@c_estado = 'P'">
+						<qry:then>
+							<qry:attribute name="estado" value="'Planificado'"/>
+							<qry:attribute name="d_clase_org" value="@d_clase_org + ': ' + @estado"/>
+						</qry:then>
+					</qry:if>
+					<qry:if test="$r/@c_estado = 'D'">
+						<qry:then>
+							<qry:attribute name="estado" value="'Discontinuado'"/>
+							<qry:attribute name="d_clase_org" value="@d_clase_org + ': ' + @estado + ' desde el ' + @f_hasta_vigencia"/>
+						</qry:then>
+					</qry:if>
+				</qry:out>
+			</qry:select>
+		</qry:define>
+		<qry:define declare="&lt;PARAM oi_estructura=&quot;39&quot; /&gt;" name="PERSONAS">
+			<qry:main doc="SOURCE">
+				<qry:element name="ROWS">
+					<qry:insert-select name="sql1" doc-path="#SOURCE:/PARAM"/>
+				</qry:element>
+			</qry:main>
+			<qry:select name="SQL1" doc="PARAM">
+				<qry:xquery>
+					for $r in sql(' 
+						SELECT                     
+							PER02_PERSONAL_EMP.oi_personal_emp,
+							PER01_PERSONAL.oi_personal,
+							ORG02_ESTRUC_PERS.oi_estructura,
+							ORG02_ESTRUC_PERS.oi_estruc_pers,
+							ORG02_ESTRUC_PERS.l_responsable,
+							PER02_PERSONAL_EMP.e_numero_legajo,
+							PER01_PERSONAL.d_ape_y_nom,
+							ORG03_EMPRESAS.c_empresa,
+							ORG03_EMPRESAS.d_empresa
+						FROM 
+							ORG02_ESTRUC_PERS, PER02_PERSONAL_EMP, PER01_PERSONAL, ORG03_EMPRESAS  
+						JOIN 
+							ORG02_ESTRUC_PERS.oi_personal_emp INNER PER02_PERSONAL_EMP.oi_personal_emp,
+							PER02_PERSONAL_EMP.oi_personal INNER PER01_PERSONAL.oi_personal,
+							PER02_PERSONAL_EMP.oi_empresa INNER ORG03_EMPRESAS.oi_empresa
+						WHERE                     
+							ORG02_ESTRUC_PERS.oi_estructura={$PARAM/@oi_estructura}
+						ORDER BY
+							l_responsable DESC, d_ape_y_nom ASC
+					')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:element name="ROW">
+						<qry:attribute value="$r/@oi_estruc_pers" name="id"/>
+						<qry:attribute value="$r/@oi_personal" name="oi_personal"/>
+						<qry:attribute value="$r/@oi_personal_emp" name="oi_personal_emp"/>
+						<qry:attribute value="$r/@c_empresa+'-'+$r/@d_empresa" name="emp"/>
+						<qry:attribute value="$r/@e_numero_legajo" name="leg"/>
+						<qry:attribute value="$r/@d_ape_y_nom" name="ape"/>
+					</qry:element>
+				</qry:out>
+			</qry:select>
+		</qry:define>
+		<doc:define name="RS"/>
+	</flow:declare>
+	<flow:main doc="SOURCE">
+		<flow:action name="initialize">
+			<doc:load-qry output-doc="PARAMETERS" qry="FILTER_ATRIB"/>
+			<flow:open-form doc-path="#PARAMETERS:" mode="FILTER" form-class="NucleusRH.Base.Organizacion.Reportes.Organigrama.filter.form"/>
+		</flow:action>
+		<flow:action name="personas">
+			<doc:load-qry output-doc="RS" qry="PERSONAS" input-doc-path="#SOURCE:"/>
+			<flow:open-form form-class="NucleusRH.Base.Organizacion.Reportes.Organigrama.List.form" doc-path="#SOURCE:" mode="REPORT"/>
+		</flow:action>
+	</flow:main>
+	<flow:form name="NucleusRH.Base.Organizacion.Reportes.Organigrama.filter.form:FILTER" doc="PARAMETERS" form-class="NucleusRH.Base.Organizacion.Reportes.Organigrama.filter.form" mode="FILTER">
+		<flow:action name="ACCEPT">
+			<doc:load-qry output-doc="CLASE_ORG" qry="CLASE_ORG" input-doc-path="#PARAMETERS:"/>
+			<flow:call-action action="Save-FILTER"/>
+			<flow:html-gen template-file="NucleusRH.Base.Organizacion.Organigrama.rpt" input-doc-path="#PARAMETERS:" out-file-path="#PARAMETERS:@report"/>
+			<flow:open-form doc-path="#PARAMETERS:" mode="REPORT" form-class="NucleusRH.Base.Organizacion.Reportes.Organigrama.form"/>
+		</flow:action>
+		<flow:action name="CLASIC">
+			<doc:load-qry output-doc="CLASE_ORG" qry="CLASE_ORG" input-doc-path="#PARAMETERS:"/>
+			<flow:call-action action="Save-FILTER"/>
+			<flow:open-form doc-path="#PARAMETERS:" mode="REPORT" form-class="NucleusRH.Base.Organizacion.Reportes.Organigrama.Clasic.form"/>
+		</flow:action>
+		<flow:action name="BACK">
+			<flow:close-form/>
+		</flow:action>
+		<flow:action name="on-open">
+			<flow:call-action action="Load-FILTER"/>
+		</flow:action>
+		<flow:action name="Save-FILTER">
+			<flow:save-user-data name="FILTER-NucleusRH.Base.Organizacion.Reportes.ORGANIGRAMA" doc-path="#PARAMETERS:"/>
+		</flow:action>
+		<flow:action name="Load-FILTER">
+			<flow:load-user-data name="FILTER-NucleusRH.Base.Organizacion.Reportes.ORGANIGRAMA" doc="PARAMETERS"/>
+		</flow:action>
+	</flow:form>
+	<flow:form name="NucleusRH.Base.Organizacion.Reportes.Organigrama.form:REPORT" doc="SOURCE" form-class="NucleusRH.Base.Organizacion.Reportes.Organigrama.form" mode="REPORT">
+		<flow:action name="on-show"/>
+		<flow:action name="BACK">
+			<flow:close-form/>
+		</flow:action>
+	</flow:form>
+	<flow:form name="NucleusRH.Base.Organizacion.Reportes.Organigrama.Clasic.form:REPORT" form-class="NucleusRH.Base.Organizacion.Reportes.Organigrama.Clasic.form" doc="SOURCE" mode="REPORT">
+		<flow:action name="on-show"/>
+		<flow:action name="BACK">
+			<flow:close-form/>
+		</flow:action>
+	</flow:form>
+	<flow:form name="NucleusRH.Base.Organizacion.Reportes.Organigrama.List.form:REPORT" form-class="NucleusRH.Base.Organizacion.Reportes.Organigrama.List.form" doc="SOURCE" mode="REPORT">
+		<flow:action name="on-show">
+			<flow:attach-doc doc-path="#RS:" attach-id="RS"/>
+		</flow:action>
+		<flow:action name="BACK">
+			<flow:close-form/>
+		</flow:action>
+		<flow:action name="REFRESH">
+			<doc:load-qry output-doc="RS" qry="PERSONAS" input-doc-path="#SOURCE:"/>
+			<flow:call-action action="on-show"/>
+		</flow:action>
+	</flow:form>
+</flow:flow>

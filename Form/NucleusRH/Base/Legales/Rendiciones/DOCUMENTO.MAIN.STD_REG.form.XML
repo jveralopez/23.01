@@ -1,0 +1,92 @@
+<form:Form xmlns:form="nomad_engine.form" xmlns:qry="nomad_engine.qry" default_mode="SHOW" doc="source" extends="NucleusRH.Base.Legales.Rendiciones.DOCUMENTO.MAIN.STD_REG.autoform" name="NucleusRH.Base.Legales.Rendiciones.DOCUMENTO.MAIN.STD_REG.form">
+	<form:Help/>
+	<form:Scripts>
+		function CusonLoad()
+{
+OnLoad();
+
+//LImpio los campos
+Ctrl('concepto').SetXValue('');
+Ctrl('departamento').SetXValue('');
+Ctrl('sujeto').SetXValue('');
+Ctrl('sucursal').SetXValue('');
+
+var nSQL = GetProxy().SQLService();	 
+ 
+var param = "&lt;DATA id=\""+Ctrl('ID').GetXValue()+"\" /&gt;"; 	 
+	
+
+var objShow = nSQL.GetOBJ(Ctrl("main").getResource("getDatosShow"),param);
+//Asigno los campos
+Ctrl('concepto').SetXValue(objShow.concepto);
+Ctrl('departamento').SetXValue(objShow.departamento);
+Ctrl('sujeto').SetXValue(objShow.sujeto);
+Ctrl('sucursal').SetXValue(objShow.sucursal);
+
+
+	
+ 
+}
+	</form:Scripts>
+	<form:Event action="CusonLoad" name="onLoad" runat="client"/>
+	<form:Resources>
+		<form:Resource declare="&lt;DATA id=&quot;737&quot; /&gt;" name="getDatosShow">
+			<qry:main doc="SOURCE" name="SOURCE">
+				<DATOS>
+					<qry:insert-select name="qryGet" doc-path="$SOURCE/DATA"/>
+				</DATOS>
+			</qry:main>
+			<qry:select doc="PARAM" name="qryGet">
+				<qry:xquery>
+					for $r in SQL
+				('
+					SELECT 
+					C.c_centro_costo,
+					C.d_centro_costo,
+					SUJ.c_sujeto,
+					SUJ.d_sujeto,
+					CON.c_concepto,
+					CON.d_concepto,
+					S.c_ubicacion,
+					S.d_ubicacion					
+					
+					FROM					
+					LEG06_DOC_RENDICION as D,
+					ORG08_CS_COSTO as C,
+					ORG03_UBICACIONES as S,
+					LEG40_SUJETOS as SUJ,
+					LEG53_CONCEPTOS as CON
+					
+					JOIN
+					D.oi_concepto INNER CON.oi_concepto,
+					D.oi_sujeto LEFT OUTER SUJ.oi_sujeto,
+					D.oi_centro_costo LEFT OUTER C.oi_centro_costo,
+					D.oi_ubicacion LEFT OUTER S.oi_ubicacion
+					
+					WHERE D.oi_documento = {$PARAM/@id}
+					
+					
+				')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:attribute name="concepto" value="'['+$r/@c_concepto+'] '+$r/@d_concepto"/>
+					<qry:if test="$r/@c_sujeto!=''">
+						<qry:then>
+							<qry:attribute name="sujeto" value="'['+$r/@c_sujeto+'] '+$r/@d_sujeto"/>
+						</qry:then>
+					</qry:if>
+					<qry:if test="$r/@c_centro_costo!=''">
+						<qry:then>
+							<qry:attribute name="departamento" value="'['+$r/@c_centro_costo+'] '+$r/@d_centro_costo"/>
+						</qry:then>
+					</qry:if>
+					<qry:if test="$r/@c_ubicacion!=''">
+						<qry:then>
+							<qry:attribute name="sucursal" value="'['+$r/@c_ubicacion+'] '+$r/@d_ubicacion"/>
+						</qry:then>
+					</qry:if>
+				</qry:out>
+			</qry:select>
+		</form:Resource>
+	</form:Resources>
+</form:Form>

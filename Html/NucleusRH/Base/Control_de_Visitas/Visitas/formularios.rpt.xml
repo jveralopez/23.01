@@ -1,0 +1,526 @@
+<html:html xmlns:html="nomad_engine.html" xmlns:qry="nomad_engine.qry" xmlns:xsl="http://www.w3.org/1999/XSL/Transform" name="NucleusRH.Base.Control_de_Visitas.Visitas.formularios.rpt" doc="source">
+	<html:query declare="&lt;FILTRO id=&quot;850&quot; /&gt;">
+		<qry:main doc="PARAM">
+			<qry:append-doc name="FILTRO" doc-path="#PARAM:FILTRO"/>
+			<qry:element name="VISITA">
+				<qry:insert-select doc-path="#FILTRO:" name="QRY_DATOS_VISITA"/>
+			</qry:element>
+		</qry:main>
+		<qry:select doc="PARAM" name="QRY_DATOS_VISITA">
+			<qry:xquery>
+				for $r in sql('
+			SELECT VIS01_VISITAS.oi_visita,
+			VIS01_VISITAS.d_empresa_vis, 
+			VIS01_VISITAS.c_patente, 
+			VIS01_VISITAS.oi_personal_vis,
+			VIS01_VISITAS.oi_personal_aut, 
+			VIS01_VISITAS.oi_estructura
+			FROM VIS01_VISITAS			
+			WHERE VIS01_VISITAS.oi_visita = {#PARAM:@id}
+					')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:attribute value="$r/@oi_visita" name="oi_visita"/>
+				<qry:attribute value="format_date(now(),'dd/mm/yyyy')" name="f_emision"/>
+				<qry:attribute value="$r/@d_empresa_vis" name="d_empresa_vis"/>
+				<qry:attribute value="$r/@c_patente" name="c_patente"/>
+				<qry:attribute value="$r/@oi_personal_vis" name="oi_personal_vis"/>
+				<qry:insert-select doc-path="." name="qry_logo"/>
+				<qry:attribute value="$r/@oi_personal_aut" name="oi_personal_aut"/>
+				<qry:attribute value="$r/@oi_estructura" name="oi_estructura"/>
+				<qry:insert-select doc-path="." name="QRY_DATOS_VISITADO"/>
+				<qry:insert-select doc-path="." name="QRY_DATOS_AUTORIZANTE"/>
+				<qry:insert-select doc-path=".[./@oi_estructura!='']" name="QRY_DATOS_ESTRUCTURA"/>
+				<qry:element name="ROWS">
+					<qry:attribute name="now_ini" value="format_date(now(), 'yyyymmdd')"/>
+					<qry:attribute name="now_fin" value="format_date(Datetime(Number(now())+7), 'yyyymmdd')"/>
+					<qry:insert-select doc-path="." name="QRY_DATOS_VISITA_VIS_NO_EN_CURSO"/>
+					<!--607,618-->
+				</qry:element>
+				<qry:element name="VISITAS_VIS">
+					<qry:attribute value="'pp'" name="pp"/>
+					<qry:attribute value="1" name="salto"/>
+					<qry:insert-select doc-path=".." name="QRY_DATOS_VISITA_VIS"/>
+				</qry:element>
+			</qry:out>
+		</qry:select>
+		<qry:select doc="PARAM" name="QRY_DATOS_VISITADO">
+			<qry:xquery>
+				for $r in sql('
+			SELECT PER02_PERSONAL_EMP.e_numero_legajo, 
+			PER01_PERSONAL.d_ape_y_nom
+			FROM PER02_PERSONAL_EMP, PER01_PERSONAL
+			JOIN PER02_PERSONAL_EMP.oi_personal INNER PER01_PERSONAL.oi_personal
+			WHERE PER02_PERSONAL_EMP.oi_personal_emp = {#PARAM:@oi_personal_vis}
+					')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:attribute value="$r/@e_numero_legajo" name="e_numero_legajo_vis"/>
+				<qry:attribute value="$r/@d_ape_y_nom" name="d_ape_y_nom_vis"/>
+				<qry:attribute value="$r/@e_numero_legajo + ' - ' + $r/@d_ape_y_nom" name="personal_vis"/>
+			</qry:out>
+		</qry:select>
+		<qry:select doc="PARAM" name="QRY_DATOS_AUTORIZANTE">
+			<qry:xquery>
+				for $r in sql('
+			SELECT PER02_PERSONAL_EMP.e_numero_legajo, 
+			PER01_PERSONAL.d_ape_y_nom
+			FROM PER02_PERSONAL_EMP, 
+			PER01_PERSONAL
+			JOIN PER02_PERSONAL_EMP.oi_personal INNER PER01_PERSONAL.oi_personal
+			WHERE PER02_PERSONAL_EMP.oi_personal_emp = {#PARAM:@oi_personal_aut}
+					')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:attribute value="$r/@e_numero_legajo" name="e_numero_legajo_aut"/>
+				<qry:attribute value="$r/@d_ape_y_nom" name="d_ape_y_nom_aut"/>
+				<qry:attribute value="$r/@e_numero_legajo + ' - ' + $r/@d_ape_y_nom" name="personal_aut"/>
+			</qry:out>
+		</qry:select>
+		<qry:select doc="PARAM" name="QRY_DATOS_ESTRUCTURA">
+			<qry:xquery>
+				for $r in sql('
+			SELECT ORG01_TIPOS_UNI.d_tipo_uni_org, 
+			ORG01_UNI_ORG.d_unidad_org
+			FROM ORG01_UNI_ORG, ORG01_TIPOS_UNI 
+			JOIN ORG01_UNI_ORG.oi_tipo_uni_org INNER ORG01_TIPOS_UNI.oi_tipo_uni_org 
+			WHERE ORG01_UNI_ORG.oi_unidad_org IN
+				(SELECT ORG02_ESTRUCTURAS.oi_unidad_org 
+				FROM ORG02_ESTRUCTURAS
+				WHERE ORG02_ESTRUCTURAS.oi_estructura = {%=#PARAM:@oi_estructura%})
+					')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:attribute value="$r/@d_tipo_uni_org" name="d_tipo_uni_org"/>
+				<qry:attribute value="$r/@d_unidad_org" name="d_unidad_org"/>
+				<qry:attribute value="$r/@d_tipo_uni_org + ' - ' + $r/@d_unidad_org" name="unidad_org"/>
+			</qry:out>
+		</qry:select>
+		<qry:select doc="PARAM" name="QRY_DATOS_VISITA_VIS_NO_EN_CURSO">
+			<qry:xquery>
+				for $r in SQL('
+			SELECT 
+				VIS01_VISITAS_VIS.oi_visitante
+			FROM  
+				VIS01_VISITAS_VIS, VIS01_VISITAS
+			JOIN 
+				 VIS01_VISITAS_VIS.oi_visita INNER VIS01_VISITAS.oi_visita
+			WHERE 
+        (
+			  	(
+					  VIS01_VISITAS.f_fechahora_ent_es &gt;= {Datetime(#PARAM:@now_ini)} 
+						AND 
+						VIS01_VISITAS.f_fechahora_ent_es &lt;= {Datetime(#PARAM:@now_fin)}
+					)                                                                  
+				)
+			  AND
+				(			  
+					(
+						(
+							VIS01_VISITAS_VIS.f_fechahora_sal_es &lt;= now()
+							AND
+							ISNULL(VIS01_VISITAS_VIS.f_fechahora_sal)
+						)
+						OR
+						(
+							VIS01_VISITAS.f_fechahora_ent_es &lt;= now()
+							AND
+							ISNULL(VIS01_VISITAS_VIS.f_fechahora_sal)
+							AND
+							ISNULL(VIS01_VISITAS_VIS.f_fechahora_ent)
+						)
+						OR
+						(
+							ISNOTNULL(VIS01_VISITAS_VIS.f_fechahora_ent)
+							AND
+							VIS01_VISITAS_VIS.f_fechahora_sal_es &lt;= now()
+							AND
+							ISNULL(VIS01_VISITAS_VIS.f_fechahora_sal)
+						) 
+				 	)
+				 	
+			  	OR
+			  	
+			  	(
+						ISNOTNULL(VIS01_VISITAS_VIS.f_fechahora_sal)
+					) 
+					
+					OR
+					
+					(
+						(
+						  VIS01_VISITAS.f_fechahora_ent_es &gt;= now()
+						  AND
+						  ISNULL(VIS01_VISITAS_VIS.f_fechahora_ent)
+					  )
+					  OR
+					  (  
+					  	VIS01_VISITAS.f_fechahora_ent_es &gt;= now()
+					  	AND
+						  ISNULL(VIS01_VISITAS_VIS.f_fechahora_ent)
+						  AND 
+						  ISNULL(VIS01_VISITAS_VIS.f_fechahora_sal)
+					  )
+					)
+					
+					OR
+					
+					(
+						ISNOTNULL(VIS01_VISITAS_VIS.f_fechahora_ent)
+						AND
+						VIS01_VISITAS_VIS.f_fechahora_sal_es &lt;= now()
+						AND
+						ISNULL(VIS01_VISITAS_VIS.f_fechahora_sal)
+					)
+					
+			  )
+			')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:element name="ROW">
+					<qry:attribute name="oi_visitante" value="$r/@oi_visitante"/>
+				</qry:element>
+			</qry:out>
+		</qry:select>
+		<qry:select doc="PARAM" name="QRY_DATOS_VISITA_VIS">
+			<qry:xquery>
+				for $r in sql('
+			SELECT 
+				VIS01_VISITAS_VIS.l_casco,
+				VIS01_VISITAS_VIS.l_anteojos,
+				VIS01_VISITAS_VIS.oi_visita_vis, 
+				VIS02_VISITANTES.oi_visitante, 
+				PER20_TIPOS_DOC.c_tipo_documento, 
+				VIS02_VISITANTES.c_nro_documento,
+				VIS02_VISITANTES.d_ape_y_nom, 
+				VIS02_VISITANTES.d_empresa, 
+				VIS02_VISITANTES.oi_foto,
+				VIS01_VISITAS_VIS.f_fechahora_ent, 
+				VIS01_VISITAS_VIS.f_fechahora_sal,
+				VIS01_VISITAS_VIS.f_fechahora_en_ent, 
+				VIS01_VISITAS_VIS.f_fechahora_sal_en, 			
+				VIS01_VISITAS_VIS.d_credencial,
+				PER19_IMAGENES.o_imagen
+				 
+			FROM 
+				VIS01_VISITAS, 
+				VIS01_VISITAS_VIS, 
+				VIS02_VISITANTES, 
+				PER20_TIPOS_DOC, 
+				PER19_IMAGENES
+			JOIN 
+				VIS01_VISITAS.oi_visita INNER VIS01_VISITAS_VIS.oi_visita,
+				VIS01_VISITAS_VIS.oi_visitante INNER VIS02_VISITANTES.oi_visitante,
+				PER20_TIPOS_DOC.oi_tipo_documento INNER VIS02_VISITANTES.oi_tipo_documento,
+				PER19_IMAGENES.oi_imagen_per RIGHT OUTER VIS02_VISITANTES.oi_foto
+			WHERE 
+				VIS01_VISITAS.oi_visita = {#PARAM:@oi_visita} 
+				{%? (#PARAM:ROWS/ROW/@oi_visitante  != '') {% AND VIS01_VISITAS_VIS.oi_visitante NOT IN ({%=#PARAM:ROWS/ROW/@oi_visitante%}) %} {% %} %}
+					')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:element name="VISITANTE">
+					<qry:attribute value="$r/@oi_visita_vis" name="oi_visita_vis"/>
+					<qry:attribute value="$r/@c_tipo_documento" name="c_tipo_documento"/>
+					<qry:attribute value="$r/@c_nro_documento" name="c_nro_documento"/>
+					<qry:attribute value="$r/@c_tipo_documento + ' ' + $r/@c_nro_documento" name="documento"/>
+					<qry:attribute value="$r/@d_ape_y_nom" name="d_ape_y_nom"/>
+					<qry:attribute value="$r/@d_empresa" name="d_empresa"/>
+					<qry:attribute value="format_date($r/@f_fechahora_ent,'dd/mm/yyyy HH:MM')" name="f_fechahora_ent"/>
+					<qry:attribute value="format_date($r/@f_fechahora_sal,'dd/mm/yyyy HH:MM')" name="f_fechahora_sal"/>
+					<qry:attribute value="format_date($r/@f_fechahora_en_ent,'dd/mm/yyyy HH:MM')" name="f_fechahora_en_ent"/>
+					<qry:attribute value="format_date($r/@f_fechahora_sal_en,'dd/mm/yyyy HH:MM')" name="f_fechahora_sal_en"/>
+					<qry:attribute value="iif($r/@l_casco='1', 'Si', 'No')" name="l_casco"/>
+					<qry:attribute value="iif($r/@l_anteojos='1', 'Si', 'No')" name="l_anteojos"/>
+					<qry:attribute value="$r/@d_credencial" name="d_credencial"/>
+					<qry:attribute name="oi_foto" value="iif($r/@oi_foto!='','NucleusRH.Base.Personal.Imagenes.Head.' + $r/@oi_foto + substring($r/@o_imagen, string_length($r/@o_imagen)-4),'no')"/>
+					<qry:attribute value="1 - ../@salto" name="salto"/>
+				</qry:element>
+				<qry:attribute value="1- ./@salto" name="salto"/>
+			</qry:out>
+		</qry:select>
+		<qry:select doc="PARAM" name="qry_logo">
+			<qry:xquery>
+				for $r in sql('
+			SELECT ORG03_EMPRESAS.oi_logotipo, PER19_IMAGENES.o_imagen 
+			FROM ORG03_EMPRESAS, PER02_PERSONAL_EMP, PER19_IMAGENES
+			JOIN ORG03_EMPRESAS.oi_empresa INNER PER02_PERSONAL_EMP.oi_empresa,
+			ORG03_EMPRESAS.oi_logotipo LEFT OUTER PER19_IMAGENES.oi_imagen_per 
+			WHERE PER02_PERSONAL_EMP.oi_personal_emp = {#PARAM:@oi_personal_vis}
+				')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:attribute name="oi_logotipo" value="iif($r/@oi_logotipo!='','NucleusRH.Base.Personal.Imagenes.Head.' + $r/@oi_logotipo + substring($r/@o_imagen, string_length($r/@o_imagen)-4),'no')"/>
+			</qry:out>
+		</qry:select>
+	</html:query>
+	<html:xslt>
+		<xsl:template match="/VISITA">
+			<html>
+				<HEAD>
+					<style>
+						tr
+					{
+						font-size: 10px; 				
+					}
+					</style>
+				</HEAD>
+				<body bgcolor="#FFFFFF">
+					<xsl:apply-templates select="/VISITA/VISITAS_VIS/VISITANTE"/>
+				</body>
+			</html>
+		</xsl:template>
+		<xsl:template match="/VISITA/VISITAS_VIS/VISITANTE">
+			<br/>
+			<br/>
+			<br/>
+			<br/>
+			<br/>
+			<table valign="middle" align="center" height="180px" width="430px" border="0" style="border:1px solid black; font-family:arial; font-size:10px;">
+				<tr>
+					<td>
+						<table border="0" width="100%">
+							<tr>
+								<td width="70%" align="center" style="font-size:18px; font-weight:800;">
+									<img border="0" align="left" height="45" width="120">
+										<xsl:choose>
+											<xsl:when test="../../@oi_logotipo = 'no'">
+												<xsl:attribute name="src">
+													<xsl:value-of select="'..\Images\Reports\Logo.JPG'"/>
+												</xsl:attribute>
+											</xsl:when>
+											<xsl:otherwise>
+												<xsl:attribute name="src">
+													<xsl:value-of select="../../@oi_logotipo"/>
+												</xsl:attribute>
+											</xsl:otherwise>
+										</xsl:choose>
+									</img>
+									Pase de Visita
+								</td>
+								<td rowspan="5">
+									<b>
+										Fecha:
+									</b>
+									<xsl:value-of select="../../@f_emision"/>
+									<br/>
+									<img border="1" align="center" width="80px">
+										<xsl:choose>
+											<xsl:when test="@oi_foto = 'no'">
+												<xsl:attribute name="src">
+													<xsl:value-of select="'..\Images\Reports\defaultimg.JPG'"/>
+												</xsl:attribute>
+											</xsl:when>
+											<xsl:otherwise>
+												<xsl:attribute name="src">
+													<xsl:value-of select="@oi_foto"/>
+												</xsl:attribute>
+											</xsl:otherwise>
+										</xsl:choose>
+									</img>
+								</td>
+							</tr>
+							<tr>
+								<td width="30%" height="15px" align="Left">
+									<b>
+										<text>
+											Documento:&#160;
+										</text>
+									</b>
+									<xsl:value-of select="@documento"/>
+								</td>
+							</tr>
+							<tr>
+								<td width="40%" height="15px" align="Left">
+									<b>
+										<text>
+											Apellido y Nombre:&#160;
+										</text>
+									</b>
+									<xsl:value-of select="@d_ape_y_nom"/>
+								</td>
+							</tr>
+							<tr>
+								<td width="40%" align="Left" height="15px">
+									<b>
+										<text>
+											Empresa:&#160;
+										</text>
+									</b>
+									<xsl:value-of select="@d_empresa"/>
+								</td>
+							</tr>
+							<tr>
+								<td width="40%" height="10px" align="Left">
+									<table width="100%" style="border-top:1px solid black;">
+										<tr height="1px">
+											<td/>
+										</tr>
+									</table>
+								</td>
+							</tr>
+						</table>
+					</td>
+				</tr>
+				<tr>
+					<td>
+						<table border="0" width="100%">
+							<tr>
+								<td width="100%" align="Left" colspan="2">
+									<b>
+										<text>
+											Personal Visitado:&#160;
+										</text>
+									</b>
+									<xsl:value-of select="../../@personal_vis"/>
+								</td>
+							</tr>
+							<tr>
+								<td width="100%" align="Left" colspan="2">
+									<b>
+										<text>
+											Unidad Organizativa:&#160;
+										</text>
+									</b>
+									<xsl:value-of select="../../@unidad_org"/>
+								</td>
+							</tr>
+							<tr>
+								<td width="50%" align="Left">
+									<b>
+										<text>
+											Ingreso:&#160;
+										</text>
+									</b>
+									<xsl:value-of select="@f_fechahora_ent"/>
+								</td>
+								<td width="50%" align="Left">
+									<b>
+										<text>
+											Ingreso Entrevista:&#160;
+										</text>
+									</b>
+									<xsl:value-of select="@f_fechahora_en_ent"/>
+								</td>
+							</tr>
+							<tr>
+								<td width="50%" align="Left">
+									<b>
+										<text>
+											Egreso:&#160;
+										</text>
+									</b>
+									<xsl:value-of select="@f_fechahora_sal"/>
+								</td>
+								<td width="50%" align="Left">
+									<b>
+										<text>
+											Egreso Entrevista:&#160;
+										</text>
+									</b>
+									<xsl:value-of select="@f_fechahora_sal_en"/>
+								</td>
+							</tr>
+							<tr>
+								<td width="50%" align="Left">
+									<b>
+										<text>
+											Credencial:&#160;
+										</text>
+									</b>
+									<xsl:value-of select="@d_credencial"/>
+								</td>
+								<td width="50%" align="Left">
+									<b>
+										<text>
+											Patente Vehiculo:&#160;
+										</text>
+									</b>
+									<xsl:value-of select="../../@c_patente"/>
+								</td>
+							</tr>
+							<tr>
+								<td width="50%" align="Left">
+									<b>
+										<text>
+											Casco:&#160;
+										</text>
+									</b>
+									<xsl:value-of select="@l_casco"/>
+								</td>
+								<td width="50%" align="Left">
+									<b>
+										<text>
+											Anteojos:&#160;
+										</text>
+									</b>
+									<xsl:value-of select="@l_anteojos"/>
+								</td>
+							</tr>
+							<tr>
+								<td width="100%" align="Left" colspan="2">
+									<b>
+										<text>
+											Personal Autorizante:&#160;
+										</text>
+									</b>
+									<xsl:value-of select="../../@personal_aut"/>
+								</td>
+							</tr>
+						</table>
+					</td>
+				</tr>
+				<tr>
+					<td>
+						<table border="0" width="100%">
+							<tr>
+								<td colspan="2">
+									<br/>
+									<br/>
+									<table width="100%" border="0" cellpadding="0">
+										<tr>
+											<td width="15px"/>
+											<td width="33%" align="center" style="border-top:2px dotted black">
+												<b>
+													Firma Visitado
+												</b>
+											</td>
+											<td width="15px"/>
+											<td width="33%" align="center" style="border-top:2px dotted black">
+												<b>
+													Firma Visitante
+												</b>
+											</td>
+											<td width="15px"/>
+											<td width="33%" align="center" style="border-top:2px dotted black">
+												<b>
+													Firma Autorizante
+												</b>
+											</td>
+											<td width="15px"/>
+										</tr>
+										<tr height="3px">
+											<td/>
+										</tr>
+									</table>
+								</td>
+							</tr>
+						</table>
+					</td>
+				</tr>
+			</table>
+			<br/>
+			<br/>
+			<br/>
+			<br/>
+			<br/>
+			<xsl:if test="@salto= 1 and last()!=position()">
+				<table style="page-break-after:always">
+					<tr>
+						<td/>
+					</tr>
+				</table>
+			</xsl:if>
+		</xsl:template>
+	</html:xslt>
+</html:html>

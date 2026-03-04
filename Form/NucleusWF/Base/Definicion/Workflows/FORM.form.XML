@@ -1,0 +1,280 @@
+<form:Form xmlns:form="nomad_engine.form" xmlns:qry="nomad_engine.qry" default_mode="EDIT_SCRIPTS" doc="source" name="NucleusWF.Base.Definicion.Organigramas.ESTRUCTURA.form">
+	<form:Title width="90%">
+		<form:RowAligner name="ralTitle">
+			<form:Row visible="!SCRIPT&amp;!EDIT_SCRIPTS" name="row1">
+				<form:Label label="Detalle del formulario" nowrap="1" align="center" style="S3 LCol_w" name="GEN"/>
+				<form:Label nowrap="1" align="center" style="S2 LCol_w" dynamic="1" name="PAR"/>
+			</form:Row>
+			<form:Row visible="SCRIPT" name="row2">
+				<form:Label label="Scripts del formulario" nowrap="1" align="center" style="S3 LCol_w" name="GEN"/>
+			</form:Row>
+		</form:RowAligner>
+	</form:Title>
+	<form:Center width="100%" height="100%">
+		<form:UrlControl visible="!SCRIPT" height="100%" width="100%" direct="1" name="REPORT_ORG"/>
+		<form:Hidden nvalue="#source:@PARENT" name="PARENT"/>
+		<form:Hidden name="hidMenus"/>
+		<form:Hidden nvalue="#source:@WF" name="WF"/>
+		<form:Columns visible="SCRIPT" name="cols_script">
+			<form:Column visible="SCRIPT" name="col_script" separation="2" align="center" valign="top">
+				<form:Blank name="blank1"/>
+				<form:TextBox length="16" xsize="130" required="0" ysize="36" label="Script" name="o_script"/>
+				<form:Hidden nvalue="#DDO:@o_scripts_1" name="hid_script_1"/>
+				<form:Hidden nvalue="#DDO:@o_scripts_2" name="hid_script_2"/>
+				<form:Hidden nvalue="#DDO:@o_scripts_3" name="hid_script_3"/>
+				<form:Hidden nvalue="#DDO:@o_scripts_4" name="hid_script_4"/>
+			</form:Column>
+		</form:Columns>
+	</form:Center>
+	<form:Bottom>
+		<form:RowAligner name="buttonlinks">
+			<form:Row visible="!SCRIPT" name="row1">
+				<form:Button img="editformula" descrip="Accede a las variables del Workflow" label="Variables" name="VARIABLES">
+					<form:Event action="Variables" name="onclick" runat="client"/>
+				</form:Button>
+				<form:Button img="scripts" descrip="Edita las funciones asociadas al formulario" label="Funciones" name="SCRIPTS">
+					<form:Event action="SCRIPTS" name="onclick" runat="server"/>
+				</form:Button>
+				<form:Button label="Edici&#243;n de Scripts" img="scripts" descrip="Edita las funciones asociadas al formulario" name="EDIT">
+					<form:Event action="EDIT_SCRIPTS" name="onclick" runat="server"/>
+				</form:Button>
+				<form:Button descrip="Volver" img="back" label="Salir" name="BACK">
+					<form:Event action="BACK" name="onclick" runat="server"/>
+				</form:Button>
+			</form:Row>
+			<form:Row visible="SCRIPT" name="row2">
+				<form:Button img="ok" descrip="Guardar" label="Guardar" name="SAVE">
+					<form:Event action="save" name="onclick" runat="client"/>
+				</form:Button>
+				<form:Button img="cancel" descrip="Cancelar" label="Cancelar" name="CANCEL">
+					<form:Event action="CANCEL" name="onclick" runat="server"/>
+				</form:Button>
+			</form:Row>
+		</form:RowAligner>
+	</form:Bottom>
+	<form:Resources>
+		<form:Resource declare="" name="QRY_IDS_PARENT">
+			<qry:include name="#RESOURCE-PARENT#"/>
+			<qry:main maxdeep="2" doc="PARAMIN">
+				<qry:element name="ROWS">
+					<qry:insert-select name="sql1" doc-path="#PARAMIN:/PARAM"/>
+				</qry:element>
+			</qry:main>
+		</form:Resource>
+		<form:Resource name="QRY_CFG">
+			<CFG resource-id="NucleusWF.Base.Definicion.Organigramas.ROLE.INFO_IDS" resource-list="NucleusWF.Base.Definicion.Organigramas.ROLE.INFO_IDS_LIST" resource-parent="NucleusWF.Base.Definicion.Organigramas.ORGANIGRAMA.INFO_IDS_LIST" method=""/>
+		</form:Resource>
+	</form:Resources>
+	<form:Scripts>
+		var CFG;
+var TIT=null;
+
+function ReplaceResource(recID) {
+	var recValue=Ctrl("main").getResource(recID);
+	recValue=Replace(recValue,"#RESOURCE-LIST#"  ,CFG.GetAttr("RESOURCE-LIST"  ));
+	recValue=Replace(recValue,"#RESOURCE-ID#"    ,CFG.GetAttr("RESOURCE-ID"    ));
+	recValue=Replace(recValue,"#RESOURCE-PARENT#",CFG.GetAttr("RESOURCE-PARENT"));
+	recValue=Replace(recValue,"#RESOURCE-OBJECT#",CFG.GetAttr("RESOURCE-OBJECT"));
+	
+	Ctrl("main").setResource(recValue, recID);
+}
+
+function RefreshReport() {
+	//Actualiza el reporte del formulario
+	var strURL;
+	
+	strURL = "../../../ReportViewer.aspx?file=NucleusWF.Base.Definicion.WFPLA_Main.rpt" +
+					"&amp;ut=" + GetProxy().UserToken() +
+					"&amp;id=" + Ctrl("PARENT").GetXValue() +
+					"&amp;mode=DES" +
+					"&amp;now=" + datetime2str(new Date());
+		
+	Ctrl("REPORT_ORG").SetURL(strURL);
+}
+
+///////////////////////////////////////////////////////////////////////////////          
+//CONTEXTS MENUES
+
+function OpenMenu(pstrParam, pstrMenu, pEvent) {
+	var objCtrl;
+
+	objCtrl = Ctrl("hidMenus");
+
+	CreateMenu(objCtrl, pstrMenu);
+	
+	objCtrl.SetXValue(pstrParam);
+	objCtrl.OnContextMenu(pEvent);
+	
+}
+
+function CreateMenu(pobjCtrl, pstrMenu) {
+	var xmlMenu = new NomadXML(pstrMenu);
+	var intSep = 0;
+	
+	pobjCtrl.ClearContextMenu();
+	
+	//Recorre el xml y crea los items del menu
+	var xmlItem;
+	for (xmlItem = xmlMenu.FirstChild(); xmlItem != null; xmlItem = xmlItem.Next()) {
+
+		if (xmlItem.Name == "item") {
+		
+			pobjCtrl.AddContextMenu(xmlItem.GetAttr("name"), xmlItem.GetAttr("label"), xmlItem.GetAttr("img"));
+			pobjCtrl.SetClientEvent("CONTEX_MENU_" + xmlItem.GetAttr("name"), xmlItem.GetAttr("event"));
+			
+		} else {
+			pobjCtrl.AddContextMenu("S" + intSep.toString(), "-", "");
+			intSep++;
+		}
+	}
+	
+}
+
+function FlowResult() {
+	this.processResult = function(xml) {
+		RefreshReport();
+	}
+}
+
+///////////////////////////////////////////////////////////////////////////////          
+//EVENTOS
+function OnLoad() {                
+	if(Ctrl("main").GetMode() != "SCRIPT")
+	{
+		//Cargo la Configuracion
+		CFG =new NomadXML(Ctrl("main").getResource("QRY_CFG"));
+	
+		//Modifico los Recursos
+		ReplaceResource("QRY_IDS_PARENT");
+		
+		//Actualizo la Pantalla
+		RefreshReport();
+	}
+	if(Ctrl("main").GetMode() == "SCRIPT")
+	{                          
+		var script = Ctrl("hid_script_1").GetXValue();
+		script 		+= Ctrl("hid_script_2").GetXValue();
+		script 		+= Ctrl("hid_script_3").GetXValue(); 
+		script 		+= Ctrl("hid_script_4").GetXValue();  
+		Ctrl("o_script").SetXValue(script);
+	}
+}
+
+
+///////////////////////////////////////////////////////////////////////////////          
+//Acciones de los Context menues
+
+//Administrador de Grupos
+function GroupsManager(pObj) {
+	var arrMenuItem;
+	var FlowAction = pObj.ClickContextMenuId;
+	var xmlValue = new NomadXML(pObj.GetXValue());
+	
+	arrMenuItem = FlowAction.split("_");
+	openNewFlowWait("NucleusWF.Base.Definicion.Workflows.FORM_GROUP.flow", "FORM_GROUP_" + arrMenuItem[1], '&lt;PARAMS ID="'+ xmlValue.GetAttr("id") +'" PARENT="'+ xmlValue.GetAttr("parent") +'" MODE="'+ arrMenuItem[0]  +'" /&gt;', new FlowResult(), "L");
+}
+
+
+//Administrador de Campos (Fields)
+
+//GroupField --------------------
+function FieldsManager(pObj) {
+	var strXMLParam;
+	var FlowAction = pObj.ClickContextMenuId;
+	var xmlValue = new NomadXML(pObj.GetXValue());
+		
+	if (FlowAction == "EDIT")
+		strXMLParam = '&lt;PARAMS ID="'+ xmlValue.GetAttr("id") +'" PARENT="'+ xmlValue.GetAttr("parent") +'" /&gt;';
+	else
+		strXMLParam = '&lt;PARAMS PARENT="'+ xmlValue.GetAttr("id") +'" /&gt;';
+		
+	openNewFlowWait("NucleusWF.Base.Definicion.Workflows.FIELD.flow", "FORM_FIELD_" + FlowAction, strXMLParam, new FlowResult(), "L");
+}
+
+function GroupField_Del(pObj) {
+	if (confirm("&#191;Est&#225; seguro que desea eliminar el control?")) {
+		var xmlValue = new NomadXML(pObj.GetXValue());
+		openNewFlowWait("NucleusWF.Base.Definicion.Workflows.FORM.flow", "FieldDelete", '&lt;PARAM oi_field="'+ xmlValue.GetAttr("id") +'" /&gt;', new FlowResult(), "L");
+	}
+}
+
+function GroupField_Up(pObj) {
+	var xmlValue = new NomadXML(pObj.GetXValue());
+	openNewFlowWait("NucleusWF.Base.Definicion.Workflows.FORM.flow", "FieldUpDown", '&lt;PARAM oi_field="'+ xmlValue.GetAttr("id") +'" direction="UL"/&gt;', new FlowResult(), "L");
+}
+
+function GroupField_Down(pObj) {
+	var xmlValue = new NomadXML(pObj.GetXValue());
+	openNewFlowWait("NucleusWF.Base.Definicion.Workflows.FORM.flow", "FieldUpDown", '&lt;PARAM oi_field="'+ xmlValue.GetAttr("id") +'" direction="DR"/&gt;', new FlowResult(), "L");
+}
+
+//MainGroup --------------------
+function MainGroup_Edit(pObj) {
+
+}
+
+
+// Group Generico --------------------
+
+function Group_Del(pObj) {
+	if (confirm("&#191;Est&#225; seguro que desea eliminar el grupo?")) {
+		var xmlValue = new NomadXML(pObj.GetXValue());
+		openNewFlowWait("NucleusWF.Base.Definicion.Workflows.FORM.flow", "GroupDelete", '&lt;PARAM oi_form_group="' + xmlValue.GetAttr("id") + '" /&gt;', new FlowResult(), "L");
+	}
+}
+
+function Group_Up(pObj) {
+	var xmlValue = new NomadXML(pObj.GetXValue());
+	openNewFlowWait("NucleusWF.Base.Definicion.Workflows.FORM.flow", "GroupUpDown", '&lt;PARAM oi_form_group="' + xmlValue.GetAttr("id") + '" direction="UL"/&gt;', new FlowResult(), "L");
+}
+
+function Group_Down(pObj) {
+	var xmlValue = new NomadXML(pObj.GetXValue());
+	openNewFlowWait("NucleusWF.Base.Definicion.Workflows.FORM.flow", "GroupUpDown", '&lt;PARAM oi_form_group="' + xmlValue.GetAttr("id") + '" direction="DR"/&gt;', new FlowResult(), "L");
+}
+
+function Variables()
+{                                                                                            
+	appendFormInMain("NucleusWF.Base.Definicion.Workflows.VAR.flow", "DESIGN", '&lt;DATA PARENT="'+Ctrl("WF").GetXValue()+'" /&gt;');
+}
+
+function save()
+{
+	var script  = Ctrl("o_script").GetXValue();
+	if(script.length &gt; 15600) 
+	{
+		alert("El texto supera los 15000. Por favor revise el contenido.");
+		return false;
+	}             
+	else
+	{
+		var script1 = script.substring(0,3900);
+		var script2 = script.substring(3900,7800);
+		var script3 = script.substring(7800,11700);
+		var script4 = script.substring(11700,15600);
+		Ctrl("hid_script_1").SetXValue(script1);
+		Ctrl("hid_script_2").SetXValue(script2);
+		Ctrl("hid_script_3").SetXValue(script3);
+		Ctrl("hid_script_4").SetXValue(script4);
+		Ctrl("main").DoEvent("SAVE");
+	}
+}
+	</form:Scripts>
+	<form:Event name="OnLoad" action="OnLoad" runat="client"/>
+	<form:Event action="SAVE" name="SAVE" runat="server"/>
+	<form:Right visible="DETAIL" collapse="1" width="300px" height="100%">
+		<form:Columns width="300px" height="100%" name="columns_right">
+			<form:Column width="300px" name="right_col1" height="90%" valign="top" align="center" separation="0">
+				<form:TextBox nvalue="#DATA:@search" name="buscar" label="Buscar" length="32" xsize="32" ysize="1" descr="Texto a Buscar" required="False">
+					<form:Event runat="server" name="onpressenter" action="FILTER"/>
+					<form:SButtons>
+						<form:SButton name="Search" label="Buscar" img="search" descrip="Buscar los Registros.">
+							<form:Event runat="server" name="onclick" action="FILTER"/>
+						</form:SButton>
+					</form:SButtons>
+				</form:TextBox>
+				<form:UrlControl height="530px" width="290px" border="0" nvalue="#REPORTDOM:@report" name="UrlControl02" label="UrlControl" descrip="" direct="1" X-POLICY="./FORM/NucleusRH/BaytonRH/Cliente/Reportes/InformeGestionComercial/form/UrlControl02"/>
+			</form:Column>
+		</form:Columns>
+	</form:Right>
+</form:Form>

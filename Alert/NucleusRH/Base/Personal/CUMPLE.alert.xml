@@ -1,0 +1,241 @@
+<ALERT xmlns:qry="nomad_engine.qry" label="Cumplea&#241;os del mes" name="CUMPLEA&#209;OS.alert">
+	<PARAMS>
+		<PARAM type="string" req="1" label="Modo de alerta" name="Modo"/>
+		<PARAM label="Cantidad de meses siguientes" type="int" req="0" name="CantMes"/>
+		<PARAM type="string" req="0" label="C&#243;digo de Empresa" name="CodEmp"/>
+		<PARAM type="string" req="0" label="TiposDeFamiliares" name="TipoFam"/>
+	</PARAMS>
+	<QRY declare="&lt;PARAMS Modo=&quot;CM+&quot; CantMes=&quot;-1&quot;  TipoFam=&quot;1,2,3,4,5,6,7,T&quot;/&gt;">
+		<qry:include name="Nomad.Base.Login.Entidades.ENTIDAD.INFO"/>
+		<qry:main doc="PARAMS">
+			<qry:append-doc name="PARAMIN" doc-path="$PARAMS/PARAMS"/>
+			<qry:element name="ROWS">
+				<TODOS>
+					<qry:if test="#PARAMIN:@Modo='CM+'">
+						<qry:then>
+							<qry:attribute name="MES" value="datetime(2000, month-from-dateTime(now()) + number(#PARAMIN:@CantMes), 1)"/>
+							<qry:attribute name="NROMES" value="month-from-dateTime(@MES)"/>
+							<qry:attribute name="MES" value="format-date(@MES,'mmm')"/>
+						</qry:then>
+						<qry:else>
+							<qry:attribute name="NROMES" value="month-from-dateTime(now())"/>
+							<qry:attribute name="MES" value="format-date(now(),'mmm')"/>
+						</qry:else>
+					</qry:if>
+					<qry:attribute name="CANTMES" value="#PARAMIN:@CantMes"/>
+					<qry:attribute name="MODO" value="#PARAMIN:@Modo"/>
+					<qry:attribute name="CODEMP" value="#PARAMIN:@CodEmp"/>
+					<qry:attribute name="DIAHOY" value="day-from-dateTime(now())"/>
+					<qry:attribute name="TIPOFAM" value="concat('\\\'', nmd-replace(#PARAMIN:@TipoFam,',','\\\',\\\''), '\\\'')"/>
+					<qry:insert-select name="QRY_CUMP_PER" doc-path="."/>
+					<qry:if test="#PARAMIN:@TipoFam!=''">
+						<qry:then>
+							<qry:insert-select name="QRY_CUMP_FAM_PER" doc-path="."/>
+						</qry:then>
+					</qry:if>
+				</TODOS>
+			</qry:element>
+		</qry:main>
+		<qry:select doc="PARAM" name="QRY_CUMP_PER">
+			<qry:xquery>
+				for $r in sql('
+			SELECT
+				PER02_PERSONAL_EMP.e_numero_legajo,
+				PER01_PERSONAL.d_ape_y_nom,
+				PER01_PERSONAL.c_nro_documento,
+				PER20_TIPOS_DOC.c_tipo_documento,
+				PER20_TIPOS_DOC.d_tipo_documento,
+				PER01_PERSONAL.f_nacim,
+				PER01_PERSONAL.d_email,
+				PER01_PERSONAL.oi_usuario_sistema,
+				ORG03_EMPRESAS.c_empresa,
+				ORG03_EMPRESAS.d_empresa,
+				GETDAY(PER01_PERSONAL.f_nacim) as DIA
+			FROM
+				PER01_PERSONAL,
+				PER02_PERSONAL_EMP,
+				PER20_TIPOS_DOC,
+				ORG03_EMPRESAS	
+			JOIN 
+				ORG03_EMPRESAS.oi_empresa INNER PER02_PERSONAL_EMP.oi_empresa,
+				PER01_PERSONAL.oi_personal INNER PER02_PERSONAL_EMP.oi_personal,
+				PER01_PERSONAL.oi_tipo_documento INNER PER20_TIPOS_DOC.oi_tipo_documento	
+			WHERE 	
+				{%? (#PARAMIN:@Modo='CD')                         
+					{% GETMONTH(PER01_PERSONAL.f_nacim) = {month-from-dateTime(now())} 
+						 AND GETDAY(PER01_PERSONAL.f_nacim) = {day-from-dateTime(now())} %}  
+					{% GETMONTH(PER01_PERSONAL.f_nacim) = {#PARAM:@NROMES} %}        
+				%}
+				{%? (#PARAMIN:@CodEmp!='')                         
+					{% AND ORG03_EMPRESAS.c_empresa = {#PARAMIN:@CodEmp} %}  
+					{% %}        
+				%}
+				AND PER02_PERSONAL_EMP.oi_indic_activo = 1					
+			ORDER BY 
+				DIA ASC,
+				d_empresa ASC,
+				e_numero_legajo ASC
+		')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:element name="EMP">
+					<qry:attribute name="LEGAJO" value="$r/@e_numero_legajo"/>
+					<qry:attribute name="NOMBRE" value="$r/@d_ape_y_nom"/>
+					<qry:attribute name="CODEMPRESA" value="$r/@c_empresa"/>
+					<qry:attribute name="DESCEMPRESA" value="$r/@d_empresa"/>
+					<qry:attribute name="CODDOC" value="$r/@d_tipo_documento"/>
+					<qry:attribute name="NRODOC" value="$r/@c_nro_documento"/>
+					<qry:attribute name="TIPODOC" value="$r/@c_tipo_documento"/>
+					<qry:attribute name="FECHACUM" value="format-date(datetime(2000, month-from-dateTime($r/@f_nacim), day-from-dateTime($r/@f_nacim)), 'dd/mm')"/>
+					<qry:attribute name="MES" value="format-date($r/@f_nacim,'mmm')"/>
+					<qry:attribute name="DIA" value="day-from-dateTime($r/@f_nacim)"/>
+					<qry:insert-select name="sql1" doc-path="$r"/>
+				</qry:element>
+			</qry:out>
+		</qry:select>
+		<qry:select doc="PARAM" name="QRY_CUMP_FAM_PER">
+			<qry:xquery>
+				for $r in sql('
+			SELECT
+				PER01_PERSONAL.d_ape_y_nom as apeynom_leg,
+				PER01_FLIARES_PER.d_ape_y_nom,
+				PER01_FLIARES_PER.f_nacimiento, 
+				PER02_PERSONAL_EMP.e_numero_legajo,
+				ORG03_EMPRESAS.c_empresa,
+				ORG03_EMPRESAS.d_empresa,
+				PER01_PERSONAL.oi_usuario_sistema,
+				PER15_TIPOS_FAM.d_tipo_familiar,
+				GETDAY(PER01_PERSONAL.f_nacim) as DIA
+				
+			FROM
+				PER01_PERSONAL, 
+				PER02_PERSONAL_EMP,
+				PER01_FLIARES_PER,
+				ORG03_EMPRESAS,
+				PER15_TIPOS_FAM	
+				
+			JOIN
+				ORG03_EMPRESAS.oi_empresa INNER PER02_PERSONAL_EMP.oi_empresa,
+				PER01_PERSONAL.oi_personal INNER PER02_PERSONAL_EMP.oi_personal,
+				PER01_PERSONAL.oi_personal INNER PER01_FLIARES_PER.oi_personal,
+				PER15_TIPOS_FAM.oi_tipo_familiar INNER PER01_FLIARES_PER.oi_tipo_familiar
+					
+			WHERE 	
+				{%? (#PARAMIN:@Modo='CD')                         
+					{% GETMONTH(PER01_FLIARES_PER.f_nacimiento) = {month-from-dateTime(now())} 
+						 AND GETDAY(PER01_FLIARES_PER.f_nacimiento) = {day-from-dateTime(now())} %}  
+					{% GETMONTH(PER01_FLIARES_PER.f_nacimiento) = {#PARAM:@NROMES} %}        
+				%}
+				{%? (#PARAMIN:@CodEmp!='')                         
+					{% AND ORG03_EMPRESAS.c_empresa = {#PARAMIN:@CodEmp} %}  
+					{% %}        
+				%}
+				AND PER02_PERSONAL_EMP.oi_indic_activo = 1
+				AND PER01_FLIARES_PER.l_vive = 1 
+				AND PER15_TIPOS_FAM.c_tipo_familiar IN ({%=#PARAM:@TIPOFAM %})	
+							
+			ORDER BY      
+				DIA ASC,
+				d_empresa ASC
+		')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:element name="FAMILIAR">
+					<qry:attribute name="NOMBRE" value="$r/@d_ape_y_nom"/>
+					<qry:attribute name="CODEMPRESA" value="$r/@c_empresa"/>
+					<qry:attribute name="DESCEMPRESA" value="$r/@d_empresa"/>
+					<qry:attribute name="FECHACUM" value="format-date(datetime(2000, month-from-dateTime($r/@f_nacimiento), day-from-dateTime($r/@f_nacimiento)), 'dd/mm')"/>
+					<qry:attribute name="MES" value="format-date($r/@f_nacimiento,'mmm')"/>
+					<qry:attribute name="DIA" value="day-from-dateTime($r/@f_nacimiento)"/>
+					<qry:attribute name="FAMILIARDE" value="$r/@apeynom_leg"/>
+					<qry:attribute name="PARENTESCO" value="$r/@d_tipo_familiar"/>
+					<qry:attribute name="LEGAJO" value="$r/@e_numero_legajo"/>
+					<qry:insert-select name="sql1" doc-path="$r"/>
+				</qry:element>
+			</qry:out>
+		</qry:select>
+		<qry:select doc="PARAM" name="sql1">
+			<qry:xquery>
+				for $r in file('Nomad\\Base\\Login\\Entidades\\{%=#PARAM:@oi_usuario_sistema%}.ENTIDAD.XML')/ENTIDAD
+			</qry:xquery>
+			<qry:out>
+				<qry:attribute name="MAIL" value="nmd-replace(string($r/MAILS/MAIL[@PRINCIPAL=1]/@EMAIL),',',';')"/>
+			</qry:out>
+		</qry:select>
+	</QRY>
+	<MAILS>
+		<MAIL suject="[Alertas NucleusRH] Cumplea&#241;os del personal" group="EMP">
+			RECURSOS HUMANOS le desea Feliz cumplea&#241;os!\\ 
+      
+      
+**Atte.**
+
+**&#193;rea de Recursos Humanos.**
+		</MAIL>
+		<MAIL group="TODOS" suject="[Alertas NucleusRH] Cumplea&#241;os del personal">
+			**Los siguientes Legajos cumplen a&#241;os en {% @TODOS.MES %}:**
+
+         
+^Empresa          ^Legajo          ^Documento         ^Fecha Cumplea&#241;os              ^
+{%FOR-EACH EMP%}|[{% @EMP.CODEMPRESA %}] {% @EMP.DESCEMPRESA %}  |[{% @EMP.LEGAJO %}] {% @EMP.NOMBRE %}  |[{% @EMP.TIPODOC %}] {% @EMP.NRODOC %}  | {% @EMP.FECHACUM %} | 
+{%END EMP%}   
+**Los siguientes Familiares cumplen a&#241;os en {% @TODOS.MES %}:**
+
+         
+
+^Nombre y Apellido ^Familiar de ^Empresa ^Parentesco ^Fecha Cumplea&#241;os   ^
+{%FOR-EACH FAMILIAR%}| {%@FAMILIAR.NOMBRE %} |[{% @FAMILIAR.LEGAJO %}] {% @FAMILIAR.FAMILIARDE%} | [{% @FAMILIAR.CODEMPRESA %}] {% @FAMILIAR.DESCEMPRESA %}|{% @FAMILIAR.PARENTESCO %}   | {% @FAMILIAR.FECHACUM %} | 
+{%END FAMILIAR%}
+		</MAIL>
+		<MAIL group="FAMILIAR" suject="[Alertas NucleusRH] Cumplea&#241;os del Personal">
+			RECURSOS HUMANOS le desea un feliz d&#237;a a su {% @FAMILIAR.PARENTESCO %} {% @FAMILIAR.NOMBRE %} en su cumplea&#241;os!\\ 
+      
+      
+**Atte.**
+
+**&#193;rea de Recursos Humanos.**
+		</MAIL>
+	</MAILS>
+	<GROUPS>
+		<GROUP label="Por Empleado" name="EMP">
+			<FIELD type="int" label="Legajo" name="LEGAJO"/>
+			<FIELD type="string" label="Apellido y Nombre" name="NOMBRE"/>
+			<FIELD type="string" label="C&#243;digo Empresa" name="CODEMPRESA"/>
+			<FIELD type="string" label="Descripci&#243;n Empresa" name="DESCEMPRESA"/>
+			<FIELD type="string" label="Documento" name="CODDOC"/>
+			<FIELD type="string" label="Nro. Documento" name="NRODOC"/>
+			<FIELD type="string" label="Tipo Documento" name="TIPODOC"/>
+			<FIELD label="E-Mail" type="string" name="MAIL"/>
+			<FIELD type="string" label="Fecha Cumplea&#241;os" name="FECHACUM"/>
+			<FIELD type="string" label="Mes de cumplea&#241;os" name="MES"/>
+			<FIELD type="int" label="D&#237;a de cumplea&#241;os" name="DIA"/>
+		</GROUP>
+		<GROUP label="Sin Agrupar" name="TODOS">
+			<FIELD type="string" label="Modo de alerta" name="MODO"/>
+			<FIELD label="Cantidad de meses de mas" type="int" name="CANTMES"/>
+			<FIELD type="string" label="Mes de la alerta" name="MES"/>
+			<FIELD name="DIAHOY" type="int" label="D&#237;a de cumplea&#241;os"/>
+			<FIELD type="string" label="C&#243;digo Empresa" name="CODEMP"/>
+			<FIELD type="int" label="N&#250;mero del Mes de la Alerta" name="NROMES"/>
+		</GROUP>
+		<GROUP label="Por Familiar" name="FAMILIAR">
+			<FIELD label="Apellido y Nombre del Familiar" type="string" name="NOMBRE"/>
+			<FIELD label="C&#243;digo Empresa del Legajo" type="string" name="CODEMPRESA"/>
+			<FIELD label="Descripci&#243;n Empresa del Legajo" type="string" name="DESCEMPRESA"/>
+			<FIELD label="E-Mail" type="string" name="MAIL"/>
+			<FIELD label="Fecha Cumplea&#241;os del Familiar" type="string" name="FECHACUM"/>
+			<FIELD label="Mes de cumplea&#241;os del Familiar" type="string" name="MES"/>
+			<FIELD label="D&#237;a de cumplea&#241;os del Familiar" type="int" name="DIA"/>
+			<FIELD label="Apellido y Nombre del Empleado" name="FAMILIARDE" type="string"/>
+			<FIELD label="Legajo del Empleado" type="int" name="LEGAJO"/>
+			<FIELD label="Parentesco o Tipo de Familiar" name="PARENTESCO" type="string"/>
+		</GROUP>
+	</GROUPS>
+	<ENUMS>
+		<ENUM name="Modos">
+			<ITEM text="Cumplea&#241;os del d&#237;a" value="CD"/>
+			<ITEM text="Cumplea&#241;os del mes actual" value="CM"/>
+			<ITEM text="Cumplea&#241;os del mes siguiente" value="CM+"/>
+		</ENUM>
+	</ENUMS>
+</ALERT>

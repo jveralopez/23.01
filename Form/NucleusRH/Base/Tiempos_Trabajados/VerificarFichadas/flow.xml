@@ -1,0 +1,99 @@
+<flow:flow xmlns:flow="nomad_engine.flow" xmlns:doc="nomad_engine.doc" xmlns:qry="nomad_engine.qry" extends="Nomad.Base.flow" name="NucleusRH.Base.Tiempos_Trabajados.VerificarFichadas.flow">
+	<flow:info label="flow para NucleusRH.Base.Tiempos_Trabajados.VerificarFichadas"/>
+	<flow:declare>
+		<doc:define name="FILTERDATA">
+			<FILTRO parcial="" f_fin="" f_ini="">
+				<PERSONAS/>
+			</FILTRO>
+		</doc:define>
+		<qry:define declare="&lt;VALUE batch-id=&quot;000064F0-00002998-20080815-131849-0000000E&quot; /&gt;" name="GETFILE">
+			<qry:main doc="SOURCE">
+				<qry:insert-select name="RS1" doc-path="#SOURCE:VALUE"/>
+			</qry:main>
+			<qry:select name="RS1" doc="PARAM">
+				<qry:xquery>
+					for $r in FILEIO('TEMP/VerificarFichadas_{%=#PARAM:@batch-id%}.xml')/DATOS
+				</qry:xquery>
+				<qry:out>
+					<qry:insert-element doc-path="$r"/>
+				</qry:out>
+			</qry:select>
+		</qry:define>
+		<doc:define name="FILE"/>
+		<doc:define name="DATA"/>
+		<qry:define name="QRY_PARAMS">
+			<qry:main name="qry" doc="SOURCE">
+				<qry:element name="ROWS">
+					<qry:insert-select name="sql1" doc-path="#SOURCE:."/>
+				</qry:element>
+			</qry:main>
+			<qry:select name="sql1" doc="SOURCE">
+				<qry:xquery>
+					for $r in sql('
+					SELECT 
+						ORG.d_valor
+					FROM 
+						ORG26_PARAMETROS as ORG
+					WHERE
+						ORG.c_parametro = \'TipoClasif\'
+				')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:attribute name="value" value="$r/@d_valor"/>
+				</qry:out>
+			</qry:select>
+		</qry:define>
+		<doc:define name="PARAMS"/>
+	</flow:declare>
+	<flow:main doc="SOURCE">
+		<flow:action name="initialize">
+			<flow:open-form doc-path="#FILTERDATA:" form-class="NucleusRH.Base.Tiempos_Trabajados.VerificarFichadas.filter.form" mode="FILTER"/>
+		</flow:action>
+	</flow:main>
+	<flow:form parent-doc="PARENTSOURCE" doc="SOURCE" mode="FILTER" name="NucleusRH.Base.Tiempos_Trabajados.VerificarFichadas.filter.form:FILTER" form-class="NucleusRH.Base.Tiempos_Trabajados.VerificarFichadas.filter.form">
+		<flow:action name="on-show">
+			<flow:call-action action="Load-FILTER"/>
+			<doc:load-qry output-doc="PARAMS" input-doc-path="#SOURCE:" qry="QRY_PARAMS"/>
+			<doc:set-attribute from-attr-path="#PARAMS:@value" to-attr-path="#SOURCE:@TipoClasif"/>
+		</flow:action>
+		<flow:action name="BACK">
+			<flow:close-form/>
+		</flow:action>
+		<flow:action name="ACCEPT">
+			<flow:log text="ppverificacion" text-path="#SOURCE:"/>
+			<flow:exec-method out-attr-path="#BATCHDOC:@batch-id" priority="9" class="NucleusRH.Base.Tiempos_Trabajados.FichadasIng.FICHADASING" method="Verificar">
+				<flow:param doc="SOURCE" name="param" mode="in" type="Nomad.NSystem.Object"/>
+			</flow:exec-method>
+			<flow:call-action action="Save-FILTER"/>
+			<flow:open-form parent-doc-path="#SOURCE:" form-class="NucleusRH.Base.Tiempos_Trabajados.VerificarFichadas.batch.form" mode="BATCH" doc-path="#BATCHDOC:"/>
+		</flow:action>
+		<flow:action name="Save-FILTER">
+			<flow:save-user-data name="FILTER-NucleusRH.Base.Tiempos_Trabajados.VerificarFichadasV2" doc-path="#FILTERDATA:"/>
+		</flow:action>
+		<flow:action name="Load-FILTER">
+			<flow:load-user-data name="FILTER-NucleusRH.Base.Tiempos_Trabajados.VerificarFichadasV2" doc="FILTERDATA"/>
+		</flow:action>
+	</flow:form>
+	<flow:form parent-doc="PARENTSOURCE" extends="nomad.base.batchtolist.form:BATCH" form-class="NucleusRH.Base.Tiempos_Trabajados.VerificarFichadas.batch.form" name="NucleusRH.Base.Tiempos_Trabajados.VerificarFichadas.batch.form:BATCH" mode="BATCH" doc="SOURCE">
+		<flow:action name="on-show"/>
+		<flow:action name="EXIT">
+			<flow:close-form/>
+		</flow:action>
+		<flow:action name="show-report">
+			<flow:close-form/>
+			<flow:log text-path="#BATCHDOC:" text="ppbatch"/>
+			<doc:load-qry output-doc="FILE" input-doc-path="#BATCHDOC:" qry="GETFILE"/>
+			<doc:set-attribute from-attr-path="#PARENTSOURCE:@f_ini" to-attr-path="#FILE:@f_ini"/>
+			<doc:set-attribute from-attr-path="#PARENTSOURCE:@f_fin" to-attr-path="#FILE:@f_fin"/>
+			<flow:log text-path="#FILE:" text="ppfile"/>
+			<flow:html-gen template-file="NucleusRH.Base.Tiempos_Trabajados.ResultadoVerificacion.rpt" input-doc-path="#FILE:" out-file-path="#SOURCE:@report"/>
+			<flow:open-form mode="SHOW" form-class="NucleusRH.Base.Tiempos_Trabajados.VerificarFichadas.Report.form" parent-doc-path="#SOURCE:" doc-path="#SOURCE:"/>
+		</flow:action>
+	</flow:form>
+	<flow:form name="NucleusRH.Base.Tiempos_Trabajados.VerificarFichadas.Report.form:SHOW_a" mode="SHOW" parent-doc="PARENTSOURCE" doc="SOURCE" form-class="NucleusRH.Base.Tiempos_Trabajados.VerificarFichadas.Report.form">
+		<flow:action name="on-show"/>
+		<flow:action name="EXIT">
+			<flow:close-form/>
+		</flow:action>
+	</flow:form>
+</flow:flow>

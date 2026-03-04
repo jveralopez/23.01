@@ -1,0 +1,97 @@
+<flow:flow xmlns:flow="nomad_engine.flow" xmlns:qry="nomad_engine.qry" name="NucleusRH.Base.Legales.Impuestos.flow" extends="NucleusRH.Base.Legales.Impuestos.autoflow">
+	<flow:declare>
+		<qry:define declare="&lt;DATA oi_empresa=&quot;1&quot;/&gt;" name="FILTER">
+			<qry:main maxdeep="2" doc="SOURCE">
+				<qry:element name="ROWS">
+					<qry:insert-select name="sql1" doc-path="#SOURCE:."/>
+				</qry:element>
+			</qry:main>
+			<qry:select doc="SOURCE" name="sql1">
+				<qry:xquery>
+					for $r in sql('
+				
+				SELECT
+					t0.oi_impuesto as oi_impuesto
+				
+				FROM
+					LEG62_IMPUESTOS as t0
+				
+				WHERE 
+					{%? (#SOURCE:@oi_empresa!='')	{% t0.oi_empresa={#SOURCE:@oi_empresa} %} {% 1=1 %} %}				
+				
+				ORDER BY
+					oi_impuesto asc
+				
+				')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:element name="ROW">
+						<qry:attribute name="id" value="$r/@oi_impuesto"/>
+					</qry:element>
+				</qry:out>
+			</qry:select>
+		</qry:define>
+		<qry:define declare="&lt;DATA oi_empresa=&quot;1&quot;/&gt;" name="LIST">
+			<qry:include name="NucleusRH.Base.Organizacion.Empresas.EMPRESA.INFO"/>
+			<qry:main maxdeep="2" doc="SOURCE">
+				<qry:element name="ROWS">
+					<qry:insert-select name="sql1" doc-path="#SOURCE:."/>
+				</qry:element>
+			</qry:main>
+			<qry:select doc="SOURCE" name="sql1">
+				<qry:xquery>
+					for $r in sql('
+				
+				SELECT
+					t0.oi_impuesto as oi_impuesto,
+					t0.c_impuesto as c_impuesto,
+					t0.d_impuesto as d_impuesto,
+					t0.l_iva as l_iva,
+					t0.n_porcentaje as n_porcentaje,					
+					t0.c_impuesto as CODE,
+					t0.d_impuesto as TEXT,
+					t0.oi_empresa as oi_empresa
+					
+				FROM
+					LEG62_IMPUESTOS as t0					
+												
+				WHERE 
+					{%? (#SOURCE:@oi_empresa!='')	{% t0.oi_empresa={#SOURCE:@oi_empresa} %} {% 1=1 %} %}
+				
+				ORDER BY
+					oi_impuesto asc
+				
+				')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:element name="ROW">
+						<qry:attribute name="id" value="$r/@oi_impuesto"/>
+						<qry:attribute name="c_impuesto" value="$r/@c_impuesto"/>
+						<qry:attribute name="d_impuesto" value="$r/@d_impuesto"/>
+						<qry:attribute name="l_iva" value="iif($r/@l_iva='1','1','0')"/>
+						<qry:attribute name="n_porcentaje" value="$r/@n_porcentaje"/>
+						<qry:attribute name="CODE" value="$r/@CODE"/>
+						<qry:attribute name="TEXT" value="$r/@TEXT"/>
+						<qry:if test="$r/@oi_empresa!=''">
+							<qry:then>
+								<qry:element name="oi_empresa">
+									<qry:attribute name="OI_FIND" value="$r/@oi_empresa"/>
+									<qry:insert-select name="NucleusRH.Base.Organizacion.Empresas.EMPRESA.QUERY" doc-path="."/>
+								</qry:element>
+								<qry:attribute name="oi_empresa" value="'['+oi_empresa/ROW/@COD+'] '+oi_empresa/ROW/@DES"/>
+							</qry:then>
+						</qry:if>
+					</qry:element>
+				</qry:out>
+			</qry:select>
+		</qry:define>
+	</flow:declare>
+	<flow:main doc="SOURCE">
+		<flow:action name="initialize">
+			<flow:open-form doc-path="#FILTERDATA:" mode="FILTER" form-class="NucleusRH.Base.Legales.Impuestos.IMPUESTO.filter.form"/>
+		</flow:action>
+	</flow:main>
+	<flow:group Name="IMPUESTO">
+		<flow:form extends="NucleusRH.Base.Legales.Impuestos.IMPUESTO.filter.autoform:FILTER" parent-doc="PARENTSOURCE" doc="SOURCE" name="NucleusRH.Base.Legales.Impuestos.IMPUESTO.filter.form:FILTER" form-class="NucleusRH.Base.Legales.Impuestos.IMPUESTO.filter.form" mode="FILTER"/>
+	</flow:group>
+</flow:flow>

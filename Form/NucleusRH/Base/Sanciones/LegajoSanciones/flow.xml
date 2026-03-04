@@ -1,0 +1,508 @@
+<flow:flow xmlns:flow="nomad_engine.flow" xmlns:doc="nomad_engine.doc" xmlns:qry="nomad_engine.qry" default_action="initialize" name="NucleusRH.Base.Sanciones.LegajoSanciones" extends="NucleusRH.Base.Sanciones.LegajoSanciones.autoflow" mess="&#191;Est&#225; seguro que desa cancelar la operaci&#243;n?">
+	<flow:info label="Flow para NucleusRH.Base.Personal.LegajoEmpresa"/>
+	<flow:declare>
+		<doc:define name="FILTERDATA">
+			<FILTRO oi_empresa="" f_desde="" f_hasta="" TIPO_PER="" ATRIB_ORDEN1="" ORDEN1="" ATRIB_ORDEN2="" ORDEN2="" ATRIB_ORDEN3="" ORDEN3="" ATRIB_ORDEN4="" ORDEN4="" ATRIB_ORDEN5="" ORDEN5="">
+				<PERSONAS/>
+			</FILTRO>
+		</doc:define>
+		<doc:define name="NOTIF">
+			<DATO oi_sancion_per=""/>
+		</doc:define>
+		<qry:define declare="&lt;ROWS nmd-col=&quot;1&quot;&gt;&lt;ROW id=&quot;11565&quot; /&gt;&lt;ROW id=&quot;11566&quot; /&gt;&lt;ROW id=&quot;11567&quot; /&gt;&lt;ROW id=&quot;11568&quot; /&gt;&lt;ROW id=&quot;11569&quot; /&gt;&lt;ROW id=&quot;11570&quot; /&gt;&lt;ROW id=&quot;11571&quot; /&gt;&lt;ROW id=&quot;11573&quot; /&gt;&lt;ROW id=&quot;11574&quot; /&gt;&lt;ROW id=&quot;11575&quot; /&gt;&lt;ROW id=&quot;11576&quot; /&gt;&lt;ROW id=&quot;11578&quot; /&gt;&lt;ROW id=&quot;11580&quot; /&gt;&lt;ROW id=&quot;11581&quot; /&gt;&lt;ROW id=&quot;11582&quot; /&gt;&lt;ROW id=&quot;11583&quot; /&gt;&lt;ROW id=&quot;11579&quot; /&gt;&lt;ROW id=&quot;13885&quot; /&gt;&lt;ROW id=&quot;13886&quot; /&gt;&lt;/ROWS&gt;" name="LIST">
+			<qry:include name="NucleusRH.Base.Organizacion.Empresas.EMPRESA.INFO"/>
+			<qry:include name="NucleusRH.Base.Personal.Legajo.PERSONAL.INFO"/>
+			<qry:main maxdeep="2" doc="SOURCE">
+				<qry:element name="ROWS">
+					<qry:insert-select name="sql1" doc-path="#SOURCE:"/>
+				</qry:element>
+			</qry:main>
+			<qry:select name="sql1" doc="SOURCE">
+				<qry:xquery>
+					for $r in sql('
+				SELECT 
+					t0.oi_personal_emp as oi_personal_emp, 
+					t1.oi_personal_emp as B_oi_personal_emp, 
+					t1.e_numero_legajo as B_e_numero_legajo, 
+					SEC.policy, 
+					t1.e_numero_legajo as CODE, 
+					PER01_PERSONAL.d_ape_y_nom as TEXT, 
+					t1.oi_empresa as oi_empresa, 
+					t1.oi_personal as oi_personal 
+				FROM 
+					SAN03_SANCION_PER as t0,
+					PER02_PERSONAL_EMP as t1,
+					NMD_SECURITY(class=\'NucleusRH.Base.Personal.LegajoEmpresa.PERSONAL_EMP\') as SEC, 
+					PER01_PERSONAL
+				JOIN 
+					t0.oi_personal_emp RIGHT OUTER t1.oi_personal_emp,
+					t1.oi_personal_emp LEFT OUTER SEC.id ,
+					PER01_PERSONAL.oi_personal INNER t1.oi_personal					
+				WHERE 
+					{%? (string(#SOURCE:ROWS/ROW/@id)!='') {% t1.oi_personal_emp in ({%=string(#SOURCE:ROWS/ROW/@id) %}) %} {% 1=2 %} %}
+                
+                GROUP BY
+                	t0.oi_personal_emp, 
+					t1.oi_personal_emp, 
+					t1.e_numero_legajo, 
+					SEC.policy, 
+					t1.e_numero_legajo, 
+					PER01_PERSONAL.d_ape_y_nom, 
+					t1.oi_empresa, 
+					t1.oi_personal  
+				ORDER BY 
+					CODE asc
+				')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:element name="ROW">
+						<qry:attribute name="policy" value="$r/@policy"/>
+						<qry:attribute name="ID-SAN03_PERSONAL" value="$r/@oi_personal_emp"/>
+						<qry:attribute name="id" value="$r/@B_oi_personal_emp"/>
+						<qry:attribute name="e_numero_legajo" value="$r/@B_e_numero_legajo"/>
+						<qry:attribute name="CODE" value="$r/@CODE"/>
+						<qry:attribute name="TEXT" value="$r/@TEXT"/>
+						<qry:if test="$r/@oi_empresa!=''">
+							<qry:then>
+								<qry:element name="oi_empresa">
+									<qry:attribute name="OI_FIND" value="$r/@oi_empresa"/>
+									<qry:insert-select name="NucleusRH.Base.Organizacion.Empresas.EMPRESA.QUERY" doc-path="."/>
+								</qry:element>
+								<qry:attribute name="oi_empresa" value="'['+oi_empresa/ROW/@COD+'] '+oi_empresa/ROW/@DES"/>
+							</qry:then>
+						</qry:if>
+						<qry:if test="$r/@oi_personal!=''">
+							<qry:then>
+								<qry:element name="oi_personal">
+									<qry:attribute name="OI_FIND" value="$r/@oi_personal"/>
+									<qry:insert-select name="NucleusRH.Base.Personal.Legajo.PERSONAL.QUERY" doc-path="."/>
+								</qry:element>
+								<qry:attribute name="oi_personal" value="'['+oi_personal/ROW/@COD+'] '+oi_personal/ROW/@DES"/>
+							</qry:then>
+						</qry:if>
+						<qry:insert-select doc-path="." name="FIND-PER-DESCR"/>
+					</qry:element>
+				</qry:out>
+			</qry:select>
+			<qry:select doc="PARAM" name="FIND-PER-DESCR">
+				<qry:xquery>
+					for $r in sql('
+				SELECT PER02_PERSONAL_EMP.e_numero_legajo AS COD, 
+				PER01_PERSONAL.d_ape_y_nom AS DES 
+				FROM 
+				PER02_PERSONAL_EMP, PER01_PERSONAL			
+				JOIN PER02_PERSONAL_EMP.oi_personal INNER PER01_PERSONAL.oi_personal
+				WHERE PER02_PERSONAL_EMP.oi_personal_emp ={#PARAM:@id}
+			')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:attribute value="'[' + $r/@COD + '] ' + $r/@DES" name="descr"/>
+					<qry:attribute value="$r/@DES" name="text"/>
+				</qry:out>
+			</qry:select>
+		</qry:define>
+		<qry:define declare="&lt;SANCION_PER nmd-col=&quot;1&quot;&gt;&#13;&#10;  &lt;SANCION_PER nmd-status=&quot;~i,&quot; descr=&quot;Nuevo&quot; f_fechahora_sanc=&quot;20100310173500&quot; e_dias_susp_prop=&quot;&quot; e_dias_susp_real=&quot;&quot; f_inicio_susp=&quot;&quot; f_fin_susp=&quot;&quot; o_motivo_ajuste=&quot;&quot; n_valor=&quot;&quot; c_estado=&quot;P&quot; f_estado=&quot;20100310&quot; o_sancion=&quot;&quot; id=&quot;~8E8E13356415-8E8F3C93A288-000000000159&quot;&gt;&#13;&#10;    &lt;oi_motivo_sancion nmd-agr=&quot;1&quot; value=&quot;12&quot; nmd-status=&quot;~u,value,&quot; /&gt;&#13;&#10;    &lt;oi_sancion nmd-agr=&quot;1&quot; value=&quot;8&quot; nmd-status=&quot;~u,value,&quot; /&gt;&#13;&#10;    &lt;SUSP_PER nmd-col=&quot;1&quot; /&gt;&#13;&#10;  &lt;/SANCION_PER&gt;&#13;&#10;  &lt;SANCION_PER nmd-status=&quot;~i,&quot; descr=&quot;Nuevo&quot; f_fechahora_sanc=&quot;20100310175500&quot; e_dias_susp_prop=&quot;&quot; e_dias_susp_real=&quot;&quot; f_inicio_susp=&quot;&quot; f_fin_susp=&quot;&quot; o_motivo_ajuste=&quot;&quot; n_valor=&quot;&quot; c_estado=&quot;P&quot; f_estado=&quot;20100310&quot; o_sancion=&quot;&quot; id=&quot;~8E8E13356415-8E8F4712A125-000000000164&quot;&gt;&#13;&#10;    &lt;oi_motivo_sancion nmd-agr=&quot;1&quot; value=&quot;12&quot; nmd-status=&quot;~u,value,&quot; /&gt;&#13;&#10;    &lt;oi_sancion nmd-agr=&quot;1&quot; value=&quot;1&quot; nmd-status=&quot;~u,value,&quot; /&gt;&#13;&#10;    &lt;SUSP_PER nmd-col=&quot;1&quot; /&gt;&#13;&#10;  &lt;/SANCION_PER&gt;&#13;&#10;&lt;/SANCION_PER&gt;" name="LIST:NucleusRH.Base.Sanciones.LegajoSanciones.SANCION_PER">
+			<qry:include name="NucleusRH.Base.Sanciones.Motivos_Sanciones.MOTIVO_SANCION.INFO"/>
+			<qry:include name="NucleusRH.Base.Sanciones.Sanciones.SANCION.INFO"/>
+			<qry:include name="NucleusRH.Base.Sanciones.LegajoSanciones.SUSPENSION_PER.INFO"/>
+			<qry:main doc="PARAM" maxdeep="2">
+				<qry:element name="ROWS">
+					<qry:insert-select doc-path="#PARAM:./SANCION_PER[substring_before(@nmd-status,',')!='~d' and substring_before(@nmd-status,',')!='~x']" name="sql1"/>
+				</qry:element>
+			</qry:main>
+			<qry:select doc="PARAM" name="sql1">
+				<qry:xquery>
+					for $r in #PARAM:
+				</qry:xquery>
+				<qry:out>
+					<qry:element name="ROW">
+						<qry:attribute name="id" value="$r/@id"/>
+						<qry:attribute name="f_fechahora_sanc" value="$r/@f_fechahora_sanc"/>
+						<qry:attribute name="e_dias_susp_prop" value="$r/@e_dias_susp_prop"/>
+						<qry:attribute name="e_dias_susp_real" value="$r/@e_dias_susp_real"/>
+						<qry:attribute name="c_estado" value="$r/@c_estado"/>
+						<qry:attribute name="CODE" value="$r/@CODE"/>
+						<qry:attribute name="TEXT" value="$r/@TEXT"/>
+						<qry:if test="$r/oi_motivo_sancion/@value!=''">
+							<qry:then>
+								<qry:element name="oi_motivo_sancion">
+									<qry:attribute name="OI_FIND" value="$r/oi_motivo_sancion/@value"/>
+									<qry:insert-select name="NucleusRH.Base.Sanciones.Motivos_Sanciones.MOTIVO_SANCION.QUERY" doc-path="."/>
+								</qry:element>
+								<qry:attribute name="oi_motivo_sancion" value="'['+oi_motivo_sancion/ROW/@COD+'] '+oi_motivo_sancion/ROW/@DES"/>
+							</qry:then>
+						</qry:if>
+						<qry:attribute name="id_sancion" value="$r/oi_sancion/@value"/>
+						<qry:if test="$r/oi_sancion/@value!=''">
+							<qry:then>
+								<qry:element name="oi_sancion">
+									<qry:attribute name="OI_FIND" value="$r/oi_sancion/@value"/>
+									<qry:insert-select name="NucleusRH.Base.Sanciones.Sanciones.SANCION.QUERY" doc-path="."/>
+								</qry:element>
+								<qry:attribute name="oi_sancion" value="'['+oi_sancion/ROW/@COD+'] '+oi_sancion/ROW/@DES"/>
+							</qry:then>
+						</qry:if>
+					</qry:element>
+				</qry:out>
+			</qry:select>
+		</qry:define>
+		<qry:define name="LIST:NucleusRH.Base.Sanciones.LegajoSanciones.SUSPENSION_PER">
+			<qry:main doc="PARAM" maxdeep="2">
+				<qry:element name="ROWS">
+					<qry:insert-select doc-path="#PARAM:./SUSPENSION_PER[substring_before(@nmd-status,',')!='~d' and substring_before(@nmd-status,',')!='~x']" name="sql1"/>
+				</qry:element>
+			</qry:main>
+			<qry:select doc="PARAM" name="sql1">
+				<qry:xquery>
+					for $r in #PARAM:
+				</qry:xquery>
+				<qry:out>
+					<qry:element name="ROW">
+						<qry:attribute name="id" value="$r/@id"/>
+						<qry:attribute name="f_fechahora_ini" value="$r/@f_fechahora_ini"/>
+						<qry:attribute name="f_fechahora_fin" value="$r/@f_fechahora_fin"/>
+						<qry:attribute name="e_dias_susp" value="$r/@e_dias_susp"/>
+						<qry:attribute name="f_fechahora_int" value="$r/@f_fechahora_int"/>
+						<qry:attribute name="CODE" value="$r/@CODE"/>
+						<qry:attribute name="TEXT" value="$r/@TEXT"/>
+					</qry:element>
+				</qry:out>
+			</qry:select>
+		</qry:define>
+		<qry:define declare="&lt;PERSONAL_EMP text=&quot;Alvarez, Emanuel&quot; descr=&quot;[1] Alvarez, Emanuel&quot; l_disponib_viajar=&quot;0&quot; f_desde_calendario=&quot;20080401&quot; f_desde_ccosto=&quot;20080401&quot; l_confidencial=&quot;0&quot; l_eventual=&quot;0&quot; e_q_renov_ctrato=&quot;0&quot; e_numero_legajo=&quot;1&quot; f_ingreso=&quot;20080401&quot; id=&quot;13941&quot; ID-TTA04_PERSONAL=&quot;11565&quot;&gt;&#13;&#10;  &lt;oi_mensaje nmd-agr=&quot;1&quot; /&gt;&#13;&#10;  &lt;oi_empresa value=&quot;196&quot; nmd-agr=&quot;1&quot; /&gt;&#13;&#10;  &lt;oi_personal value=&quot;11571&quot; nmd-agr=&quot;1&quot; /&gt;&#13;&#10;  &lt;oi_contrato nmd-agr=&quot;1&quot; /&gt;&#13;&#10;  &lt;oi_posicion_ult nmd-agr=&quot;1&quot; /&gt;&#13;&#10;  &lt;oi_unidad_tiempo nmd-agr=&quot;1&quot; /&gt;&#13;&#10;  &lt;oi_agencia nmd-agr=&quot;1&quot; /&gt;&#13;&#10;  &lt;oi_puesto_ult nmd-agr=&quot;1&quot; /&gt;&#13;&#10;  &lt;oi_ctro_costo_ult value=&quot;288&quot; nmd-agr=&quot;1&quot; /&gt;&#13;&#10;  &lt;oi_categoria_ult nmd-agr=&quot;1&quot; /&gt;&#13;&#10;  &lt;oi_calendario_ult value=&quot;1&quot; nmd-agr=&quot;1&quot; /&gt;&#13;&#10;  &lt;oi_funcion nmd-agr=&quot;1&quot; /&gt;&#13;&#10;  &lt;oi_tipo_personal value=&quot;1&quot; nmd-agr=&quot;1&quot; /&gt;&#13;&#10;  &lt;oi_obra_social nmd-agr=&quot;1&quot; /&gt;&#13;&#10;  &lt;oi_motivo_eg_per nmd-agr=&quot;1&quot; /&gt;&#13;&#10;  &lt;oi_plan_os nmd-agr=&quot;1&quot; /&gt;&#13;&#10;  &lt;oi_sindicato nmd-agr=&quot;1&quot; /&gt;&#13;&#10;  &lt;oi_art nmd-agr=&quot;1&quot; /&gt;&#13;&#10;  &lt;oi_tipo_servicio nmd-agr=&quot;1&quot; /&gt;&#13;&#10;  &lt;oi_seguro_soc nmd-agr=&quot;1&quot; /&gt;&#13;&#10;  &lt;oi_prestadora nmd-agr=&quot;1&quot; /&gt;&#13;&#10;  &lt;oi_plan_presta nmd-agr=&quot;1&quot; /&gt;&#13;&#10;  &lt;oi_indic_activo value=&quot;1&quot; nmd-agr=&quot;1&quot; /&gt;&#13;&#10;  &lt;oi_sit_laboral nmd-agr=&quot;1&quot; /&gt;&#13;&#10;  &lt;oi_forma_pago nmd-agr=&quot;1&quot; /&gt;&#13;&#10;  &lt;oi_ubicacion nmd-agr=&quot;1&quot; /&gt;&#13;&#10;  &lt;oi_equipo_mov_ult nmd-agr=&quot;1&quot; /&gt;&#13;&#10;  &lt;oi_empresa_vinc nmd-agr=&quot;1&quot; /&gt;&#13;&#10;  &lt;NOVEDADES nmd-col=&quot;1&quot;&gt;&#13;&#10;    &lt;NOVEDAD descr=&quot;[1] Alvarez, Emanuel - [20080908] 20080908&quot; e_horafin=&quot;960&quot; e_horainicio=&quot;780&quot; f_fecha=&quot;20080908&quot; d_novedad=&quot;gdfgfd&quot; oi_personal_emp=&quot;11565&quot; id=&quot;4&quot;&gt;&#13;&#10;      &lt;oi_tipohora value=&quot;4&quot; nmd-agr=&quot;1&quot; /&gt;&#13;&#10;      &lt;oi_estructura value=&quot;2&quot; nmd-agr=&quot;1&quot; /&gt;&#13;&#10;    &lt;/NOVEDAD&gt;&#13;&#10;    &lt;NOVEDAD descr=&quot;[1] Alvarez, Emanuel - [20080910] 20080910&quot; e_horafin=&quot;960&quot; e_horainicio=&quot;870&quot; f_fecha=&quot;20080910&quot; d_novedad=&quot;Se retira para ir al medico&quot; oi_personal_emp=&quot;11565&quot; id=&quot;9&quot;&gt;&#13;&#10;      &lt;oi_tipohora value=&quot;1005&quot; nmd-agr=&quot;1&quot; /&gt;&#13;&#10;      &lt;oi_estructura value=&quot;2&quot; nmd-agr=&quot;1&quot; /&gt;&#13;&#10;    &lt;/NOVEDAD&gt;&#13;&#10;    &lt;NOVEDAD descr=&quot;[1] Alvarez, Emanuel - [20080910] 20080910&quot; e_horafin=&quot;1320&quot; e_horainicio=&quot;1020&quot; f_fecha=&quot;20080910&quot; d_novedad=&quot;nofrmal&quot; oi_personal_emp=&quot;11565&quot; id=&quot;5&quot;&gt;&#13;&#10;      &lt;oi_tipohora value=&quot;1000&quot; nmd-agr=&quot;1&quot; /&gt;&#13;&#10;      &lt;oi_estructura value=&quot;2&quot; nmd-agr=&quot;1&quot; /&gt;&#13;&#10;    &lt;/NOVEDAD&gt;&#13;&#10;    &lt;NOVEDAD descr=&quot;[1] Alvarez, Emanuel - [20080912] 20080912&quot; e_horafin=&quot;360&quot; e_horainicio=&quot;120&quot; f_fecha=&quot;20080912&quot; d_novedad=&quot;pg&quot; oi_personal_emp=&quot;11565&quot; id=&quot;6&quot;&gt;&#13;&#10;      &lt;oi_tipohora value=&quot;1011&quot; nmd-agr=&quot;1&quot; /&gt;&#13;&#10;      &lt;oi_estructura value=&quot;2&quot; nmd-agr=&quot;1&quot; /&gt;&#13;&#10;    &lt;/NOVEDAD&gt;&#13;&#10;  &lt;/NOVEDADES&gt;&#13;&#10;  &lt;HORARIOSPERS nmd-col=&quot;1&quot;&gt;&#13;&#10;    &lt;HORARIOPERS descr=&quot;[1] Alvarez, Emanuel - [20080707] Fijo de 08 a 16 Con Horas Extras&quot; f_fechaInicio=&quot;20080707&quot; oi_personal_emp=&quot;11565&quot; id=&quot;1876&quot;&gt;&#13;&#10;      &lt;oi_horario value=&quot;48&quot; nmd-agr=&quot;1&quot; /&gt;&#13;&#10;      &lt;oi_escuadra nmd-agr=&quot;1&quot; /&gt;&#13;&#10;    &lt;/HORARIOPERS&gt;&#13;&#10;  &lt;/HORARIOSPERS&gt;&#13;&#10;  &lt;TIPOSHORAAUT nmd-col=&quot;1&quot;&gt;&#13;&#10;    &lt;TIPOHORAAUT descr=&quot;[1] Alvarez, Emanuel - [20080825] 20080829&quot; c_estado=&quot;P&quot; e_horainicio=&quot;960&quot; e_horafin=&quot;1440&quot; f_hasta=&quot;20080829&quot; f_desde=&quot;20080825&quot; d_tipohoraaut=&quot;HE&quot; oi_personal_emp=&quot;11565&quot; id=&quot;13&quot; /&gt;&#13;&#10;    &lt;TIPOHORAAUT descr=&quot;[1] Alvarez, Emanuel - [20080826] 20080829&quot; c_estado=&quot;P&quot; e_horainicio=&quot;300&quot; e_horafin=&quot;780&quot; f_hasta=&quot;20080829&quot; f_desde=&quot;20080826&quot; d_tipohoraaut=&quot;Extra 100&quot; oi_personal_emp=&quot;11565&quot; id=&quot;12&quot; /&gt;&#13;&#10;  &lt;/TIPOSHORAAUT&gt;&#13;&#10;  &lt;ALQ_PER nmd-col=&quot;1&quot; /&gt;&#13;&#10;  &lt;CATEG_PER nmd-col=&quot;1&quot; /&gt;&#13;&#10;  &lt;CCOSTO_PER nmd-col=&quot;1&quot;&gt;&#13;&#10;    &lt;CCOSTO_PER descr=&quot;[1] Alvarez, Emanuel - [1000] Administraci&amp;#243;n&quot; f_ingreso=&quot;20080401&quot; oi_personal_emp=&quot;11565&quot; id=&quot;632&quot;&gt;&#13;&#10;      &lt;oi_centro_costo value=&quot;288&quot; nmd-agr=&quot;1&quot; /&gt;&#13;&#10;      &lt;oi_motivo_cambio nmd-agr=&quot;1&quot; /&gt;&#13;&#10;    &lt;/CCOSTO_PER&gt;&#13;&#10;  &lt;/CCOSTO_PER&gt;&#13;&#10;  &lt;CONTR_PER nmd-col=&quot;1&quot; /&gt;&#13;&#10;  &lt;DSANG_PER nmd-col=&quot;1&quot; /&gt;&#13;&#10;  &lt;NOT_CTR_TEMP nmd-col=&quot;1&quot; /&gt;&#13;&#10;  &lt;POSIC_PER nmd-col=&quot;1&quot; /&gt;&#13;&#10;  &lt;PUESTO_PER nmd-col=&quot;1&quot; /&gt;&#13;&#10;  &lt;TIPOSP_PER nmd-col=&quot;1&quot;&gt;&#13;&#10;    &lt;TIPOP_PER descr=&quot;[1] Alvarez, Emanuel - [1] Mensualizado &quot; f_ingreso=&quot;20080401&quot; oi_personal_emp=&quot;11565&quot; id=&quot;408&quot;&gt;&#13;&#10;      &lt;oi_tipo_personal value=&quot;1&quot; nmd-agr=&quot;1&quot; /&gt;&#13;&#10;      &lt;oi_motivo_cambio nmd-agr=&quot;1&quot; /&gt;&#13;&#10;    &lt;/TIPOP_PER&gt;&#13;&#10;  &lt;/TIPOSP_PER&gt;&#13;&#10;  &lt;LICEN_PER nmd-col=&quot;1&quot;&gt;&#13;&#10;    &lt;LICENCIA_PER descr=&quot;[1] Alvarez, Emanuel - [20080908] &quot; l_bloqueada=&quot;0&quot; e_anio_corresp=&quot;2008&quot; e_cant_dias=&quot;2&quot; f_fin=&quot;20080909&quot; f_inicio=&quot;20080908&quot; oi_personal_emp=&quot;11565&quot; id=&quot;78&quot;&gt;&#13;&#10;      &lt;oi_licencia value=&quot;1&quot; nmd-agr=&quot;1&quot; /&gt;&#13;&#10;    &lt;/LICENCIA_PER&gt;&#13;&#10;  &lt;/LICEN_PER&gt;&#13;&#10;  &lt;INGRESOS_PER nmd-col=&quot;1&quot;&gt;&#13;&#10;    &lt;INGRESOS_PER descr=&quot;[1] Alvarez, Emanuel - [20080401] &quot; f_ingreso=&quot;20080401&quot; oi_personal_emp=&quot;11565&quot; id=&quot;216&quot;&gt;&#13;&#10;      &lt;oi_motivo_eg_per nmd-agr=&quot;1&quot; /&gt;&#13;&#10;    &lt;/INGRESOS_PER&gt;&#13;&#10;  &lt;/INGRESOS_PER&gt;&#13;&#10;  &lt;BENEF_PER nmd-col=&quot;1&quot; /&gt;&#13;&#10;  &lt;EPP_PER nmd-col=&quot;1&quot; /&gt;&#13;&#10;  &lt;UNIF_PER nmd-col=&quot;1&quot; /&gt;&#13;&#10;  &lt;BS_CARGO_PER nmd-col=&quot;1&quot; /&gt;&#13;&#10;  &lt;TEMP_PER nmd-col=&quot;1&quot; /&gt;&#13;&#10;  &lt;CALENDARIO_PER nmd-col=&quot;1&quot;&gt;&#13;&#10;    &lt;CALENDARIO_PER descr=&quot;[1] Alvarez, Emanuel - [STD] Estandard&quot; f_desde=&quot;20080401&quot; oi_personal_emp=&quot;11565&quot; id=&quot;211&quot;&gt;&#13;&#10;      &lt;oi_calendario value=&quot;1&quot; nmd-agr=&quot;1&quot; /&gt;&#13;&#10;      &lt;oi_motivo_cambio nmd-agr=&quot;1&quot; /&gt;&#13;&#10;    &lt;/CALENDARIO_PER&gt;&#13;&#10;  &lt;/CALENDARIO_PER&gt;&#13;&#10;  &lt;EQUIPO_PER nmd-col=&quot;1&quot; /&gt;&#13;&#10;  &lt;REMUN_PER nmd-col=&quot;1&quot; /&gt;&#13;&#10;&lt;/PERSONAL_EMP&gt;&#13;&#10;" name="QRY_DATOS_PER">
+			<qry:main doc="SOURCE">
+				<qry:element name="DATOS">
+					<qry:insert-select doc-path="#SOURCE:PERSONAL_EMP" name="RS1"/>
+					<qry:attribute value="'0'" name="oi_horario"/>
+					<qry:attribute value="'0'" name="oi_escuadra"/>
+					<qry:insert-select doc-path="#SOURCE:PERSONAL_EMP/HORARIOSPERS" name="RS2"/>
+				</qry:element>
+			</qry:main>
+			<qry:select name="RS1" doc="SOURCE">
+				<qry:xquery>
+					for $r in SQL('
+			SELECT
+				PER01_PERSONAL.d_apellido,
+				PER01_PERSONAL.d_nombres,
+				PER01_PERSONAL.d_ape_y_nom,
+				PER01_PERSONAL.oi_tipo_documento,
+				PER01_PERSONAL.c_nro_documento,
+				PER01_PERSONAL.c_personal,
+				PER01_PERSONAL.c_sexo,
+				PER01_PERSONAL.oi_foto
+			FROM
+				PER01_PERSONAL, PER02_PERSONAL_EMP
+			JOIN
+				PER01_PERSONAL.oi_personal INNER PER02_PERSONAL_EMP.oi_personal
+			WHERE
+				PER02_PERSONAL_EMP.oi_personal_emp = {#SOURCE:@id} 
+		')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:attribute value="$r/@d_apellido" name="d_apellido"/>
+					<qry:attribute value="$r/@d_nombres" name="d_nombres"/>
+					<qry:attribute value="$r/@d_ape_y_nom" name="d_ape_y_nom"/>
+					<qry:attribute value="$r/@oi_tipo_documento" name="oi_tipo_documento"/>
+					<qry:attribute value="$r/@c_nro_documento" name="c_nro_documento"/>
+					<qry:attribute value="$r/@c_personal" name="c_personal"/>
+					<qry:attribute value="$r/@c_sexo" name="c_sexo"/>
+					<qry:attribute value="$r/@oi_foto" name="oi_foto"/>
+				</qry:out>
+			</qry:select>
+			<qry:select name="RS2" doc="SOURCE">
+				<qry:xquery>
+					for $r in #SOURCE:HORARIOPERS[@f_fechaInicio&lt;=String(now()) AND (@f_fechafin&gt;=String(now()) OR @f_fechafin='')]
+				</qry:xquery>
+				<qry:out>
+					<qry:attribute value="iif($r/oi_horario/@value!='',$r/oi_horario/@value,'0')" name="oi_horario"/>
+					<qry:attribute value="iif($r/oi_escuadra/@value!='',$r/oi_escuadra/@value,'0')" name="oi_escuadra"/>
+					<qry:attribute value="iif($r/@f_fechaInicio!='',$r/@f_fechaInicio,'0')" name="f_fechaInicio"/>
+				</qry:out>
+			</qry:select>
+		</qry:define>
+		<doc:define name="PER"/>
+	</flow:declare>
+	<flow:main doc="SOURCE">
+		<flow:action name="initialize">
+			<flow:open-form form-class="NucleusRH.Base.Sanciones.LegajoSanciones.filter.form" doc-path="#FILTERDATA:" mode="FILTER"/>
+		</flow:action>
+	</flow:main>
+	<flow:group Name="PERSONAL_EMP">
+		<flow:form extends="NucleusRH.Base.Sanciones.LegajoSanciones.PERSONAL_EMP.filter.autoform:FILTER" form-class="NucleusRH.Base.Sanciones.LegajoSanciones.filter.form" name="NucleusRH.Base.Sanciones.LegajoEmpresa.filter.form" doc="FILTERDATA" mode="FILTER">
+			<flow:action name="on-show">
+				<flow:call-action action="inits-DDO"/>
+				<flow:load-user-data name="PER_IDsLegajossan" doc="QRY"/>
+				<flow:attach-doc attach-id="ARRB" doc-path="#QRY:"/>
+			</flow:action>
+			<flow:action name="FILTER">
+				<flow:load-user-data name="PER_IDsLegajossan" doc="QRY"/>
+				<flow:call-action action="Save-FILTER"/>
+				<flow:call-action action="open-flow-SHOW"/>
+			</flow:action>
+		</flow:form>
+		<flow:form extends="NucleusRH.Base.Sanciones.LegajoSanciones.PERSONAL_EMP.noreg.autoform:EDIT" parent-doc="PARENTSOURCE" doc="SOURCE" name="NucleusRH.Base.Sanciones.LegajoSanciones.PERSONAL_EMP.noreg.form:EDIT" form-class="NucleusRH.Base.Sanciones.LegajoSanciones.PERSONAL_EMP.noreg.autoform" mode="EDIT">
+			<flow:action name="goto-list">
+				<flow:log text-path="#QRY:" text="ppqry"/>
+				<doc:load-qry output-doc="QRY_LIST" qry="LIST" input-doc-path="#QRY:"/>
+				<flow:call-action action="open-flow-LIST"/>
+			</flow:action>
+			<flow:action name="goto-show">
+				<flow:call-action action="open-flow-SHOW"/>
+			</flow:action>
+			<flow:action name="open-flow-SHOW">
+				<flow:open-form iter-index="#QRY:ROW/@id" parent-doc-path="#QRY:" doc-path="#DDO:" mode="SHOW" form-class="NucleusRH.Base.Sanciones.LegajoSanciones.PERSONAL_EMP.form"/>
+			</flow:action>
+			<flow:action name="open-flow-ADD">
+				<flow:open-form doc-path="#NEWDDOROOT:" mode="NEW" form-class="NucleusRH.Base.Sanciones.LegajoSanciones.PERSONAL_EMP.form"/>
+			</flow:action>
+			<flow:action name="open-flow-LIST">
+				<flow:open-form iter-index="#QRY_LIST:ROW/@id" parent-doc-path="#QRY_LIST:" doc-path="#DDO:" mode="LIST" form-class="NucleusRH.Base.Sanciones.LegajoSanciones.PERSONAL_EMP.form"/>
+			</flow:action>
+		</flow:form>
+		<flow:form extends="NucleusRH.Base.Sanciones.LegajoSanciones.PERSONAL_EMP.autoform:SHOW" parent-doc="PARENTSOURCE" doc="SOURCE" name="NucleusRH.Base.Sanciones.LegajoSanciones.PERSONAL_EMP.form:SHOW" form-class="NucleusRH.Base.Sanciones.LegajoSanciones.PERSONAL_EMP.form" mode="SHOW">
+			<flow:action name="open-flow-EDIT">
+				<flow:open-form doc-path="#DDO:" mode="EDIT" form-class="NucleusRH.Base.Sanciones.LegajoSanciones.PERSONAL_EMP.form"/>
+			</flow:action>
+			<flow:action name="open-flow-ADD">
+				<flow:open-form doc-path="#NEWDDOROOT:" mode="NEW" form-class="NucleusRH.Base.Sanciones.LegajoSanciones.PERSONAL_EMP.form"/>
+			</flow:action>
+			<flow:action name="After-Change">
+				<doc:iter-refresh/>
+				<doc:iter-move value-path="#DDO:@id"/>
+				<doc:load-qry input-doc-path="#DDO:" output-doc="PER" qry="QRY_DATOS_PER"/>
+			</flow:action>
+			<flow:action name="on-show">
+				<doc:load-qry input-doc-path="#DDO:" output-doc="PER" qry="QRY_DATOS_PER"/>
+			</flow:action>
+			<flow:action name="After-Back">
+				<doc:iter-refresh/>
+				<doc:load-qry input-doc-path="#DDO:" output-doc="PER" qry="QRY_DATOS_PER"/>
+			</flow:action>
+			<flow:action name="on-move-iterator">
+				<flow:call-action action="load-DDO"/>
+				<doc:load-qry input-doc-path="#DDO:" output-doc="PER" qry="QRY_DATOS_PER"/>
+			</flow:action>
+		</flow:form>
+		<flow:form extends="NucleusRH.Base.Sanciones.LegajoSanciones.PERSONAL_EMP.autoform:LIST" parent-doc="PARENTSOURCE" doc="SOURCE" name="NucleusRH.Base.Sanciones.LegajoSanciones.PERSONAL_EMP.form:LIST" form-class="NucleusRH.Base.Sanciones.LegajoSanciones.PERSONAL_EMP.form" mode="LIST">
+			<flow:action name="open-flow-EDIT">
+				<doc:load-qry input-doc-path="#DDO:" output-doc="PER" qry="QRY_DATOS_PER"/>
+				<flow:open-form doc-path="#DDO:" mode="EDIT" form-class="NucleusRH.Base.Sanciones.LegajoSanciones.PERSONAL_EMP.form"/>
+			</flow:action>
+			<flow:action name="open-flow-ADD">
+				<flow:open-form doc-path="#NEWDDOROOT:" mode="NEW" form-class="NucleusRH.Base.Sanciones.LegajoSanciones.PERSONAL_EMP.form"/>
+			</flow:action>
+			<flow:action name="After-Change">
+				<doc:load-qry output-doc="QRY_LIST" qry="LIST" input-doc-path="#QRY:"/>
+				<doc:set-attribute to-attr-path="#FORM:ctrl[@id='LIST']/@xval" from-attr-path="#DDO:@id"/>
+			</flow:action>
+			<flow:action name="After-Back">
+				<flow:log text-path="#QRY:" text="ppback"/>
+				<doc:load-qry output-doc="QRY_LIST" qry="LIST" input-doc-path="#QRY:"/>
+			</flow:action>
+		</flow:form>
+		<flow:form extends="NucleusRH.Base.Sanciones.LegajoSanciones.PERSONAL_EMP.autoform:EDIT" parent-doc="PARENTSOURCE" doc="SOURCE" name="NucleusRH.Base.Sanciones.LegajoSanciones.PERSONAL_EMP.form:EDIT" form-class="NucleusRH.Base.Sanciones.LegajoSanciones.PERSONAL_EMP.form" mode="EDIT"/>
+		<flow:form extends="NucleusRH.Base.Sanciones.LegajoSanciones.PERSONAL_EMP.autoform:NEW" parent-doc="PARENTSOURCE" doc="SOURCE" name="NucleusRH.Base.Sanciones.LegajoSanciones.PERSONAL_EMP.form:NEW" form-class="NucleusRH.Base.Sanciones.LegajoSanciones.PERSONAL_EMP.form" mode="NEW"/>
+	</flow:group>
+	<flow:group Name="SANCION_PER">
+		<flow:form extends="NucleusRH.Base.Sanciones.LegajoSanciones.SANCION_PER.noreg.autoform:SHOW" parent-doc="PARENTSOURCE" doc="SOURCE" name="NucleusRH.Base.Sanciones.LegajoSanciones.SANCION_PER.noreg.form:SHOW" form-class="NucleusRH.Base.Sanciones.LegajoSanciones.SANCION_PER.noreg.autoform" mode="SHOW">
+			<flow:action name="open-flow-SHOW">
+				<flow:open-form iter-index="#PARENTSOURCE:SANCION_PER/@id" parent-doc-path="#PARENTSOURCE:" doc-path="#PARENTSOURCE:" mode="SHOW" form-class="NucleusRH.Base.Sanciones.LegajoSanciones.SANCION_PER.form"/>
+			</flow:action>
+			<flow:action name="open-flow-LIST">
+				<flow:open-form iter-index="#PARENTSOURCE:SANCION_PER/@id" parent-doc-path="#PARENTSOURCE:" doc-path="#PARENTSOURCE:" mode="LIST" form-class="NucleusRH.Base.Sanciones.LegajoSanciones.SANCION_PER.form"/>
+			</flow:action>
+		</flow:form>
+		<flow:form extends="NucleusRH.Base.Sanciones.LegajoSanciones.SANCION_PER.autoform:SHOW" doc-path="/SANCION_PER[@id='{#iter-cursor:@value}']" parent-doc="PARENTSOURCE" doc="SOURCE" name="NucleusRH.Base.Sanciones.LegajoSanciones.SANCION_PER.form:SHOW" form-class="NucleusRH.Base.Sanciones.LegajoSanciones.SANCION_PER.form" mode="SHOW">
+			<flow:action name="ACEPTAR">
+				<flow:log text-path="#FORM:ctrl[@id='notifica']" text="ppnotif"/>
+				<flow:exec-method class="NucleusRH.Base.Sanciones.LegajoSanciones.PERSONAL_EMP" this-doc="DDO" method="AceptarSancion">
+					<flow:param attr-path="#PARENTSOURCE:SANCION_PER[@id='{#SOURCE:@id}']/@id" name="idsancion" type="Nomad.NSystem.String" mode="in"/>
+				</flow:exec-method>
+				<flow:call-action eq="1" if="#FORM:ctrl[@id='notifica']/@xval" action="NOTIFICAR"/>
+			</flow:action>
+			<flow:action name="RECHAZAR">
+				<doc:set-attribute to-attr-path="#PARENTSOURCE:SANCION_PER[@id='{#SOURCE:@id}']/@c_estado" from-value="R"/>
+				<doc:set-attribute to-attr-path="#PARENTSOURCE:SANCION_PER[@id='{#SOURCE:@id}']/@f_estado" from-attr-path="#FORM:ctrl[@id='fecha']/@xval"/>
+				<doc:save-object class="NucleusRH.Base.Sanciones.LegajoSanciones.PERSONAL_EMP" doc="DDO"/>
+			</flow:action>
+			<flow:action name="PENDIENTE">
+				<doc:set-attribute to-attr-path="#PARENTSOURCE:SANCION_PER[@id='{#SOURCE:@id}']/@c_estado" from-value="P"/>
+				<doc:set-attribute to-attr-path="#PARENTSOURCE:SANCION_PER[@id='{#SOURCE:@id}']/@f_estado" from-attr-path="#FORM:ctrl[@id='fecha']/@xval"/>
+				<doc:save-object class="NucleusRH.Base.Sanciones.LegajoSanciones.PERSONAL_EMP" doc="DDO"/>
+			</flow:action>
+			<flow:action name="CANCELAR">
+				<doc:set-attribute to-attr-path="#PARENTSOURCE:SANCION_PER[@id='{#SOURCE:@id}']/@c_estado" from-value="C"/>
+				<doc:set-attribute to-attr-path="#PARENTSOURCE:SANCION_PER[@id='{#SOURCE:@id}']/@f_estado" from-attr-path="#FORM:ctrl[@id='fecha']/@xval"/>
+				<doc:save-object class="NucleusRH.Base.Sanciones.LegajoSanciones.PERSONAL_EMP" doc="DDO"/>
+			</flow:action>
+			<flow:action name="NOTIFICAR">
+				<doc:set-attribute from-attr-path="#PARENTSOURCE:SANCION_PER[@id='{#SOURCE:@id}']/@id" to-attr-path="#NOTIF:@oi_sancion_per"/>
+				<flow:exec-method method="ExecReportHTML" out-attr-path="#BATCHDOC:@batch-id" priority="9" class="Nomad.Base.Report.GeneralReport.REPORT">
+					<flow:param value="NucleusRH.Base.Sanciones.Notificacion.rpt" type="Nomad.NSystem.String" mode="in" name="ReportName"/>
+					<flow:param doc-path="#NOTIF:" name="paramIN" type="Nomad.NSystem.Proxy.NomadXML" mode="in"/>
+				</flow:exec-method>
+				<flow:open-form form-class="Nomad.base.HTML_XLS.form" parent-doc-path="#SOURCE:" mode="SHOW" doc-path="#BATCHDOC:"/>
+			</flow:action>
+			<flow:action name="ANULAR">
+				<flow:log text-path="#FORM:ctrl[@id='notifica']" text="ppANUL"/>
+				<flow:exec-method class="NucleusRH.Base.Sanciones.LegajoSanciones.PERSONAL_EMP" this-doc="DDO" method="AnularSancion">
+					<flow:param attr-path="#PARENTSOURCE:SANCION_PER[@id='{#SOURCE:@id}']/@id" name="idsancion" type="Nomad.NSystem.String" mode="in"/>
+				</flow:exec-method>
+			</flow:action>
+		</flow:form>
+		<flow:form extends="NucleusRH.Base.Sanciones.LegajoSanciones.SANCION_PER.autoform:LIST" doc-path="/SANCION_PER[@id='{#iter-cursor:@value}']" parent-doc="PARENTSOURCE" doc="SOURCE" name="NucleusRH.Base.Sanciones.LegajoSanciones.SANCION_PER.form:LIST" form-class="NucleusRH.Base.Sanciones.LegajoSanciones.SANCION_PER.form" mode="LIST">
+			<flow:action name="ACEPTAR">
+				<flow:call-action action="on-show"/>
+				<flow:exec-method class="NucleusRH.Base.Sanciones.LegajoSanciones.PERSONAL_EMP" this-doc="DDO" method="AceptarSancion">
+					<flow:param attr-path="#PARENTSOURCE:SANCION_PER[@id='{#FORM:ctrl[@id='LIST']/@xval}']/@id" name="idsancion" type="Nomad.NSystem.String" mode="in"/>
+				</flow:exec-method>
+				<flow:call-action action="load-child-LIST"/>
+				<flow:call-action action="on-show"/>
+				<flow:call-action eq="1" if="#FORM:ctrl[@id='notifica']/@xval" action="NOTIFICAR"/>
+			</flow:action>
+			<flow:action name="RECHAZAR">
+				<doc:set-attribute to-attr-path="#PARENTSOURCE:SANCION_PER[@id='{#FORM:ctrl[@id='LIST']/@xval}']/@c_estado" from-value="R"/>
+				<doc:set-attribute to-attr-path="#PARENTSOURCE:SANCION_PER[@id='{#FORM:ctrl[@id='LIST']/@xval}']/@f_estado" from-attr-path="#FORM:ctrl[@id='fecha']/@xval"/>
+				<doc:save-object class="NucleusRH.Base.Sanciones.LegajoSanciones.PERSONAL_EMP" doc="DDO"/>
+				<flow:call-action action="load-child-LIST"/>
+				<flow:call-action action="on-show"/>
+			</flow:action>
+			<flow:action name="PENDIENTE">
+				<doc:set-attribute to-attr-path="#PARENTSOURCE:SANCION_PER[@id='{#FORM:ctrl[@id='LIST']/@xval}']/@c_estado" from-value="P"/>
+				<doc:set-attribute to-attr-path="#PARENTSOURCE:SANCION_PER[@id='{#FORM:ctrl[@id='LIST']/@xval}']/@f_estado" from-attr-path="#FORM:ctrl[@id='fecha']/@xval"/>
+				<doc:save-object class="NucleusRH.Base.Sanciones.LegajoSanciones.PERSONAL_EMP" doc="DDO"/>
+				<flow:call-action action="load-child-LIST"/>
+				<flow:call-action action="on-show"/>
+			</flow:action>
+			<flow:action name="CANCELAR">
+				<doc:set-attribute to-attr-path="#PARENTSOURCE:SANCION_PER[@id='{#FORM:ctrl[@id='LIST']/@xval}']/@c_estado" from-value="C"/>
+				<doc:set-attribute to-attr-path="#PARENTSOURCE:SANCION_PER[@id='{#FORM:ctrl[@id='LIST']/@xval}']/@f_estado" from-attr-path="#FORM:ctrl[@id='fecha']/@xval"/>
+				<doc:save-object class="NucleusRH.Base.Sanciones.LegajoSanciones.PERSONAL_EMP" doc="DDO"/>
+				<flow:call-action action="load-child-LIST"/>
+				<flow:call-action action="on-show"/>
+			</flow:action>
+			<flow:action name="NOTIFICAR">
+				<doc:set-attribute from-attr-path="#PARENTSOURCE:SANCION_PER[@id='{#FORM:ctrl[@id='LIST']/@xval}']/@id" to-attr-path="#NOTIF:@oi_sancion_per"/>
+				<flow:exec-method method="ExecReportHTML" out-attr-path="#BATCHDOC:@batch-id" priority="9" class="Nomad.Base.Report.GeneralReport.REPORT">
+					<flow:param value="NucleusRH.Base.Sanciones.Notificacion.rpt" type="Nomad.NSystem.String" mode="in" name="ReportName"/>
+					<flow:param doc-path="#NOTIF:" name="paramIN" type="Nomad.NSystem.Proxy.NomadXML" mode="in"/>
+				</flow:exec-method>
+				<flow:open-form form-class="Nomad.base.HTML_XLS.form" parent-doc-path="#SOURCE:" mode="SHOW" doc-path="#BATCHDOC:"/>
+			</flow:action>
+			<flow:action name="ANULAR">
+				<flow:call-action action="on-show"/>
+				<flow:exec-method class="NucleusRH.Base.Sanciones.LegajoSanciones.PERSONAL_EMP" this-doc="DDO" method="AnularSancion">
+					<flow:param attr-path="#PARENTSOURCE:SANCION_PER[@id='{#FORM:ctrl[@id='LIST']/@xval}']/@id" name="idsancion" type="Nomad.NSystem.String" mode="in"/>
+				</flow:exec-method>
+				<flow:call-action action="load-child-LIST"/>
+				<flow:call-action action="on-show"/>
+			</flow:action>
+		</flow:form>
+		<flow:form extends="NucleusRH.Base.Sanciones.LegajoSanciones.SANCION_PER.autoform:LIST_EDIT" doc-path="/SANCION_PER[@id='{#iter-cursor:@value}']" parent-doc="PARENTSOURCE" doc="SOURCE" name="NucleusRH.Base.Sanciones.LegajoSanciones.SANCION_PER.form:LIST_EDIT" form-class="NucleusRH.Base.Sanciones.LegajoSanciones.SANCION_PER.form" mode="LIST_EDIT">
+			<flow:action name="open-flow-ADD">
+				<flow:open-form parent-doc-path="#PARENTSOURCE:" doc-path="#NEWDDO:" mode="NEW" form-class="NucleusRH.Base.Sanciones.LegajoSanciones.SANCION_PER.form"/>
+			</flow:action>
+			<flow:action name="open-flow-LIST">
+				<flow:open-form iter-index="#PARENTSOURCE:SANCION_PER/@id" parent-doc-path="#PARENTSOURCE:" doc-path="#PARENTSOURCE:" mode="LIST_EDIT" form-class="NucleusRH.Base.Sanciones.LegajoSanciones.SANCION_PER.form"/>
+			</flow:action>
+		</flow:form>
+		<flow:form extends="NucleusRH.Base.Sanciones.LegajoSanciones.SANCION_PER.noreg.autoform:EDIT" parent-doc="PARENTSOURCE" doc="SOURCE" name="NucleusRH.Base.Sanciones.LegajoSanciones.SANCION_PER.noreg.form:EDIT" form-class="NucleusRH.Base.Sanciones.LegajoSanciones.SANCION_PER.noreg.autoform" mode="EDIT">
+			<flow:action name="open-flow-EDIT">
+				<flow:open-form iter-index="#PARENTSOURCE:SANCION_PER/@id" parent-doc-path="#PARENTSOURCE:" doc-path="#PARENTSOURCE:" mode="EDIT" form-class="NucleusRH.Base.Sanciones.LegajoSanciones.SANCION_PER.form"/>
+			</flow:action>
+			<flow:action name="open-flow-ADD">
+				<flow:open-form parent-doc-path="#PARENTSOURCE:" doc-path="#NEWDDO:" mode="NEW" form-class="NucleusRH.Base.Sanciones.LegajoSanciones.SANCION_PER.form"/>
+			</flow:action>
+			<flow:action name="open-flow-LIST">
+				<flow:open-form iter-index="#PARENTSOURCE:SANCION_PER/@id" parent-doc-path="#PARENTSOURCE:" doc-path="#PARENTSOURCE:" mode="LIST_EDIT" form-class="NucleusRH.Base.Sanciones.LegajoSanciones.SANCION_PER.form"/>
+			</flow:action>
+		</flow:form>
+		<flow:form extends="NucleusRH.Base.Sanciones.LegajoSanciones.SANCION_PER.autoform:EDIT" doc-path="/SANCION_PER[@id='{#iter-cursor:@value}']" parent-doc="PARENTSOURCE" doc="SOURCE" name="NucleusRH.Base.Sanciones.LegajoSanciones.SANCION_PER.form:EDIT" form-class="NucleusRH.Base.Sanciones.LegajoSanciones.SANCION_PER.form" mode="EDIT">
+			<flow:action name="open-flow-ADD">
+				<flow:open-form parent-doc-path="#PARENTSOURCE:" doc-path="#NEWDDO:" mode="NEW" form-class="NucleusRH.Base.Sanciones.LegajoSanciones.SANCION_PER.form"/>
+			</flow:action>
+			<flow:action name="ADD">
+				<doc:check-ak show-msg="1" out-attr="#QRY_ID:@id" parent-doc-path="#PARENTSOURCE:"/>
+				<flow:call-action action="new-DDO"/>
+				<flow:call-action action="open-flow-ADD"/>
+			</flow:action>
+			<flow:action name="ITER:FIRST">
+				<doc:check-ak show-msg="1" out-attr="#QRY_ID:@id" parent-doc-path="#PARENTSOURCE:"/>
+				<doc:iter-first/>
+			</flow:action>
+			<flow:action name="ITER:PREV">
+				<doc:check-ak show-msg="1" out-attr="#QRY_ID:@id" parent-doc-path="#PARENTSOURCE:"/>
+				<doc:iter-prev/>
+			</flow:action>
+			<flow:action name="ITER:NEXT">
+				<doc:check-ak show-msg="1" out-attr="#QRY_ID:@id" parent-doc-path="#PARENTSOURCE:"/>
+				<doc:iter-next/>
+			</flow:action>
+			<flow:action name="ITER:LAST">
+				<doc:check-ak show-msg="1" out-attr="#QRY_ID:@id" parent-doc-path="#PARENTSOURCE:"/>
+				<doc:iter-last/>
+			</flow:action>
+			<flow:action name="ITER:MOVETO">
+				<doc:check-ak show-msg="1" out-attr="#QRY_ID:@id" parent-doc-path="#PARENTSOURCE:"/>
+				<doc:iter-move position-path="#FORM:ctrl[@id='iter_position']/@xval"/>
+			</flow:action>
+			<flow:action name="LIST">
+				<doc:check-ak show-msg="1" out-attr="#QRY_ID:@id" parent-doc-path="#PARENTSOURCE:"/>
+				<doc:set-attribute to-attr-path="#QRY_ID:@id" from-attr-path="#SOURCE:@id"/>
+				<flow:close-form next-action="goto-list"/>
+			</flow:action>
+			<flow:action name="BACK">
+				<doc:check-ak show-msg="1" out-attr="#QRY_ID:@id" parent-doc-path="#PARENTSOURCE:"/>
+				<flow:close-form next-action="After-Back"/>
+			</flow:action>
+			<flow:action name="PARENT">
+				<doc:check-ak show-msg="1" out-attr="#QRY_ID:@id" parent-doc-path="#PARENTSOURCE:"/>
+				<flow:close-form next-action="PARENT"/>
+			</flow:action>
+		</flow:form>
+		<flow:form extends="NucleusRH.Base.Sanciones.LegajoSanciones.SANCION_PER.autoform:NEW" parent-doc="PARENTSOURCE" doc="SOURCE" name="NucleusRH.Base.Sanciones.LegajoSanciones.SANCION_PER.form:NEW" form-class="NucleusRH.Base.Sanciones.LegajoSanciones.SANCION_PER.form" mode="NEW">
+			<flow:action name="CALL:DOC_DIG_SANP">
+				<flow:open-form iter-index="#SOURCE:DOC_DIG_SAN_PER/DOC_DIG_SANP/@id" parent-doc-path="#SOURCE:DOC_DIG_SAN_PER" doc-path="#SOURCE:DOC_DIG_SAN_PER" mode="EDIT" form-class="NucleusRH.Base.Sanciones.LegajoSanciones.DOC_DIG_SANP.noreg.autoform"/>
+			</flow:action>
+			<flow:action name="After-Back"/>
+			<flow:action name="After-Change"/>
+		</flow:form>
+	</flow:group>
+	<flow:group Name="SUSPENSION_PER">
+		<flow:form extends="NucleusRH.Base.Sanciones.LegajoSanciones.SUSPENSION_PER.noreg.autoform:SHOW" parent-doc="PARENTSOURCE" doc="SOURCE" name="NucleusRH.Base.Sanciones.LegajoSanciones.SUSPENSION_PER.noreg.form:SHOW" form-class="NucleusRH.Base.Sanciones.LegajoSanciones.SUSPENSION_PER.noreg.autoform" mode="SHOW">
+			<flow:action name="open-flow-SHOW">
+				<flow:open-form iter-index="#PARENTSOURCE:SUSPENSION_PER/@id" parent-doc-path="#PARENTSOURCE:" doc-path="#PARENTSOURCE:" mode="SHOW" form-class="NucleusRH.Base.Sanciones.LegajoSanciones.SUSPENSION_PER.form"/>
+			</flow:action>
+			<flow:action name="open-flow-LIST">
+				<flow:open-form iter-index="#PARENTSOURCE:SUSPENSION_PER/@id" parent-doc-path="#PARENTSOURCE:" doc-path="#PARENTSOURCE:" mode="LIST" form-class="NucleusRH.Base.Sanciones.LegajoSanciones.SUSPENSION_PER.form"/>
+			</flow:action>
+		</flow:form>
+		<flow:form extends="NucleusRH.Base.Sanciones.LegajoSanciones.SUSPENSION_PER.autoform:SHOW" doc-path="/SUSPENSION_PER[@id='{#iter-cursor:@value}']" parent-doc="PARENTSOURCE" doc="SOURCE" name="NucleusRH.Base.Sanciones.LegajoSanciones.SUSPENSION_PER.form:SHOW" form-class="NucleusRH.Base.Sanciones.LegajoSanciones.SUSPENSION_PER.form" mode="SHOW">
+			<flow:action name="INTERRUMPIR">
+				<flow:open-form form-class="NucleusRH.Base.Sanciones.LegajoSanciones.SUSPENSION_PER.ALTA.form" parent-doc-path="#PARENTSOURCE:" doc-path="#SOURCE:" mode="SHOW"/>
+			</flow:action>
+		</flow:form>
+		<flow:form extends="NucleusRH.Base.Sanciones.LegajoSanciones.SUSPENSION_PER.autoform:LIST" doc-path="/SUSPENSION_PER[@id='{#iter-cursor:@value}']" parent-doc="PARENTSOURCE" doc="SOURCE" name="NucleusRH.Base.Sanciones.LegajoSanciones.SUSPENSION_PER.form:LIST" form-class="NucleusRH.Base.Sanciones.LegajoSanciones.SUSPENSION_PER.form" mode="LIST">
+			<flow:action name="INTERRUMPIR">
+				<flow:open-form form-class="NucleusRH.Base.Sanciones.LegajoSanciones.SUSPENSION_PER.ALTA.form" parent-doc-path="#PARENTSOURCE:" doc-path="#SOURCE:" mode="SHOW"/>
+			</flow:action>
+		</flow:form>
+		<flow:form name="NucleusRH.Base.Sanciones.LegajoSanciones.SUSPENSION_PER.ALTA.form:SHOW" form-class="NucleusRH.Base.Sanciones.LegajoSanciones.SUSPENSION_PER.ALTA.form" parent-doc="PARENTSOURCE" doc="SOURCE" mode="SHOW">
+			<flow:action name="CANCEL">
+				<flow:close-form/>
+			</flow:action>
+			<flow:action name="ACCEPT">
+				<flow:exec-method method="InterrumpirSuspension" class="NucleusRH.Base.Sanciones.LegajoSanciones.PERSONAL_EMP" this-doc="DDO">
+					<flow:param attr-path="#PARENTSOURCE:../@id" name="idsancion" type="Nomad.NSystem.String" mode="in"/>
+					<flow:param attr-path="#SOURCE:@id" name="idsuspension" type="Nomad.NSystem.String" mode="in"/>
+				</flow:exec-method>
+				<flow:close-form next-action="After-Back"/>
+			</flow:action>
+		</flow:form>
+	</flow:group>
+	<flow:form form-class="Nomad.base.HTML_XLS.form" name="Nomad.base.HTML_XLS.form:SHOW" mode="SHOW" doc="SOURCE">
+		<flow:action name="BACK">
+			<flow:close-form/>
+		</flow:action>
+	</flow:form>
+</flow:flow>

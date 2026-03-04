@@ -1,0 +1,123 @@
+<flow:flow xmlns:flow="nomad_engine.flow" xmlns:doc="nomad_engine.doc" xmlns:qry="nomad_engine.qry" default_action="initialize" name="NucleusRH.Base.Liquidacion.Personal_Liquidacion.CargaCargoXVar.flow">
+	<flow:info label="CARGACARGOXVAR"/>
+	<flow:declare>
+		<doc:define name="FILTERDATA">
+			<DATOS oi_empresa="" oi_liquidacion="" oi_variable="">
+				<PERSONAS/>
+			</DATOS>
+		</doc:define>
+		<doc:define name="TEMP">
+			<DATOS oi_empresa="" oi_liquidacion="" oi_variable="">
+				<PERSONAS/>
+			</DATOS>
+		</doc:define>
+		<qry:define declare="&lt;DATA oi_empresa=&quot;7&quot; oi_liquidacion=&quot;2031&quot; oi_variable=&quot;2237&quot; /&gt;" name="qry_grilla">
+			<qry:main name="" doc="SOURCE">
+				<qry:element name="PERSONAS">
+					<qry:append-doc name="PARAMIN" doc-path="#SOURCE:."/>
+					<qry:insert-select name="QRY" doc-path="#SOURCE:."/>
+				</qry:element>
+			</qry:main>
+			<qry:select name="QRY" doc="PARAM">
+				<qry:xquery>
+					for $r in SQL('
+			SELECT
+				LIQ25_PERSONAL_LIQ.oi_personal_liq,
+				LIQ25_PERSONAL_LIQ.oi_personal_emp
+			FROM
+				LIQ25_PERSONAL_LIQ
+			WHERE
+				LIQ25_PERSONAL_LIQ.oi_liquidacion = {#PARAM:@oi_liquidacion}
+			')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:insert-select name="QRY_VAREN" doc-path="$r"/>
+				</qry:out>
+			</qry:select>
+			<qry:select name="QRY_VAREN" doc="PARAM">
+				<qry:xquery>
+					for $r in SQL('
+			SELECT
+				LIQ25_VAREN_CARGO.oi_varen_cargo,
+				LIQ25_VAREN_CARGO.oi_cargo,
+				LIQ25_VAREN_CARGO.n_valor,
+				LIQ25_VAREN_CARGO.oi_personal_liq
+			FROM
+				LIQ25_VAREN_CARGO
+			WHERE
+				LIQ25_VAREN_CARGO.oi_variable = {#PARAMIN:@oi_variable} and
+				LIQ25_VAREN_CARGO.oi_personal_liq = {#PARAM:@oi_personal_liq} 
+			')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:element name="PERSONA">
+						<qry:attribute name="id" value="$r/@oi_varen_cargo"/>
+						<qry:attribute name="oi_personal_emp" value="#PARAM:@oi_personal_emp"/>
+						<qry:attribute name="oi_personal_liq" value="$r/@oi_personal_liq"/>
+						<qry:attribute name="oi_cargo" value="$r/@oi_cargo"/>
+						<qry:attribute name="n_valor" value="$r/@n_valor"/>
+					</qry:element>
+				</qry:out>
+			</qry:select>
+		</qry:define>
+		<doc:define name="SOURCEGRILLA">
+			<PERSONAS/>
+		</doc:define>
+	</flow:declare>
+	<flow:main doc="PARAMIN">
+		<flow:action name="initialize">
+			<doc:assign-ref from-path="#FILTERDATA:" to-doc="TEMP"/>
+			<flow:open-form form-class="NucleusRH.Base.Liquidacion.Personal_Liquidacion.CargaCargoXVar.form" doc-path="#FILTERDATA:" mode="EDIT"/>
+		</flow:action>
+	</flow:main>
+	<flow:form form-class="NucleusRH.Base.Liquidacion.Personal_Liquidacion.CargaCargoXVar.form" name="NucleusRH.Base.Liquidacion.Personal_Liquidacion.CargaCargoXVar.f" mode="EDIT" doc="SOURCE">
+		<flow:action name="CANCEL">
+			<flow:close-form/>
+		</flow:action>
+		<flow:action name="CARGAR">
+			<flow:call-action action="Save-FILTER"/>
+			<doc:set-attribute from-attr-path="#SOURCE:@oi_empresa" to-attr-path="#TEMP:@oi_empresa"/>
+			<doc:set-attribute from-attr-path="#SOURCE:@oi_liquidacion" to-attr-path="#TEMP:@oi_liquidacion"/>
+			<doc:set-attribute from-attr-path="#SOURCE:@oi_variable" to-attr-path="#TEMP:@oi_variable"/>
+			<flow:log text-path="#TEMP:" text="TEMP"/>
+			<doc:load-qry output-doc="SOURCEGRILLA" input-doc-path="#TEMP:" qry="qry_grilla"/>
+			<flow:log text-path="#SOURCEGRILLA:" text="SGRILLA"/>
+			<flow:open-form doc-path="#SOURCE:" mode="SHOW" form-class="NucleusRH.Base.Liquidacion.Personal_Liquidacion.CargaCargoXVar.form"/>
+		</flow:action>
+		<flow:action name="Load-FILTER">
+			<flow:load-user-data name="FILTER-NucleusRH.Base.Liquidacion.Personal_Liquidacion.VAREN_CARGO.CargaCargoXVar" doc="TEMP"/>
+		</flow:action>
+		<flow:action name="Save-FILTER">
+			<flow:save-user-data name="FILTER-NucleusRH.Base.Liquidacion.Personal_Liquidacion.VAREN_CARGO.CargaCargoXVar" doc-path="#TEMP:"/>
+		</flow:action>
+		<flow:action name="on-open">
+			<flow:call-action action="Load-FILTER"/>
+		</flow:action>
+	</flow:form>
+	<flow:form name="NucleusRH.Base.Liquidacion.Personal_Liquidacion.CargaCargoXVar.form:SHOW" doc="SOURCE" mode="SHOW" form-class="NucleusRH.Base.Liquidacion.Personal_Liquidacion.CargaCargoXVar.form">
+		<flow:action name="SAVE">
+			<flow:log text-path="#SOURCEGRILLA:" text="SUPER1"/>
+			<flow:log text-path="#SOURCE:" text="SUPER2"/>
+			<flow:log text-path="#FILTERDATA:" text="SUPER"/>
+			<flow:exec-method method="NovCarPorVariables" class="NucleusRH.Base.Liquidacion.Personal_Liquidacion.PERSONAL_LIQ">
+				<flow:param doc="SOURCE" type="Nomad.NSystem.Proxy.NomadXML" name="xmlFil" mode="in"/>
+				<flow:param doc="SOURCEGRILLA" type="Nomad.NSystem.Proxy.NomadXML" name="xmlDoc" mode="in"/>
+			</flow:exec-method>
+			<flow:open-form mode="EDIT" doc-path="#SOURCE:" form-class="NucleusRH.Base.Liquidacion.Personal_Liquidacion.CargaCargoMsg.form"/>
+		</flow:action>
+		<flow:action name="CANCEL">
+			<flow:exit-flow return-path="#SOURCE:"/>
+		</flow:action>
+		<flow:action name="BACK">
+			<flow:close-form/>
+		</flow:action>
+	</flow:form>
+	<flow:form mode="EDIT" form-class="NucleusRH.Base.Liquidacion.Personal_Liquidacion.CargaCargoMsg.form" name="NucleusRH.Base.Liquidacion.Personal_Liquidacion.CargaCargoMsg.form:EDIT" doc="SOURCE">
+		<flow:action name="SALIR">
+			<flow:exit-flow return-path="#SOURCE:"/>
+		</flow:action>
+		<flow:action name="BACK">
+			<flow:close-form/>
+		</flow:action>
+	</flow:form>
+</flow:flow>

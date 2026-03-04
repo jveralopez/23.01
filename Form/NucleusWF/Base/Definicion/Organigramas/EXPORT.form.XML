@@ -1,0 +1,457 @@
+<form:Form xmlns:form="nomad_engine.form" xmlns:qry="nomad_engine.qry" name="EXPORT.form" default_mode="SHOW" doc="source">
+	<form:Title width="90%">
+		<form:RowAligner name="ralTitle">
+			<form:Row name="row1">
+				<form:Label label="Exportar" nowrap="1" align="center" style="S3 LCol_w" name="GEN"/>
+			</form:Row>
+		</form:RowAligner>
+	</form:Title>
+	<form:Center width="100%" height="100%">
+		<form:Columns width="100%" height="100%" name="cols_main">
+			<form:Column width="35%" height="100%" name="colA" separation="2" align="center" valign="top">
+				<form:Div name="contTreePATH" label="Elementos a Exportar" border="2" height="100%" width="95%" rheight="90" rwidth="45" borderwidth="2">
+					<form:SButtons>
+						<form:SButton name="btnSHOW" label="Consultar" img="search">
+							<form:Event action="ShowItem" name="OnClick" runat="client"/>
+						</form:SButton>
+						<form:SButton label="Exportar" name="btnEXPORT" img="application_go.gif">
+							<form:Event action="ExportItem" name="OnClick" runat="client"/>
+						</form:SButton>
+					</form:SButtons>
+				</form:Div>
+				<form:Hidden name="hidTreePATH"/>
+				<form:Hidden name="rootPATH"/>
+				<form:Hidden nvalue="#source:@exportLIST" name="exportLIST"/>
+			</form:Column>
+			<form:Column height="100%" width="65%" name="colB" separation="2" align="center" valign="top">
+				<form:Container label="Elementos Selecionados a Exportar" name="contFILES" border="2" height="100%" width="95%" rheight="90" rwidth="45" borderwidth="2">
+					<form:RecordSet select-show="1" xquery="QRY_IDS_LIST" height="100%" label="Carpeta Seleccionada" width="100%" mode="IDS" row-height="15" name="listFILES">
+						<form:RSColumns>
+							<form:RSColumn name="type" show="S" orderby="0" width="20px" align="center" type="enum-img">
+								<form:RSOpt value="ORG" img="./Tree/organigrama0.ico"/>
+								<form:RSOpt img="./Tree/proyecto_T.ico" value="WRK"/>
+								<form:RSOpt img="./Tree/subproyecto_T.ico" value="INT"/>
+							</form:RSColumn>
+							<form:RSColumn label="Descripci&#243;n" name="label" align="left" show="S" orderby="0" width="70%" type="string"/>
+							<form:RSColumn name="version" show="C" orderby="0" format="dd/mm/yyyy HH:MM" width="30%" type="string" label="Version"/>
+						</form:RSColumns>
+						<form:Event name="OnChange" action="RefreshButtons" runat="client"/>
+						<form:SButtons>
+							<form:SButton img="application_delete.gif" name="DEL">
+								<form:Event action="DeleteItem" name="OnClick" runat="client"/>
+							</form:SButton>
+						</form:SButtons>
+					</form:RecordSet>
+				</form:Container>
+			</form:Column>
+		</form:Columns>
+	</form:Center>
+	<form:Bottom>
+		<form:RowAligner name="buttonlinks">
+			<form:Row name="row1">
+				<form:Button name="ACCEPT" descrip="Aceptar" img="OK" label="Aceptar" startvalidate="1">
+					<form:Event action="ACCEPT" name="onclick" runat="server"/>
+				</form:Button>
+				<form:Blank name="BB1" width="20px"/>
+				<form:Button name="CANCEL" descrip="Cancelar" img="CANCEL" label="Cancelar">
+					<form:Event action="CANCEL" name="onclick" runat="server"/>
+				</form:Button>
+			</form:Row>
+		</form:RowAligner>
+	</form:Bottom>
+	<form:Resources>
+		<form:Resource declare="&lt;ID /&gt;" name="qry:ORG">
+			<qry:main doc="PARAM">
+				<qry:element name="tree">
+					<qry:insert-select name="sql1"/>
+				</qry:element>
+			</qry:main>
+			<qry:select name="sql1" doc="PARAM">
+				<qry:xquery>
+					for $r in SQL('
+select
+	T.oi_organigrama,
+	T.c_organigrama,
+	T.d_organigrama
+from
+  WRK05_ORGANIGRAMAS as T       
+where
+	T.l_automatica=0
+')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<group imgClose="organigrama0.ico" imgOpen="organigrama0.ico">
+						<qry:attribute name="id" value="$r/@oi_organigrama"/>
+						<qry:attribute name="label" value="'['+$r/@c_organigrama+']'+$r/@d_organigrama"/>
+					</group>
+				</qry:out>
+			</qry:select>
+		</form:Resource>
+		<form:Resource declare="&lt;PARAM oi_organigrama=&quot;103&quot; /&gt;" name="qry:ORG_CHILD">
+			<qry:main doc="PARAM">
+				<qry:element name="tree">
+					<qry:insert-select name="sql1" doc-path="#PARAM:/PARAM"/>
+				</qry:element>
+			</qry:main>
+			<qry:select name="sql1" doc="PARAM">
+				<qry:xquery>
+					for $r in SQL('
+select
+	T.oi_organigrama,
+	T.c_organigrama,
+	T.d_organigrama,
+	T.e_version
+from 
+	WRK05_ORGANIGRAMAS as T, WRK05_ORGANIGRAMAS as O
+join
+	T.c_organigrama inner O.c_organigrama
+where
+ T.l_automatica=1 and O.oi_organigrama={$PARAM/@oi_organigrama}
+order by
+	e_version DESC
+')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<item img="organigrama1.ico">
+						<qry:attribute name="id" value="$r/@oi_organigrama"/>
+						<qry:attribute name="label" value="'Version '+$r/@e_version"/>
+					</item>
+				</qry:out>
+			</qry:select>
+		</form:Resource>
+		<form:Resource declare="&lt;ID /&gt;" name="qry:WRK">
+			<qry:main doc="PARAM">
+				<qry:element name="tree">
+					<qry:insert-select name="sql1"/>
+				</qry:element>
+			</qry:main>
+			<qry:select name="sql1" doc="PARAM">
+				<qry:xquery>
+					for $r in SQL('
+select
+	T.oi_wf,
+	T.c_wf,
+	T.d_wf
+from
+  WRK01_WF as T
+where
+ T.l_automatica=0
+')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<group imgClose="proyecto_T.ico" imgOpen="proyecto_T.ico">
+						<qry:attribute name="id" value="$r/@oi_wf"/>
+						<qry:attribute name="label" value="'['+$r/@c_wf+']'+$r/@d_wf"/>
+					</group>
+				</qry:out>
+			</qry:select>
+		</form:Resource>
+		<form:Resource declare="&lt;PARAM oi_wf=&quot;103&quot; /&gt;" name="qry:WRK_CHILD">
+			<qry:main doc="PARAM">
+				<qry:element name="tree">
+					<qry:insert-select name="sql1" doc-path="#PARAM:/PARAM"/>
+				</qry:element>
+			</qry:main>
+			<qry:select name="sql1" doc="PARAM">
+				<qry:xquery>
+					for $r in SQL('
+select
+	T.oi_wf,
+	T.c_wf,
+	T.d_wf,
+	T.e_version
+from 
+	WRK01_WF as T, WRK01_WF as O
+join
+	T.c_wf inner O.c_wf
+where
+ T.l_automatica=1 and O.oi_wf={$PARAM/@oi_wf}
+order by
+	e_version DESC
+')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<item img="proyecto_F.ico">
+						<qry:attribute name="id" value="$r/@oi_wf"/>
+						<qry:attribute name="label" value="'Version '+$r/@e_version"/>
+					</item>
+				</qry:out>
+			</qry:select>
+		</form:Resource>
+		<form:Resource declare="&lt;ID /&gt;" name="qry:INT">
+			<qry:main doc="PARAM">
+				<qry:element name="tree">
+					<qry:insert-select name="sql1"/>
+				</qry:element>
+			</qry:main>
+			<qry:select name="sql1" doc="PARAM">
+				<qry:xquery>
+					for $r in SQL('
+select
+  T.oi_int_mag,
+  T.c_int_mag,
+  T.d_int_mag
+from
+  WRK04_INT_MAN as T
+')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<item img="subproyecto_T.ico">
+						<qry:attribute name="id" value="$r/@oi_int_mag"/>
+						<qry:attribute name="label" value="'['+$r/@c_int_mag+']'+$r/@d_int_mag"/>
+					</item>
+				</qry:out>
+			</qry:select>
+		</form:Resource>
+		<form:Resource declare="&lt;PARAM IDS=&quot;ORG:103&quot; /&gt;" name="QRY_IDS_LIST">
+			<qry:main doc="PARAMIN">
+				<qry:element name="ROWS">
+					<qry:insert-select name="SQL1" doc-path="#PARAMIN:/PARAM"/>
+				</qry:element>
+			</qry:main>
+			<qry:select name="SQL1" doc="PARAM">
+				<qry:xquery>
+					for $r in split('1;{%=$PARAM/@IDS %}')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:switch test="substring-before($r/@value,':')">
+						<qry:case value="ORG">
+							<qry:insert-select name="SQL1_ORG" doc-path="$r"/>
+						</qry:case>
+						<qry:case value="WRK">
+							<qry:insert-select name="SQL1_WRK" doc-path="$r"/>
+						</qry:case>
+						<qry:case value="INT">
+							<qry:insert-select name="SQL1_INT" doc-path="$r"/>
+						</qry:case>
+					</qry:switch>
+				</qry:out>
+			</qry:select>
+			<qry:select name="SQL1_WRK" doc="PARAM">
+				<qry:xquery>
+					for $r in sql('
+			SELECT 
+				T.oi_wf as oi_wf, 
+				T.c_wf as c_wf, 
+				T.d_wf as d_wf, 
+				T.e_version as e_version, 
+				T.l_automatica as l_automatica
+			FROM 
+				WRK01_WF as T
+			WHERE
+				T.oi_wf = {substring-after($PARAM/@value,\':\')}
+			')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:element name="ROW">
+						<qry:attribute name="id" value="concat('WRK:',$r/@oi_wf)"/>
+						<qry:attribute name="type" value="'WRK'"/>
+						<qry:attribute name="label" value="'['+$r/@c_wf+']'+$r/@d_wf"/>
+						<qry:attribute name="version" value="iif($r/@l_automatica='1',$r/@e_version,'N/A')"/>
+					</qry:element>
+				</qry:out>
+			</qry:select>
+			<qry:select name="SQL1_ORG" doc="PARAM">
+				<qry:xquery>
+					for $r in sql('
+			SELECT 
+				T.oi_organigrama as oi_organigrama,
+				T.c_organigrama as c_organigrama, 
+				T.d_organigrama as d_organigrama, 
+				T.e_version as e_version, 
+				T.l_automatica as l_automatica
+			FROM 
+				WRK05_ORGANIGRAMAS as T
+			WHERE
+				T.oi_organigrama = {substring-after($PARAM/@value,\':\')}
+			')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:element name="ROW">
+						<qry:attribute name="id" value="concat('ORG:',$r/@oi_organigrama)"/>
+						<qry:attribute name="type" value="'ORG'"/>
+						<qry:attribute name="label" value="'['+$r/@c_organigrama+']'+$r/@d_organigrama"/>
+						<qry:attribute name="version" value="iif($r/@l_automatica='1',$r/@e_version,'N/A')"/>
+					</qry:element>
+				</qry:out>
+			</qry:select>
+			<qry:select name="SQL1_INT" doc="PARAM">
+				<qry:xquery>
+					for $r in sql('
+			SELECT 
+				T.oi_int_mag as oi_int_mag,
+				T.c_int_mag as c_int_mag, 
+				T.d_int_mag as d_int_mag
+			FROM 
+				WRK04_INT_MAN as T
+			WHERE
+				T.oi_int_mag = {substring-after($PARAM/@value,\':\')}
+			')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:element name="ROW">
+						<qry:attribute name="id" value="concat('INT:',$r/@oi_int_mag)"/>
+						<qry:attribute name="type" value="'INT'"/>
+						<qry:attribute name="label" value="'['+$r/@c_int_mag+']'+$r/@d_int_mag"/>
+						<qry:attribute name="version" value="'N/A'"/>
+					</qry:element>
+				</qry:out>
+			</qry:select>
+		</form:Resource>
+	</form:Resources>
+	<form:Scripts>
+		var TREE_PATH;
+
+///////////////////////////////////////////////////////////////////////////////          
+//EVENTOS     
+function RefreshList()
+{                 
+	var lst;
+
+	if (Ctrl("exportLIST").GetXValue()=="")	lst=new Array();
+	                                   else lst=Ctrl("exportLIST").GetXValue().substr(1,Ctrl("exportLIST").GetXValue().length-2).split(";");
+  
+	Ctrl("listFILES").IDs=lst;
+	Ctrl("listFILES").ResetSQL();
+
+}
+
+function RefreshButtons()
+{      
+	var aPart=Ctrl("hidTreePATH").GetXValue().split("/");
+	
+	CtrlEnabled("contTreePATH_btnSHOW", aPart.length&gt;1);
+	CtrlEnabled("contTreePATH_btnEXPORT", aPart.length&gt;1);
+
+	CtrlEnabled("listFILES_DEL", Ctrl("listFILES").GetXValue()!="");
+}
+
+function LoadPATHChildren(pobjTree, pobjGroup) 
+{
+	var retval=new NomadXML("tree");
+	var retpath;       
+	
+	switch(pobjGroup.FullId)
+	{
+		case "ORG":  
+			retval=GetProxy().SQLService().GetXML(Ctrl("main").getResource("qry:ORG"),"");
+			break;
+
+		case "WRK":  
+			retval=GetProxy().SQLService().GetXML(Ctrl("main").getResource("qry:WRK"),"");
+			break;
+			
+		case "INT":  
+			retval=GetProxy().SQLService().GetXML(Ctrl("main").getResource("qry:INT"),"");
+			break;
+
+		default:                               
+			parts=pobjGroup.FullId.split("/");
+			switch(parts[0])
+			{
+				case "ORG":          
+					retval=GetProxy().SQLService().GetXML(Ctrl("main").getResource("qry:ORG_CHILD"),'&lt;PARAM oi_organigrama="'+parts[1]+'" /&gt;');
+					break;
+					
+				case "WRK":          
+					retval=GetProxy().SQLService().GetXML(Ctrl("main").getResource("qry:WRK_CHILD"),'&lt;PARAM oi_wf="'+parts[1]+'" /&gt;');
+					break;
+
+				default:
+					retpath=retval.AddTailElement("item");
+					retpath.SetAttr("id"   , "X");
+					retpath.SetAttr("label", "No implementado.");
+					break;
+			}
+			break;
+	}
+	
+	pobjTree.SetXML(pobjGroup.FullId, retval.ToString());
+	return;
+}
+
+function OnLoad()
+{        
+	TREE_PATH = clsClientTree("contTreePATH", "hidTreePATH", "clock3.gif", "folder-close.ico", "folder.ico", "FILE_E.ico", true, LoadPATHChildren, null, RefreshButtons);
+	TREE_PATH.SetXML(null, '&lt;tree&gt;&lt;group id="WRK" label="Workflows" imgClose="proyecto-grupo_T.ico" imgOpen="proyecto-grupo_T.ico" /&gt;&lt;group id="ORG" label="Organigramas" imgClose="proyecto-grupo_I.ico" imgOpen="proyecto-grupo_I.ico" /&gt;&lt;group id="INT" label="Interfaces" imgClose="tarea_T.ico" imgOpen="tarea_T.ico" /&gt;&lt;/tree&gt;');
+	
+	RefreshButtons();
+}
+
+function ShowItem()
+{
+	var aPart=Ctrl("hidTreePATH").GetXValue().split("/");
+	switch(aPart[0])
+	{
+		case "ORG":               
+			appendFormInMain("NucleusWF.Base.Definicion.Organigramas.ESTRUCTURA.flow", "SHOW", '&lt;DATA PARENT="'+aPart[aPart.length-1]+'" /&gt;');		
+			break;
+			
+		case "WRK":
+			appendFormInMain("NucleusWF.Base.Definicion.Workflows.PROCESS.flow", "LIST", '&lt;DATA PARENT="'+aPart[aPart.length-1]+'" /&gt;');		          
+			break;
+
+		case "INT":          
+			appendFormInMain("NucleusWF.Base.Definicion.Integracion.INT_MAG.MAIN.STD.autoflow", "SHOW", '&lt;DATA ID="'+aPart[aPart.length-1]+'" /&gt;');		
+			break;
+	}
+}
+
+function ExportItem()
+{
+	var aPart=Ctrl("hidTreePATH").GetXValue().split("/");
+	var OBJ_ID;
+	
+	switch(aPart[0])
+	{
+		case "ORG":               
+			OBJ_ID="ORG:"+aPart[aPart.length-1];
+			break;
+			
+		case "WRK":
+			OBJ_ID="WRK:"+aPart[aPart.length-1];
+			break;
+
+		case "INT":
+			OBJ_ID="INT:"+aPart[aPart.length-1];          
+			break;
+	}
+	
+	
+	//Lo agrego a la Lista a Exportar
+	if (Ctrl("exportLIST").GetXValue().indexOf(";"+OBJ_ID+";")&lt;0)
+	{                         
+		if (Ctrl("exportLIST").GetXValue()=="") Ctrl("exportLIST").SetXValue(";"+OBJ_ID+";");
+		                                   else Ctrl("exportLIST").SetXValue(Ctrl("exportLIST").GetXValue()+OBJ_ID+";");
+	
+		RefreshList();
+	} else
+	{
+		alert("El elemento seleccionado ya esta en la lista");
+	}
+}
+
+function DeleteItem()
+{
+	//Hay algo selecionado? 
+	if (Ctrl("listFILES").GetXValue() == "") return;
+	
+	//Lista de Valores
+	var expList=Ctrl("exportLIST").GetXValue();
+
+	//Existe el ITEM?
+	if (expList.indexOf(";"+Ctrl("listFILES").GetXValue()+";")&lt;0) return;
+	
+	//Elimino el ITEM
+	expList=Replace(expList,";"+Ctrl("listFILES").GetXValue()+";",";");
+	if (expList==";") expList="";
+	
+	//Actualizo la LISTA
+	Ctrl("exportLIST").SetXValue(expList);
+	Ctrl("listFILES").SetXValue("");
+	RefreshList();
+	RefreshButtons();
+}
+	</form:Scripts>
+	<form:Event name="OnLoad" action="OnLoad" runat="client"/>
+</form:Form>

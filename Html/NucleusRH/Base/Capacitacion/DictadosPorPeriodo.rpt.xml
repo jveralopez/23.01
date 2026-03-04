@@ -1,0 +1,572 @@
+<html:html xmlns:html="nomad_engine.html" xmlns:qry="nomad_engine.qry" xmlns:xsl="http://www.w3.org/1999/XSL/Transform" name="NucleusRH.Base.Capacitacion.DictadosPorPeriodo.rpt" extends="NucleusRH.Base.Personal.Legajo.rpt" doc="source">
+	<html:query declare="&lt;DATOS oi_dictado=&quot;6180&quot; f_desde=&quot;20130301&quot; f_hasta=&quot;20130331&quot; report=&quot;&quot; /&gt;">
+		<qry:main doc="PARAM">
+			<qry:append-doc doc-path="#PARAM:/PARAMS" name="FILTRO"/>
+			<qry:element name="Dictados">
+				<qry:insert-select doc-path="#PARAM:/PARAMS" name="qry_dictado"/>
+				<qry:insert-select doc-path="#PARAM:/PARAMS" name="qry_logo"/>
+			</qry:element>
+		</qry:main>
+		<qry:select doc="PARAM" name="qry_dictado">
+			<qry:xquery>
+				for $r in sql('
+			SELECT                    
+				CYD02_DICTADOS.oi_dictado, 
+				CYD02_DICTADOS.oi_estructura,
+				CYD02_DICTADOS.c_dictado,	
+				CYD02_DICTADOS.d_dictado,
+				CYD01_CURSOS.c_curso,
+				CYD01_CURSOS.d_curso,	 
+				CYD02_DICTADOS.n_duracion_hs,
+				CYD05_TIPOS_CURSO.d_tipo_curso,
+				CYD06_CATEG_CURSO.d_categ_curso,
+				ORG06_CURSOS.d_curso as area,
+				CYD02_DICTADOS.f_inicio
+      FROM
+				CYD02_DICTADOS,   
+				CYD01_CURSOS,
+				CYD05_TIPOS_CURSO,
+				CYD06_CATEG_CURSO,
+				ORG06_CURSOS
+			JOIN
+				CYD02_DICTADOS.oi_curso INNER CYD01_CURSOS.oi_curso,
+				CYD01_CURSOS.oi_area INNER ORG06_CURSOS.oi_curso,
+				CYD01_CURSOS.oi_categ_curso LEFT OUTER CYD06_CATEG_CURSO.oi_categ_curso,
+				CYD01_CURSOS.oi_tipo_curso LEFT OUTER CYD05_TIPOS_CURSO.oi_tipo_curso
+			WHERE
+				 {%? (#FILTRO:@oi_dictado!='')
+					{% CYD02_DICTADOS.oi_dictado = {#FILTRO:@oi_dictado} %}
+					{% 
+					CYD02_DICTADOS.f_fin &gt;= {Datetime(#PARAM:@f_desde)} AND
+	 			  CYD02_DICTADOS.f_inicio &lt;= {Datetime(#PARAM:@f_hasta)} 
+	 			  %} 
+				 %}
+	 			 
+	 		ORDER BY
+	 			f_inicio ASC,
+	 			c_curso ASC,
+	 			c_dictado ASC	 
+		')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:attribute name="oi_dictado" value="0"/>
+				<qry:if test="#FILTRO:@oi_dictado!=''">
+					<qry:then>
+						<qry:attribute name="oi_dictado" value="1"/>
+					</qry:then>
+				</qry:if>
+				<qry:attribute name="f_desde" value="format_date(#FILTRO:@f_desde, 'dd/mm/yyyy')"/>
+				<qry:attribute name="f_hasta" value="format_date(#FILTRO:@f_hasta, 'dd/mm/yyyy')"/>
+				<qry:element name="Dictado">
+					<qry:attribute name="c_dictado" value="$r/@c_dictado"/>
+					<qry:attribute name="d_dictado" value="$r/@d_dictado"/>
+					<qry:attribute name="c_curso" value="$r/@c_curso"/>
+					<qry:attribute name="d_curso" value="$r/@d_curso"/>
+					<qry:attribute name="n_duracion_hs" value="iif($r/@n_duracion_hs !='', format_number($r/@n_duracion_hs, '#####.00'), '')"/>
+					<qry:attribute name="d_tipo_curso" value="$r/@d_tipo_curso"/>
+					<qry:attribute name="d_categ_curso" value="$r/@d_categ_curso"/>
+					<qry:attribute name="area" value="$r/@area"/>
+					<qry:insert-select doc-path="$r" name="qry_estructura"/>
+					<qry:insert-select doc-path="$r" name="qry_clases"/>
+					<qry:insert-select doc-path="$r" name="qry_docentes"/>
+					<qry:insert-select doc-path="$r" name="qry_asistentes"/>
+				</qry:element>
+			</qry:out>
+		</qry:select>
+		<qry:select doc="PARAM" name="qry_logo">
+			<qry:xquery>
+				for $r in sql('
+			SELECT 
+				ORG03_EMPRESAS.oi_logotipo, 
+				PER19_IMAGENES.o_imagen 
+			FROM 
+				ORG03_EMPRESAS, 
+				PER02_PERSONAL_EMP, 
+				PER19_IMAGENES
+			JOIN 
+				ORG03_EMPRESAS.oi_empresa INNER PER02_PERSONAL_EMP.oi_empresa,
+				ORG03_EMPRESAS.oi_logotipo LEFT OUTER PER19_IMAGENES.oi_imagen_per 
+			WHERE 
+				PER02_PERSONAL_EMP.oi_personal_emp = {#PARAM:@oi_personal_emp}
+		')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:attribute name="oi_logotipo" value="iif($r/@oi_logotipo!='','../NomadFile.aspx?mode=DB&amp;class=NucleusRH.Base.Personal.Imagenes.HEAD&amp;height=110&amp;id='+$r/@oi_logotipo,'no')"/>
+			</qry:out>
+		</qry:select>
+		<qry:select name="qry_asistentes" doc="PARAM">
+			<qry:xquery>
+				for $r in sql('  
+			SELECT 
+					CYD02_INSCRIPTOS.oi_inscripto,					
+					CYD17_TERCEROS.c_tercero as code,
+					CYD17_TERCEROS.d_ape_y_nom,
+					\'\' as c_empresa
+				FROM 
+					CYD02_INSCRIPTOS, 
+					CYD17_TERCEROS
+				JOIN
+					CYD02_INSCRIPTOS.oi_tercero INNER CYD17_TERCEROS.oi_tercero
+				WHERE
+					CYD02_INSCRIPTOS.oi_dictado = {#PARAM:@oi_dictado}
+				UNION
+				SELECT 
+					INS.oi_inscripto,
+					UCASE(PER02_PERSONAL_EMP.e_numero_legajo) as code,
+					PER01_PERSONAL.d_ape_y_nom,
+					ORG03_EMPRESAS.c_empresa
+				FROM 
+					CYD02_INSCRIPTOS as INS, 
+					PER02_PERSONAL_EMP, 
+					PER01_PERSONAL,
+					ORG03_EMPRESAS
+				JOIN 
+					INS.oi_personal_emp INNER PER02_PERSONAL_EMP.oi_personal_emp,
+					PER02_PERSONAL_EMP.oi_personal INNER PER01_PERSONAL.oi_personal,
+					PER02_PERSONAL_EMP.oi_empresa INNER ORG03_EMPRESAS.oi_empresa
+				WHERE 
+					INS.oi_dictado = {#PARAM:@oi_dictado}
+				ORDER BY code ASC
+')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:element name="Asistente">
+					<qry:if test="$r/@code!=''">
+						<qry:then>
+							<qry:attribute name="ins" value="iif($r/@c_empresa != '', $r/@c_empresa +'-'+ $r/@code +'-'+ $r/@d_ape_y_nom, $r/@code +'-'+ $r/@d_ape_y_nom)"/>
+							<qry:attribute name="inscripto" value="@inscripto + iif(@inscripto != '', '-','') + @ins"/>
+						</qry:then>
+					</qry:if>
+				</qry:element>
+			</qry:out>
+		</qry:select>
+		<qry:select name="qry_clases" doc="PARAM">
+			<qry:xquery>
+				for $r in sql('  
+SELECT 
+	CYD02_CLASES_DICT.f_fecha_hora_ini,
+	CYD02_CLASES_DICT.f_fecha_hora_fin
+FROM 
+	CYD02_CLASES_DICT
+WHERE
+	CYD02_CLASES_DICT.oi_dictado = {#PARAM:@oi_dictado}	
+')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:element name="Clase">
+					<qry:attribute name="ini" value="$r/@f_fecha_hora_ini"/>
+					<qry:attribute name="fin" value="$r/@f_fecha_hora_fin"/>
+					<qry:attribute name="dif" value="format_number((datetime(@fin)-datetime(@ini))*24, '3', '2', '.','', 'R')"/>
+					<qry:if test="format_date(@ini, 'dd/mm/yyyy')=format_date(@fin, 'dd/mm/yyyy')">
+						<qry:then>
+							<qry:attribute name="oi_clase_dictado" value="@oi_clase_dictado + iif(@oi_clase_dictado!= '','-','') + format_date(@ini, 'dd/mm/yyyy')+ ' de ' + format_date(@ini, 'HH:MM') + ' a ' + format_date(@fin, 'HH:MM')"/>
+						</qry:then>
+						<qry:else>
+							<qry:attribute name="oi_clase_dictado" value="@oi_clase_dictado + iif(@oi_clase_dictado!= '','-','') + format_date(@ini, 'dd/mm/yyyy HH:MM')+ ' a ' + format_date(@fin, 'dd/mm/yyyy HH:MM')"/>
+						</qry:else>
+					</qry:if>
+				</qry:element>
+			</qry:out>
+		</qry:select>
+		<qry:select name="qry_docentes" doc="PARAM">
+			<qry:xquery>
+				for $r in sql('  
+		SELECT 
+			CYD04_DOCENTES.d_ape_y_nom
+		FROM 
+			CYD04_DOCENTES,
+			CYD02_DOC_DICTADO
+		JOIN 
+			CYD02_DOC_DICTADO.oi_docente LEFT OUTER CYD04_DOCENTES.oi_docente 
+		WHERE
+			CYD02_DOC_DICTADO.oi_dictado = {#PARAM:@oi_dictado}	
+  ')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:element name="Docente">
+					<qry:attribute name="docente_dict" value="@docente_dict + iif(@docente_dict != '', '-','') + $r/@d_ape_y_nom"/>
+				</qry:element>
+			</qry:out>
+		</qry:select>
+		<qry:select doc="PARAM" name="qry_estructura">
+			<qry:xquery>
+				for $r in sql('		
+				SELECT 
+					ORG01_UNI_ORG.c_unidad_org, 
+					ORG01_UNI_ORG.d_unidad_org
+				FROM 
+					ORG02_ESTRUCTURAS,
+					CYD02_DICTADOS,
+					ORG01_UNI_ORG
+				JOIN
+					CYD02_DICTADOS.oi_estructura LEFT OUTER ORG02_ESTRUCTURAS.oi_estructura,
+					ORG02_ESTRUCTURAS.oi_unidad_org INNER ORG01_UNI_ORG.oi_unidad_org
+				WHERE 
+					ORG02_ESTRUCTURAS.oi_estructura = {#PARAM:@oi_estructura}
+				')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:attribute name="estructura" value="$r/@c_unidad_org + ' - ' + $r/@d_unidad_org"/>
+			</qry:out>
+		</qry:select>
+	</html:query>
+	<html:xslt>
+		<xsl:template match="/Dictados">
+			<html>
+				<head>
+					<LINK href="../Skins/Styles/GReport.css" type="text/css" rel="stylesheet"/>
+					<STYLE>
+						body{background-color:#FFFFFF;}
+table.tabla
+{
+	cellpadding: 0;
+	cellspacing: 0;
+	border-collapse: collapse;
+}
+td.tit
+{
+	font-family:verdana;
+	font-weight: bolder;
+	font-size: 16px;
+	padding: 2px 2px 2px 2px;	
+	
+}
+td.FontTitle
+{
+	font-weight: 200;
+	font-size: 15px;
+	font-style: bold;
+	color: #2897B3;
+	font-family: verdana;
+	text-decoration: none;
+	text-align: left;
+	border-bottom:solid 2px #2897B3;
+	width:100%;
+}
+td.txtc
+{
+	text-align:center;
+	font-family:verdana;
+	font-weight: normal;
+	font-size: 10px;
+	font-style: normal;
+	border-bottom-width: 1;
+	border-bottom-style: solid;
+	border-bottom-color: #000000;
+	border-left-width: 1;
+	border-left-style: solid;
+	border-left-color: #000000;
+	border-right-width: 1;
+	border-right-style: solid;
+	border-right-color: #000000;
+	border-top-width: 1;
+	border-top-style: solid;
+	border-top-color: #000000;
+	padding: 2px 2px 2px 2px;
+	color:#0B0B61;	
+} 
+
+td.txtd
+{
+	text-align:right;
+	font-family:verdana;
+	font-weight: normal;
+	font-size: 10px;
+	font-style: normal;
+	border-bottom-width: 1;
+	border-bottom-style: solid;
+	border-bottom-color: #000000;
+	border-left-width: 1;
+	border-left-style: solid;
+	border-left-color: #000000;
+	border-right-width: 1;
+	border-right-style: solid;
+	border-right-color: #000000;
+	border-top-width: 1;
+	border-top-style: solid;
+	border-top-color: #000000;
+	padding: 2px 2px 2px 2px;
+	color:#0B0B61;	
+}
+td.txttitle
+{
+	text-align:right;
+	font-family:verdana;
+	font-weight: normal;
+	font-size: 10px;
+	font-style: normal;
+	border-bottom-width: 1;
+	border-bottom-style: solid;
+	border-bottom-color: #000000;
+	border-left-width: 1;
+	border-left-style: solid;
+	border-left-color: #000000;
+	border-right-width: 1;
+	border-right-style: solid;
+	border-right-color: #000000;
+	border-top-width: 1;
+	border-top-style: solid;
+	border-top-color: #000000;
+	padding: 2px 2px 2px 2px;
+	color:#B40404;
+	fore-color:#BDBDBD;	
+}
+
+
+td.txti
+{
+	text-align:left;
+	font-family:verdana;
+	font-weight: normal;
+	font-size: 10px;
+	font-style: normal;
+	border-bottom-width: 1;
+	border-bottom-style: solid;
+	border-bottom-color: #000000;
+	border-left-width: 1;
+	border-left-style: solid;
+	border-left-color: #000000;
+	border-right-width: 1;
+	border-right-style: solid;
+	border-right-color: #000000;
+	border-top-width: 1;
+	border-top-style: solid;
+	border-top-color: #000000;
+	padding: 2px 2px 2px 2px;	
+}
+td.x1
+{
+	text-align:left;
+	font-family:verdana;
+	font-weight: normal;
+	font-size: 13px;
+	font-style: normal;
+	
+	padding: 2px 2px 2px 2px;	 
+	color:#0B0B61; 
+	vertical-align:top;
+}
+td.x2
+{ 
+ text-align:left;
+	font-family:verdana;
+	font-weight: bold;
+	font-size: 10px;
+	font-style: normal;
+	border-top-width: 1;
+	border-top-style: solid;
+	border-top-color: #000000;
+	border-left-width: 1;
+	border-left-style: solid;
+	border-left-color: #000000;
+	border-bottom-width: 1;
+	border-bottom-style: solid;
+	border-bottom-color: #000000;
+	border-right-width: 1;
+	border-right-style: solid;
+	border-right-color: #000000;	
+	padding: 2px 2px 2px 2px;	
+	color:#0B0B61;
+}  
+td.x3
+{ 
+ text-align:center;
+	font-family:verdana;
+	font-weight: bold;
+	font-size: 10px;
+	font-style: normal;
+	border-top-width: 1;
+	border-top-style: solid;
+	border-top-color: #000000;
+	border-left-width: 1;
+	border-left-style: solid;
+	border-left-color: #000000;
+	border-bottom-width: 1;
+	border-bottom-style: solid;
+	border-bottom-color: #000000;
+	border-right-width: 1;
+	border-right-style: solid;
+	border-right-color: #000000;	
+	padding: 2px 2px 2px 2px;	
+	color:#0B0B61; 
+	
+}  
+td.x4
+{ 
+ text-align:left;
+	font-family:verdana;
+	font-weight: bold;
+	font-size: 10px;
+	font-style: normal;
+	border-top-width: 1;
+	border-top-style: solid;
+	border-top-color: #000000;
+	border-left-width: 1;
+	border-left-style: solid;
+	border-left-color: #000000;
+	border-bottom-width: 1;
+	border-bottom-style: solid;
+	border-bottom-color: #000000;
+	border-right-width: 1;
+	border-right-style: solid;
+	border-right-color: #000000;	
+	padding: 2px 2px 2px 2px;	
+	color:green;
+}  
+
+.img
+{
+	width:1px;
+	font-size:1px;
+}
+td.x2t
+{
+	text-align:right;
+	font-family:verdana;
+	font-weight: bold;
+	font-size: 10px;
+	font-style: normal;
+	padding: 2px 2px 2px 2px;	
+}      
+td.txtt
+{
+	text-align:right;
+	font-family:verdana;
+	font-weight: normal;
+	font-size: 10px;
+	font-style: normal;
+	padding: 2px 2px 2px 2px;	
+}
+td.txtf
+{
+	text-align:left;
+	font-family:verdana;
+	font-weight: normal;
+	font-size: 10px;
+	font-style: normal;
+	padding: 2px 2px 2px 2px;	
+}
+					</STYLE>
+				</head>
+				<body bgcolor="#F2F2EC">
+					<table width="100%">
+						<xsl:if test="@oi_dictado=0">
+							<tr>
+								<td class="tit" colspan="12">
+									<font size="4">
+										<CENTER>
+											<b>
+												Detalle de Dictados
+											</b>
+										</CENTER>
+									</font>
+								</td>
+							</tr>
+							<tr>
+								<td colspan="12" align="LEFT" style="font-family:verdana;">
+									<font size="2">
+										<LEFT>
+											<b>
+												Fecha Desde:&#160;
+											</b>
+											<xsl:value-of select="@f_desde"/>
+											<br/>
+											<b>
+												Fecha Hasta:&#160;
+											</b>
+											<xsl:value-of select="@f_hasta"/>
+											<br/>
+										</LEFT>
+									</font>
+								</td>
+							</tr>
+						</xsl:if>
+						<tr>
+							<td>
+								<xsl:apply-templates select="Dictado"/>
+							</td>
+						</tr>
+					</table>
+				</body>
+			</html>
+		</xsl:template>
+		<xsl:template match="Dictado">
+			<table class="tabla" width="100%">
+				<tr>
+					<td class="FontTitle" colspan="24">
+						<font size="2">
+							<b>
+								DICTADO
+							</b>
+						</font>
+					</td>
+				</tr>
+				<br/>
+				<tr>
+					<td width="35%" class="x1">
+						<b>
+							Curso:&#160;
+						</b>
+						<xsl:value-of select="@d_curso"/>
+						<br/>
+						<b>
+							Dictado:&#160;
+						</b>
+						<xsl:value-of select="@d_dictado"/>
+						<br/>
+						<b>
+							Duraci&#243;n(Hs):&#160;
+						</b>
+						<xsl:value-of select="@n_duracion_hs"/>
+						<br/>
+						<b>
+							&#193;rea de Curso:&#160;
+						</b>
+						<xsl:value-of select="@area"/>
+						<br/>
+						<b>
+							Solicitante:&#160;
+						</b>
+						<xsl:value-of select="@estructura"/>
+						<br/>
+					</td>
+					<td width="35%" class="x1">
+						<table width="100%">
+							<tr>
+								<b>
+									Clases
+								</b>
+								<br/>
+								<xsl:for-each select="Clase">
+									<xsl:value-of select="@oi_clase_dictado"/>
+									<br/>
+								</xsl:for-each>
+							</tr>
+							<br/>
+							<tr>
+								<b>
+									Docentes
+								</b>
+								<br/>
+								<xsl:for-each select="Docente">
+									<xsl:value-of select="@docente_dict"/>
+									<br/>
+								</xsl:for-each>
+							</tr>
+						</table>
+					</td>
+					<td width="30%" class="x1" nowrap="1">
+						<b>
+							Inscriptos
+						</b>
+						<br/>
+						<xsl:for-each select="Asistente">
+							<xsl:value-of select="@inscripto"/>
+							<br/>
+						</xsl:for-each>
+					</td>
+				</tr>
+			</table>
+		</xsl:template>
+	</html:xslt>
+</html:html>

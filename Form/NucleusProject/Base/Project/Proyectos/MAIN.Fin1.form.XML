@@ -1,0 +1,150 @@
+<form:Form xmlns:form="nomad_engine.form" xmlns:qry="nomad_engine.qry" extends="NucleusProject.Base.Project.Proyectos.MAIN.form" default_mode="SHOW" mess="&#191;Est&#225; seguro que desa cancelar la operaci&#243;n?" doc="source" name="NucleusProject.Base.Project.Proyectos.PROYECTO">
+	<form:Resources>
+		<form:Resource name="qry:project-root">
+			<qry:main>
+				<qry:element name="tree">
+					<qry:insert-select name="sql1"/>
+				</qry:element>
+			</qry:main>
+			<qry:select doc="PARAM" name="sql1">
+				<qry:xquery>
+					for $r in sql('
+				SELECT 
+					P.oi_proyecto as id,
+					P.c_proyecto as cod,
+					P.d_proyecto as des,
+					P.c_estado as estado,
+					T.c_image as img
+				FROM 
+					PRY01_PROYECTOS as P,
+					PRY09_TIPOS_PROYECTO as T
+				JOIN
+					P.oi_tipo_proyecto inner T.oi_tipo_proyecto
+				WHERE
+					P.c_estado!=\'L\' and
+					isNull(P.oi_proyecto_parent) and
+					(isNull(P.f_fin) or DATE2NUMBER(P.f_fin) &gt; (DATE2NUMBER(Now())-1))
+				ORDER BY 
+					cod ASC
+				')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:element name="group">
+						<qry:attribute name="id" value="$r/@id"/>
+						<qry:attribute name="label" value="$r/@cod+'-'+$r/@des"/>
+						<qry:attribute value="iif($r/@estado='L','proyecto_L.ico',$r/@img+'_'+$r/@estado+'.ico')" name="imgOpen"/>
+						<qry:attribute value="iif($r/@estado='L','proyecto_L.ico',$r/@img+'_'+$r/@estado+'.ico')" name="imgClose"/>
+						<qry:attribute name="tag" value="'proyecto-root&amp;'+$r/@estado"/>
+					</qry:element>
+				</qry:out>
+			</qry:select>
+		</form:Resource>
+		<form:Resource declare="&lt;DATA id=&quot;1&quot; /&gt;" name="qry:project-child">
+			<qry:main doc="PARAM">
+				<qry:element name="tree">
+					<qry:insert-select doc-path="#PARAM:/DATA" name="sql2"/>
+					<qry:insert-select doc-path="#PARAM:/DATA" name="sql1"/>
+				</qry:element>
+			</qry:main>
+			<qry:select doc="PARAM" name="sql1">
+				<qry:xquery>
+					for $r in sql('
+				SELECT 
+					P.oi_proyecto as id,
+					P.c_proyecto as cod,
+					P.d_proyecto as des,
+					P.c_estado as estado,
+					T.c_image as img
+				FROM 
+					PRY01_PROYECTOS as P,
+					PRY09_TIPOS_PROYECTO as T
+				JOIN
+					P.oi_tipo_proyecto inner T.oi_tipo_proyecto
+				WHERE
+					P.oi_proyecto_parent={#PARAM:@id} and
+					(isNull(P.f_fin) or DATE2NUMBER(P.f_fin) &gt; (DATE2NUMBER(Now())-1))
+
+				ORDER BY 
+					cod ASC
+				')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:element name="group">
+						<qry:attribute value="$r/@id" name="id"/>
+						<qry:attribute name="label" value="$r/@cod+'-'+$r/@des"/>
+						<qry:attribute value="iif($r/@estado='L','proyecto_L.ico',$r/@img+'_'+$r/@estado+'.ico')" name="imgOpen"/>
+						<qry:attribute value="iif($r/@estado='L','proyecto_L.ico',$r/@img+'_'+$r/@estado+'.ico')" name="imgClose"/>
+						<qry:attribute name="tag" value="'proyecto-child&amp;'+$r/@estado"/>
+					</qry:element>
+				</qry:out>
+			</qry:select>
+			<qry:select doc="PARAM" name="sql2">
+				<qry:xquery>
+					for $r in sql('
+				SELECT 
+					T.l_mos_objetivos as sobj,
+					T.l_mos_tarea as star
+				FROM 
+					PRY01_PROYECTOS as P,
+					PRY09_TIPOS_PROYECTO as T
+				JOIN
+					P.oi_tipo_proyecto inner T.oi_tipo_proyecto
+				WHERE
+					P.oi_proyecto={#PARAM:@id}
+				')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:element name="group">
+						<qry:attribute value="iif($r/@star='1','','1')" name="hts:delete"/>
+						<qry:attribute value="'P_'+#PARAM:@id" name="id"/>
+						<qry:attribute name="label" value="'Tareas'"/>
+						<qry:attribute value="'tareas.ico'" name="imgOpen"/>
+						<qry:attribute value="'tareas.ico'" name="imgClose"/>
+						<qry:attribute name="tag" value="'tareas-group'"/>
+					</qry:element>
+				</qry:out>
+			</qry:select>
+		</form:Resource>
+		<form:Resource declare="&lt;DATA id=&quot;19&quot; /&gt;" name="qry:tarea">
+			<qry:main doc="PARAM">
+				<qry:element name="tree">
+					<qry:insert-select doc-path="#PARAM:/DATA" name="sql1"/>
+				</qry:element>
+			</qry:main>
+			<qry:select doc="PARAM" name="sql1">
+				<qry:xquery>
+					for $r in sql('
+				SELECT 
+					T.oi_tarea as id,
+					T.c_tarea as cod,
+					T.d_tarea as des,
+					T.c_estado as estado
+				FROM 
+					PRY02_TAREAS as T
+				WHERE
+					T.oi_proyecto={#PARAM:@id} and
+					(isNull(T.f_fin) or DATE2NUMBER(T.f_fin) &gt; (DATE2NUMBER(Now())-1))
+				ORDER BY
+					cod ASC
+				')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:element name="group">
+						<qry:attribute value="$r/@id" name="id"/>
+						<qry:attribute name="label" value="$r/@cod+'-'+$r/@des"/>
+						<qry:attribute value="'tarea_'+$r/@estado+'.ico'" name="imgClose"/>
+						<qry:attribute value="'tarea_'+$r/@estado+'.ico'" name="imgOpen"/>
+						<qry:attribute name="tag" value="'tarea&amp;'+$r/@estado"/>
+						<qry:element name="group">
+							<qry:attribute name="id" value="'H_'+$r/@id"/>
+							<qry:attribute name="label" value="'Historial'"/>
+							<qry:attribute value="'clock2.ico'" name="imgOpen"/>
+							<qry:attribute value="'clock2.ico'" name="imgClose"/>
+							<qry:attribute name="tag" value="'traza-group'"/>
+						</qry:element>
+					</qry:element>
+				</qry:out>
+			</qry:select>
+		</form:Resource>
+	</form:Resources>
+</form:Form>

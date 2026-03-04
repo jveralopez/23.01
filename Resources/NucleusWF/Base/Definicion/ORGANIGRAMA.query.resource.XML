@@ -1,0 +1,140 @@
+<qry:define xmlns:qry="nomad_engine.qry" name="QueryOrganigrama" declare="&lt;PARAMS id=&quot;3003&quot; /&gt;">
+	<qry:main doc="SOURCE">
+		<ORGANIGRAMA>
+			<qry:append-doc name="PARAMIN" doc-path="#SOURCE:."/>
+			<qry:insert-select name="ORGANIGRAMA" doc-path="$PARAMIN"/>
+		</ORGANIGRAMA>
+	</qry:main>
+	<qry:select doc="SOURCE" name="ORGANIGRAMA">
+		<qry:xquery>
+			for $r in SQL('
+select
+	ORG.oi_organigrama,
+	ORG.c_organigrama,
+	ORG.d_organigrama,
+	ORG.e_version
+from
+	WRK05_ORGANIGRAMAS as ORG
+where
+	ORG.oi_organigrama = {$SOURCE/@id}
+')/ROWS/ROW
+		</qry:xquery>
+		<qry:out>
+			<qry:attribute name="id" value="$r/@oi_organigrama"/>
+			<qry:attribute name="COD" value="$r/@c_organigrama"/>
+			<qry:attribute name="DES" value="$r/@d_organigrama"/>
+			<qry:attribute name="VER" value="$r/@e_version"/>
+			<ESTRUCTURAS>
+				<qry:insert-select name="ESTRUCTURAS" doc-path="$r"/>
+				<qry:if test="count(./ESTR[@CNT=1])&gt;0">
+					<qry:then>
+						<qry:insert-select name="PERS" doc-path="."/>
+					</qry:then>
+				</qry:if>
+			</ESTRUCTURAS>
+			<ROLES>
+				<qry:insert-select name="ROLES" doc-path="$r"/>
+			</ROLES>
+		</qry:out>
+	</qry:select>
+	<qry:select doc="SOURCE" name="ROLES">
+		<qry:xquery>
+			for $r in SQL('
+SELECT           
+	ROL.oi_role,
+	ROL.c_role,
+	ROL.d_role,
+	ROL.d_color,
+	ROL.l_unique
+FROM             
+	WRK05_ROLES as ROL
+WHERE            
+	ROL.oi_organigrama={$SOURCE/@oi_organigrama}
+')/ROWS/ROW
+		</qry:xquery>
+		<qry:out>
+			<ROL>
+				<qry:attribute name="id" value="$r/@oi_role"/>
+				<qry:attribute name="COD" value="$r/@c_role"/>
+				<qry:attribute name="DES" value="$r/@d_role"/>
+				<qry:attribute name="COL" value="$r/@d_color"/>
+				<qry:attribute name="UNQ" value="$r/@l_unique"/>
+			</ROL>
+		</qry:out>
+	</qry:select>
+	<qry:select doc="SOURCE" name="ESTRUCTURAS">
+		<qry:xquery>
+			for $r in SQL('
+SELECT           
+	ESTR.oi_estructura,
+	ESTR.c_estructura,
+	ESTR.d_estructura,
+	ESTR.c_role,
+	ESTR.l_inicia,
+	ESTR.c_estr_padre,
+	ESTR.e_orden,                 
+	count(ETTY.oi_entidad_estr) as cantper
+FROM             
+	WRK05_ESTRUCTURA as ESTR,
+	WRK05_ENTIDAD_ESTR as ETTY
+JOIN
+	ESTR.oi_estructura LEFT OUTER ETTY.oi_estructura
+WHERE            
+	ESTR.oi_organigrama={#SOURCE:@oi_organigrama}
+GROUP BY
+	ESTR.oi_estructura,
+	ESTR.c_estructura,
+	ESTR.d_estructura,
+	ESTR.c_role,
+	ESTR.l_inicia,
+	ESTR.c_estr_padre,
+	ESTR.e_orden                 
+ORDER BY
+	c_estr_padre ASC, e_orden ASC
+')/ROWS/ROW
+		</qry:xquery>
+		<qry:out>
+			<ESTR>
+				<qry:attribute name="id" value="$r/@oi_estructura"/>
+				<qry:attribute name="COD" value="$r/@c_estructura"/>
+				<qry:attribute name="DES" value="$r/@d_estructura"/>
+				<qry:attribute name="ROL" value="$r/@c_role"/>
+				<qry:attribute name="CNT" value="$r/@cantper"/>
+				<qry:attribute name="PAD" value="number($r/@c_estr_padre)"/>
+				<qry:attribute name="INI" value="$r/@l_inicia"/>
+				<qry:attribute name="ORD" value="$r/@e_orden"/>
+				<qry:attribute name="ROOT" value="iif($r/@c_estr_padre='',1,0)"/>
+			</ESTR>
+		</qry:out>
+	</qry:select>
+	<qry:select doc="SOURCE" name="PERS">
+		<qry:xquery>
+			for $r in SQL('
+SELECT           
+	ETTY.oi_entidad_estr,
+	ETTY.oi_estructura,
+	ETTY.d_entidad_estr
+FROM             
+	WRK05_ESTRUCTURA as ESTR,
+	WRK05_ENTIDAD_ESTR as ETTY
+JOIN
+	ESTR.oi_estructura INNER ETTY.oi_estructura
+WHERE            
+	ESTR.oi_estructura in ({%=$SOURCE/ESTR[@CNT=1]/@id %})
+ORDER BY
+	oi_estructura ASC, d_entidad_estr ASC
+')/ROWS/ROW,
+$s in $SOURCE/ESTR
+join
+$r/@oi_estructura inner $s/@id
+		</qry:xquery>
+		<qry:out>
+			<qry:insert-select name="PERSDATA" doc-path="$r" to-element="$s"/>
+		</qry:out>
+	</qry:select>
+	<qry:select doc="r" name="PERSDATA">
+		<qry:out>
+			<qry:attribute name="ETT" value="$r/@d_entidad_estr"/>
+		</qry:out>
+	</qry:select>
+</qry:define>

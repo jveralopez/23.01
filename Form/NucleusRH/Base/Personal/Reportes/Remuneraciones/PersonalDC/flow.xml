@@ -1,0 +1,196 @@
+<flow:flow xmlns:flow="nomad_engine.flow" xmlns:doc="nomad_engine.doc" xmlns:qry="nomad_engine.qry" extends="Nomad.Base.report.Crystal.flow" default_action="initialize" name="ReporteRemuneraciones_DC">
+	<flow:info label="ReporteLicencias"/>
+	<flow:declare>
+		<doc:define name="FILTERDATA">
+			<FILTRO oi_clase_org="" oi_estructura="" oi_empresa="" file-name="" batch-id="" f_des="" f_has="">
+				<PERSONAS/>
+			</FILTRO>
+		</doc:define>
+		<doc:define name="DDO_RESUL"/>
+		<qry:define declare="&lt;FILTRO oi_categoria =&quot;7&quot; oi_clase_org=&quot;&quot; oi_estructura=&quot;&quot; oi_empresa=&quot;1&quot; file-name=&quot;&quot; batch-id=&quot;&quot; f_des=&quot;&quot; f_has=&quot;&quot;&gt;&lt;PERSONAS nmd-col=&quot;1&quot;&gt;&lt;PERSONA id=&quot;1&quot; /&gt;&lt;PERSONA id=&quot;2&quot; /&gt;&lt;PERSONA id=&quot;3&quot; /&gt;&lt;PERSONA id=&quot;30&quot; /&gt;&lt;PERSONA id=&quot;72&quot; /&gt;&lt;PERSONA id=&quot;77&quot; /&gt;&lt;PERSONA id=&quot;80&quot; /&gt;&lt;PERSONA id=&quot;89&quot; /&gt;&lt;PERSONA id=&quot;90&quot; /&gt;&lt;PERSONA id=&quot;91&quot; /&gt;&lt;PERSONA id=&quot;138&quot; /&gt;&lt;PERSONA id=&quot;148&quot; /&gt;&lt;PERSONA id=&quot;5&quot; /&gt;&lt;PERSONA id=&quot;7&quot; /&gt;&lt;PERSONA id=&quot;8&quot; /&gt;&lt;/PERSONAS&gt;&lt;/FILTRO&gt;" name="PersonalDC">
+			<qry:main doc="PARAM">
+				<qry:append-doc name="FILTRO" doc-path="#PARAM:/FILTRO"/>
+				<qry:insert-select name="filtro_empresa" doc-path="#FILTRO:"/>
+			</qry:main>
+			<qry:select doc="PARAM" name="filtro_empresa">
+				<qry:xquery>
+					for $r in table('
+						select d_empresa from org03_empresas where oi_empresa= {#FILTRO:@oi_empresa}
+					')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:element name="DATOS">
+						<qry:attribute type="Nomad.NSystem.String" value="$r/@d_empresa" name="d_empresa"/>
+						<qry:insert-select name="QRY_NomCateg" doc-path="#FILTRO:"/>
+						<qry:insert-select name="QRY_DatosPersonas" doc-path="#FILTRO:"/>
+					</qry:element>
+				</qry:out>
+			</qry:select>
+			<qry:select name="QRY_DatosPersonas" doc="PARAM" value="$r/@">
+				<qry:xquery>
+					for $r in table('
+select      PER02_PERSONAL_EMP.oi_empresa
+, e_numero_legajo 
+, d_ape_y_nom 
+, f_ingreso 
+, f_antiguedad_rec = case isnull(f_antiguedad_rec,0) when 0 then f_ingreso else f_antiguedad_rec end 
+, Antig = datediff(year,  (case isnull(f_antiguedad_rec,0) when 0 then f_ingreso else f_antiguedad_rec end ) ,getdate())
+, n_ult_remun
+, oi_categoria_ult 
+, oi_posicion 
+, c_posicion
+, d_posicion 
+, c_puesto  
+, d_puesto
+, oi_banda_sal 
+
+from PER02_PERSONAL_EMP ,
+PER01_PERSONAL ,
+ORG04_POSICIONES,
+ORG04_PUESTOS
+where oi_posicion_ult  = ORG04_POSICIONES.oi_posicion
+and		oi_puesto_ult = ORG04_PUESTOS.oi_puesto
+and		PER01_PERSONAL.oi_personal = PER02_PERSONAL_EMP.oi_personal_emp
+{%? (string(#FILTRO:PERSONAS/PERSONA/@id)!='') 
+																		{% AND PER02_PERSONAL_EMP.oi_personal_emp in ({%=string(#FILTRO:PERSONAS/PERSONA/@id) %}) 
+																		%}
+																  {% %}
+																		%}
+
+ 
+
+{%? (string(#FILTRO:@oi_categoria)!='') 
+	{% AND PER02_PERSONAL_EMP.oi_categoria_ult = ({%=string(#FILTRO:@oi_categoria) %}) 
+																		%}
+																  {% %}
+																		%}
+
+and		PER02_PERSONAL_EMP.oi_empresa = {%=#FILTRO:@oi_empresa%}    
+
+')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:element name="PERSONAS">
+						<qry:insert-select name="QRY_PersonaDC" doc-path="$r"/>
+						<qry:attribute type="Nomad.NSystem.String" value="'pp'" name="pp"/>
+						<qry:attribute name="legajo" value="$r/@e_numero_legajo"/>
+					</qry:element>
+				</qry:out>
+			</qry:select>
+			<qry:select doc="PARAM_P" name="QRY_PersonaDC">
+				<qry:xquery>
+					for $r in table('
+select  
+  ORG18_CATEGORIAS.c_categoria  
+, ORG18_CATEGORIAS.d_categoria
+, ORG18_CONVENIOS.c_convenio
+, ORG18_CONVENIOS.d_convenio 
+, ORG18_CATEG_ANTIG.e_antig_anios 
+, ORG18_CATEG_ANTIG.n_sueldo_basico as n_sueldo
+, Ant0.n_sueldo_basico  as n_sueldo_basico 
+from ORG18_CATEG_ANTIG, 
+ORG18_CATEGORIAS, 
+ORG18_CONVENIOS , 
+ORG18_CATEG_ANTIG Ant0 
+where 
+		ORG18_CATEGORIAS.oi_categoria ={%=#PARAM_P:@oi_categoria_ult%}  
+and		ORG18_CATEG_ANTIG.oi_categoria = ORG18_CATEGORIAS.oi_categoria
+and		ORG18_CATEG_ANTIG.e_antig_anios ={%=#PARAM_P:@antig%}  
+and		ORG18_CATEGORIAS.oi_convenio = ORG18_CONVENIOS.oi_convenio
+and		Ant0.e_antig_anios = 0
+and		Ant0.oi_categoria = {%=#PARAM_P:@oi_categoria_ult%}     ')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:element name="PERSONAS_DC" value="#PARAM_P:@">
+						<qry:attribute type="Nomad.NSystem.String" value="#PARAM_P:@oi_empresa" name="oi_empresa"/>
+						<qry:attribute type="Nomad.NSystem.String" value="#FILTRO:@oi_categoria" name="filtro_categ"/>
+						<qry:attribute type="Nomad.NSystem.String" value="$r/@c_categoria" name="c_categoria"/>
+						<qry:attribute type="Nomad.NSystem.String" value="$r/@d_categoria" name="d_categoria"/>
+						<qry:attribute type="Nomad.NSystem.String" value="$r/@c_convenio" name="c_convenio"/>
+						<qry:attribute type="Nomad.NSystem.String" value="$r/@d_convenio" name="d_convenio"/>
+						<qry:attribute type="Nomad.NSystem.String" value="#PARAM_P:@d_ape_y_nom" name="d_ape_y_nom"/>
+						<qry:attribute value="format_date(#PARAM_P:@f_ingreso,'dd/mm/yyyy')" name="f_ingreso" type="Nomad.NSystem.String"/>
+						<qry:attribute value="format_date(#PARAM_P:@f_antiguedad_rec,'dd/mm/yyyy')" type="Nomad.NSystem.String" name="f_antiguedad_rec"/>
+						<qry:attribute type="Nomad.NSystem.String" value="#PARAM_P:@Antig" name="Antig"/>
+						<qry:attribute type="Nomad.NSystem.String" value="#PARAM_P:@n_ult_remun" name="n_ult_remun"/>
+						<qry:attribute value="#PARAM_P:@oi_categoria_ult" type="Nomad.NSystem.String" name="oi_categoria_ult"/>
+						<qry:attribute type="Nomad.NSystem.String" value="#PARAM_P:@oi_posicion" name="oi_posicion"/>
+						<qry:attribute type="Nomad.NSystem.String" value="#PARAM_P:@c_posicion" name="c_posicion"/>
+						<qry:attribute type="Nomad.NSystem.String" value="#PARAM_P:@d_posicion" name="d_posicion"/>
+						<qry:attribute type="Nomad.NSystem.String" value="#PARAM_P:@c_puesto" name="c_puesto"/>
+						<qry:attribute type="Nomad.NSystem.String" value="#PARAM_P:@d_puesto" name="d_puesto"/>
+						<qry:attribute type="Nomad.NSystem.String" value="#PARAM_P:@oi_banda_sal" name="oi_banda_sal"/>
+						<qry:attribute type="Nomad.NSystem.String" value="$r/@e_antig_anios" name="e_antig_anios"/>
+						<qry:attribute type="Nomad.NSystem.String" value="$r/@n_sueldo" name="n_sueldo"/>
+						<qry:attribute type="Nomad.NSystem.String" value="$r/@n_sueldo_basico" name="n_sueldo_basico"/>
+					</qry:element>
+				</qry:out>
+			</qry:select>
+			<qry:select doc="ParamC" name="QRY_NomCateg">
+				<qry:xquery>
+					for $r in table(' 
+		select d_categoria from ORG18_CATEGORIAS where oi_categoria= {#FILTRO:@oi_categoria}
+  ')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:attribute name="FiltroCategoria" value="$r/@d_categoria" type="Nomad.NSystem.String"/>
+				</qry:out>
+			</qry:select>
+		</qry:define>
+	</flow:declare>
+	<flow:main doc="SOURCE">
+		<flow:action name="initialize">
+			<flow:open-form form-class="NucleusRH.Base.Personal.Reportes.Remuneraciones.PersonalDC.filter.form" doc-path="#SOURCE:" mode="FILTER"/>
+		</flow:action>
+	</flow:main>
+	<flow:form name="NucleusRH.Base.Personal.Reportes.Remuneraciones.PersonalDC.filter.form:FILTER" form-class="NucleusRH.Base.Personal.Reportes.Remuneraciones.PersonalDC.filter.form" parent-doc="PARENTSOURCE" doc="SOURCE" mode="FILTER">
+		<flow:action name="BACK">
+			<flow:close-form/>
+		</flow:action>
+		<flow:action name="ACCEPT">
+			<doc:assign-mapping dir-apply="a-&gt;b" b-doc="FILTERDATA" a-doc="FORM">
+				<map docB="B" docA="A">
+					<submap path-docB="#B:PERSONAS" path-docA="#A:ctrl[@id='grdPersonal']/rows">
+						<map docB="B" docA="A">
+							<link B="#B:@id" A="#A:columns/ctrl[@id='oi_personal_emp']/@xval"/>
+						</map>
+						<ProtoA/>
+						<ProtoB>
+							<PERSONA id=""/>
+						</ProtoB>
+					</submap>
+				</map>
+			</doc:assign-mapping>
+			<flow:call-action if="#FILTERDATA:@FormatRPT" action="ACCEPTpdf" eq="PDF"/>
+			<flow:call-action if="#FILTERDATA:@FormatRPT" action="ACCEPTxls" eq="XLS"/>
+			<flow:call-action if="#FILTERDATA:@FormatRPT" action="ACCEPTrtf" eq="RTF"/>
+		</flow:action>
+		<flow:action name="ACCEPTpdf">
+			<flow:log text-path="#FILTERDATA:" text="ppfilterdata"/>
+			<flow:exec-method out-attr-path="#FILTERDATA:@batch-id" out-type="String" priority="5" method="execute" class="Nomad.NSystem.Crystal.NmdCrystalBatch">
+				<flow:param value="NucleusRH.Base.Personal.RemuneracionesDC\RemuneracionesDC.def" name="report-name" mode="in" type="Nomad.NSystem.String"/>
+				<flow:param name="report-param" mode="in" type="Nomad.NSystem.Object" doc="FILTERDATA"/>
+				<flow:param attr-path="#FILTERDATA:@file-name" name="report-file" mode="in" type="Nomad.NSystem.String"/>
+			</flow:exec-method>
+			<flow:open-form form-class="Nomad.base.batch.report.form" mode="BATCH" doc-path="#FILTERDATA:"/>
+		</flow:action>
+		<flow:action name="ACCEPTxls">
+			<flow:log text-path="#FILTERDATA:" text="ppfilterdata"/>
+			<flow:exec-method out-attr-path="#FILTERDATA:@batch-id" out-type="String" priority="5" method="execute" class="Nomad.NSystem.Crystal.NmdCrystalBatch">
+				<flow:param value="NucleusRH.Base.Personal.RemuneracionesDC\RemuneracionesDCXLS.def" name="report-name" mode="in" type="Nomad.NSystem.String"/>
+				<flow:param name="report-param" mode="in" type="Nomad.NSystem.Object" doc="FILTERDATA"/>
+				<flow:param attr-path="#FILTERDATA:@file-name" name="report-file" mode="in" type="Nomad.NSystem.String"/>
+			</flow:exec-method>
+			<flow:open-form form-class="Nomad.base.batch.report.form" mode="BATCH" doc-path="#FILTERDATA:"/>
+		</flow:action>
+		<flow:action name="ACCEPTrtf">
+			<flow:log text-path="#FILTERDATA:" text="ppfilterdata"/>
+			<flow:exec-method out-attr-path="#FILTERDATA:@batch-id" out-type="String" priority="5" method="execute" class="Nomad.NSystem.Crystal.NmdCrystalBatch">
+				<flow:param value="NucleusRH.Base.Personal.RemuneracionesDC\RemuneracionesDCRTF.def" name="report-name" mode="in" type="Nomad.NSystem.String"/>
+				<flow:param name="report-param" mode="in" type="Nomad.NSystem.Object" doc="FILTERDATA"/>
+				<flow:param attr-path="#FILTERDATA:@file-name" name="report-file" mode="in" type="Nomad.NSystem.String"/>
+			</flow:exec-method>
+			<flow:open-form form-class="Nomad.base.batch.report.form" mode="BATCH" doc-path="#FILTERDATA:"/>
+		</flow:action>
+	</flow:form>
+</flow:flow>

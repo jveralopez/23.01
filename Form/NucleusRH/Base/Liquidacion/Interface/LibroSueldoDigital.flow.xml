@@ -1,0 +1,194 @@
+<flow:flow xmlns:flow="nomad_engine.flow" xmlns:doc="nomad_engine.doc" xmlns:qry="nomad_engine.qry" default_action="initialize" extends="Nomad.Base.flow" name="Nomad.Base.Liquidacion.Liquidacion">
+	<flow:info label="Flow para Nomad.Base.Liquidacion.Liquidacion">
+		Flow para Nomad.Base.Liquidacion.Liquidacion
+	</flow:info>
+	<flow:declare>
+		<doc:define name="FILTERDATA">
+			<DATA>
+				<LIQS/>
+			</DATA>
+		</doc:define>
+		<qry:define declare="&lt;DATA oi_empresa=&quot;8&quot; e_periodo=&quot;201910&quot; interface=&quot;LSDIG&quot;&gt;&lt;LIQS /&gt;&lt;/DATA&gt;" name="LIST">
+			<qry:main doc="SOURCE">
+				<qry:element name="ROWS">
+					<!--<LIQORIGEN>
+			<qry:append-doc name="LIQORIGEN" doc-path="."/>
+			<qry:insert-select name="sqlOrigen" doc-path="#SOURCE:."/>
+			<qry:attribute name="hts:delete" value="1"/>
+		</LIQORIGEN>-->
+					<qry:insert-select name="sql1" doc-path="#SOURCE:."/>
+				</qry:element>
+			</qry:main>
+			<qry:select doc="SOURCE" name="sql1">
+				<qry:xquery>
+					for $r in SQL('
+select 
+	t19.oi_liquidacion, 
+	t19.c_liquidacion, 					
+	t19.d_titulo,   
+	t19.e_periodo, 
+	t19.f_cierre,
+	t19.c_estado,
+	org03.c_empresa,
+	org03.d_empresa,
+	l99.oi_liquidacion_ddo, 
+	LIQ19GEN.c_liquidacion as c_liq_genera,
+	LIQ19GEN.d_titulo as d_liq_genera,
+	LIQ19GEN.oi_liquidacion as oi_liq_genera,
+	SEC.policy
+FROM
+	LIQ19_LIQUIDACION as t19, 
+	ORG03_EMPRESAS as org03,  
+	LIQ19_EJECUCIONES as e19,        
+	LIQ99_LIQUIDACION as l99,    
+	LIQ19_LIQUIDACION as LIQ19GEN,
+	NMD_SECURITY(class=\'NucleusRH.Base.Liquidacion.Liquidacion.LIQUIDACION\') as SEC
+JOIN
+	t19.oi_empresa INNER org03.oi_empresa,
+	e19.oi_liquidacion INNER t19.oi_liquidacion,
+	l99.oi_liquidacion_ddo INNER e19.oi_liquidacion_ddo,
+	t19.oi_liq_genera INNER LIQ19GEN.oi_liquidacion,
+	t19.oi_liquidacion LEFT OUTER SEC.id					
+    WHERE 
+      t19.oi_empresa = {#SOURCE:@oi_empresa} 
+      and t19.oi_tipo_liq = 7    
+      AND t19.e_periodo = {#SOURCE:@e_periodo}  
+      AND l99.c_estado = \'F\'
+order by f_cierre  asc
+     ')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:element name="ROW">
+						<qry:attribute name="id" value="$r/@oi_liquidacion"/>
+						<qry:attribute name="c_liquidacion" value="$r/@c_liquidacion"/>
+						<qry:attribute name="d_titulo" value="$r/@d_titulo"/>
+						<qry:attribute name="c_empresa" value="concat('[',$r/@c_empresa,'] ',$r/@d_empresa)"/>
+						<qry:attribute name="e_periodo" value="concat(substring($r/@e_periodo,4,2),'/',substring($r/@e_periodo,0,4))"/>
+						<qry:attribute name="n_liq" value="number($r/@_position) + 1 "/>
+						<qry:attribute name="c_estado" value="$r/@c_estado"/>
+						<qry:attribute name="oi_liquidacion_ddo" value="$r/@oi_liquidacion_ddo"/>
+						<qry:attribute name="c_liq_genera" value="concat('[',$r/@c_liq_genera,'] ',$r/@d_liq_genera)"/>
+						<qry:attribute name="oi_liq_genera" value="$r/@oi_liq_genera"/>
+						<qry:attribute name="c_emp" value="$r/@c_empresa"/>
+						<!--<qry:attribute name="oi_liq" value="$i/@oi_liq"/>-->
+						<!--<qry:if test="@c_estado = 'C'">
+				<qry:then>
+					<qry:if test="@oi_liq = @oi_liq_genera">
+						<qry:then>
+							<qry:attribute name="orden" value="'1'"/>
+						</qry:then>
+						<qry:else>
+							<qry:attribute name="orden" value="'0'"/>
+						</qry:else>
+					</qry:if>
+				</qry:then>
+			</qry:if> -->
+						<qry:insert-select name="cant_legajos" doc-path="."/>
+					</qry:element>
+				</qry:out>
+			</qry:select>
+			<qry:select name="cant_legajos" doc="SOURCE">
+				<qry:xquery>
+					for $r in SQL('
+				SELECT COUNT(LIQ25_PERSONAL_LIQ.oi_personal_liq) AS cant
+		FROM LIQ25_PERSONAL_LIQ
+		WHERE LIQ25_PERSONAL_LIQ.oi_liquidacion = {#SOURCE:@id}
+			')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:attribute name="n_legajos" value="$r/@cant"/>
+				</qry:out>
+			</qry:select>
+			<qry:select name="sqlOrigen" doc="SOURCE">
+				<qry:xquery>
+					for $r in SQL('
+select 
+ 	LIQ19GEN.oi_liquidacion as oi_liq, 					
+ 	LIQ19GEN.f_cierre,
+ 	LIQ19GEN.c_estado
+ FROM
+	LIQ19_LIQUIDACION as t19, 
+	ORG03_EMPRESAS as org03,  
+	LIQ19_EJECUCIONES as e19,        
+	LIQ99_LIQUIDACION as l99,    
+	LIQ19_LIQUIDACION as LIQ19GEN,
+	NMD_SECURITY(class=\'NucleusRH.Base.Liquidacion.Liquidacion.LIQUIDACION\') as SEC
+JOIN
+	t19.oi_empresa INNER org03.oi_empresa,
+	e19.oi_liquidacion INNER t19.oi_liquidacion,
+	l99.oi_liquidacion_ddo INNER e19.oi_liquidacion_ddo,
+	t19.oi_liq_genera INNER LIQ19GEN.oi_liquidacion,
+	t19.oi_liquidacion LEFT OUTER SEC.id					
+    WHERE 
+      t19.oi_empresa = {#SOURCE:@oi_empresa} 
+      and t19.oi_tipo_liq = 7    
+      AND t19.e_periodo = {#SOURCE:@e_periodo}  
+      AND l99.c_estado = \'F\'
+order by c_estado asc,f_cierre  asc
+			')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:insert-element doc-path="$r"/>
+				</qry:out>
+			</qry:select>
+		</qry:define>
+		<qry:define declare="&lt;PARAM batchid=&quot;00002780-000018B0-20230424-083549-0000001D&quot;/&gt;" name="QRY_ARCHIVO_LISTA">
+			<qry:main doc="SOURCE">
+				<qry:element name="FILES">
+					<qry:insert-select name="QRY_FILE" doc-path="#SOURCE:."/>
+				</qry:element>
+			</qry:main>
+			<qry:select doc="PARAM" name="QRY_FILE">
+				<qry:xquery>
+					for $r in fileIO('INTERFACES\\LSD_LISTA_{%=$PARAM/@batchid%}.xml')/FILES/FILE
+				</qry:xquery>
+				<qry:out>
+					<qry:insert-element doc-path="$r"/>
+				</qry:out>
+			</qry:select>
+		</qry:define>
+		<doc:define name="PARAMLISTA"/>
+	</flow:declare>
+	<flow:main doc="SOURCE">
+		<flow:action name="initialize">
+			<flow:load-user-data name="LibroSueldoDigital-Interface" doc="FILTERDATA"/>
+			<flow:open-form form-class="NucleusRH.Base.Liquidacion.Interface.LibroSueldoDigital.form" doc-path="#FILTERDATA:" mode="SHOW"/>
+		</flow:action>
+	</flow:main>
+	<flow:form form-class="NucleusRH.Base.Liquidacion.Interface.LibroSueldoDigital.form" name="NucleusRH.Base.Liquidacion.Interface.LibroSueldoDigital.form:EDIT" mode="SHOW" doc="SOURCE">
+		<flow:action name="EJECUTAR_CLICK">
+			<flow:save-user-data name="LibroSueldoDigital-Interface" doc-path="#FILTERDATA:"/>
+			<flow:exec-method method="ProcesarInterfaceLSD" class="NucleusRH.Base.Liquidacion.LibroSueldoDigital.LSD" out-attr-path="#BATCHDOC:@batch-id" out-type="String" priority="5">
+				<flow:param value="LEGALES" mode="in" name="interfaceTIPO" type="Nomad.NSystem.String"/>
+				<flow:param attr-path="#SOURCE:@interface" mode="in" type="Nomad.NSystem.String" name="interdaceID"/>
+				<flow:param doc-path="#FILTERDATA:" type="Nomad.NSystem.Object" mode="in" name="parametros"/>
+			</flow:exec-method>
+			<flow:open-form form-class="nomad.base.batchtonext.form" mode="BATCH" doc-path="#BATCHDOC:"/>
+		</flow:action>
+		<flow:action name="VOLVER_CLICK">
+			<flow:close-form/>
+		</flow:action>
+	</flow:form>
+	<flow:form name="nomad.base.batchtonext.form:BATCH" form-class="nomad.base.batchtonext.form" mode="BATCH" doc="SOURCE">
+		<flow:action name="NEXT">
+			<flow:close-form/>
+			<flow:open-form form-class="NucleusRH.Base.Liquidacion.Interface.LibroSueldoDigitalLista.form" doc-path="#SOURCE:" mode="LIST"/>
+		</flow:action>
+		<flow:action name="BACK">
+			<flow:close-form/>
+		</flow:action>
+	</flow:form>
+	<flow:form mode="LIST" form-class="NucleusRH.Base.Liquidacion.Interface.LibroSueldoDigitalLista.form" name="NucleusRH.Base.Liquidacion.Interface.LibroSueldoDigitalLista.form:LIST" doc="SOURCE">
+		<flow:action name="on-show">
+			<flow:log text-path="#BATCHDOC:" text="matias1"/>
+			<doc:set-attribute from-attr-path="#BATCHDOC:@batch-id" to-attr-path="#PARAMLISTA:@batchid"/>
+			<flow:log text-path="#PARAMLISTA:" text="matias2"/>
+			<doc:load-qry output-doc="QRY_LIST" qry="QRY_ARCHIVO_LISTA" input-doc-path="#PARAMLISTA:"/>
+			<flow:log text="matias3" text-path="#QRY_LIST:"/>
+			<flow:attach-doc doc-path="#QRY_LIST:" attach-id="RS"/>
+		</flow:action>
+		<flow:action name="BACK">
+			<flow:close-form/>
+		</flow:action>
+	</flow:form>
+</flow:flow>

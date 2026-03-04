@@ -1,0 +1,507 @@
+<form:Form xmlns:form="nomad_engine.form" xmlns:qry="nomad_engine.qry" default_mode="NEW" doc="source" name="NucleusRH.Base.Vacaciones.Solicitud.form">
+	<form:Scripts>
+		function EnableButtons()
+{
+	if (Ctrl("lblERROR").GetXValue()!="" || Ctrl('f_desde_solicitud').GetXValue() == "" || Ctrl('f_hasta_solicitud').GetXValue() == ""  || Ctrl('e_dias_solicitud').GetXValue() == "")
+	{
+		CtrlEnabled("btnGuardar",false);
+		CtrlEnabled("btnAprobar",false);            
+		CtrlEnabled("btnAutorizar",false);		
+	} 
+	else
+	{
+		CtrlEnabled("btnGuardar",true);
+		CtrlEnabled("btnAprobar",true);
+		CtrlEnabled("btnAutorizar",true);
+	}	
+}
+
+function SetControls()
+{
+	Ctrl('l_automatica').SetXValue("1");
+	CtrlEnabled("e_dias_bonif",false);
+	EnableButtons();
+}
+
+function CALCULAR_DIAS()
+{
+	if(Ctrl('l_automatica').GetXValue() == "1") 
+	{
+		if (Ctrl('f_desde_solicitud').GetXValue() == "" || Ctrl('f_hasta_solicitud').GetXValue() == "")
+		{
+			Ctrl('e_dias_solicitud').SetXValue("");
+			EnableButtons();
+		} 
+		else
+			Ctrl('main').DoEvent('RECALCULAR_DIAS');
+	}
+	else
+	{
+		EnableButtons();
+	}	
+}
+
+function CALCULAR_F_HASTA()
+{
+	if(Ctrl('l_automatica').GetXValue() == "1") 
+	{
+		if (Ctrl('f_desde_solicitud').GetXValue() == "")
+			EnableButtons();
+		else
+			Ctrl('main').DoEvent('RECALCULAR_FECHA');
+	}
+	else
+	{
+		EnableButtons();
+	}
+}
+
+function ChgAuto()
+{           
+	Ctrl('f_desde_solicitud').SetXValue("");
+	Ctrl('f_hasta_solicitud').SetXValue("");	
+	Ctrl('e_dias_solicitud').SetXValue("");
+	Ctrl('e_dias_bonif').SetXValue("");
+	if(Ctrl("e_dias_bonif").GetEnabled())
+		CtrlEnabled("e_dias_bonif",false);
+	else
+		CtrlEnabled("e_dias_bonif",true);	
+	
+	EnableButtons();
+}                   
+
+function CALCULAR_SUPERPOSICION()
+{
+	var np = new NomadProxy();
+	var nSQL = np.SQLService(); 
+	result= nSQL.GetOBJ(Ctrl("main").getResource("QRY_GRUPO_LEGAJO"),"&lt;PARAM oi_personal_emp=\""+Ctrl("oi_personal_emp").GetXValue()+"\" f_desde_solicitud=\""+Ctrl("f_desde_solicitud").GetXValue()+"\" f_hasta_solicitud=\""+Ctrl("f_hasta_solicitud").GetXValue()+"\" /&gt;");      
+	                          
+	if(result.legajo_sup)
+		{
+			var msg="La solicitud de vacaciones realizada se superpone "+result.dias_sup.toString();
+			msg=msg+" d&#237;as con la licencia de otro legajo.";
+			msg=msg+" Esta superposici&#243;n se encuentra FUERA del rango permitido, por lo tanto, no puede generar dicha solicitud. \n \n";
+			msg=msg+"Legajo: "+result.legajo_sup.toString()+"\n";   
+			msg=msg+"Fecha de Inicio: "+result.f_inicio_sup.toString()+"\n";
+			msg=msg+"Fecha de Fin: "+result.f_fin_sup.toString()+"\n \n"; 
+			alert(msg); 
+			return false;  
+		}
+	else if (result.legajo)
+	 		{
+	 		var msg="Advertencia! \n";
+			msg=msg+"La solicitud de vacaciones realizada se superpone "+result.dias.toString();
+			msg=msg+" d&#237;as con la licencia de otro legajo.";
+			msg=msg+" Esta superposici&#243;n se encuentra dentro del rango permitido. \n \n";
+			msg=msg+"Legajo: "+result.legajo.toString()+"\n";   
+			msg=msg+"Fecha de Inicio: "+result.f_inicio.toString()+"\n";
+			msg=msg+"Fecha de Fin: "+result.f_fin.toString()+"\n \n"; 
+			msg=msg+"&#191;Desea continuar de todos modos?";
+			return confirm(msg);
+	 		}               
+	 	  else
+	 	  	return true;
+
+}        
+
+function ValDates()
+{             
+	
+  		var licVal;  
+		var nSQL = GetProxy().SQLService();
+		licVal = nSQL.GetXML(Ctrl("main").getResource("qry_ValLic"), "&lt;PARAM oi_personal_emp=\""+Ctrl('oi_personal_emp').GetXValue()+"\" f_desde_solicitud=\""+Ctrl('f_desde_solicitud').GetXValue()+"\" f_hasta_solicitud=\""+Ctrl('f_hasta_solicitud').GetXValue()+"\"/&gt;");
+    
+    
+    
+		if(licVal.GetAttr("flag") != "0")
+		{                                			
+			var xmlRow;
+			var msg="La licencia se solapa con:\n";
+			for(xmlRow = licVal.FirstChild(); xmlRow!=null; xmlRow=xmlRow.Next()) 
+			{
+				msg = msg + xmlRow.GetAttr("desc") + "\n";
+			}
+			alert(msg);
+			return false;	
+		}
+		else
+			return CALCULAR_SUPERPOSICION();
+}
+	</form:Scripts>
+	<form:Title>
+		<form:Label name="lbl1" descrip="Solicitud Vacaciones" align="center" label="Solicitud de Vacaciones" style="S3 LCol_w"/>
+	</form:Title>
+	<form:Center>
+		<form:Blank name="blna1231"/>
+		<form:Columns width="100%" name="cols">
+			<form:Column name="col1">
+				<form:Combo enabled="0" action="COMBO" flow="NucleusRH.Base.Organizacion.Empresas.EMPRESA.Combo.autoflow" required="1" label="Empresa" nvalue="#source:@oi_empresa" name="oi_empresa"/>
+				<form:DateTime enabled="0" name="f_ingreso" nvalue="#source:@f_ingreso" pattern="YYYYMMDD" required="0" descr="Fecha de Nacimiento Desde" mask="dd/mm/yyyy" label="Fecha Ingreso">
+					<form:SButtons>
+						<form:SButton visible="0" descrip="Fecha de Nacimiento" img="Calendar" label="Calendar" name="Calendar">
+							<form:Event action="SHOW_HELPER" name="onclick" runat="client"/>
+						</form:SButton>
+					</form:SButtons>
+				</form:DateTime>
+				<form:TextBox label="Antig&#252;edad (A&#241;os)" name="e_antiguedad" nvalue="#source:@e_antiguedad" enabled="0" length="30" xsize="30" ysize="1" required="0"/>
+			</form:Column>
+			<form:Column name="col2">
+				<form:FKInput enabled="0" nvalue="#source:@oi_personal_emp" name="oi_personal_emp" label="Personal" length="30" xsize="15" required="0">
+					<form:STexts>
+						<form:SText name="txt1" xsize="50"/>
+					</form:STexts>
+					<form:Helper c2x="C2X" x2c="X2C" help="HELP" name="NucleusRH.Base.Personal.LegajoEmpresa.PERSONAL_EMP.Guia.autoflow">
+						<helper-mess code="{this.CVal}" id="{this.XVal}" text="{this.Text.1}"/>
+					</form:Helper>
+					<form:SButtons>
+						<form:SButton visible="0" name="SEARCH" label="Search" img="SEARCH">
+							<form:Event runat="client" name="onclick" action="SHOW_HELPER"/>
+						</form:SButton>
+					</form:SButtons>
+				</form:FKInput>
+				<form:FKInput enabled="0" label="Convenio" name="oi_convenio" length="30" xsize="15" required="0" nvalue="#source:@oi_convenio">
+					<form:STexts>
+						<form:SText name="txt1" xsize="50"/>
+					</form:STexts>
+					<form:Helper c2x="C2X" x2c="X2C" help="HELP" name="NucleusRH.Base.Organizacion.Convenios.CONVENIO.Guia.autoflow">
+						<helper-mess code="{oi_convenio.CVal}" id="{oi_convenio.XVal}" text="{oi_convenio.Text.1}"/>
+					</form:Helper>
+					<form:SButtons>
+						<form:SButton visible="0" name="SEARCH" label="Search" img="SEARCH">
+							<form:Event runat="client" name="onclick" action="SHOW_HELPER"/>
+						</form:SButton>
+					</form:SButtons>
+				</form:FKInput>
+				<form:TextBox label="Saldo Vacaciones (D&#237;as)" name="e_saldo" nvalue="#source:@e_saldo" length="30" xsize="30" ysize="1" enabled="0" required="0"/>
+			</form:Column>
+		</form:Columns>
+		<form:Blank name="bln1"/>
+		<form:Line name="line1"/>
+		<form:Blank name="bln2"/>
+		<form:Columns name="cols2">
+			<form:Column name="col21">
+				<form:DateTime name="f_desde_solicitud" label="Fecha Inicio" enabled="NEW" required="1" nvalue="#source:@f_desde_solicitud" pattern="YYYYMMDD">
+					<form:SButtons>
+						<form:SButton descrip="Fecha de Nacimiento" img="Calendar" visible="" label="Calendar" name="Calendar">
+							<form:Event action="SHOW_HELPER" name="onclick" runat="client"/>
+						</form:SButton>
+					</form:SButtons>
+					<form:Event action="CALCULAR_DIAS" name="onchange" runat="client"/>
+				</form:DateTime>
+				<form:DateTime name="f_hasta_solicitud" required="1" label="Fecha Fin" enabled="NEW" nvalue="#source:@f_hasta_solicitud" pattern="YYYYMMDD">
+					<form:SButtons>
+						<form:SButton descrip="Fecha de Nacimiento" img="Calendar" visible="" label="Calendar" name="Calendar">
+							<form:Event action="SHOW_HELPER" name="onclick" runat="client"/>
+						</form:SButton>
+					</form:SButtons>
+					<form:Event action="CALCULAR_DIAS" name="onchange" runat="client"/>
+				</form:DateTime>
+				<form:NumberBox xsize="12" name="e_dias_solicitud" enabled="NEW" label="Cantidad D&#237;as" required="1" nvalue="#source:@e_dias_solicitud">
+					<form:Event runat="client" name="onchange" action="CALCULAR_F_HASTA"/>
+				</form:NumberBox>
+				<form:NumberBox label="D&#237;as Bonificados" xsize="12" name="e_dias_bonif" enabled="NEW" required="1" nvalue="#source:@e_dias_bonif"/>
+				<form:Label style="M1 LCol_t" nvalue="#outDOC:@ERR" dynamic="1" align="center" name="lblERROR"/>
+				<form:TextBox ysize="4" xsize="50" name="d_motivo_solic" enabled="NEW" required="0" length="100" label="Motivo Solicitud" nvalue="#source:@d_motivo_solic"/>
+				<form:TextBox name="o_solicitud" enabled="NEW" label="Observaciones" length="1000" required="0" xsize="50" ysize="4" nvalue="#source:@o_solicitud"/>
+				<form:CheckBox required="1" enabled="NEW|EDIT" label="Calcular valores autom&#225;ticamente?" nvalue="#source:@l_automatica" name="l_automatica">
+					<form:Event action="ChgAuto" name="onclick" runat="client"/>
+				</form:CheckBox>
+				<form:Hidden descrip="oi_solicitud" name="oi_solicitud" nvalue="#source:@oi_solicitud"/>
+				<form:Hidden nvalue="#source:@l_aprobada" name="l_aprobada"/>
+				<form:Hidden nvalue="#source:@l_habiles" name="l_habiles"/>
+				<form:Hidden nvalue="#source:@d_habiles" name="d_habiles"/>
+			</form:Column>
+		</form:Columns>
+	</form:Center>
+	<form:Bottom>
+		<form:RowAligner columns="3" name="botonera">
+			<form:Row name="fila6">
+				<form:Button note="Ejecuta la busqueda" img="save" label="Guardar" name="btnGuardar" visible="" startvalidate="1">
+					<form:Event action="ValDates" name="onclick" runat="client"/>
+					<form:Event runat="server" name="onclick" action="SAVE"/>
+				</form:Button>
+				<form:Blank visible="" width="50%" name="bl8"/>
+				<form:Button mess="&#191;Est&#225; seguro que desea cancelar la operaci&#243;n?" infomess="0" img="cancel" descrip="Volver a la pantalla anterior" note="Agregar un nuevo registro" visible="" enabled="" label="Cancelar" name="btnCancelar">
+					<form:Event runat="server" name="onclick" action="CANCEL"/>
+				</form:Button>
+				<form:Blank visible="" width="50%" name="bl9"/>
+				<form:Button img="ok" startvalidate="1" descrip="Aprueba la solicitud de vacaciones" note="Agregar un nuevo registro" visible="" enabled="" name="btnAprobar" label="Aprobar">
+					<form:Event action="ValDates" name="onclick" runat="client"/>
+					<form:Event runat="server" name="onclick" action="APROBAR"/>
+				</form:Button>
+				<form:Button img="key_go" mess="La solicitud se aprobar&#225; aunque no tenga d&#237;as disponibles, est&#225; seguro que desea continuar?" label="Autorizar" name="btnAutorizar" startvalidate="1" descrip="Aprueba la solicitud de vacaciones" note="Agregar un nuevo registro" visible="" enabled="">
+					<form:Event action="ValDates" name="onclick" runat="client"/>
+					<form:Event action="AUTORIZAR" runat="server" name="onclick"/>
+				</form:Button>
+			</form:Row>
+		</form:RowAligner>
+	</form:Bottom>
+	<form:Event action="RECALCULAR_DIAS" name="RECALCULAR_DIAS" runat="server"/>
+	<form:Event action="RECALCULAR_FECHA" name="RECALCULAR_FECHA" runat="server"/>
+	<form:Event action="SetControls" name="OnLoad" runat="client"/>
+	<form:Resources>
+		<form:Resource declare="&lt;PARAM oi_personal_emp=&quot;14747&quot; f_desde_solicitud=&quot;20160101&quot; f_hasta_solicitud=&quot;20160902&quot; /&gt;" name="QRY_GRUPO_LEGAJO">
+			<qry:main doc="SOURCE" name="QRY_MAIN">
+				<qry:element name="RESULT">
+					<qry:insert-select name="RS1" doc-path="#SOURCE:PARAM"/>
+				</qry:element>
+			</qry:main>
+			<qry:select name="RS1" doc="SOURCE">
+				<qry:xquery>
+					for $r in SQL('
+				SELECT  
+					VAC01_PERSONAL.oi_grupo_legajo,
+					VAC01_PERSONAL.oi_personal_emp,
+					VAC06_GRUPO_LEGAJO.e_dias_superpos
+				FROM
+					VAC01_PERSONAL,
+					VAC06_GRUPO_LEGAJO
+				JOIN
+					VAC01_PERSONAL.oi_grupo_legajo INNER VAC06_GRUPO_LEGAJO.oi_grupo_legajo 
+				WHERE
+					VAC01_PERSONAL.oi_personal_emp = {#SOURCE:@oi_personal_emp}
+				')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:attribute name="oi_grupo_legajo" value="$r/@oi_grupo_legajo"/>
+					<qry:attribute name="oi_personal_emp" value="$r/@oi_personal_emp"/>
+					<qry:attribute name="e_dias_superpos" value="$r/@e_dias_superpos"/>
+					<qry:attribute name="f_desde_solicitud" value="#SOURCE:@f_desde_solicitud"/>
+					<qry:attribute name="f_hasta_solicitud" value="#SOURCE:@f_hasta_solicitud"/>
+					<qry:insert-select name="RS2" doc-path="."/>
+					<qry:insert-select name="RS3" doc-path="."/>
+				</qry:out>
+			</qry:select>
+			<qry:select name="RS2" doc="SOURCE">
+				<qry:xquery>
+					for $r in SQL('
+				SELECT  
+					PER01_PERSONAL.d_ape_y_nom,
+					PER02_PERSONAL_EMP.e_numero_legajo,
+					PER02_LICEN_PER.f_inicio,
+					PER02_LICEN_PER.f_fin
+				FROM
+					VAC01_PERSONAL,
+					PER02_LICEN_PER,
+					PER16_LICENCIAS,
+					PER02_PERSONAL_EMP,
+					PER01_PERSONAL
+				JOIN
+					VAC01_PERSONAL.oi_personal_emp INNER PER02_LICEN_PER.oi_personal_emp,
+					VAC01_PERSONAL.oi_personal_emp INNER PER02_PERSONAL_EMP.oi_personal_emp,
+					PER02_PERSONAL_EMP.oi_personal INNER PER01_PERSONAL.oi_personal,
+					PER02_LICEN_PER.oi_licencia INNER PER16_LICENCIAS.oi_licencia
+				WHERE
+					VAC01_PERSONAL.oi_grupo_legajo = {#SOURCE:@oi_grupo_legajo}
+				AND VAC01_PERSONAL.oi_personal_emp != {#SOURCE:@oi_personal_emp}
+				AND PER16_LICENCIAS.c_licencia = \'V\'
+				AND ((PER02_LICEN_PER.f_inicio &gt;= {Datetime(#SOURCE:@f_desde_solicitud)}
+					  AND PER02_LICEN_PER.f_inicio &lt;= {Datetime(#SOURCE:@f_hasta_solicitud)})
+				  OR (PER02_LICEN_PER.f_fin &gt;= {Datetime(#SOURCE:@f_desde_solicitud)}
+					  AND PER02_LICEN_PER.f_fin &lt;= {Datetime(#SOURCE:@f_hasta_solicitud)})
+				  OR (PER02_LICEN_PER.f_inicio &lt;= {Datetime(#SOURCE:@f_desde_solicitud)}
+					  AND PER02_LICEN_PER.f_fin &gt;= {Datetime(#SOURCE:@f_hasta_solicitud)}))
+			    ORDER BY			
+					f_inicio ASC
+				   
+				')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<!--Inicializa el calculo de los dias de superposicion-->
+					<qry:attribute name="dias_superposicion" value="0"/>
+					<!--Establece fecha de inicio en que comienza la superposicion-->
+					<qry:if test="$r/@f_inicio&gt;=#SOURCE:@f_desde_solicitud">
+						<qry:then>
+							<qry:attribute name="f_inicio_superpos" value="$r/@f_inicio"/>
+						</qry:then>
+						<qry:else>
+							<qry:attribute name="f_inicio_superpos" value="#SOURCE:@f_desde_solicitud"/>
+						</qry:else>
+					</qry:if>
+					<!--Establece fecha de fin en que termina la superposicion-->
+					<qry:if test="$r/@f_fin&lt;=#SOURCE:@f_hasta_solicitud">
+						<qry:then>
+							<qry:attribute name="f_fin_superpos" value="$r/@f_fin"/>
+						</qry:then>
+						<qry:else>
+							<qry:attribute name="f_fin_superpos" value="#SOURCE:@f_hasta_solicitud"/>
+						</qry:else>
+					</qry:if>
+					<!--Calcula los dias de superposicion-->
+					<qry:if test="datetime(@f_fin_superpos)&gt;datetime(@f_inicio_superpos)">
+						<qry:then>
+							<qry:attribute name="dias_superposicion" value="(datetime(@f_fin_superpos)-datetime(@f_inicio_superpos))+1"/>
+						</qry:then>
+						<qry:else>
+							<qry:if test="datetime(@f_fin_superpos)=datetime(@f_inicio_superpos)">
+								<qry:then>
+									<qry:attribute name="dias_superposicion" value="1"/>
+								</qry:then>
+							</qry:if>
+						</qry:else>
+					</qry:if>
+					<qry:if test="@dias_superposicion&gt;0">
+						<qry:then>
+							<!--Si no supera la cantidad maxima de dias de superposicion del Grupo de Legajos-->
+							<qry:if test="number(@dias_superposicion)&lt;=number(#SOURCE:@e_dias_superpos)">
+								<qry:then>
+									<qry:attribute name="legajo" value="concat($r/@e_numero_legajo,' - ',$r/@d_ape_y_nom)"/>
+									<qry:attribute name="f_inicio" value="format-date($r/@f_inicio,'dd/mm/yyyy')"/>
+									<qry:attribute name="f_fin" value="format-date($r/@f_fin,'dd/mm/yyyy')"/>
+									<qry:attribute name="dias" value="@dias_superposicion"/>
+								</qry:then>
+								<qry:else>
+									<!--Si supera la maxima cantidad de dias de superposicion-->
+									<qry:attribute name="legajo_sup" value="concat($r/@e_numero_legajo,' - ',$r/@d_ape_y_nom)"/>
+									<qry:attribute name="f_inicio_sup" value="format-date($r/@f_inicio,'dd/mm/yyyy')"/>
+									<qry:attribute name="f_fin_sup" value="format-date($r/@f_fin,'dd/mm/yyyy')"/>
+									<qry:attribute name="dias_sup" value="@dias_superposicion"/>
+								</qry:else>
+							</qry:if>
+						</qry:then>
+					</qry:if>
+				</qry:out>
+			</qry:select>
+			<qry:select name="RS3" doc="SOURCE">
+				<qry:xquery>
+					for $r in SQL('
+				SELECT  
+					PER01_PERSONAL.d_ape_y_nom,
+					PER02_PERSONAL_EMP.e_numero_legajo,
+					VAC01_SOLICITUDES.f_desde_solicitud as f_inicio,
+					VAC01_SOLICITUDES.f_hasta_solicitud as f_fin,
+					VAC01_SOLICITUDES.oi_estado_solic,
+					VAC01_SOLICITUDES.f_interrupcion
+				FROM
+					VAC01_PERSONAL,
+					VAC01_SOLICITUDES,
+					PER02_PERSONAL_EMP,
+					PER01_PERSONAL
+				JOIN
+					VAC01_PERSONAL.oi_personal_emp INNER VAC01_SOLICITUDES.oi_personal_emp,
+					VAC01_PERSONAL.oi_personal_emp INNER PER02_PERSONAL_EMP.oi_personal_emp,
+					PER02_PERSONAL_EMP.oi_personal INNER PER01_PERSONAL.oi_personal
+				WHERE
+					VAC01_PERSONAL.oi_grupo_legajo = {#SOURCE:@oi_grupo_legajo}
+				AND VAC01_PERSONAL.oi_personal_emp != {#SOURCE:@oi_personal_emp} 
+				AND VAC01_SOLICITUDES.oi_estado_solic != 3
+				AND ((f_inicio &gt;= {Datetime(#SOURCE:@f_desde_solicitud)}
+					  AND f_inicio &lt;= {Datetime(#SOURCE:@f_hasta_solicitud)})
+				  OR (f_fin &gt;= {Datetime(#SOURCE:@f_desde_solicitud)}
+					  AND f_fin &lt;= {Datetime(#SOURCE:@f_hasta_solicitud)})
+				  OR (f_inicio &lt;= {Datetime(#SOURCE:@f_desde_solicitud)}
+					  AND f_fin &gt;= {Datetime(#SOURCE:@f_hasta_solicitud)}))
+			    ORDER BY			
+					f_inicio ASC
+				   
+				')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<!--Inicializa el calculo de los dias de superposicion-->
+					<qry:attribute name="dias_superposicion" value="0"/>
+					<!--Establece fecha de inicio en que comienza la superposicion-->
+					<qry:if test="$r/@f_inicio&gt;=#SOURCE:@f_desde_solicitud">
+						<qry:then>
+							<qry:attribute name="f_inicio_superpos" value="$r/@f_inicio"/>
+						</qry:then>
+						<qry:else>
+							<qry:attribute name="f_inicio_superpos" value="#SOURCE:@f_desde_solicitud"/>
+						</qry:else>
+					</qry:if>
+					<!--Si es una solicitud de Interrupcion la Fecha Fin es la Fecha de Interrupcion-->
+					<qry:if test="$r/@oi_estado_solic=5">
+						<qry:then>
+							<qry:attribute name="fecha_fin" value="$r/@f_interrupcion"/>
+						</qry:then>
+						<qry:else>
+							<qry:attribute name="fecha_fin" value="$r/@f_fin"/>
+						</qry:else>
+					</qry:if>
+					<!--Establece fecha de fin en que termina la superposicion-->
+					<qry:if test="@fecha_fin&lt;=#SOURCE:@f_hasta_solicitud">
+						<qry:then>
+							<qry:attribute name="f_fin_superpos" value="@fecha_fin"/>
+						</qry:then>
+						<qry:else>
+							<qry:attribute name="f_fin_superpos" value="#SOURCE:@f_hasta_solicitud"/>
+						</qry:else>
+					</qry:if>
+					<!--Calcula los dias de superposicion-->
+					<qry:if test="datetime(@f_fin_superpos)&gt;datetime(@f_inicio_superpos)">
+						<qry:then>
+							<qry:attribute name="dias_superposicion" value="(datetime(@f_fin_superpos)-datetime(@f_inicio_superpos))+1"/>
+						</qry:then>
+						<qry:else>
+							<qry:if test="datetime(@f_fin_superpos)=datetime(@f_inicio_superpos)">
+								<qry:then>
+									<qry:attribute name="dias_superposicion" value="1"/>
+								</qry:then>
+							</qry:if>
+						</qry:else>
+					</qry:if>
+					<qry:if test="@dias_superposicion&gt;0">
+						<qry:then>
+							<!--Si no supera la cantidad maxima de dias de superposicion del Grupo de Legajos-->
+							<qry:if test="number(@dias_superposicion)&lt;=number(#SOURCE:@e_dias_superpos)">
+								<qry:then>
+									<qry:attribute name="legajo" value="concat($r/@e_numero_legajo,' - ',$r/@d_ape_y_nom)"/>
+									<qry:attribute name="f_inicio" value="format-date($r/@f_inicio,'dd/mm/yyyy')"/>
+									<qry:attribute name="f_fin" value="format-date($r/@f_fin,'dd/mm/yyyy')"/>
+									<qry:attribute name="dias" value="@dias_superposicion"/>
+								</qry:then>
+								<qry:else>
+									<!--Si supera la maxima cantidad de dias de superposicion-->
+									<qry:attribute name="legajo_sup" value="concat($r/@e_numero_legajo,' - ',$r/@d_ape_y_nom)"/>
+									<qry:attribute name="f_inicio_sup" value="format-date($r/@f_inicio,'dd/mm/yyyy')"/>
+									<qry:attribute name="f_fin_sup" value="format-date($r/@f_fin,'dd/mm/yyyy')"/>
+									<qry:attribute name="dias_sup" value="@dias_superposicion"/>
+								</qry:else>
+							</qry:if>
+						</qry:then>
+					</qry:if>
+				</qry:out>
+			</qry:select>
+		</form:Resource>
+		<form:Resource declare="&lt;PARAM oi_personal_emp=&quot;1&quot; f_inicio=&quot;20120712&quot; f_fin=&quot;20120718&quot;/&gt;" name="qry_ValLic">
+			<qry:main doc="SOURCE" name="">
+				<qry:element name="DATOS">
+					<qry:attribute name="flag" value="'0'"/>
+					<qry:insert-select name="sql" doc-path="#SOURCE:PARAM"/>
+				</qry:element>
+			</qry:main>
+			<qry:select name="sql" doc="SOURCE">
+				<qry:xquery>
+					for $r in SQL('
+		SELECT 
+			PER02_LICEN_PER.oi_licencia_per
+			, PER02_LICEN_PER.f_inicio
+			, PER02_LICEN_PER.f_fin
+			, PER16_LICENCIAS.d_licencia
+		FROM
+			PER02_LICEN_PER
+			, PER16_LICENCIAS
+		JOIN
+			PER16_LICENCIAS.oi_licencia INNER PER02_LICEN_PER.oi_licencia
+		WHERE                                  
+			PER02_LICEN_PER.oi_personal_emp = {#SOURCE:@oi_personal_emp} AND
+			PER02_LICEN_PER.f_inicio &lt;= {Datetime(#SOURCE:@f_hasta_solicitud)} AND
+			PER02_LICEN_PER.f_fin &gt;= {Datetime(#SOURCE:@f_desde_solicitud)}
+		ORDER BY
+		  	f_inicio  ASC
+			')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:attribute name="flag" value="'1'"/>
+					<ROW>
+						<qry:attribute name="flag" value="'1'"/>
+						<qry:attribute name="oi_licencia_per" value="$r/@oi_licencia_per"/>
+						<qry:attribute name="d_licencia" value="$r/@d_licencia"/>
+						<qry:attribute name="f_hasta_solicitud" value="format_date($r/@f_fin,'dd/mm/yyyy')"/>
+						<qry:attribute name="f_desde_solicitud" value="format_date($r/@f_inicio,'dd/mm/yyyy')"/>
+						<qry:attribute name="desc" value="@d_licencia + ': del ' + @f_desde_solicitud + ' al ' + @f_hasta_solicitud"/>
+					</ROW>
+				</qry:out>
+			</qry:select>
+		</form:Resource>
+	</form:Resources>
+</form:Form>

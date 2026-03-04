@@ -1,0 +1,580 @@
+<html:html xmlns:html="nomad_engine.html" xmlns:qry="nomad_engine.qry" extends="Nomad.Base.BaseReport.rpt" doc="source" name="Nomad.Base.BaseReport.rpt">
+	<html:for-each declare="&lt;DATA campo_like_1=&quot;ingeniero&quot; mode=&quot;CV&quot; oi_busqueda=&quot;5029&quot; oi_carpeta=&quot;3&quot; /&gt;">
+		<qry:main doc="SOURCE">
+			<REPORT>
+				<qry:append-doc name="DOC" doc-path="$SOURCE/DATA"/>
+				<qry:if test="$SOURCE/DATA/@mode='CAR'">
+					<qry:then>
+						<qry:attribute name="label" value="'CVs de la Carpeta'"/>
+					</qry:then>
+				</qry:if>
+				<qry:if test="$SOURCE/DATA/@mode='CV'">
+					<qry:then>
+						<qry:attribute name="label" value="'CVs de la B&#250;squeda'"/>
+					</qry:then>
+				</qry:if>
+				<qry:attribute value="format_date(now(),'dd/mm/yyyy HH:MM')" name="date"/>
+				<GROUPS>
+					<GROUP tag="CABECERA" type="title">
+						<qry:if test="$SOURCE/DATA/@mode='CAR'">
+							<qry:then>
+								<COLS>
+									<COL name="d_carpeta" label="Carpeta"/>
+									<COL name="d_creador" label="Creador"/>
+									<COL name="f_carpeta" label="Fecha de Creaci&#243;n" type="date"/>
+									<COL name="e_cant_cv" label="Cantidad de CVs"/>
+								</COLS>
+							</qry:then>
+						</qry:if>
+						<qry:if test="$SOURCE/DATA/@mode='CV'">
+							<qry:then>
+								<COLS>
+									<COL name="d_busqueda" label="B&#250;squeda"/>
+									<COL name="f_busqueda" label="Fecha de B&#250;squeda" type="date"/>
+									<COL name="e_cant_res" label="Cantidad de Resultados"/>
+								</COLS>
+							</qry:then>
+						</qry:if>
+						<GROUP tag="CV" type="table" label="Lista de CVs" style="width:100%;">
+							<COLS>
+								<COL name="d_ape_y_nom" label="Apellido y Nombre" style="width:150px"/>
+								<COL name="c_nro_doc" label="N&#250;mero de Documento" style="width:90px"/>
+								<COL name="c_sexo" label="Sexo" style="width:50px"/>
+								<COL name="f_nacim" label="Fecha de Nacimiento" style="width:50px" type="date"/>
+								<COL name="te_telefono" label="Tel&#233;fono" style="width:150px"/>
+								<COL name="celular" label="Celular" style="width:100px"/>
+								<COL name="c_nro_cuil" label="CUIL" style="width:60px"/>
+								<COL name="mail" label="Mail" style="width:60px"/>
+								<COL name="nacionalidad" label="Nacionalidad" style="width:160px"/>
+								<COL name="localidad" label="Localidad" style="width:60px"/>
+								<COL name="domic" label="Domicilio" style="width:160px"/>
+								<COL name="estadoCivil" label="Estado Civil" style="width:160px"/>
+								<COL name="conocimientos" label="Conocimientos" style="width:2000px"/>
+								<COL name="idiomas" label="Idiomas" style="width:2000px"/>
+								<COL name="estudios" label="Estudios" style="width:2000px"/>
+							</COLS>
+						</GROUP>
+					</GROUP>
+				</GROUPS>
+				<qry:element name="DATA">
+					<qry:element name="CABECERA">
+						<qry:attribute name="internalCant" value="'0'"/>
+						<qry:if test="$SOURCE/DATA/@mode='CAR'">
+							<qry:then>
+								<qry:insert-select doc-path="$SOURCE/DATA" name="qryCabeceraCarpeta"/>
+							</qry:then>
+						</qry:if>
+						<qry:if test="$SOURCE/DATA/@mode='CV'">
+							<qry:then>
+								<qry:insert-select doc-path="$SOURCE/DATA" name="qryCabeceraCV"/>
+							</qry:then>
+						</qry:if>
+						<qry:insert-select doc-path="$SOURCE/DATA" name="qryCvs"/>
+					</qry:element>
+				</qry:element>
+			</REPORT>
+		</qry:main>
+		<qry:select name="qryCabeceraCarpeta" doc="PARAM">
+			<qry:xquery>
+				for $r in SQL('
+					SELECT 
+					CAR.d_carpeta,
+					CAR.d_creador,
+					CAR.f_carpeta,
+					CAR.e_cant_cv
+						                                                                    
+					FROM
+						POS27_CARPETAS as CAR
+					
+					WHERE 
+					CAR.oi_carpeta = {$PARAM/@oi_carpeta}
+						 
+				')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:attribute name="d_carpeta" value="$r/@d_carpeta"/>
+				<qry:attribute name="d_creador" value="$r/@d_creador"/>
+				<qry:attribute name="f_carpeta" value="format_date($r/@f_carpeta,'dd/mm/yyyy')"/>
+				<qry:attribute name="e_cant_cv" value="$r/@e_cant_cv"/>
+			</qry:out>
+		</qry:select>
+		<qry:select name="qryCabeceraCV" doc="PARAM">
+			<qry:xquery>
+				for $r in SQL('
+					SELECT 
+					BUS.d_busqueda,
+					BUS.f_busqueda,
+					BUS.e_cant_res				 
+						                                                                    
+					FROM
+				 	POS28_BUSQUEDAS as BUS
+					
+					WHERE 
+					BUS.oi_busqueda = {$PARAM/@oi_busqueda}
+						 
+				')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:attribute name="d_busqueda" value="$r/@d_busqueda"/>
+				<qry:attribute name="f_busqueda" value="format_date($r/@f_busqueda,'dd/mm/yyyy')"/>
+				<qry:attribute name="e_cant_res" value="iif($r/@e_cant_res&lt;1001,$r/@e_cant_res,'M&#225;s de 1000')"/>
+			</qry:out>
+		</qry:select>
+		<qry:select name="qryCvs" doc="PARAM">
+			<qry:xquery>
+				for $r in SQL(size:100,'     
+					
+					SELECT 
+						CV.oi_cv,
+						CV.d_ape_y_nom,
+						CV.c_nro_doc,
+						CV.c_sexo,
+						CV.f_nacim,
+						CV.c_pais ,
+						CV.c_area,
+						CV.te_nro,							
+						CV.c_pais_cel,
+						CV.c_area_cel,
+						CV.te_celular,
+						CV.c_nro_cuil,								
+						CV.d_calle,
+						CV.c_nro,
+						CV.c_piso,
+						CV.c_departamento,
+						CV.d_email, 						 
+						NAC.d_nacionalidad, 							
+						CV.d_localidad,
+						PCIA.d_provincia,											
+						ECIVIL.d_estado_civil
+						
+						{%?($PARAM/@mode='CAR') {%,TDOC.c_tipo_documento %}{% %} %}
+						{%?($PARAM/@mode='CV') {%,CV.c_tipo_documento %}{% %} %}						
+						 
+							                            						
+					FROM							
+					{%?($PARAM/@mode='CAR') 						
+						{%
+						POS01_CV as CV,
+						PER20_TIPOS_DOC as TDOC, 					
+						POS27_ASOCIA_CV_CAR as ACV 
+						%} 
+						{% %}  
+					%}
+						
+					    {%?($PARAM/@mode='CV') 						
+						{%
+					       VW_BUSCAR_CV as CV					       
+						%} 
+						{% %}  
+					%}
+						
+												           
+						,ORG12_NACIONALID as NAC							
+						,ORG35_PROVINCIAS AS PCIA
+						,ORG22_EST_CIVIL AS ECIVIL
+					
+					JOIN						 
+						{%?($PARAM/@mode='CAR') 
+						{%						
+						CV.oi_cv INNER ACV.oi_cv, 
+						CV.oi_tipo_documento LEFT OUTER TDOC.oi_tipo_documento,
+						
+						%} 
+						{% %}  %}						           
+						CV.oi_nacionalidad LEFT OUTER NAC.oi_nacionalidad						
+						,CV.oi_provincia LEFT OUTER PCIA.oi_provincia 
+						,CV.oi_estado_civil LEFT OUTER ECIVIL.oi_estado_civil
+							
+					WHERE
+						1=1  
+						{%?($PARAM/@mode='CAR')  {%AND ACV.oi_carpeta = {%=$PARAM/@oi_carpeta%}%}{% %} %}			
+
+						{%?($PARAM/@mode='CV')  
+						{%
+						
+						{%? ($PARAM/@campo_like_1!='')  {% AND (LIKE(CV.o_campo_like,\'%{%=$PARAM/@campo_like_1%}%\')%}{% %} %}
+						{%? ($PARAM/@campo_like_2!='')  {% OR LIKE(CV.o_campo_like,\'%{%=$PARAM/@campo_like_2%}%\') %}{% %} %}
+						{%? ($PARAM/@campo_like_3!='')  {% OR LIKE(CV.o_campo_like,\'%{%=$PARAM/@campo_like_3%}%\') %}{% %} %}
+						{%? ($PARAM/@campo_like_4!='')  {% OR LIKE(CV.o_campo_like, \'%{%=$PARAM/@campo_like_4%}%\')%}{% %} %}
+						{%? ($PARAM/@campo_like_5!='')  {% OR LIKE(CV.o_campo_like,\'%{%=$PARAM/@campo_like_5%}%\') %}{% %} %}
+						{%? ($PARAM/@campo_like_6!='')  {% OR LIKE(CV.o_campo_like,\'%{%=$PARAM/@campo_like_6%}%\') %}{% %} %}
+						{%? ($PARAM/@campo_like_7!='')  {% OR LIKE(CV.o_campo_like,\'%{%=$PARAM/@campo_like_7%}%\') %}{% %} %}
+						{%? ($PARAM/@campo_like_8!='')  {% OR LIKE(CV.o_campo_like,\'%{%=$PARAM/@campo_like_8%}%\') %}{% %} %}
+						{%? ($PARAM/@campo_like_9!='')  {% OR LIKE(CV.o_campo_like,\'%{%=$PARAM/@campo_like_9%}%\') %}{% %} %}
+						{%? ($PARAM/@campo_like_10!='') {% OR LIKE(CV.o_campo_like,\'%{%=$PARAM/@campo_like_10%}%\')%}{% %} %}
+				
+						{%? ($PARAM/@campo_like_1!='')  {%) %}{% %} %}				
+				
+						{%? (($PARAM/@d_puesto!='') AND ($PARAM/@l_trab_puesto='1'))
+							  {%
+							  	 AND  UCASE(CV.d_puesto) = UCASE(\'{%=$PARAM/@d_puesto%}\')
+							  	 AND isNull(CV.f_egreso) 					  
+							  %}				  
+							  {%
+							  	  {%? ($PARAM/@d_puesto!='')
+							  	    	{%
+							  				AND UCASE(CV.d_puesto) = UCASE(\'{%=$PARAM/@d_puesto%}\')
+							  	  		%}				  
+							  				{%
+							  				%}
+							  		%}					    
+							  %} 
+						%}			
+				
+						{%? ($PARAM/@e_anio_desde!='')  {%AND  CV.aniosExperiencia&gt;={%=$PARAM/@e_anio_desde%} %}{% %} %}				
+						{%? ($PARAM/@e_anio_hasta!='')  {%AND  CV.aniosExperiencia&lt;={%=$PARAM/@e_anio_hasta%} %}{% %} %}				
+				
+						{%? ($PARAM/@paramAreasLab!='')  {%AND CV.oi_area_lab {%=$PARAM/@paramAreasLab%}%}{% %} %}								
+						{%? ($PARAM/@empresa_1!='')  {% AND (UCASE(CV.d_empresa) = UCASE(\'{%=$PARAM/@empresa_1%}\') %}{% %} %}
+						{%? ($PARAM/@empresa_2!='')  {% OR UCASE(CV.d_empresa) = UCASE(\'{%=$PARAM/@empresa_2%}\') %}{% %} %}
+						{%? ($PARAM/@empresa_3!='')  {% OR UCASE(CV.d_empresa) = UCASE(\'{%=$PARAM/@empresa_3%}\') %}{% %} %}
+						{%? ($PARAM/@empresa_4!='')  {% OR UCASE(CV.d_empresa) = UCASE(\'{%=$PARAM/@empresa_4%}\') %}{% %} %}
+						{%? ($PARAM/@empresa_5!='')  {% OR UCASE(CV.d_empresa) = UCASE(\'{%=$PARAM/@empresa_5%}\') %}{% %} %}
+						{%? ($PARAM/@empresa_6!='')  {% OR UCASE(CV.d_empresa) = UCASE(\'{%=$PARAM/@empresa_6%}\') %}{% %} %}
+						{%? ($PARAM/@empresa_7!='')  {% OR UCASE(CV.d_empresa) = UCASE(\'{%=$PARAM/@empresa_7%}\') %}{% %} %}
+						{%? ($PARAM/@empresa_8!='')  {% OR UCASE(CV.d_empresa) = UCASE(\'{%=$PARAM/@empresa_8%}\') %}{% %} %}
+						{%? ($PARAM/@empresa_9!='')  {% OR UCASE(CV.d_empresa) = UCASE(\'{%=$PARAM/@empresa_9%}\') %}{% %} %}
+						{%? ($PARAM/@empresa_10!='') {% OR UCASE(CV.d_empresa) = UCASE(\'{%=$PARAM/@empresa_10%}\')%}{% %} %}				
+						{%? ($PARAM/@empresa_1!='')  {%) %}{% %} %}                                             		
+						{%? ($PARAM/@c_persona_cargo='E')  {%AND CV.l_per_cargo=1%}{% %} %} 	
+						{%? ($PARAM/@d_titulo!='') {% AND UCASE(CV.d_estudio) = UCASE(\'{%=$PARAM/@d_titulo%}\') %}{% %} %}							
+						{%? ($PARAM/@oi_nivel_estudio!='')  {%AND  CV.oi_nivel_estudio ={%=$PARAM/@oi_nivel_estudio%} %}{% %} %}
+						{%? ($PARAM/@oi_estado_est!='')  {%AND  CV.oi_estado_est ={%=$PARAM/@oi_estado_est%} %}{% %} %}								
+						
+						{%? ($PARAM/@oi_idioma_1!='')  
+						{%
+							{%? ($PARAM/@oi_nivel_general_1!='5')  
+								{%
+									AND CV.oi_idioma = {%=$PARAM/@oi_idioma_1%}
+									AND ( (CV.oi_nivel_lee&gt;={%=$PARAM/@oi_nivel_general_1%}) 
+											 OR (CV.oi_nivel_escribe&gt;={%=$PARAM/@oi_nivel_general_1%}) 
+											 OR (CV.oi_nivel_habla&gt;={%=$PARAM/@oi_nivel_general_1%}) 
+											) 
+								%}
+								{%							 		
+							     AND CV.oi_idioma = {%=$PARAM/@oi_idioma_1%}
+							     AND ( (CV.oi_nivel_lee = {%=$PARAM/@oi_nivel_general_1%}) 
+											 OR (CV.oi_nivel_escribe = {%=$PARAM/@oi_nivel_general_1%}) 
+											 OR (CV.oi_nivel_habla = {%=$PARAM/@oi_nivel_general_1%}) 
+											 ) 
+								%} 
+							%}
+								
+						%}
+						{% %} 					 
+					 %}	
+				 
+						 {%? ($PARAM/@oi_idioma_5!='')  
+							{%
+									{%? ($PARAM/@oi_nivel_general_5!='5')  
+										{%
+											AND CV.oi_idioma = {%=$PARAM/@oi_idioma_5%}
+											AND ( (CV.oi_nivel_lee&gt;={%=$PARAM/@oi_nivel_general_5%}) 
+													 OR (CV.oi_nivel_escribe&gt;={%=$PARAM/@oi_nivel_general_5%}) 
+													 OR (CV.oi_nivel_habla&gt;={%=$PARAM/@oi_nivel_general_5%}) 
+													) 
+										%}
+										{%							 		
+									     AND CV.oi_idioma = {%=$PARAM/@oi_idioma_5%}
+									     AND ( (CV.oi_nivel_lee = {%=$PARAM/@oi_nivel_general_5%}) 
+													 OR (CV.oi_nivel_escribe = {%=$PARAM/@oi_nivel_general_5%}) 
+													 OR (CV.oi_nivel_habla = {%=$PARAM/@oi_nivel_general_5%}) 
+													 ) 
+										%} 
+									%}
+									
+							%}
+							{% %} 					 
+						 %}									 		
+						 
+						 {%? ($PARAM/@oi_idioma_2!='')  
+							{%
+									{%? ($PARAM/@oi_nivel_general_2!='5')  
+										{%
+											AND CV.oi_idioma = {%=$PARAM/@oi_idioma_2%}
+											AND ( (CV.oi_nivel_lee&gt;={%=$PARAM/@oi_nivel_general_2%}) 
+													 OR (CV.oi_nivel_escribe&gt;={%=$PARAM/@oi_nivel_general_2%}) 
+													 OR (CV.oi_nivel_habla&gt;={%=$PARAM/@oi_nivel_general_2%}) 
+													) 
+										%}
+										{%							 		
+									     AND CV.oi_idioma = {%=$PARAM/@oi_idioma_2%}
+									     AND ( (CV.oi_nivel_lee = {%=$PARAM/@oi_nivel_general_2%}) 
+													 OR (CV.oi_nivel_escribe = {%=$PARAM/@oi_nivel_general_2%}) 
+													 OR (CV.oi_nivel_habla = {%=$PARAM/@oi_nivel_general_2%}) 
+													 ) 
+										%} 
+									%}
+									
+							%}
+							{% %} 					 
+						 %}
+						 
+						 {%? ($PARAM/@oi_idioma_3!='')  
+							{%
+									{%? ($PARAM/@oi_nivel_general_3!='5')  
+										{%
+											AND CV.oi_idioma = {%=$PARAM/@oi_idioma_3%}
+											AND ( (CV.oi_nivel_lee&gt;={%=$PARAM/@oi_nivel_general_3%}) 
+													 OR (CV.oi_nivel_escribe&gt;={%=$PARAM/@oi_nivel_general_3%}) 
+													 OR (CV.oi_nivel_habla&gt;={%=$PARAM/@oi_nivel_general_3%}) 
+													) 
+										%}
+										{%							 		
+									     AND CV.oi_idioma = {%=$PARAM/@oi_idioma_3%}
+									     AND ( (CV.oi_nivel_lee = {%=$PARAM/@oi_nivel_general_3%}) 
+													 OR (CV.oi_nivel_escribe = {%=$PARAM/@oi_nivel_general_3%}) 
+													 OR (CV.oi_nivel_habla = {%=$PARAM/@oi_nivel_general_3%}) 
+													 ) 
+										%} 
+									%}
+									
+							%}
+							{% %} 					 
+						 %}				
+						   
+						 {%? ($PARAM/@oi_idioma_8!='')  
+							{%
+									{%? ($PARAM/@oi_nivel_general_8!='5')  
+										{%
+											AND CV.oi_idioma = {%=$PARAM/@oi_idioma_8%}
+											AND ( (CV.oi_nivel_lee&gt;={%=$PARAM/@oi_nivel_general_8%}) 
+													 OR (CV.oi_nivel_escribe&gt;={%=$PARAM/@oi_nivel_general_8%}) 
+													 OR (CV.oi_nivel_habla&gt;={%=$PARAM/@oi_nivel_general_8%}) 
+													) 
+										%}
+										{%							 		
+									     AND CV.oi_idioma = {%=$PARAM/@oi_idioma_8%}
+									     AND ( (CV.oi_nivel_lee = {%=$PARAM/@oi_nivel_general_8%}) 
+													 OR (CV.oi_nivel_escribe = {%=$PARAM/@oi_nivel_general_8%}) 
+													 OR (CV.oi_nivel_habla = {%=$PARAM/@oi_nivel_general_8%}) 
+													 ) 
+										%} 
+									%}
+									
+							%}
+							{% %} 					 
+						 %}
+						 
+						 {%? ($PARAM/@oi_idioma_9!='')  
+							{%
+									{%? ($PARAM/@oi_nivel_general_9!='5')  
+										{%
+											AND CV.oi_idioma = {%=$PARAM/@oi_idioma_9%}
+											AND ( (CV.oi_nivel_lee&gt;={%=$PARAM/@oi_nivel_general_9%}) 
+													 OR (CV.oi_nivel_escribe&gt;={%=$PARAM/@oi_nivel_general_9%}) 
+													 OR (CV.oi_nivel_habla&gt;={%=$PARAM/@oi_nivel_general_9%}) 
+													) 
+										%}
+										{%							 		
+									     AND CV.oi_idioma = {%=$PARAM/@oi_idioma_9%}
+									     AND ( (CV.oi_nivel_lee = {%=$PARAM/@oi_nivel_general_9%}) 
+													 OR (CV.oi_nivel_escribe = {%=$PARAM/@oi_nivel_general_9%}) 
+													 OR (CV.oi_nivel_habla = {%=$PARAM/@oi_nivel_general_9%}) 
+													 ) 
+										%} 
+									%}
+									
+							%}
+							{% %} 					 
+						 %}			  			  
+					    {%? ($PARAM/@c_nro_doc!='')  {%AND  LIKE(CV.c_nro_doc,\'%{%=$PARAM/@c_nro_doc%}%\') %}{% %} %}
+						{%? ($PARAM/@d_nombres!='')  {%AND LIKE(CV.d_nombres,\'%{%=$PARAM/@d_nombres%}%\') %}{% %} %}
+						{%? ($PARAM/@d_apellido!='')  {%AND LIKE(CV.d_apellido,\'%{%=$PARAM/@d_apellido%}%\') %}{% %} %}
+						{%? ($PARAM/@c_sexo!='')  {%AND LIKE(CV.c_sexo,\'{%=$PARAM/@c_sexo%}\') %}{% %} %}
+						{%? ($PARAM/@e_edad_desde!='')  {%AND  CV.edad&gt;={%=$PARAM/@e_edad_desde%} %}{% %} %}				
+						{%? ($PARAM/@e_edad_hasta!='')  {%AND  CV.edad&lt;={%=$PARAM/@e_edad_hasta%} %}{% %} %}
+						{%? ($PARAM/@oi_pais!='')  {%AND  CV.oi_pais ={%=$PARAM/@oi_pais%} %}{% %} %}
+						{%? ($PARAM/@paramProvincia!='')  {%AND CV.oi_provincia {%=$PARAM/@paramProvincia%}%}{% %} %}
+						{%? ($PARAM/@d_ciudad!='')  {%AND UCASE(CV.d_localidad) = UCASE(\'{%=$PARAM/@d_ciudad%}\') %}{% %} %}																												
+						{%? ($PARAM/@l_foto='1')  {%AND isNotNull(CV.oi_foto)%}{% %} %}				 		
+				
+						{%? ($PARAM/@l_cv_sin_salario='')
+							{%
+								{%?($PARAM/@n_salario_desde!='') {% AND  CV.n_remuneracion&gt;={%=$PARAM/@n_salario_desde%} %}{% %} %}	
+								{%?($PARAM/@n_salario_hasta!='')  {%AND  CV.n_remuneracion&lt;={%=$PARAM/@n_salario_hasta%} %}{% %} %}	
+							%}
+							{%
+								{%?($PARAM/@n_salario_desde!='') {% AND ( (CV.n_remuneracion&gt;={%=$PARAM/@n_salario_desde%}) OR (isNull(CV.n_remuneracion))) %}{% %} %}	
+								{%?($PARAM/@n_salario_hasta!='')  {%AND ( (CV.n_remuneracion&lt;={%=$PARAM/@n_salario_hasta%}) OR (isNull(CV.n_remuneracion))) %}{% %} %}					
+							%}	
+						%}					
+						  				 
+				  			 			 
+				 
+						{%? ($PARAM/@f_actualizacion!='')  {% AND CV.f_actualizacion &gt;= \'{%=$PARAM/@f_actualizacion%}\' %}{% %} %}		
+					    {%? ($PARAM/@paramEstadoCV!='')  {% AND CV.c_estado {%=$PARAM/@paramEstadoCV %} %}{% %} %}
+					    {%? ($PARAM/@oi_oferta_lab!='')  {%AND  CV.oi_oferta_lab ={%=$PARAM/@oi_oferta_lab%} %}{% %} %}
+			
+						
+						 {%? ($PARAM/@l_leido='1')  {% AND CV.oi_usuario_sistema = \'{%=$PROXY/@ETTY%}\' %}{% %} %}
+						 
+						 {%? ($PARAM/@l_leido='0')  
+							{% AND  
+							    CV.oi_cv NOT IN (SELECT AUX.oi_cv FROM POS01_CV_LEIDO as AUX WHERE AUX.oi_usuario_sistema  = \'{%=$PROXY/@ETTY%}\')
+							  %}{% %} 
+						%}							
+				 
+							
+						%}{% %} %}		
+					
+					
+					{%?($PARAM/@mode='CV')  
+					{%
+					   GROUP BY
+					   	CV.oi_cv,CV.d_ape_y_nom,CV.c_nro_doc,CV.c_sexo,CV.f_nacim,CV.c_pais,
+						CV.c_area,CV.te_nro,CV.c_pais_cel,CV.c_area_cel,CV.te_celular,
+						CV.c_nro_cuil,CV.d_calle,CV.c_nro,CV.c_piso,CV.c_departamento,CV.d_email, 						 
+						NAC.d_nacionalidad,CV.d_localidad,PCIA.d_provincia,ECIVIL.d_estado_civil,CV.c_tipo_documento	    												
+					%}{% %} %}		
+						
+						
+				')/ROWS/GROUPBY
+			</qry:xquery>
+			<qry:out>
+				<qry:call>
+					<GROUPBY>
+						<qry:attribute name="UUID" value="$r/../@UUID"/>
+						<qry:attribute name="PAG" value="$r/@PAG"/>
+					</GROUPBY>
+				</qry:call>
+			</qry:out>
+		</qry:select>
+	</html:for-each>
+	<html:query declare="&lt;GROUPBY PAG=&quot;00000000:0000a3a9&quot; UUID=&quot;055A19E8-B5676CBC&quot;/&gt;">
+		<qry:main doc="SOURCE">
+			<qry:no-show>
+				<qry:append-doc name="FILTER" doc-path="#SOURCE:."/>
+				<qry:insert-select name="SQL1" doc-path="#SOURCE:."/>
+				<qry:insert-select name="getConocimientos" doc-path="."/>
+				<qry:insert-select name="getIdioma" doc-path="."/>
+				<qry:insert-select name="getEstudios" doc-path="."/>
+			</qry:no-show>
+		</qry:main>
+		<qry:select doc="PARAM" name="SQL1">
+			<qry:xquery>
+				for $r in SQL('TEMP:{%=#PARAM:@UUID%}:{%=#PARAM:@PAG%}')/GROUPBY/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:attribute name="internalCant" value="@internalCant + 1"/>
+				<qry:element name="CV">
+					<qry:attribute name="oi_cv" value="$r/@oi_cv"/>
+					<qry:attribute name="d_ape_y_nom" value="$r/@d_ape_y_nom"/>
+					<qry:attribute name="c_nro_doc" value="$r/@c_tipo_documento+'-'+$r/@c_nro_doc"/>
+					<qry:attribute name="c_sexo" value="iif($r/@c_sexo='M', 'Masculino', 'Femenino')"/>
+					<qry:attribute name="f_nacim" value="format_date($r/@f_nacim, 'dd/mm/yyyy')"/>
+					<qry:attribute name="pais_cel" value="iif($r/@c_pais_cel!='', '('+nmd_replace($r/@c_pais_cel, '-', '') + ')', '')"/>
+					<qry:attribute name="area_cel" value="iif($r/@c_area_cel!='', '('+nmd_replace($r/@c_area_cel, '-', '') + ')', '')"/>
+					<qry:attribute name="cel" value="iif($r/@te_celular='', '-', nmd_replace($r/@te_celular, '-', ''))"/>
+					<qry:attribute name="celular" value="@pais_cel + @area_cel + @cel"/>
+					<qry:attribute name="pais_tel" value="iif($r/@c_pais!='', '('+nmd_replace($r/@c_pais, '-', '') + ')', '')"/>
+					<qry:attribute name="area_tel" value="iif($r/@c_area!='', '('+nmd_replace($r/@c_area, '-', '') + ')', '')"/>
+					<qry:attribute name="tel" value="iif($r/@te_nro='NULL', '-', nmd_replace($r/@te_nro, '-', ''))"/>
+					<qry:attribute name="te_telefono" value="@pais_tel + @area_tel + @tel"/>
+					<qry:attribute name="c_nro_cuil" value="$r/@c_nro_cuil"/>
+					<qry:attribute name="domic" value="$r/@d_calle +' '+ $r/@c_nro +' '+ $r/@c_piso +' '+ $r/@c_departamento"/>
+					<qry:attribute name="mail" value="$r/@d_email"/>
+					<qry:attribute name="nacionalidad" value="$r/@d_nacionalidad"/>
+					<qry:attribute name="localidad" value="iif($r/@d_provincia!='', $r/@d_provincia +' '+ $r/@d_localidad, $r/@d_localidad)"/>
+					<qry:attribute name="estadoCivil" value="$r/@d_estado_civil"/>
+				</qry:element>
+			</qry:out>
+		</qry:select>
+		<qry:select doc="PARAM" name="getConocimientos">
+			<qry:xquery>
+				for $r in SQL('
+				SELECT
+				CCV.oi_cv,
+				CONOC.d_conocimiento
+				
+				FROM				 
+				POS01_CONOC_CV as CCV,
+				POS16_CONOCIMIENTOS as CONOC
+				
+				JOIN				 
+				CCV.oi_conocimiento INNER CONOC.oi_conocimiento
+				
+				WHERE 
+				CCV.oi_cv IN ({%=string($PARAM/CV/@oi_cv)%})
+			')/ROWS/ROW,
+			$s in $PARAM/CV
+			join $r/@oi_cv inner $s/@oi_cv
+			</qry:xquery>
+			<qry:out>
+				<qry:attribute name="conocimientos" value="''"/>
+				<qry:insert-select name="pegar_conoc" doc-path="$r" to-element="$s"/>
+			</qry:out>
+		</qry:select>
+		<qry:select name="pegar_conoc" doc="r">
+			<qry:out>
+				<qry:attribute name="conocimientos" value="iif(@conocimientos='', $r/@d_conocimiento ,@conocimientos + ' | ' + $r/@d_conocimiento)"/>
+				<qry:attribute name="conocimientos" value="iif(string-length(@conocimientos)&lt;100,@conocimientos,substring(@conocimientos,0,99)+'...')"/>
+			</qry:out>
+		</qry:select>
+		<qry:select doc="PARAM" name="getIdioma">
+			<qry:xquery>
+				for $r in SQL('
+				SELECT
+				ICV.oi_cv,
+				ID.d_idioma  
+				
+				FROM
+				
+				POS01_IDIOMAS_CV as ICV,
+				ORG20_IDIOMAS as ID
+				
+				JOIN			 
+				ICV.oi_idioma INNER ID.oi_idioma
+				
+				WHERE 
+				ICV.oi_cv IN ({%=string($PARAM/CV/@oi_cv)%})
+			')/ROWS/ROW,
+			$s in $PARAM/CV
+			join $r/@oi_cv inner $s/@oi_cv
+			</qry:xquery>
+			<qry:out>
+				<qry:attribute name="idiomas" value="''"/>
+				<qry:insert-select name="pegar_idioma" doc-path="$r" to-element="$s"/>
+			</qry:out>
+		</qry:select>
+		<qry:select name="pegar_idioma" doc="r">
+			<qry:out>
+				<qry:attribute name="idiomas" value="iif(@idiomas='', $r/@d_idioma ,@idiomas + ' | ' + $r/@d_idioma)"/>
+				<qry:attribute name="idiomas" value="iif(string-length(@idiomas)&lt;100,@idiomas,substring(@idiomas,0,99)+'...')"/>
+			</qry:out>
+		</qry:select>
+		<qry:select doc="PARAM" name="getEstudios">
+			<qry:xquery>
+				for $r in SQL('
+				
+				SELECT
+				ECV.oi_cv,
+				EST.d_estudio
+				
+				FROM				
+				POS01_ESTUDIOS_CV as ECV,
+				ORG11_ESTUDIOS as EST
+				
+				JOIN				
+				ECV.oi_estudio INNER EST.oi_estudio
+				
+				WHERE 
+				ECV.oi_cv IN ({%=string($PARAM/CV/@oi_cv)%})
+				
+			')/ROWS/ROW,
+			$s in $PARAM/CV
+			join $r/@oi_cv inner $s/@oi_cv
+			</qry:xquery>
+			<qry:out>
+				<qry:attribute name="estudios" value="''"/>
+				<qry:insert-select name="pegar_estudio" doc-path="$r" to-element="$s"/>
+			</qry:out>
+		</qry:select>
+		<qry:select name="pegar_estudio" doc="r">
+			<qry:out>
+				<qry:attribute name="estudios" value="iif(@estudios='', $r/@d_estudio ,@estudios + ' | ' + $r/@d_estudio)"/>
+				<qry:attribute name="estudios" value="iif(string-length(@estudios)&lt;100,@estudios,substring(@estudios,0,99)+'...')"/>
+			</qry:out>
+		</qry:select>
+	</html:query>
+</html:html>

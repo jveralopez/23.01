@@ -1,0 +1,98 @@
+<flow:flow xmlns:flow="nomad_engine.flow" xmlns:qry="nomad_engine.qry" xmlns:doc="nomad_engine.doc" extends="NucleusRH.Base.Liquidacion.Variables.BaseVariables.flow" name="NucleusRH.Base.Liquidacion.Variables.VariablesFiPersona.flow" default_action="DEBUG" description="Flow para la carga de variables FIJAS POR PERSONA.">
+	<flow:info label="Flow para la carga de variables FIJAS POR PERSONA."/>
+	<flow:declare>
+		<qry:define declare="&lt;DATA oi=&quot;11462&quot; /&gt;" name="GetVariables">
+			<qry:main doc="PARAM">
+				<qry:element name="DATA">
+					<qry:element name="TITLE">
+						<qry:attribute type="Nomad.NSystem.String" value="#PARAM:DATA/@oi" name="oi"/>
+						<qry:attribute type="Nomad.NSystem.String" value="'Personal no encontrado'" name="value"/>
+						<qry:insert-select name="TITLE" doc-path="#PARAM:DATA"/>
+					</qry:element>
+					<qry:element name="ROWS">
+						<qry:insert-select name="GRID" doc-path="#PARAM:DATA"/>
+					</qry:element>
+				</qry:element>
+			</qry:main>
+			<qry:select doc="PARAM" name="TITLE">
+				<qry:xquery>
+					for $r in sql('
+				SELECT
+					pe.e_numero_legajo,
+					p.d_ape_y_nom
+				 
+				FROM
+					PER02_PERSONAL_EMP as pe,
+					PER01_PERSONAL as p
+				
+				JOIN
+					pe.oi_personal INNER p.oi_personal
+					
+				WHERE
+					pe.oi_personal_emp = {#PARAM:@oi}
+
+
+				')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:attribute type="Nomad.NSystem.String" value="'Carga de Acumuladores para el Personal [' + $r/@e_numero_legajo + '] - ' + $r/@d_ape_y_nom" name="value"/>
+				</qry:out>
+			</qry:select>
+			<qry:select doc="PARAM" name="GRID">
+				<qry:xquery>
+					for $r in sql('
+				SELECT
+					v.oi_variable as id,
+					v.c_variable as c_variable,
+					vp.e_periodo,
+					vp.n_valor
+				 
+				FROM
+					LIQ07_VAL_VARPA(LIQ07_VAL_VARPA.oi_personal_emp = {%=#PARAM:@oi%}) as vp,
+					LIQ09_VARIABLES as v
+
+				JOIN 
+					v.oi_variable INNER vp.oi_variable
+
+				WHERE
+					v.c_tipo_variable = \'9\'
+          and v.oi_variable in (select cv.oi_variable from LIQ14_CONC_VAR as cv, LIQ14_CONCEPTOS as c	JOIN 	cv.oi_concepto INNER c.oi_concepto where c.l_activo = 1)
+        ORDER BY
+         	c_variable ASC, e_periodo ASC
+				')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:element name="ROW">
+						<qry:attribute type="Nomad.NSystem.String" value="$r/@id+'-'+$r/@e_periodo" name="id"/>
+						<qry:attribute type="Nomad.NSystem.String" value="$r/@id" name="a"/>
+						<qry:attribute type="Nomad.NSystem.String" value="$r/@e_periodo" name="p"/>
+						<qry:attribute type="Nomad.NSystem.String" value="$r/@n_valor" name="v"/>
+					</qry:element>
+				</qry:out>
+			</qry:select>
+		</qry:define>
+		<doc:define name="DEBUG">
+			<DATA oi="11462"/>
+		</doc:define>
+	</flow:declare>
+	<flow:main doc="SOURCE">
+		<flow:action name="initialize">
+			<doc:load-qry input-doc-path="#SOURCE:" output-doc="RS" qry="GetVariables"/>
+			<flow:open-form form-class="NucleusRH.Base.Liquidacion.Variables.GrillaVariables.ConPeriodo.9.form" mode="EDIT" doc-path="#RS:"/>
+		</flow:action>
+		<flow:action name="DEBUG">
+			<doc:assign-value from-path="#DEBUG:" to-doc="SOURCE"/>
+			<flow:call-action action="initialize"/>
+		</flow:action>
+	</flow:main>
+	<flow:group name="EditVariables">
+		<flow:form form-class="NucleusRH.Base.Liquidacion.Variables.GrillaVariables.ConPeriodo.9.form" name="NucleusRH.Base.Liquidacion.Variables.GrillaVariables.ConPeriodo.9.form" extends="NucleusRH.Base.Liquidacion.Variables.GrillaVariables.Base.form" mode="EDIT" doc="SOURCE">
+			<flow:action name="SAVE">
+				<flow:exec-method method="CargarVariablesPeriodo" class="NucleusRH.Base.Liquidacion.Legajo_Liquidacion.PERSONAL_EMP">
+					<flow:param doc="RS" type="Nomad.NSystem.Object" mode="in" name="pobjParametros"/>
+				</flow:exec-method>
+				<flow:call-action action="CANCEL"/>
+			</flow:action>
+		</flow:form>
+	</flow:group>
+</flow:flow>

@@ -1,0 +1,85 @@
+<flow:flow extends="Nomad.Base.flow" xmlns:flow="nomad_engine.form" xmlns:doc="nomad_engine.form" xmlns:qry="nomad_engine.form" name="ReportePuntualidad">
+	<flow:info label="ReportePuntualidad"/>
+	<flow:declare>
+		<qry:define name="QRY_PARAMS">
+			<qry:main doc="SOURCE">
+				<qry:element name="FILTRO">
+					<qry:insert-select name="RS1"/>
+					<qry:insert-select name="RS2"/>
+					<qry:insert-select name="RS3"/>
+					<qry:element name="PERSONAS"/>
+				</qry:element>
+			</qry:main>
+			<qry:select doc="SOURCE" name="RS1">
+				<qry:xquery>
+					for $r in sql('
+				SELECT ORG26_PARAMETROS.d_valor 
+				FROM ORG26_PARAMETROS
+				WHERE ORG26_PARAMETROS.c_parametro = \'PrePuntual\'
+       ')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:attribute type="Nomad.NSystem.Int" value="$r/@d_valor" name="pre_puntual"/>
+				</qry:out>
+			</qry:select>
+			<qry:select doc="SOURCE" name="RS2">
+				<qry:xquery>
+					for $r in sql('
+				SELECT ORG26_PARAMETROS.d_valor 
+				FROM ORG26_PARAMETROS
+				WHERE ORG26_PARAMETROS.c_parametro = \'DesdeTardanza\'
+       ')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:attribute type="Nomad.NSystem.Int" value="$r/@d_valor" name="desde_tardanza"/>
+				</qry:out>
+			</qry:select>
+			<qry:select doc="SOURCE" name="RS3">
+				<qry:xquery>
+					for $r in sql('
+				SELECT ORG26_PARAMETROS.d_valor 
+				FROM ORG26_PARAMETROS
+				WHERE ORG26_PARAMETROS.c_parametro = \'HastaTardanza\'
+       ')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:attribute type="Nomad.NSystem.Int" value="$r/@d_valor" name="hasta_tardanza"/>
+				</qry:out>
+			</qry:select>
+		</qry:define>
+		<doc:define name="FILTERDATA"/>
+	</flow:declare>
+	<flow:main doc="SOURCE">
+		<flow:action name="initialize">
+			<doc:load-qry output-doc="FILTERDATA" qry="QRY_PARAMS"/>
+			<flow:open-form doc-path="#SOURCE:" mode="FILTER" form-class="NucleusRH.Base.Tiempos_Trabajados.Reporte.Puntualidad.filter.form"/>
+		</flow:action>
+	</flow:main>
+	<flow:form name="NucleusRH.Base.Tiempos_Trabajados.Reporte.Puntualidad.filter.form:FILTER" parent-doc="PARENTSOURCE" doc="SOURCE" mode="FILTER" form-class="NucleusRH.Base.Tiempos_Trabajados.Reporte.Puntualidad.filter.form">
+		<flow:action name="BACK">
+			<flow:close-form/>
+		</flow:action>
+		<flow:action name="ACCEPT">
+			<doc:assign-mapping dir-apply="a-&gt;b" b-doc="FILTERDATA" a-doc="FORM">
+				<map docB="B" docA="A">
+					<submap path-docB="#B:PERSONAS" path-docA="#A:ctrl[@id='grdPersonal']/rows">
+						<map docB="B" docA="A">
+							<link B="#B:@id" A="#A:columns/ctrl[@id='oi_personal_emp']/@xval"/>
+						</map>
+						<ProtoA/>
+						<ProtoB>
+							<PERSONA id=""/>
+						</ProtoB>
+					</submap>
+				</map>
+			</doc:assign-mapping>
+			<flow:log text="ppfilterdata" text-path="#FILTERDATA:"/>
+			<flow:exec-method out-attr-path="#FILTERDATA:@batch-id" out-type="String" priority="5" method="execute" class="Nomad.NSystem.Crystal.NmdCrystalBatch">
+				<flow:param value="NucleusRH.Base.Tiempos_Trabajados.Puntualidad\Puntualidad.def" name="report-name" mode="in" type="Nomad.NSystem.String"/>
+				<flow:param name="report-param" mode="in" type="Nomad.NSystem.Object" doc="FILTERDATA"/>
+				<flow:param attr-path="#FILTERDATA:@file-name" name="report-file" mode="in" type="Nomad.NSystem.String"/>
+			</flow:exec-method>
+			<flow:open-form form-class="Nomad.base.batch.report.form" mode="BATCH" doc-path="#FILTERDATA:"/>
+		</flow:action>
+	</flow:form>
+</flow:flow>

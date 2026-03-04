@@ -1,0 +1,162 @@
+<flow:flow xmlns:flow="nomad_engine.flow" xmlns:doc="nomad_engine.doc" xmlns:qry="nomad_engine.qry" default_action="initialize" name="NucleusRH.Base.Vacaciones.Consulta.flow" extends="Nomad.Base.flow">
+	<flow:info label="Flow para NucleusRH.Base.Vacaciones.Consulta"/>
+	<flow:declare>
+		<doc:define name="DDO"/>
+		<doc:define name="NEWDDO"/>
+		<doc:define name="QRY"/>
+		<doc:define name="PARAMETERS">
+			<PARAMETERS l_detallada="" orden="" oi_personal_emp=""/>
+		</doc:define>
+		<doc:define name="PARAM"/>
+		<qry:define declare="&lt;PARAMETERS l_descendente=&quot;&quot; l_ascendente=&quot;1&quot; l_detallada=&quot;1&quot; orden=&quot;Asc&quot; oi_personal_emp=&quot;239&quot; /&gt;" name="GET_DATOS">
+			<qry:main doc="SOURCE">
+				<qry:element name="PARAMETERS">
+					<qry:insert-select doc-path="#SOURCE:PARAMETERS" name="RS1"/>
+				</qry:element>
+			</qry:main>
+			<qry:select name="RS1" doc="SOURCE">
+				<qry:xquery>
+					for $r in sql('
+				SELECT
+					PER02_PERSONAL_EMP.oi_personal_emp, 
+					PER02_PERSONAL_EMP.oi_empresa, 
+					PER02_PERSONAL_EMP.f_ingreso, 
+					ORG18_CATEGORIAS.oi_convenio
+				FROM
+					PER02_PERSONAL_EMP, 
+					ORG18_CATEGORIAS
+				JOIN
+					PER02_PERSONAL_EMP.oi_categoria_ult LEFT OUTER ORG18_CATEGORIAS.oi_categoria
+				WHERE
+					PER02_PERSONAL_EMP.oi_personal_emp = {#SOURCE:@oi_personal_emp}
+			')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:attribute name="oi_personal_emp" value="$r/@oi_personal_emp" type="Nomad.NSystem.String"/>
+					<qry:attribute name="oi_empresa" value="$r/@oi_empresa" type="Nomad.NSystem.String"/>
+					<qry:attribute name="f_ingreso" value="$r/@f_ingreso" type="Nomad.NSystem.String"/>
+					<qry:attribute name="oi_convenio" value="$r/@oi_convenio" type="Nomad.NSystem.String"/>
+					<qry:attribute name="l_detallada" value="#SOURCE:@l_detallada" type="Nomad.NSystem.String"/>
+					<qry:attribute name="orden" value="#SOURCE:@orden" type="Nomad.NSystem.String"/>
+				</qry:out>
+			</qry:select>
+		</qry:define>
+		<doc:define class="NucleusRH.Base.Vacaciones.LegajoVacaciones.SOLICITUD" name="SOLICITUD"/>
+		<doc:define name="outDOC">
+			<DATOS/>
+		</doc:define>
+	</flow:declare>
+	<flow:main doc="SOURCE">
+		<flow:action name="initialize">
+			<flow:open-form form-class="NucleusRH.Base.Vacaciones.Consulta.filter.form" mode="FILTER" doc-path="#PARAMETERS:"/>
+		</flow:action>
+	</flow:main>
+	<flow:form name="NucleusRH.Base.Vacaciones.Consulta.filter.form:FILTER" mode="FILTER" form-class="NucleusRH.Base.Vacaciones.Consulta.filter.form" doc="PARAMETERS">
+		<flow:action name="ACCEPT">
+			<flow:call-action action="Save-FILTER"/>
+			<doc:load-qry qry="GET_DATOS" output-doc="PARAM" input-doc-path="#PARAMETERS:"/>
+			<flow:exec-method out-type="Nomad.NSystem.Proxy.NomadXML" out-doc="PARAM" class="NucleusRH.Base.Vacaciones.LegajoVacaciones.PERSONAL_EMP" method="Saldo_Vacaciones">
+				<flow:param mode="inout" type="Nomad.NSystem.Proxy.NomadXML" name="xmlparam" doc="PARAM"/>
+			</flow:exec-method>
+			<flow:html-gen input-doc-path="#PARAM:" out-file-path="#PARAM:@report" template-file="NucleusRH.Base.Vacaciones.CuentaCorrienteVacaciones.rpt"/>
+			<flow:open-form mode="SHOW" form-class="NucleusRH.Base.Vacaciones.Consulta.form" doc-path="#PARAM:" parent-doc-path="#PARAM:"/>
+		</flow:action>
+		<flow:action name="on-show">
+			<flow:call-action action="Load-FILTER"/>
+		</flow:action>
+		<flow:action name="BACK">
+			<flow:close-form/>
+		</flow:action>
+		<flow:action name="Save-FILTER">
+			<flow:save-user-data name="FILTER-NucleusRH.Base.Vacaciones.Consulta" doc-path="#PARAMETERS:"/>
+		</flow:action>
+		<flow:action name="Load-FILTER">
+			<flow:load-user-data name="FILTER-NucleusRH.Base.Vacaciones.Consulta" doc="PARAMETERS"/>
+		</flow:action>
+	</flow:form>
+	<flow:form name="NucleusRH.Base.Vacaciones.Consulta.form:SHOW" form-class="NucleusRH.Base.Vacaciones.Consulta.form" mode="SHOW" doc="source">
+		<flow:action name="BACK">
+			<flow:close-form/>
+		</flow:action>
+		<flow:action name="SOLICITAR">
+			<flow:open-form form-class="NucleusRH.Base.Vacaciones.Consulta.Solicitud.form" doc-path="#source:" parent-doc-path="#source:" mode="NEW"/>
+		</flow:action>
+	</flow:form>
+	<flow:form form-class="NucleusRH.Base.Vacaciones.Consulta.Solicitud.form" name="NucleusRH.Base.Vacaciones.Consulta.Solicitud.form:NEW" mode="NEW" doc="source">
+		<flow:action name="CANCEL">
+			<flow:close-form next-action="BACK"/>
+		</flow:action>
+		<flow:action name="SAVE">
+			<flow:exec-method out-type="string" out-attr-path="#source:@oi_solicitud" method="Guardar_Solicitud" class="NucleusRH.Base.Vacaciones.LegajoVacaciones.PERSONAL_EMP">
+				<flow:param type="Nomad.NSystem.Proxy.NomadXML" doc="source" mode="in" name="param"/>
+			</flow:exec-method>
+			<flow:close-form next-action="BACK"/>
+		</flow:action>
+		<flow:action name="APROBAR">
+			<doc:set-attribute to-attr-path="#source:@force" from-value="0"/>
+			<flow:exec-method method="Guardar_Aprobar_Solicitud" class="NucleusRH.Base.Vacaciones.LegajoVacaciones.PERSONAL_EMP">
+				<flow:param type="Nomad.NSystem.Proxy.NomadXML" mode="in" doc="source" name="param"/>
+			</flow:exec-method>
+			<flow:exec-method out-doc="source" out-type="Nomad.NSystem.Proxy.NomadXML" class="NucleusRH.Base.Vacaciones.LegajoVacaciones.PERSONAL_EMP" method="Saldo_Vacaciones">
+				<flow:param type="Nomad.NSystem.Proxy.NomadXML" name="xmlparam" mode="inout" doc="source"/>
+			</flow:exec-method>
+			<flow:close-form next-action="BACK"/>
+		</flow:action>
+		<flow:action name="GANTT"/>
+		<flow:action name="AUTORIZAR">
+			<doc:set-attribute to-attr-path="#source:@force" from-value="1"/>
+			<flow:exec-method method="Guardar_Aprobar_Solicitud" class="NucleusRH.Base.Vacaciones.LegajoVacaciones.PERSONAL_EMP">
+				<flow:param type="Nomad.NSystem.Proxy.NomadXML" mode="in" doc="source" name="param"/>
+			</flow:exec-method>
+			<flow:exec-method out-doc="source" out-type="Nomad.NSystem.Proxy.NomadXML" class="NucleusRH.Base.Vacaciones.LegajoVacaciones.PERSONAL_EMP" method="Saldo_Vacaciones">
+				<flow:param type="Nomad.NSystem.Proxy.NomadXML" name="xmlparam" mode="inout" doc="source"/>
+			</flow:exec-method>
+			<flow:close-form next-action="BACK"/>
+		</flow:action>
+		<flow:action name="RECALCULAR_DIAS">
+			<doc:set-attribute to-attr-path="#outDOC:@cant_dias" from-value=""/>
+			<flow:exec-method out-doc="outDOC" out-type="Nomad.NSystem.Proxy.NomadXML" class="NucleusRH.Base.Vacaciones.LegajoVacaciones.PERSONAL_EMP" method="RecalcularFechas">
+				<flow:param attr-path="#source:@oi_personal_emp" type="Nomad.NSystem.String" mode="in" name="oi_personal_emp"/>
+				<flow:param name="fecha_desde" attr-path="#source:@f_desde_solicitud" type="Nomad.NSystem.String" mode="in"/>
+				<flow:param name="fecha_hasta" attr-path="#source:@f_hasta_solicitud" type="Nomad.NSystem.String" mode="in"/>
+				<flow:param attr-path="#outDOC:@cant_dias" type="Nomad.NSystem.String" mode="in" name="cant_dias"/>
+			</flow:exec-method>
+			<doc:set-attribute to-attr-path="#source:@e_dias_solicitud" from-attr-path="#outDOC:@cant_dias"/>
+			<doc:set-attribute to-attr-path="#source:@f_hasta_solicitud" from-attr-path="#outDOC:@fecha_hasta"/>
+			<doc:set-attribute to-attr-path="#source:@f_desde_solicitud" from-attr-path="#outDOC:@fecha_desde"/>
+			<doc:set-attribute to-attr-path="#source:@e_dias_bonif" from-attr-path="#outDOC:@dias_bonif"/>
+			<doc:set-attribute to-attr-path="#source:@l_habiles" from-attr-path="#outDOC:@l_habiles"/>
+			<doc:set-attribute to-attr-path="#source:@d_habiles" from-attr-path="#outDOC:@d_habiles"/>
+			<flow:log text-path="#source:" text="JP_SOURCE"/>
+		</flow:action>
+		<flow:action name="RECALCULAR_FECHA">
+			<doc:set-attribute to-attr-path="#outDOC:@f_hasta_solicitud" from-value=""/>
+			<flow:exec-method out-doc="outDOC" out-type="Nomad.NSystem.Proxy.NomadXML" class="NucleusRH.Base.Vacaciones.LegajoVacaciones.PERSONAL_EMP" method="RecalcularFechas">
+				<flow:param attr-path="#source:@oi_personal_emp" type="Nomad.NSystem.String" mode="in" name="oi_personal_emp"/>
+				<flow:param name="fecha_desde" attr-path="#source:@f_desde_solicitud" type="Nomad.NSystem.String" mode="in"/>
+				<flow:param attr-path="#outDOC:@f_hasta_solicitud" name="fecha_hasta" type="Nomad.NSystem.String" mode="in"/>
+				<flow:param attr-path="#source:@e_dias_solicitud" type="Nomad.NSystem.String" mode="in" name="cant_dias"/>
+			</flow:exec-method>
+			<doc:set-attribute to-attr-path="#source:@e_dias_solicitud" from-attr-path="#outDOC:@cant_dias"/>
+			<doc:set-attribute to-attr-path="#source:@f_hasta_solicitud" from-attr-path="#outDOC:@fecha_hasta"/>
+			<doc:set-attribute to-attr-path="#source:@f_desde_solicitud" from-attr-path="#outDOC:@fecha_desde"/>
+			<doc:set-attribute to-attr-path="#source:@e_dias_bonif" from-attr-path="#outDOC:@dias_bonif"/>
+			<doc:set-attribute to-attr-path="#source:@l_habiles" from-attr-path="#outDOC:@l_habiles"/>
+			<doc:set-attribute to-attr-path="#source:@d_habiles" from-attr-path="#outDOC:@d_habiles"/>
+			<flow:log text-path="#source:" text="JP_SOURCE"/>
+		</flow:action>
+	</flow:form>
+	<flow:form form-class="NucleusRH.Base.Vacaciones.Consulta.Autorizacion.form" name="NucleusRH.Base.Vacaciones.Consulta.Autorizacion.form:SHOW" mode="SHOW" doc="source">
+		<flow:action name="CANCEL">
+			<flow:close-form next-action="CANCEL"/>
+		</flow:action>
+		<flow:action name="AUTORIZAR">
+			<flow:log text-path="#source:" text="logfede"/>
+			<flow:exec-method class="NucleusRH.Base.Vacaciones.LegajoVacaciones.PERSONAL_EMP" method="Autorizar_Solicitud" out-type="string" out-attr-path="#source:@resultado">
+				<flow:param attr-path="#source:@oi_personal_emp" mode="in" type="Nomad.NSystem.String" name="oi_personal_emp"/>
+				<flow:param attr-path="#source:@oi_solicitud" name="oi_solicitud" mode="in" type="Nomad.NSystem.String"/>
+			</flow:exec-method>
+			<flow:close-form next-action="CANCEL"/>
+		</flow:action>
+	</flow:form>
+</flow:flow>

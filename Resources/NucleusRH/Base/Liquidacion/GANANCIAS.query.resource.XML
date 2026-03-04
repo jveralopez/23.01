@@ -1,0 +1,1902 @@
+<qry:define xmlns:qry="nomad_engine.qry" declare="&lt;DATOS&gt; &#13;&#10;&#9;&lt;PARAM oi_empresa=&quot;1&quot; oi_liquidacion=&quot;5111&quot; salida=&quot;HTML&quot;  oi_variable=&quot;&quot; report=&quot;&quot; gpers=&quot;&quot; gcustom=&quot;&quot; oi_empresaFIL=&quot;2&quot; tipo_liq=&quot;2&quot; oi_liquidacionFIL=&quot;5111&quot; inter=&quot;V5.0&quot; secuencia=&quot;0&quot; l_anioAnterior=&quot;0&quot; f_liq_hasta=&quot;20210731&quot; nombreArchivo=&quot;F1357.30609178430.20210000.0000.txt&quot; activos=&quot;&quot; nombre=&quot;&quot; documento=&quot;&quot; sexo=&quot;&quot; grupo_sanguineo=&quot;&quot; listlegajos=&quot;3021&quot; oi_indic_activo=&quot;&quot; egresado=&quot;&quot; oi_forma_pago=&quot;&quot; oi_tipo_personal=&quot;&quot; fecha_desde=&quot;&quot; fecha_hasta=&quot;&quot; cb_confidenciales=&quot;&quot; oi_grupo_ccosto=&quot;&quot; oi_centro_costo=&quot;&quot; oi_convenio=&quot;&quot; soloconvenio=&quot;&quot; oi_categoria=&quot;&quot; oi_ubicacion_desde=&quot;&quot; oi_ubicacion_hasta=&quot;&quot; oi_estructura=&quot;&quot; escructura_childs=&quot;&quot; oi_contrato=&quot;&quot; oi_afjp=&quot;&quot; oi_obra_social=&quot;&quot; oi_sindicato=&quot;&quot; l_afiliado_sind=&quot;&quot; oi_departamento=&quot;&quot; oi_sector=&quot;&quot; rpt=&quot;1&quot; /&gt;                                                  &#13;&#10;&lt;/DATOS&gt;" name="GANANCIAS" include="true">
+	<qry:select name="qry_cabecera" doc="SOURCE">
+		<qry:xquery>
+			for $r in sql('
+SELECT 
+O.c_empresa                 	
+, O.d_empresa
+, O.c_cuit
+, E.d_dependencia_emp
+, E.d_encargado_F649
+, E.d_puesto_enc_F649
+, E.d_lugar_F649
+, E.oi_firma_F649
+, L.f_pago
+, getyear(L.f_pago) as anio
+, getmonth(L.f_pago) as mes
+, L.f_f649
+, L.oi_liquidacion
+, L.f_liquidacion
+FROM 
+ORG03_EMPRESAS AS O
+, LIQ19_LIQUIDACION AS L
+, LIQ15_EMPRESAS AS E
+JOIN
+O.oi_empresa INNER L.oi_empresa
+, O.oi_empresa INNER E.oi_empresa
+WHERE
+O.oi_empresa = {#PARAM:@oi_empresaFIL}
+AND L.oi_liquidacion = {#PARAM:@oi_liquidacionFIL}
+')/ROWS/ROW
+		</qry:xquery>
+		<qry:out>
+			<qry:attribute name="d_encargado_F649" value="$r/@d_encargado_F649"/>
+			<qry:attribute name="d_puesto_enc_F649" value="$r/@d_puesto_enc_F649"/>
+			<qry:attribute name="f_liquidacion" value="format-date($r/@f_liquidacion, 'dd/mm/yyyy')"/>
+			<qry:attribute name="d_lugar_F649" value="$r/@d_lugar_F649"/>
+			<qry:attribute name="oi_firma_F649" value="$r/@oi_firma_F649"/>
+			<qry:attribute name="firmaid" value="iif(@oi_firma_F649!='','url('+@path+'\\NucleusRH.Base.Personal.Imagenes.HEAD.'+$r/@oi_firma_F649+'.jpg)', '')"/>
+			<qry:attribute name="f_emision_F649" value="$r/@f_f649"/>
+			<qry:attribute name="f_f649" value="$r/@f_f649"/>
+			<qry:attribute name="d_empresa" value="$r/@d_empresa"/>
+			<qry:attribute name="c_empresa" value="$r/@c_empresa"/>
+			<qry:attribute name="f_pago" value="$r/@f_pago"/>
+			<qry:attribute name="f_fecha" value="iif($PARAM/@f_fecha!='', format-date($PARAM/@f_fecha, 'dd/mm/yyyy'), '')"/>
+			<qry:attribute name="f_fecha_sf" value="iif($PARAM/@f_fecha!='', $PARAM/@f_fecha, '')"/>
+			<qry:attribute name="f_fecha" value="iif(@f_fecha='', format-date($r/@f_f649, 'dd/mm/yyyy') , @f_fecha)"/>
+			<qry:attribute name="f_fecha_sf" value="iif(@f_fecha_sf='', $r/@f_f649, @f_fecha_sf)"/>
+			<qry:attribute name="f_fecha" value="iif(@f_fecha='', format-date(now(), 'dd/mm/yyyy') , @f_fecha)"/>
+			<qry:attribute name="f_fecha_sf" value="iif(@f_fecha_sf='', now(), @f_fecha_sf)"/>
+			<qry:attribute name="c_cuit_emp" value="$r/@c_cuit"/>
+			<qry:attribute name="c_cuit" value="$r/@c_cuit"/>
+			<qry:attribute name="d_dependencia_emp" value="$r/@d_dependencia_emp"/>
+			<qry:insert-select name="qry_split" doc-path="#PARAM2:"/>
+		</qry:out>
+	</qry:select>
+	<qry:select name="qry_split" doc="PARAM">
+		<qry:xquery>
+			for $r in split('50;{%=$PARAM/ROWS/ROW/@id%}')/ROWS/ROW
+		</qry:xquery>
+		<qry:out>
+			<qry:insert-select name="qry_personas" doc-path="$r"/>
+		</qry:out>
+	</qry:select>
+	<qry:select name="qry_personas" doc="SOURCE">
+		<qry:xquery>
+			for $r in sql('
+SELECT   
+{%? (#PARAM:@orden1!=''){% {%=#PARAM:@orden1 %} as orden1,%}{% %} %}
+{%? (#PARAM:@orden2!=''){% {%=#PARAM:@orden2 %} as orden2,%}{% %} %}
+P.oi_per_emp_ddo
+, P.d_ape_y_nom
+, P.c_nro_cuil	
+, PS.d_dependencia_per
+, PS.o_F649
+, PE.oi_personal_emp 
+, T.oi_tot_liq_per
+, GetYear(L.f_pago) as anio
+, P.c_ubicacion
+, P.e_numero_legajo
+, U.d_ubicacion   
+, L.e_periodo
+FROM 
+LIQ19_EJECUCIONES AS E
+, LIQ99_LIQUIDACION AS L
+, LIQ99_RECIBOS AS R
+, LIQ20_TOT_LIQ_PER AS T
+, LIQ97_PERSONAL_EMP AS P
+, LIQ25_PERSONAL_LIQ AS PL
+, PER02_PERSONAL_EMP AS PE
+, LIQ07_PERSONAL AS PS                       
+,LIQ20_VAR_GR_CONC                     
+, ORG03_UBICACIONES(ORG03_UBICACIONES.oi_empresa = {%=$PARAM/@oi_empresaFIL%}) AS U
+JOIN
+  E.oi_liquidacion_ddo INNER L.oi_liquidacion_ddo
+, L.oi_liquidacion_ddo INNER R.oi_liquidacion_ddo
+, R.oi_tot_liq_per INNER T.oi_tot_liq_per
+, T.oi_per_emp_ddo INNER P.oi_per_emp_ddo
+, E.oi_liquidacion INNER PL.oi_liquidacion
+, PL.oi_personal_emp INNER PE.oi_personal_emp
+, PL.oi_personal_emp INNER PS.oi_personal_emp
+, PE.e_numero_legajo INNER P.e_numero_legajo
+, LIQ20_VAR_GR_CONC.oi_tot_liq_per INNER T.oi_tot_liq_per
+  	, P.c_ubicacion LEFT OUTER U.c_ubicacion
+WHERE													
+E.oi_liquidacion = {#PARAM:@oi_liquidacionFIL}
+
+{%? (#PARAM:@l_anioAnterior!=1 )         
+{%    
+AND LIQ20_VAR_GR_CONC.c_grupo = \'1\'
+{%? ($PARAM/@l_retencion=1 and #GRUPO:ROW[@c_variable='ap_igacumanio']/@c_columna != '' )
+{% AND LIQ20_VAR_GR_CONC.{%= #GRUPO:ROW[@c_variable='ap_igacumanio']/@c_columna %} != 0 %} {%%} 
+%}
+%}
+{%
+AND LIQ20_VAR_GR_CONC.c_grupo = \'2\'   
+{%? ($PARAM/@l_retencion=1 and #GRUPOANT:ROW[@c_variable='ap_igacumanioant']/@c_columna != '')
+{% AND LIQ20_VAR_GR_CONC.{%= #GRUPOANT:ROW[@c_variable='ap_igacumanioant']/@c_columna %} != 0 %} {%%} 
+%}
+%} 
+%}   
+
+AND L.c_estado = \'F\'
+AND PE.oi_personal_emp in ({%=#SOURCE:@value%})
+
+ 
+')/ROWS/ROW
+		</qry:xquery>
+		<qry:out>
+			<L>
+				<!-- INICIAR VARIABLES -->
+				<qry:insert-select doc-path="." name="QRY_INI_VAR"/>
+				<!-- DATOS GENERALES -->
+				<qry:attribute value="iif($PARAM/@orden1!='' AND $PARAM/@orden1!='0', NMD_FILLRIGHT($r/@orden1, ' ', 50, 'L'), '')" name="order"/>
+				<qry:attribute value="@order + iif($PARAM/@orden2!='' AND $PARAM/@orden2!='0', NMD_FILLRIGHT($r/@orden2, ' ', 50, 'L'), '')" name="order"/>
+				<qry:attribute value="@order + NMD_FILLLEFT($r/@e_numero_legajo, '0', 10, 'R')" name="order"/>
+				<qry:attribute name="oi_per_emp_ddo" value="$r/@oi_per_emp_ddo"/>
+				<qry:attribute name="oi_tot_liq_per" value="$r/@oi_tot_liq_per"/>
+				<qry:attribute name="f_liquidacion" value="../@f_liquidacion"/>
+				<qry:attribute name="d_encargado_F649" value="../@d_encargado_F649"/>
+				<qry:attribute name="d_puesto_enc_F649" value="../@d_puesto_enc_F649"/>
+				<qry:attribute name="d_lugar_F649" value="../@d_lugar_F649 + ', ' + format_date(../@f_fecha_sf, 'dd \\DE MMM \\DE yyyy')"/>
+				<qry:attribute name="firmaid" value="../@firmaid"/>
+				<qry:attribute name="oi_firma_F649" value="../@oi_firma_F649"/>
+				<qry:attribute name="f_fecha" value="../@f_fecha"/>
+				<qry:attribute name="e_numero_legajo" value="$r/@e_numero_legajo"/>
+				<qry:attribute name="d_empresa" value="../@d_empresa"/>
+				<qry:attribute name="c_empresa" value="../@c_empresa"/>
+				<qry:attribute name="c_ubicacion" value="$r/@c_ubicacion"/>
+				<qry:attribute name="d_ubicacion" value="$r/@d_ubicacion"/>
+				<qry:attribute name="temp" value="substring_after(../@c_cuit,'-')"/>
+				<qry:if test="@temp!=''">
+					<qry:then>
+						<qry:attribute name="c_cuit_emp" value="../@c_cuit"/>
+					</qry:then>
+					<qry:else>
+						<qry:attribute name="c_cuit_emp" value="substring(../@c_cuit,0,2) + '-' + substring(../@c_cuit, 2, (string_length(../@c_cuit)-3))  + '-' + substring(../@c_cuit, (string_length(../@c_cuit)-1),1)"/>
+					</qry:else>
+				</qry:if>
+				<qry:attribute name="d_dependencia_emp" value="../@d_dependencia_emp"/>
+				<!-- DATOS PERSONALES -->
+				<qry:attribute name="temp" value="substring_after($r/@c_nro_cuil,'-')"/>
+				<qry:if test="@temp!=''">
+					<qry:then>
+						<qry:attribute name="c_cuil" value="$r/@c_nro_cuil"/>
+					</qry:then>
+					<qry:else>
+						<qry:attribute name="c_cuil" value="substring($r/@c_nro_cuil,0,2) + '-' + substring($r/@c_nro_cuil, 2, (string_length($r/@c_nro_cuil)-3))  + '-' + substring($r/@c_nro_cuil, (string_length($r/@c_nro_cuil)-1),1)"/>
+					</qry:else>
+				</qry:if>
+				<qry:attribute name="c_cuit" value="' '"/>
+				<qry:attribute name="d_ape_y_nom" value="$r/@d_ape_y_nom"/>
+				<qry:attribute name="d_dependencia_per" value="$r/@d_dependencia_per"/>
+				<qry:attribute name="o_observaciones_F649" value="$r/@o_F649"/>
+				<qry:attribute name="d_empleado" value="@c_cuil + ' - ' + @d_ape_y_nom + ' - ' + @e_numero_legajo"/>
+				<qry:attribute name="d_agente" value="@c_cuit_emp + ' - ' + @d_empresa"/>
+				<qry:attribute name="l_anioAnterior" value="#PARAM:@l_anioAnterior"/>
+				<qry:insert-select doc-path="$r" name="QRY_DOMICILIOS"/>
+				<qry:if test="#PARAM:@l_anioAnterior!=1">
+					<qry:then>
+						<qry:attribute name="e_anio" value="$r/@anio"/>
+						<qry:insert-select doc-path="." name="QRY_BUSCAR_VAR"/>
+						<qry:attribute name="f_desde" value="'01/01/'+@e_anio"/>
+						<qry:attribute name="f_hasta" value="datetime(number(datetime(substring_before(number(substring(../@f_pago,0,6)) + 1,'.') + '01'))-1)"/>
+						<qry:attribute name="f_hasta" value="format_date(@f_hasta,'dd/mm/yyyy')"/>
+					</qry:then>
+					<qry:else>
+						<qry:attribute name="e_anio" value="number($r/@anio) - 1"/>
+						<qry:insert-select doc-path="$r" name="QRY_BUSCAR_VAR_ANIO_ANT"/>
+						<qry:attribute name="f_desde" value="'01/01/'+@e_anio"/>
+						<qry:attribute name="f_hasta" value="'31/12/'+@e_anio"/>
+						<qry:attribute name="f_liquidacion" value="@f_hasta"/>
+					</qry:else>
+				</qry:if>
+				<qry:attribute name="per_desde_facu" value="substring(@f_desde,3,7)"/>
+				<qry:attribute name="per_hasta_facu" value="substring(@f_hasta,3,7)"/>
+				<qry:insert-select name="QRY_CALCULAR_MESES" doc-path="."/>
+				<qry:insert-select doc-path="$r" name="QRY_CALCULAR_TOTALES"/>
+				<qry:attribute name="per" value="$r/@e_periodo"/>
+				<qry:if test="@e_anio != 2019">
+					<qry:then>
+						<qry:attribute name="n_tot85" value="'0'"/>
+						<qry:attribute name="n_tot86" value="'0'"/>
+						<qry:attribute name="n_tot84" value="'0'"/>
+					</qry:then>
+					<qry:else>
+						<qry:attribute name="topeGanNoImp" value="17169.80"/>
+						<qry:attribute name="topeDeducEsp" value="82415.03"/>
+						<qry:attribute name="n_tot24PRe" value="@n_tot24"/>
+						<qry:if test="-1*number(@n_tot24) &lt; @topeGanNoImp">
+							<qry:then>
+								<qry:attribute name="n_tot85" value="0"/>
+							</qry:then>
+							<qry:else>
+								<qry:attribute name="n_tot85" value="-1 * @topeGanNoImp"/>
+								<qry:attribute name="n_tot24" value="number(@n_tot24) + number(@topeGanNoImp)"/>
+							</qry:else>
+						</qry:if>
+						<qry:if test="-1 * number(@n_tot25) &lt; @topeDeducEsp">
+							<qry:then>
+								<qry:attribute name="n_tot86" value="0"/>
+							</qry:then>
+							<qry:else>
+								<qry:attribute name="n_tot86" value="-1 * @topeDeducEsp"/>
+								<qry:attribute name="n_tot25" value="number(@n_tot25) + number(@topeDeducEsp)"/>
+							</qry:else>
+						</qry:if>
+						<!-- a partir de la version v8 se pidio que esto de siempre 0 -->
+						<qry:attribute name="n_tot84" value="0"/>
+						<qry:attribute name="n_tot85" value="0"/>
+						<qry:attribute name="n_tot86" value="0"/>
+						<qry:attribute name="n_tot30" value="number(@n_tot24) + number(@n_tot25) + number(@n_tot26) + number(@n_tot45)"/>
+						<qry:attribute name="n_tot31" value="number(@n_tot5) + number(@n_tot23) + number(@n_tot30)"/>
+						<qry:attribute name="n_tot31" value="number(@n_tot84) + number(@n_tot85) + number(@n_tot86) "/>
+					</qry:else>
+				</qry:if>
+				<qry:insert-select doc-path="$r" name="QRY_FORMATEAR"/>
+			</L>
+		</qry:out>
+	</qry:select>
+	<qry:select name="QRY_DOMICILIOS" doc="SOURCE">
+		<qry:xquery>
+			for $r in sql(' 
+SELECT
+D.d_calle
+, D.e_numero
+, D.d_piso
+, D.d_departamento
+, D.c_postal
+, D.oi_localidad	
+FROM 
+PER02_PERSONAL_EMP AS PE
+, PER01_DOMIC_PER AS D
+JOIN
+PE.oi_personal INNER D.oi_personal
+WHERE
+PE.oi_personal_emp = {%= #SOURCE:@oi_personal_emp %}
+AND D.l_domic_fiscal = 1 	
+')/ROWS/ROW
+		</qry:xquery>
+		<qry:out>
+			<qry:attribute name="d_calle" value="$r/@d_calle"/>
+			<qry:attribute name="e_numero" value="$r/@e_numero"/>
+			<qry:attribute name="c_piso" value="$r/@d_piso"/>
+			<qry:attribute name="c_dpto" value="$r/@d_departamento"/>
+			<qry:attribute name="c_codigo_postal" value="$r/@c_postal"/>
+			<qry:insert-select doc-path="$r" name="QRY_LOCALIDADES"/>
+		</qry:out>
+	</qry:select>
+	<qry:select name="QRY_LOCALIDADES" doc="SOURCE">
+		<qry:xquery>
+			for $r in sql(' 
+SELECT 
+ORG19_LOCALIDADES.d_localidad
+, ORG35_PROVINCIAS.d_provincia
+FROM 
+ORG19_LOCALIDADES
+, ORG35_PROVINCIAS
+JOIN
+ORG35_PROVINCIAS.oi_provincia INNER ORG19_LOCALIDADES.oi_provincia
+WHERE		
+ 		ORG19_LOCALIDADES.oi_localidad = {#SOURCE:@oi_localidad}
+')/ROWS/ROW
+		</qry:xquery>
+		<qry:out>
+			<qry:attribute name="d_localidad" value="$r/@d_localidad"/>
+			<qry:attribute name="d_provincia" value="$r/@d_provincia"/>
+		</qry:out>
+	</qry:select>
+	<qry:select name="QRY_INI_VAR" doc="">
+		<qry:out>
+			<qry:attribute name="n_tot1" value="0"/>
+			<qry:attribute name="n_tot2" value="0"/>
+			<qry:attribute name="n_tot3" value="0"/>
+			<qry:attribute name="n_tot4" value="0"/>
+			<qry:attribute name="n_tot5" value="0"/>
+			<qry:attribute name="n_tot6" value="0"/>
+			<qry:attribute name="n_tot7" value="0"/>
+			<qry:attribute name="n_tot8" value="0"/>
+			<qry:attribute name="n_tot9" value="0"/>
+			<qry:attribute name="n_tot10" value="0"/>
+			<qry:attribute name="n_tot11" value="0"/>
+			<qry:attribute name="n_tot12" value="0"/>
+			<qry:attribute name="n_tot13" value="0"/>
+			<qry:attribute name="n_tot14" value="0"/>
+			<qry:attribute name="n_tot15" value="0"/>
+			<qry:attribute name="n_tot16" value="0"/>
+			<qry:attribute name="n_tot17" value="0"/>
+			<qry:attribute name="n_tot18" value="0"/>
+			<qry:attribute name="n_tot19" value="0"/>
+			<qry:attribute name="n_tot20" value="0"/>
+			<qry:attribute name="n_tot21" value="0"/>
+			<qry:attribute name="n_tot22" value="0"/>
+			<qry:attribute name="n_tot23" value="0"/>
+			<qry:attribute name="n_tot24" value="0"/>
+			<qry:attribute name="n_tot25" value="0"/>
+			<qry:attribute name="n_tot26" value="0"/>
+			<qry:attribute name="n_tot27" value="0"/>
+			<qry:attribute name="n_tot28" value="0"/>
+			<qry:attribute name="n_tot29" value="0"/>
+			<qry:attribute name="n_tot30" value="0"/>
+			<qry:attribute name="n_tot31" value="0"/>
+			<qry:attribute name="n_tot32" value="0"/>
+			<qry:attribute name="n_tot33" value="0"/>
+			<qry:attribute name="n_tot34" value="0"/>
+			<qry:attribute name="n_tot35" value="0"/>
+			<qry:attribute name="n_tot36" value="0"/>
+			<qry:attribute name="n_tot37" value="0"/>
+			<qry:attribute name="n_tot38" value="0"/>
+			<qry:attribute name="n_tot39" value="0"/>
+			<qry:attribute name="n_tot40" value="0"/>
+			<qry:attribute name="n_tot41" value="0"/>
+			<qry:attribute name="n_tot42" value="0"/>
+			<qry:attribute name="n_tot43" value="0"/>
+			<qry:attribute name="n_tot44" value="0"/>
+			<qry:attribute name="n_tot44" value="0"/>
+			<qry:attribute name="n_tot45" value="0"/>
+			<!--nuevas -->
+			<qry:attribute name="n_tot46" value="0"/>
+			<qry:attribute name="n_tot47" value="0"/>
+			<qry:attribute name="n_tot48" value="0"/>
+			<qry:attribute name="n_tot49" value="0"/>
+			<qry:attribute name="n_tot50" value="0"/>
+			<qry:attribute name="n_tot51" value="0"/>
+			<qry:attribute name="n_tot52" value="0"/>
+			<qry:attribute name="n_tot53" value="0"/>
+			<qry:attribute name="n_tot54" value="0"/>
+			<qry:attribute name="n_tot55" value="0"/>
+			<qry:attribute name="n_tot56" value="0"/>
+			<qry:attribute name="n_tot57" value="0"/>
+			<qry:attribute name="n_tot58" value="0"/>
+			<qry:attribute name="n_tot59" value="0"/>
+			<qry:attribute name="n_tot60" value="0"/>
+			<qry:attribute name="n_tot61" value="0"/>
+			<qry:attribute name="n_tot62" value="0"/>
+			<qry:attribute name="n_tot63" value="0"/>
+			<qry:attribute name="n_tot64" value="0"/>
+			<qry:attribute name="n_tot65" value="0"/>
+			<qry:attribute name="n_tot66" value="0"/>
+			<qry:attribute name="n_tot67" value="0"/>
+			<qry:attribute name="n_tot68" value="0"/>
+			<!--Beneficio-->
+			<qry:attribute name="ap_igporcaum" value="0"/>
+			<qry:attribute name="n_tot69" value="0"/>
+			<!--Desarrolla actividad-->
+			<qry:attribute name="n_tot70" value="0"/>
+			<!--SAC-->
+			<qry:attribute name="n_tot71" value="0"/>
+			<!--Material Didactico Gravada-->
+			<qry:attribute name="n_tot72" value="0"/>
+			<!--Pluri SAC-->
+			<qry:attribute name="n_tot73" value="0"/>
+			<qry:attribute name="n_tot74" value="0"/>
+			<qry:attribute name="n_tot75" value="0"/>
+			<qry:attribute name="n_tot76" value="0"/>
+			<qry:attribute name="n_tot77" value="0"/>
+			<qry:attribute name="n_tot78" value="0"/>
+			<qry:attribute name="n_tot79" value="0"/>
+			<qry:attribute name="n_tot80" value="0"/>
+			<qry:attribute name="n_tot81" value="0"/>
+			<qry:attribute name="n_tot82" value="0"/>
+			<qry:attribute name="n_tot83" value="0"/>
+			<qry:attribute name="n_tot84" value="0"/>
+			<qry:attribute name="n_tot85" value="0"/>
+			<qry:attribute name="n_tot86" value="0"/>
+			<qry:attribute name="n_tot87" value="0"/>
+			<qry:attribute name="n_tot88" value="0"/>
+			<qry:attribute name="n_tot89" value="0"/>
+			<qry:attribute name="n_tot90" value="0"/>
+			<qry:attribute name="n_tot91" value="0"/>
+			<qry:attribute name="n_tot92" value="0"/>
+			<qry:attribute name="n_tot93" value="0"/>
+			<qry:attribute name="n_tot94bis" value="0"/>
+			<qry:attribute name="n_tot94" value="0"/>
+			<qry:attribute name="n_tot95" value="0"/>
+			<qry:attribute name="n_tot96" value="0"/>
+			<qry:attribute name="n_tot97" value="0"/>
+			<qry:attribute name="n_tot98" value="0"/>
+			<qry:attribute name="n_tot99" value="0"/>
+			<qry:attribute name="n_tot100" value="0"/>
+			<qry:attribute name="n_tot101" value="0"/>
+			<qry:attribute name="n_tot102" value="0"/>
+			<qry:attribute name="n_tot103" value="0"/>
+			<qry:attribute name="n_tot104" value="0"/>
+			<qry:attribute name="n_tot105" value="0"/>
+			<qry:attribute name="n_tot106" value="0"/>
+			<qry:attribute name="n_tot107" value="0"/>
+			<qry:attribute name="n_tot108" value="0"/>
+			<qry:attribute name="n_tot109" value="0"/>
+			<qry:attribute name="n_tot110" value="0"/>
+			<qry:attribute name="n_tot111" value="0"/>
+			<qry:attribute name="n_tot112" value="0"/>
+			<qry:attribute name="n_tot113" value="0"/>
+			<qry:attribute name="n_tot114" value="0"/>
+			<qry:attribute name="n_tot115" value="0"/>
+			<qry:attribute name="n_tot116" value="0"/>
+			<qry:attribute name="n_tot117" value="0"/>
+			<qry:attribute name="n_tot118" value="0"/>
+			<qry:attribute name="n_tot119" value="0"/>
+			<qry:attribute name="n_tot120" value="0"/>
+			<qry:attribute name="n_tot121" value="0"/>
+			<qry:attribute name="n_tot122" value="0"/>
+			<qry:attribute name="n_tot123" value="0"/>
+			<qry:attribute name="n_tot124" value="0"/>
+			<qry:attribute name="n_tot125" value="0"/>
+			<qry:attribute name="n_tot126" value="0"/>
+			<qry:attribute name="n_tot127" value="0"/>
+			<qry:attribute name="n_tot128" value="0"/>
+			<qry:attribute name="n_tot160" value="0"/>
+			<qry:attribute name="n_tot131" value="0"/>
+			<!--Herramientas de estudio-->
+			<qry:attribute name="n_tot140" value="0"/>
+			<qry:attribute name="n_tot141" value="0"/>
+			<qry:attribute name="n_tot142" value="0"/>
+			<qry:attribute name="n_tot143" value="0"/>
+			<qry:attribute name="n_tot144" value="0"/>
+			<qry:attribute name="n_tot145" value="0"/>
+			<!--Gastos por movilidad actividades transporte de larga distancia-->
+			<qry:attribute name="n_tot146" value="0"/>
+			<qry:attribute name="n_tot147" value="0"/>
+			<!--Nuevas a partir de v8 -->
+			<qry:attribute name="n_tot148" value="0"/>
+			<qry:attribute name="n_tot149" value="0"/>
+			<qry:attribute name="n_tot150" value="0"/>
+			<qry:attribute name="n_tot151" value="0"/>
+			<qry:attribute name="n_tot152" value="0"/>
+			<qry:attribute name="n_tot153" value="0"/>
+			<qry:attribute name="n_tot154" value="0"/>
+			<qry:attribute name="n_tot155" value="0"/>
+			<qry:attribute name="n_tot156" value="0"/>
+			<qry:attribute name="n_tot157" value="0"/>
+			<qry:attribute name="n_tot158" value="0"/>
+			<qry:attribute name="n_tot159" value="0"/>
+			<qry:attribute name="n_tot161" value="0"/>
+			<qry:attribute name="n_tot162" value="0"/>
+			<qry:attribute name="n_tot163" value="0"/>
+			<qry:attribute name="n_tot164" value="0"/>
+			<!--Nuevas a partir de v9 -->
+			<qry:attribute name="n_tot165" value="0"/>
+			<!--Nuevas 2024 F1359 y 215-->
+			<qry:attribute name="n_tot200" value="0"/>
+			<qry:attribute name="n_tot201" value="0"/>
+			<qry:attribute name="n_tot202" value="0"/>
+			<qry:attribute name="n_tot203" value="0"/>
+			<qry:attribute name="n_tot204" value="0"/>
+			<qry:attribute name="n_tot205" value="0"/>
+			<qry:attribute name="n_tot206" value="0"/>
+			<qry:attribute name="n_tot207" value="0"/>
+			<qry:attribute name="n_tot208" value="0"/>
+			<qry:attribute name="n_tot209" value="0"/>
+			<qry:attribute name="n_tot210" value="0"/>
+			<qry:attribute name="n_tot211" value="0"/>
+			<qry:attribute name="n_tot212" value="0"/>
+			<qry:attribute name="n_tot213" value="0"/>
+			<qry:attribute name="n_tot214" value="0"/>
+			<qry:attribute name="n_tot215" value="0"/>
+			<qry:attribute name="n_tot216" value="0"/>
+			<qry:attribute name="n_tot217" value="0"/>
+			<qry:attribute name="n_tot218" value="0"/>
+			<qry:attribute name="n_tot219" value="0"/>
+			<qry:attribute name="n_tot220" value="0"/>
+			<qry:attribute name="n_tot221" value="0"/>
+			<qry:attribute name="n_tot222" value="0"/>
+			<qry:attribute name="n_tot223" value="0"/>
+			<qry:attribute name="n_tot224" value="0"/>
+			<qry:attribute name="n_tot225" value="0"/>
+			<qry:attribute name="n_tot226" value="0"/>
+			<qry:attribute name="n_tot227" value="0"/>
+			<qry:attribute name="n_tot228" value="0"/>
+			<qry:attribute name="n_tot229" value="0"/>
+			<qry:attribute name="n_tot230" value="0"/>
+			<qry:attribute name="n_tot231" value="0"/>
+			<qry:attribute name="n_tot232" value="0"/>
+			<qry:attribute name="n_tot233" value="0"/>
+			<qry:attribute name="n_tot234" value="0"/>
+			<qry:attribute name="n_tot235" value="0"/>
+			<qry:attribute name="n_tot236" value="0"/>
+			<qry:attribute name="n_tot237" value="0"/>
+			<qry:attribute name="n_tot238" value="0"/>
+			<qry:attribute name="n_tot239" value="0"/>
+			<qry:attribute name="n_tot240" value="0"/>
+		</qry:out>
+	</qry:select>
+	<qry:select name="QRY_BUSCAR_VAR" doc="SOURCE">
+		<qry:xquery>
+			for $r in sql(' 
+select    
+{%=substring(#GRUPO:@c_columnas1,1) %}
+FROM 
+LIQ20_VAR_GR_CONC as V {%=#GRUPO:@c_tables %} {%=#GRUPO:@c_joins %}
+WHERE
+V.oi_tot_liq_per = {#SOURCE:@oi_tot_liq_per} and V.c_grupo=\'1\'
+ 	
+')/ROWS/ROW
+		</qry:xquery>
+		<qry:out>
+			<qry:attribute name="n_tot1" value="number($r/@ap_acumigh)"/>
+			<qry:attribute name="n_tot2" value="number($r/@ap_igacumremNA) + number($r/@ap_igacumremEXotras)"/>
+			<qry:attribute name="n_tot3" value="number($r/@ap_igacumremEX)"/>
+			<qry:attribute name="n_tot4" value="number($r/@ap_igplurihaberes)"/>
+			<qry:attribute name="n_tot5" value="number($r/@ap_acumigh) + number($r/@ap_igplurihaberes)"/>
+			<qry:attribute name="n_tot6" value="number($r/@ap_igacumley) + number($r/@ap_igacumjubi)"/>
+			<qry:attribute name="n_tot7" value="number($r/@ap_igacumos)"/>
+			<qry:attribute name="n_tot8" value="number($r/@ap_igacumsind)"/>
+			<qry:attribute name="n_tot9" value="number($r/@ap_igplurijubi)"/>
+			<qry:attribute name="n_tot10" value="number($r/@ap_igplurios)"/>
+			<qry:attribute name="n_tot11" value="number($r/@ap_igplurisind)"/>
+			<qry:attribute name="n_tot12" value="number($r/@ap_igacumMedico) + number($r/@ap_igacumCoberMedico)"/>
+			<qry:attribute name="n_tot13" value="number($r/@ap_igacumsegvida)"/>
+			<qry:attribute name="n_tot14" value="number($r/@ap_igacumsepelio)"/>
+			<qry:attribute name="n_tot15" value="number($r/@ap_igacumViaticos)"/>
+			<qry:attribute name="n_tot16" value="number($r/@ap_igacumDonaciones)"/>
+			<qry:attribute name="n_tot17" value="abs(number($r/@ap_igacumley)) + abs(number($r/@ap_igacumjubi)) + abs(number($r/@ap_igacumos)) + abs(number($r/@ap_igacumsind)) +  number($r/@ap_acumigd)"/>
+			<qry:attribute name="n_tot18" value="number($r/@ap_igacumHonoMedico)"/>
+			<qry:attribute name="n_tot19" value="number($r/@ap_igacumHipotec)"/>
+			<qry:attribute name="n_tot20" value="number($r/@ap_igacumApoCapSocial)"/>
+			<qry:attribute name="n_tot21" value="number($r/@ap_igacumulaSerDome)"/>
+			<qry:attribute name="n_tot22" value="number($r/@ap_igacumPrev)"/>
+			<qry:attribute name="n_tot24" value="number($r/@ap_igacumGanNoImpo)"/>
+			<qry:attribute name="n_tot25" value="number($r/@ap_igacumEspeciales)"/>
+			<qry:attribute name="n_tot26" value="number($r/@ap_igacumConyuge) + number($r/@ap_igacumHijos) + number($r/@ap_igacumHijosIncap)"/>
+			<qry:attribute name="n_tot27" value="number($r/@ap_igacumConyuge)"/>
+			<qry:attribute name="n_tot28" value="number($r/@ap_igacumHijos) + number($r/@ap_igacumHijosIncap)"/>
+			<qry:attribute name="n_tot160" value="number($r/@ap_igacumHijos)"/>
+			<qry:attribute name="n_tot32" value="number($r/@ap_igimporte)"/>
+			<qry:attribute name="n_tot33" value="number($r/@ap_igacumanio)"/>
+			<qry:attribute name="n_tot34" value="number($r/@ap_igPagosACuentaTotal)"/>
+			<qry:attribute name="n_tot36" value="number($r/@ap_igprorrateoh)"/>
+			<qry:attribute name="n_tot37" value="number($r/@ap_igprimersac)"/>
+			<qry:attribute name="n_tot38" value="number($r/@ap_igsegundosac)"/>
+			<qry:attribute name="n_tot39" value="number($r/@ap_igacumremEXotras)"/>
+			<qry:attribute name="n_tot40" value="number($r/@ap_igacumalquiler)"/>
+			<qry:attribute name="n_tot41" value="number($r/@ap_igacumviaticosotros)"/>
+			<qry:attribute name="n_tot42" value="number($r/@ap_acumigdotras) + number($r/@ap_igacumRepres) + number($r/@ap_igacumFdoComp) + number($r/@ap_igacumJubProf) + number($r/@ap_igacumAutonomos)+ number($r/@ap_igacumRetiro)"/>
+			<qry:attribute name="n_tot43" value="number($r/@ax_igRango)"/>
+			<qry:attribute name="n_tot44" value="number($r/@ax_igRangoHE)"/>
+			<qry:attribute name="n_tot45" value="number($r/@ap_igacumespecialotras)"/>
+			<qry:attribute name="l_aplicaInc" value="number($r/@ax_igporcaum)"/>
+			<qry:attribute name="n_tot46" value="number($r/@ap_acumighhe)"/>
+			<qry:attribute name="n_tot47" value="number(0)"/>
+			<qry:attribute name="n_tot48" value="number($r/@ap_igacummatdidgra)"/>
+			<qry:attribute name="n_tot49" value="number(0)"/>
+			<qry:attribute name="n_tot50" value="number($r/@ap_igacummatdidex)"/>
+			<qry:attribute name="n_tot51" value="number($r/@ap_igpluriretnohab)"/>
+			<qry:attribute name="n_tot52" value="number($r/@ap_igpluriprimersac)"/>
+			<qry:attribute name="n_tot53" value="number($r/@ap_igplurisegundosac)"/>
+			<qry:attribute name="n_tot54" value="number($r/@ap_igplurihsexgra)"/>
+			<qry:attribute name="n_tot55" value="number(0)"/>
+			<qry:attribute name="n_tot56" value="number($r/@ap_igplurimatdid)"/>
+			<qry:attribute name="n_tot57" value="number($r/@ap_igpluriexento)"/>
+			<qry:attribute name="n_tot58" value="number($r/@ap_igpluriheex)"/>
+			<qry:attribute name="n_tot59" value="number(0)"/>
+			<qry:attribute name="n_tot60" value="number($r/@ap_igplurimatdidex)"/>
+			<qry:attribute name="n_tot64" value="number($r/@ap_igacumSegVidaOtros)"/>
+			<qry:attribute name="n_tot65" value="number($r/@ap_igacumRetiroOtros)"/>
+			<qry:attribute name="n_tot66" value="number($r/@ap_igacumCuotaFdo)"/>
+			<qry:attribute name="n_tot67" value="number($r/@ap_igacumIndumentaria)"/>
+			<qry:attribute name="n_tot68" value="number($r/@ax_igporchijos)"/>
+			<qry:attribute name="n_tot69" value="number($r/@ap_igporcaum)"/>
+			<qry:attribute name="n_tot70" value="number($r/@ap_igtranplardist)"/>
+			<qry:attribute name="n_tot71" value="number($r/@ap_acumighsac)"/>
+			<qry:attribute name="n_tot73" value="number($r/@ap_igplurisac)"/>
+			<qry:attribute name="n_tot74" value="number($r/@ap_igacumretNAex)"/>
+			<qry:attribute name="n_tot75" value="number($r/@ap_igprimersacex)"/>
+			<qry:attribute name="n_tot76" value="number($r/@ap_igsegundosacex)"/>
+			<qry:attribute name="n_tot77" value="number($r/@ap_igacumajgra)"/>
+			<qry:attribute name="n_tot78" value="number($r/@ap_igacumajex)"/>
+			<qry:attribute name="n_tot79" value="number($r/@ap_igpluriretnohabex)"/>
+			<qry:attribute name="n_tot80" value="number($r/@ap_igpluriprimersacex)"/>
+			<qry:attribute name="n_tot81" value="number($r/@ap_igplurisegundosacex)"/>
+			<qry:attribute name="n_tot82" value="number($r/@ap_igpluriajgra)"/>
+			<qry:attribute name="n_tot83" value="number($r/@ap_igpluriajex)"/>
+			<qry:attribute name="n_tot87" value="number($r/@ap_igacumdedincA)"/>
+			<qry:attribute name="n_tot88" value="number($r/@ap_igacumdedincB)"/>
+			<qry:attribute name="n_tot89" value="number($r/@ap_igacumRepres)"/>
+			<qry:attribute name="n_tot90" value="number($r/@ap_igacumFdoComp)"/>
+			<qry:attribute name="n_tot91" value="number($r/@ap_igacumJubProf)"/>
+			<qry:attribute name="n_tot92" value="number($r/@ap_igacumAutonomos)"/>
+			<qry:attribute name="n_tot93" value="number($r/@ap_igacumRetiro)"/>
+			<qry:attribute name="n_tot94" value="number($r/@ap_igPagosACuentaPerc)"/>
+			<qry:attribute name="n_tot95" value="number($r/@ap_igPagosACuentaRes)"/>
+			<qry:attribute name="n_tot96" value="number(0)"/>
+			<qry:attribute name="n_tot97" value="number(0)"/>
+			<qry:attribute name="n_tot98" value="number($r/@ap_igacumremEXCOVID)"/>
+			<qry:attribute name="n_tot99" value="number($r/@ap_igpluriexentoCOVID)"/>
+			<qry:attribute name="n_tot100" value="number($r/@ap_igBenefLey27549)"/>
+			<qry:attribute name="n_tot101" value="number($r/@ap_igPagosACuenta31)"/>
+			<qry:attribute name="n_tot102" value="number($r/@ap_igPagosACuentaLeyb)"/>
+			<qry:attribute name="n_tot103" value="number($r/@ap_igPagosACuentaLeyc)"/>
+			<qry:attribute name="n_tot104" value="number($r/@ap_igPagosACuentaLeyd)"/>
+			<qry:attribute name="n_tot105" value="number($r/@ap_igPagosACuentaLeye)"/>
+			<qry:attribute name="n_tot106" value="number($r/@ap_igPagosACuentaDyCMov)"/>
+			<qry:attribute name="n_tot107" value="number($r/@ap_igPagosACuentaResTransp)"/>
+			<qry:attribute name="n_tot108" value="number($r/@ap_igacumbonogra)"/>
+			<qry:attribute name="n_tot109" value="number($r/@ap_igacumfallosgra)"/>
+			<qry:attribute name="n_tot110" value="number($r/@ap_igacumotrosgra)"/>
+			<qry:attribute name="n_tot111" value="number($r/@ap_igacumbonoex)"/>
+			<qry:attribute name="n_tot112" value="number($r/@ap_igacumfallosex)"/>
+			<qry:attribute name="n_tot113" value="number($r/@ap_igacumotrosex)"/>
+			<qry:attribute name="n_tot114" value="number($r/@ap_igacumsuplex)"/>
+			<qry:attribute name="n_tot115" value="number($r/@ap_igacumcompgtosex)"/>
+			<qry:attribute name="n_tot116" value="number($r/@ap_igpluribonogra)"/>
+			<qry:attribute name="n_tot117" value="number($r/@ap_igplurifallosgra)"/>
+			<qry:attribute name="n_tot118" value="number($r/@ap_igpluriotrosgra)"/>
+			<qry:attribute name="n_tot119" value="number($r/@ap_igpluribonoex)"/>
+			<qry:attribute name="n_tot120" value="number($r/@ap_igplurifallosex)"/>
+			<qry:attribute name="n_tot121" value="number($r/@ap_igpluriotrosex)"/>
+			<qry:attribute name="n_tot122" value="number($r/@ap_igplurisuplex)"/>
+			<qry:attribute name="n_tot123" value="number($r/@ap_igpluricompgtosex)"/>
+			<qry:attribute name="n_tot124" value="number($r/@ax_igporchijosincap)"/>
+			<qry:attribute name="n_tot125" value="number($r/@ap_igacumEspecial1parte)"/>
+			<qry:attribute name="n_tot126" value="number($r/@ap_igacumEspecial2parte)"/>
+			<qry:attribute name="n_tot127" value="number($r/@ap_igprimersacexpre)"/>
+			<qry:attribute name="n_tot128" value="number($r/@ap_igsegundosacexpre)"/>
+			<qry:attribute name="n_tot131" value="number($r/@ap_igacumHijosIncap)"/>
+			<qry:attribute name="n_tot140" value="number($r/@ap_igtranplardistCCT40)"/>
+			<qry:attribute name="n_tot141" value="number($r/@ap_igacumEduc)"/>
+			<qry:attribute name="n_tot142" value="number($r/@ax_igcanthijo100)"/>
+			<qry:attribute name="n_tot143" value="number($r/@ax_igcanthijoincap100)"/>
+			<qry:attribute name="n_tot144" value="number($r/@ax_igcanthijoedu50)"/>
+			<qry:attribute name="n_tot145" value="number($r/@ax_igcanthijoedu100)"/>
+			<qry:attribute name="n_tot146" value="number($r/@ap_igacumViatLargDist)"/>
+			<qry:attribute name="n_tot147" value="number($r/@ap_igacumViatLargDistCarga)"/>
+			<!--Nuevas a partir de v8 -->
+			<qry:attribute name="n_tot148" value="number($r/@ap_igacumcanbono)"/>
+			<qry:attribute name="n_tot149" value="number($r/@ap_igacumcanfallo)"/>
+			<qry:attribute name="n_tot150" value="number($r/@ap_igacumcansimnat)"/>
+			<qry:attribute name="n_tot151" value="number($r/@ap_igpluricanbono)"/>
+			<qry:attribute name="n_tot152" value="number($r/@ap_igpluricanfallo)"/>
+			<qry:attribute name="n_tot153" value="number($r/@ap_igpluricansimnat)"/>
+			<qry:attribute name="n_tot154" value="number($r/@ap_igacumviaticosgra)"/>
+			<qry:attribute name="n_tot155" value="number($r/@ap_igacumcompgra)"/>
+			<qry:attribute name="n_tot156" value="number($r/@ap_igpluriviatgra)"/>
+			<qry:attribute name="n_tot157" value="number($r/@ap_igpluricompgra)"/>
+			<qry:attribute name="n_tot158" value="number($r/@ap_igacummovotros)"/>
+			<qry:attribute name="n_tot159" value="number($r/@ap_igacumcompotros )"/>
+			<qry:attribute name="n_tot161" value="number($r/@ap_igacumcancompotros)"/>
+			<qry:attribute name="n_tot162" value="number($r/@ap_igacummovgra)"/>
+			<qry:attribute name="n_tot163" value="number($r/@ap_igplurimovgra)"/>
+			<qry:attribute name="n_tot164" value="number($r/@ap_igplurisimnat)"/>
+			<!--Nuevas a partir de v9 -->
+			<qry:attribute name="n_tot165" value="number($r/@ap_igacumalquilerextra)"/>
+			<!--Nuevas 2024 F1359 y 215-->
+			<qry:attribute name="n_tot200" value="number($r/@ap_igacumAsigFam)"/>
+			<qry:attribute name="n_tot201" value="number($r/@ap_igacumPrestEmp)"/>
+			<qry:attribute name="n_tot202" value="number($r/@ap_igacumIndem4003)"/>
+			<qry:attribute name="n_tot203" value="number($r/@ap_igacumLey19640)"/>
+			<qry:attribute name="n_tot204" value="number($r/@ap_igacumPerPozo)"/>
+			<qry:attribute name="n_tot205" value="number($r/@ap_igacumCursos4003)"/>
+			<qry:attribute name="n_tot206" value="number($r/@ap_igacumIndEmp)"/>
+			<qry:attribute name="n_tot207" value="number($r/@ap_igpluriAsigFam)"/>
+			<qry:attribute name="n_tot208" value="number($r/@ap_igpluriPrestEmp)"/>
+			<qry:attribute name="n_tot209" value="number($r/@ap_igpluriIndem4003)"/>
+			<qry:attribute name="n_tot210" value="number($r/@ap_igpluriLey19640)"/>
+			<qry:attribute name="n_tot211" value="number($r/@ap_igpluriPerPozo)"/>
+			<qry:attribute name="n_tot212" value="number($r/@ap_igpluriCursos4003)"/>
+			<qry:attribute name="n_tot213" value="number($r/@ap_igpluriIndEmp)"/>
+			<qry:attribute name="n_tot214" value="number($r/@ap_igacumJubProf)"/>
+			<qry:attribute name="n_tot215" value="number($r/@ap_igpluriJubProf)"/>
+			<qry:attribute name="n_tot216" value="number($r/@ap_igacumCajaComp)"/>
+			<qry:attribute name="n_tot217" value="number($r/@ap_igacumFdoComp)"/>
+			<qry:attribute name="n_tot218" value="number($r/@ap_igacumJubAut)"/>
+			<qry:attribute name="n_tot219" value="number($r/@ap_igacumRetiroOtros)"/>
+			<qry:attribute name="n_tot220" value="number($r/@ap_igacumalquilerextra)"/>
+			<qry:attribute name="n_tot221" value="number($r/@ap_igacumAntarArg)"/>
+			<qry:attribute name="n_tot222" value="number($r/@ap_igacumRepres)"/>
+			<qry:attribute name="n_tot223" value="number($r/@ap_igacumEspSAC1)"/>
+			<qry:attribute name="n_tot224" value="number($r/@ap_igacumEspSAC2)"/>
+			<qry:attribute name="n_tot225" value="number($r/@ap_igPagoACtaDec652)"/>
+			<qry:attribute name="n_tot226" value="number($r/@ap_igDEDifLey27743)"/>
+			<qry:attribute name="n_tot227" value="number($r/@ap_acumanio)"/>
+			<qry:attribute name="n_tot228" value="number($r/@ax_igcanthijo50)"/>
+			<qry:attribute name="n_tot229" value="number($r/@ax_igcanthijoincap50)"/>
+			<qry:attribute name="n_tot233" value="number($r/@ap_acumigh)"/>
+			<qry:attribute name="n_tot234" value="number($r/@ap_igplurihaberes)"/>
+			<qry:attribute name="n_tot235" value="number($r/@ax_igajusteanio)"/>
+			<qry:attribute name="n_tot236" value="number($r/@ap_medcautig)"/>
+			<qry:attribute name="n_tot237" value="number($r/@ap_pjudicialig)"/>
+			<qry:attribute name="n_tot238" value="number($r/@ap_igacumrempjnoalc)"/>
+			<qry:attribute name="n_tot239" value="number($r/@ap_igplurirempjnalc)"/>
+			<qry:attribute name="n_tot240" value="number($r/@ap_igacumautoret)"/>
+			<qry:insert-select name="QRY_BUSCAR_VAR2" doc-path="#SOURCE:"/>
+		</qry:out>
+	</qry:select>
+	<qry:select name="QRY_BUSCAR_VAR2" doc="SOURCE">
+		<qry:xquery>
+			for $r in sql(' 
+select    
+{%=substring(#GRUPO:@c_columnas2,1) %}
+FROM 
+LIQ20_VAR_GR_CONC as V {%=#GRUPO:@c_tables %} {%=#GRUPO:@c_joins %}
+WHERE
+V.oi_tot_liq_per = {#SOURCE:@oi_tot_liq_per} and V.c_grupo=\'1\'
+ 	
+')/ROWS/ROW
+		</qry:xquery>
+		<qry:out>
+			<qry:attribute name="n_tot1" value="number(@n_tot1) + number($r/@ap_acumigh)"/>
+			<qry:attribute name="n_tot2" value="number(@n_tot2) + number($r/@ap_igacumremNA) + number($r/@ap_igacumremEXotras)"/>
+			<qry:attribute name="n_tot3" value="number(@n_tot3) + number($r/@ap_igacumremEX)"/>
+			<qry:attribute name="n_tot4" value="number(@n_tot4) + number($r/@ap_igplurihaberes)"/>
+			<qry:attribute name="n_tot5" value="number(@n_tot5) + number($r/@ap_acumigh) + number($r/@ap_igplurihaberes)"/>
+			<qry:attribute name="n_tot6" value="number(@n_tot6) + number($r/@ap_igacumley) + number($r/@ap_igacumjubi)"/>
+			<qry:attribute name="n_tot7" value="number(@n_tot7) + number($r/@ap_igacumos)"/>
+			<qry:attribute name="n_tot8" value="number(@n_tot8) + number($r/@ap_igacumsind)"/>
+			<qry:attribute name="n_tot9" value="number(@n_tot9) + number($r/@ap_igplurijubi)"/>
+			<qry:attribute name="n_tot10" value="number(@n_tot10) + number($r/@ap_igplurios)"/>
+			<qry:attribute name="n_tot11" value="number(@n_tot11) + number($r/@ap_igplurisind)"/>
+			<qry:attribute name="n_tot12" value="number(@n_tot12) + number($r/@ap_igacumMedico) + number($r/@ap_igacumCoberMedico)"/>
+			<qry:attribute name="n_tot13" value="number(@n_tot13) + number($r/@ap_igacumsegvida)"/>
+			<qry:attribute name="n_tot14" value="number(@n_tot14) + number($r/@ap_igacumsepelio)"/>
+			<qry:attribute name="n_tot15" value="number(@n_tot15) + number($r/@ap_igacumViaticos)"/>
+			<qry:attribute name="n_tot16" value="number(@n_tot16) + number($r/@ap_igacumDonaciones)"/>
+			<qry:attribute name="n_tot17" value="number(@n_tot17) + number($r/@ap_igacumley) * (-1) + number($r/@ap_igacumjubi) * (-1) + number($r/@ap_igacumos) * (-1) + number($r/@ap_igacumsind) * (-1) +  number($r/@ap_acumigd)"/>
+			<qry:attribute name="n_tot18" value="number(@n_tot18) + number($r/@ap_igacumHonoMedico)"/>
+			<qry:attribute name="n_tot19" value="number(@n_tot19) + number($r/@ap_igacumHipotec)"/>
+			<qry:attribute name="n_tot20" value="number(@n_tot20) + number($r/@ap_igacumApoCapSocial)"/>
+			<qry:attribute name="n_tot21" value="number(@n_tot21) + number($r/@ap_igacumulaSerDome)"/>
+			<qry:attribute name="n_tot22" value="number(@n_tot22) + number($r/@ap_igacumPrev)"/>
+			<qry:attribute name="n_tot24" value="number(@n_tot24) + number($r/@ap_igacumGanNoImpo)"/>
+			<qry:attribute name="n_tot25" value="number(@n_tot25) + number($r/@ap_igacumEspeciales)"/>
+			<qry:attribute name="n_tot26" value="number(@n_tot26) + number($r/@ap_igacumConyuge) + number($r/@ap_igacumHijos) + number($r/@ap_igacumHijosIncap)"/>
+			<qry:attribute name="n_tot27" value="number(@n_tot27) + number($r/@ap_igacumConyuge)"/>
+			<qry:attribute name="n_tot28" value="number(@n_tot28) + number($r/@ap_igacumHijos) + number($r/@ap_igacumHijosIncap)"/>
+			<qry:attribute name="n_tot160" value="number(@n_tot160) + number($r/@ap_igacumHijos)"/>
+			<qry:attribute name="n_tot32" value="number(@n_tot32) + number($r/@ap_igimporte)"/>
+			<qry:attribute name="n_tot33" value="number(@n_tot33) + number($r/@ap_igacumanio)"/>
+			<qry:attribute name="n_tot34" value="number(@n_tot34) + number($r/@ap_igPagosACuentaTotal)"/>
+			<qry:attribute name="n_tot36" value="number(@n_tot36) + number($r/@ap_igprorrateoh)"/>
+			<qry:attribute name="n_tot37" value="number(@n_tot37) + number($r/@ap_igprimersac)"/>
+			<qry:attribute name="n_tot38" value="number(@n_tot38) + number($r/@ap_igsegundosac)"/>
+			<qry:attribute name="n_tot39" value="number(@n_tot39) + number($r/@ap_igacumremEXotras)"/>
+			<qry:attribute name="n_tot40" value="number(@n_tot40) + number($r/@ap_igacumalquiler)"/>
+			<qry:attribute name="n_tot41" value="number(@n_tot41) + number($r/@ap_igacumviaticosotros)"/>
+			<qry:attribute name="n_tot42" value="number(@n_tot42) + number($r/@ap_acumigdotras) + number($r/@ap_igacumRepres) + number($r/@ap_igacumFdoComp) + number($r/@ap_igacumJubProf) + number($r/@ap_igacumAutonomos)+ number($r/@ap_igacumRetiro)"/>
+			<qry:attribute name="n_tot43" value="number(@n_tot43) + number($r/@ax_igRango)"/>
+			<qry:attribute name="n_tot44" value="number(@n_tot44) + number($r/@ax_igRangoHE)"/>
+			<qry:attribute name="n_tot45" value="number(@n_tot45) + number($r/@ap_igacumespecialotras)"/>
+			<qry:attribute name="l_aplicaInc" value="number(@l_aplicaInc) + number($r/@ax_igporcaum)"/>
+			<qry:attribute name="n_tot46" value="number(@n_tot46) + number($r/@ap_acumighhe)"/>
+			<qry:attribute name="n_tot47" value="number(0)"/>
+			<qry:attribute name="n_tot48" value="number(@n_tot48) + number($r/@ap_igacummatdidgra)"/>
+			<qry:attribute name="n_tot49" value="number(0)"/>
+			<qry:attribute name="n_tot50" value="number(@n_tot50) + number($r/@ap_igacummatdidex)"/>
+			<qry:attribute name="n_tot51" value="number(@n_tot51) + number($r/@ap_igpluriretnohab)"/>
+			<qry:attribute name="n_tot52" value="number(@n_tot52) + number($r/@ap_igpluriprimersac)"/>
+			<qry:attribute name="n_tot53" value="number(@n_tot53) + number($r/@ap_igplurisegundosac)"/>
+			<qry:attribute name="n_tot54" value="number(@n_tot54) + number($r/@ap_igplurihsexgra)"/>
+			<qry:attribute name="n_tot55" value="number(0)"/>
+			<qry:attribute name="n_tot56" value="number(@n_tot56) + number($r/@ap_igplurimatdid)"/>
+			<qry:attribute name="n_tot57" value="number(@n_tot57) + number($r/@ap_igpluriexento)"/>
+			<qry:attribute name="n_tot58" value="number(@n_tot58) + number($r/@ap_igpluriheex)"/>
+			<qry:attribute name="n_tot59" value="number(0)"/>
+			<qry:attribute name="n_tot60" value="number(@n_tot60) + number($r/@ap_igplurimatdidex)"/>
+			<qry:attribute name="n_tot64" value="number(@n_tot64) + number($r/@ap_igacumSegVidaOtros)"/>
+			<qry:attribute name="n_tot65" value="number(@n_tot65) + number($r/@ap_igacumRetiroOtros)"/>
+			<qry:attribute name="n_tot66" value="number(@n_tot66) + number($r/@ap_igacumCuotaFdo)"/>
+			<qry:attribute name="n_tot67" value="number(@n_tot67) + number($r/@ap_igacumIndumentaria)"/>
+			<qry:attribute name="n_tot68" value="number(@n_tot68) + number($r/@ax_igporchijos)"/>
+			<qry:attribute name="n_tot69" value="number(@n_tot69) + number($r/@ap_igporcaum)"/>
+			<qry:attribute name="n_tot70" value="number(@n_tot70) + number($r/@ap_igtranplardist)"/>
+			<qry:attribute name="n_tot71" value="number(@n_tot71) + number($r/@ap_acumighsac)"/>
+			<qry:attribute name="n_tot73" value="number(@n_tot73) + number($r/@ap_igplurisac)"/>
+			<qry:attribute name="n_tot74" value="number(@n_tot74) + number($r/@ap_igacumretNAex)"/>
+			<qry:attribute name="n_tot75" value="number(@n_tot75) + number($r/@ap_igprimersacex)"/>
+			<qry:attribute name="n_tot76" value="number(@n_tot76) + number($r/@ap_igsegundosacex)"/>
+			<qry:attribute name="n_tot77" value="number(@n_tot77) + number($r/@ap_igacumajgra)"/>
+			<qry:attribute name="n_tot78" value="number(@n_tot78) + number($r/@ap_igacumajex)"/>
+			<qry:attribute name="n_tot79" value="number(@n_tot79) + number($r/@ap_igpluriretnohabex)"/>
+			<qry:attribute name="n_tot80" value="number(@n_tot80) + number($r/@ap_igpluriprimersacex)"/>
+			<qry:attribute name="n_tot81" value="number(@n_tot81) + number($r/@ap_igplurisegundosacex)"/>
+			<qry:attribute name="n_tot82" value="number(@n_tot82) + number($r/@ap_igpluriajgra)"/>
+			<qry:attribute name="n_tot83" value="number(@n_tot83) + number($r/@ap_igpluriajex)"/>
+			<qry:attribute name="n_tot87" value="number(@n_tot87) + number($r/@ap_igacumdedincA)"/>
+			<qry:attribute name="n_tot88" value="number(@n_tot88) + number($r/@ap_igacumdedincB)"/>
+			<qry:attribute name="n_tot89" value="number(@n_tot89) + number($r/@ap_igacumRepres)"/>
+			<qry:attribute name="n_tot90" value="number(@n_tot90) + number($r/@ap_igacumFdoComp)"/>
+			<qry:attribute name="n_tot91" value="number(@n_tot91) + number($r/@ap_igacumJubProf)"/>
+			<qry:attribute name="n_tot92" value="number(@n_tot92) + number($r/@ap_igacumAutonomos)"/>
+			<qry:attribute name="n_tot93" value="number(@n_tot93) + number($r/@ap_igacumRetiro)"/>
+			<qry:attribute name="n_tot94" value="number(@n_tot94) + number($r/@ap_igPagosACuentaPerc)"/>
+			<qry:attribute name="n_tot95" value="number(@n_tot95) + number($r/@ap_igPagosACuentaRes)"/>
+			<qry:attribute name="n_tot96" value="number(0)"/>
+			<qry:attribute name="n_tot97" value="number(0)"/>
+			<qry:attribute name="n_tot98" value="number(@n_tot98) + number($r/@ap_igacumremEXCOVID)"/>
+			<qry:attribute name="n_tot99" value="number(@n_tot99) + number($r/@ap_igpluriexentoCOVID)"/>
+			<qry:attribute name="n_tot100" value="number(@n_tot100) + number($r/@ap_igBenefLey27549)"/>
+			<qry:attribute name="n_tot101" value="number(@n_tot101) + number($r/@ap_igPagosACuenta31)"/>
+			<qry:attribute name="n_tot102" value="number(@n_tot102) + number($r/@ap_igPagosACuentaLeyb)"/>
+			<qry:attribute name="n_tot103" value="number(@n_tot103) + number($r/@ap_igPagosACuentaLeyc)"/>
+			<qry:attribute name="n_tot104" value="number(@n_tot104) + number($r/@ap_igPagosACuentaLeyd)"/>
+			<qry:attribute name="n_tot105" value="number(@n_tot105) + number($r/@ap_igPagosACuentaLeye)"/>
+			<qry:attribute name="n_tot106" value="number(@n_tot106) + number($r/@ap_igPagosACuentaDyCMov)"/>
+			<qry:attribute name="n_tot107" value="number(@n_tot107) + number($r/@ap_igPagosACuentaResTransp)"/>
+			<qry:attribute name="n_tot108" value="number(@n_tot108) + number($r/@ap_igacumbonogra)"/>
+			<qry:attribute name="n_tot109" value="number(@n_tot109) + number($r/@ap_igacumfallosgra)"/>
+			<qry:attribute name="n_tot110" value="number(@n_tot110) + number($r/@ap_igacumotrosgra)"/>
+			<qry:attribute name="n_tot111" value="number(@n_tot111) + number($r/@ap_igacumbonoex)"/>
+			<qry:attribute name="n_tot112" value="number(@n_tot112) + number($r/@ap_igacumfallosex)"/>
+			<qry:attribute name="n_tot113" value="number(@n_tot113) + number($r/@ap_igacumotrosex)"/>
+			<qry:attribute name="n_tot114" value="number(@n_tot114) + number($r/@ap_igacumsuplex)"/>
+			<qry:attribute name="n_tot115" value="number(@n_tot115) + number($r/@ap_igacumcompgtosex)"/>
+			<qry:attribute name="n_tot116" value="number(@n_tot116) + number($r/@ap_igpluribonogra)"/>
+			<qry:attribute name="n_tot117" value="number(@n_tot117) + number($r/@ap_igplurifallosgra)"/>
+			<qry:attribute name="n_tot118" value="number(@n_tot118) + number($r/@ap_igpluriotrosgra)"/>
+			<qry:attribute name="n_tot119" value="number(@n_tot119) + number($r/@ap_igpluribonoex)"/>
+			<qry:attribute name="n_tot120" value="number(@n_tot120) + number($r/@ap_igplurifallosex)"/>
+			<qry:attribute name="n_tot121" value="number(@n_tot121) + number($r/@ap_igpluriotrosex)"/>
+			<qry:attribute name="n_tot122" value="number(@n_tot122) + number($r/@ap_igplurisuplex)"/>
+			<qry:attribute name="n_tot123" value="number(@n_tot123) + number($r/@ap_igpluricompgtosex)"/>
+			<qry:attribute name="n_tot124" value="number(@n_tot124) + number($r/@ax_igporchijosincap)"/>
+			<qry:attribute name="n_tot125" value="number(@n_tot125) + number($r/@ap_igacumEspecial1parte)"/>
+			<qry:attribute name="n_tot126" value="number(@n_tot126) + number($r/@ap_igacumEspecial2parte)"/>
+			<qry:attribute name="n_tot127" value="number(@n_tot127) + number($r/@ap_igprimersacexpre)"/>
+			<qry:attribute name="n_tot128" value="number(@n_tot128) + number($r/@ap_igsegundosacexpre)"/>
+			<qry:attribute name="n_tot131" value="number(@n_tot131) + number($r/@ap_igacumHijosIncap)"/>
+			<qry:attribute name="n_tot140" value="number(@n_tot140) + number($r/@ap_igtranplardistCCT40)"/>
+			<qry:attribute name="n_tot141" value="number(@n_tot141) + number($r/@ap_igacumEduc)"/>
+			<qry:attribute name="n_tot142" value="number(@n_tot142) + number($r/@ax_igcanthijo100)"/>
+			<qry:attribute name="n_tot143" value="number(@n_tot143) + number($r/@ax_igcanthijoincap100)"/>
+			<qry:attribute name="n_tot144" value="number(@n_tot144) + number($r/@ax_igcanthijoedu50)"/>
+			<qry:attribute name="n_tot145" value="number(@n_tot145) + number($r/@ax_igcanthijoedu100)"/>
+			<qry:attribute name="n_tot146" value="number(@n_tot146) + number($r/@ap_igacumViatLargDist)"/>
+			<qry:attribute name="n_tot147" value="number(@n_tot147) + number($r/@ap_igacumViatLargDistCarga)"/>
+			<!--Nuevas a partir de v8 -->
+			<qry:attribute name="n_tot148" value="number(@n_tot148) + number($r/@ap_igacumcanbono)"/>
+			<qry:attribute name="n_tot149" value="number(@n_tot149) + number($r/@ap_igacumcanfallo)"/>
+			<qry:attribute name="n_tot150" value="number(@n_tot150) + number($r/@ap_igacumcansimnat)"/>
+			<qry:attribute name="n_tot151" value="number(@n_tot151) + number($r/@ap_igpluricanbono)"/>
+			<qry:attribute name="n_tot152" value="number(@n_tot152) + number($r/@ap_igpluricanfallo)"/>
+			<qry:attribute name="n_tot153" value="number(@n_tot153) + number($r/@ap_igpluricansimnat)"/>
+			<qry:attribute name="n_tot154" value="number(@n_tot154) + number($r/@ap_igacumviaticosgra)"/>
+			<qry:attribute name="n_tot155" value="number(@n_tot155) + number($r/@ap_igacumcompgra)"/>
+			<qry:attribute name="n_tot156" value="number(@n_tot156) + number($r/@ap_igpluriviatgra)"/>
+			<qry:attribute name="n_tot157" value="number(@n_tot157) + number($r/@ap_igpluricompgra)"/>
+			<qry:attribute name="n_tot158" value="number(@n_tot158) + number($r/@ap_igacummovotros)"/>
+			<qry:attribute name="n_tot159" value="number(@n_tot159) + number($r/@ap_igacumcompotros )"/>
+			<qry:attribute name="n_tot161" value="number(@n_tot161) + number($r/@ap_igacumcancompotros)"/>
+			<qry:attribute name="n_tot162" value="number(@n_tot162) + number($r/@ap_igacummovgra)"/>
+			<qry:attribute name="n_tot163" value="number(@n_tot163) + number($r/@ap_igplurimovgra)"/>
+			<qry:attribute name="n_tot164" value="number(@n_tot164) + number($r/@ap_igplurisimnat)"/>
+			<!--Nuevas a partir de v9 -->
+			<qry:attribute name="n_tot165" value="number(@n_tot165) + number($r/@ap_igacumalquilerextra)"/>
+			<!--Nuevas 2024 F1359 y 215-->
+			<qry:attribute name="n_tot200" value="number(@n_tot200) + number($r/@ap_igacumAsigFam)"/>
+			<qry:attribute name="n_tot201" value="number(@n_tot201) + number($r/@ap_igacumPrestEmp)"/>
+			<qry:attribute name="n_tot202" value="number(@n_tot202) + number($r/@ap_igacumIndem4003)"/>
+			<qry:attribute name="n_tot203" value="number(@n_tot203) + number($r/@ap_igacumLey19640)"/>
+			<qry:attribute name="n_tot204" value="number(@n_tot204) + number($r/@ap_igacumPerPozo)"/>
+			<qry:attribute name="n_tot205" value="number(@n_tot205) + number($r/@ap_igacumCursos4003)"/>
+			<qry:attribute name="n_tot206" value="number(@n_tot206) + number($r/@ap_igacumIndEmp)"/>
+			<qry:attribute name="n_tot207" value="number(@n_tot207) + number($r/@ap_igpluriAsigFam)"/>
+			<qry:attribute name="n_tot208" value="number(@n_tot208) + number($r/@ap_igpluriPrestEmp)"/>
+			<qry:attribute name="n_tot209" value="number(@n_tot209) + number($r/@ap_igpluriIndem4003)"/>
+			<qry:attribute name="n_tot210" value="number(@n_tot210) + number($r/@ap_igpluriLey19640)"/>
+			<qry:attribute name="n_tot211" value="number(@n_tot211) + number($r/@ap_igpluriPerPozo)"/>
+			<qry:attribute name="n_tot212" value="number(@n_tot212) + number($r/@ap_igpluriCursos4003)"/>
+			<qry:attribute name="n_tot213" value="number(@n_tot213) + number($r/@ap_igpluriIndEmp)"/>
+			<qry:attribute name="n_tot214" value="number(@n_tot214) + number($r/@ap_igacumJubProf)"/>
+			<qry:attribute name="n_tot215" value="number(@n_tot215) + number($r/@ap_igpluriJubProf)"/>
+			<qry:attribute name="n_tot216" value="number(@n_tot216) + number($r/@ap_igacumCajaComp)"/>
+			<qry:attribute name="n_tot217" value="number(@n_tot217) + number($r/@ap_igacumFdoComp)"/>
+			<qry:attribute name="n_tot218" value="number(@n_tot218) + number($r/@ap_igacumJubAut)"/>
+			<qry:attribute name="n_tot219" value="number(@n_tot219) + number($r/@ap_igacumRetiroOtros)"/>
+			<qry:attribute name="n_tot220" value="number(@n_tot220) + number($r/@ap_igacumalquilerextra)"/>
+			<qry:attribute name="n_tot221" value="number(@n_tot221) + number($r/@ap_igacumAntarArg)"/>
+			<qry:attribute name="n_tot222" value="number(@n_tot222) + number($r/@ap_igacumRepres)"/>
+			<qry:attribute name="n_tot223" value="number(@n_tot223) + number($r/@ap_igacumEspSAC1)"/>
+			<qry:attribute name="n_tot224" value="number(@n_tot224) + number($r/@ap_igacumEspSAC2)"/>
+			<qry:attribute name="n_tot225" value="number(@n_tot225) + number($r/@ap_igPagoACtaDec652)"/>
+			<qry:attribute name="n_tot226" value="number(@n_tot226) + number($r/@ap_igDEDifLey27743)"/>
+			<qry:attribute name="n_tot227" value="number(@n_tot227) + number($r/@ap_acumanio)"/>
+			<qry:attribute name="n_tot228" value="number(@n_tot228) + number($r/@ax_igcanthijo50)"/>
+			<qry:attribute name="n_tot229" value="number(@n_tot229) + number($r/@ax_igcanthijoincap50)"/>
+			<qry:attribute name="n_tot233" value="number(@n_tot233) + number($r/@ap_acumigh)"/>
+			<qry:attribute name="n_tot234" value="number(@n_tot234) + number($r/@ap_igplurihaberes)"/>
+			<qry:attribute name="n_tot235" value="number(@n_tot235) + number($r/@ax_igajusteanio)"/>
+			<qry:attribute name="n_tot236" value="number(@n_tot236) + number($r/@ap_medcautig)"/>
+			<qry:attribute name="n_tot237" value="number(@n_tot237) + number($r/@ap_pjudicialig)"/>
+			<qry:attribute name="n_tot238" value="number(@n_tot238) + number($r/@ap_igacumrempjnoalc)"/>
+			<qry:attribute name="n_tot239" value="number(@n_tot239) + number($r/@ap_igplurirempjnalc)"/>
+			<qry:attribute name="n_tot240" value="number(@n_tot240) + number($r/@ap_igacumautoret)"/>
+		</qry:out>
+	</qry:select>
+	<qry:select name="QRY_BUSCAR_VAR_ANIO_ANT" doc="SOURCE">
+		<qry:xquery>
+			for $r in sql(' 
+select    
+{%=substring(#GRUPOANT:@c_columnas1,1) %}
+FROM 
+LIQ20_VAR_GR_CONC as V {%=#GRUPOANT:@c_tables %} {%=#GRUPOANT:@c_joins %}
+WHERE
+V.oi_tot_liq_per = {#SOURCE:@oi_tot_liq_per} and V.c_grupo=\'2\'
+')/ROWS/ROW
+		</qry:xquery>
+		<qry:out>
+			<qry:attribute name="n_tot1" value="number($r/@ap_acumighAnt)"/>
+			<qry:attribute name="n_tot2" value="number($r/@ap_igacumremNAAnt) + number($r/@ap_igacumremEXotrasAnt)"/>
+			<qry:attribute name="n_tot3" value="number($r/@ap_igacumremEXAnt)"/>
+			<qry:attribute name="n_tot4" value="number($r/@ap_igplurihaberesAnt)"/>
+			<qry:attribute name="n_tot5" value="number($r/@ap_acumighAnt) + number($r/@ap_igplurihaberesAnt)"/>
+			<qry:attribute name="n_tot6" value="number($r/@ap_igleyAnt) + number($r/@ap_igjubAnt)"/>
+			<qry:attribute name="n_tot7" value="number($r/@ap_igosAnt)"/>
+			<qry:attribute name="n_tot8" value="number($r/@ap_igacumsindAnt)"/>
+			<qry:attribute name="n_tot9" value="number($r/@ap_igplurijubiAnt)"/>
+			<qry:attribute name="n_tot10" value="number($r/@ap_igpluriosAnt)"/>
+			<qry:attribute name="n_tot11" value="number($r/@ap_igplurisindAnt)"/>
+			<qry:attribute name="n_tot12" value="number($r/@ap_igacumMedicoAnt) + number($r/@ap_igacumCoberMedicoAnt)"/>
+			<qry:attribute name="n_tot13" value="number($r/@ap_igacumsegvidaAnt)"/>
+			<qry:attribute name="n_tot14" value="number($r/@ap_igacumsepelioAnt)"/>
+			<qry:attribute name="n_tot15" value="number($r/@ap_igacumViaticosAnt)"/>
+			<qry:attribute name="n_tot16" value="number($r/@ap_igacumDonacionesAnt)"/>
+			<qry:attribute name="n_tot17" value="number($r/@ap_igleyAnt) * (-1) + number($r/@ap_igjubAnt) * (-1) + number($r/@ap_igosAnt) * (-1) + number($r/@ap_igacumsindAnt) * (-1) + number($r/@ap_acumigdAnt)"/>
+			<qry:attribute name="n_tot18" value="number($r/@ap_igacumHonoMedicoAnt)"/>
+			<qry:attribute name="n_tot19" value="number($r/@ap_igacumHipotecAnt)"/>
+			<qry:attribute name="n_tot20" value="number($r/@ap_igacumApoCapSocialAnt)"/>
+			<qry:attribute name="n_tot21" value="number($r/@ap_igacumulaSerDomeAnt)"/>
+			<qry:attribute name="n_tot22" value="number($r/@ap_igacumPrevAnt)"/>
+			<qry:attribute name="n_tot24" value="number($r/@ap_igacumGanNoImpoAnt)"/>
+			<qry:attribute name="n_tot25" value="number($r/@ap_igacumEspecialesAnt)"/>
+			<qry:attribute name="n_tot26" value="number($r/@ap_igacumConyugeAnt) + number($r/@ap_igacumHijosAnt)  + number($r/@ap_igacumOtrosFliaAnt) + number($r/@ap_igacumHijosIncapAnt)"/>
+			<qry:attribute name="n_tot27" value="number($r/@ap_igacumConyugeAnt)"/>
+			<qry:attribute name="n_tot28" value="number($r/@ap_igacumHijosAnt) + number($r/@ap_igacumHijosIncapAnt)"/>
+			<qry:attribute name="n_tot160" value="number($r/@ap_igacumHijosAnt)"/>
+			<qry:attribute name="n_tot29" value="number($r/@ap_igacumOtrosFliaAnt)"/>
+			<qry:attribute name="n_tot32" value="number($r/@ax_igImportePeriodoAjustado)"/>
+			<qry:attribute name="n_tot33" value="number($r/@ap_igacumanioAnt)"/>
+			<qry:attribute name="n_tot34" value="number($r/@ap_igPagosACuentaAntTotal)"/>
+			<qry:attribute name="n_tot36" value="number($r/@ap_igprorrateohAnt)"/>
+			<qry:attribute name="n_tot37" value="number($r/@ap_igprimersacAnt)"/>
+			<qry:attribute name="n_tot38" value="number($r/@ap_igsegundosacAnt)"/>
+			<qry:attribute name="n_tot39" value="number($r/@ap_igacumremEXotrasAnt)"/>
+			<qry:attribute name="n_tot40" value="number($r/@ap_igacumalquilerAnt)"/>
+			<qry:attribute name="n_tot41" value="number($r/@ap_igacumviaticosotrosAnt)"/>
+			<qry:attribute name="n_tot42" value="number($r/@ap_acumigdotrasAnt) + number($r/@ap_igacumRepresAnt) + number($r/@ap_igacumFdoCompAnt)+ number($r/@ap_igacumJubProfAnt)+ number($r/@ap_igacumAutonomosAnt)+ number($r/@ap_igacumRetiroAnt)"/>
+			<qry:attribute name="n_tot43" value="number($r/@ax_igRangoAnt)"/>
+			<qry:attribute name="n_tot44" value="number($r/@ax_igRangoHEAnt)"/>
+			<qry:attribute name="l_aplicaInc" value="number($r/@ap_igporcaumAnt)"/>
+			<qry:attribute name="n_tot45" value="number($r/@ap_igacumespecialotrasAnt)"/>
+			<qry:attribute name="n_tot46" value="number($r/@ap_acumighheAnt)"/>
+			<qry:attribute name="n_tot47" value="number(0)"/>
+			<qry:attribute name="n_tot48" value="number($r/@ap_igacummatdidgraAnt)"/>
+			<qry:attribute name="n_tot49" value="number(0)"/>
+			<qry:attribute name="n_tot50" value="number($r/@ap_igacummatdidexAnt)"/>
+			<qry:attribute name="n_tot51" value="number($r/@ap_igpluriretnohabAnt)"/>
+			<qry:attribute name="n_tot52" value="number($r/@ap_igpluriprimersacAnt)"/>
+			<qry:attribute name="n_tot53" value="number($r/@ap_igplurisegundosacAnt)"/>
+			<qry:attribute name="n_tot54" value="number($r/@ap_igplurihsexgraAnt)"/>
+			<qry:attribute name="n_tot55" value="number(0)"/>
+			<qry:attribute name="n_tot56" value="number($r/@ap_igplurimatdidAnt)"/>
+			<qry:attribute name="n_tot57" value="number($r/@ap_igpluriexentoAnt)"/>
+			<qry:attribute name="n_tot58" value="number($r/@ap_igpluriheexAnt)"/>
+			<qry:attribute name="n_tot59" value="number(0)"/>
+			<qry:attribute name="n_tot60" value="number($r/@ap_igplurimatdidexAnt)"/>
+			<qry:attribute name="n_tot64" value="number($r/@ap_igacumSegVidaOtrosAnt)"/>
+			<qry:attribute name="n_tot65" value="number($r/@ap_igacumRetiroOtrosAnt)"/>
+			<qry:attribute name="n_tot66" value="number($r/@ap_igacumCuotaFdoAnt)"/>
+			<qry:attribute name="n_tot67" value="number($r/@ap_igacumIndumentariaAnt)"/>
+			<qry:attribute name="n_tot68" value="number($r/@ax_igporchijosAnt)"/>
+			<qry:attribute name="n_tot69" value="number($r/@ap_igporcaumAnt)"/>
+			<qry:attribute name="n_tot70" value="number($r/@ap_igtranplardistAnt)"/>
+			<qry:attribute name="n_tot71" value="number($r/@ap_acumighsacAnt)"/>
+			<qry:attribute name="n_tot73" value="number($r/@ap_igplurisacAnt)"/>
+			<qry:attribute name="n_tot74" value="number($r/@ap_igacumretNAexAnt)"/>
+			<qry:attribute name="n_tot75" value="number($r/@ap_igprimersacexAnt)"/>
+			<qry:attribute name="n_tot76" value="number($r/@ap_igsegundosacexAnt)"/>
+			<qry:attribute name="n_tot77" value="number($r/@ap_igacumajgraAnt)"/>
+			<qry:attribute name="n_tot78" value="number($r/@ap_igacumajexAnt)"/>
+			<qry:attribute name="n_tot79" value="number($r/@ap_igpluriretnohabexAnt)"/>
+			<qry:attribute name="n_tot80" value="number($r/@ap_igpluriprimersacexAnt)"/>
+			<qry:attribute name="n_tot81" value="number($r/@ap_igplurisegundosacexAnt)"/>
+			<qry:attribute name="n_tot82" value="number($r/@ap_igpluriajgraAnt)"/>
+			<qry:attribute name="n_tot83" value="number($r/@ap_igpluriajexAnt)"/>
+			<qry:attribute name="n_tot87" value="number($r/@ap_igacumdedincAAnt)"/>
+			<qry:attribute name="n_tot88" value="number($r/@ap_igacumdedincBAnt)"/>
+			<qry:attribute name="n_tot89" value="number($r/@ap_igacumRepresAnt)"/>
+			<qry:attribute name="n_tot90" value="number($r/@ap_igacumFdoCompAnt)"/>
+			<qry:attribute name="n_tot91" value="number($r/@ap_igacumJubProfAnt)"/>
+			<qry:attribute name="n_tot92" value="number($r/@ap_igacumAutonomosAnt)"/>
+			<qry:attribute name="n_tot93" value="number($r/@ap_igacumRetiroAnt)"/>
+			<qry:attribute name="n_tot94" value="number($r/@ap_igPagosACuentaPercAnt)"/>
+			<qry:attribute name="n_tot95" value="number($r/@ap_igPagosACuentaResAnt)"/>
+			<qry:attribute name="n_tot96" value="number(0)"/>
+			<qry:attribute name="n_tot97" value="number(0)"/>
+			<qry:attribute name="n_tot98" value="number($r/@ap_igacumremEXCOVIDAnt)"/>
+			<qry:attribute name="n_tot99" value="number($r/@ap_igpluriexentoCOVIDAnt)"/>
+			<qry:attribute name="n_tot100" value="number($r/@ap_igBenefLey27549Ant)"/>
+			<qry:attribute name="n_tot101" value="number($r/@ap_igPagosACuenta31Ant)"/>
+			<qry:attribute name="n_tot102" value="number($r/@ap_igPagosACuentaLeybAnt)"/>
+			<qry:attribute name="n_tot103" value="number($r/@ap_igPagosACuentaLeycAnt)"/>
+			<qry:attribute name="n_tot104" value="number($r/@ap_igPagosACuentaLeydAnt)"/>
+			<qry:attribute name="n_tot105" value="number($r/@ap_igPagosACuentaLeyeAnt)"/>
+			<qry:attribute name="n_tot106" value="number($r/@ap_igPagosACuentaDyCMovAnt)"/>
+			<qry:attribute name="n_tot107" value="number($r/@ap_igPagosACuentaResTranspAnt)"/>
+			<qry:attribute name="n_tot108" value="number($r/@ap_igacumbonograAnt)"/>
+			<qry:attribute name="n_tot109" value="number($r/@ap_igacumfallosgraAnt)"/>
+			<qry:attribute name="n_tot110" value="number($r/@ap_igacumotrosgraAnt)"/>
+			<qry:attribute name="n_tot111" value="number($r/@ap_igacumbonoexAnt)"/>
+			<qry:attribute name="n_tot112" value="number($r/@ap_igacumfallosexAnt)"/>
+			<qry:attribute name="n_tot113" value="number($r/@ap_igacumotrosexAnt)"/>
+			<qry:attribute name="n_tot114" value="number($r/@ap_igacumsuplexAnt)"/>
+			<qry:attribute name="n_tot115" value="number($r/@ap_igacumcompgtosexAnt)"/>
+			<qry:attribute name="n_tot116" value="number($r/@ap_igpluribonograAnt)"/>
+			<qry:attribute name="n_tot117" value="number($r/@ap_igplurifallosgraAnt)"/>
+			<qry:attribute name="n_tot118" value="number($r/@ap_igpluriotrosgraAnt)"/>
+			<qry:attribute name="n_tot119" value="number($r/@ap_igpluribonoexAnt)"/>
+			<qry:attribute name="n_tot120" value="number($r/@ap_igplurifallosexAnt)"/>
+			<qry:attribute name="n_tot121" value="number($r/@ap_igpluriotrosexAnt)"/>
+			<qry:attribute name="n_tot122" value="number($r/@ap_igplurisuplexAnt)"/>
+			<qry:attribute name="n_tot123" value="number($r/@ap_igpluricompgtosexAnt)"/>
+			<qry:attribute name="n_tot124" value="number($r/@ax_igporchijosincapAnt)"/>
+			<qry:attribute name="n_tot125" value="number($r/@ap_igacumEspecial1parteAnt)"/>
+			<qry:attribute name="n_tot126" value="number($r/@ap_igacumEspecial2parteAnt)"/>
+			<qry:attribute name="n_tot127" value="number($r/@ap_igprimersacexpreAnt)"/>
+			<qry:attribute name="n_tot128" value="number($r/@ap_igsegundosacexpreAnt)"/>
+			<qry:attribute name="n_tot131" value="number($r/@ap_igacumHijosIncapAnt)"/>
+			<qry:attribute name="n_tot140" value="number($r/@ap_igtranplardistCCT40Ant)"/>
+			<qry:attribute name="n_tot141" value="number($r/@ap_igacumEducAnt)"/>
+			<qry:attribute name="n_tot142" value="number($r/@ax_igcanthijo100Ant)"/>
+			<qry:attribute name="n_tot143" value="number($r/@ax_igcanthijoincap100Ant)"/>
+			<qry:attribute name="n_tot144" value="number($r/@ax_igcanthijoedu50Ant)"/>
+			<qry:attribute name="n_tot145" value="number($r/@ax_igcanthijoedu100Ant)"/>
+			<qry:attribute name="n_tot146" value="number($r/@ap_igacumViatLargDistAnt)"/>
+			<qry:attribute name="n_tot147" value="number($r/@ap_igacumViatLargDistCargAnt)"/>
+			<!--Nuevas a partir de v8 -->
+			<qry:attribute name="n_tot148" value="number($r/@ap_igacumcanbonoAnt)"/>
+			<qry:attribute name="n_tot149" value="number($r/@ap_igacumcanfalloAnt)"/>
+			<qry:attribute name="n_tot150" value="number($r/@ap_igacumcansimnatAnt)"/>
+			<qry:attribute name="n_tot151" value="number($r/@ap_igpluricanbonoAnt)"/>
+			<qry:attribute name="n_tot152" value="number($r/@ap_igpluricanfalloAnt)"/>
+			<qry:attribute name="n_tot153" value="number($r/@ap_igpluricansimnatAnt)"/>
+			<qry:attribute name="n_tot154" value="number($r/@ap_igacumviaticosgraAnt)"/>
+			<qry:attribute name="n_tot155" value="number($r/@ap_igacumcompgraAnt)"/>
+			<qry:attribute name="n_tot156" value="number($r/@ap_igpluriviatgraAnt)"/>
+			<qry:attribute name="n_tot157" value="number($r/@ap_igpluricompgraAnt)"/>
+			<qry:attribute name="n_tot158" value="number($r/@ap_igacummovotrosAnt)"/>
+			<qry:attribute name="n_tot159" value="number($r/@ap_igacumcompotrosAnt)"/>
+			<qry:attribute name="n_tot161" value="number($r/@ap_igacumcancompotrosAnt)"/>
+			<qry:attribute name="n_tot162" value="number($r/@ap_igacummovgraAnt)"/>
+			<qry:attribute name="n_tot163" value="number($r/@ap_igplurimovgraAnt)"/>
+			<qry:attribute name="n_tot164" value="number($r/@ap_igplurisimnatAnt)"/>
+			<!--Nuevas a partir de v9 -->
+			<qry:attribute name="n_tot165" value="number($r/@ap_igacumalquilerextraAnt)"/>
+			<!--Nuevas 2024 F1359 y 215-->
+			<qry:attribute name="n_tot200" value="number($r/@ap_igacumAsigFamAnt)"/>
+			<qry:attribute name="n_tot201" value="number($r/@ap_igacumPrestEmpAnt)"/>
+			<qry:attribute name="n_tot202" value="number($r/@ap_igacumIndem4003Ant)"/>
+			<qry:attribute name="n_tot203" value="number($r/@ap_igacumLey19640Ant)"/>
+			<qry:attribute name="n_tot204" value="number($r/@ap_igacumPerPozoAnt)"/>
+			<qry:attribute name="n_tot205" value="number($r/@ap_igacumCursos4003Ant)"/>
+			<qry:attribute name="n_tot206" value="number($r/@ap_igacumIndEmpAnt)"/>
+			<qry:attribute name="n_tot207" value="number($r/@ap_igpluriAsigFamAnt)"/>
+			<qry:attribute name="n_tot208" value="number($r/@ap_igpluriPrestEmpAnt)"/>
+			<qry:attribute name="n_tot209" value="number($r/@ap_igpluriIndem4003Ant)"/>
+			<qry:attribute name="n_tot210" value="number($r/@ap_igpluriLey19640Ant)"/>
+			<qry:attribute name="n_tot211" value="number($r/@ap_igpluriPerPozoAnt)"/>
+			<qry:attribute name="n_tot212" value="number($r/@ap_igpluriCursos4003Ant)"/>
+			<qry:attribute name="n_tot213" value="number($r/@ap_igpluriIndEmpAnt)"/>
+			<qry:attribute name="n_tot214" value="number($r/@ap_igacumJubProfAnt)"/>
+			<qry:attribute name="n_tot215" value="number($r/@ap_igpluriJubProfAnt)"/>
+			<qry:attribute name="n_tot216" value="number($r/@ap_igacumCajaCompAnt)"/>
+			<qry:attribute name="n_tot217" value="number($r/@ap_igacumFdoCompAnt)"/>
+			<qry:attribute name="n_tot218" value="number($r/@ap_igacumJubAutAnt)"/>
+			<qry:attribute name="n_tot219" value="number($r/@ap_igacumRetiroOtrosAnt)"/>
+			<qry:attribute name="n_tot220" value="number($r/@ap_igacumalquilerextraAnt)"/>
+			<qry:attribute name="n_tot221" value="number($r/@ap_igacumAntarArgAnt)"/>
+			<qry:attribute name="n_tot222" value="number($r/@ap_igacumRepresAnt)"/>
+			<qry:attribute name="n_tot223" value="number($r/@ap_igacumEspSAC1Ant)"/>
+			<qry:attribute name="n_tot224" value="number($r/@ap_igacumEspSAC2Ant)"/>
+			<qry:attribute name="n_tot225" value="number($r/@ap_igPagoACtaDec652Ant)"/>
+			<qry:attribute name="n_tot226" value="number($r/@ap_igDEDifLey27743Ant)"/>
+			<qry:attribute name="n_tot227" value="number($r/@ap_acumanioAnt)"/>
+			<qry:attribute name="n_tot228" value="number($r/@ax_igcanthijo50Ant)"/>
+			<qry:attribute name="n_tot229" value="number($r/@ax_igcanthijoincap50Ant)"/>
+			<qry:attribute name="n_tot233" value="number($r/@ap_acumighAnt)"/>
+			<qry:attribute name="n_tot234" value="number($r/@ap_igplurihaberesAnt)"/>
+			<qry:attribute name="n_tot235" value="number($r/@ax_igajusteanioant)"/>
+			<qry:attribute name="n_tot236" value="number($r/@ap_medcautigAnt)"/>
+			<qry:attribute name="n_tot237" value="number($r/@ap_pjudicialigAnt)"/>
+			<qry:attribute name="n_tot238" value="number($r/@ap_igacumrempjnoalcAnt)"/>
+			<qry:attribute name="n_tot239" value="number($r/@ap_igplurirempjnalcAnt)"/>
+			<qry:attribute name="n_tot240" value="number($r/@ap_igacumautoretAnt)"/>
+			<qry:insert-select name="QRY_BUSCAR_VAR_ANIO_ANT2" doc-path="#SOURCE:"/>
+		</qry:out>
+	</qry:select>
+	<qry:select name="QRY_BUSCAR_VAR_ANIO_ANT2" doc="SOURCE">
+		<qry:xquery>
+			for $r in sql(' 
+select    
+{%=substring(#GRUPOANT:@c_columnas2,1) %}
+FROM 
+LIQ20_VAR_GR_CONC as V {%=#GRUPOANT:@c_tables %} {%=#GRUPOANT:@c_joins %}
+WHERE
+V.oi_tot_liq_per = {#SOURCE:@oi_tot_liq_per} and V.c_grupo=\'2\'  
+
+')/ROWS/ROW
+		</qry:xquery>
+		<qry:out>
+			<qry:attribute name="n_tot1" value="number(@n_tot1) + number($r/@ap_acumighAnt)"/>
+			<qry:attribute name="n_tot2" value="number(@n_tot2) + number($r/@ap_igacumremNAAnt) + number($r/@ap_igacumremEXotrasAnt)"/>
+			<qry:attribute name="n_tot3" value="number(@n_tot3) + number($r/@ap_igacumremEXAnt)"/>
+			<qry:attribute name="n_tot4" value="number(@n_tot4) + number($r/@ap_igplurihaberesAnt)"/>
+			<qry:attribute name="n_tot5" value="number(@n_tot5) + number($r/@ap_acumighAnt) + number($r/@ap_igplurihaberesAnt)"/>
+			<qry:attribute name="n_tot6" value="number(@n_tot6) + number($r/@ap_igleyAnt) + number($r/@ap_igjubAnt)"/>
+			<qry:attribute name="n_tot7" value="number(@n_tot7) + number($r/@ap_igosAnt)"/>
+			<qry:attribute name="n_tot8" value="number(@n_tot8) + number($r/@ap_igacumsindAnt)"/>
+			<qry:attribute name="n_tot9" value="number(@n_tot9) + number($r/@ap_igplurijubiAnt)"/>
+			<qry:attribute name="n_tot10" value="number(@n_tot10) + number($r/@ap_igpluriosAnt)"/>
+			<qry:attribute name="n_tot11" value="number(@n_tot11) + number($r/@ap_igplurisindAnt)"/>
+			<qry:attribute name="n_tot12" value="number(@n_tot12) + number($r/@ap_igacumMedicoAnt) + number($r/@ap_igacumCoberMedicoAnt)"/>
+			<qry:attribute name="n_tot13" value="number(@n_tot13) + number($r/@ap_igacumsegvidaAnt)"/>
+			<qry:attribute name="n_tot14" value="number(@n_tot14) + number($r/@ap_igacumsepelioAnt)"/>
+			<qry:attribute name="n_tot15" value="number(@n_tot15) + number($r/@ap_igacumViaticosAnt)"/>
+			<qry:attribute name="n_tot16" value="number(@n_tot16) + number($r/@ap_igacumDonacionesAnt)"/>
+			<qry:attribute name="n_tot17" value="number(@n_tot17) + number($r/@ap_igleyAnt) * (-1) + number($r/@ap_igjubAnt) * (-1) + number($r/@ap_igosAnt) * (-1) + number($r/@ap_igacumsindAnt) * (-1) + number($r/@ap_acumigdAnt)"/>
+			<qry:attribute name="n_tot18" value="number(@n_tot18) + number($r/@ap_igacumHonoMedicoAnt)"/>
+			<qry:attribute name="n_tot19" value="number(@n_tot19) + number($r/@ap_igacumHipotecAnt)"/>
+			<qry:attribute name="n_tot20" value="number(@n_tot20) + number($r/@ap_igacumApoCapSocialAnt)"/>
+			<qry:attribute name="n_tot21" value="number(@n_tot21) + number($r/@ap_igacumulaSerDomeAnt)"/>
+			<qry:attribute name="n_tot22" value="number(@n_tot22) + number($r/@ap_igacumPrevAnt)"/>
+			<qry:attribute name="n_tot24" value="number(@n_tot24) + number($r/@ap_igacumGanNoImpoAnt)"/>
+			<qry:attribute name="n_tot25" value="number(@n_tot25) + number($r/@ap_igacumEspecialesAnt)"/>
+			<qry:attribute name="n_tot26" value="number(@n_tot26) + number($r/@ap_igacumConyugeAnt) + number($r/@ap_igacumHijosAnt)  + number($r/@ap_igacumOtrosFliaAnt) + number($r/@ap_igacumHijosIncapAnt)"/>
+			<qry:attribute name="n_tot27" value="number(@n_tot27) + number($r/@ap_igacumConyugeAnt)"/>
+			<qry:attribute name="n_tot28" value="number(@n_tot28) + number($r/@ap_igacumHijosAnt) + number($r/@ap_igacumHijosIncapAnt)"/>
+			<qry:attribute name="n_tot160" value="number(@n_tot160) + number($r/@ap_igacumHijosAnt)"/>
+			<qry:attribute name="n_tot29" value="number(@n_tot29) + number($r/@ap_igacumOtrosFliaAnt)"/>
+			<qry:attribute name="n_tot32" value="number(@n_tot32) + number($r/@ax_igImportePeriodoAjustado)"/>
+			<qry:attribute name="n_tot33" value="number(@n_tot33) + number($r/@ap_igacumanioAnt)"/>
+			<qry:attribute name="n_tot34" value="number(@n_tot34) + number($r/@ap_igPagosACuentaAntTotal)"/>
+			<qry:attribute name="n_tot36" value="number(@n_tot36) + number($r/@ap_igprorrateohAnt)"/>
+			<qry:attribute name="n_tot37" value="number(@n_tot37) + number($r/@ap_igprimersacAnt)"/>
+			<qry:attribute name="n_tot38" value="number(@n_tot38) + number($r/@ap_igsegundosacAnt)"/>
+			<qry:attribute name="n_tot39" value="number(@n_tot39) + number($r/@ap_igacumremEXotrasAnt)"/>
+			<qry:attribute name="n_tot40" value="number(@n_tot40) + number($r/@ap_igacumalquilerAnt)"/>
+			<qry:attribute name="n_tot41" value="number(@n_tot41) + number($r/@ap_igacumviaticosotrosAnt)"/>
+			<qry:attribute name="n_tot42" value="number(@n_tot42) + number($r/@ap_acumigdotrasAnt) + number($r/@ap_igacumRepresAnt) + number($r/@ap_igacumFdoCompAnt)+ number($r/@ap_igacumJubProfAnt)+ number($r/@ap_igacumAutonomosAnt)+ number($r/@ap_igacumRetiroAnt)"/>
+			<qry:attribute name="n_tot43" value="number(@n_tot43) + number($r/@ax_igRangoAnt)"/>
+			<qry:attribute name="n_tot44" value="number(@n_tot44) + number($r/@ax_igRangoHEAnt)"/>
+			<qry:attribute name="l_aplicaInc" value="number(@l_aplicaInc) + number($r/@ap_igporcaumAnt)"/>
+			<qry:attribute name="n_tot45" value="number(@n_tot45) + number($r/@ap_igacumespecialotrasAnt)"/>
+			<qry:attribute name="n_tot46" value="number(@n_tot46) + number($r/@ap_acumighheAnt)"/>
+			<qry:attribute name="n_tot47" value="number(0)"/>
+			<qry:attribute name="n_tot48" value="number(@n_tot48) + number($r/@ap_igacummatdidgraAnt)"/>
+			<qry:attribute name="n_tot49" value="number(0)"/>
+			<qry:attribute name="n_tot50" value="number(@n_tot50) + number($r/@ap_igacummatdidexAnt)"/>
+			<qry:attribute name="n_tot51" value="number(@n_tot51) + number($r/@ap_igpluriretnohabAnt)"/>
+			<qry:attribute name="n_tot52" value="number(@n_tot52) + number($r/@ap_igpluriprimersacAnt)"/>
+			<qry:attribute name="n_tot53" value="number(@n_tot53) + number($r/@ap_igplurisegundosacAnt)"/>
+			<qry:attribute name="n_tot54" value="number(@n_tot54) + number($r/@ap_igplurihsexgraAnt)"/>
+			<qry:attribute name="n_tot55" value="number(0)"/>
+			<qry:attribute name="n_tot56" value="number(@n_tot56) + number($r/@ap_igplurimatdidAnt)"/>
+			<qry:attribute name="n_tot57" value="number(@n_tot57) + number($r/@ap_igpluriexentoAnt)"/>
+			<qry:attribute name="n_tot58" value="number(@n_tot58) + number($r/@ap_igpluriheexAnt)"/>
+			<qry:attribute name="n_tot59" value="number(0)"/>
+			<qry:attribute name="n_tot60" value="number(@n_tot60) + number($r/@ap_igplurimatdidexAnt)"/>
+			<qry:attribute name="n_tot64" value="number(@n_tot64) + number($r/@ap_igacumSegVidaOtrosAnt)"/>
+			<qry:attribute name="n_tot65" value="number(@n_tot65) + number($r/@ap_igacumRetiroOtrosAnt)"/>
+			<qry:attribute name="n_tot66" value="number(@n_tot66) + number($r/@ap_igacumCuotaFdoAnt)"/>
+			<qry:attribute name="n_tot67" value="number(@n_tot67) + number($r/@ap_igacumIndumentariaAnt)"/>
+			<qry:attribute name="n_tot68" value="number(@n_tot68) + number($r/@ax_igporchijosAnt)"/>
+			<qry:attribute name="n_tot69" value="number(@n_tot69) + number($r/@ap_igporcaumAnt)"/>
+			<qry:attribute name="n_tot70" value="number(@n_tot70) + number($r/@ap_igtranplardistAnt)"/>
+			<qry:attribute name="n_tot71" value="number(@n_tot71) + number($r/@ap_acumighsacAnt)"/>
+			<qry:attribute name="n_tot73" value="number(@n_tot73) + number($r/@ap_igplurisacAnt)"/>
+			<qry:attribute name="n_tot74" value="number(@n_tot74) + number($r/@ap_igacumretNAexAnt)"/>
+			<qry:attribute name="n_tot75" value="number(@n_tot75) + number($r/@ap_igprimersacexAnt)"/>
+			<qry:attribute name="n_tot76" value="number(@n_tot76) + number($r/@ap_igsegundosacexAnt)"/>
+			<qry:attribute name="n_tot77" value="number(@n_tot77) + number($r/@ap_igacumajgraAnt)"/>
+			<qry:attribute name="n_tot78" value="number(@n_tot78) + number($r/@ap_igacumajexAnt)"/>
+			<qry:attribute name="n_tot79" value="number(@n_tot79) + number($r/@ap_igpluriretnohabexAnt)"/>
+			<qry:attribute name="n_tot80" value="number(@n_tot80) + number($r/@ap_igpluriprimersacexAnt)"/>
+			<qry:attribute name="n_tot81" value="number(@n_tot81) + number($r/@ap_igplurisegundosacexAnt)"/>
+			<qry:attribute name="n_tot82" value="number(@n_tot82) + number($r/@ap_igpluriajgraAnt)"/>
+			<qry:attribute name="n_tot83" value="number(@n_tot83) + number($r/@ap_igpluriajexAnt)"/>
+			<qry:attribute name="n_tot87" value="number(@n_tot87) + number($r/@ap_igacumdedincAAnt)"/>
+			<qry:attribute name="n_tot88" value="number(@n_tot88) + number($r/@ap_igacumdedincBAnt)"/>
+			<qry:attribute name="n_tot89" value="number(@n_tot89) + number($r/@ap_igacumRepresAnt)"/>
+			<qry:attribute name="n_tot90" value="number(@n_tot90) + number($r/@ap_igacumFdoCompAnt)"/>
+			<qry:attribute name="n_tot91" value="number(@n_tot91) + number($r/@ap_igacumJubProfAnt)"/>
+			<qry:attribute name="n_tot92" value="number(@n_tot92) + number($r/@ap_igacumAutonomosAnt)"/>
+			<qry:attribute name="n_tot93" value="number(@n_tot93) + number($r/@ap_igacumRetiroAnt)"/>
+			<qry:attribute name="n_tot94" value="number(@n_tot94) + number($r/@ap_igPagosACuentaPercAnt)"/>
+			<qry:attribute name="n_tot95" value="number(@n_tot95) + number($r/@ap_igPagosACuentaResAnt)"/>
+			<qry:attribute name="n_tot96" value="number(0)"/>
+			<qry:attribute name="n_tot97" value="number(0)"/>
+			<qry:attribute name="n_tot98" value="number(@n_tot98) + number($r/@ap_igacumremEXCOVIDAnt)"/>
+			<qry:attribute name="n_tot99" value="number(@n_tot99) + number($r/@ap_igpluriexentoCOVIDAnt)"/>
+			<qry:attribute name="n_tot100" value="number(@n_tot100) + number($r/@ap_igBenefLey27549Ant)"/>
+			<qry:attribute name="n_tot101" value="number(@n_tot101) + number($r/@ap_igPagosACuenta31Ant)"/>
+			<qry:attribute name="n_tot102" value="number(@n_tot102) + number($r/@ap_igPagosACuentaLeybAnt)"/>
+			<qry:attribute name="n_tot103" value="number(@n_tot103) + number($r/@ap_igPagosACuentaLeycAnt)"/>
+			<qry:attribute name="n_tot104" value="number(@n_tot104) + number($r/@ap_igPagosACuentaLeydAnt)"/>
+			<qry:attribute name="n_tot105" value="number(@n_tot105) + number($r/@ap_igPagosACuentaLeyeAnt)"/>
+			<qry:attribute name="n_tot106" value="number(@n_tot106) + number($r/@ap_igPagosACuentaDyCMovAnt)"/>
+			<qry:attribute name="n_tot107" value="number(@n_tot107) + number($r/@ap_igPagosACuentaResTranspAnt)"/>
+			<qry:attribute name="n_tot108" value="number(@n_tot108) + number($r/@ap_igacumbonograAnt)"/>
+			<qry:attribute name="n_tot109" value="number(@n_tot109) + number($r/@ap_igacumfallosgraAnt)"/>
+			<qry:attribute name="n_tot110" value="number(@n_tot110) + number($r/@ap_igacumotrosgraAnt)"/>
+			<qry:attribute name="n_tot111" value="number(@n_tot111) + number($r/@ap_igacumbonoexAnt)"/>
+			<qry:attribute name="n_tot112" value="number(@n_tot112) + number($r/@ap_igacumfallosexAnt)"/>
+			<qry:attribute name="n_tot113" value="number(@n_tot113) + number($r/@ap_igacumotrosexAnt)"/>
+			<qry:attribute name="n_tot114" value="number(@n_tot114) + number($r/@ap_igacumsuplexAnt)"/>
+			<qry:attribute name="n_tot115" value="number(@n_tot115) + number($r/@ap_igacumcompgtosexAnt)"/>
+			<qry:attribute name="n_tot116" value="number(@n_tot116) + number($r/@ap_igpluribonograAnt)"/>
+			<qry:attribute name="n_tot117" value="number(@n_tot117) + number($r/@ap_igplurifallosgraAnt)"/>
+			<qry:attribute name="n_tot118" value="number(@n_tot118) + number($r/@ap_igpluriotrosgraAnt)"/>
+			<qry:attribute name="n_tot119" value="number(@n_tot119) + number($r/@ap_igpluribonoexAnt)"/>
+			<qry:attribute name="n_tot120" value="number(@n_tot120) + number($r/@ap_igplurifallosexAnt)"/>
+			<qry:attribute name="n_tot121" value="number(@n_tot121) + number($r/@ap_igpluriotrosexAnt)"/>
+			<qry:attribute name="n_tot122" value="number(@n_tot122) + number($r/@ap_igplurisuplexAnt)"/>
+			<qry:attribute name="n_tot123" value="number(@n_tot123) + number($r/@ap_igpluricompgtosexAnt)"/>
+			<qry:attribute name="n_tot124" value="number(@n_tot124) + number($r/@ax_igporchijosincapAnt)"/>
+			<qry:attribute name="n_tot125" value="number(@n_tot125) + number($r/@ap_igacumEspecial1parteAnt)"/>
+			<qry:attribute name="n_tot126" value="number(@n_tot126) + number($r/@ap_igacumEspecial2parteAnt)"/>
+			<qry:attribute name="n_tot127" value="number(@n_tot127) + number($r/@ap_igprimersacexpreAnt)"/>
+			<qry:attribute name="n_tot128" value="number(@n_tot128) + number($r/@ap_igsegundosacexpreAnt)"/>
+			<qry:attribute name="n_tot131" value="number(@n_tot131) + number($r/@ap_igacumHijosIncapAnt)"/>
+			<qry:attribute name="n_tot140" value="number(@n_tot140) + number($r/@ap_igtranplardistCCT40Ant)"/>
+			<qry:attribute name="n_tot141" value="number(@n_tot141) + number($r/@ap_igacumEducAnt)"/>
+			<qry:attribute name="n_tot142" value="number(@n_tot142) + number($r/@ax_igcanthijo100Ant)"/>
+			<qry:attribute name="n_tot143" value="number(@n_tot143) + number($r/@ax_igcanthijoincap100Ant)"/>
+			<qry:attribute name="n_tot144" value="number(@n_tot144) + number($r/@ax_igcanthijoedu50Ant)"/>
+			<qry:attribute name="n_tot145" value="number(@n_tot145) + number($r/@ax_igcanthijoedu100Ant)"/>
+			<qry:attribute name="n_tot146" value="number(@n_tot146) + number($r/@ap_igacumViatLargDistAnt)"/>
+			<qry:attribute name="n_tot147" value="number(@n_tot147) + number($r/@ap_igacumViatLargDistCargAnt)"/>
+			<!--Nuevas a partir de v8 -->
+			<qry:attribute name="n_tot148" value="number(@n_tot148) + number($r/@ap_igacumcanbonoAnt)"/>
+			<qry:attribute name="n_tot149" value="number(@n_tot149) + number($r/@ap_igacumcanfalloAnt)"/>
+			<qry:attribute name="n_tot150" value="number(@n_tot150) + number($r/@ap_igacumcansimnatAnt)"/>
+			<qry:attribute name="n_tot151" value="number(@n_tot151) + number($r/@ap_igpluricanbonoAnt)"/>
+			<qry:attribute name="n_tot152" value="number(@n_tot152) + number($r/@ap_igpluricanfalloAnt)"/>
+			<qry:attribute name="n_tot153" value="number(@n_tot153) + number($r/@ap_igpluricansimnatAnt)"/>
+			<qry:attribute name="n_tot154" value="number(@n_tot154) + number($r/@ap_igacumviaticosgraAnt)"/>
+			<qry:attribute name="n_tot155" value="number(@n_tot155) + number($r/@ap_igacumcompgraAnt)"/>
+			<qry:attribute name="n_tot156" value="number(@n_tot156) + number($r/@ap_igpluriviatgraAnt)"/>
+			<qry:attribute name="n_tot157" value="number(@n_tot157) + number($r/@ap_igpluricompgraAnt)"/>
+			<qry:attribute name="n_tot158" value="number(@n_tot158) + number($r/@ap_igacummovotrosAnt)"/>
+			<qry:attribute name="n_tot159" value="number(@n_tot159) + number($r/@ap_igacumcompotrosAnt)"/>
+			<qry:attribute name="n_tot161" value="number(@n_tot161) + number($r/@ap_igacumcancompotrosAnt)"/>
+			<qry:attribute name="n_tot162" value="number(@n_tot162) + number($r/@ap_igacummovgraAnt)"/>
+			<qry:attribute name="n_tot163" value="number(@n_tot163) + number($r/@ap_igplurimovgraAnt)"/>
+			<qry:attribute name="n_tot164" value="number(@n_tot164) + number($r/@ap_igplurisimnatAnt)"/>
+			<!--Nuevas a partir de v9 -->
+			<qry:attribute name="n_tot165" value="number(@n_tot165) + number($r/@ap_igacumalquilerextraAnt)"/>
+			<!--Nuevas 2024 F1359 y 215-->
+			<qry:attribute name="n_tot200" value="number(@n_tot200) + number($r/@ap_igacumAsigFamAnt)"/>
+			<qry:attribute name="n_tot201" value="number(@n_tot201) + number($r/@ap_igacumPrestEmpAnt)"/>
+			<qry:attribute name="n_tot202" value="number(@n_tot202) + number($r/@ap_igacumIndem4003Ant)"/>
+			<qry:attribute name="n_tot203" value="number(@n_tot203) + number($r/@ap_igacumLey19640Ant)"/>
+			<qry:attribute name="n_tot204" value="number(@n_tot204) + number($r/@ap_igacumPerPozoAnt)"/>
+			<qry:attribute name="n_tot205" value="number(@n_tot205) + number($r/@ap_igacumCursos4003Ant)"/>
+			<qry:attribute name="n_tot206" value="number(@n_tot206) + number($r/@ap_igacumIndEmpAnt)"/>
+			<qry:attribute name="n_tot207" value="number(@n_tot207) + number($r/@ap_igpluriAsigFamAnt)"/>
+			<qry:attribute name="n_tot208" value="number(@n_tot208) + number($r/@ap_igpluriPrestEmpAnt)"/>
+			<qry:attribute name="n_tot209" value="number(@n_tot209) + number($r/@ap_igpluriIndem4003Ant)"/>
+			<qry:attribute name="n_tot210" value="number(@n_tot210) + number($r/@ap_igpluriLey19640Ant)"/>
+			<qry:attribute name="n_tot211" value="number(@n_tot211) + number($r/@ap_igpluriPerPozoAnt)"/>
+			<qry:attribute name="n_tot212" value="number(@n_tot212) + number($r/@ap_igpluriCursos4003Ant)"/>
+			<qry:attribute name="n_tot213" value="number(@n_tot213) + number($r/@ap_igpluriIndEmpAnt)"/>
+			<qry:attribute name="n_tot214" value="number(@n_tot214) + number($r/@ap_igacumJubProfAnt)"/>
+			<qry:attribute name="n_tot215" value="number(@n_tot215) + number($r/@ap_igpluriJubProfAnt)"/>
+			<qry:attribute name="n_tot216" value="number(@n_tot216) + number($r/@ap_igacumCajaCompAnt)"/>
+			<qry:attribute name="n_tot217" value="number(@n_tot217) + number($r/@ap_igacumFdoCompAnt)"/>
+			<qry:attribute name="n_tot218" value="number(@n_tot218) + number($r/@ap_igacumJubAutAnt)"/>
+			<qry:attribute name="n_tot219" value="number(@n_tot219) + number($r/@ap_igacumRetiroOtrosAnt)"/>
+			<qry:attribute name="n_tot220" value="number(@n_tot220) + number($r/@ap_igacumalquilerextraAnt)"/>
+			<qry:attribute name="n_tot221" value="number(@n_tot221) + number($r/@ap_igacumAntarArgAnt)"/>
+			<qry:attribute name="n_tot222" value="number(@n_tot222) + number($r/@ap_igacumRepresAnt)"/>
+			<qry:attribute name="n_tot223" value="number(@n_tot223) + number($r/@ap_igacumEspSAC1Ant)"/>
+			<qry:attribute name="n_tot224" value="number(@n_tot224) + number($r/@ap_igacumEspSAC2Ant)"/>
+			<qry:attribute name="n_tot225" value="number(@n_tot225) + number($r/@ap_igPagoACtaDec652Ant)"/>
+			<qry:attribute name="n_tot226" value="number(@n_tot226) + number($r/@ap_igDEDifLey27743Ant)"/>
+			<qry:attribute name="n_tot227" value="number(@n_tot227) + number($r/@ap_acumanioAnt)"/>
+			<qry:attribute name="n_tot228" value="number(@n_tot228) + number($r/@ax_igcanthijo50Ant)"/>
+			<qry:attribute name="n_tot229" value="number(@n_tot229) + number($r/@ax_igcanthijoincap50Ant)"/>
+			<qry:attribute name="n_tot233" value="number(@n_tot233) + number($r/@ap_acumighAnt)"/>
+			<qry:attribute name="n_tot234" value="number(@n_tot234) + number($r/@ap_igplurihaberesAnt)"/>
+			<qry:attribute name="n_tot235" value="number(@n_tot235) + number($r/@ax_igajusteanioant)"/>
+			<qry:attribute name="n_tot236" value="number(@n_tot236) + number($r/@ap_medcautigAnt)"/>
+			<qry:attribute name="n_tot237" value="number(@n_tot237) + number($r/@ap_pjudicialigAnt)"/>
+			<qry:attribute name="n_tot238" value="number(@n_tot238) + number($r/@ap_igacumrempjnoalcAnt)"/>
+			<qry:attribute name="n_tot239" value="number(@n_tot239) + number($r/@ap_igplurirempjnalcAnt)"/>
+			<qry:attribute name="n_tot240" value="number(@n_tot240) + number($r/@ap_igacumautoretAnt)"/>
+		</qry:out>
+	</qry:select>
+	<qry:select name="QRY_CALCULAR_TOTALES" doc="SOURCE">
+		<qry:out>
+			<qry:attribute name="n_tot1" value="number(@n_tot1)-number(@n_tot36)-number(@n_tot71)-number(@n_tot46)-number(@n_tot47)-number(@n_tot48) - number(@n_tot77) - number(@n_tot108)- number(@n_tot109)- number(@n_tot110)"/>
+			<qry:attribute name="n_tot1" value="number(@n_tot1)"/>
+			<qry:attribute name="n_tot2" value="number(@n_tot2)"/>
+			<qry:attribute name="n_tot3" value="number(@n_tot3)"/>
+			<qry:attribute name="n_tot4" value="number(@n_tot4)-number(@n_tot51)-number(@n_tot73)-number(@n_tot54)-number(@n_tot55)-number(@n_tot56) - number(@n_tot82) - number(@n_tot116) - number(@n_tot117) - number(@n_tot118)"/>
+			<qry:attribute name="n_tot5" value="number(@n_tot5)"/>
+			<qry:attribute name="n_tot6" value="number(@n_tot6)"/>
+			<qry:attribute name="n_tot7" value="number(@n_tot7)"/>
+			<qry:attribute name="n_tot8" value="number(@n_tot8)"/>
+			<qry:attribute name="n_tot9" value="number(@n_tot9)"/>
+			<qry:attribute name="n_tot10" value="number(@n_tot10)"/>
+			<qry:attribute name="n_tot11" value="number(@n_tot11)"/>
+			<qry:attribute name="n_tot12" value="number(number(@n_tot12)*(-1))"/>
+			<qry:attribute name="n_tot13" value="number(number(@n_tot13)*(-1))"/>
+			<qry:attribute name="n_tot14" value="number(number(@n_tot14)*(-1))"/>
+			<qry:attribute name="n_tot15" value="number(number(@n_tot15)*(-1))"/>
+			<qry:attribute name="n_tot16" value="number(number(@n_tot16)*(-1))"/>
+			<qry:attribute name="n_tot17" value="number(number(@n_tot17)*(-1))"/>
+			<qry:attribute name="n_tot18" value="number(number(@n_tot18)*(-1))"/>
+			<qry:attribute name="n_tot19" value="number(number(@n_tot19)*(-1))"/>
+			<qry:attribute name="n_tot20" value="number(number(@n_tot20)*(-1))"/>
+			<qry:attribute name="n_tot21" value="number(number(@n_tot21)*(-1))"/>
+			<qry:attribute name="n_tot22" value="number(number(@n_tot22)*(-1))"/>
+			<qry:attribute name="n_tot40" value="number(number(@n_tot40)*(-1))"/>
+			<qry:attribute name="n_tot41" value="number(number(@n_tot41)*(-1))"/>
+			<qry:attribute name="n_tot42" value="number(number(@n_tot42)*(-1))"/>
+			<qry:attribute name="n_tot64" value="number(number(@n_tot64)*(-1))"/>
+			<qry:attribute name="n_tot65" value="number(number(@n_tot65)*(-1))"/>
+			<qry:attribute name="n_tot66" value="number(number(@n_tot66)*(-1))"/>
+			<qry:attribute name="n_tot67" value="number(number(@n_tot67)*(-1))"/>
+			<qry:attribute name="n_tot24" value="number(number(@n_tot24)*(-1))"/>
+			<qry:attribute name="n_tot25" value="number(number(@n_tot25)*(-1))"/>
+			<qry:attribute name="n_tot26" value="number(number(@n_tot26)*(-1))"/>
+			<qry:attribute name="n_tot27" value="number(number(@n_tot27)*(-1))"/>
+			<qry:attribute name="n_tot28" value="number(number(@n_tot28)*(-1))"/>
+			<qry:attribute name="n_tot160" value="number(number(@n_tot160)*(-1))"/>
+			<qry:attribute name="n_tot29" value="number(number(@n_tot29)*(-1))"/>
+			<qry:attribute name="n_tot32" value="number(@n_tot32)"/>
+			<qry:attribute name="n_tot33" value="number(number(@n_tot33)*(-1))"/>
+			<qry:attribute name="n_tot34" value="number(number(@n_tot34)*(-1))"/>
+			<qry:attribute name="n_tot35" value="number(@n_tot32) + number(@n_tot33) + number(@n_tot34)"/>
+			<qry:attribute name="n_tot35" value="number(number(@n_tot35)*(-1))"/>
+			<qry:attribute name="n_tot36" value="number(@n_tot36)"/>
+			<qry:attribute name="n_tot37" value="number(@n_tot37)"/>
+			<qry:attribute name="n_tot38" value="number(@n_tot38)"/>
+			<qry:attribute name="n_tot39" value="number(@n_tot39)"/>
+			<qry:attribute name="n_tot43" value="number(@n_tot43)"/>
+			<qry:attribute name="n_tot44" value="number(@n_tot44)"/>
+			<qry:attribute name="n_tot45" value="number(number(@n_tot45)*(-1))"/>
+			<qry:attribute name="n_tot30" value="number(@n_tot24) + number(@n_tot25) + number(@n_tot26) + number(@n_tot45) + number(@n_tot125) + number(@n_tot126)"/>
+			<qry:attribute name="n_tot31" value="number(@n_tot5) + number(@n_tot23) + number(@n_tot30)"/>
+			<!--nuevas-->
+			<qry:attribute name="n_tot46" value="number(@n_tot46)"/>
+			<qry:attribute name="n_tot47" value="number(0)"/>
+			<qry:attribute name="n_tot48" value="number(@n_tot48)"/>
+			<qry:attribute name="n_tot49" value="number(0)"/>
+			<qry:attribute name="n_tot50" value="number(@n_tot50)"/>
+			<qry:attribute name="n_tot51" value="number(@n_tot51)"/>
+			<qry:attribute name="n_tot52" value="number(@n_tot52)"/>
+			<qry:attribute name="n_tot53" value="number(@n_tot53)"/>
+			<qry:attribute name="n_tot54" value="number(@n_tot54)"/>
+			<qry:attribute name="n_tot55" value="number(@n_tot55)"/>
+			<qry:attribute name="n_tot56" value="number(@n_tot56)"/>
+			<qry:attribute name="n_tot57" value="number(@n_tot57)"/>
+			<qry:attribute name="n_tot58" value="number(@n_tot58)"/>
+			<qry:attribute name="n_tot59" value="number(@n_tot59)"/>
+			<qry:attribute name="n_tot60" value="number(@n_tot60)"/>
+			<qry:attribute name="n_tot61" value="number(@n_tot1)+number(@n_tot36)+number(@n_tot71)+number(@n_tot46)+number(@n_tot47)+number(@n_tot48)+number(@n_tot4)+number(@n_tot51)+number(@n_tot73)+number(@n_tot54)+number(@n_tot55)+number(@n_tot56) + number(@n_tot77) + number(@n_tot82)+ number(@n_tot108) + number(@n_tot109)+ number(@n_tot110)+number(@n_tot116)+ number(@n_tot117)+ number(@n_tot118)"/>
+			<qry:attribute name="n_tot62" value="number(@n_tot2)+number(@n_tot3)+number(@n_tot49)+number(@n_tot50)+number(@n_tot57)+number(@n_tot58)+number(@n_tot59)+number(@n_tot60) + number(@n_tot74)+ number(@n_tot75)+number(@n_tot76)+number(@n_tot78)+ number(@n_tot79)+ number(@n_tot80)+ number(@n_tot81)+ number(@n_tot83) + number(@n_tot98) + number(@n_tot99) + number(@n_tot111)+ number(@n_tot112)+ number(@n_tot113)+ number(@n_tot114)+ number(@n_tot115)+ number(@n_tot119)+ number(@n_tot120)+ number(@n_tot121)+ number(@n_tot122)+ number(@n_tot123)"/>
+			<qry:attribute name="n_tot63" value="number(@n_tot61) + number(@n_tot62)"/>
+			<qry:attribute name="n_tot68" value="number(@n_tot68)"/>
+			<qry:attribute name="n_tot69" value="number(@n_tot69)"/>
+			<qry:attribute name="n_tot70" value="number(@n_tot70)"/>
+			<qry:attribute name="n_tot71" value="number(@n_tot71)"/>
+			<qry:attribute name="n_tot72" value="number(@n_tot72)"/>
+			<qry:attribute name="n_tot73" value="number(@n_tot73)"/>
+			<qry:attribute name="n_tot74" value="number(@n_tot74)"/>
+			<qry:attribute name="n_tot75" value="number(@n_tot75) + number(@n_tot127)"/>
+			<qry:attribute name="n_tot76" value="number(@n_tot76) + number(@n_tot128)"/>
+			<qry:attribute name="n_tot77" value="number(@n_tot77)"/>
+			<qry:attribute name="n_tot78" value="number(@n_tot78)"/>
+			<qry:attribute name="n_tot79" value="number(@n_tot79)"/>
+			<qry:attribute name="n_tot80" value="number(@n_tot80)"/>
+			<qry:attribute name="n_tot81" value="number(@n_tot81)"/>
+			<qry:attribute name="n_tot82" value="number(@n_tot82)"/>
+			<qry:attribute name="n_tot83" value="number(@n_tot83)"/>
+			<qry:attribute name="n_tot89" value="number(@n_tot89)"/>
+			<qry:attribute name="n_tot90" value="number(@n_tot90)"/>
+			<qry:attribute name="n_tot91" value="number(@n_tot91)"/>
+			<qry:attribute name="n_tot92" value="number(@n_tot92)"/>
+			<qry:attribute name="n_tot93" value="number(@n_tot93)"/>
+			<qry:attribute name="n_tot94" value="number(@n_tot94)"/>
+			<qry:attribute name="n_tot95" value="number(@n_tot95)"/>
+			<qry:attribute name="n_tot96" value="number(@n_tot96)"/>
+			<qry:attribute name="n_tot97" value="number(@n_tot97)"/>
+			<qry:attribute name="n_tot98" value="number(@n_tot98)"/>
+			<qry:attribute name="n_tot99" value="number(@n_tot99)"/>
+			<qry:attribute name="n_tot100" value="number(@n_tot100)"/>
+			<qry:attribute name="n_tot101" value="number(@n_tot101)"/>
+			<qry:attribute name="n_tot102" value="number(@n_tot102)"/>
+			<qry:attribute name="n_tot103" value="number(@n_tot103)"/>
+			<qry:attribute name="n_tot104" value="number(@n_tot104)"/>
+			<qry:attribute name="n_tot105" value="number(@n_tot105)"/>
+			<qry:attribute name="n_tot106" value="number(@n_tot106)"/>
+			<qry:attribute name="n_tot107" value="number(@n_tot107)"/>
+			<qry:attribute name="n_tot108" value="number(@n_tot108)"/>
+			<qry:attribute name="n_tot109" value="number(@n_tot109)"/>
+			<qry:attribute name="n_tot110" value="number(@n_tot110)"/>
+			<qry:attribute name="n_tot111" value="number(@n_tot111)"/>
+			<qry:attribute name="n_tot112" value="number(@n_tot112)"/>
+			<qry:attribute name="n_tot113" value="number(@n_tot113)"/>
+			<qry:attribute name="n_tot114" value="number(@n_tot114)"/>
+			<qry:attribute name="n_tot115" value="number(@n_tot115)"/>
+			<qry:attribute name="n_tot116" value="number(@n_tot116)"/>
+			<qry:attribute name="n_tot117" value="number(@n_tot117)"/>
+			<qry:attribute name="n_tot118" value="number(@n_tot118)"/>
+			<qry:attribute name="n_tot119" value="number(@n_tot119)"/>
+			<qry:attribute name="n_tot120" value="number(@n_tot120)"/>
+			<qry:attribute name="n_tot121" value="number(@n_tot121)"/>
+			<qry:attribute name="n_tot122" value="number(@n_tot122)"/>
+			<qry:attribute name="n_tot123" value="number(@n_tot123)"/>
+			<qry:attribute name="n_tot124" value="number(@n_tot124)"/>
+			<qry:attribute name="n_tot125" value="number(number(@n_tot125)*(-1))"/>
+			<qry:attribute name="n_tot126" value="number(number(@n_tot126)*(-1))"/>
+			<qry:attribute name="n_tot131" value="number(number(@n_tot131)*(-1))"/>
+			<qry:attribute name="n_tot94bis" value="number(@n_tot34) + number(@n_tot94) + number(@n_tot95) + number(@n_tot96) + number(@n_tot101) + number(@n_tot102) + number(@n_tot103) + number(@n_tot104) + number(@n_tot105) + number(@n_tot106) + number(@n_tot107)"/>
+			<qry:attribute name="n_tot146" value="number(number(@n_tot146)*(-1))"/>
+			<qry:attribute name="n_tot147" value="number(number(@n_tot147)*(-1))"/>
+			<!--Nuevas a partir de v8 -->
+			<qry:attribute name="n_tot148" value="number(@n_tot148)"/>
+			<qry:attribute name="n_tot149" value="number(@n_tot149)"/>
+			<qry:attribute name="n_tot150" value="number(@n_tot150)"/>
+			<qry:attribute name="n_tot151" value="number(@n_tot151)"/>
+			<qry:attribute name="n_tot152" value="number(@n_tot152)"/>
+			<qry:attribute name="n_tot153" value="number(@n_tot153)"/>
+			<qry:attribute name="n_tot154" value="number(@n_tot154)"/>
+			<qry:attribute name="n_tot155" value="number(@n_tot155)"/>
+			<qry:attribute name="n_tot156" value="number(@n_tot156)"/>
+			<qry:attribute name="n_tot157" value="number(@n_tot157)"/>
+			<qry:attribute name="n_tot158" value="number(@n_tot158)"/>
+			<qry:attribute name="n_tot159" value="number(@n_tot159)"/>
+			<qry:attribute name="n_tot161" value="number(@n_tot161)"/>
+			<qry:attribute name="n_tot162" value="number(@n_tot162)"/>
+			<qry:attribute name="n_tot163" value="number(@n_tot163)"/>
+			<qry:attribute name="n_tot164" value="number(@n_tot164)"/>
+			<qry:attribute name="n_tot141" value="number(number(@n_tot141)*(-1))"/>
+			<!--Nuevas a partir de v9 -->
+			<qry:attribute name="n_tot165" value="number(number(@n_tot165)*(-1))"/>
+			<!--Nuevas 2024 F1359 y 215-->
+			<qry:attribute name="n_tot200" value="number(@n_tot200)"/>
+			<qry:attribute name="n_tot201" value="number(@n_tot201)"/>
+			<qry:attribute name="n_tot202" value="number(@n_tot202)"/>
+			<qry:attribute name="n_tot203" value="number(@n_tot203)"/>
+			<qry:attribute name="n_tot204" value="number(@n_tot204)"/>
+			<qry:attribute name="n_tot205" value="number(@n_tot205)"/>
+			<qry:attribute name="n_tot206" value="number(@n_tot206)"/>
+			<qry:attribute name="n_tot207" value="number(@n_tot207)"/>
+			<qry:attribute name="n_tot208" value="number(@n_tot208)"/>
+			<qry:attribute name="n_tot209" value="number(@n_tot209)"/>
+			<qry:attribute name="n_tot210" value="number(@n_tot210)"/>
+			<qry:attribute name="n_tot211" value="number(@n_tot211)"/>
+			<qry:attribute name="n_tot212" value="number(@n_tot212)"/>
+			<qry:attribute name="n_tot213" value="number(@n_tot213)"/>
+			<qry:attribute name="n_tot214" value="number(@n_tot214)"/>
+			<qry:attribute name="n_tot215" value="number(@n_tot215)"/>
+			<qry:attribute name="n_tot216" value="number(@n_tot216)"/>
+			<qry:attribute name="n_tot217" value="number(@n_tot217)"/>
+			<qry:attribute name="n_tot218" value="number(@n_tot218)"/>
+			<qry:attribute name="n_tot219" value="number(@n_tot219)"/>
+			<qry:attribute name="n_tot220" value="number(@n_tot220)"/>
+			<qry:attribute name="n_tot221" value="number(@n_tot221)"/>
+			<qry:attribute name="n_tot222" value="number(@n_tot222)"/>
+			<qry:attribute name="n_tot223" value="number(@n_tot223)"/>
+			<qry:attribute name="n_tot224" value="number(@n_tot224)"/>
+			<qry:attribute name="n_tot225" value="number(@n_tot225)"/>
+			<qry:attribute name="n_tot226" value="number(@n_tot226)"/>
+			<qry:attribute name="n_tot227" value="number(@n_tot227)"/>
+			<qry:attribute name="n_tot228" value="number(@n_tot228)"/>
+			<qry:attribute name="n_tot229" value="number(@n_tot229)"/>
+			<qry:attribute name="n_tot230" value="number(@n_tot230)"/>
+			<qry:attribute name="n_tot231" value="number(@n_tot231)"/>
+			<qry:attribute name="n_tot232" value="number(@n_tot232)"/>
+			<qry:attribute name="n_tot233" value="number(@n_tot233)"/>
+			<qry:attribute name="n_tot234" value="number(@n_tot234)"/>
+			<qry:attribute name="n_tot235" value="number(@n_tot235)"/>
+			<qry:attribute name="n_tot236" value="number(@n_tot236)"/>
+			<qry:attribute name="n_tot237" value="number(@n_tot237)"/>
+			<qry:attribute name="n_tot238" value="number(@n_tot238)"/>
+			<qry:attribute name="n_tot239" value="number(@n_tot239)"/>
+			<qry:attribute name="n_tot240" value="number(@n_tot240)"/>
+			<!--Totales grosos -->
+			<qry:attribute name="n_tot23" value="number(@n_tot6) + number(@n_tot7) + number(@n_tot8) + number(@n_tot9) + number(@n_tot10) + number(@n_tot11) + number(@n_tot12) + number(@n_tot13) + number(@n_tot14) + number(@n_tot15) + number(@n_tot16) + number(@n_tot17) + number(@n_tot18) + number(@n_tot19) + number(@n_tot20) + number(@n_tot21) + number(@n_tot22) + number(@n_tot40) + number(@n_tot41) + number(@n_tot42) + number(@n_tot64) + number(@n_tot65) + number(@n_tot66) + number(@n_tot67) + number(@n_tot141) + number(@n_tot165)"/>
+		</qry:out>
+	</qry:select>
+	<qry:select name="QRY_ENTIDADES" doc="SOURCE">
+		<qry:xquery>
+			for $r in sql(' 
+SELECT 
+max(LIQ94_ITEMS_IG.c_item_ig) AS c_item_ig
+, max(LIQ94_ITEMS_IG.d_item_ig) AS d_item_ig
+, max(LIQ05_ENTIDADES_IG.d_entidad_ig) AS d_entidad_ig
+, max(LIQ05_ENTIDADES_IG.c_nro_cuit) AS c_nro_cuit
+, max(LIQ05_ENTIDADES_IG.d_direccion) AS d_direccion
+FROM 
+LIQ97_DEDUC_IG
+, LIQ05_ENTIDADES_IG
+, LIQ94_ITEMS_IG	
+WHERE 
+LIQ05_ENTIDADES_IG.c_entidad_ig = LIQ97_DEDUC_IG.c_entidad_ig
+AND LIQ97_DEDUC_IG.c_item_ig = LIQ94_ITEMS_IG.c_item_ig
+AND getyear(LIQ97_DEDUC_IG.f_fecha) = {#SOURCE:@e_anio}
+AND LIQ94_ITEMS_IG.c_item_ig = {#SOURCE:@c_item_ig}
+AND LIQ97_DEDUC_IG.oi_per_emp_ddo = {#SOURCE:@oi_per_emp_ddo}
+GROUP BY
+LIQ94_ITEMS_IG.c_item_ig
+, LIQ94_ITEMS_IG.d_item_ig
+, LIQ05_ENTIDADES_IG.d_entidad_ig
+, LIQ05_ENTIDADES_IG.c_nro_cuit
+, LIQ05_ENTIDADES_IG.d_direccion
+ 	
+')/ROWS/ROW
+		</qry:xquery>
+		<qry:out>
+			<qry:attribute name="entidadDesc" value="$r/@d_entidad_ig"/>
+			<qry:attribute name="entidadCuit" value="$r/@c_nro_cuit"/>
+			<qry:attribute name="entidadDom" value="$r/@d_direccion"/>
+		</qry:out>
+	</qry:select>
+	<qry:select name="QRY_FORMATEAR" doc="SOURCE">
+		<qry:out>
+			<qry:attribute name="n_tot1" value="format-number(round(number(@n_tot1) * 100) div 100, 0, 2,'.', '','')"/>
+			<qry:attribute name="n_tot2" value="format-number(round(number(@n_tot2) * 100) div 100, 0, 2,'.', '','')"/>
+			<qry:attribute name="n_tot3" value="format-number(round(number(@n_tot3) * 100) div 100, 0, 2,'.', '','')"/>
+			<qry:attribute name="n_tot4" value="format-number(round(number(@n_tot4) * 100) div 100, 0, 2,'.', '','')"/>
+			<qry:attribute name="n_tot5" value="format-number(round(number(@n_tot5) * 100) div 100, 0, 2,'.', '','')"/>
+			<qry:attribute name="n_tot6" value="format-number(round(number(@n_tot6) * 100) div 100, 0, 2,'.', '','')"/>
+			<qry:attribute name="n_tot7" value="format-number(round(number(@n_tot7) * 100) div 100, 0, 2,'.', '','')"/>
+			<qry:attribute name="n_tot8" value="format-number(round(number(@n_tot8) * 100) div 100, 0, 2,'.', '','')"/>
+			<qry:attribute name="n_tot9" value="format-number(round(number(@n_tot9) * 100) div 100, 0, 2,'.', '','')"/>
+			<qry:attribute name="n_tot10" value="format-number(round(number(@n_tot10) * 100) div 100, 0, 2,'.', '','')"/>
+			<qry:attribute name="n_tot11" value="format-number(round(number(@n_tot11) * 100) div 100, 0, 2,'.', '','')"/>
+			<qry:attribute name="n_tot12" value="format-number(round(number(@n_tot12) * 100) div 100, 0, 2,'.', '','')"/>
+			<qry:attribute name="n_tot13" value="format-number(round(number(@n_tot13) * 100) div 100, 0, 2,'.', '','')"/>
+			<qry:attribute name="n_tot14" value="format-number(round(number(@n_tot14) * 100) div 100, 0, 2,'.', '','')"/>
+			<qry:attribute name="n_tot15" value="format-number(round(number(@n_tot15) * 100) div 100, 0, 2,'.', '','')"/>
+			<qry:attribute name="n_tot16" value="format-number(round(number(@n_tot16) * 100) div 100, 0, 2,'.', '','')"/>
+			<qry:attribute name="n_tot17" value="format-number(round(number(@n_tot17) * 100) div 100, 0, 2,'.', '','')"/>
+			<qry:attribute name="n_tot18" value="format-number(round(number(@n_tot18) * 100) div 100, 0, 2,'.', '','')"/>
+			<qry:attribute name="n_tot19" value="format-number(round(number(@n_tot19) * 100) div 100, 0, 2,'.', '','')"/>
+			<qry:attribute name="n_tot20" value="format-number(round(number(@n_tot20) * 100) div 100, 0, 2,'.', '','')"/>
+			<qry:attribute name="n_tot21" value="format-number(round(number(@n_tot21) * 100) div 100, 0, 2,'.', '','')"/>
+			<qry:attribute name="n_tot22" value="format-number(round(number(@n_tot22) * 100) div 100, 0, 2,'.', '','')"/>
+			<qry:attribute name="n_tot24" value="format-number(round(number(@n_tot24) * 100) div 100, 0, 2,'.', '','')"/>
+			<qry:attribute name="n_tot25" value="format-number(round(number(@n_tot25) * 100) div 100, 0, 2,'.', '','')"/>
+			<qry:attribute name="n_tot26" value="format-number(round(number(@n_tot26) * 100) div 100, 0, 2,'.', '','')"/>
+			<qry:attribute name="n_tot27" value="format-number(round(number(@n_tot27) * 100) div 100, 0, 2,'.', '','')"/>
+			<qry:attribute name="n_tot28" value="format-number(round(number(@n_tot28) * 100) div 100, 0, 2,'.', '','')"/>
+			<qry:attribute name="n_tot160" value="format-number(round(number(@n_tot160) * 100) div 100, 0, 2,'.', '','')"/>
+			<qry:attribute name="n_tot29" value="format-number(round(number(@n_tot29) * 100) div 100, 0, 2,'.', '','')"/>
+			<qry:attribute name="n_tot30" value="format-number(round(number(@n_tot30) * 100) div 100, 0, 2,'.', '','')"/>
+			<qry:attribute name="n_tot32" value="format-number(round(number(@n_tot32) * 100) div 100, 0, 2,'.', '','')"/>
+			<qry:attribute name="n_tot33" value="format-number(round(number(@n_tot33) * 100) div 100, 0, 2,'.', '','')"/>
+			<qry:attribute name="n_tot34" value="format-number(round(number(@n_tot34) * 100) div 100, 0, 2,'.', '','')"/>
+			<qry:attribute name="n_tot35" value="format-number(round(number(@n_tot35) * 100) div 100, 0, 2,'.', '','')"/>
+			<qry:attribute name="n_tot36" value="format-number(round(number(@n_tot36) * 100) div 100, 0, 2,'.', '','')"/>
+			<qry:attribute name="n_tot37" value="format-number(round(number(@n_tot37) * 100) div 100, 0, 2,'.', '','')"/>
+			<qry:attribute name="n_tot38" value="format-number(round(number(@n_tot38) * 100) div 100, 0, 2,'.', '','')"/>
+			<qry:attribute name="n_tot39" value="format-number(round(number(@n_tot39) * 100) div 100, 0, 2,'.', '','')"/>
+			<qry:attribute name="n_tot40" value="format-number(round(number(@n_tot40) * 100) div 100, 0, 2,'.', '','')"/>
+			<qry:attribute name="n_tot41" value="format-number(round(number(@n_tot41) * 100) div 100, 0, 2,'.', '','')"/>
+			<qry:attribute name="n_tot42" value="format-number(round(number(@n_tot42) * 100) div 100, 0, 2,'.', '','')"/>
+			<qry:attribute name="n_tot43" value="format-number(round(number(@n_tot43) * 100) div 100, 0, 2,'.', '','')"/>
+			<qry:attribute name="n_tot44" value="format-number(round(number(@n_tot44) * 100) div 100, 0, 2,'.', '','')"/>
+			<qry:attribute name="n_tot45" value="format-number(round(number(@n_tot45) * 100) div 100, 0, 2,'.', '','')"/>
+			<qry:attribute name="n_tot46" value="format-number(round(number(@n_tot46) * 100) div 100, 0, 2,'.', '','')"/>
+			<qry:attribute name="n_tot48" value="format-number(round(number(@n_tot48) * 100) div 100, 0, 2,'.', '','')"/>
+			<qry:attribute name="n_tot50" value="format-number(round(number(@n_tot50) * 100) div 100, 0, 2,'.', '','')"/>
+			<qry:attribute name="n_tot51" value="format-number(round(number(@n_tot51) * 100) div 100, 0, 2,'.', '','')"/>
+			<qry:attribute name="n_tot52" value="format-number(round(number(@n_tot52) * 100) div 100, 0, 2,'.', '','')"/>
+			<qry:attribute name="n_tot53" value="format-number(round(number(@n_tot53) * 100) div 100, 0, 2,'.', '','')"/>
+			<qry:attribute name="n_tot54" value="format-number(round(number(@n_tot54) * 100) div 100, 0, 2,'.', '','')"/>
+			<qry:attribute name="n_tot56" value="format-number(round(number(@n_tot56) * 100) div 100, 0, 2,'.', '','')"/>
+			<qry:attribute name="n_tot57" value="format-number(round(number(@n_tot57) * 100) div 100, 0, 2,'.', '','')"/>
+			<qry:attribute name="n_tot58" value="format-number(round(number(@n_tot58) * 100) div 100, 0, 2,'.', '','')"/>
+			<qry:attribute name="n_tot60" value="format-number(round(number(@n_tot60) * 100) div 100, 0, 2,'.', '','')"/>
+			<qry:attribute name="n_tot64" value="format-number(round(number(@n_tot64) * 100) div 100, 0, 2,'.', '','')"/>
+			<qry:attribute name="n_tot65" value="format-number(round(number(@n_tot65) * 100) div 100, 0, 2,'.', '','')"/>
+			<qry:attribute name="n_tot66" value="format-number(round(number(@n_tot66) * 100) div 100, 0, 2,'.', '','')"/>
+			<qry:attribute name="n_tot67" value="format-number(round(number(@n_tot67) * 100) div 100, 0, 2,'.', '','')"/>
+			<qry:attribute name="n_tot68" value="format-number(round(number(@n_tot68) * 100) div 100, 0, 2,'.', '','')"/>
+			<qry:attribute name="n_tot69" value="format-number(round(number(@n_tot69) * 100) div 100, 0, 2,'.', '','')"/>
+			<qry:attribute name="n_tot70" value="format-number(round(number(@n_tot70) * 100) div 100, 0, 2,'.', '','')"/>
+			<qry:attribute name="n_tot71" value="format-number(round(number(@n_tot71) * 100) div 100, 0, 2,'.', '','')"/>
+			<qry:attribute name="n_tot72" value="format-number(round(number(@n_tot72) * 100) div 100, 0, 2,'.', '','')"/>
+			<qry:attribute name="n_tot73" value="format-number(round(number(@n_tot73) * 100) div 100, 0, 2,'.', '','')"/>
+			<qry:attribute name="n_tot74" value="format-number(round(number(@n_tot74) * 100) div 100, 0, 2,'.', '','')"/>
+			<qry:attribute name="n_tot75" value="format-number(round(number(@n_tot75) * 100) div 100, 0, 2,'.', '','')"/>
+			<qry:attribute name="n_tot76" value="format-number(round(number(@n_tot76) * 100) div 100, 0, 2,'.', '','')"/>
+			<qry:attribute name="n_tot77" value="format-number(round(number(@n_tot77) * 100) div 100, 0, 2,'.', '','')"/>
+			<qry:attribute name="n_tot78" value="format-number(round(number(@n_tot78) * 100) div 100, 0, 2,'.', '','')"/>
+			<qry:attribute name="n_tot79" value="format-number(round(number(@n_tot79) * 100) div 100, 0, 2,'.', '','')"/>
+			<qry:attribute name="n_tot80" value="format-number(round(number(@n_tot80) * 100) div 100, 0, 2,'.', '','')"/>
+			<qry:attribute name="n_tot81" value="format-number(round(number(@n_tot81) * 100) div 100, 0, 2,'.', '','')"/>
+			<qry:attribute name="n_tot82" value="format-number(round(number(@n_tot82) * 100) div 100, 0, 2,'.', '','')"/>
+			<qry:attribute name="n_tot83" value="format-number(round(number(@n_tot83) * 100) div 100, 0, 2,'.', '','')"/>
+			<qry:attribute name="n_tot85" value="format-number(round(number(@n_tot85) * 100) div 100, 0, 2,'.', '','')"/>
+			<qry:attribute name="n_tot86" value="format-number(round(number(@n_tot86) * 100) div 100, 0, 2,'.', '','')"/>
+			<qry:attribute name="n_tot89" value="format-number(round(number(@n_tot89) * 100) div 100, 0, 2,'.', '','')"/>
+			<qry:attribute name="n_tot90" value="format-number(round(number(@n_tot90) * 100) div 100, 0, 2,'.', '','')"/>
+			<qry:attribute name="n_tot91" value="format-number(round(number(@n_tot91) * 100) div 100, 0, 2,'.', '','')"/>
+			<qry:attribute name="n_tot92" value="format-number(round(number(@n_tot92) * 100) div 100, 0, 2,'.', '','')"/>
+			<qry:attribute name="n_tot93" value="format-number(round(number(@n_tot93) * 100) div 100, 0, 2,'.', '','')"/>
+			<qry:attribute name="n_tot94" value="format-number(round(number(@n_tot94) * 100) div 100, 0, 2,'.', '','')"/>
+			<qry:attribute name="n_tot95" value="format-number(round(number(@n_tot95) * 100) div 100, 0, 2,'.', '','')"/>
+			<qry:attribute name="n_tot98" value="format-number(round(number(@n_tot98) * 100) div 100, 0, 2,'.', '','')"/>
+			<qry:attribute name="n_tot99" value="format-number(round(number(@n_tot99) * 100) div 100, 0, 2,'.', '','')"/>
+			<qry:attribute name="n_tot100" value="format-number(round(number(@n_tot100) * 100) div 100, 0, 2,'.', '','')"/>
+			<qry:attribute name="n_tot101" value="format-number(round(number(@n_tot101) * 100) div 100, 0, 2,'.', '','')"/>
+			<qry:attribute name="n_tot102" value="format-number(round(number(@n_tot102) * 100) div 100, 0, 2,'.', '','')"/>
+			<qry:attribute name="n_tot103" value="format-number(round(number(@n_tot103) * 100) div 100, 0, 2,'.', '','')"/>
+			<qry:attribute name="n_tot104" value="format-number(round(number(@n_tot104) * 100) div 100, 0, 2,'.', '','')"/>
+			<qry:attribute name="n_tot105" value="format-number(round(number(@n_tot105) * 100) div 100, 0, 2,'.', '','')"/>
+			<qry:attribute name="n_tot106" value="format-number(round(number(@n_tot106) * 100) div 100, 0, 2,'.', '','')"/>
+			<qry:attribute name="n_tot107" value="format-number(round(number(@n_tot107) * 100) div 100, 0, 2,'.', '','')"/>
+			<qry:attribute name="n_tot108" value="format-number(round(number(@n_tot108) * 100) div 100, 0, 2,'.', '','')"/>
+			<qry:attribute name="n_tot109" value="format-number(round(number(@n_tot109) * 100) div 100, 0, 2,'.', '','')"/>
+			<qry:attribute name="n_tot110" value="format-number(round(number(@n_tot110) * 100) div 100, 0, 2,'.', '','')"/>
+			<qry:attribute name="n_tot111" value="format-number(round(number(@n_tot111) * 100) div 100, 0, 2,'.', '','')"/>
+			<qry:attribute name="n_tot112" value="format-number(round(number(@n_tot112) * 100) div 100, 0, 2,'.', '','')"/>
+			<qry:attribute name="n_tot113" value="format-number(round(number(@n_tot113) * 100) div 100, 0, 2,'.', '','')"/>
+			<qry:attribute name="n_tot114" value="format-number(round(number(@n_tot114) * 100) div 100, 0, 2,'.', '','')"/>
+			<qry:attribute name="n_tot115" value="format-number(round(number(@n_tot115) * 100) div 100, 0, 2,'.', '','')"/>
+			<qry:attribute name="n_tot116" value="format-number(round(number(@n_tot116) * 100) div 100, 0, 2,'.', '','')"/>
+			<qry:attribute name="n_tot117" value="format-number(round(number(@n_tot117) * 100) div 100, 0, 2,'.', '','')"/>
+			<qry:attribute name="n_tot118" value="format-number(round(number(@n_tot118) * 100) div 100, 0, 2,'.', '','')"/>
+			<qry:attribute name="n_tot119" value="format-number(round(number(@n_tot119) * 100) div 100, 0, 2,'.', '','')"/>
+			<qry:attribute name="n_tot120" value="format-number(round(number(@n_tot120) * 100) div 100, 0, 2,'.', '','')"/>
+			<qry:attribute name="n_tot121" value="format-number(round(number(@n_tot121) * 100) div 100, 0, 2,'.', '','')"/>
+			<qry:attribute name="n_tot122" value="format-number(round(number(@n_tot122) * 100) div 100, 0, 2,'.', '','')"/>
+			<qry:attribute name="n_tot123" value="format-number(round(number(@n_tot123) * 100) div 100, 0, 2,'.', '','')"/>
+			<qry:attribute name="n_tot124" value="format-number(round(number(@n_tot124) * 100) div 100, 0, 2,'.', '','')"/>
+			<qry:attribute name="n_tot125" value="format-number(round(number(@n_tot125) * 100) div 100, 0, 2,'.', '','')"/>
+			<qry:attribute name="n_tot126" value="format-number(round(number(@n_tot126) * 100) div 100, 0, 2,'.', '','')"/>
+			<qry:attribute name="n_tot23" value=" format-number(round((number(@n_tot23)+0.001) * 100) div 100, 0, 2,'.', '','')"/>
+			<qry:attribute name="n_tot30" value="number(@n_tot24) + number(@n_tot25) + number(@n_tot26) + number(@n_tot45) + number(@n_tot125) + number(@n_tot126)"/>
+			<qry:attribute name="n_tot61" value="number(@n_tot1)+number(@n_tot36)+number(@n_tot71)+number(@n_tot46)+number(@n_tot47)+number(@n_tot48)+number(@n_tot4)+number(@n_tot51)+number(@n_tot73)+number(@n_tot54)+number(@n_tot55)+number(@n_tot56) + number(@n_tot77) + number(@n_tot82)+ number(@n_tot108) + number(@n_tot109)+ number(@n_tot110)+number(@n_tot116)+ number(@n_tot117)+ number(@n_tot118)"/>
+			<qry:attribute name="n_tot62" value="number(@n_tot2)+number(@n_tot3)+number(@n_tot49)+number(@n_tot50)+number(@n_tot57)+number(@n_tot58)+number(@n_tot59)+number(@n_tot60) + number(@n_tot74)+ number(@n_tot75)+number(@n_tot76)+number(@n_tot78)+ number(@n_tot79)+ number(@n_tot80)+ number(@n_tot81)+ number(@n_tot83) + number(@n_tot98) + number(@n_tot99) + number(@n_tot111)+ number(@n_tot112)+ number(@n_tot113)+ number(@n_tot114)+ number(@n_tot115)+ number(@n_tot119)+ number(@n_tot120)+ number(@n_tot121)+ number(@n_tot122)+ number(@n_tot123)"/>
+			<qry:attribute name="n_tot84" value="number(0)"/>
+			<qry:attribute name="n_tot31" value="number(@n_tot61) + number(@n_tot23) + number(@n_tot30) + number(@n_tot85) + number(@n_tot86)"/>
+			<qry:attribute name="n_tot63" value="number(@n_tot61) + number(@n_tot62)"/>
+			<qry:attribute name="n_tot94bis" value="format-number(round(number(@n_tot94bis) * 100) div 100, 0, 2,'.', '','')"/>
+			<qry:attribute name="n_tot140" value="format-number(round(number(@n_tot140) * 100) div 100, 0, 2,'.', '','')"/>
+			<qry:attribute name="n_tot141" value="format-number(round(number(@n_tot141) * 100) div 100, 0, 2,'.', '','')"/>
+			<qry:attribute name="n_tot142" value="format-number(round(number(@n_tot142) * 100) div 100, 0, 2,'.', '','')"/>
+			<qry:attribute name="n_tot143" value="format-number(round(number(@n_tot143) * 100) div 100, 0, 2,'.', '','')"/>
+			<qry:attribute name="n_tot144" value="format-number(round(number(@n_tot144) * 100) div 100, 0, 2,'.', '','')"/>
+			<qry:attribute name="n_tot145" value="format-number(round(number(@n_tot145) * 100) div 100, 0, 2,'.', '','')"/>
+			<qry:attribute name="n_tot146" value="format-number(round(number(@n_tot146) * 100) div 100, 0, 2,'.', '','')"/>
+			<qry:attribute name="n_tot147" value="format-number(round(number(@n_tot147) * 100) div 100, 0, 2,'.', '','')"/>
+			<!--Nuevas a partir de v8 -->
+			<qry:attribute name="n_tot148" value="format-number(round(number(@n_tot148) * 100) div 100, 0, 2,'.', '','')"/>
+			<qry:attribute name="n_tot149" value="format-number(round(number(@n_tot149) * 100) div 100, 0, 2,'.', '','')"/>
+			<qry:attribute name="n_tot150" value="format-number(round(number(@n_tot150) * 100) div 100, 0, 2,'.', '','')"/>
+			<qry:attribute name="n_tot151" value="format-number(round(number(@n_tot151) * 100) div 100, 0, 2,'.', '','')"/>
+			<qry:attribute name="n_tot152" value="format-number(round(number(@n_tot152) * 100) div 100, 0, 2,'.', '','')"/>
+			<qry:attribute name="n_tot153" value="format-number(round(number(@n_tot153) * 100) div 100, 0, 2,'.', '','')"/>
+			<qry:attribute name="n_tot154" value="format-number(round(number(@n_tot154) * 100) div 100, 0, 2,'.', '','')"/>
+			<qry:attribute name="n_tot155" value="format-number(round(number(@n_tot155) * 100) div 100, 0, 2,'.', '','')"/>
+			<qry:attribute name="n_tot156" value="format-number(round(number(@n_tot156) * 100) div 100, 0, 2,'.', '','')"/>
+			<qry:attribute name="n_tot157" value="format-number(round(number(@n_tot157) * 100) div 100, 0, 2,'.', '','')"/>
+			<qry:attribute name="n_tot158" value="format-number(round(number(@n_tot158) * 100) div 100, 0, 2,'.', '','')"/>
+			<qry:attribute name="n_tot159" value="format-number(round(number(@n_tot159) * 100) div 100, 0, 2,'.', '','')"/>
+			<qry:attribute name="n_tot161" value="format-number(round(number(@n_tot161) * 100) div 100, 0, 2,'.', '','')"/>
+			<qry:attribute name="n_tot162" value="format-number(round(number(@n_tot162) * 100) div 100, 0, 2,'.', '','')"/>
+			<qry:attribute name="n_tot163" value="format-number(round(number(@n_tot163) * 100) div 100, 0, 2,'.', '','')"/>
+			<qry:attribute name="n_tot164" value="format-number(round(number(@n_tot164) * 100) div 100, 0, 2,'.', '','')"/>
+			<!--Nuevas a partir de v9 -->
+			<qry:attribute name="n_tot165" value="format-number(round(number(@n_tot165) * 100) div 100, 0, 2,'.', '','')"/>
+			<!--Nuevas 2024 F1359 y 215-->
+			<qry:attribute name="n_tot200" value="format-number(round(number(@n_tot200) * 100) div 100, 0, 2,'.', '','')"/>
+			<qry:attribute name="n_tot201" value="format-number(round(number(@n_tot201) * 100) div 100, 0, 2,'.', '','')"/>
+			<qry:attribute name="n_tot202" value="format-number(round(number(@n_tot202) * 100) div 100, 0, 2,'.', '','')"/>
+			<qry:attribute name="n_tot203" value="format-number(round(number(@n_tot203) * 100) div 100, 0, 2,'.', '','')"/>
+			<qry:attribute name="n_tot204" value="format-number(round(number(@n_tot204) * 100) div 100, 0, 2,'.', '','')"/>
+			<qry:attribute name="n_tot205" value="format-number(round(number(@n_tot205) * 100) div 100, 0, 2,'.', '','')"/>
+			<qry:attribute name="n_tot206" value="format-number(round(number(@n_tot206) * 100) div 100, 0, 2,'.', '','')"/>
+			<qry:attribute name="n_tot207" value="format-number(round(number(@n_tot207) * 100) div 100, 0, 2,'.', '','')"/>
+			<qry:attribute name="n_tot208" value="format-number(round(number(@n_tot208) * 100) div 100, 0, 2,'.', '','')"/>
+			<qry:attribute name="n_tot209" value="format-number(round(number(@n_tot209) * 100) div 100, 0, 2,'.', '','')"/>
+			<qry:attribute name="n_tot210" value="format-number(round(number(@n_tot210) * 100) div 100, 0, 2,'.', '','')"/>
+			<qry:attribute name="n_tot211" value="format-number(round(number(@n_tot211) * 100) div 100, 0, 2,'.', '','')"/>
+			<qry:attribute name="n_tot212" value="format-number(round(number(@n_tot212) * 100) div 100, 0, 2,'.', '','')"/>
+			<qry:attribute name="n_tot213" value="format-number(round(number(@n_tot213) * 100) div 100, 0, 2,'.', '','')"/>
+			<qry:attribute name="n_tot214" value="format-number(round(number(@n_tot214) * 100) div 100, 0, 2,'.', '','')"/>
+			<qry:attribute name="n_tot215" value="format-number(round(number(@n_tot215) * 100) div 100, 0, 2,'.', '','')"/>
+			<qry:attribute name="n_tot216" value="format-number(round(number(@n_tot216) * 100) div 100, 0, 2,'.', '','')"/>
+			<qry:attribute name="n_tot217" value="format-number(round(number(@n_tot217) * 100) div 100, 0, 2,'.', '','')"/>
+			<qry:attribute name="n_tot218" value="format-number(round(number(@n_tot218) * 100) div 100, 0, 2,'.', '','')"/>
+			<qry:attribute name="n_tot219" value="format-number(round(number(@n_tot219) * 100) div 100, 0, 2,'.', '','')"/>
+			<qry:attribute name="n_tot220" value="format-number(round(number(@n_tot220) * 100) div 100, 0, 2,'.', '','')"/>
+			<qry:attribute name="n_tot221" value="format-number(round(number(@n_tot221) * 100) div 100, 0, 2,'.', '','')"/>
+			<qry:attribute name="n_tot222" value="format-number(round(number(@n_tot222) * 100) div 100, 0, 2,'.', '','')"/>
+			<qry:attribute name="n_tot223" value="format-number(round(number(@n_tot223) * 100) div 100, 0, 2,'.', '','')"/>
+			<qry:attribute name="n_tot224" value="format-number(round(number(@n_tot224) * 100) div 100, 0, 2,'.', '','')"/>
+			<qry:attribute name="n_tot225" value="format-number(round(number(@n_tot225) * 100) div 100, 0, 2,'.', '','')"/>
+			<qry:attribute name="n_tot226" value="format-number(round(number(@n_tot226) * 100) div 100, 0, 2,'.', '','')"/>
+			<qry:attribute name="n_tot227" value="format-number(round(number(@n_tot227) * 100) div 100, 0, 2,'.', '','')"/>
+			<qry:attribute name="n_tot228" value="format-number(round(number(@n_tot228) * 100) div 100, 0, 2,'.', '','')"/>
+			<qry:attribute name="n_tot229" value="format-number(round(number(@n_tot229) * 100) div 100, 0, 2,'.', '','')"/>
+			<qry:attribute name="n_tot230" value="number(@n_tot4) - number(@n_tot51) - number(@n_tot52) - number(@n_tot53)"/>
+			<qry:attribute name="n_tot231" value="number(@n_tot1) - number(@n_tot36) - number(@n_tot37) - number(@n_tot38)"/>
+			<qry:attribute name="n_tot232" value="number(@n_tot230) + number(@n_tot36) + number(@n_tot37) + number(@n_tot38) + number(@n_tot231) + number(@n_tot51) + number(@n_tot52) + number(@n_tot53) + number(@n_tot77) + number(@n_tot82)"/>
+			<qry:attribute name="n_tot233" value="format-number(round(number(@n_tot233) * 100) div 100, 0, 2,'.', '','')"/>
+			<qry:attribute name="n_tot234" value="format-number(round(number(@n_tot234) * 100) div 100, 0, 2,'.', '','')"/>
+			<qry:attribute name="n_tot235" value="format-number(round(number(@n_tot235) * 100) div 100, 0, 2,'.', '','')"/>
+			<qry:attribute name="n_tot236" value="format-number(round(number(@n_tot236) * 100) div 100, 0, 2,'.', '','')"/>
+			<qry:attribute name="n_tot237" value="format-number(round(number(@n_tot237) * 100) div 100, 0, 2,'.', '','')"/>
+			<qry:attribute name="n_tot238" value="format-number(round(number(@n_tot238) * 100) div 100, 0, 2,'.', '','')"/>
+			<qry:attribute name="n_tot239" value="format-number(round(number(@n_tot239) * 100) div 100, 0, 2,'.', '','')"/>
+			<qry:attribute name="n_tot240" value="format-number(round(number(@n_tot240) * 100) div 100, 0, 2,'.', '','')"/>
+		</qry:out>
+	</qry:select>
+	<qry:select name="QRY_CALCULAR_MESES" doc="PARAM">
+		<qry:out>
+			<qry:attribute name="ano_d_facu" value="substring($PARAM/@f_desde,6,4)"/>
+			<qry:attribute name="mes_d_facu" value="substring($PARAM/@f_desde,3,2)"/>
+			<qry:attribute name="dia_d_facu" value="substring($PARAM/@f_desde,0,2)"/>
+			<qry:attribute name="ano_h_facu" value="substring($PARAM/@f_hasta,6,4)"/>
+			<qry:attribute name="mes_h_facu" value="substring($PARAM/@f_hasta,3,2)"/>
+			<qry:attribute name="dia_h_facu" value="substring($PARAM/@f_hasta,0,2)"/>
+			<!--<qry:attribute name="dias_resta" value="1"/>
+<qry:if test="number(@dia_h_facu)-number(@dia_d_facu)&gt;0">
+<qry:then>
+<qry:attribute name="dias_resta" value="0"/>
+</qry:then>
+</qry:if>
+<qry:attribute name="cant_meses_facu" value="(number(@anio_h_facu)-number(@anio_d_facu))*12"/>
+<qry:attribute name="cant_meses_facu" value="number(@cant_meses_facu)+number(@mes_h_facu)-number(@mes_d_facu)"/>
+<qry:attribute name="cant_meses_facu" value="number(@cant_meses_facu)-number(@dias_resta_facu)"/>
+<qry:attribute name="cant_meses_facu" value="nmd-fillleft(@cant_meses_facu,'0',2)"/>-->
+			<qry:attribute name="cant_meses_facu" value="number(@mes_h_facu)-number(@mes_d_facu)+1"/>
+			<qry:attribute name="cant_meses_facu" value="nmd-fillleft(@cant_meses_facu,'0',2)"/>
+		</qry:out>
+	</qry:select>
+	<qry:select name="qry_def_variables_grupos" doc="PARAM">
+		<qry:xquery>
+			for $r in SQL('
+SELECT
+  LIQ09_VARIABLES.c_variable,
+  LIQ31_GRUPO_VAR.c_columna,
+  LIQ31_GRUPOS.c_grupo              
+FROM               
+  LIQ31_GRUPO_VAR,
+  LIQ31_GRUPOS,
+  LIQ09_VARIABLES
+JOIN      
+  LIQ31_GRUPOS.oi_grupo INNER LIQ31_GRUPO_VAR.oi_grupo,
+  LIQ09_VARIABLES.oi_variable INNER LIQ31_GRUPO_VAR.oi_variable
+WHERE                                                          
+  LIQ31_GRUPOS.c_grupo = \'1\' or substr(LIQ31_GRUPOS.c_grupo,0,2) = \'1.\'
+ORDER BY
+  c_grupo ASC 
+')/ROWS/ROW
+		</qry:xquery>
+		<qry:out>
+			<qry:if test="contains(';AP_ACUMIGD;AP_ACUMIGDOTRAS;AP_ACUMIGH;AP_ACUMIGHHE;AP_ACUMIGHSAC;AP_IGBENEFLEY27414;AP_IGBENEFLEY27549;AP_IGPAGOSACUENTA31;AP_IGPAGOSACUENTABONO;AP_IGPAGOSACUENTADYCMOV;AP_IGPAGOSACUENTALEYB;AP_IGPAGOSACUENTALEYC;AP_IGPAGOSACUENTALEYD;AP_IGPAGOSACUENTALEYE;AP_IGPAGOSACUENTAPERC;AP_IGPAGOSACUENTARES;AP_IGPAGOSACUENTARESTRANSP;AP_IGPAGOSACUENTATOTAL;AP_IGACUMAPOCAPSOCIAL;AP_IGACUMAUTONOMOS;AP_IGACUMCOBERMEDICO;AP_IGACUMCONYUGE;AP_IGACUMCUOTAFDO;AP_IGACUMDONACIONES;AP_IGACUMESPECIAL1PARTE;AP_IGACUMESPECIAL2PARTE;AP_IGACUMESPECIALES;AP_IGACUMFDOCOMP;AP_IGACUMGANNOIMPO;AP_IGACUMHIJOS;AP_IGACUMHIJOSINCAP;AP_IGACUMHIPOTEC;AP_IGACUMHONOMEDICO;AP_IGACUMINDUMENTARIA;AP_IGACUMJUBPROF;AP_IGACUMMEDICO;AP_IGACUMPREV;AP_IGACUMREPRES;AP_IGACUMRETIRO;AP_IGACUMSEGVIDAOTROS;AP_IGACUMRETIROOTROS;AP_IGACUMVIATICOS;AP_IGACUMAJEX;AP_IGACUMAJGRA;AP_IGACUMALQUILER;AP_IGACUMANIO;AP_IGACUMBONOEX;AP_IGACUMBONOGRA;AP_IGACUMCOMPGTOSEX;AP_IGACUMDEDINCA;AP_IGACUMDEDINCB;AP_IGACUMESPECIALOTRAS;AP_IGACUMFALLOSEX;AP_IGACUMFALLOSGRA;AP_IGACUMJUBI;AP_IGACUMLEY;AP_IGACUMMATDIDEX;AP_IGACUMMATDIDGRA;AP_IGACUMMOVEX;AP_IGACUMMOVGRA;AP_IGACUMOS;AP_IGACUMOTROSEX;AP_IGACUMOTROSGRA;AP_IGACUMREMEX;AP_IGACUMREMEXCOVID;AP_IGACUMREMEXOTRAS;AP_IGACUMREMNA;AP_IGACUMRETNAEX;AP_IGACUMSEGVIDA;AP_IGACUMSEPELIO;AP_IGACUMSIND;AP_IGACUMSUPLEX;AP_IGACUMULASERDOME;AP_IGACUMVIATICOSOTROS;AP_IGIMPORTE;AP_IGPLURIAJEX;AP_IGPLURIAJGRA;AP_IGPLURIBONOEX;AP_IGPLURIBONOGRA;AP_IGPLURICOMPGTOSEX;AP_IGPLURIEXENTO;AP_IGPLURIEXENTOCOVID;AP_IGPLURIFALLOSEX;AP_IGPLURIFALLOSGRA;AP_IGPLURIHABERES;AP_IGPLURIHEEX;AP_IGPLURIHSEXGRA;AP_IGPLURIJUBI;AP_IGPLURIMATDID;AP_IGPLURIMATDIDEX;AP_IGPLURIMOVEX;AP_IGPLURIMOVGRA;AP_IGPLURIOS;AP_IGPLURIOTROSEX;AP_IGPLURIOTROSGRA;AP_IGPLURIPRIMERSAC;AP_IGPLURIPRIMERSACEX;AP_IGPLURIRETNOHAB;AP_IGPLURIRETNOHABEX;AP_IGPLURISAC;AP_IGPLURISEGUNDOSAC;AP_IGPLURISEGUNDOSACEX;AP_IGPLURISIND;AP_IGPLURISUPLEX;AP_IGPORCAUM;AP_IGPRIMERSAC;AP_IGPRIMERSACEX;AP_IGPRIMERSACEXPRE;AP_IGPRORRATEOH;AP_IGSEGUNDOSAC;AP_IGSEGUNDOSACEX;AP_IGSEGUNDOSACEXPRE;AP_IGTRANPLARDIST;AX_IGRANGO;AX_IGRANGOHE;AX_IGPORCAUM;AX_IGPORCHIJOS;AX_IGPORCHIJOSINCAP;AP_IGTRANPLARDISTCCT40;AP_IGACUMEDUC;AX_IGCANTHIJO100;AX_IGCANTHIJOINCAP100;AX_IGCANTHIJOEDU50;AX_IGCANTHIJOEDU100;AP_IGACUMVIATLARGDIST;AP_IGACUMVIATLARGDISTCARGA;AP_IGACUMCANBONO;AP_IGACUMCANFALLO;AP_IGACUMCANSIMNAT;AP_IGPLURICANBONO;AP_IGPLURICANFALLO;AP_IGPLURICANSIMNAT;AP_IGACUMVIATICOSGRA;AP_IGACUMCOMPGRA;AP_IGPLURIVIATGRA;AP_IGPLURICOMPGRA;AP_IGACUMMOVOTROS;AP_IGACUMCOMPOTROS;AP_IGACUMCANCOMPOTROS;AP_IGPLURISIMNAT;AP_IGACUMALQUILEREXTRA;AP_IGDEDIFLEY27743;AP_ACUMANIO;AX_IGCANTHIJO50;AX_IGCANTHIJOINCAP50;AP_IGPAGOACTADEC652;AP_IGACUMANTARARG;AP_IGACUMASIGFAM;AP_IGACUMCAJACOMP;AP_IGACUMESPSAC1;AP_IGACUMESPSAC2;AP_IGACUMINDEMP;AP_IGACUMINDEM4003;AP_IGACUMLEY19640;AP_IGACUMJUBAUT;AP_IGACUMPERPOZO;AP_IGACUMCURSOS4003;AP_IGACUMPRESTEMP;AP_IGPLURIASIGFAM;AP_IGPLURICURSOS4003;AP_IGPLURIINDEMP;AP_IGPLURIINDEM4003;AP_IGPLURIJUBPROF;AP_IGPLURILEY19640;AP_IGPLURIPERPOZO;AP_IGPLURIPRESTEMP;AX_IGAJUSTEANIO;AP_MEDCAUTIG;AP_PJUDICIALIG;AP_IGACUMREMPJNOALC;AP_IGPLURIREMPJNALC;AP_IGACUMAUTORET;', ';'+upper-case($r/@c_variable)+';')">
+				<qry:then>
+					<qry:element name="ROW">
+						<qry:attribute name="c_variable" value="$r/@c_variable"/>
+						<qry:attribute name="c_columna" value="$r/@c_columna"/>
+						<qry:attribute name="c_grupo" value="$r/@c_grupo"/>
+					</qry:element>
+					<qry:attribute name="c_col" value="1-number(@c_col)"/>
+					<qry:if test="substring($r/@c_grupo,1,1) = '.'">
+						<qry:then>
+							<qry:if test="not(contains(@c_tables, concat('V',substring($r/@c_grupo,2))))">
+								<qry:then>
+									<qry:attribute name="c_tables" value="concat(@c_tables,',LIQ20_VAR_GR_CONC(c_grupo=\\\'1.',substring($r/@c_grupo,2),'\\\') as V',substring($r/@c_grupo,2))"/>
+									<qry:attribute name="c_joins" value="concat(@c_joins, @SEP, 'V.oi_tot_liq_per LEFT OUTER V',substring($r/@c_grupo,2),'.oi_tot_liq_per')"/>
+									<qry:if test="@c_col='1'">
+										<qry:then>
+											<qry:attribute name="c_columnas1" value="concat(@c_columnas1,',V',substring($r/@c_grupo,2),'.',$r/@c_columna,' as ',$r/@c_variable)"/>
+										</qry:then>
+										<qry:else>
+											<qry:attribute name="c_columnas2" value="concat(@c_columnas2,',V',substring($r/@c_grupo,2),'.',$r/@c_columna,' as ',$r/@c_variable)"/>
+										</qry:else>
+									</qry:if>
+									<qry:attribute name-calc="concat('c_grupo', substring($r/@c_grupo,2))" value="$r/@c_grupo"/>
+									<qry:attribute name="SEP" value="','"/>
+								</qry:then>
+								<qry:else>
+									<qry:if test="@c_col='1'">
+										<qry:then>
+											<qry:attribute name="c_columnas1" value="concat(@c_columnas1,',V',substring($r/@c_grupo,2),'.',$r/@c_columna,' as ',$r/@c_variable)"/>
+										</qry:then>
+										<qry:else>
+											<qry:attribute name="c_columnas2" value="concat(@c_columnas2,',V',substring($r/@c_grupo,2),'.',$r/@c_columna,' as ',$r/@c_variable)"/>
+										</qry:else>
+									</qry:if>
+								</qry:else>
+							</qry:if>
+						</qry:then>
+						<qry:else>
+							<qry:if test="@c_col='1'">
+								<qry:then>
+									<qry:attribute name="c_columnas1" value="concat(@c_columnas1,',V',substring($r/@c_grupo,2),'.',$r/@c_columna,' as ',$r/@c_variable)"/>
+								</qry:then>
+								<qry:else>
+									<qry:attribute name="c_columnas2" value="concat(@c_columnas2,',V',substring($r/@c_grupo,2),'.',$r/@c_columna,' as ',$r/@c_variable)"/>
+								</qry:else>
+							</qry:if>
+							<qry:attribute name="c_grupo" value="$r/@c_grupo"/>
+							<qry:attribute name="SEP" value="' JOIN '"/>
+						</qry:else>
+					</qry:if>
+				</qry:then>
+			</qry:if>
+		</qry:out>
+	</qry:select>
+	<qry:select name="qry_def_variables_grupos_ant" doc="PARAM">
+		<qry:xquery>
+			for $r in SQL('
+SELECT
+  LIQ09_VARIABLES.c_variable,
+  LIQ31_GRUPO_VAR.c_columna,
+  LIQ31_GRUPOS.c_grupo              
+FROM               
+  LIQ31_GRUPO_VAR,
+  LIQ31_GRUPOS,
+  LIQ09_VARIABLES
+JOIN      
+  LIQ31_GRUPOS.oi_grupo INNER LIQ31_GRUPO_VAR.oi_grupo,
+  LIQ09_VARIABLES.oi_variable INNER LIQ31_GRUPO_VAR.oi_variable
+WHERE                                                          
+  LIQ31_GRUPOS.c_grupo = \'2\' or substr(LIQ31_GRUPOS.c_grupo,0,2) = \'2.\'
+ORDER BY
+  c_grupo ASC
+')/ROWS/ROW
+		</qry:xquery>
+		<qry:out>
+			<qry:if test="contains(';AP_ACUMIGDANT;AP_ACUMIGDOTRASANT;AP_ACUMIGHANT;AP_ACUMIGHHEANT;AP_ACUMIGHSACANT;AP_IGBENEFLEY27414ANT;AP_IGBENEFLEY27549ANT;AP_IGPAGOSACUENTA31ANT;AP_IGPAGOSACUENTAANTTOTAL;AP_IGPAGOSACUENTABONOANT;AP_IGPAGOSACUENTADYCMOVANT;AP_IGPAGOSACUENTALEYBANT;AP_IGPAGOSACUENTALEYCANT;AP_IGPAGOSACUENTALEYDANT;AP_IGPAGOSACUENTALEYEANT;AP_IGPAGOSACUENTAPERCANT;AP_IGPAGOSACUENTARESANT;AP_IGPAGOSACUENTARESTRANSPANT;AP_IGACUMAPOCAPSOCIALANT;AP_IGACUMAUTONOMOSANT;AP_IGACUMCOBERMEDICOANT;AP_IGACUMCONYUGEANT;AP_IGACUMCUOTAFDOANT;AP_IGACUMDONACIONESANT;AP_IGACUMESPECIAL1PARTEANT;AP_IGACUMESPECIAL2PARTEANT;AP_IGACUMESPECIALESANT;AP_IGACUMFDOCOMPANT;AP_IGACUMGANNOIMPOANT;AP_IGACUMHIJOSANT;AP_IGACUMHIJOSINCAPANT;AP_IGACUMHIPOTECANT;AP_IGACUMHONOMEDICOANT;AP_IGACUMINDUMENTARIAANT;AP_IGACUMJUBPROFANT;AP_IGACUMMEDICOANT;AP_IGACUMOTROSFLIAANT;AP_IGACUMPREVANT;AP_IGACUMREPRESANT;AP_IGACUMRETIROANT;AP_IGACUMSEGVIDAOTROSANT;AP_IGACUMRETIROOTROSANT;AP_IGACUMVIATICOSANT;AP_IGACUMAJEXANT;AP_IGACUMAJGRAANT;AP_IGACUMALQUILERANT;AP_IGACUMANIOANT;AP_IGACUMBONOEXANT;AP_IGACUMBONOGRAANT;AP_IGACUMCOMPGTOSEXANT;AP_IGACUMDEDINCAANT;AP_IGACUMDEDINCBANT;AP_IGACUMESPECIALOTRASANT;AP_IGACUMFALLOSEXANT;AP_IGACUMFALLOSGRAANT;AP_IGACUMMATDIDEXANT;AP_IGACUMMATDIDGRAANT;AP_IGACUMMOVEXANT;AP_IGACUMMOVGRAANT;AP_IGACUMOTROSEXANT;AP_IGACUMOTROSGRAANT;AP_IGACUMREMEXANT;AP_IGACUMREMEXCOVIDANT;AP_IGACUMREMEXOTRASANT;AP_IGACUMREMNAANT;AP_IGACUMRETNAEXANT;AP_IGACUMSEGVIDAANT;AP_IGACUMSEPELIOANT;AP_IGACUMSINDANT;AP_IGACUMSUPLEXANT;AP_IGACUMULASERDOMEANT;AP_IGACUMVIATICOSOTROSANT;AP_IGJUBANT;AP_IGLEYANT;AP_IGOSANT;AP_IGPLURIAJEXANT;AP_IGPLURIAJGRAANT;AP_IGPLURIBONOEXANT;AP_IGPLURIBONOGRAANT;AP_IGPLURICOMPGTOSEXANT;AP_IGPLURIEXENTOANT;AP_IGPLURIEXENTOCOVIDANT;AP_IGPLURIFALLOSEXANT;AP_IGPLURIFALLOSGRAANT;AP_IGPLURIHABERESANT;AP_IGPLURIHEEXANT;AP_IGPLURIHSEXGRAANT;AP_IGPLURIJUBIANT;AP_IGPLURIMATDIDANT;AP_IGPLURIMATDIDEXANT;AP_IGPLURIMOVEXANT;AP_IGPLURIMOVGRAANT;AP_IGPLURIOSANT;AP_IGPLURIOTROSEXANT;AP_IGPLURIOTROSGRAANT;AP_IGPLURIPRIMERSACANT;AP_IGPLURIPRIMERSACEXANT;AP_IGPLURIRETNOHABANT;AP_IGPLURIRETNOHABEXANT;AP_IGPLURISACANT;AP_IGPLURISEGUNDOSACANT;AP_IGPLURISEGUNDOSACEXANT;AP_IGPLURISINDANT;AP_IGPLURISUPLEXANT;AP_IGPORCAUMANT;AP_IGPRIMERSACANT;AP_IGPRIMERSACEXANT;AP_IGPRIMERSACEXPREANT;AP_IGPRORRATEOHANT;AP_IGSEGUNDOSACANT;AP_IGSEGUNDOSACEXANT;AP_IGSEGUNDOSACEXPREANT;AP_IGTRANPLARDISTANT;AX_IGIMPORTEPERIODOAJUSTADO;AX_IGRANGOANT;AX_IGRANGOHEANT;AX_IGPORCHIJOSANT;AX_IGPORCHIJOSINCAPANT;AP_IGTRANPLARDISTCCT40ANT;AP_IGACUMEDUCANT;AX_IGCANTHIJO100ANT;AX_IGCANTHIJOINCAP100ANT;AX_IGCANTHIJOEDU50ANT;AX_IGCANTHIJOEDU100ANT;AP_IGACUMVIATLARGDISTANT;AP_IGACUMVIATLARGDISTCARGANT;AP_IGACUMCANBONOANT;AP_IGACUMCANFALLOANT;AP_IGACUMCANSIMNATANT;AP_IGPLURICANBONOANT;AP_IGPLURICANFALLOANT;AP_IGPLURICANSIMNATANT;AP_IGACUMVIATICOSGRAANT;AP_IGACUMCOMPGRAANT;AP_IGPLURIVIATGRAANT;AP_IGPLURICOMPGRAANT;AP_IGACUMMOVOTROSANT;AP_IGACUMCOMPOTROSANT;AP_IGACUMCANCOMPOTROSANT;AP_IGPLURISIMNATANT;AP_IGACUMALQUILEREXTRAANT;AP_IGDEDIFLEY27743ANT;AP_ACUMANIOANT;AX_IGCANTHIJO50ANT;AX_IGCANTHIJOINCAP50ANT;AP_IGPAGOACTADEC652ANT;AP_IGACUMANTARARGANT;AP_IGACUMASIGFAMANT;AP_IGACUMCAJACOMPANT;AP_IGACUMESPSAC1ANT;AP_IGACUMESPSAC2ANT;AP_IGACUMINDEMPANT;AP_IGACUMINDEM4003ANT;AP_IGACUMLEY19640ANT;AP_IGACUMJUBAUTANT;AP_IGACUMPERPOZOANT;AP_IGACUMCURSOS4003ANT;AP_IGACUMPRESTEMPANT;AP_IGPLURIASIGFAMANT;AP_IGPLURICURSOS4003ANT;AP_IGPLURIINDEMPANT;AP_IGPLURIINDEM4003ANT;AP_IGPLURIJUBPROFANT;AP_IGPLURILEY19640ANT;AP_IGPLURIPERPOZOANT;AP_IGPLURIPRESTEMPANT;AX_IGAJUSTEANIOANT;AP_MEDCAUTIGANT;AP_PJUDICIALIGANT;AP_IGACUMREMPJNOALCANT;AP_IGPLURIREMPJNALCANT;AP_IGACUMAUTORETANT;', ';'+upper-case($r/@c_variable)+';')">
+				<qry:then>
+					<qry:element name="ROW">
+						<qry:attribute name="c_variable" value="$r/@c_variable"/>
+						<qry:attribute name="c_columna" value="$r/@c_columna"/>
+						<qry:attribute name="c_grupo" value="$r/@c_grupo"/>
+					</qry:element>
+					<qry:attribute name="c_col" value="1-number(@c_col)"/>
+					<qry:if test="substring($r/@c_grupo,1,1) = '.'">
+						<qry:then>
+							<qry:if test="not(contains(@c_tables, concat('V',substring($r/@c_grupo,2))))">
+								<qry:then>
+									<qry:attribute name="c_tables" value="concat(@c_tables,',LIQ20_VAR_GR_CONC(c_grupo=\\\'2.',substring($r/@c_grupo,2),'\\\') as V',substring($r/@c_grupo,2))"/>
+									<qry:attribute name="c_joins" value="concat(@c_joins, @SEP, 'V.oi_tot_liq_per LEFT OUTER V',substring($r/@c_grupo,2),'.oi_tot_liq_per')"/>
+									<qry:if test="@c_col='1'">
+										<qry:then>
+											<qry:attribute name="c_columnas1" value="concat(@c_columnas1,',V',substring($r/@c_grupo,2),'.',$r/@c_columna,' as ',$r/@c_variable)"/>
+										</qry:then>
+										<qry:else>
+											<qry:attribute name="c_columnas2" value="concat(@c_columnas2,',V',substring($r/@c_grupo,2),'.',$r/@c_columna,' as ',$r/@c_variable)"/>
+										</qry:else>
+									</qry:if>
+									<qry:attribute name-calc="concat('c_grupo', substring($r/@c_grupo,2))" value="$r/@c_grupo"/>
+									<qry:attribute name="SEP" value="','"/>
+								</qry:then>
+								<qry:else>
+									<qry:if test="@c_col='1'">
+										<qry:then>
+											<qry:attribute name="c_columnas1" value="concat(@c_columnas1,',V',substring($r/@c_grupo,2),'.',$r/@c_columna,' as ',$r/@c_variable)"/>
+										</qry:then>
+										<qry:else>
+											<qry:attribute name="c_columnas2" value="concat(@c_columnas2,',V',substring($r/@c_grupo,2),'.',$r/@c_columna,' as ',$r/@c_variable)"/>
+										</qry:else>
+									</qry:if>
+								</qry:else>
+							</qry:if>
+						</qry:then>
+						<qry:else>
+							<qry:if test="@c_col='1'">
+								<qry:then>
+									<qry:attribute name="c_columnas1" value="concat(@c_columnas1,',V',substring($r/@c_grupo,2),'.',$r/@c_columna,' as ',$r/@c_variable)"/>
+								</qry:then>
+								<qry:else>
+									<qry:attribute name="c_columnas2" value="concat(@c_columnas2,',V',substring($r/@c_grupo,2),'.',$r/@c_columna,' as ',$r/@c_variable)"/>
+								</qry:else>
+							</qry:if>
+							<qry:attribute name="c_grupo" value="$r/@c_grupo"/>
+							<qry:attribute name="SEP" value="' JOIN '"/>
+						</qry:else>
+					</qry:if>
+				</qry:then>
+			</qry:if>
+		</qry:out>
+	</qry:select>
+</qry:define>

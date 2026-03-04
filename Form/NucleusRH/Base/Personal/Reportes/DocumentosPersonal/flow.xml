@@ -1,0 +1,69 @@
+<flow:flow xmlns:flow="nomad_engine.flow" xmlns:doc="nomad_engine.doc" xmlns:qry="nomad_engine.qry" name="NucleusRH.Base.Personal.Reportes.DocumentosPersonal" default_action="initialize" extends="Nomad.base.HTML_XLS.flow">
+	<flow:declare>
+		<doc:define name="FILTERDATA">
+			<FILTRO>
+				<ROWS/>
+				<DOC/>
+			</FILTRO>
+		</doc:define>
+		<qry:define name="QRY_DOC">
+			<qry:main doc="SOURCE">
+				<qry:element name="ROWS">
+					<qry:insert-select name="DOC"/>
+				</qry:element>
+			</qry:main>
+			<qry:select name="DOC" doc="">
+				<qry:xquery>
+					for $r in SQL('			
+					SELECT 
+						PER20_TIPOS_DOC.oi_tipo_documento as id,
+						PER20_TIPOS_DOC.d_tipo_documento as des
+					FROM 
+						PER20_TIPOS_DOC
+					ORDER BY 
+						id ASC
+			')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:element name="ROW">
+						<qry:attribute value="$r/@id" name="id"/>
+						<qry:attribute value="$r/@des" name="des"/>
+						')/ROWS/ROW
+					</qry:element>
+				</qry:out>
+			</qry:select>
+		</qry:define>
+		<doc:define name="DOC"/>
+	</flow:declare>
+	<flow:main doc="SOURCE">
+		<flow:action name="initialize">
+			<doc:load-qry input-doc-path="#FILTERDATA:" qry="QRY_DOC" output-doc="DOC"/>
+			<flow:open-form form-class="NucleusRH.Base.Personal.Reportes.DocumentosPersonal.filter.form" parent-doc-path="#DOC:" doc-path="#FILTERDATA:" mode="FILTER"/>
+		</flow:action>
+	</flow:main>
+	<flow:form name="NucleusRH.Base.Personal.Reportes.DocumentosPersonal" form-class="NucleusRH.Base.Personal.Reportes.DocumentosPersonal.filter.form" parent-doc="PARENTSOURCE" doc="SOURCE" mode="FILTER">
+		<flow:action name="on-show">
+			<flow:attach-doc attach-id="DOC" doc-path="#DOC:"/>
+			<flow:call-action action="Load-FILTER"/>
+			<flow:attach-doc doc-path="#FILTERDATA:ROWS" attach-id="ARRB"/>
+		</flow:action>
+		<flow:action name="BACK">
+			<flow:close-form/>
+		</flow:action>
+		<flow:action name="Save-FILTER">
+			<flow:save-user-data name="FILTER-NucleusRH.Base.Personal.Reportes.DocumentosPersonal" doc-path="#FILTERDATA:"/>
+		</flow:action>
+		<flow:action name="ACCEPT">
+			<flow:call-action action="Save-FILTER"/>
+			<flow:exec-method method="ExecReportHTML" out-attr-path="#BATCHDOC:@batch-id" priority="9" class="Nomad.Base.Report.GeneralReport.REPORT">
+				<flow:param value="NucleusRH.Base.Personal.DocumentoPersonas.rpt" type="Nomad.NSystem.String" mode="in" name="ReportName"/>
+				<flow:param doc-path="#FILTERDATA:" name="paramIN" type="Nomad.NSystem.Proxy.NomadXML" mode="in"/>
+			</flow:exec-method>
+			<doc:set-attribute from-value="006 - Listado de Documentos" to-attr-path="#BATCHDOC:@title"/>
+			<flow:open-form form-class="Nomad.base.HTML_XLS.form" parent-doc-path="#SOURCE:" mode="SHOW" doc-path="#BATCHDOC:"/>
+		</flow:action>
+		<flow:action name="Load-FILTER">
+			<flow:load-user-data name="FILTER-NucleusRH.Base.Personal.Reportes.DocumentosPersonal" doc="FILTERDATA"/>
+		</flow:action>
+	</flow:form>
+</flow:flow>

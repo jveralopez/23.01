@@ -1,0 +1,69 @@
+<flow:flow xmlns:flow="nomad_engine.flow" xmlns:doc="nomad_engine.doc" xmlns:qry="nomad_engine.qry" name="NucleusRH.Base.Organizacion.Reportes.ReporteCategoriasConvenios" default_action="initialize" extends="Nomad.base.HTML_XLS.flow">
+	<flow:declare>
+		<doc:define name="FILTERDATA">
+			<FILTRO>
+				<ROWS/>
+				<CONV/>
+			</FILTRO>
+		</doc:define>
+		<qry:define name="QRY_CONV">
+			<qry:main doc="SOURCE">
+				<qry:element name="ROWS">
+					<qry:insert-select name="CONV"/>
+				</qry:element>
+			</qry:main>
+			<qry:select name="CONV" doc="">
+				<qry:xquery>
+					for $r in SQL('			
+					SELECT 
+						ORG18_CONVENIOS.oi_convenio as id,
+						ORG18_CONVENIOS.d_convenio as des
+					FROM 
+						ORG18_CONVENIOS
+					ORDER BY 
+						id ASC
+			')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:element name="ROW">
+						<qry:attribute value="$r/@id" name="id"/>
+						<qry:attribute value="$r/@des" name="des"/>
+						')/ROWS/ROW
+					</qry:element>
+				</qry:out>
+			</qry:select>
+		</qry:define>
+		<doc:define name="CONV"/>
+	</flow:declare>
+	<flow:main doc="SOURCE">
+		<flow:action name="initialize">
+			<doc:load-qry input-doc-path="#FILTERDATA:" qry="QRY_CONV" output-doc="CONV"/>
+			<flow:open-form parent-doc-path="#CONV:" doc-path="#FILTERDATA:" mode="FILTER" form-class="NucleusRH.Base.Organizacion.Reportes.CategoriasConvenios.filter.form"/>
+		</flow:action>
+	</flow:main>
+	<flow:form name="NucleusRH.Base.Organizacion.Reportes.CategoriasConvenios" form-class="NucleusRH.Base.Organizacion.Reportes.CategoriasConvenios.filter.form" parent-doc="PARENTSOURCE" doc="SOURCE" mode="FILTER">
+		<flow:action name="on-show">
+			<flow:attach-doc attach-id="CONV" doc-path="#CONV:"/>
+			<flow:call-action action="Load-FILTER"/>
+			<flow:attach-doc doc-path="#FILTERDATA:ROWS" attach-id="ARRB"/>
+		</flow:action>
+		<flow:action name="BACK">
+			<flow:close-form/>
+		</flow:action>
+		<flow:action name="Save-FILTER">
+			<flow:save-user-data name="FILTER-NucleusRH.Base.Organizacion.Reportes.CategoriasConvenios" doc-path="#FILTERDATA:"/>
+		</flow:action>
+		<flow:action name="ACCEPT">
+			<flow:call-action action="Save-FILTER"/>
+			<flow:exec-method method="ExecReportHTML" out-attr-path="#BATCHDOC:@batch-id" priority="9" class="Nomad.Base.Report.GeneralReport.REPORT">
+				<flow:param value="NucleusRH.Base.Organizacion.ConveniosCategorias.rpt" type="Nomad.NSystem.String" mode="in" name="ReportName"/>
+				<flow:param doc-path="#FILTERDATA:" name="paramIN" type="Nomad.NSystem.Proxy.NomadXML" mode="in"/>
+			</flow:exec-method>
+			<doc:set-attribute from-value="204 - Categor&#237;as por Convenios" to-attr-path="#BATCHDOC:@title"/>
+			<flow:open-form form-class="Nomad.base.HTML_XLS.form" parent-doc-path="#SOURCE:" mode="SHOW" doc-path="#BATCHDOC:"/>
+		</flow:action>
+		<flow:action name="Load-FILTER">
+			<flow:load-user-data name="FILTER-NucleusRH.Base.Organizacion.Reportes.CategoriasConvenios" doc="FILTERDATA"/>
+		</flow:action>
+	</flow:form>
+</flow:flow>

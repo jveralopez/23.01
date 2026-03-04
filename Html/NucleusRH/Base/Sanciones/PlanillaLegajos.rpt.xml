@@ -1,0 +1,126 @@
+<html:html xmlns:html="nomad_engine.html" xmlns:qry="nomad_engine.qry" extends="Nomad.Base.BaseReport.rpt" name="NucleusRH.Base.Sanciones.PlanillaLegajos" doc="source">
+	<html:for-each declare="&lt;PARAMETERS oi_empresa=&quot;196&quot; oi_clase_org=&quot;&quot; oi_indic_activo=&quot;&quot; oi_tipo_personal=&quot;&quot; &#13;&#10;oi_ctro_costo_ult=&quot;&quot; orden=&quot;&quot; c_nro_cuil=&quot;&quot; c_nro_documento=&quot;&quot; c_sexo=&quot;&quot; domicilio=&quot;&quot; &#13;&#10;d_localidad=&quot;&quot; telefono=&quot;&quot; f_nacim=&quot;&quot; d_nacionalidad=&quot;&quot; oi_local_nacim=&quot;&quot; oi_idioma=&quot;&quot; &#13;&#10;oi_estado_civil=&quot;&quot; oi_grupo_sanguineo=&quot;1&quot; f_casamiento=&quot;1&quot; oi_titulo=&quot;&quot; l_jubilado=&quot;&quot; &#13;&#10;oi_afjp=&quot;&quot; oi_localidad=&quot;&quot; d_mail=&quot;&quot; te_celular=&quot;1&quot; oi_foto=&quot;&quot; auxattr=&quot;&quot; d_indic_activo=&quot;&quot; &#13;&#10;f_ingreso=&quot;&quot; f_antiguedad_rec=&quot;&quot; oi_contrato=&quot;&quot; f_inicio_contrato=&quot;&quot; f_fin_contrato=&quot;&quot; &#13;&#10;e_duracion_ctrato=&quot;&quot; oi_puesto_ult=&quot;&quot; oi_posicion_ult=&quot;&quot; oi_funcion=&quot;&quot; f_egreso=&quot;&quot; &#13;&#10;oi_motivo_eg_per=&quot;&quot; oi_ctro_costo_ult1=&quot;&quot; oi_categoria_ult=&quot;1&quot; n_est_pas_mes=&quot;1&quot; &#13;&#10;oi_tipo_personal1=&quot;&quot; oi_obra_social=&quot;&quot; oi_sindicato=&quot;&quot; oi_ubicacion=&quot;1&quot; n_ult_remun=&quot;1&quot; &#13;&#10;oi_forma_pago=&quot;1&quot; c_nro_interno=&quot;1&quot; oi_mod_contr=&quot;&quot; estado=&quot;1&quot;/&gt;">
+		<qry:include name="NucleusRH.Base.Personal.LegajoEmpresa.PERSONAL_EMP.PLANILLA_FE"/>
+		<qry:main doc="PARAM">
+			<qry:insert-select name="REPORT" doc-path="#PARAM:"/>
+		</qry:main>
+		<qry:select name="qry_cols_adicionales">
+			<qry:out>
+				<qry:if test="#F:@f_fechahora_sanc=1">
+					<qry:then>
+						<COL name="f_fechahora_sanc" label="Fecha de Sanci&#243;n" style="text-align:center" nowrap="1"/>
+					</qry:then>
+				</qry:if>
+				<qry:if test="#F:@d_motivo_corta=1">
+					<qry:then>
+						<COL name="d_motivo_corta" label="Motivo de Sanci&#243;n" nowrap="1"/>
+					</qry:then>
+				</qry:if>
+				<qry:if test="#F:@d_sancion=1">
+					<qry:then>
+						<COL name="d_sancion" label="Sanci&#243;n" nowrap="1"/>
+					</qry:then>
+				</qry:if>
+				<qry:if test="#F:@e_dias_susp_prop=1">
+					<qry:then>
+						<COL name="e_dias_susp_prop" label="D&#237;as de Suspensi&#243;n Propuestos" style="text-align:center" nowrap="1"/>
+					</qry:then>
+				</qry:if>
+				<qry:if test="#F:@e_dias_susp_real=1">
+					<qry:then>
+						<COL name="e_dias_susp_real" label="D&#237;as de Suspensi&#243;n Reales" style="text-align:center" nowrap="1"/>
+					</qry:then>
+				</qry:if>
+				<qry:if test="#F:@o_motivo_ajuste=1">
+					<qry:then>
+						<COL name="o_motivo_ajuste" label="Motivo de Ajuste" nowrap="1"/>
+					</qry:then>
+				</qry:if>
+				<qry:if test="#F:@estado=1">
+					<qry:then>
+						<COL name="estado" label="Estado" nowrap="1"/>
+					</qry:then>
+				</qry:if>
+			</qry:out>
+		</qry:select>
+	</html:for-each>
+	<html:query>
+		<qry:include name="NucleusRH.Base.Personal.LegajoEmpresa.PERSONAL_EMP.PLANILLA"/>
+		<qry:main doc="PARAM">
+			<qry:insert-select name="REPORT" doc-path="#PARAM:"/>
+		</qry:main>
+		<qry:select name="qry_datos_adicionales">
+			<qry:out>
+				<qry:insert-select name="QRY_SANCIONES"/>
+			</qry:out>
+		</qry:select>
+		<qry:select doc="" name="QRY_SANCIONES">
+			<qry:xquery>
+				for $r in sql('  
+SELECT 
+	L.oi_personal_emp, 
+	SP.f_fechahora_sanc,
+	M.d_motivo_corta,
+	S.d_sancion,
+	SP.e_dias_susp_prop,
+	SP.e_dias_susp_real,
+	SP.o_motivo_ajuste,
+	SP.c_estado
+FROM
+	PER02_PERSONAL_EMP as L,
+	SAN03_SANCION_PER as SP,
+	SAN02_SANCIONES as S,
+	SAN01_MOTIVOS_SANC as M
+	{%? (#F:@oi_clase_org !='') {% , ORG02_ESTRUC_PERS%} {% %} %}   
+	
+JOIN
+	L.oi_personal_emp LEFT OUTER SP.oi_personal_emp,
+	SP.oi_motivo_sancion LEFT OUTER M.oi_motivo_sancion,
+	SP.oi_sancion LEFT OUTER S.oi_sancion
+	{%? (#F:@oi_clase_org !='') {% ,L.oi_personal_emp INNER ORG02_ESTRUC_PERS.oi_personal_emp%} {% %} %}
+WHERE 
+L.oi_empresa = {#F:@oi_empresa}
+{%? (#F:@oi_clase_org !='') {% AND ORG02_ESTRUC_PERS.oi_clase_org = {#F:@oi_clase_org} %} {% %} %}
+{%? (#F:@oi_indic_activo != '') {% AND L.oi_indic_activo = {#F:@oi_indic_activo} %} {% %} %}
+{%? (#F:@oi_tipo_personal != '') {% AND L.oi_tipo_personal = {#F:@oi_tipo_personal} %} {% %} %}
+{%? (#F:@oi_ctro_costo_ult != '') {% AND L.oi_ctro_costo_ult = {#F:@oi_ctro_costo_ult} %} {% %} %}
+')/ROWS/ROW,
+$s in $LEG/PER
+join $r/@oi_personal_emp inner $s/@oi_personal_emp
+			</qry:xquery>
+			<qry:out>
+				<qry:insert-select name="pegar_sanciones" doc-path="$r" to-element="$s"/>
+			</qry:out>
+		</qry:select>
+		<qry:select name="pegar_sanciones" doc="PARAM">
+			<qry:out>
+				<qry:attribute value="concat(@f_fechahora_sanc,format-date($PARAM/@f_fechahora_sanc,'dd/mm/yyyy'),'&lt;br/&gt;')" name="f_fechahora_sanc"/>
+				<qry:attribute value="concat(@d_motivo_corta,$PARAM/@d_motivo_corta,'&lt;br/&gt;')" name="d_motivo_corta"/>
+				<qry:attribute value="concat(@d_sancion,$PARAM/@d_sancion,'&lt;br/&gt;')" name="d_sancion"/>
+				<qry:attribute value="concat(@e_dias_susp_prop,$PARAM/@e_dias_susp_prop,'&lt;br/&gt;')" name="e_dias_susp_prop"/>
+				<qry:attribute value="concat(@e_dias_susp_real,$PARAM/@e_dias_susp_real,'&lt;br/&gt;')" name="e_dias_susp_real"/>
+				<qry:attribute value="concat(@o_motivo_ajuste,$PARAM/@o_motivo_ajuste,'&lt;br/&gt;')" name="o_motivo_ajuste"/>
+				<qry:switch test="$PARAM/@c_estado">
+					<qry:case value="P">
+						<qry:attribute name="estado" value="concat(@estado,'Pendiente','&lt;br/&gt;')"/>
+					</qry:case>
+					<qry:case value="A">
+						<qry:attribute name="estado" value="concat(@estado,'Aceptada','&lt;br/&gt;')"/>
+					</qry:case>
+					<qry:case value="R">
+						<qry:attribute name="estado" value="concat(@estado,'Rechazada','&lt;br/&gt;')"/>
+					</qry:case>
+					<qry:case value="C">
+						<qry:attribute name="estado" value="concat(@estado,'Cancelada','&lt;br/&gt;')"/>
+					</qry:case>
+					<qry:case value="L">
+						<qry:attribute name="estado" value="concat(@estado,'Anulada','&lt;br/&gt;')"/>
+					</qry:case>
+					<qry:default>
+						<qry:attribute name="estado" value="concat(@estado,'','&lt;br/&gt;')"/>
+					</qry:default>
+				</qry:switch>
+			</qry:out>
+		</qry:select>
+	</html:query>
+</html:html>

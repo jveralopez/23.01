@@ -1,0 +1,132 @@
+<html:html xmlns:html="nomad_engine.html" xmlns:qry="nomad_engine.qry" extends="Nomad.Base.BaseReport.rpt" doc="source" name="NucleusRH.Base.Personal.ListadosLicencias">
+	<html:query declare="&lt;DATOS oi_empresa=&quot;1&quot; f_desde=&quot;20120301&quot; f_hasta=&quot;20120331&quot; notif=&quot;3&quot;&gt;&lt;ROWS /&gt;&lt;/DATOS&gt;">
+		<qry:main doc="SOURCE">
+			<qry:append-doc name="PARAMIN" doc-path="#SOURCE:DATOS"/>
+			<REPORT label="Listado de Licencias">
+				<GROUPS>
+					<GROUP tag="EMPS" type="title">
+						<COLS>
+							<COL name="nom_empresa" label="Empresa"/>
+							<COL name="fe_desde" label="Fecha Desde" type="date"/>
+							<COL name="fe_hasta" label="Fecha Hasta" type="date"/>
+						</COLS>
+						<GROUP tag="LIC" label="Licencias" type="table">
+							<COLS>
+								<COL name="legajo" label="Legajo" style="width:5%;text-align:right"/>
+								<COL name="ape_nom" label="Apellido y Nombre" style="width:25%"/>
+								<COL name="tipo_licencia_per" label="Tipo Licencia" style="width:15%"/>
+								<COL name="categconv" label="Convenio - Categoria" style="width:25%"/>
+								<COL name="fe_inicio_per" label="Fecha Inicio" style="width:5%" type="date"/>
+								<COL name="fe_fin_per" label="Fecha Fin" style="width:5%" type="date"/>
+								<COL name="observaciones" label="Observaciones" style="width:20%"/>
+							</COLS>
+						</GROUP>
+					</GROUP>
+				</GROUPS>
+				<qry:element name="DATA">
+					<qry:element name="EMPS">
+						<qry:attribute name="fe_desde" value="format_date($PARAMIN/@f_desde, 'dd/mm/yyyy')"/>
+						<qry:attribute name="fe_hasta" value="format_date($PARAMIN/@f_hasta, 'dd/mm/yyyy')"/>
+						<qry:insert-select doc-path="#SOURCE:DATOS" name="qry_empresa"/>
+						<qry:insert-select doc-path="#SOURCE:DATOS" name="qry_licencias"/>
+					</qry:element>
+				</qry:element>
+			</REPORT>
+		</qry:main>
+		<qry:select doc="PARAM" name="qry_empresa">
+			<qry:xquery>
+				for $r in sql('
+				SELECT 
+					ORG03_EMPRESAS.d_empresa
+				FROM 
+					ORG03_EMPRESAS
+				WHERE
+					ORG03_EMPRESAS.oi_empresa = {#PARAM:@oi_empresa}
+			')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:attribute name="nom_empresa" value="$r/@d_empresa"/>
+			</qry:out>
+		</qry:select>
+		<qry:select doc="PARAM" name="qry_licencias">
+			<qry:xquery>
+				for $r in sql('		
+					SELECT 
+						PER02_PERSONAL_EMP.oi_personal_emp,
+						PER01_PERSONAL.d_ape_y_nom,
+						PER02_PERSONAL_EMP.e_numero_legajo,
+						ORG18_CATEGORIAS.d_categoria,
+						ORG18_CONVENIOS.d_convenio,
+						PER02_LICEN_PER.oi_licencia_per,
+						PER02_LICEN_PER.f_notificacion,
+						PER02_LICEN_PER.f_inicio,
+						PER02_LICEN_PER.o_licencia_per,
+						IIFISNULL(PER02_LICEN_PER.f_interrupcion,PER02_LICEN_PER.f_fin) AS f_fin,
+						PER02_LICEN_PER.f_fin AS f_fin_orig,
+						PER16_LICENCIAS.d_licencia
+					FROM 
+						PER02_PERSONAL_EMP
+						, PER01_PERSONAL
+						, PER02_LICEN_PER
+						, PER16_LICENCIAS
+						, ORG18_CATEGORIAS
+						, ORG18_CONVENIOS
+					JOIN 
+						PER01_PERSONAL.oi_personal INNER PER02_PERSONAL_EMP.oi_personal
+						,	PER02_LICEN_PER.oi_personal_emp INNER PER02_PERSONAL_EMP.oi_personal_emp
+						, PER16_LICENCIAS.oi_licencia INNER PER02_LICEN_PER.oi_licencia
+						,	ORG18_CATEGORIAS.oi_categoria INNER PER02_PERSONAL_EMP.oi_categoria_ult			  
+						, ORG18_CONVENIOS.oi_convenio INNER ORG18_CATEGORIAS.oi_convenio
+					WHERE        
+						PER02_PERSONAL_EMP.oi_empresa = {#PARAMIN:@oi_empresa}   
+						{%? (string(#PARAMIN:@boolEnPeriodo)!='1') 
+							{% 
+								AND ((PER02_LICEN_PER.f_inicio &gt;= {Datetime(#PARAMIN:@f_desde)}
+  									  AND  PER02_LICEN_PER.f_inicio &lt;= {Datetime(#PARAMIN:@f_hasta)})
+ 									OR
+  									 (PER02_LICEN_PER.f_fin &gt;= {Datetime(#PARAMIN:@f_desde)}
+  									  AND  PER02_LICEN_PER.f_fin &lt;= {Datetime(#PARAMIN:@f_hasta)})	  
+ 									OR
+  									 (PER02_LICEN_PER.f_inicio &lt;= {Datetime(#PARAMIN:@f_desde)}
+  									  AND  PER02_LICEN_PER.f_fin &gt;= {Datetime(#PARAMIN:@f_hasta)}))	 
+							%} 
+							{% 
+								AND PER02_LICEN_PER.f_inicio &gt;= {Datetime(#PARAMIN:@f_desde)}
+								AND PER02_LICEN_PER.f_fin &lt;= {Datetime(#PARAMIN:@f_hasta)}
+							%} 
+						%}  
+					
+						{%? (string(#PARAMIN:ROWS/ROW/@id)!='') {% AND PER02_LICEN_PER.oi_licencia in ({%=string(#PARAMIN:ROWS/ROW/@id) %}) %} {% %} %}          
+          				{%? (string(#PARAMIN:@notif)='1')           	
+          					{% AND isNotNull(PER02_LICEN_PER.f_notificacion) %}           		
+          					{%         	          	    
+          	    				{%? (string(#PARAMIN:@notif)='2')           	
+          							{% AND isNull(PER02_LICEN_PER.f_notificacion) %}           		
+          							{% %}          	 	 
+          						%}          	     
+          	 				%}          	 	 
+          				%}
+          		
+          			ORDER BY
+          				f_inicio DESC
+				')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:element name="LIC">
+					<qry:attribute name="legajo" value="$r/@e_numero_legajo"/>
+					<qry:attribute name="ape_nom" value="$r/@d_ape_y_nom"/>
+					<qry:attribute name="tipo_licencia_per" value="$r/@d_licencia"/>
+					<qry:attribute name="categconv" value="$r/@d_categoria + '-' + $r/@d_convenio"/>
+					<qry:attribute name="fe_inicio_per" value="format_date($r/@f_inicio, 'dd/mm/yyyy')"/>
+					<qry:attribute name="fe_fin_per" value="format_date($r/@f_fin, 'dd/mm/yyyy')"/>
+					<qry:attribute name="observaciones" value="$r/@o_licencia_per"/>
+					<qry:if test="$r/@f_fin != $r/@f_fin_orig">
+						<qry:then>
+							<qry:attribute name="observaciones" value="'Interrumpida. Fecha Fin Original: ' + format_date($r/@f_fin_orig, 'dd/mm/yyyy')"/>
+						</qry:then>
+					</qry:if>
+				</qry:element>
+			</qry:out>
+		</qry:select>
+	</html:query>
+</html:html>

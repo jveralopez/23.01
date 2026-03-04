@@ -1,0 +1,135 @@
+<html:html xmlns:html="nomad_engine.html" xmlns:qry="nomad_engine.qry" extends="Nomad.Base.BaseReport.rpt" doc="source" name="NucleusRH.Base.Seguridad.EstructuraRol.rpt">
+	<html:query declare="&lt;PARAMETERS salida=&quot;HTML&quot; oi_role=&quot;1&quot; oi_personal_emp=&quot;2382&quot;/&gt;">
+		<qry:main doc="SOURCE">
+			<qry:append-doc name="PARAMIN" doc-path="#SOURCE:."/>
+			<REPORT label="Estructura de roles">
+				<qry:attribute name="date" value="format_date(Now(),'dd/mm/yyyy HH:MM')"/>
+				<GROUPS>
+					<GROUP tag="EMP" type="title" noreg="No se encontraron registros para los filtros seleccionados.">
+						<GROUP tag="PER" type="table" noreg="No se encontraron registros para los filtros seleccionados.">
+							<COLS>
+								<COL name="c_estructura" label="Codigo Nodo" style="width:10%; text-align:right;"/>
+								<COL name="d_estructura" label="Descripci&#243;n Nodo" style="text-align:center; width:15%;"/>
+								<COL name="d_role" label="Rol Nodo" style="width:20%;"/>
+								<COL name="c_estructura_padre" label="Codigo Nodo padre" style="width:15%;"/>
+								<COL name="d_estructura_padre" label="Descripcion Nodo Padre" style="width:15%;"/>
+								<COL name="d_role_padre" label="Rol Nodo Padre" style="width:20%;"/>
+								<COL type="long" name="e_numero_legajo" label="Numero de Legajo" style="width:10%;"/>
+								<COL name="d_ape_y_nom" label="Apellido y Nombre" style="width:10%;"/>
+							</COLS>
+						</GROUP>
+					</GROUP>
+				</GROUPS>
+				<qry:element name="DATA">
+					<qry:element name="EMP">
+						<qry:insert-select name="qry_nodos"/>
+						<qry:attribute name="total" value="./@total" type="Nomad.NSystem.String"/>
+					</qry:element>
+				</qry:element>
+			</REPORT>
+		</qry:main>
+		<qry:select doc="SOURCE" name="qry_cabecera">
+			<qry:xquery>
+				for $r in sql('
+				SELECT 
+					LIQ93_EMPRESAS.d_empresa, 
+					LIQ99_LIQUIDACION.c_liquidacion, 
+					LIQ99_LIQUIDACION.d_titulo
+				FROM 
+					LIQ93_EMPRESAS, 
+					LIQ99_LIQUIDACION, 
+					LIQ19_EJECUCIONES, 
+					LIQ19_LIQUIDACION
+				JOIN 
+					LIQ93_EMPRESAS.oi_empresa_ddo INNER LIQ99_LIQUIDACION.oi_empresa_ddo,
+					LIQ99_LIQUIDACION.oi_liquidacion_ddo INNER LIQ19_EJECUCIONES.oi_liquidacion_ddo,
+					LIQ19_EJECUCIONES.oi_liquidacion INNER LIQ19_LIQUIDACION.oi_liquidacion
+				WHERE 
+					LIQ19_LIQUIDACION.oi_liquidacion = {#PARAMIN:@oi_liquidacion} and
+					LIQ99_LIQUIDACION.c_estado = \'F\'
+					{%? (#PARAMIN:@l_simulacion!='')	{% AND LIQ19_LIQUIDACION.l_simulacion = {%= #PARAMIN:@l_simulacion %} %} {% %} %}
+			')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:attribute name="d_empresa" value="$r/@d_empresa" type="Nomad.NSystem.String"/>
+				<qry:attribute name="d_liquidacion" value="$r/@c_liquidacion + ' - ' + $r/@d_titulo" type="Nomad.NSystem.String"/>
+			</qry:out>
+		</qry:select>
+		<qry:select doc="SOURCE" name="qry_banco">
+			<qry:xquery>
+				for $r in sql('
+				SELECT LIQ22_BANCOS.d_banco 
+				FROM LIQ22_BANCOS
+				WHERE LIQ22_BANCOS.oi_banco = {#PARAMIN:@oi_banco}
+			')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:attribute name="d_banco" value="$r/@d_banco" type="Nomad.NSystem.String"/>
+			</qry:out>
+		</qry:select>
+		<qry:select doc="SOURCE" name="qry_nodos">
+			<qry:xquery>
+				for $r in sql('
+				SELECT 
+				ESTRUCTURA_NODO.c_estructura ,	
+				ESTRUCTURA_NODO.d_estructura, 
+				ROL_HIJO.d_role, 
+				ESTRUCTURA_PADRE.c_estructura as c_estructura_padre,
+				ESTRUCTURA_PADRE.d_estructura as d_estructura_padre,
+				ROL_PADRE.d_role as d_role_padre,    
+				PER02_PERSONAL_EMP.e_numero_legajo,
+				PER01_PERSONAL.d_ape_y_nom 
+				
+				FROM    
+				SEG01_ESTRUCTURA AS ESTRUCTURA_NODO
+				,SEG01_ESTRUCTURA AS ESTRUCTURA_PADRE
+				,SEG01_ROLES AS ROL_PADRE
+				,SEG01_PER_ESTR
+				,PER01_PERSONAL
+				,PER02_PERSONAL_EMP
+				,SEG01_ROLES as ROL_HIJO 
+				
+				JOIN
+				
+				ESTRUCTURA_NODO.oi_estructura INNER  SEG01_PER_ESTR.oi_estructura,
+				SEG01_PER_ESTR.oi_personal INNER  PER01_PERSONAL.oi_personal,
+				PER02_PERSONAL_EMP.oi_personal INNER  PER01_PERSONAL.oi_personal,
+				ROL_HIJO.c_role INNER ESTRUCTURA_NODO.c_role,
+				ESTRUCTURA_NODO.c_estr_padre LEFT OUTER ESTRUCTURA_PADRE.c_estructura ,
+				ESTRUCTURA_PADRE.c_role LEFT OUTER ROL_PADRE.c_role	
+				
+				WHERE	
+				1=1
+				{%? (#PARAMIN:@oi_role != '')	{% AND ROL_HIJO.oi_role = {#PARAMIN:@oi_role} %} {% %} %} 
+				{%? (#PARAMIN:@oi_personal_emp != '')	{% AND PER02_PERSONAL_EMP.oi_personal_emp = {#PARAMIN:@oi_personal_emp} %} {% %} %}
+				
+  
+				ORDER BY e_numero_legajo ASC  
+
+				
+			')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:element name="PER">
+					<qry:attribute name="c_estructura" value="$r/@c_estructura" type="Nomad.NSystem.String"/>
+					<qry:attribute name="d_estructura" value="$r/@d_estructura" type="Nomad.NSystem.String"/>
+					<qry:attribute name="d_role" value="$r/@d_role" type="Nomad.NSystem.String"/>
+					<qry:attribute name="c_estructura_padre" value="$r/@c_estructura_padre" type="Nomad.NSystem.String"/>
+					<qry:attribute name="d_estructura_padre" value="$r/@d_estructura_padre" type="Nomad.NSystem.String"/>
+					<qry:attribute name="d_role_padre" value="$r/@d_role_padre" type="Nomad.NSystem.String"/>
+					<qry:attribute name="e_numero_legajo" value="$r/@e_numero_legajo" type="Nomad.NSystem.String"/>
+					<qry:attribute name="d_ape_y_nom" value="$r/@d_ape_y_nom" type="Nomad.NSystem.String"/>
+				</qry:element>
+			</qry:out>
+		</qry:select>
+		<qry:select doc="SOURCE" name="qry_total">
+			<qry:xquery>
+				for $r in #SOURCE:PERSONAS/PERSONA
+			</qry:xquery>
+			<qry:out>
+				<qry:attribute name="total_num" value="number(./@total_num) + number($r/@n_totpag_num)" type="Nomad.NSystem.String"/>
+				<qry:attribute name="total" value="format_number(./@total_num, '$###,###,##0.00')" type="Nomad.NSystem.String"/>
+			</qry:out>
+		</qry:select>
+	</html:query>
+</html:html>

@@ -1,0 +1,1196 @@
+<form:Form xmlns:form="nomad_engine.form" xmlns:qry="nomad_engine.qry" doc="source" default_mode="SHOW" name="POLICY">
+	<form:Resources>
+		<form:Resource resource="FORM.NucleusRH.Base.Seguridad.Organigramas.TREE-POLICY.form.001" name="qry:org-seg">
+			<qry:main maxdeep="2">
+				<tree>
+					<group>
+						<qry:insert-select name="sql1"/>
+					</group>
+				</tree>
+			</qry:main>
+			<qry:select doc="PARAM" name="sql1">
+				<qry:xquery>
+					for $r in sql('
+				SELECT 
+					SEG01_ORGANIGRAMAS.oi_organigrama,
+					SEG01_ORGANIGRAMAS.c_organigrama,
+					SEG01_ORGANIGRAMAS.d_organigrama
+				FROM 
+					SEG01_ORGANIGRAMAS
+			')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:attribute name="id" value="$r/@c_organigrama"/>
+					<qry:attribute name="label" value="$r/@d_organigrama"/>
+					<qry:attribute name="tag" value="'|0'"/>
+					<qry:attribute value="'organigrama0.ico'" name="imgClose"/>
+					<qry:attribute value="'organigrama0.ico'" name="imgOpen"/>
+					<access>
+						<qry:attribute value="'./JER'" name="policy"/>
+					</access>
+				</qry:out>
+			</qry:select>
+		</form:Resource>
+		<form:Resource resource="FORM.NucleusRH.Base.Seguridad.Organigramas.TREE-POLICY.form.002" name="qry:estructuras">
+			<qry:main doc="SOURCE">
+				<tree>
+					<qry:insert-select name="sql1" doc-path="#SOURCE:."/>
+				</tree>
+			</qry:main>
+			<qry:select doc="PARAM" name="sql1">
+				<qry:xquery>
+					for $r in sql('
+				SELECT 
+					SEG01_ESTRUCTURA.oi_estructura,
+					SEG01_ESTRUCTURA.c_estructura,
+					SEG01_ESTRUCTURA.d_estructura,
+					PADRE.c_estr_padre,
+					SEG01_ROLES.d_color
+				FROM 
+					SEG01_ESTRUCTURA,
+					SEG01_ROLES,
+					(SELECT 
+						SEG01_ESTRUCTURA.c_estr_padre 
+					 FROM
+					 	SEG01_ESTRUCTURA
+					 GROUP BY 
+					 	SEG01_ESTRUCTURA.c_estr_padre) AS PADRE
+					JOIN
+						SEG01_ESTRUCTURA.c_role INNER SEG01_ROLES.c_role,
+						SEG01_ESTRUCTURA.c_estructura LEFT OUTER PADRE.c_estr_padre
+					{%? ($PARAM/@c_estr_padre!='') 
+						{% WHERE SEG01_ESTRUCTURA.c_estr_padre = {$PARAM/@c_estr_padre} %} 
+						{% WHERE (ISNULL(SEG01_ESTRUCTURA.c_estr_padre) OR SEG01_ESTRUCTURA.c_estr_padre = \'\') %} 
+				  %}
+			')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<group>
+						<qry:attribute name="id" value="$r/@c_estructura"/>
+						<qry:attribute name="tag" value="$r/@oi_estructura + '|' + iif($r/@c_estr_padre!='', '0','1')"/>
+						<qry:attribute name="label" value="$r/@d_estructura"/>
+						<qry:attribute name="color" value="$r/@d_color"/>
+						<access>
+							<qry:attribute name="policy" value="$PARAM/@seg+'/'+$r/@c_estructura"/>
+						</access>
+					</group>
+				</qry:out>
+			</qry:select>
+		</form:Resource>
+		<form:Resource resource="FORM.NucleusRH.Base.Seguridad.Organigramas.TREE-POLICY.form.003" name="qry:per">
+			<qry:main doc="PARAM">
+				<qry:element name="ROWS">
+					<qry:insert-select name="sql1" doc-path="#PARAM:DATO"/>
+				</qry:element>
+			</qry:main>
+			<qry:select name="sql1" doc="PARAM">
+				<qry:xquery>
+					for $r in sql('
+				
+				SELECT
+					SEG01_PER_ESTR.oi_personal_estr,
+					PER01_PERSONAL.d_ape_y_nom as d_ape_y_nom											
+				FROM
+					SEG01_PER_ESTR,
+					PER01_PERSONAL
+				JOIN					
+					SEG01_PER_ESTR.oi_personal INNER PER01_PERSONAL.oi_personal
+				WHERE
+					SEG01_PER_ESTR.oi_estructura = {#PARAM:@oi_estructura}
+				ORDER BY 
+					d_ape_y_nom ASC
+					
+			')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:element name="ROW">
+						<qry:attribute value="$r/@oi_personal_estr" name="id"/>
+					</qry:element>
+				</qry:out>
+			</qry:select>
+		</form:Resource>
+		<form:Resource resource="FORM.NucleusRH.Base.Seguridad.Organigramas.TREE-POLICY.form.004" name="qry:datosper">
+			<qry:main doc="PARAM">
+				<qry:element name="ROWS">
+					<qry:insert-select name="sql1" doc-path="#PARAM:PARAM"/>
+					<qry:if test="@id != ''">
+						<qry:then>
+							<qry:element name="ROW">
+								<qry:attribute value="../@id" name="id"/>
+								<qry:attribute name="persona" value="../@persona"/>
+								<qry:attribute name="legajo" value="../@legajo"/>
+								<qry:attribute name="borrado" value="../@borrado"/>
+							</qry:element>
+						</qry:then>
+					</qry:if>
+				</qry:element>
+			</qry:main>
+			<qry:select name="sql1" doc="PARAM">
+				<qry:xquery>
+					for $r in sql('
+				SELECT
+					SEG01_PER_ESTR.oi_personal_estr,
+					PER02_PERSONAL_EMP.e_numero_legajo as e_numero_legajo,					
+					PER01_PERSONAL.d_ape_y_nom as d_ape_y_nom,
+					SEG01_PER_ESTR.l_borrado
+				FROM 
+					PER01_PERSONAL,
+					PER02_PERSONAL_EMP,
+					SEG01_PER_ESTR
+				JOIN
+					SEG01_PER_ESTR.oi_personal INNER PER01_PERSONAL.oi_personal,
+					SEG01_PER_ESTR.oi_personal INNER PER02_PERSONAL_EMP.oi_personal									
+				WHERE
+					SEG01_PER_ESTR.oi_personal_estr in ({%=#PARAM:@IDS%})
+				ORDER BY
+					d_ape_y_nom ASC, e_numero_legajo ASC 
+			')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:if test="$r/@oi_personal_estr != @id">
+						<qry:then>
+							<qry:if test="@id != ''">
+								<qry:then>
+									<qry:element name="ROW">
+										<qry:attribute value="../@id" name="id"/>
+										<qry:attribute name="persona" value="../@persona"/>
+										<qry:attribute name="legajo" value="../@legajo"/>
+										<qry:attribute name="borrado" value="../@borrado"/>
+									</qry:element>
+								</qry:then>
+							</qry:if>
+							<qry:attribute value="$r/@oi_personal_estr" name="id"/>
+							<qry:attribute name="persona" value="$r/@d_ape_y_nom"/>
+							<qry:attribute name="legajo" value="$r/@e_numero_legajo"/>
+							<qry:attribute name="borrado" value="$r/@l_borrado"/>
+						</qry:then>
+						<qry:else>
+							<qry:attribute name="legajo" value="@legajo + ',' + $r/@e_numero_legajo"/>
+						</qry:else>
+					</qry:if>
+				</qry:out>
+			</qry:select>
+		</form:Resource>
+		<form:Resource resource="FORM.NucleusRH.Base.Seguridad.Organigramas.TREE-POLICY.form.005" name="qry:organigrama">
+			<qry:main doc="PARAM">
+				<qry:element name="ROWS">
+					<qry:insert-select name="sql1"/>
+				</qry:element>
+			</qry:main>
+			<qry:select name="sql1" doc="PARAM">
+				<qry:xquery>
+					for $r in sql('
+				SELECT 
+					SEG01_ORGANIGRAMAS.oi_organigrama,
+					SEG01_ORGANIGRAMAS.l_seguridad
+				FROM 
+					SEG01_ORGANIGRAMAS
+				WHERE
+					SEG01_ORGANIGRAMAS.l_automatica = 1
+			')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:attribute name="id" value="$r/@oi_organigrama"/>
+					<qry:attribute name="l_seguridad" value="$r/@l_seguridad"/>
+				</qry:out>
+			</qry:select>
+		</form:Resource>
+		<form:Resource resource="FORM.NucleusRH.Base.Seguridad.Organigramas.TREE-POLICY.form.006" name="qry:datosgru">
+			<qry:main doc="PARAM">
+				<qry:element name="ROWS">
+					<qry:insert-select name="sql1" doc-path="#PARAM:PARAM"/>
+				</qry:element>
+			</qry:main>
+			<qry:select name="sql1" doc="PARAM">
+				<qry:xquery>
+					for $r in sql('
+				SELECT 
+					SEG02_GRUPOS.oi_grupo,
+					SEG02_GRUPOS.c_grupo,
+					SEG02_GRUPOS.d_grupo,
+					SEG01_GRUPO_ESTR.l_borrado,
+					SEG01_GRUPO_ESTR.oi_grupo_estr
+				FROM 
+					SEG02_GRUPOS,
+					SEG01_GRUPO_ESTR
+				JOIN
+					SEG02_GRUPOS.oi_grupo INNER SEG01_GRUPO_ESTR.oi_grupo				
+				WHERE
+					SEG01_GRUPO_ESTR.oi_grupo_estr in ({%=#PARAM:@IDS%})
+			')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:element name="ROW">
+						<qry:attribute value="$r/@oi_grupo_estr" name="id"/>
+						<qry:attribute name="label" value="'['+$r/@c_grupo+'] - ' + $r/@d_grupo"/>
+						<qry:attribute name="borrado" value="$r/@l_borrado"/>
+					</qry:element>
+				</qry:out>
+			</qry:select>
+		</form:Resource>
+		<form:Resource resource="FORM.NucleusRH.Base.Seguridad.Organigramas.TREE-POLICY.form.007" name="qry:gru">
+			<qry:main doc="PARAM">
+				<qry:element name="ROWS">
+					<qry:insert-select name="sql1" doc-path="#PARAM:DATO"/>
+				</qry:element>
+			</qry:main>
+			<qry:select name="sql1" doc="PARAM">
+				<qry:xquery>
+					for $r in sql('
+				SELECT 
+					SEG01_GRUPO_ESTR.oi_grupo,
+					SEG01_GRUPO_ESTR.oi_grupo_estr											
+				FROM
+					SEG01_GRUPO_ESTR
+				WHERE
+					SEG01_GRUPO_ESTR.oi_estructura = {#PARAM:@oi_estructura} 
+			')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:element name="ROW">
+						<qry:attribute value="$r/@oi_grupo_estr" name="id"/>
+					</qry:element>
+				</qry:out>
+			</qry:select>
+		</form:Resource>
+		<form:Resource resource="FORM.NucleusRH.Base.Seguridad.Organigramas.TREE-POLICY.form.008" name="buscarPersonas">
+			<qry:main name="MAIN" doc="PARAM">
+				<options>
+					<qry:insert-select name="SQL1" doc-path="#PARAM:."/>
+				</options>
+			</qry:main>
+			<qry:select name="SQL1" doc="PARAM">
+				<qry:xquery>
+					for $r in SQL('
+			 
+				SELECT  
+				  SEG01_PER_ESTR.oi_personal_estr as ID,				  
+				  PER02_PERSONAL_EMP.e_numero_legajo as COD,
+				  PER01_PERSONAL.d_ape_y_nom as DES,				  
+				  SEC.policy
+				
+				FROM
+					NMD_SECURITY(class=\'NucleusRH.Base.Personal.Legajo.PERSONAL\') as SEC,
+				  SEG01_PER_ESTR,
+				  PER01_PERSONAL,
+				  PER02_PERSONAL_EMP
+				
+				JOIN
+					PER01_PERSONAL.oi_personal LEFT OUTER SEC.id,
+				  SEG01_PER_ESTR.oi_personal inner PER01_PERSONAL.oi_personal,
+				  SEG01_PER_ESTR.oi_personal inner PER02_PERSONAL_EMP.oi_personal
+				
+				WHERE
+				  1=1
+					{%? (#PARAM:@TXT_FIND='')
+						{% %}
+						{% and (contain(DES,{#PARAM:@TXT_FIND}))
+						%}
+					%}
+					{%? (#PARAM:@NRO_LEG='')
+						{% %}
+						{% and COD = {#PARAM:@NRO_LEG} %}
+					%}
+				
+				ORDER BY
+					DES ASC			
+			
+			')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<option>
+						<qry:attribute name="ID" value="$r/@ID"/>
+						<qry:attribute name="COD" value="$r/@COD"/>
+						<qry:attribute name="DES" value="$r/@DES"/>
+						<qry:attribute name="estructura" value="substring-after($r/@policy,'./JER/')"/>
+					</option>
+				</qry:out>
+			</qry:select>
+		</form:Resource>
+	</form:Resources>
+	<form:Scripts>
+		function buscar_legajo()
+{
+  if(Ctrl('buscar_legajo').GetXValue()=="") return;
+  
+  Ctrl('buscar_nro_leg').SetXValue("");
+  
+  var xmlParam = new NomadXML('PARAM');
+  var TXT_FIND = Ctrl('buscar_legajo').GetXValue();
+	xmlParam.SetAttr('TXT_FIND', TXT_FIND);
+  FilterGrid(xmlParam.ToString());
+}
+
+
+function buscar_nro_leg()
+{
+	if(Ctrl('buscar_nro_leg').GetXValue()&lt;0) Ctrl('buscar_nro_leg').SetXValue("");
+	if(Ctrl('buscar_nro_leg').GetXValue()=="") return;
+	
+	Ctrl('buscar_legajo').SetXValue("");
+		
+  var xmlParam = new NomadXML('PARAM');
+  var NRO_LEG = Number(Ctrl('buscar_nro_leg').GetXValue());		
+	xmlParam.SetAttr('NRO_LEG', NRO_LEG);
+	FilterGrid(xmlParam.ToString());	
+}
+
+
+
+function FilterGrid(xmlParam)
+{		
+	var nSQL = GetProxy().SQLService();		
+	var xmlPersonas = nSQL.GetXML(Ctrl('main').getResource('buscarPersonas'), xmlParam);		
+	
+	var arrXmlPersona = xmlPersonas.GetChilds();	
+	
+	
+	if(arrXmlPersona.length==0)
+	{	
+	 	alert("No se encontraron resultados para la b&#250;squeda.");
+		return;	
+	}
+	   
+	// se prueba de comentar esto para ver si de esta manera el buscador resulta m&#225;s efectivo
+	   
+	/*
+	if(arrXmlPersona.length&gt;1)
+	{		
+		var mensaje = "Se encontraron " + arrXmlPersona.length + " Legajos";	
+		var hasta;
+		
+		if (arrXmlPersona.length&gt;10)
+		{
+			hasta = 10;
+			mensaje =	mensaje + ". Se muestran los primeros 10:\n\n";
+		}
+		else
+		{
+			hasta = arrXmlPersona.length;
+		  mensaje =	mensaje + ":\n\n";
+		}
+		
+		
+		for (var i=0; i&lt;hasta; i++)
+		{
+			mensaje = mensaje + arrXmlPersona[i].GetAttr("DES") + " - Legajo: [" + arrXmlPersona[i].GetAttr("COD") + "]\n";			
+		}
+		mensaje = mensaje + "\nPor favor refine la b&#250;squeda.";
+		alert(mensaje);
+		return;	
+	}  
+	*/
+	
+	
+	if(arrXmlPersona.length&gt;=1)
+	{
+		ruta = "ORG:SEG";		
+		Ctrl("TREE_CONT_POLICY_TREE").ClickGroup(ruta);	
+		ReloadTree(ruta);
+
+		if (arrXmlPersona[0].GetAttr("estructura")=="")
+		{ 
+			var mensaje = "El Legajo ["+ arrXmlPersona[0].GetAttr("COD") + "] ";
+			mensaje = mensaje + arrXmlPersona[0].GetAttr("DES") + " se encuentra en la Estructura pero no se le ha activado la Seguridad.\n";
+			alert(mensaje);
+			return;
+		}		
+		
+		arrCodEstr = arrXmlPersona[0].GetAttr("estructura").split("/");		
+		 
+	  for (var i=0; i&lt;arrCodEstr.length-1; i++)
+		{
+	  	ruta = ruta + "/" + arrCodEstr[i];
+			ExpandEstr(ruta);	
+		}
+				
+				
+		Ctrl("TREE_CONT_POLICY_TREE").ClickGroup(ruta+"/"+arrCodEstr[arrCodEstr.length-1]);
+	
+		var page = GetPageByID(arrXmlPersona[0].GetAttr("ID"));		
+		Ctrl("listPERS").GotoPage(page);
+	}
+	
+	/*
+	
+	var myTree = Ctrl("TREE_CONT_POLICY_TREE");	
+	
+	//RefreshTree();
+	ReloadTree("ORG:SEG");
+	//RefreshTree();
+	
+	var codigos_estr;
+	var ruta;
+	
+	//Por cada persona expando los nodos, salvo el nodo al que pertenece
+	for (var cur=xmlPersonas.FirstChild(); cur!=null; cur=cur.Next())
+	{
+		codigos_estr = cur.GetAttr("estructura").split("/");
+		ruta = "ORG:SEG";
+		
+		for (var i=0; i&lt;codigos_estr.length-1; i++)
+		{
+	  	ruta = ruta + "/" + codigos_estr[i];
+			ExpandEstr(ruta);	
+		}		
+	}
+	
+	//Me posiciono sobre el nodo que contiene la primer persona encontrada	
+	myTree.ClickGroup("ORG:SEG/"+xmlPersonas.FirstChild().GetAttr("estructura"));
+	*/
+}
+
+
+function GetPageByID(ID)
+{
+	var listPERS = Ctrl("listPERS");
+	
+	for (var i=0; i&lt;listPERS.IDs.length; i++)
+	{		
+		if (listPERS.IDs[i]==ID)
+			return Math.floor(i/listPERS.PageSize);
+	}
+}
+
+
+
+
+function ExpandEstr(id)
+{	
+	myTree = Ctrl("TREE_CONT_POLICY_TREE");		
+	myEstr = myTree.GetGroup(id);					
+	if(myEstr != null &amp;&amp; !myEstr.isExpanded)
+	{
+		LoadChilds(myTree, myEstr);
+		myTree.ExpandGroup(myEstr,true);
+	}
+}
+
+
+
+
+
+function LoadChilds(objTree, objEstr)
+{	     
+	var XMLResult;
+	var NodeID;
+	
+	
+	//////////////////////////////////////////////////////////////////////////////////////////
+	//Ejecuto el Query
+	if(objEstr != null &amp;&amp; objEstr.FullId.split("/").length &gt; 1)	
+	{
+		NodeID=objEstr.FullId;
+		XMLResult=nSQL.GetXML(Ctrl("main").getResource("qry:estructuras"), '&lt;DATO seg="./JER/'+NodeID.substr(8)+'" c_estr_padre="'+objEstr.Id+'" /&gt;');
+	} else           
+	{
+		NodeID='ORG:SEG';
+		XMLResult=nSQL.GetXML(Ctrl("main").getResource("qry:estructuras"), '&lt;DATO seg="./JER" c_estr_padre="" /&gt;');
+	}        
+	
+	//////////////////////////////////////////////////////////////////////////////////////////
+	//Actualizo los Campos
+	for (cur=XMLResult.FirstChild(); cur!=null; cur=cur.Next())
+	{         
+		if (cur.FindElement("access")==null)
+		{
+			cur.SetAttr("imgClose","../check/lock_check_n.gif");
+			cur.SetAttr("imgOpen" ,"../check/lock_check_n.gif");
+			cur.SetAttr("tag", cur.GetAttr("tag")+"|0");
+		} 
+		else
+		{
+			cur.SetAttr("imgClose","../../../../NomadFile.aspx?mode=GRAPHICS&amp;report=NucleusRH.Base.Seguridad.IconEstr.rpt&amp;color="+cur.GetAttr("color"));
+			cur.SetAttr("imgOpen" ,"../../../../NomadFile.aspx?mode=GRAPHICS&amp;report=NucleusRH.Base.Seguridad.IconEstr.rpt&amp;color="+cur.GetAttr("color"));
+			cur.SetAttr("tag", cur.GetAttr("tag")+"|1");
+		}
+	}               
+	
+	//////////////////////////////////////////////////////////////////////////////////////////
+	//Actualizo el ARBOL
+	objTree.SetXML(NodeID, XMLResult.ToString());		
+	RefreshButtons(Ctrl('POLICY_TREE_VALUE').GetXValue());	
+}
+
+function OnLoad()
+{    	
+	np = new NomadProxy("", ut);
+	nSQL = np.SQLService();
+   	
+	//Cargo el Arbol de Seguridad	
+	var GROUP_TREE=clsClientTree("CONT_POLICY_TREE","POLICY_TREE_VALUE","CLOCK.ico","folder-close.ico","folder.ico","item.ico",true,LoadChilds,null,RefreshData);
+	GROUP_TREE.SetXML(null, nSQL.Get(Ctrl("main").getResource("qry:org-seg"), ""));
+	 		
+	//Actualizo los Botones	              
+	RefreshButtons(Ctrl('POLICY_TREE_VALUE').GetXValue());	
+	RefreshData(); 
+	RefreshAplica();
+}
+
+function RefreshData()
+{			
+	myTree = Ctrl("TREE_CONT_POLICY_TREE");	
+	myEstr = myTree.GetGroup(Ctrl('POLICY_TREE_VALUE').GetXValue());	
+	
+  var lst=Ctrl("listPERS");
+  var lstg=Ctrl("listGROUPS");
+  lst.IDs=new Array();
+  lstg.IDs=new Array();
+  
+	if (myEstr==null || myEstr.Id=="ORG:SEG")
+	{ 
+		lst.MsgEmply="No hay ning&#250;n nodo selecionado."; 
+		lstg.MsgEmply="No hay ning&#250;n nodo selecionado.";
+	} else                            
+	if (myEstr.Tag.split("|")[2]=="0")
+	{
+ 		lst.MsgEmply="No se disponen de suficientes{br}privilegios para visualizar{br}el contenido del Nodo."; 
+ 		lstg.MsgEmply="No se disponen de suficientes{br}privilegios para visualizar{br}el contenido del Nodo.";
+	} else
+	{
+		var id = myEstr.Tag.split("|")[0];		
+		var np, nSQL;
+
+		np = GetProxy();
+		nSQL = np.SQLService(); 	
+	
+		var qry = Ctrl("main").getResource("qry:per");	     
+	  var result = nSQL.GetXML(qry, "&lt;DATO oi_estructura =\""+id+"\"/&gt;");
+	  
+	  //Genero la Lista de IDS de Personas
+	  for (var cur=result.FirstChild(); cur!=null; cur=cur.Next())
+	    lst.IDs.push(cur.GetAttr("id"));
+	  
+	  lst.MsgEmply="No hay Personas Asignadas";
+	  
+	  var qry = Ctrl("main").getResource("qry:gru");	     
+	  var result = nSQL.GetXML(qry, "&lt;DATO oi_estructura =\""+id+"\"/&gt;");  
+	  
+	  //Genero la Lista de IDS de Grupos
+	  for (var cur=result.FirstChild(); cur!=null; cur=cur.Next())
+	    lstg.IDs.push(cur.GetAttr("id"));
+	  
+	  lstg.MsgEmply="No hay Grupos Asignados";
+	  
+ 	}
+ 	Ctrl("arrcheck").DelAllRow();
+ 	Ctrl("arrcheckg").DelAllRow();
+  lst.ResetSQL();
+  lstg.ResetSQL();	  
+ 	
+ 	RefreshButtons(Ctrl('POLICY_TREE_VALUE').GetXValue());
+}
+
+function RefreshArray()
+{
+	RefreshButtons(Ctrl('POLICY_TREE_VALUE').GetXValue());
+}
+function RefreshButtons(groupid)
+{				
+	var estr_add = true;
+	var estr_cut = true;
+	var estr_paste = true;
+	var estr_del = true;
+	var per_add = true;
+	var per_mark = true;
+	var per_del = true;
+	var gru_add = true;
+	var gru_mark = true;
+	var gru_del = true;
+		
+	if (groupid=="")
+	{
+		estr_add = false;
+		estr_cut = false;
+		estr_paste = false;
+		estr_del = false;
+		per_add = false;
+		per_mark = false;
+		per_del = false;
+		gru_add = false;
+		gru_mark = false;
+		gru_del = false;
+	}  else           
+	{		            
+		myTree = Ctrl("TREE_CONT_POLICY_TREE");			
+		myEstr = myTree.GetGroup(groupid);
+		if (myEstr==null || myEstr.Tag.split("|")[2]=="0")
+		{
+			estr_add = false;
+			estr_cut = false;
+			estr_paste = false;
+			estr_del = false;
+			per_add = false;
+			per_mark = false;
+			per_del = false;
+			gru_add = false;
+			gru_mark = false;
+			gru_del = false;
+		} else
+		{
+			pathList=groupid.toString().split("/");		
+			if (pathList.length==1)
+			{
+				estr_add = true;
+				estr_cut = false;
+				if(Ctrl('ESTR_CUT_ID').GetXValue() == "")
+					estr_paste = false;
+				estr_del = false;
+				per_add = false;
+				per_mark = false;
+				per_del = false;
+				gru_add = false;
+				gru_mark = false;
+				gru_del = false;
+			} 
+			else		
+			{
+				estr_add = true;
+				estr_cut = true;			
+				estr_del = false;
+				per_add = true;
+				per_mark = true;
+				per_del = false;
+				estr_paste = true;
+				gru_add = true;
+				gru_mark = true;
+				gru_del = false;
+				
+				if(Ctrl('ESTR_CUT_ID').GetXValue() == "") estr_paste = false;
+				if(Ctrl("arrcheck").CountRow() &gt; 0) per_del = true;
+				if(Ctrl("arrcheckg").CountRow() &gt; 0) gru_del = true;
+				if(myEstr.Tag.split("|")[1] == "1" &amp;&amp; Ctrl("l_seguridad").GetXValue() == 1) estr_del = true;
+					
+				//No permitir pegar sobre el mismo nodo
+				if(Ctrl('ESTR_CUT_ID').GetXValue()==groupid) estr_paste = false;
+					
+				//No permitir pegar en nodo hijo
+				if(groupid.toString().split("/").length &gt; Ctrl('ESTR_CUT_ID').GetXValue().toString().split("/").length) estr_paste = false;
+					
+			}
+		}		
+	}              
+	
+	CtrlEnabled("ESTR_ADD"     					  , estr_add);
+	CtrlEnabled("ESTR_CUT"      				  , estr_cut);
+	CtrlEnabled("ESTR_PASTE"    				  , estr_paste);	
+	CtrlEnabled("ESTR_DELETE"    					, estr_del);
+	CtrlEnabled("listPERS_PER_ADD"        , per_add);
+	CtrlEnabled("listPERS_PER_MARK"       , per_mark);
+	CtrlEnabled("listPERS_PER_DELETE"     , per_del);   
+	CtrlEnabled("listGROUPS_GRU_ADD"      , gru_add);
+	CtrlEnabled("listGROUPS_GRU_MARK"     , gru_mark);
+	CtrlEnabled("listGROUPS_GRU_DELETE"   , gru_del);
+}
+ 
+function ESTR_ADD(myCTRL)
+{
+	var parent, id, list;
+	
+	list=Ctrl('POLICY_TREE_VALUE').GetXValue().split("/");
+	parent = list[0];
+	
+	if(list.length &gt; 1) 
+	{
+		id = list[list.length-1];		
+		
+		myTree = Ctrl("TREE_CONT_POLICY_TREE");
+		myEstr = myTree.GetGroup(Ctrl('POLICY_TREE_VALUE').GetXValue());		
+		myEstr.Tag = myEstr.Tag.split("|")[0]+"|0|"+myEstr.Tag.split("|")[2];		
+	}
+	else
+		id = "";
+ 	
+	if(parent == 'ORG:SEG')
+		parent = '1';
+	openNewFlow("NucleusRH.Base.Seguridad.Organigramas.ESTRUCTURA.MAIN.STD.flow","ADD","&lt;ID c_estr_padre=\""+id+"\" PARENT=\""+parent+"\" /&gt;",new ObjectResult(Ctrl('POLICY_TREE_VALUE').GetXValue()),"L");
+}
+
+function ESTR_DELETE(myCTRL)
+{		
+	var id, list, myTree, myEstr;
+	
+	myTree = Ctrl("TREE_CONT_POLICY_TREE");
+	myEstr = myTree.GetGroup(Ctrl('POLICY_TREE_VALUE').GetXValue());
+	id = myEstr.Tag.split("|")[0];	
+	
+	list=Ctrl('POLICY_TREE_VALUE').GetXValue().split("/");	
+	list.length--;	
+	list.length--;	
+	list = list.join("/");	
+		
+	openNewFlow("NucleusRH.Base.Seguridad.Organigramas.flow","DELESTR","&lt;ID ID=\""+id+"\" /&gt;",new ObjectResult(list),"L");
+}
+
+function ESTR_CUT(myCTRL)
+{
+	myTree = Ctrl("TREE_CONT_POLICY_TREE");
+	myEstr = myTree.GetGroup(Ctrl('POLICY_TREE_VALUE').GetXValue());
+	
+	list=Ctrl('POLICY_TREE_VALUE').GetXValue().split("/");
+	list.length--;	
+	list = list.join("/");
+	
+	myEstr.ImgOp = "../Images/Tree/estructura_d.ico";
+	myEstr.ImgCl = "../Images/Tree/estructura_d.ico";	
+	myTree.Draw(list);
+			
+	RefreshTree();	
+	RefreshButtons(Ctrl('POLICY_TREE_VALUE').GetXValue());
+	
+	Ctrl("ESTR_CUT_ID").SetXValue(Ctrl('POLICY_TREE_VALUE').GetXValue());
+}
+
+function ESTR_PASTE(myCTRL)
+{	
+	var code, parent, id, list;
+	
+	list=Ctrl('POLICY_TREE_VALUE').GetXValue().split("/");
+	if(list.length &lt;= 1)
+		padre = "";
+	else
+		padre = list[list.length - 1];
+		
+	
+	myEstr = myTree.GetGroup(Ctrl('ESTR_CUT_ID').GetXValue());
+	list = Ctrl('ESTR_CUT_ID').GetXValue().split("/"); 
+	code = list[list.length - 1];
+	id = myEstr.Tag.split("|")[0];	
+	aplicaseg = Ctrl("l_seguridad").GetXValue();
+		
+	openNewFlow("NucleusRH.Base.Seguridad.Organigramas.flow","PASTEESTR","&lt;ID PARENT=\""+ padre + "\" CODE=\""+ code + "\" ID=\""+id+"\" aplicaseg=\""+ aplicaseg + "\"/&gt;",new ObjectResultPaste(Ctrl('POLICY_TREE_VALUE').GetXValue()),"L");	
+}	
+ 
+function ObjectResult(ramaacargar)
+{        	
+	this.id = ramaacargar; 
+	this.processResult= function(xmlin)
+	{				
+		RefreshTree();				
+		ReloadTree(this.id);		
+		RefreshData();		
+		RefreshButtons(ramaacargar);		
+	}
+}
+
+function ObjectResultPaste(ramaacargar)
+{        	
+	rama=Ctrl('ESTR_CUT_ID').GetXValue().split("/");	
+	rama.length--;	
+	rama=rama.join("/");
+	
+	this.id = ramaacargar; 
+	this.processResult= function(xmlin)
+	{		
+		RefreshTree();
+		ReloadTree(rama);	
+		ReloadTree(this.id);		
+		RefreshData();
+		RefreshButtons(ramaacargar);
+	}
+}
+ 
+function ReloadTree(id)
+{	
+	myTree = Ctrl("TREE_CONT_POLICY_TREE");		
+	myEstr = myTree.GetGroup(id);				
+	LoadChilds(myTree, myEstr);	
+	if(myEstr != null)
+		myTree.ExpandGroup(myEstr,true);
+	
+}  
+
+function RefreshTree()
+{
+	if(Ctrl("ESTR_CUT_ID").GetXValue() != "")
+	{		
+		myEstrCut = myTree.GetGroup(Ctrl('ESTR_CUT_ID').GetXValue());	
+		
+		listCut=Ctrl('ESTR_CUT_ID').GetXValue().split("/");
+		listCut.length--;	
+		listCut = listCut.join("/");
+	  	  
+		myEstrCut.ImgOp = "../../../NomadFile.aspx?mode=GRAPHICS&amp;amp;report=NucleusRH.Base.Seguridad.IconEstr.rpt&amp;amp;color="+myEstrCut.Tag.split("|")[2];
+		myEstrCut.ImgCl = "../../../NomadFile.aspx?mode=GRAPHICS&amp;amp;report=NucleusRH.Base.Seguridad.IconEstr.rpt&amp;amp;color="+myEstrCut.Tag.split("|")[2];		
+		myTree.Draw(listCut);
+		
+		Ctrl("ESTR_CUT_ID").SetXValue("");
+	}
+}
+
+function PER_ADD()
+{
+	myTree = Ctrl("TREE_CONT_POLICY_TREE");
+	myEstr = myTree.GetGroup(Ctrl('POLICY_TREE_VALUE').GetXValue());
+	id = myEstr.Tag.split("|")[0];	
+	aplicaseg = Ctrl("l_seguridad").GetXValue();
+  
+  openNewFlow("NucleusRH.Base.Seguridad.Organigramas.flow","ADDPER","&lt;ID ID=\""+id+"\" aplicaseg=\""+ aplicaseg + "\"/&gt;",new ObjectResult(Ctrl('POLICY_TREE_VALUE').GetXValue()),"L");
+}   
+
+function PER_MARK()
+{	
+	if(Ctrl("arrcheck").CountRow() == 0)
+	{		
+		//Genero la Lista de IDS
+	  var lst=Ctrl("listPERS");
+	
+	  var ids = lst.IDs;
+	  
+	  for (var X=0; X&lt;ids.length; X++)	    
+	    Ctrl("arrcheck").AddRow().SetAttr("ID",ids[X]);
+	    	
+	  lst.ResetSQL();
+	}
+	else
+	{
+		Ctrl("listPERS").SetXValue("");
+	 	Ctrl("arrcheck").DelAllRow();
+		RefreshData();
+		RefreshButtons(Ctrl('POLICY_TREE_VALUE').GetXValue());		
+	}
+}
+             
+function PER_DELETE()
+{               
+	var xmlparam = new NomadXML("&lt;DATO&gt;&lt;ROWS/&gt;&lt;/DATO&gt;");
+	myTree = Ctrl("TREE_CONT_POLICY_TREE");
+	myEstr = myTree.GetGroup(Ctrl('POLICY_TREE_VALUE').GetXValue());
+	id = myEstr.Tag.split("|")[0];	
+	
+	xmlparam.SetAttr("oi_estructura", id);
+	
+	values=""; sep="";
+	for (t=0,n=0; t&lt;Ctrl("arrcheck").CountRow(); t++, n++)
+	{		
+		if (n&gt;=50)
+		{              
+			xmlparam.FirstChild().AddTailElement("VALUES").SetAttr("IDS", values);
+			values=""; sep=""; n=0;
+		}                  
+		values+=sep+Ctrl("arrcheck").GetRow(t).GetAttr("ID");
+		sep=",";
+	}
+	if (values!="") 
+		xmlparam.FirstChild().AddTailElement("VALUES").SetAttr("IDS", values)
+	               
+	if(Ctrl("l_seguridad").GetXValue() == false)
+	{                                                                   
+	 	openNewFlow("NucleusRH.Base.Seguridad.Organigramas.flow","DELPERSS",xmlparam.ToString(),new ObjectResult(Ctrl('POLICY_TREE_VALUE').GetXValue()),"L");	
+	}
+	else
+	{                 
+		openNewFlow("NucleusRH.Base.Seguridad.Organigramas.flow","DELPER",xmlparam.ToString(),new ObjectResult(Ctrl('POLICY_TREE_VALUE').GetXValue()),"L");
+  }
+} 
+
+function GRU_ADD()
+{
+	myTree = Ctrl("TREE_CONT_POLICY_TREE");
+	myEstr = myTree.GetGroup(Ctrl('POLICY_TREE_VALUE').GetXValue());
+	id = myEstr.Tag.split("|")[0];	
+	aplicaseg = Ctrl("l_seguridad").GetXValue();
+  
+  openNewFlow("NucleusRH.Base.Seguridad.Organigramas.flow","ADDGRU","&lt;ID ID=\""+id+"\" aplicaseg=\""+ aplicaseg + "\"/&gt;",new ObjectResult(Ctrl('POLICY_TREE_VALUE').GetXValue()),"L");
+}  
+
+function GRU_MARK()
+{	
+	if(Ctrl("arrcheckg").CountRow() == 0)
+	{		
+		//Genero la Lista de IDS
+	  var lstg=Ctrl("listGROUPS");
+	
+	  var ids = lstg.IDs;
+	  
+	  for (var X=0; X&lt;ids.length; X++)	    
+	    Ctrl("arrcheckg").AddRow().SetAttr("ID",ids[X]);
+	    	
+	  lstg.ResetSQL();
+	}
+	else
+	{
+		Ctrl("listGROUPS").SetXValue("");
+	 	Ctrl("arrcheckg").DelAllRow();
+		RefreshData();
+		RefreshButtons(Ctrl('POLICY_TREE_VALUE').GetXValue());		
+	}
+} 
+
+function GRU_DELETE()
+{               
+	var xmlparam = new NomadXML("&lt;DATO&gt;&lt;ROWS/&gt;&lt;/DATO&gt;");
+	myTree = Ctrl("TREE_CONT_POLICY_TREE");
+	myEstr = myTree.GetGroup(Ctrl('POLICY_TREE_VALUE').GetXValue());
+	id = myEstr.Tag.split("|")[0];	
+	
+	xmlparam.SetAttr("oi_estructura", id);
+	
+	values=""; sep="";
+	for (t=0,n=0; t&lt;Ctrl("arrcheckg").CountRow(); t++, n++)
+	{		
+		if (n&gt;=50)
+		{              
+			xmlparam.FirstChild().AddTailElement("VALUES").SetAttr("IDS", values);
+			values=""; sep=""; n=0;
+		}                  
+		values+=sep+Ctrl("arrcheckg").GetRow(t).GetAttr("ID");
+		sep=",";
+	}
+	if (values!="") 
+		xmlparam.FirstChild().AddTailElement("VALUES").SetAttr("IDS", values)
+	               
+	if(Ctrl("l_seguridad").GetXValue() == false)
+	{                                                                  
+	 	openNewFlow("NucleusRH.Base.Seguridad.Organigramas.flow","DELGRUSS",xmlparam.ToString(),new ObjectResult(Ctrl('POLICY_TREE_VALUE').GetXValue()),"L");	
+	}
+	else
+	{                
+		openNewFlow("NucleusRH.Base.Seguridad.Organigramas.flow","DELGRU",xmlparam.ToString(),new ObjectResult(Ctrl('POLICY_TREE_VALUE').GetXValue()),"L");
+  }
+} 
+                
+
+function RefreshAplica()
+{
+	/*var np = new NomadProxy("", ut);
+	var nSQL = np.SQLService();	
+	var param;  
+	  
+	param = nSQL.GetOBJ(Ctrl("main").getResource("qry:aplica"), "");  
+	if(param.valor != "0")
+	{       
+		CtrlEnabled("APLICA", false);
+	}            */    
+	var np = new NomadProxy("", ut);
+	var nSQL = np.SQLService();	
+	var org;  
+	  
+	org = nSQL.GetOBJ(Ctrl("main").getResource("qry:organigrama"), "");
+	                             
+	Ctrl("org").SetXValue(org.id);
+	Ctrl("l_seguridad").SetXValue(org.l_seguridad); 
+	if(Ctrl("l_seguridad").GetXValue() == 1)
+	{       
+		CtrlEnabled("APLICA", false); 
+		CtrlEnabled("NOAPLICA", true);  
+	}
+	else
+	{                           
+	  CtrlEnabled("APLICA", true);
+		CtrlEnabled("NOAPLICA", false);
+	}
+	
+	
+}   
+
+function Aplica()
+{    
+	var xmlparam = new NomadXML("&lt;DATO&gt;&lt;ROWS/&gt;&lt;/DATO&gt;");         
+	CtrlEnabled("APLICA", false);
+	CtrlEnabled("NOAPLICA", true);  
+	Ctrl("l_seguridad").SetXValue(1);                 
+	 
+	var np = new NomadProxy("", ut);
+	var nSQL = np.SQLService();	
+	var org;  
+	  
+	org = nSQL.GetOBJ(Ctrl("main").getResource("qry:organigrama"), "");  
+	if(org.id != "")
+	{
+		 openNewFlow("NucleusRH.Base.Seguridad.Organigramas.flow","APLICASEG","&lt;ID ID=\""+org.id+"\" /&gt;",new ObjectResult(Ctrl('POLICY_TREE_VALUE').GetXValue()),"L");
+	} 
+	
+	RefreshButtons(Ctrl('POLICY_TREE_VALUE').GetXValue());	  
+}       
+
+function NoAplica()
+{
+	/*var np = new NomadProxy("", ut);
+	var nSQL = np.SQLService();	
+	var org;  
+	  
+	org = nSQL.GetOBJ(Ctrl("main").getResource("qry:organigrama"), "");  
+	if(org.id != "")
+	{
+		 openNewFlow("NucleusRH.Base.Seguridad.Organigramas.flow","NOAPLICASEG","&lt;ID ID=\""+org.id+"\" /&gt;",new ObjectResult(Ctrl('POLICY_TREE_VALUE').GetXValue()),"L");
+	}     */
+	Ctrl("main").DoEvent("NOAPLICASEG");   
+	RefreshButtons(Ctrl('POLICY_TREE_VALUE').GetXValue());	
+}
+	</form:Scripts>
+	<form:Title width="100%">
+		<form:Label label="Estructura de Seguridad Jer&#225;rquica" nowrap="1" style="M1 LCol_w" name="lblTitle" align="center"/>
+	</form:Title>
+	<form:Center height="100%" width="100%">
+		<form:Blank name="b1"/>
+		<form:Columns width="100%" height="100%" name="main_columnsPOLICY">
+			<form:Column height="100%" width="65%" name="main_columnsPOLICYC1">
+				<form:RowAligner name="buttonlinks" visible="SHOW">
+					<form:Row name="row_1">
+						<form:TextBox label="Localizar Nodo a trav&#233;s del (Apellido, Nombre) de la Persona" name="buscar_legajo" xsize="50" length="50" ysize="1" descr="Texto a Buscar" required="False" X-POLICY="./FORM/NucleusRH/Base/Seguridad/Organigramas/TREE-POLICY/form/buscar_legajo">
+							<form:SButtons>
+								<form:SButton descrip="Buscar una Persona" name="Search" label="Buscar" img="search">
+									<form:Event action="buscar_legajo" runat="client" name="onclick"/>
+								</form:SButton>
+							</form:SButtons>
+							<form:Policies>
+								<form:Updateable X-POLICY="./FORM/NucleusRH/Base/Seguridad/Organigramas/TREE-POLICY/form/buscar_legajo/HAB"/>
+								<form:Visible X-POLICY="./FORM/NucleusRH/Base/Seguridad/Organigramas/TREE-POLICY/form/buscar_legajo"/>
+							</form:Policies>
+						</form:TextBox>
+					</form:Row>
+					<form:Row name="row_2">
+						<form:NumberBox label="Localizar Nodo a trav&#233;s del (Nro. de Legajo) del Empleado" name="buscar_nro_leg" precision="0" X-POLICY="./FORM/NucleusRH/Base/Seguridad/Organigramas/TREE-POLICY/form/buscar_nro_leg">
+							<form:SButtons>
+								<form:SButton descrip="Buscar una Persona" name="Search" label="Buscar" img="search">
+									<form:Event action="buscar_nro_leg" runat="client" name="onclick"/>
+								</form:SButton>
+							</form:SButtons>
+							<form:Policies>
+								<form:Updateable X-POLICY="./FORM/NucleusRH/Base/Seguridad/Organigramas/TREE-POLICY/form/buscar_nro_leg/HAB"/>
+								<form:Visible X-POLICY="./FORM/NucleusRH/Base/Seguridad/Organigramas/TREE-POLICY/form/buscar_nro_leg"/>
+							</form:Policies>
+						</form:NumberBox>
+					</form:Row>
+				</form:RowAligner>
+				<form:Container height="400px" width="650px" label="Estructura" border="2" name="CONT_POLICY_TREE"/>
+				<form:RowAligner name="POLICY_LINK">
+					<form:Row name="P1_row1">
+						<form:Button img="new" label="Agregar" descrip="Agregar una Estructura" name="ESTR_ADD" X-POLICY="./FORM/NucleusRH/Base/Seguridad/Organigramas/TREE-POLICY/form/ESTR_ADD">
+							<form:Event action="ESTR_ADD" name="onclick" runat="client"/>
+							<form:Policies>
+								<form:Updateable X-POLICY="./FORM/NucleusRH/Base/Seguridad/Organigramas/TREE-POLICY/form/ESTR_ADD/HAB"/>
+								<form:Visible X-POLICY="./FORM/NucleusRH/Base/Seguridad/Organigramas/TREE-POLICY/form/ESTR_ADD"/>
+							</form:Policies>
+						</form:Button>
+						<form:Button img="eliminate" label="Cortar" descrip="Cortar Estructura" name="ESTR_CUT" X-POLICY="./FORM/NucleusRH/Base/Seguridad/Organigramas/TREE-POLICY/form/ESTR_CUT">
+							<form:Event action="ESTR_CUT" name="onclick" runat="client"/>
+							<form:Policies>
+								<form:Updateable X-POLICY="./FORM/NucleusRH/Base/Seguridad/Organigramas/TREE-POLICY/form/ESTR_CUT/HAB"/>
+								<form:Visible X-POLICY="./FORM/NucleusRH/Base/Seguridad/Organigramas/TREE-POLICY/form/ESTR_CUT"/>
+							</form:Policies>
+						</form:Button>
+						<form:Button name="ESTR_PASTE" img="duplicate" label="Pegar" descrip="Pegar Estructura" X-POLICY="./FORM/NucleusRH/Base/Seguridad/Organigramas/TREE-POLICY/form/ESTR_PASTE">
+							<form:Event action="ESTR_PASTE" name="onclick" runat="client"/>
+							<form:Policies>
+								<form:Updateable X-POLICY="./FORM/NucleusRH/Base/Seguridad/Organigramas/TREE-POLICY/form/ESTR_PASTE/HAB"/>
+								<form:Visible X-POLICY="./FORM/NucleusRH/Base/Seguridad/Organigramas/TREE-POLICY/form/ESTR_PASTE"/>
+							</form:Policies>
+						</form:Button>
+						<form:Button mess="Est&#225; seguro que desea eliminar la Estructura?" label="Eliminar" img="del" descrip="Eliminar Estructura" name="ESTR_DELETE" X-POLICY="./FORM/NucleusRH/Base/Seguridad/Organigramas/TREE-POLICY/form/ESTR_DELETE">
+							<form:Event action="ESTR_DELETE" name="onclick" runat="client"/>
+							<form:Policies>
+								<form:Updateable X-POLICY="./FORM/NucleusRH/Base/Seguridad/Organigramas/TREE-POLICY/form/ESTR_DELETE/HAB"/>
+								<form:Visible X-POLICY="./FORM/NucleusRH/Base/Seguridad/Organigramas/TREE-POLICY/form/ESTR_DELETE"/>
+							</form:Policies>
+						</form:Button>
+					</form:Row>
+				</form:RowAligner>
+			</form:Column>
+			<form:Column height="100%" width="35%" name="main_columnsPOLICYC2">
+				<form:RowAligner name="buttonsep" visible="SHOW">
+					<form:Row name="row_top">
+						<form:Blank name="b1111"/>
+						<form:CheckBox name="l_seguridad" nvalue="#source:@l_seguridad" enabled="0" label="Seguridad Aplicada" X-POLICY="./FORM/NucleusRH/Base/Seguridad/Organigramas/TREE-POLICY/form/l_seguridad">
+							<form:Policies>
+								<form:Updateable X-POLICY="./FORM/NucleusRH/Base/Seguridad/Organigramas/TREE-POLICY/form/l_seguridad/HAB"/>
+								<form:Visible X-POLICY="./FORM/NucleusRH/Base/Seguridad/Organigramas/TREE-POLICY/form/l_seguridad"/>
+							</form:Policies>
+						</form:CheckBox>
+					</form:Row>
+				</form:RowAligner>
+				<form:RecordSet label="Personas Asociadas" descrip="Legajos Asociados" height="200px" xquery="qry:datosper" select-show="0" arr-control="arrcheckFILTER" name="listPERS" mode="IDS" row-height="20" width="100%">
+					<form:RSColumns>
+						<form:RSColumn show="S" orderby="0" arr-control="arrcheck" width="25px" type="check" descrip="Seleccionado" name="SEL"/>
+						<form:RSColumn descrip="Persona" label="Personas" show="S" orderby="0" align="left" type="string" name="PERSONA"/>
+						<form:RSColumn descrip="Legajo" label="Legajos" show="S" orderby="0" align="left" type="string" name="LEGAJO"/>
+						<form:RSColumn type="enum-img" dec="0" label="Estado" name="BORRADO" show="S" orderby="0" width="25px" descrip="Estado">
+							<form:RSOpt img="NORMAL/circle_red.gif" value="1"/>
+							<form:RSOpt img="NORMAL/circle_green.gif" value="0"/>
+						</form:RSColumn>
+					</form:RSColumns>
+					<form:SButtons>
+						<form:SButton name="PER_ADD" img="table_add" descrip="Agregar Legajos">
+							<form:Event action="PER_ADD" name="OnClick" runat="client"/>
+						</form:SButton>
+						<form:SButton name="PER_MARK" img="table_uncheck" descrip="Desmarcar los Elementos">
+							<form:Event action="PER_MARK" name="OnClick" runat="client"/>
+						</form:SButton>
+						<form:SButton mess="Est&#225; seguro que desea eliminar de la Estructura a las Personas seleccionadas?" name="PER_DELETE" img="table_delete" descrip="Eliminar Legajos">
+							<form:Event action="PER_DELETE" name="OnClick" runat="client"/>
+						</form:SButton>
+					</form:SButtons>
+				</form:RecordSet>
+				<form:RecordSet name="listGROUPS" xquery="qry:datosgru" height="200px" select-show="0" arr-control="arrcheckFILTER" descrip="Grupos Asociados" mode="IDS" row-height="20" width="100%" label="Grupos Asociados">
+					<form:RSColumns>
+						<form:RSColumn arr-control="arrcheckg" show="S" orderby="0" width="25px" type="check" descrip="Seleccionado" name="SEL"/>
+						<form:RSColumn label="Grupo" show="S" orderby="0" align="left" type="string" descrip="Grupo" name="LABEL"/>
+						<form:RSColumn type="enum-img" dec="0" label="Estado" name="BORRADO" show="S" orderby="0" width="25px" descrip="Estado">
+							<form:RSOpt img="NORMAL/circle_red.gif" value="1"/>
+							<form:RSOpt img="NORMAL/circle_green.gif" value="0"/>
+						</form:RSColumn>
+					</form:RSColumns>
+					<form:SButtons>
+						<form:SButton name="GRU_ADD" img="table_add" descrip="Agregar Grupos">
+							<form:Event action="GRU_ADD" name="OnClick" runat="client"/>
+						</form:SButton>
+						<form:SButton name="GRU_MARK" img="table_uncheck" descrip="Desmarcar los Elementos">
+							<form:Event action="GRU_MARK" name="OnClick" runat="client"/>
+						</form:SButton>
+						<form:SButton mess="Est&#225; seguro que desea eliminar de la Estructura a los Grupos Seleccionados" name="GRU_DELETE" img="table_delete" descrip="Eliminar Legajos">
+							<form:Event action="GRU_DELETE" name="OnClick" runat="client"/>
+						</form:SButton>
+					</form:SButtons>
+				</form:RecordSet>
+				<form:HiddenArr nvalue="#CHECKS:" proto="&lt;ROW /&gt;" name="arrcheck">
+					<form:Attr source="@ID" name="ID"/>
+					<form:Event name="onpostdel" action="RefreshArray" runat="client"/>
+					<form:Event name="onpostadd" runat="client" action="RefreshArray"/>
+				</form:HiddenArr>
+				<form:HiddenArr nvalue="#CHECKSG:" name="arrcheckg" proto="&lt;ROW /&gt;">
+					<form:Attr source="@ID" name="ID"/>
+					<form:Event name="onpostdel" action="RefreshArray" runat="client"/>
+					<form:Event name="onpostadd" runat="client" action="RefreshArray"/>
+				</form:HiddenArr>
+			</form:Column>
+		</form:Columns>
+		<form:Blank name="b2"/>
+		<form:Hidden name="POLICY_TREE_VALUE"/>
+		<form:Hidden name="ESTR_ID"/>
+		<form:Hidden name="ESTR_PARENT"/>
+		<form:Hidden name="ESTR_CUT_ID"/>
+		<form:Hidden nvalue="#source:@org" name="org"/>
+	</form:Center>
+	<form:Bottom>
+		<form:RowAligner name="buttonlinks">
+			<form:Row name="row1">
+				<form:Button img="control_play_blue.gif" mess="&#191;Est&#225; seguro que desea aplicar la seguridad al organigrama?" label="Activar Seguridad" name="APLICA" X-POLICY="./FORM/NucleusRH/Base/Seguridad/Organigramas/TREE-POLICY/form/APLICA">
+					<form:event action="BACK" name="onclick" runat="server"/>
+					<form:Event action="Aplica" name="onClick" runat="client"/>
+					<form:Policies>
+						<form:Updateable X-POLICY="./FORM/NucleusRH/Base/Seguridad/Organigramas/TREE-POLICY/form/APLICA/HAB"/>
+						<form:Visible X-POLICY="./FORM/NucleusRH/Base/Seguridad/Organigramas/TREE-POLICY/form/APLICA"/>
+					</form:Policies>
+				</form:Button>
+				<form:Button mess="&#191;Est&#225; seguro que desea desactivar la seguridad del organigrama?" label="Desactivar Seguridad" name="NOAPLICA" img="control_stop_blue.gif" X-POLICY="./FORM/NucleusRH/Base/Seguridad/Organigramas/TREE-POLICY/form/NOAPLICA">
+					<form:event action="BACK" name="onclick" runat="server"/>
+					<form:Event action="NoAplica" name="onClick" runat="client"/>
+					<form:Policies>
+						<form:Updateable X-POLICY="./FORM/NucleusRH/Base/Seguridad/Organigramas/TREE-POLICY/form/NOAPLICA/HAB"/>
+						<form:Visible X-POLICY="./FORM/NucleusRH/Base/Seguridad/Organigramas/TREE-POLICY/form/NOAPLICA"/>
+					</form:Policies>
+				</form:Button>
+				<form:Button img="back" label="Volver" name="BACK" X-POLICY="./FORM/NucleusRH/Base/Seguridad/Organigramas/TREE-POLICY/form/BACK">
+					<form:event action="BACK" name="onclick" runat="server"/>
+					<form:Policies>
+						<form:Updateable X-POLICY="./FORM/NucleusRH/Base/Seguridad/Organigramas/TREE-POLICY/form/BACK/HAB"/>
+						<form:Visible X-POLICY="./FORM/NucleusRH/Base/Seguridad/Organigramas/TREE-POLICY/form/BACK"/>
+					</form:Policies>
+				</form:Button>
+			</form:Row>
+		</form:RowAligner>
+	</form:Bottom>
+	<form:Event action="NOAPLICASEG" name="NOAPLICASEG" runat="server"/>
+	<form:Event action="OnLoad" name="onload" runat="client"/>
+</form:Form>

@@ -1,0 +1,113 @@
+<flow:flow xmlns:flow="nomad_engine.flow" xmlns:qry="nomad_engine.qry" extends="NucleusRH.Base.Liquidacion.Liquidacion.LIQUIDACION.LM.COMPLEJO.FLOW" name="NucleusRH.Base.Liquidacion.Cerrada" default_action="HELP">
+	<flow:info label="Flow guia para NucleusRH.Base.Liquidacion.Liquidacion.LIQUIDACION.Multiple.cerrada"/>
+	<flow:main doc="SOURCE"/>
+	<flow:declare>
+		<qry:define name="PRELOAD">
+			<qry:main doc="SOURCE">
+				<qry:element name="DATOS">
+					<qry:attribute value="'0'" name="noValidarCerradas"/>
+					<qry:insert-select name="qry_cerrada"/>
+					<qry:attribute name="oi_padre" value="'0'" type="Nomad.NSystem.Int"/>
+					<qry:append-doc name="FILTRO" doc-path="#SOURCE:"/>
+					<qry:element name="PADRES">
+						<qry:insert-select name="QRY_PADRES"/>
+					</qry:element>
+					<qry:element name="FILTRO2">
+						<qry:element name="ROWS"/>
+					</qry:element>
+				</qry:element>
+			</qry:main>
+			<qry:select doc="PARAM" name="qry_cerrada">
+				<qry:xquery>
+					for $r in sql('
+				SELECT ORG26_PARAMETROS.d_valor FROM ORG26_PARAMETROS
+				WHERE ORG26_PARAMETROS.c_parametro = \'noValidarCerradas\'')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:attribute value="$r/@d_valor" name="noValidarCerradas"/>
+					<qry:append-doc doc-path="." name="PARA"/>
+				</qry:out>
+			</qry:select>
+			<qry:select name="QRY_PADRES">
+				<qry:xquery>
+					for $r in SQL('
+			select 
+				org03.oi_empresa as oi_padre
+			from
+				org03_empresas as org03 
+		')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:element name="PADRE">
+						<qry:attribute name="oi_padre" value="$r/@oi_padre" type="Nomad.NSystem.Int"/>
+						<qry:element name="HIJOS">
+							<qry:insert-select doc-path=".." name="QRY_HIJO_SI"/>
+							<qry:insert-select doc-path=".." name="QRY_HIJO_NO"/>
+						</qry:element>
+					</qry:element>
+				</qry:out>
+			</qry:select>
+			<qry:select name="QRY_HIJO_SI" doc="SOURCE">
+				<qry:xquery>
+					for $r in SQL('
+		select
+			liq19.oi_liquidacion as ID,
+			liq19.c_liquidacion as CODE,
+			liq19.d_titulo as TEXT 
+		from
+			liq19_liquidacion as liq19
+		where
+			liq19.OI_EMPRESA = {%= #SOURCE:@oi_padre%}                  
+			
+{%? 
+				(#PARA:@noValidarCerradas='0') 
+				{% AND liq19.c_estado=\'C\' %} 
+				{% %} 
+			%}
+						
+{%? (string(#FILTRO:helper-mess/rows/row/@oi_liquidacion)!='') 
+{% and liq19.oi_liquidacion in ({%=string(#FILTRO:helper-mess/rows/row/@oi_liquidacion) %}) %} 
+{% and 1 = 2 %} %}
+')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:element name="HIJO">
+						<qry:attribute name="ID" value="$r/@ID" type="Nomad.NSystem.Int"/>
+						<qry:attribute name="CODE" value="$r/@CODE" type="Nomad.NSystem.Int"/>
+						<qry:attribute name="TEXT" value="$r/@TEXT" type="Nomad.NSystem.String"/>
+						<qry:attribute name="check" value="1" type="Nomad.NSystem.Boolean"/>
+					</qry:element>
+				</qry:out>
+			</qry:select>
+			<qry:select name="QRY_HIJO_NO" doc="SOURCE">
+				<qry:xquery>
+					for $r in SQL('
+		select
+			liq19.oi_liquidacion as ID,
+			liq19.c_liquidacion as CODE,
+			liq19.d_titulo as TEXT
+		from
+			liq19_liquidacion as liq19
+		where
+	
+			liq19.OI_EMPRESA = {%= #SOURCE:@oi_padre%}   
+			{%? 
+				(#PARA:@noValidarCerradas='0') 
+				{% AND liq19.c_estado=\'C\' %} 
+				{% %} 
+			%}
+	{%? (string(#FILTRO:helper-mess/rows/row/@oi_liquidacion)!='') {% and oi_liquidacion not in ({%=string(#FILTRO:helper-mess/rows/row/@oi_liquidacion) %}) %} {% and 1 = 1 %} %}
+ ')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:element name="HIJO">
+						<qry:attribute name="ID" value="$r/@ID" type="Nomad.NSystem.Int"/>
+						<qry:attribute name="CODE" value="$r/@CODE" type="Nomad.NSystem.Int"/>
+						<qry:attribute name="TEXT" value="$r/@TEXT" type="Nomad.NSystem.String"/>
+						<qry:attribute name="check" value="0" type="Nomad.NSystem.Boolean"/>
+					</qry:element>
+				</qry:out>
+			</qry:select>
+		</qry:define>
+	</flow:declare>
+</flow:flow>

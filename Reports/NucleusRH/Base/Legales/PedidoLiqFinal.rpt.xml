@@ -1,0 +1,754 @@
+<report:report xmlns:report="nomad_engine.report" xmlns:qry="nomad_engine.qry" xmlns:fo="http://www.w3.org/1999/XSL/Format" xmlns:xsl="http://www.w3.org/1999/XSL/Transform" name="NucleusRH.Base.Legales.PedidoLiqFinal" doc="source" FoRender="FONET">
+	<report:query declare="&lt;DATA oi_pedido_lf=&quot;607&quot;/&gt;">
+		<qry:include name="Nomad.Base.Login.Entidades.ENTIDAD.INFO"/>
+		<qry:main doc="PARAM">
+			<qry:element name="ROW">
+				<qry:attribute name="date" value="format-date(Now(),'dd/mm/yyyy')"/>
+				<qry:insert-select name="qry_imagen_empresa" doc-path="#PARAM:."/>
+				<qry:insert-select name="sql1" doc-path="#PARAM:."/>
+			</qry:element>
+		</qry:main>
+		<qry:select name="sql1" doc="PARAM">
+			<qry:xquery>
+				for $r in SQL('
+				
+				SELECT        
+					PLF.c_pedido_lf,
+					PLF.n_monto_total,
+					PLF.d_pago,
+					PLF.f_crea,
+					PLF.f_nec_fondos,
+					PLF.f_aprueba,
+					PLF.f_rechaza,
+					PLF.c_usr_crea,
+					PLF.c_usr_aprueba,
+					PLF.c_usr_rechaza,
+					PLF.o_crea,
+					PLF.o_aprueba,
+					PLF.o_rechaza,
+					PLF.n_recibo,
+					PLF.f_cumple,
+					PLF.c_usr_cumple,
+					CAR.oi_carpeta,
+					CAR.c_carpeta,
+					CAR.d_carpeta,
+					CAR.oi_sujeto,
+					CAR.f_egreso,
+					CAR.d_custom_1,
+					SUJ.c_sujeto,
+					SUJ.d_sujeto,
+					UBI_PLF.c_ubicacion as c_ubi_plf,
+					UBI_PLF.d_ubicacion as d_ubi_plf,				 
+					EMP_PLF.c_empresa as c_emp_plf,
+					EMP_PLF.d_empresa as d_emp_plf,
+					UBI_CAR.c_ubicacion as c_ubi_car,					
+					UBI_CAR.d_ubicacion as d_ubi_car,
+					EMP_CAR.c_empresa as c_emp_car,
+					EMP_CAR.d_empresa as d_emp_car,										
+					VW_LEG_RECIBOS_EGR.imp_recibo,
+					VW_LEG_RECIBOS_EGR.pagado,
+					VW_LEG_RECIBOS_EGR.pend_pago,
+					VW_LEG_RECIBOS_EGR.f_pago,
+					VW_LEG_RECIBOS_EGR.usuario_pago
+
+				FROM                                    					
+					LEG61_PEDIDOS_LF as PLF,
+					LEG01_CARPETAS as CAR,
+					LEG40_SUJETOS as SUJ,
+					ORG03_UBICACIONES as UBI_PLF,
+					ORG03_EMPRESAS as EMP_PLF,
+					ORG03_UBICACIONES as UBI_CAR,
+					ORG03_EMPRESAS as EMP_CAR,
+					VW_LEG_RECIBOS_EGR
+				
+				JOIN
+					PLF.oi_carpeta INNER CAR.oi_carpeta,
+					PLF.oi_carpeta INNER CAR.oi_carpeta,
+					CAR.oi_sujeto INNER SUJ.oi_sujeto,
+					PLF.oi_ubicacion LEFT OUTER UBI_PLF.oi_ubicacion,
+					UBI_PLF.oi_empresa LEFT OUTER EMP_PLF.oi_empresa,
+					CAR.oi_ubicacion LEFT OUTER UBI_CAR.oi_ubicacion,
+					UBI_CAR.oi_empresa LEFT OUTER EMP_CAR.oi_empresa,
+					PLF.n_recibo LEFT OUTER VW_LEG_RECIBOS_EGR.oi_tot_liq_per
+									
+				WHERE
+					PLF.oi_pedido_lf = {#PARAM:@oi_pedido_lf}
+					
+			')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:attribute name="carpeta" value="'['+$r/@c_carpeta+'] '+$r/@d_carpeta"/>
+				<qry:if test="$r/@f_egreso!=''">
+					<qry:then>
+						<qry:attribute name="f_egreso" value="'Fecha de cierre: ' + format-date($r/@f_egreso,'dd/mm/yyyy')"/>
+					</qry:then>
+				</qry:if>
+				<qry:attribute name="sucursal_carpeta" value="iif($r/@c_emp_car!='','['+$r/@c_emp_car+'] '+$r/@d_emp_car+' - ['+$r/@c_ubi_car+'] '+$r/@d_ubi_car,'')"/>
+				<qry:insert-select name="getActor" doc-path="$r"/>
+				<qry:attribute name="empresa_legajo" value="'['+$r/@c_emp_car+'] '+$r/@d_emp_car+' - '+@actor_carpeta"/>
+				<qry:attribute name="pedido" value="$r/@c_pedido_lf"/>
+				<qry:attribute name="monto_total" value="'$ ' + format-number($r/@n_monto_total,5,2,',','.','')"/>
+				<qry:attribute name="d_pago" value="$r/@d_pago"/>
+				<qry:attribute name="sucursal_solicitante" value="'['+$r/@c_emp_plf+'] '+$r/@d_emp_plf+' - ['+$r/@c_ubi_plf+'] '+$r/@d_ubi_plf"/>
+				<qry:attribute name="cliente" value="'['+$r/@c_sujeto+'] '+$r/@d_sujeto"/>
+				<qry:attribute name="centimos" value="format-number($r/@n_monto_total,'.00')*100"/>
+				<qry:attribute name="monto_letras" value="iif(@centimos!='0',nmd-num2text($r/@n_monto_total) + ' con ' + @centimos +'/'+ '100',nmd-num2text($r/@n_monto_total))"/>
+				<qry:attribute name="f_crea" value="format-date($r/@f_crea,'dd/mm/yyyy')"/>
+				<qry:attribute name="f_nec_fondos" value="iif($r/@f_nec_fondos!='',format-date($r/@f_nec_fondos,'dd/mm/yyyy'),'---')"/>
+				<qry:attribute name="f_aprueba" value="format-date($r/@f_aprueba,'dd/mm/yyyy')"/>
+				<qry:attribute name="f_rechaza" value="format-date($r/@f_rechaza,'dd/mm/yyyy')"/>
+				<x>
+					<qry:attribute name="FILE" value="$r/@c_usr_crea+'.ENTIDAD.XML'"/>
+					<qry:insert-select name="Nomad.Base.Login.Entidades.ENTIDAD.QUERY.DDO" doc-path="."/>
+				</x>
+				<qry:attribute name="c_usr_crea" value="iif(./x/ROW/@DES!='',./x/ROW/@DES,$r/@c_usr_crea)"/>
+				<y>
+					<qry:attribute name="FILE" value="$r/@c_usr_aprueba+'.ENTIDAD.XML'"/>
+					<qry:insert-select name="Nomad.Base.Login.Entidades.ENTIDAD.QUERY.DDO" doc-path="."/>
+				</y>
+				<qry:attribute name="c_usr_aprueba" value="iif(./y/ROW/@DES!='',./y/ROW/@DES,$r/@c_usr_aprueba)"/>
+				<z>
+					<qry:attribute name="FILE" value="$r/@c_usr_rechaza+'.ENTIDAD.XML'"/>
+					<qry:insert-select name="Nomad.Base.Login.Entidades.ENTIDAD.QUERY.DDO" doc-path="."/>
+				</z>
+				<qry:attribute name="c_usr_rechaza" value="iif(./z/ROW/@DES!='',./z/ROW/@DES,$r/@c_usr_rechaza)"/>
+				<qry:attribute name="o_crea" value="$r/@o_crea"/>
+				<qry:attribute name="o_aprueba" value="$r/@o_aprueba"/>
+				<qry:attribute name="o_rechaza" value="$r/@o_rechaza"/>
+				<qry:if test="$r/@n_recibo!=''">
+					<qry:then>
+						<qry:attribute name="o_liquidacion" value="'Generaci&#243;n de Recibo n&#250;mero: ' + $r/@n_recibo+' - Importe: $'+format-number($r/@imp_recibo,5,2,',','.','')"/>
+						<qry:attribute name="f_pago" value="format-date($r/@f_pago,'dd/mm/yyyy')"/>
+						<qry:attribute name="usuario_pago" value="$r/@usuario_pago"/>
+						<qry:attribute name="o_tesoreria" value="'Pagado: $'+format-number($r/@pagado,5,2,',','.','')+' - Pendiente: $'+format-number($r/@pend_pago,5,2,',','.','')"/>
+						<qry:attribute name="f_cumple" value="format-date($r/@f_cumple,'dd/mm/yyyy')"/>
+						<w>
+							<qry:attribute name="FILE" value="$r/@c_usr_cumple+'.ENTIDAD.XML'"/>
+							<qry:insert-select name="Nomad.Base.Login.Entidades.ENTIDAD.QUERY.DDO" doc-path="."/>
+						</w>
+						<qry:attribute name="c_usr_cumple" value="iif(./w/ROW/@DES!='',./w/ROW/@DES,$r/@c_usr_cumple)"/>
+					</qry:then>
+					<qry:else>
+						<qry:attribute name="o_liquidacion" value="'El Pedido de Liquidaci&#243;n Final no est&#225; cumplido'"/>
+						<qry:attribute name="o_tesoreria" value="'El Pedido de Liquidaci&#243;n Final no est&#225; cumplido'"/>
+					</qry:else>
+				</qry:if>
+			</qry:out>
+		</qry:select>
+		<qry:select name="getActor" doc="PARAM">
+			<qry:xquery>
+				for $r in SQL('
+
+			SELECT
+				LEG40_SUJETOS.d_sujeto,
+				{%? ($PARAM/@d_custom_1='COL')
+					{% PED09_COLABORADOR.c_legajo %}					
+					{% PER02_PERSONAL_EMP.e_numero_legajo %}					
+				%} AS c_legajo
+
+			FROM					
+				LEG01_CARPETAS,
+				LEG01_PARTES,
+				LEG33_ROL,
+				LEG40_SUJETOS,				
+				{%? ($PARAM/@d_custom_1='COL')										
+					{% PED09_COLABORADOR %}
+					{% PER02_PERSONAL_EMP %}
+				%}									
+			
+			JOIN					
+				LEG01_CARPETAS.oi_carpeta INNER LEG01_PARTES.oi_carpeta,			  
+		  	LEG01_PARTES.oi_rol INNER LEG33_ROL.oi_rol,
+		  	LEG01_PARTES.oi_sujeto INNER LEG40_SUJETOS.oi_sujeto,
+		  	{%? ($PARAM/@d_custom_1='COL')
+		  		{% LEG40_SUJETOS.d_custom_1 INNER PED09_COLABORADOR.oi_colaborador						 
+					%}
+		  		{% LEG01_CARPETAS.oi_empresa INNER PER02_PERSONAL_EMP.oi_empresa,
+					   LEG40_SUJETOS.oi_personal INNER PER02_PERSONAL_EMP.oi_personal					   
+					%}
+				%}
+			
+			WHERE
+				LEG01_CARPETAS.oi_carpeta = {$PARAM/@oi_carpeta}
+				AND LEG33_ROL.c_rol = \'ACT\'
+
+			')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:attribute name="actor_carpeta" value="'['+$r/@c_legajo+'] '+$r/@d_sujeto"/>
+			</qry:out>
+		</qry:select>
+		<qry:select name="qry_imagen_empresa" doc="PARAM">
+			<qry:xquery>
+				for $r in SQL('
+				
+				SELECT        
+					IMG.oi_imagen_per
+				
+				FROM                                    
+					LEG61_PEDIDOS_LF as PLF,
+					LEG01_CARPETAS as CAR,
+					ORG03_EMPRESAS as EMP,
+					PER19_IMAGENES as IMG
+				
+				JOIN				
+					PLF.oi_carpeta INNER CAR.oi_carpeta,
+					CAR.oi_empresa INNER EMP.oi_empresa,
+					EMP.oi_logotipo INNER IMG.oi_imagen_per
+				
+				WHERE
+					PLF.oi_pedido_lf = {$PARAM/@oi_pedido_lf}
+						
+			')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:attribute name="oi_imagen" value="$r/@oi_imagen_per"/>
+			</qry:out>
+		</qry:select>
+	</report:query>
+	<report:page-layout>
+		<fo:layout-master-set>
+			<fo:simple-page-master master-name="A4" page-height="297mm" page-width="210mm" margin-top="12mm" margin-bottom="10mm" margin-left="27mm" margin-right="25mm">
+				<fo:region-body margin="5mm" font-family="Arial" border-width="0.1mm"/>
+				<fo:region-before extent="5mm"/>
+				<fo:region-after extent="5mm"/>
+				<fo:region-start extent="5mm"/>
+				<fo:region-end extent="5mm"/>
+			</fo:simple-page-master>
+		</fo:layout-master-set>
+	</report:page-layout>
+	<report:page>
+		<xsl:template match="ROW">
+			<fo:page-sequence master-reference="A4">
+				<fo:flow flow-name="xsl-region-body">
+					<fo:table table-layout="fixed">
+						<fo:table-column column-width="43mm"/>
+						<fo:table-column column-width="87mm"/>
+						<fo:table-column column-width="32mm"/>
+						<fo:table-body>
+							<fo:table-row height="12mm">
+								<fo:table-cell border-width="0.1mm" padding="1mm" margin="2mm" border-style="solid" display-align="center">
+									<fo:external-graphic display-align="center" height="10mm">
+										<xsl:attribute name="src">
+											<xsl:value-of select="concat('url(data:image/jpg;base64,(#IMAGE.DB(x150;NucleusRH.Base.Personal.Imagenes.HEAD;',@oi_imagen,')#)',')')"/>
+										</xsl:attribute>
+									</fo:external-graphic>
+								</fo:table-cell>
+								<fo:table-cell border-width="0.1mm" border-style="solid">
+									<fo:block text-align="center" space-before="0.1mm">
+										<fo:inline font-size="10pt" font-weight="bold">
+											<xsl:text>
+												PEDIDO DE LIQUIDACI&#211;N FINAL
+											</xsl:text>
+										</fo:inline>
+									</fo:block>
+								</fo:table-cell>
+								<fo:table-cell border-width="0.1mm" border-style="solid">
+									<fo:block font-size="7pt" font-weight="bold" text-align="center" margin="1mm" space-before="0.5mm">
+										<xsl:text>
+											Fecha de Emisi&#243;n:
+										</xsl:text>
+									</fo:block>
+									<fo:block text-align="center" margin="1mm">
+										<fo:inline font-size="7pt" font-weight="bold">
+											<xsl:value-of select="@date"/>
+										</fo:inline>
+									</fo:block>
+								</fo:table-cell>
+							</fo:table-row>
+						</fo:table-body>
+					</fo:table>
+					<fo:table table-layout="fixed">
+						<fo:table-column column-width="111mm"/>
+						<fo:table-column column-width="51mm"/>
+						<fo:table-body>
+							<fo:table-row height="7mm">
+								<fo:table-cell text-align="left" border-width="0.1mm" border-style="solid">
+									<fo:block margin="1mm">
+										<fo:inline font-size="7pt" font-weight="bold">
+											<xsl:text>
+												Carpeta:&#160;
+											</xsl:text>
+										</fo:inline>
+										<fo:inline font-size="7pt">
+											<xsl:value-of select="@carpeta"/>
+										</fo:inline>
+									</fo:block>
+									<fo:block font-size="7pt" margin="1mm">
+										<xsl:value-of select="@f_egreso"/>
+									</fo:block>
+								</fo:table-cell>
+								<fo:table-cell text-align="left" border-width="0.1mm" border-style="solid">
+									<fo:block margin="1mm">
+										<fo:inline font-size="7pt" font-weight="bold">
+											<xsl:text>
+												&#193;rea/Sucursal:&#160;
+											</xsl:text>
+										</fo:inline>
+										<fo:inline font-size="7pt">
+											<xsl:value-of select="@sucursal_carpeta"/>
+										</fo:inline>
+									</fo:block>
+								</fo:table-cell>
+							</fo:table-row>
+						</fo:table-body>
+					</fo:table>
+					<fo:table table-layout="fixed">
+						<fo:table-column column-width="162mm"/>
+						<fo:table-body>
+							<fo:table-row height="8mm">
+								<fo:table-cell text-align="left" border-width="0.1mm" border-style="solid">
+									<fo:block margin="1mm">
+										<fo:inline font-size="7pt" font-weight="bold">
+											<xsl:text>
+												Pedido:&#160;
+											</xsl:text>
+										</fo:inline>
+										<fo:inline font-size="7pt">
+											<xsl:value-of select="@pedido"/>
+										</fo:inline>
+									</fo:block>
+								</fo:table-cell>
+							</fo:table-row>
+						</fo:table-body>
+					</fo:table>
+					<fo:table table-layout="fixed">
+						<fo:table-column column-width="126mm"/>
+						<fo:table-column column-width="36mm"/>
+						<fo:table-body>
+							<fo:table-row height="4mm">
+								<fo:table-cell text-align="left" border-width="0.1mm" border-style="solid">
+									<fo:block font-weight="bold" margin="1mm" text-align="left">
+										<fo:inline font-size="8pt">
+											<xsl:text>
+												Detalle de Conceptos
+											</xsl:text>
+										</fo:inline>
+									</fo:block>
+								</fo:table-cell>
+								<fo:table-cell text-align="left" border-width="0.1mm" border-style="solid">
+									<fo:block font-weight="bold" margin="1mm" text-align="center">
+										<fo:inline font-size="8pt">
+											<xsl:text>
+												Importe
+											</xsl:text>
+										</fo:inline>
+									</fo:block>
+								</fo:table-cell>
+							</fo:table-row>
+							<fo:table-row height="6mm">
+								<fo:table-cell border-width="0.1mm" border-style="solid">
+									<fo:block font-size="7pt" text-align="left" margin="1mm" space-before="1mm">
+										<xsl:text>
+											Monto total de liquidaci&#243;n final mas gratificaci&#243;n
+										</xsl:text>
+									</fo:block>
+								</fo:table-cell>
+								<fo:table-cell border-width="0.1mm" border-style="solid">
+									<fo:block font-size="7pt" text-align="center" margin="1mm" space-before="1mm">
+										<xsl:value-of select="@monto_total"/>
+									</fo:block>
+								</fo:table-cell>
+							</fo:table-row>
+							<fo:table-row height="6mm">
+								<fo:table-cell border-width="0.1mm" border-style="solid" number-columns-spanned="6">
+									<fo:block font-size="7pt" text-align="right" margin="1mm" space-before="1mm"/>
+								</fo:table-cell>
+							</fo:table-row>
+							<fo:table-row height="4mm">
+								<fo:table-cell text-align="left" border-width="0.1mm" border-style="solid">
+									<fo:block font-weight="bold" margin="1mm" text-align="left">
+										<fo:inline font-size="8pt">
+											<xsl:text>
+												Detalle de Medios de Pago
+											</xsl:text>
+										</fo:inline>
+									</fo:block>
+								</fo:table-cell>
+								<fo:table-cell text-align="left" border-width="0.1mm" border-style="solid">
+									<fo:block font-weight="bold" margin="1mm" text-align="center">
+										<fo:inline font-size="8pt">
+											<xsl:text>
+												Importe
+											</xsl:text>
+										</fo:inline>
+									</fo:block>
+								</fo:table-cell>
+							</fo:table-row>
+							<fo:table-row height="6mm">
+								<fo:table-cell border-width="0.1mm" border-style="solid">
+									<fo:block font-size="7pt" text-align="left" margin="1mm" space-before="1mm">
+										<xsl:value-of select="@d_pago"/>
+									</fo:block>
+								</fo:table-cell>
+								<fo:table-cell border-width="0.1mm" border-style="solid">
+									<fo:block font-size="7pt" text-align="center" margin="1mm" space-before="1mm">
+										<xsl:value-of select="@monto_total"/>
+									</fo:block>
+								</fo:table-cell>
+							</fo:table-row>
+							<fo:table-row height="6mm">
+								<fo:table-cell border-width="0.1mm" border-style="solid" number-columns-spanned="6">
+									<fo:block font-size="7pt" text-align="right" margin="1mm" space-before="1mm"/>
+								</fo:table-cell>
+							</fo:table-row>
+							<fo:table-row height="6mm">
+								<fo:table-cell border-width="0.1mm" border-style="solid" number-columns-spanned="6">
+									<fo:block font-size="7pt" text-align="left" margin="1mm" space-before="1mm">
+										<fo:inline font-size="7pt" font-weight="bold">
+											<xsl:text>
+												Sucursal solicitante:&#160;
+											</xsl:text>
+										</fo:inline>
+										<fo:inline font-size="7pt">
+											<xsl:value-of select="@sucursal_solicitante"/>
+										</fo:inline>
+									</fo:block>
+								</fo:table-cell>
+							</fo:table-row>
+							<fo:table-row height="6mm">
+								<fo:table-cell border-width="0.1mm" border-style="solid" number-columns-spanned="6">
+									<fo:block font-size="7pt" text-align="left" margin="1mm" space-before="1mm">
+										<fo:inline font-size="7pt" font-weight="bold">
+											<xsl:text>
+												Cliente:&#160;
+											</xsl:text>
+										</fo:inline>
+										<fo:inline font-size="7pt">
+											<xsl:value-of select="@cliente"/>
+										</fo:inline>
+									</fo:block>
+								</fo:table-cell>
+							</fo:table-row>
+							<fo:table-row height="6mm">
+								<fo:table-cell border-width="0.1mm" border-style="solid" number-columns-spanned="6">
+									<fo:block font-size="7pt" text-align="left" margin="1mm" space-before="1mm">
+										<fo:inline font-size="7pt" font-weight="bold">
+											<xsl:text>
+												Empresa/Legajo:&#160;
+											</xsl:text>
+										</fo:inline>
+										<fo:inline font-size="7pt">
+											<xsl:value-of select="@empresa_legajo"/>
+										</fo:inline>
+									</fo:block>
+								</fo:table-cell>
+							</fo:table-row>
+						</fo:table-body>
+					</fo:table>
+					<fo:table table-layout="fixed">
+						<fo:table-column column-width="162mm"/>
+						<fo:table-body>
+							<fo:table-row height="6mm">
+								<fo:table-cell text-align="left" border-width="0.1mm" border-style="solid">
+									<fo:block margin="1mm">
+										<fo:inline font-size="7pt" font-weight="bold">
+											<xsl:text>
+												Importe (en letras claramente):&#160;
+											</xsl:text>
+										</fo:inline>
+										<fo:inline font-size="7pt">
+											<xsl:value-of select="@monto_letras"/>
+										</fo:inline>
+									</fo:block>
+								</fo:table-cell>
+							</fo:table-row>
+							<fo:table-row height="6mm">
+								<fo:table-cell text-align="left" border-width="0.1mm" border-style="solid">
+									<fo:block margin="1mm">
+										<fo:inline font-size="7pt" font-weight="bold">
+											<xsl:text>
+												Fecha necesidad de fondos:&#160;
+											</xsl:text>
+										</fo:inline>
+										<fo:inline font-size="7pt">
+											<xsl:value-of select="@f_nec_fondos"/>
+										</fo:inline>
+									</fo:block>
+								</fo:table-cell>
+							</fo:table-row>
+							<fo:table-row height="6mm">
+								<fo:table-cell border-width="0.1mm" border-style="solid" number-columns-spanned="6">
+									<fo:block font-size="7pt" text-align="right" margin="1mm" space-before="1mm"/>
+								</fo:table-cell>
+							</fo:table-row>
+						</fo:table-body>
+					</fo:table>
+					<fo:table table-layout="fixed">
+						<fo:table-column column-width="162mm"/>
+						<fo:table-body/>
+					</fo:table>
+					<fo:table table-layout="fixed">
+						<fo:table-column column-width="162mm"/>
+						<fo:table-body/>
+					</fo:table>
+					<fo:table table-layout="fixed">
+						<fo:table-column column-width="24mm"/>
+						<fo:table-column column-width="46mm"/>
+						<fo:table-column column-width="46mm"/>
+						<fo:table-column column-width="46mm"/>
+						<fo:table-body>
+							<fo:table-row height="7mm">
+								<fo:table-cell border-width="0.1mm" border-style="solid">
+									<fo:block font-weight="bold" font-size="7pt" text-align="left" margin="1mm" space-before="1mm">
+										<xsl:text>
+											Firma
+										</xsl:text>
+									</fo:block>
+								</fo:table-cell>
+								<fo:table-cell border-width="0.1mm" border-style="solid">
+									<fo:block font-weight="bold" font-size="6pt" text-align="left" margin="1mm" space-before="10mm"/>
+								</fo:table-cell>
+								<fo:table-cell border-width="0.1mm" border-style="solid">
+									<fo:block font-weight="bold" font-size="6pt" text-align="left" margin="1mm" space-before="10mm"/>
+								</fo:table-cell>
+								<fo:table-cell border-width="0.1mm" border-style="solid">
+									<fo:block font-weight="bold" font-size="6pt" text-align="left" margin="1mm" space-before="10mm"/>
+								</fo:table-cell>
+							</fo:table-row>
+							<fo:table-row height="7mm">
+								<fo:table-cell border-width="0.1mm" border-style="solid">
+									<fo:block font-weight="bold" font-size="7pt" text-align="left" margin="1mm" space-before="1mm">
+										<xsl:text>
+											Aclaraci&#243;n
+										</xsl:text>
+									</fo:block>
+								</fo:table-cell>
+								<fo:table-cell border-width="0.1mm" border-style="solid">
+									<fo:block font-weight="bold" font-size="6pt" text-align="left" margin="1mm" space-before="1mm"/>
+								</fo:table-cell>
+								<fo:table-cell border-width="0.1mm" border-style="solid">
+									<fo:block font-weight="bold" font-size="6pt" text-align="left" margin="1mm" space-before="1mm"/>
+								</fo:table-cell>
+								<fo:table-cell border-width="0.1mm" border-style="solid">
+									<fo:block font-weight="bold" font-size="6pt" text-align="left" margin="1mm" space-before="1mm"/>
+								</fo:table-cell>
+							</fo:table-row>
+							<fo:table-row height="7mm">
+								<fo:table-cell border-width="0.1mm" border-style="solid">
+									<fo:block font-weight="bold" font-size="7pt" text-align="left" margin="1mm" space-before="1mm">
+										<xsl:text>
+											Fecha
+										</xsl:text>
+									</fo:block>
+								</fo:table-cell>
+								<fo:table-cell border-width="0.1mm" border-style="solid">
+									<fo:block font-size="7pt" text-align="left" margin="1mm" space-before="1mm">
+										<xsl:value-of select="@f_crea"/>
+									</fo:block>
+								</fo:table-cell>
+								<fo:table-cell border-width="0.1mm" border-style="solid">
+									<fo:block font-size="7pt" text-align="left" margin="1mm" space-before="1mm">
+										<xsl:value-of select="@f_aprueba"/>
+									</fo:block>
+								</fo:table-cell>
+								<fo:table-cell border-width="0.1mm" border-style="solid">
+									<fo:block font-size="7pt" text-align="left" margin="1mm" space-before="1mm">
+										<xsl:value-of select="@f_rechaza"/>
+									</fo:block>
+								</fo:table-cell>
+							</fo:table-row>
+							<fo:table-row height="7mm">
+								<fo:table-cell border-width="0.1mm" border-style="solid">
+									<fo:block font-weight="bold" font-size="7pt" text-align="left" margin="1mm" space-before="1mm">
+										<xsl:text>
+											Usuario
+										</xsl:text>
+									</fo:block>
+								</fo:table-cell>
+								<fo:table-cell border-width="0.1mm" border-style="solid">
+									<fo:block font-size="7pt" text-align="left" margin="1mm" space-before="1mm">
+										<xsl:value-of select="@c_usr_crea"/>
+									</fo:block>
+								</fo:table-cell>
+								<fo:table-cell border-width="0.1mm" border-style="solid">
+									<fo:block font-size="7pt" text-align="left" margin="1mm" space-before="1mm">
+										<xsl:value-of select="@c_usr_aprueba"/>
+									</fo:block>
+								</fo:table-cell>
+								<fo:table-cell border-width="0.1mm" border-style="solid">
+									<fo:block font-size="7pt" text-align="left" margin="1mm" space-before="1mm">
+										<xsl:value-of select="@c_usr_rechaza"/>
+									</fo:block>
+								</fo:table-cell>
+							</fo:table-row>
+							<fo:table-row height="15mm">
+								<fo:table-cell border-width="0.1mm" border-style="solid">
+									<fo:block font-weight="bold" font-size="7pt" text-align="left" margin="1mm" space-before="1mm">
+										<xsl:text>
+											Observaciones
+										</xsl:text>
+									</fo:block>
+								</fo:table-cell>
+								<fo:table-cell border-width="0.1mm" border-style="solid">
+									<fo:block font-size="7pt" text-align="left" margin="1mm" space-before="1mm">
+										<xsl:value-of select="@o_crea"/>
+									</fo:block>
+								</fo:table-cell>
+								<fo:table-cell border-width="0.1mm" border-style="solid">
+									<fo:block font-size="7pt" text-align="left" margin="1mm" space-before="1mm">
+										<xsl:value-of select="@o_aprueba"/>
+									</fo:block>
+								</fo:table-cell>
+								<fo:table-cell border-width="0.1mm" border-style="solid">
+									<fo:block font-size="7pt" text-align="left" margin="1mm" space-before="1mm">
+										<xsl:value-of select="@o_rechaza"/>
+									</fo:block>
+								</fo:table-cell>
+							</fo:table-row>
+							<fo:table-row height="4mm">
+								<fo:table-cell border-width="0.1mm" border-style="solid">
+									<fo:block font-weight="bold" font-size="6pt" text-align="left" margin="1mm" space-before="1mm"/>
+								</fo:table-cell>
+								<fo:table-cell border-width="0.1mm" border-style="solid">
+									<fo:block font-weight="bold" font-size="7pt" text-align="center" margin="1mm" space-before="1mm">
+										<xsl:text>
+											Prepar&#243;/Solicit&#243;
+										</xsl:text>
+									</fo:block>
+								</fo:table-cell>
+								<fo:table-cell border-width="0.1mm" border-style="solid">
+									<fo:block font-weight="bold" font-size="7pt" text-align="center" margin="1mm" space-before="1mm">
+										<xsl:text>
+											Aprob&#243;
+										</xsl:text>
+									</fo:block>
+								</fo:table-cell>
+								<fo:table-cell border-width="0.1mm" border-style="solid">
+									<fo:block font-weight="bold" font-size="7pt" text-align="center" margin="1mm" space-before="1mm">
+										<xsl:text>
+											Rechaz&#243;
+										</xsl:text>
+									</fo:block>
+								</fo:table-cell>
+							</fo:table-row>
+							<fo:table-row height="4mm">
+								<fo:table-cell number-columns-spanned="4">
+									<fo:block font-weight="bold" font-size="7pt" text-align="center" margin="0.1mm" space-before="1mm"/>
+								</fo:table-cell>
+							</fo:table-row>
+						</fo:table-body>
+					</fo:table>
+					<fo:table table-layout="fixed">
+						<fo:table-column column-width="24mm"/>
+						<fo:table-column column-width="83mm"/>
+						<fo:table-column column-width="23mm"/>
+						<fo:table-column column-width="32mm"/>
+						<fo:table-body>
+							<fo:table-row height="5mm">
+								<fo:table-cell border-width="0.1mm" border-style="solid" number-columns-spanned="4">
+									<fo:block font-weight="bold" font-size="8pt" text-align="center" margin="1mm" space-before="1mm">
+										<xsl:text>
+											Control Interno
+										</xsl:text>
+									</fo:block>
+								</fo:table-cell>
+							</fo:table-row>
+							<fo:table-row height="5mm">
+								<fo:table-cell border-width="0.1mm" border-style="solid">
+									<fo:block font-size="7pt" font-weight="bold" text-align="center" margin="1mm" space-before="1mm">
+										<xsl:text>
+											&#193;rea
+										</xsl:text>
+									</fo:block>
+								</fo:table-cell>
+								<fo:table-cell border-width="0.1mm" border-style="solid">
+									<fo:block font-size="7pt" font-weight="bold" text-align="center" margin="1mm" space-before="1mm">
+										<xsl:text>
+											Acci&#243;n
+										</xsl:text>
+									</fo:block>
+								</fo:table-cell>
+								<fo:table-cell border-width="0.1mm" border-style="solid">
+									<fo:block font-size="7pt" font-weight="bold" text-align="center" margin="1mm" space-before="1mm">
+										<xsl:text>
+											Fecha
+										</xsl:text>
+									</fo:block>
+								</fo:table-cell>
+								<fo:table-cell border-width="0.1mm" border-style="solid">
+									<fo:block font-size="7pt" font-weight="bold" text-align="center" margin="1mm" space-before="1mm">
+										<xsl:text>
+											Usuario
+										</xsl:text>
+									</fo:block>
+								</fo:table-cell>
+								<fo:table-cell border-width="0.1mm" border-style="solid">
+									<fo:block font-size="7pt" font-weight="bold" text-align="center" margin="1mm" space-before="1mm">
+										<xsl:text>
+											Firma
+										</xsl:text>
+									</fo:block>
+								</fo:table-cell>
+							</fo:table-row>
+							<fo:table-row height="10mm">
+								<fo:table-cell border-width="0.1mm" border-style="solid">
+									<fo:block font-size="7pt" text-align="center" margin="1mm" space-before="1mm">
+										<xsl:text>
+											Liquidaci&#243;n
+										</xsl:text>
+									</fo:block>
+								</fo:table-cell>
+								<fo:table-cell border-width="0.1mm" border-style="solid">
+									<fo:block font-size="7pt" text-align="left" margin="1mm" space-before="1mm">
+										<xsl:value-of select="@o_liquidacion"/>
+									</fo:block>
+								</fo:table-cell>
+								<fo:table-cell border-width="0.1mm" border-style="solid">
+									<fo:block font-size="7pt" text-align="center" margin="1mm" space-before="1mm">
+										<xsl:value-of select="@f_cumple"/>
+									</fo:block>
+								</fo:table-cell>
+								<fo:table-cell border-width="0.1mm" border-style="solid">
+									<fo:block font-size="7pt" text-align="center" margin="1mm" space-before="1mm">
+										<xsl:value-of select="@c_usr_cumple"/>
+									</fo:block>
+								</fo:table-cell>
+								<fo:table-cell border-width="0.1mm" border-style="solid">
+									<fo:block font-size="7pt" text-align="center" margin="1mm" space-before="1mm"/>
+								</fo:table-cell>
+							</fo:table-row>
+							<fo:table-row height="10mm">
+								<fo:table-cell border-width="0.1mm" border-style="solid">
+									<fo:block font-size="7pt" text-align="center" margin="1mm" space-before="1mm">
+										<xsl:text>
+											Tesorer&#237;a
+										</xsl:text>
+									</fo:block>
+								</fo:table-cell>
+								<fo:table-cell border-width="0.1mm" border-style="solid">
+									<fo:block font-size="7pt" text-align="left" margin="1mm" space-before="1mm">
+										<xsl:value-of select="@o_tesoreria"/>
+									</fo:block>
+								</fo:table-cell>
+								<fo:table-cell border-width="0.1mm" border-style="solid">
+									<fo:block font-size="7pt" text-align="center" margin="1mm" space-before="1mm">
+										<xsl:value-of select="@f_pago"/>
+									</fo:block>
+								</fo:table-cell>
+								<fo:table-cell border-width="0.1mm" border-style="solid">
+									<fo:block font-size="7pt" text-align="center" margin="1mm" space-before="1mm">
+										<xsl:value-of select="@usuario_pago"/>
+									</fo:block>
+								</fo:table-cell>
+								<fo:table-cell border-width="0.1mm" border-style="solid">
+									<fo:block font-size="7pt" text-align="center" margin="1mm" space-before="1mm"/>
+								</fo:table-cell>
+							</fo:table-row>
+							<!--fo:table-row height="4mm">
+<fo:table-cell number-columns-spanned="4">
+<fo:block font-size="8pt" text-align="left" margin="0.1mm" space-before="3mm">
+<xsl:text>
+												Observaciones:&#160;
+</xsl:text>
+<xsl:value-of select="@observaciones"/>
+</fo:block>
+</fo:table-cell>
+</fo:table-row-->
+						</fo:table-body>
+					</fo:table>
+				</fo:flow>
+			</fo:page-sequence>
+		</xsl:template>
+	</report:page>
+</report:report>

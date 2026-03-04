@@ -1,0 +1,110 @@
+<INTERFACE-DEF xmlns:qry="nomad_engine.qry" code="" desc="" entermode="DOS" finalenter="1">
+	<QUERY declare="&lt;DATA oi_empresa=&quot;1&quot; oi_banco=&quot;1&quot; f_acreditacion=&quot;20091228&quot; interface=&quot;RIO&quot;&gt;&#13;&#10;&#9;&lt;LIQS&gt;&#13;&#10;&#9;&#9;&lt;LIQ oi_liquidacion=&quot;1&quot; /&gt;&#13;&#10;&#9;&lt;/LIQS&gt;&#13;&#10;&lt;/DATA&gt;">
+		<qry:main doc="SOURCE">
+			<qry:element name="DATA">
+				<qry:element name="DETAILS">
+					<qry:insert-select name="qryDetail" doc-path="#SOURCE:/DATA"/>
+				</qry:element>
+				<qry:insert-select name="qryHead" doc-path="#SOURCE:/DATA"/>
+			</qry:element>
+		</qry:main>
+		<qry:select name="qryHead" doc="SOURCE">
+			<qry:xquery>
+				for $r in SQL('
+					SELECT
+						EB.c_convenio,
+						EB.d_cuenta,
+						ORG03_EMPRESAS.d_empresa
+					FROM
+						LIQ15_EMPRESA_BCOS as EB,
+						LIQ22_BANCOS, ORG03_EMPRESAS
+					JOIN
+						EB.oi_banco INNER LIQ22_BANCOS.oi_banco,
+						EB.oi_empresa INNER ORG03_EMPRESAS.oi_empresa
+					WHERE
+						EB.oi_empresa = {#SOURCE:@oi_empresa} AND
+						EB.oi_banco = {#SOURCE:@oi_banco}
+				')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:element name="HEAD">
+					<qry:attribute name="NroConvenio" value="$r/@c_convenio"/>
+					<qry:attribute name="CtaDebito" value="FILL_LEFT(TRANSLATE($r/@d_cuenta, '-', ''), '0', 7)"/>
+					<qry:attribute name="Razon_Social" value="SUBSTRING($r/@d_empresa, 0, 30)"/>
+					<qry:attribute name="f_acred" value="format_date(#SOURCE:@f_acreditacion, 'ddmmyy')"/>
+					<qry:attribute name="imp_total" value="FORMAT_NUMBER(../DETAILS/@imp_total, 15, 2, '', '', '0')"/>
+					<qry:attribute name="n_registros" value="FORMAT_NUMBER(../DETAILS/@n_registros,  4, 0, '', '', '0')"/>
+				</qry:element>
+			</qry:out>
+		</qry:select>
+		<qry:select name="qryDetail" doc="SOURCE">
+			<qry:xquery>
+				for $r in SQL('
+SELECT 
+	SUM(LIQ20_TOT_LIQ_PER.n_totpag) as n_totpag,
+	MAX(LIQ97_PERSONAL_EMP.c_cta_bancaria) as c_cta_bancaria,
+	MAX(LIQ22_BANCOS_SUCUR.c_suc_bancaria) as c_suc_bancaria
+FROM         
+	LIQ15_EMPRESA_BCOS ,
+	LIQ15_EMPRESAS ,
+	ORG03_EMPRESAS, 
+	LIQ22_BANCOS ,
+	LIQ22_BANCOS_SUCUR ,
+	LIQ99_RECIBOS ,
+	LIQ20_TOT_LIQ_PER ,
+	LIQ97_PERSONAL_EMP ,
+	LIQ93_EMPRESAS ,
+	LIQ99_LIQUIDACION,
+	LIQ19_EJECUCIONES ,
+	LIQ19_LIQUIDACION , 
+	PER31_FORMAS_PAGO
+JOIN
+	LIQ15_EMPRESA_BCOS.oi_empresa 				INNER LIQ15_EMPRESAS.oi_empresa  ,
+	LIQ15_EMPRESAS.oi_empresa 						INNER ORG03_EMPRESAS.oi_empresa  ,
+	LIQ15_EMPRESA_BCOS.oi_banco			 			INNER LIQ22_BANCOS.oi_banco  ,
+	LIQ22_BANCOS.oi_banco 								INNER LIQ22_BANCOS_SUCUR.oi_banco  ,
+	LIQ20_TOT_LIQ_PER.oi_per_emp_ddo		 	INNER LIQ97_PERSONAL_EMP.oi_per_emp_ddo  ,
+	LIQ99_RECIBOS.oi_tot_liq_per 					INNER LIQ20_TOT_LIQ_PER.oi_tot_liq_per  ,
+	LIQ93_EMPRESAS.oi_empresa_ddo 				INNER LIQ99_LIQUIDACION.oi_empresa_ddo ,
+	LIQ99_RECIBOS.oi_liquidacion_ddo 			INNER LIQ99_LIQUIDACION.oi_liquidacion_ddo ,
+	ORG03_EMPRESAS.c_empresa 							INNER LIQ93_EMPRESAS.c_empresa  ,
+	LIQ99_LIQUIDACION.oi_liquidacion_ddo 	INNER LIQ19_EJECUCIONES.oi_liquidacion_ddo  ,
+	LIQ19_EJECUCIONES.oi_liquidacion 			INNER LIQ19_LIQUIDACION.oi_liquidacion ,
+	LIQ22_BANCOS_SUCUR.c_sucursal 				INNER LIQ97_PERSONAL_EMP.c_sucursal  , 
+	LIQ22_BANCOS.c_banco 									INNER LIQ97_PERSONAL_EMP.c_banco,
+	PER31_FORMAS_PAGO.c_forma_pago	 			INNER LIQ20_TOT_LIQ_PER.c_forma_pago
+WHERE
+	LIQ99_LIQUIDACION.c_estado = \'F\' and
+	LIQ22_BANCOS.oi_banco = {#SOURCE:@oi_banco}
+
+	{%? (string(#SOURCE:LIQS/LIQ/@oi_liquidacion) != '')
+		{% AND LIQ19_LIQUIDACION.oi_liquidacion in ( {%=string(#SOURCE:LIQS/LIQ/@oi_liquidacion)%})  %} 
+		{%  %}   
+	%}
+	and	PER31_FORMAS_PAGO.l_banco = 1
+	and LIQ20_TOT_LIQ_PER.n_totpag &gt; 0
+GROUP BY
+	LIQ97_PERSONAL_EMP.c_empresa, LIQ97_PERSONAL_EMP.e_numero_legajo
+				')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:element name="DETAIL">
+					<qry:attribute name="CodSucursal" value="$r/@c_suc_bancaria"/>
+					<qry:attribute name="CtaCredito" value="FILL_LEFT(TRANSLATE($r/@c_cta_bancaria, '-', ''), '0', 7)"/>
+					<qry:attribute name="Importe" value="FORMAT_NUMBER($r/@n_totpag, 11, 2, '', '', '0')"/>
+				</qry:element>
+				<qry:attribute name="imp_total" value="number(@imp_total) + number(FORMAT_NUMBER($r/@n_totpag, 14, 2, '.', '', '0'))"/>
+				<qry:attribute name="n_registros" value="number(@n_registros) + 1"/>
+			</qry:out>
+		</qry:select>
+	</QUERY>
+	<HEAD>
+		00003011{Razon_Social:30+}{NroConvenio:3}0{CtaDebito:7}{f_acred:6}{imp_total:17}{n_registros:4}{NroConvenio:3}9{space(48)}
+	</HEAD>
+	<DETAIL>
+		6{CodSucursal:3}301100{CtaCredito:7}0000{Importe:13}{space(94)}
+	</DETAIL>
+	<MESS>
+		<EMPTY mess="No se encontraron registros. Por favor verifique que los legajos est&#233;n asociados al banco correcto."/>
+	</MESS>
+</INTERFACE-DEF>

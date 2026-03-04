@@ -1,0 +1,476 @@
+<form:Form xmlns:form="nomad_engine.form" extends="nomad.childIter.form" default_mode="LIST" name="NucleusRH.Base.Tiempos_Trabajados.Liquidacion.PERSONAS.form" doc="source" parent-doc="PARENTSOURCE">
+	<form:Title width="90%">
+		<form:RowAligner name="ralTitle">
+			<form:Row name="row1">
+				<form:Label label="Procesamiento de Horas - Legajos Inicializados" nowrap="1" name="lblTitulo" visible="LIST" style="S3 LCol_w"/>
+				<form:Label nvalue="#source:@descr" dynamic="1" nowrap="1" align="right" style="S3 LCol_w" name="ti_01"/>
+			</form:Row>
+		</form:RowAligner>
+	</form:Title>
+	<form:Center width="100%" height="100%">
+		<form:RowAligner visible="0" name="buttonlinks"/>
+		<form:Blank name="bl000" width="100%" visible=""/>
+		<form:Columns height="100%" width="100%" name="cols">
+			<form:Column height="100%" width="15%" name="col1" separation="0" align="left" valign="top">
+				<form:Blank name="bl10" width="100%" visible=""/>
+				<form:Blank name="bl11" width="100%" visible=""/>
+				<form:TextBox visible="LIST|LIST_EDIT" xsize="20" length="40" name="iter_search" label="Buscar" ysize="1" descr="Busca.">
+					<form:Event action="filter" runat="client" name="onpressenter"/>
+					<form:SButtons>
+						<form:SButton name="Search" label="Buscar" img="search" descrip="Ejecuta la busqueda.">
+							<form:Event action="filter" runat="client" name="onclick"/>
+						</form:SButton>
+					</form:SButtons>
+				</form:TextBox>
+				<form:Label name="lbl" label="Legajos Inicializados" align="center" style="M1 LCol_g" visible=""/>
+				<form:RecordSet SQL="" select-show="1" nvalue="#source:@legID" arr-control="arrcheckFILTER" name="listFILTER" descrip="Legajos Filtrados" mode="QRY" height="500" row-height="20" width="300px" label="Legajos Filtrados">
+					<form:RSColumns>
+						<form:RSColumn show="S" orderby="1" width="60px" type="string" align="left" descrip="Empresa" label="Empresa" name="EMPRESA"/>
+						<form:RSColumn orderby="1" show="S" dec="0" width="50px" type="number" align="right" descrip="Legajo" label="Legajo" name="LEGAJO"/>
+						<form:RSColumn label="Apellido y Nombre" show="S" orderby="1" width="190px" align="left" type="string" descrip="Apellido y Nombre" name="APE_Y_NOM"/>
+					</form:RSColumns>
+					<form:Event action="ClickList" name="onclick" runat="client"/>
+				</form:RecordSet>
+				<form:Hidden nvalue="#DDO:@id" name="id"/>
+				<form:Hidden name="c_estado" nvalue="#DDO:@c_estado"/>
+			</form:Column>
+			<form:Column height="100%" width="85%" align="right" name="col2" separation="0" valign="top">
+				<form:UrlControl height="100%" width="100%" border="0" name="PAGINA_INTERFAZ"/>
+			</form:Column>
+		</form:Columns>
+		<form:Hidden label="idrep" name="idrep"/>
+	</form:Center>
+	<form:Right visible="0" collapse="1" width="150px"/>
+	<form:Bottom>
+		<form:RowAligner name="buttonlinks">
+			<form:Row visible="0" name="row1"/>
+			<form:Row name="row2">
+				<form:Button name="VAR_PER" label="Datos de Novedad" descrip="Consultar los datos de Novedad" visible="LIST" img="edit" startvalidate="1">
+					<form:Event action="VAL_VAR" name="onclick" runat="client"/>
+				</form:Button>
+				<form:Button mess="&#191;Est&#225; seguro que desea procesar? Los datos modificados de forma manual se perder&#225;n" img="execute" descrip="Reprocesar las horas del legajo" label="Reprocesar" visible="LIST" name="PROC" startvalidate="1">
+					<form:Event action="Procesar" name="onclick" runat="client"/>
+				</form:Button>
+				<form:Button img="search" name="PREVIEW" label="Vista Previa" visible="LIST" descrip="Obtener el informe de horas para imprimir" startvalidate="1">
+					<form:Event action="CONC_VAL" name="onclick" runat="client"/>
+				</form:Button>
+				<form:Blank width="50px" name="blb1"/>
+				<form:Button visible="LIST" name="SAVE" label="Guardar" img="save" descrip="Guardar los cambios" startvalidate="1">
+					<form:Event action="Guardar" name="onclick" runat="client"/>
+				</form:Button>
+				<form:Button visible="LIST" name="BACK" label="Volver" img="back" descrip="Volver a la pantalla anterior" note="Vuelve a la pantalla anterior del formulario" startvalidate="1">
+					<form:Event action="Volver" runat="client" name="onclick"/>
+				</form:Button>
+			</form:Row>
+		</form:RowAligner>
+	</form:Bottom>
+	<form:Scripts>
+		var qrylist = "SELECT TTA10_LIQUIDACPERS.oi_personal_emp as ID, PER02_PERSONAL_EMP.e_numero_legajo as LEGAJO, ORG03_EMPRESAS.c_empresa AS EMPRESA, PER01_PERSONAL.d_ape_y_nom AS APE_Y_NOM FROM  TTA10_LIQUIDACPERS, PER02_PERSONAL_EMP, ORG03_EMPRESAS, PER01_PERSONAL JOIN TTA10_LIQUIDACPERS.oi_personal_emp INNER PER02_PERSONAL_EMP.oi_personal_emp, ORG03_EMPRESAS.oi_empresa INNER PER02_PERSONAL_EMP.oi_empresa, PER01_PERSONAL.oi_personal INNER PER02_PERSONAL_EMP.oi_personal WHERE TTA10_LIQUIDACPERS.oi_liquidacion = {PARAM}";
+var fileData;
+var rowEdited = new Array();
+var gID;
+
+function ONLOAD()
+{	
+	internal_filter();
+	
+	if (Ctrl('c_estado').GetCValue() == "ini") 
+	{  
+		CtrlEnabled('VAL_VAR', true);
+		CtrlEnabled('PROC_PER', true);
+	}
+	
+	if (Ctrl('c_estado').GetCValue() == "pro") 
+	{  
+		CtrlEnabled('VAL_VAR', true);
+		CtrlEnabled('PROC_PER', true);
+	}  
+	
+	if (Ctrl('c_estado').GetCValue() == "cer") 
+	{ 		
+		CtrlEnabled('VAL_VAR', false);
+		CtrlEnabled('PROC_PER', false);
+	}
+	
+	if (Ctrl('c_estado').GetCValue() == "con") 
+	{ 		
+		CtrlEnabled('PROC', false);
+		CtrlEnabled('SAVE', false);
+	}
+}
+
+function filter()  
+{ 	
+	Ctrl("listFILTER").SetXValue("");
+	NomadTimeout("internal_filter();",100,"Filtrando la Lista...");
+}
+
+function internal_filter()
+{	
+	var qryfilter = Replace(qrylist, "{PARAM}", Ctrl("id").GetXValue());
+	if(Ctrl("iter_search").GetXValue() != "")
+	{
+		qryfilter += " AND (contain(ucase(PER01_PERSONAL.d_ape_y_nom), \\'{VALUE}\\') OR contain(ucase(PER02_PERSONAL_EMP.e_numero_legajo), \\'{VALUE}\\') OR contain(ucase(ORG03_EMPRESAS.c_empresa), \\'{VALUE}\\'))";
+		qryfilter = Replace(qryfilter, "{VALUE}", Ctrl("iter_search").GetXValue().toUpperCase());	
+	}
+		
+	qryfilter += " ORDER BY LEGAJO ASC";
+	Ctrl("listFILTER").SQL = qryfilter;		
+	Ctrl("listFILTER").ResetSQL();
+	
+	SetGrid();	
+}
+
+
+function VAL_VAR()
+{	
+	if(Ctrl('listFILTER').GetXValue() != "")
+	{
+		var param = "&lt;DATA oi_liquidacion=\"" + Ctrl("id").GetXValue() + "\" oi_personal_emp=\"" +Ctrl('listFILTER').GetXValue()+ "\"/&gt;";	
+		openNewFlowWait('NucleusRH.Base.Tiempos_Trabajados.Liquidacion_Personas.VAL_VAR.flow','VAL_VAR',param,new ObjectResult(), "L");			
+	}
+	else
+	{
+		alert("No ha seleccionado ning&#250;n legajo");
+		return false;
+	}
+}
+
+function CONC_VAL()
+{	
+	if(Ctrl('listFILTER').GetXValue() != "")
+	{		
+		if (IsEdited())
+		{			
+			if (confirm('Desea continuar sin guardar los cambios realizados?'))
+			{
+				var param = "&lt;DATA oi_liquidacion=\"" + Ctrl("id").GetXValue() + "\" oi_personal_emp=\"" +Ctrl('listFILTER').GetXValue()+ "\"/&gt;";	
+				openNewFlowWait('NucleusRH.Base.Tiempos_Trabajados.Liquidacion_Personas.CONC_VAL.flow','REPORT',param,new ObjectResult(), "L");			
+			}
+			else
+				return false;
+		}
+		else
+		{
+			var param = "&lt;DATA oi_liquidacion=\"" + Ctrl("id").GetXValue() + "\" oi_personal_emp=\"" +Ctrl('listFILTER').GetXValue()+ "\"/&gt;";	
+			openNewFlowWait('NucleusRH.Base.Tiempos_Trabajados.Liquidacion_Personas.CONC_VAL.flow','REPORT',param,new ObjectResult(), "L");			
+		}			
+	}
+	else
+	{
+		alert("No ha seleccionado ning&#250;n legajo");
+		return false;
+	}
+	return true;
+}
+
+function Procesar()
+{	
+	if(Ctrl('listFILTER').GetXValue() != "")
+	{
+		var param = new NomadXML("DATA"); 
+		param.SetAttr("oi_liquidacion", Ctrl('id').GetXValue());
+		param.SetAttr("oi_personal_emp", Ctrl('listFILTER').GetXValue());
+		param.SetAttr("idrep", Ctrl('idrep').GetXValue());
+		
+		openNewFlow('NucleusRH.Base.Tiempos_Trabajados.Liquidacion.flow','PROC_PER',param.ToString(),new ObjectResult2(), "L");
+	}
+	else
+	{
+		alert("No ha seleccionado ning&#250;n legajo");
+		return false;
+	}
+}
+
+function SetGrid()
+{
+	if(Ctrl('listFILTER').GetXValue() != "")
+	{
+		Ctrl("PAGINA_INTERFAZ").SetURL("");				
+		fileData = GetProxy().FileServiceIO().LoadFileXML("TEMP", "Procesamiento-"+Ctrl('idrep').GetXValue()+".xml");				
+		rowEdited = new Array();
+		gID = Ctrl('listFILTER').GetXValue(); 
+		Ctrl("PAGINA_INTERFAZ").SetURL("../../../ReportViewer.aspx?ut="+GetProxy().UserToken()+"&amp;empty=0&amp;file=NucleusRH.Base.Tiempos_Trabajados.HorasManual.rpt&amp;idrep="+Ctrl('idrep').GetXValue()+"&amp;now="+(new Date()).toString());
+	}
+	else
+	{		
+		Ctrl("PAGINA_INTERFAZ").SetURL("../../../ReportViewer.aspx?ut="+GetProxy().UserToken()+"&amp;empty=1&amp;file=NucleusRH.Base.Tiempos_Trabajados.HorasManual.rpt&amp;now="+(new Date()).toString());
+	}
+}
+
+
+function OnLostFocusValor(obj, value)
+{
+	var jor = obj.id.split("_")[1];
+	var con = obj.id.split("_")[2];
+		
+	if (jor!="0")
+	{				
+		var det = fileData.FindElement("DETALLE").FindElement2("DET", "fec", jor);		
+		det.SetAttr("conc_"+con, value);
+	}
+	else
+	{
+		
+		var men = fileData.FindElement("MENSUAL").FindElement2("CONMEN", "oi_concepto", con);		
+		men.SetAttr("cant", value);
+	}
+}
+
+function SetChg(obj)
+{
+	var jor = obj.id.split("_")[1];
+	var con = obj.id.split("_")[2];
+		
+	if (jor!="0")
+	{				
+		var det = fileData.FindElement("DETALLE").FindElement2("DET", "fec", jor);				
+		
+		if(det.GetAttr("chg")!="")
+		{			
+			if(det.GetAttr("chg").indexOf(",conc_"+con+",") == -1)
+				det.SetAttr("chg", det.GetAttr("chg") + "conc_"+con+",");
+		}
+		else
+			det.SetAttr("chg", ",conc_"+con+",");
+	}
+	else
+	{		
+		var men = fileData.FindElement("MENSUAL").FindElement2("CONMEN", "oi_concepto", con);				
+		
+		if(men.GetAttr("chg")!="")
+		{
+		 	if(men.GetAttr("chg").indexOf(",conc_"+con+",") == -1)
+				men.SetAttr("chg", men.GetAttr("chg") + "conc_"+con+",");
+		}
+		else
+			men.SetAttr("chg", ",conc_"+con+",");
+	}
+}
+
+function UnSetChg()
+{							
+	for(var xmldet = fileData.FindElement("DETALLE").FirstChild(); xmldet!=null;xmldet=xmldet.Next())
+		xmldet.SetAttr("chg", "");		
+			
+	for(var xmlmen = fileData.FindElement("MENSUAL").FirstChild(); xmlmen!=null;xmlmen=xmlmen.Next())
+		xmlmen.SetAttr("chg", "");
+}
+
+function SetTotal(con)
+{		
+	var tot=0;
+	for(var xmldet = fileData.FindElement("DETALLE").FirstChild(); xmldet!=null;xmldet=xmldet.Next())
+	{		
+		var val = xmldet.GetAttr("conc_"+con);
+		tot+=toDecimal(val);		
+	}			
+	return tot;
+}
+
+function toDecimal(val)
+{
+	if(val=="")
+		return 0;	
+		
+	if(validateDouble(val))
+		return parseFloat(val);
+	
+	var hh = parseInt(val.split(":")[0],10);
+	var mm = parseInt(val.split(":")[1],10);
+	
+	return roundNumber(hh+(mm/60),2);
+}
+
+function toTime(val)
+{
+	if (validateHhMm(val))
+		return val;
+	var ent = Math.floor(val);
+	var dec = roundNumber((val - ent) * 60,0);
+	
+	if(dec &lt; 10)
+		dec = "0"+dec;
+	return ent+":"+dec;	
+}
+
+function internal_clicklist()
+{
+	if (IsEdited())
+	{
+		if (!confirm('Desea continuar sin guardar los cambios realizados?'))
+		{
+			UnSetChg();
+			Ctrl("listFILTER").SetXValue(gID);
+			return false;
+		}
+	}	
+	
+	if (Ctrl('listFILTER').GetXValue() != "")
+	{
+		var param = new NomadXML("DATA"); 
+		param.SetAttr("oi_liquidacion", Ctrl('id').GetXValue());
+		param.SetAttr("oi_personal_emp", Ctrl('listFILTER').GetXValue());
+				
+		openNewFlow('NucleusRH.Base.Tiempos_Trabajados.Liquidacion.flow','SETREP',param.ToString(),new ObjectResult2(), "L");					
+	}	
+	
+	return true;
+}
+
+function ver_archivo()
+{		
+	alert(fileData.ToString());
+}
+
+function SetEdited(id, value)
+{
+	rowEdited[id] = value;
+}
+
+function IsEdited()
+{		
+	for(var x in rowEdited)
+	{						
+		if(rowEdited[x])		
+			return true;
+	}	
+	return false;
+}
+
+function internal_save()
+{
+	if(Ctrl('listFILTER').GetXValue() != "")
+	{
+		GetProxy().FileServiceIO().SaveFile("TEMP","Procesamiento-" + Ctrl('idrep').GetXValue() + ".xml", fileData.ToString());	
+		var param = new NomadXML("DATA"); 
+		param.SetAttr("oi_liquidacion", Ctrl('id').GetXValue());
+		param.SetAttr("oi_personal_emp", Ctrl('listFILTER').GetXValue());
+		param.SetAttr("idrep", Ctrl('idrep').GetXValue());
+		
+		openNewFlow('NucleusRH.Base.Tiempos_Trabajados.Liquidacion.flow','SAVE',param.ToString(),new ObjectResult2(), "L");		
+	}
+	else
+	{
+		alert("No ha seleccionado ning&#250;n legajo");
+		return false;
+	}
+}
+
+
+function Volver()
+{
+	if(Ctrl('listFILTER').GetXValue() != "")
+	{
+		if (IsEdited())
+		{
+			if (confirm('Desea salir sin guardar los cambios?'))
+			{
+				UnSetChg();
+				Ctrl('main').DoEvent("BackForm");	
+				return true;
+			}
+			else
+				return false
+		}
+		else
+		{
+			UnSetChg();
+			Ctrl('main').DoEvent("BackForm");				
+			return false;
+		}	
+	}	
+	if(fileData!=null)
+		UnSetChg();
+	Ctrl('main').DoEvent("BackForm");	
+	return true;
+	
+}
+
+
+function validateval(inputField, con)
+{	
+	var con = fileData.FindElement("CON").FindElement2("C", "id", con);	
+	if(con.GetAttr("c_unidad")=="horas")
+	{
+		if(!validateHhMm(inputField.value))
+			inputField.value="";	
+		return validateHhMm(inputField);
+	}
+	else
+	{
+		if(!validateDouble(inputField.value))
+			inputField.value="";	
+		return validateDouble(inputField);
+	}
+		
+	return true;			
+}
+
+
+function validateHhMm(value) 
+{
+	var isValid = /^([0-9]?[0-9]?[0-9]):([0-5][0-9])$/.test(value);	
+	return isValid;
+}
+
+
+function validateDouble(value)
+{
+	if (value.toString().indexOf(':') !=-1)
+		return false;
+		
+	var pattern = /^\d+.?\d*$/;
+ 	var str = value.toString().replace(",",".");
+
+	if (str.match(pattern)==null)
+		return false;
+		
+	return true;
+}
+
+function roundNumber(number, decimals) 
+{
+	var newnumber = new Number(number+'').toFixed(parseInt(decimals,10));
+	return parseFloat(newnumber);
+}
+
+
+
+function Guardar()  
+{
+	NomadTimeout("internal_save();",100,"Guardando los datos...");
+}
+
+function ClickList()  
+{
+	NomadTimeout("internal_clicklist();",100,"Recuperando informaci&#243;n...");
+}
+
+function GetUnit(con)
+{
+	var con = fileData.FindElement("CON").FindElement2("C", "id", con);	
+	return con.GetAttr("c_unidad");
+}
+
+function ObjectResult()
+{
+	this.processResult = function()
+	{		
+	}
+}
+
+function ObjectResult2()
+{
+	this.processResult = function(strin)
+	{
+		var xmlin = new NomadXML(strin)		
+		Ctrl('idrep').SetXValue(xmlin.GetAttr("idrep"));				
+ 	
+		SetGrid();	
+	}
+}
+	</form:Scripts>
+	<form:Event action="ONLOAD" name="onload" runat="client"/>
+	<form:Event name="BackForm" action="BACK" runat="server"/>
+</form:Form>

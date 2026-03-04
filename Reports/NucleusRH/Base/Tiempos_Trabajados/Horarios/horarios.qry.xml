@@ -1,0 +1,273 @@
+<qry:define declare="&lt;FILTRO f_desde=&quot;&quot; f_hasta=&quot;&quot; oi_empresa=&quot;&quot; oi_clase_org=&quot;5&quot; FormatRPT=&quot;PDF&quot; c_estado=&quot;&quot;&gt;&#13;&#10;  &lt;PERSONAS nmd-col=&quot;1&quot;&gt;&#13;&#10;   &#13;&#10;  &lt;/PERSONAS&gt;&#13;&#10;  &lt;ESTRUCTURAS&gt;&#13;&#10;    &#13;&#10;  &lt;/ESTRUCTURAS&gt;&#13;&#10;  &lt;HORARIOS&gt;&#13;&#10;  &#13;&#10;  &lt;/HORARIOS&gt;&#13;&#10;&lt;/FILTRO&gt;&#13;&#10;" xmlns:qry="XXX" name="FORMS">
+	<qry:main doc="PARAM" xmlns:qry="XXX">
+		<qry:append-doc name="FILTRO" doc-path="#PARAM:/FILTRO"/>
+		<qry:element name="HORARIOS">
+			<qry:element name="CLASES">
+				<qry:insert-select name="QRY_CLASE_PADRE" doc-path="#FILTRO:"/>
+			</qry:element>
+			<qry:append-doc name="ORGANIGRAMAS" doc-path="."/>
+			<qry:attribute value="'No'" name="personas"/>
+			<qry:attribute value="'No'" name="estructuras"/>
+			<qry:attribute value="'No'" name="horarios"/>
+			<qry:attribute value="'-'" name="empresa"/>
+			<qry:attribute value="'-'" name="estado"/>
+			<qry:attribute value="iif(#FILTRO:@f_desde='', '-', format_date(#FILTRO:@f_desde,'dd/mm/yyyy'))" name="f_desde"/>
+			<qry:attribute value="iif(#FILTRO:@f_hasta='', '-', format_date(#FILTRO:@f_hasta,'dd/mm/yyyy'))" name="f_hasta"/>
+			<qry:attribute value="./@f_desde + ' - ' + ./@f_hasta" name="f_desde_hasta"/>
+			<qry:attribute value="format_date(now(),'dd/mm/yyyy HH:MM:SS')" name="f_informe"/>
+			<qry:insert-select doc-path="#FILTRO:" name="QRY_PARAM_CLASE"/>
+			<qry:insert-select doc-path="#FILTRO:" name="QRY_PARAM_PERSONAS"/>
+			<qry:insert-select doc-path="#FILTRO:" name="QRY_PARAM_HORARIOS"/>
+			<qry:insert-select doc-path="#FILTRO:" name="QRY_PARAM_ESTR"/>
+			<qry:insert-select doc-path="#FILTRO:/.[#FILTRO:@oi_empresa!='']" name="QRY_PARAM_EMPRESA"/>
+			<qry:insert-select doc-path="#FILTRO:/.[#FILTRO:@c_estado = 'A']" name="QRY_ACEPTADO"/>
+			<qry:insert-select doc-path="#FILTRO:/.[#FILTRO:@c_estado = 'R']" name="QRY_RECHAZADO"/>
+			<qry:insert-select doc-path="#FILTRO:/.[#FILTRO:@c_estado = 'P']" name="QRY_PENDIENTE"/>
+			<qry:element name="LEGAJOS">
+				<qry:attribute value="'0'" name="cant"/>
+				<qry:insert-select doc-path="#FILTRO:" name="QRY_HORARIOS"/>
+				<qry:insert-select doc-path=".[./@cant='0']" name="QRY_VACIO"/>
+			</qry:element>
+		</qry:element>
+	</qry:main>
+	<qry:select xmlns:qry="XXX" doc="PARAM" name="QRY_PARAM_CLASE">
+		<qry:xquery>
+			for $r in sql('
+				SELECT ORG02_CLASES_ORG.c_clase_org, ORG02_CLASES_ORG.d_clase_org
+				FROM ORG02_CLASES_ORG
+				WHERE ORG02_CLASES_ORG.oi_clase_org = {#PARAM:@oi_clase_org}
+			')/ROWS/ROW
+		</qry:xquery>
+		<qry:out>
+			<qry:attribute value="$r/@c_clase_org + ' - ' + $r/@d_clase_org" name="clase_org"/>
+		</qry:out>
+	</qry:select>
+	<qry:select xmlns:qry="XXX" doc="PARAM" name="QRY_PARAM_PERSONAS">
+		<qry:xquery>
+			for $r in #FILTRO:PERSONAS/PERSONA
+		</qry:xquery>
+		<qry:out>
+			<qry:attribute value="'Si'" name="personas"/>
+		</qry:out>
+	</qry:select>
+	<qry:select xmlns:qry="XXX" doc="PARAM" name="QRY_PARAM_HORARIOS">
+		<qry:xquery>
+			for $r in #FILTRO:HORARIOS/HORARIO
+		</qry:xquery>
+		<qry:out>
+			<qry:attribute value="'Si'" name="horarios"/>
+		</qry:out>
+	</qry:select>
+	<qry:select xmlns:qry="XXX" doc="PARAM" name="QRY_PARAM_ESTR">
+		<qry:xquery>
+			for $r in #FILTRO:ESTRUCTURAS/ESTRUCTURA
+		</qry:xquery>
+		<qry:out>
+			<qry:attribute value="'Si'" name="estructuras"/>
+		</qry:out>
+	</qry:select>
+	<qry:select doc="PARAM" name="QRY_PARAM_EMPRESA">
+		<qry:xquery>
+			for $r in sql('
+						SELECT ORG03_EMPRESAS.c_empresa, ORG03_EMPRESAS.d_empresa
+						FROM ORG03_EMPRESAS
+						WHERE ORG03_EMPRESAS.oi_empresa = {#PARAM:@oi_empresa}					
+					')/ROWS/ROW
+		</qry:xquery>
+		<qry:out>
+			<qry:attribute value="$r/@c_empresa + ' - ' + $r/@d_empresa" name="empresa"/>
+		</qry:out>
+	</qry:select>
+	<qry:select xmlns:qry="XXX" doc="PARAM" name="QRY_HORARIOS">
+		<qry:xquery>
+			for $r in sql('
+			SELECT TTA04_HORARIOSPERS.oi_horariopers,			
+			TTA04_HORARIOSPERS.oi_personal_emp,
+			TTA04_HORARIOSPERS.oi_horario,
+			TTA04_HORARIOSPERS.f_fechaInicio,
+			TTA04_HORARIOSPERS.f_fechaFin,
+			TTA04_HORARIOSPERS.c_estado,
+			ORG02_ESTRUC_PERS.oi_estructura,
+			PER02_PERSONAL_EMP.e_numero_legajo,
+			PER01_PERSONAL.d_ape_y_nom
+			FROM TTA04_HORARIOSPERS, TTA02_HORARIOS,
+			TTA04_PERSONAL, PER02_PERSONAL_EMP,
+			PER01_PERSONAL, ORG02_ESTRUC_PERS
+			JOIN TTA04_HORARIOSPERS.oi_horario INNER TTA02_HORARIOS.oi_horario,
+			TTA04_HORARIOSPERS.oi_personal_emp INNER TTA04_PERSONAL.oi_personal_emp,
+			TTA04_PERSONAL.oi_personal_emp INNER PER02_PERSONAL_EMP.oi_personal_emp,
+			PER01_PERSONAL.oi_personal INNER PER02_PERSONAL_EMP.oi_personal,
+			ORG02_ESTRUC_PERS.oi_personal_emp INNER PER02_PERSONAL_EMP.oi_personal_emp					
+			WHERE ORG02_ESTRUC_PERS.oi_clase_org in ({%=string(#ORGANIGRAMAS:CLASES/CLASE/@oi_clase_org)%})
+			{%? (#FILTRO:@f_desde != '') 
+				{% AND TTA04_HORARIOSPERS.f_fechaInicio &gt;= {DateTime(#FILTRO:@f_desde)} 					 
+				%} 
+				{%  %}   
+			%}
+			{%? (#FILTRO:@f_hasta != '') 
+				{% AND TTA04_HORARIOSPERS.f_fechaInicio &lt;= {DateTime(#FILTRO:@f_hasta)} 					 
+				%} 
+				{%  %}   
+			%}
+		  {%? (#FILTRO:@oi_empresa!='') 
+				{% AND PER02_PERSONAL_EMP.oi_empresa={#FILTRO:@oi_empresa} %} 
+				{% %} 
+			%}			
+			{%? (#FILTRO:@c_estado!='') 
+				{% AND TTA04_HORARIOSPERS.c_estado={#FILTRO:@c_estado} %} 
+				{% %} 
+			%}		   
+		  {%? (string(#FILTRO:ESTRUCTURAS/ESTRUCTURA/@id)!='') 
+				{% AND ORG02_ESTRUC_PERS.oi_estructura in ({%=string(#FILTRO:ESTRUCTURAS/ESTRUCTURA/@id)%}) %} 
+				{%  %} 
+			%}
+			{%? (string(#FILTRO:PERSONAS/PERSONA/@id)!='') 
+				{% AND PER02_PERSONAL_EMP.oi_personal_emp in ({%=string(#FILTRO:PERSONAS/PERSONA/@id)%}) %} 
+				{%  %} 
+			%}
+			{%? (string(#FILTRO:HORARIOS/HORARIO/@id)!='') 
+				{% AND TTA02_HORARIOS.oi_horario in ({%=string(#FILTRO:HORARIOS/HORARIO/@id)%}) %} 
+				{%  %} 
+			%}			   
+			ORDER BY oi_estructura ASC, e_numero_legajo ASC 
+		')/ROWS/ROW
+		</qry:xquery>
+		<qry:out>
+			<qry:element name="LEGAJO">
+				<qry:attribute value="$r/@oi_horariopers" name="oi_horariopers"/>
+				<qry:attribute value="$r/@oi_horario" name="oi_horario"/>
+				<qry:attribute value="$r/@oi_personal_emp" name="oi_personal_emp"/>
+				<qry:attribute value="$r/@oi_estructura" name="oi_estructura"/>
+				<qry:attribute value="$r/@e_numero_legajo + ' - ' + $r/@d_ape_y_nom" name="personal"/>
+				<qry:attribute value="format_date($r/@f_fechaInicio,'dd/mm/yyyy')" name="f_inicio"/>
+				<qry:attribute value="format_date($r/@f_fechaFin,'dd/mm/yyyy')" name="f_fin"/>
+				<qry:insert-select doc-path="$r" name="QRY_HORARIO"/>
+				<qry:insert-select doc-path="$r" name="QRY_ESTRUCTURA"/>
+				<qry:insert-select doc-path="$r" name="SECURITY"/>
+				<qry:insert-select doc-path="$r/.[$r/@c_estado = 'A']" name="QRY_ACEPTADO"/>
+				<qry:insert-select doc-path="$r/.[$r/@c_estado = 'R']" name="QRY_RECHAZADO"/>
+				<qry:insert-select doc-path="$r/.[$r/@c_estado = 'P']" name="QRY_PENDIENTE"/>
+			</qry:element>
+			<qry:attribute value="'1'" name="cant"/>
+		</qry:out>
+	</qry:select>
+	<qry:select xmlns:qry="XXX" doc="PARAM" name="QRY_HORARIO">
+		<qry:xquery>
+			for $r in sql('
+					SELECT TTA02_HORARIOS.c_horario, TTA02_HORARIOS.d_horario
+					FROM TTA02_HORARIOS
+					WHERE TTA02_HORARIOS.oi_horario = {#PARAM:@oi_horario}
+		')/ROWS/ROW
+		</qry:xquery>
+		<qry:out>
+			<qry:attribute value="$r/@c_horario" name="c_horario"/>
+			<qry:attribute value="$r/@c_horario+ ' - ' + $r/@d_horario" name="horario"/>
+		</qry:out>
+	</qry:select>
+	<qry:select xmlns:qry="XXX" doc="PARAM" name="QRY_ESTRUCTURA">
+		<qry:xquery>
+			for $r in sql('
+			SELECT ORG01_TIPOS_UNI.c_tipo_uni_org, ORG01_TIPOS_UNI.d_tipo_uni_org,
+			ORG01_UNI_ORG.c_unidad_org, ORG01_UNI_ORG.d_unidad_org
+			FROM ORG01_UNI_ORG, ORG01_TIPOS_UNI
+			JOIN ORG01_UNI_ORG.oi_tipo_uni_org INNER ORG01_TIPOS_UNI.oi_tipo_uni_org
+			WHERE ORG01_UNI_ORG.oi_unidad_org in 
+				(SELECT ORG02_ESTRUCTURAS.oi_unidad_org
+				FROM ORG02_ESTRUCTURAS 
+				WHERE ORG02_ESTRUCTURAS.oi_estructura = {%=#PARAM:@oi_estructura%})					
+		')/ROWS/ROW
+		</qry:xquery>
+		<qry:out>
+			<qry:attribute value="$r/@d_tipo_uni_org + ': ' + $r/@c_unidad_org + ' - ' + $r/@d_unidad_org" name="unidad_org"/>
+		</qry:out>
+	</qry:select>
+	<qry:select xmlns:qry="XXX" doc="PARAM" name="QRY_PENDIENTE">
+		<qry:out>
+			<qry:attribute value="'Pendiente'" name="estado"/>
+		</qry:out>
+	</qry:select>
+	<qry:select xmlns:qry="XXX" doc="PARAM" name="QRY_ACEPTADO">
+		<qry:out>
+			<qry:attribute value="'Aceptado'" name="estado"/>
+		</qry:out>
+	</qry:select>
+	<qry:select xmlns:qry="XXX" doc="PARAM" name="QRY_RECHAZADO">
+		<qry:out>
+			<qry:attribute value="'Rechazado'" name="estado"/>
+		</qry:out>
+	</qry:select>
+	<qry:select doc="PARAM" name="SECURITY">
+		<qry:xquery>
+			for $r in sql('
+			SELECT NMD_SECURITY.policy 
+			FROM NMD_SECURITY 
+			WHERE NMD_SECURITY.class=\'NucleusRH.Base.Personal.LegajoEmpresa.PERSONAL_EMP\' 
+			AND NMD_SECURITY.id={#PARAM:@oi_personal_emp}
+		')/ROWS/ROW
+		</qry:xquery>
+		<qry:out>
+			<qry:attribute value="$r/@policy" name="policy"/>
+		</qry:out>
+	</qry:select>
+	<qry:select doc="PARAM" name="QRY_VACIO">
+		<qry:out>
+			<qry:element name="LEGAJO">
+				<qry:attribute value="'0'" name="oi_horariosper"/>
+				<qry:attribute value="'0'" name="oi_horario"/>
+				<qry:attribute value="'0'" name="oi_personal_emp"/>
+				<qry:attribute value="'0'" name="oi_estructura"/>
+				<qry:attribute value="'0'" name="personal"/>
+				<qry:attribute value="'0'" name="f_inicio"/>
+				<qry:attribute value="'0'" name="f_fin"/>
+				<qry:attribute value="'0'" name="estado"/>
+				<qry:attribute value="'0'" name="horario"/>
+				<qry:attribute value="'0'" name="unidad_org"/>
+			</qry:element>
+		</qry:out>
+	</qry:select>
+	<qry:select name="QRY_CLASE_PADRE" doc="PARAM">
+		<qry:xquery>
+			for $r in sql('
+			SELECT ORG02_CLASES_ORG.oi_clase_org,
+			ORG02_CLASES_ORG.oi_estructura_org AS oi_estructura
+			FROM ORG02_CLASES_ORG
+			WHERE ORG02_CLASES_ORG.oi_clase_org = {#PARAM:@oi_clase_org}
+		')ROWS/ROW
+		</qry:xquery>
+		<qry:out>
+			<qry:element name="CLASE">
+				<qry:attribute name="oi_clase_org" value="#PARAM:@oi_clase_org"/>
+			</qry:element>
+			<qry:insert-select name="QRY_CLASES_HIJAS" doc-path="$r"/>
+			<qry:insert-select name="QRY_ESTR" doc-path="$r"/>
+		</qry:out>
+	</qry:select>
+	<qry:select name="QRY_ESTR" doc="PARAM">
+		<qry:xquery>
+			for $r in sql('
+			SELECT ORG02_ESTRUCTURAS.oi_estructura			
+			FROM ORG02_ESTRUCTURAS
+			WHERE ORG02_ESTRUCTURAS.oi_estr_padre = {#PARAM:@oi_estructura}
+		')ROWS/ROW
+		</qry:xquery>
+		<qry:out>
+			<qry:insert-select name="QRY_CLASES_HIJAS" doc-path="$r"/>
+			<qry:insert-select name="QRY_ESTR" doc-path="$r"/>
+		</qry:out>
+	</qry:select>
+	<qry:select name="QRY_CLASES_HIJAS" doc="PARAM">
+		<qry:xquery>
+			for $r in sql('
+			SELECT ORG02_CLASES_HIJAS.oi_estructura, 
+			ORG02_CLASES_HIJAS.oi_clase_org
+			FROM ORG02_CLASES_HIJAS
+			WHERE ORG02_CLASES_HIJAS.oi_estructura = {#PARAM:@oi_estructura}
+		')ROWS/ROW
+		</qry:xquery>
+		<qry:out>
+			<qry:element name="CLASE">
+				<qry:attribute name="oi_clase_org" value="$r/@oi_clase_org"/>
+			</qry:element>
+		</qry:out>
+	</qry:select>
+</qry:define>

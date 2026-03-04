@@ -1,0 +1,141 @@
+<flow:flow extends="Nomad.Simple.guia.flow" xmlns:doc="nomad_engine.form" xmlns:qry="nomad_engine.form" xmlns:flow="nomad_engine.form" name="NucleusRH.Base.Liquidacion.Reporte.LegajoLiq.guia">
+	<flow:info label="Flow guia para NucleusRH.Base.Liquidacion.Reporte.LegajoLiq"/>
+	<flow:main doc="SOURCE">
+		<flow:action name="C2X">
+			<flow:log text-path="#SOURCE:" text="logc2x"/>
+			<doc:load-qry output-doc="RS" input-doc-path="#SOURCE:" qry="C2X"/>
+			<flow:exit-flow return-path="#RS:"/>
+		</flow:action>
+		<flow:action name="HELP">
+			<doc:assign-value from-path="#SOURCE:" to-doc="PARAMIN"/>
+			<doc:load-qry output-doc="RS" input-doc-path="#SOURCE:" qry="HELP"/>
+			<flow:call-action action="OPEN-GUIA"/>
+		</flow:action>
+		<flow:action name="X2C">
+			<flow:log text-path="#SOURCE:" text="logx2c"/>
+			<doc:load-qry output-doc="RS" input-doc-path="#SOURCE:" qry="X2C"/>
+			<flow:exit-flow return-path="#RS:"/>
+		</flow:action>
+		<flow:action name="OPEN-GUIA">
+			<flow:open-form form-class="Nomad.simple.guia.form" parent-doc-path="#SOURCE:" doc-path="#SOURCE:" mode="SHOW"/>
+		</flow:action>
+	</flow:main>
+	<flow:declare>
+		<doc:define name="RS"/>
+		<qry:define declare="&lt;helper-mess liq=&quot;72&quot; code=&quot;748&quot; id=&quot;354&quot; text=&quot;&quot; /&gt;" name="X2C">
+			<qry:main doc="SOURCE">
+				<qry:element name="helper-mess">
+					<qry:attribute value="#SOURCE:helper-mess/@liq" name="liq"/>
+					<qry:attribute value="#SOURCE:helper-mess/@ID" name="ID"/>
+					<qry:attribute value="#SOURCE:helper-mess/@CODE" name="code"/>
+					<qry:attribute value="#SOURCE:helper-mess/@TEXT" name="TEXT"/>
+					<qry:insert-select doc-path="#SOURCE:" name="RS1"/>
+				</qry:element>
+			</qry:main>
+			<qry:select doc="SOURCE" name="RS1">
+				<qry:xquery>
+					for $r in sql('select 
+        PER02_PERSONAL_EMP.E_NUMERO_LEGAJO as CODE, 
+        PER01_PERSONAL.D_APE_Y_NOM as TEXT, 
+        liq25_personal_liq.oi_personal_liq as ID
+        from 
+        PER02_PERSONAL_EMP, 
+        PER01_PERSONAL, 
+        liq25_personal_liq, 
+        LIQ07_PERSONAL 
+        
+        JOIN
+        PER02_PERSONAL_EMP.OI_PERSONAL INNER PER01_PERSONAL.OI_PERSONAL,
+        liq07_personal.oi_personal_emp INNER per02_personal_emp.oi_personal_emp,
+        liq25_personal_liq.oi_personal_emp INNER per02_personal_emp.oi_personal_emp				
+        WHERE
+        liq25_personal_liq.oi_liquidacion = {#SOURCE:helper-mess/@liq}
+        AND 
+        liq25_personal_liq.oi_personal_liq={#SOURCE:helper-mess/@id}  
+        ')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:attribute type="Nomad.NSystem.Int" value="$r/@ID" name="id"/>
+					<qry:attribute type="Nomad.NSystem.Int" value="$r/@ID" name="value"/>
+					<qry:attribute type="Nomad.NSystem.String" value="$r/@CODE" name="code"/>
+					<qry:attribute type="Nomad.NSystem.String" value="$r/@TEXT" name="text"/>
+				</qry:out>
+			</qry:select>
+		</qry:define>
+		<qry:define declare="&lt;helper-mess liq=&quot;72&quot; code=&quot;748&quot; id=&quot;&quot; text=&quot;&quot; /&gt;" name="C2X">
+			<qry:main doc="SOURCE">
+				<qry:element name="helper-mess">
+					<qry:attribute type="Nomad.NSystem.String" value="#SOURCE:helper-mess/@liq" name="liq"/>
+					<qry:insert-select doc-path="#SOURCE:" name="RS2"/>
+				</qry:element>
+			</qry:main>
+			<qry:select doc="SOURCE" name="RS2">
+				<qry:xquery>
+					for $r in SQL('
+		select 
+			per02.E_NUMERO_LEGAJO as CODE, 
+      per01.D_APE_Y_NOM as TEXT, 
+      liq25.oi_personal_liq as ID
+ 		from 
+ 			PER02_PERSONAL_EMP as per02, 
+ 			PER01_PERSONAL as per01, 
+			liq25_personal_liq as liq25, 
+	 		LIQ07_PERSONAL as liq07
+		JOIN
+      per02.OI_PERSONAL INNER per01.OI_PERSONAL,
+      liq07.oi_personal_emp INNER per02.oi_personal_emp,        
+      liq25.oi_personal_emp INNER per02.oi_personal_emp				  
+ 		WHERE        
+      liq25.oi_liquidacion = {#SOURCE:helper-mess/@liq}
+    AND 
+      per02.E_NUMERO_LEGAJO={#SOURCE:helper-mess/@code}  
+	')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:attribute type="Nomad.NSystem.Int" value="$r/@ID" name="id"/>
+					<qry:attribute type="Nomad.NSystem.Int" value="$r/@ID" name="value"/>
+					<qry:attribute type="Nomad.NSystem.String" value="$r/@CODE" name="code"/>
+					<qry:attribute type="Nomad.NSystem.String" value="$r/@TEXT" name="text"/>
+				</qry:out>
+			</qry:select>
+		</qry:define>
+		<qry:define declare="&lt;helper-mess liq=&quot;1&quot;/&gt;" name="HELP">
+			<qry:main doc="SOURCE">
+				<qry:element name="ROWS">
+					<qry:insert-select name="RS1" doc-path="#SOURCE:"/>
+				</qry:element>
+			</qry:main>
+			<qry:select doc="SOURCE" name="RS1">
+				<qry:xquery>
+					for $r in sql('select 
+        PER02_PERSONAL_EMP.E_NUMERO_LEGAJO as CODE, 
+        PER01_PERSONAL.D_APE_Y_NOM as TEXT, 
+        liq25_personal_liq.oi_personal_liq as ID
+        from 
+        PER02_PERSONAL_EMP, 
+        PER01_PERSONAL, 
+        liq25_personal_liq,
+        LIQ07_PERSONAL
+        
+        JOIN
+        PER02_PERSONAL_EMP.OI_PERSONAL INNER PER01_PERSONAL.OI_PERSONAL,
+        liq07_personal.oi_personal_emp INNER per02_personal_emp.oi_personal_emp,
+        liq25_personal_liq.oi_personal_emp INNER per02_personal_emp.oi_personal_emp
+        
+        WHERE
+        liq25_personal_liq.oi_liquidacion = {#SOURCE:helper-mess/@liq}
+				')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:element name="ROW">
+						<qry:attribute type="Nomad.NSystem.String" value="#SOURCE:helper-mess/@liq" name="liq"/>
+						<qry:attribute type="Nomad.NSystem.Int" value="$r/@ID" name="id"/>
+						<qry:attribute type="Nomad.NSystem.Int" value="$r/@ID" name="value"/>
+						<qry:attribute type="Nomad.NSystem.String" value="$r/@CODE" name="code"/>
+						<qry:attribute type="Nomad.NSystem.String" value="$r/@TEXT" name="text"/>
+					</qry:element>
+				</qry:out>
+			</qry:select>
+		</qry:define>
+	</flow:declare>
+</flow:flow>

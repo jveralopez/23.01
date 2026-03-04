@@ -1,0 +1,747 @@
+<class-package xmlns:qry="nomad_engine.qry" name="InterfaceVariablesGenerica" root-class="ENTRADA" meta-class="DB" languaje="SP" DDOBase="NucleusRH\Base\Liquidacion">
+	<class description="efinicion de interfaz de entrada de tipo uno" name="ENTRADA" access="direct">
+		<meta-properties>
+			<interface-properties file="valores.txt" mode="0" enter="1" separador=";" escape="\"/>
+		</meta-properties>
+		<attribute length="5" type="Nomad.NSystem.Int" name="id" manual="1">
+			<meta-properties/>
+		</attribute>
+		<attribute type="Nomad.NSystem.String" length="512" name="linea" manual="1">
+			<meta-properties>
+				<interface-properties/>
+			</meta-properties>
+		</attribute>
+		<method name="ImportarVariables" description="Importa variables fijas y de novedad para una liquidaci&#243;n" modifier="static" access="public">
+			<meta-properties>
+				<dotnet11-properties type="lib"/>
+			</meta-properties>
+			<arguments>
+				<argument name="xmlParam" type="Nomad.NSystem.String" pass="byval"/>
+			</arguments>
+		</method>
+		<method name="ImportarArchivo" description="Importa variables fijas y de novedad para una liquidaci&#243;n" modifier="static" access="public">
+			<meta-properties>
+				<dotnet11-properties type="lib"/>
+			</meta-properties>
+			<arguments>
+				<argument class="Nomad.NSystem.Proxy.NomadXML" type="Nomad.NSystem.Object" pass="byval" name="xmlParam"/>
+				<argument name="xmlPagina" class="Nomad.NSystem.Proxy.NomadXML" type="Nomad.NSystem.Object" pass="byref"/>
+			</arguments>
+		</method>
+		<method name="SincronizarPagina" description="Importa variables fijas y de novedad para una liquidaci&#243;n" modifier="static" access="public">
+			<meta-properties>
+				<dotnet11-properties type="lib"/>
+			</meta-properties>
+			<arguments>
+				<argument class="Nomad.NSystem.Proxy.NomadXML" type="Nomad.NSystem.Object" pass="byref" name="xmlPagina"/>
+			</arguments>
+		</method>
+		<method name="Clean" description="Importa variables fijas y de novedad para una liquidaci&#243;n" modifier="static" access="public">
+			<meta-properties>
+				<dotnet11-properties type="lib"/>
+			</meta-properties>
+			<arguments>
+				<argument class="Nomad.NSystem.Proxy.NomadXML" type="Nomad.NSystem.Object" pass="byref" name="xmlPagina"/>
+			</arguments>
+		</method>
+		<resource declare="&lt;row oi_empresa=&quot;1&quot; LEG=&quot;1&quot; /&gt;" name="getLegajo">
+			<qry:main name="" doc="PARAM">
+				<qry:element name="ROWS">
+					<qry:insert-select name="SQL1" doc-path="#PARAM:/row"/>
+				</qry:element>
+			</qry:main>
+			<qry:select name="SQL1" doc="PARAM">
+				<qry:xquery>
+					for $r in SQL('
+				select 
+					PER01_PERSONAL.oi_personal,
+					PER02_PERSONAL_EMP.oi_personal_emp,
+					PER02_PERSONAL_EMP.e_numero_legajo,
+					PER01_PERSONAL.d_ape_y_nom
+				from 
+					PER01_PERSONAL,PER02_PERSONAL_EMP
+				join
+					PER01_PERSONAL.oi_personal inner PER02_PERSONAL_EMP.oi_personal
+				where 
+					PER02_PERSONAL_EMP.e_numero_legajo={#PARAM:@LEG} and  PER02_PERSONAL_EMP.oi_empresa={#PARAM:@oi_empresa}
+			')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:insert-element doc-path="$r"/>
+				</qry:out>
+			</qry:select>
+		</resource>
+		<resource name="getLegajoLiquidacion" declare="&lt;row oi_liquidacion=&quot;1&quot; LEG=&quot;1&quot; /&gt;">
+			<qry:main name="" doc="PARAM">
+				<qry:element name="ROWS">
+					<qry:insert-select name="SQL1" doc-path="#PARAM:/row"/>
+				</qry:element>
+			</qry:main>
+			<qry:select name="SQL1" doc="PARAM">
+				<qry:xquery>
+					for $r in SQL('
+				select 
+					LIQ25_PERSONAL_LIQ.oi_personal_liq
+				from 
+					PER02_PERSONAL_EMP, LIQ25_PERSONAL_LIQ
+				join
+					LIQ25_PERSONAL_LIQ.oi_personal_emp inner PER02_PERSONAL_EMP.oi_personal_emp
+				where 
+					PER02_PERSONAL_EMP.e_numero_legajo={#PARAM:@LEG} and  
+					LIQ25_PERSONAL_LIQ.oi_liquidacion={#PARAM:@oi_liquidacion}
+			')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:insert-element doc-path="$r"/>
+				</qry:out>
+			</qry:select>
+		</resource>
+		<resource declare="&lt;row VAR=&quot;ap_acumigd&quot; /&gt;" name="getVariable">
+			<qry:main name="" doc="PARAM">
+				<qry:element name="ROWS">
+					<qry:insert-select name="SQL1" doc-path="#PARAM:/row"/>
+				</qry:element>
+			</qry:main>
+			<qry:select name="SQL1" doc="PARAM">
+				<qry:xquery>
+					for $r in SQL('    
+				select 
+					LIQ09_VARIABLES.oi_variable,
+					LIQ09_VARIABLES.c_variable,
+					LIQ09_VARIABLES.c_tipo_dato,
+					LIQ09_VARIABLES.c_tipo_variable,
+					LIQ09_VARIABLES.d_variable,
+					T.used
+				from 
+					LIQ09_VARIABLES,
+					(select LIQ14_CONC_VAR.oi_variable, 1 as used from LIQ14_CONCEPTOS,LIQ14_CONC_VAR where LIQ14_CONCEPTOS.l_activo=1 and LIQ14_CONCEPTOS.oi_concepto=LIQ14_CONC_VAR.oi_concepto group by LIQ14_CONC_VAR.oi_variable) as T
+				join
+					T.oi_variable right outer LIQ09_VARIABLES.oi_variable
+				where 
+					LIQ09_VARIABLES.c_variable={#PARAM:@VAR}
+			')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:insert-element doc-path="$r"/>
+				</qry:out>
+			</qry:select>
+		</resource>
+		<resource declare="&lt;row oi_empresa=&quot;164&quot; oi_liquidacion=&quot;&quot; LEG=&quot;21&quot; VAR=&quot;aa_sret&quot; VMD=&quot;4&quot; PER=&quot;201009&quot; /&gt;" name="getValor">
+			<qry:main name="" doc="PARAM">
+				<qry:element name="ROW">
+					<qry:switch test="#PARAM:/row/@VMD">
+						<qry:case value="1">
+							<qry:attribute name="c_tipo_variable" value="#PARAM:/row/@VMD"/>
+							<qry:insert-select name="NovedadEmpleado" doc-path="#PARAM:/row"/>
+						</qry:case>
+						<qry:case value="2">
+							<qry:attribute name="c_tipo_variable" value="#PARAM:/row/@VMD"/>
+							<qry:insert-select name="NovedadEmpresa" doc-path="#PARAM:/row"/>
+						</qry:case>
+						<qry:case value="3">
+							<qry:attribute name="c_tipo_variable" value="#PARAM:/row/@VMD"/>
+							<qry:insert-select name="FijoEmpleado" doc-path="#PARAM:/row"/>
+						</qry:case>
+						<qry:case value="4">
+							<qry:attribute name="c_tipo_variable" value="#PARAM:/row/@VMD"/>
+							<qry:insert-select name="FijaEmpresa" doc-path="#PARAM:/row"/>
+						</qry:case>
+						<qry:case value="5">
+							<qry:attribute name="c_tipo_variable" value="#PARAM:/row/@VMD"/>
+							<qry:insert-select name="AcumEmpleado" doc-path="#PARAM:/row"/>
+						</qry:case>
+						<qry:case value="9">
+							<qry:attribute name="c_tipo_variable" value="#PARAM:/row/@VMD"/>
+							<qry:insert-select name="AcumPeriEmpleado" doc-path="#PARAM:/row"/>
+						</qry:case>
+						<qry:case value="10">
+							<qry:attribute name="c_tipo_variable" value="#PARAM:/row/@VMD"/>
+							<qry:insert-select name="NovedadPeriEmpleado" doc-path="#PARAM:/row"/>
+						</qry:case>
+					</qry:switch>
+				</qry:element>
+			</qry:main>
+			<qry:select name="FijaEmpresa" doc="PARAM">
+				<qry:xquery>
+					for $r in SQL('
+				select 
+					LIQ15_VAL_VARGF.oi_variable,
+					LIQ15_VAL_VARGF.n_valor
+				from 
+					LIQ15_VAL_VARGF, LIQ09_VARIABLES 
+				where 
+					LIQ15_VAL_VARGF.oi_variable=LIQ09_VARIABLES.oi_variable and
+					LIQ15_VAL_VARGF.oi_empresa={#PARAM:@oi_empresa} and
+					LIQ09_VARIABLES.c_variable={#PARAM:@VAR}
+			')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:attribute name="n_valor" value="$r/@n_valor"/>
+				</qry:out>
+			</qry:select>
+			<qry:select name="NovedadEmpresa" doc="PARAM">
+				<qry:xquery>
+					for $r in SQL('
+				select 
+					LIQ19_VAL_VARGN.oi_variable,
+					LIQ19_VAL_VARGN.n_valor 
+				from 
+					LIQ19_VAL_VARGN, LIQ09_VARIABLES 
+				where 
+					LIQ19_VAL_VARGN.oi_variable=LIQ09_VARIABLES.oi_variable and
+					LIQ19_VAL_VARGN.oi_liquidacion={#PARAM:@oi_liquidacion} and
+					LIQ09_VARIABLES.c_variable={#PARAM:@VAR}
+			')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:attribute name="n_valor" value="$r/@n_valor"/>
+				</qry:out>
+			</qry:select>
+			<qry:select name="NovedadEmpleado" doc="PARAM">
+				<qry:xquery>
+					for $r in SQL('
+				select 
+					LIQ25_VAL_VAREN.oi_variable,
+					PER02_PERSONAL_EMP.oi_personal_emp,
+					LIQ25_VAL_VAREN.n_valor
+				from 
+					LIQ25_VAL_VAREN, LIQ25_PERSONAL_LIQ, PER02_PERSONAL_EMP, LIQ09_VARIABLES
+				where 
+					LIQ25_VAL_VAREN.oi_personal_liq=LIQ25_PERSONAL_LIQ.oi_personal_liq and
+					LIQ25_PERSONAL_LIQ.oi_personal_emp=PER02_PERSONAL_EMP.oi_personal_emp and
+					LIQ25_VAL_VAREN.oi_variable=LIQ09_VARIABLES.oi_variable and
+					PER02_PERSONAL_EMP.e_numero_legajo={#PARAM:@LEG} and 
+					PER02_PERSONAL_EMP.oi_empresa={#PARAM:@oi_empresa} and
+					LIQ25_PERSONAL_LIQ.oi_liquidacion={#PARAM:@oi_liquidacion} and
+					LIQ09_VARIABLES.c_variable={#PARAM:@VAR}
+			')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:attribute name="n_valor" value="$r/@n_valor"/>
+				</qry:out>
+			</qry:select>
+			<qry:select name="NovedadPeriEmpleado" doc="PARAM">
+				<qry:xquery>
+					for $r in SQL('
+				select 
+					LIQ25_VAL_VARPN.oi_variable,
+					PER02_PERSONAL_EMP.oi_personal_emp,
+					LIQ25_VAL_VARPN.n_valor
+				from 
+					LIQ25_VAL_VARPN, LIQ25_PERSONAL_LIQ, PER02_PERSONAL_EMP, LIQ09_VARIABLES
+				where 
+					LIQ25_VAL_VARPN.oi_personal_liq=LIQ25_PERSONAL_LIQ.oi_personal_liq and
+					LIQ25_PERSONAL_LIQ.oi_personal_emp=PER02_PERSONAL_EMP.oi_personal_emp and
+					LIQ25_VAL_VARPN.oi_variable=LIQ09_VARIABLES.oi_variable and
+					PER02_PERSONAL_EMP.e_numero_legajo={#PARAM:@LEG} and 
+					PER02_PERSONAL_EMP.oi_empresa={#PARAM:@oi_empresa} and
+					LIQ25_PERSONAL_LIQ.oi_liquidacion={#PARAM:@oi_liquidacion} and
+					LIQ09_VARIABLES.c_variable={#PARAM:@VAR} and
+					LIQ25_VAL_VARPN.e_periodo={#PARAM:@PER}
+			')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:attribute name="n_valor" value="$r/@n_valor"/>
+				</qry:out>
+			</qry:select>
+			<qry:select name="FijoEmpleado" doc="PARAM">
+				<qry:xquery>
+					for $r in SQL('
+				select 
+					LIQ07_VAL_VAREF.oi_variable,
+					LIQ07_VAL_VAREF.oi_personal_emp,
+					LIQ07_VAL_VAREF.n_valor
+				from 
+					LIQ07_VAL_VAREF, LIQ09_VARIABLES, PER02_PERSONAL_EMP
+				where                            
+					LIQ07_VAL_VAREF.oi_variable=LIQ09_VARIABLES.oi_variable and
+					LIQ07_VAL_VAREF.oi_personal_emp=PER02_PERSONAL_EMP.oi_personal_emp and
+					PER02_PERSONAL_EMP.e_numero_legajo={#PARAM:@LEG} and
+					PER02_PERSONAL_EMP.oi_empresa={#PARAM:@oi_empresa} and
+					LIQ09_VARIABLES.c_variable={#PARAM:@VAR}
+			')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:attribute name="n_valor" value="$r/@n_valor"/>
+				</qry:out>
+			</qry:select>
+			<qry:select name="AcumEmpleado" doc="PARAM">
+				<qry:xquery>
+					for $r in SQL('
+				select 
+					LIQ07_VAL_VAREA.oi_variable,
+					LIQ07_VAL_VAREA.oi_personal_emp,
+					LIQ07_VAL_VAREA.n_valor
+				from 
+					LIQ07_VAL_VAREA, LIQ09_VARIABLES, PER02_PERSONAL_EMP
+				where                            
+					LIQ07_VAL_VAREA.oi_variable=LIQ09_VARIABLES.oi_variable and
+					LIQ07_VAL_VAREA.oi_personal_emp=PER02_PERSONAL_EMP.oi_personal_emp and
+					PER02_PERSONAL_EMP.e_numero_legajo={#PARAM:@LEG} and  
+					PER02_PERSONAL_EMP.oi_empresa={#PARAM:@oi_empresa} and
+					LIQ09_VARIABLES.c_variable={#PARAM:@VAR}
+					
+			')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:attribute name="n_valor" value="$r/@n_valor"/>
+				</qry:out>
+			</qry:select>
+			<qry:select name="AcumPeriEmpleado" doc="PARAM">
+				<qry:xquery>
+					for $r in SQL('
+				select 
+					LIQ07_VAL_VARPA.oi_variable,
+					LIQ07_VAL_VARPA.oi_personal_emp,
+					LIQ07_VAL_VARPA.n_valor
+				from 
+					LIQ07_VAL_VARPA, LIQ09_VARIABLES, PER02_PERSONAL_EMP
+				where                            
+					LIQ07_VAL_VARPA.oi_variable=LIQ09_VARIABLES.oi_variable and
+					LIQ07_VAL_VARPA.oi_personal_emp=PER02_PERSONAL_EMP.oi_personal_emp and
+					PER02_PERSONAL_EMP.e_numero_legajo={#PARAM:@LEG} and  
+					PER02_PERSONAL_EMP.oi_empresa={#PARAM:@oi_empresa} and
+					LIQ09_VARIABLES.c_variable={#PARAM:@VAR} and
+					LIQ07_VAL_VARPA.e_periodo={#PARAM:@PER}
+			')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:attribute name="n_valor" value="$r/@n_valor"/>
+				</qry:out>
+			</qry:select>
+		</resource>
+		<method description="Actualizo las Variables." modifier="static" access="public" name="Execute">
+			<meta-properties>
+				<dotnet11-properties type="lib"/>
+			</meta-properties>
+			<arguments/>
+		</method>
+		<resource name="getVariables">
+			<qry:main name="" doc="PARAM">
+				<qry:element name="ROWS">
+					<qry:insert-select name="SQL1"/>
+				</qry:element>
+			</qry:main>
+			<qry:select name="SQL1" doc="PARAM">
+				<qry:xquery>
+					for $r in SQL('
+				select 
+					LIQ09_VARIABLES.oi_variable,
+					LIQ09_VARIABLES.c_variable,
+					LIQ09_VARIABLES.c_tipo_dato,
+					LIQ09_VARIABLES.c_tipo_variable,
+					LIQ09_VARIABLES.d_variable,
+					T.used
+				from 
+					LIQ09_VARIABLES,
+					(select LIQ14_CONC_VAR.oi_variable, 1 as used from LIQ14_CONCEPTOS,LIQ14_CONC_VAR where LIQ14_CONCEPTOS.l_activo=1 and LIQ14_CONCEPTOS.oi_concepto=LIQ14_CONC_VAR.oi_concepto group by LIQ14_CONC_VAR.oi_variable) as T
+				join
+					T.oi_variable right outer LIQ09_VARIABLES.oi_variable
+			')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:insert-element doc-path="$r"/>
+				</qry:out>
+			</qry:select>
+		</resource>
+		<resource name="getLegajos" declare="&lt;DATA oi_empresa=&quot;1&quot; LEG=&quot;1&quot; /&gt;">
+			<qry:main name="" doc="PARAM">
+				<qry:element name="ROWS">
+					<qry:insert-select name="SQL1" doc-path="#PARAM:/DATA"/>
+				</qry:element>
+			</qry:main>
+			<qry:select name="SQL1" doc="PARAM">
+				<qry:xquery>
+					for $r in SQL('
+				select 
+					PER02_PERSONAL_EMP.oi_personal_emp,
+					PER02_PERSONAL_EMP.e_numero_legajo
+				from 
+					PER02_PERSONAL_EMP
+				where           
+					PER02_PERSONAL_EMP.oi_empresa={#PARAM:@oi_empresa}
+			')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:insert-element doc-path="$r"/>
+				</qry:out>
+			</qry:select>
+		</resource>
+		<resource name="getLegajosLiquidacion" declare="&lt;DATA oi_empresa=&quot;1&quot; oi_liquidacion=&quot;1&quot; /&gt;">
+			<qry:main name="" doc="PARAM">
+				<qry:element name="ROWS">
+					<qry:insert-select name="SQL1" doc-path="#PARAM:/DATA"/>
+				</qry:element>
+			</qry:main>
+			<qry:select name="SQL1" doc="PARAM">
+				<qry:xquery>
+					for $r in SQL('
+				select 
+					LIQ25_PERSONAL_LIQ.oi_personal_emp,
+					LIQ25_PERSONAL_LIQ.oi_personal_liq
+				from 
+					LIQ25_PERSONAL_LIQ
+				where           
+					LIQ25_PERSONAL_LIQ.oi_liquidacion={#PARAM:@oi_liquidacion}
+			')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:insert-element doc-path="$r"/>
+				</qry:out>
+			</qry:select>
+		</resource>
+		<method name="CargarVariables" description="Importa variables fijas y de novedad para una liquidaci&#243;n" modifier="static" access="public">
+			<meta-properties>
+				<dotnet11-properties type="lib"/>
+			</meta-properties>
+			<arguments>
+				<argument type="Nomad.NSystem.String" pass="byval" name="Consulta"/>
+				<argument class="Nomad.NSystem.Proxy.NomadXML" type="Nomad.NSystem.Object" pass="byval" name="xmlParam"/>
+				<argument name="xmlPagina" class="Nomad.NSystem.Proxy.NomadXML" type="Nomad.NSystem.Object" pass="byref"/>
+			</arguments>
+		</method>
+		<resource declare="&lt;PAGE oi_empresa=&quot;164&quot; /&gt;" name="LOAD_FE">
+			<qry:main name="" doc="PARAM">
+				<qry:element name="ROWS">
+					<qry:insert-select name="SQL1" doc-path="#PARAM:/PAGE"/>
+				</qry:element>
+			</qry:main>
+			<qry:select name="SQL1" doc="PARAM">
+				<qry:xquery>
+					for $r in SQL('
+				select 
+					LIQ09_VARIABLES.c_variable as VAR,
+					LIQ15_VAL_VARGF.n_valor as VAL
+				from 
+					LIQ09_VARIABLES, LIQ15_VAL_VARGF(LIQ15_VAL_VARGF.oi_empresa={%=#PARAM:@oi_empresa %})
+				join
+					LIQ15_VAL_VARGF.oi_variable right outer LIQ09_VARIABLES.oi_variable
+				where 
+					LIQ09_VARIABLES.c_tipo_variable=\'4\'
+			')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<ROW>
+						<qry:attribute name="VAR" value="$r/@VAR"/>
+						<qry:attribute name="VAL" value="iif($r/@VAL='',0,$r/@VAL)"/>
+					</ROW>
+				</qry:out>
+			</qry:select>
+		</resource>
+		<resource declare="&lt;PAGE oi_liquidacion=&quot;121&quot; /&gt;" name="LOAD_NE">
+			<qry:main name="" doc="PARAM">
+				<qry:element name="ROWS">
+					<qry:insert-select name="SQL1" doc-path="#PARAM:/PAGE"/>
+				</qry:element>
+			</qry:main>
+			<qry:select name="SQL1" doc="PARAM">
+				<qry:xquery>
+					for $r in SQL('
+				select 
+					LIQ09_VARIABLES.c_variable as VAR,
+					LIQ19_VAL_VARGN.n_valor as VAL
+				from 
+					LIQ09_VARIABLES, LIQ19_VAL_VARGN(LIQ19_VAL_VARGN.oi_liquidacion={%=#PARAM:@oi_liquidacion%})
+				join
+					LIQ19_VAL_VARGN.oi_variable right outer LIQ09_VARIABLES.oi_variable
+				where 
+					LIQ09_VARIABLES.c_tipo_variable=\'2\'
+			')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<ROW>
+						<qry:attribute name="VAR" value="$r/@VAR"/>
+						<qry:attribute name="VAL" value="iif($r/@VAL='',0,$r/@VAL)"/>
+					</ROW>
+				</qry:out>
+			</qry:select>
+		</resource>
+		<resource declare="&lt;PAGE gcustom=&quot;&quot; VAR=&quot;430&quot; MOD=&quot;FI&quot; VAL=&quot;2.0&quot; gpers=&quot;&quot; activos=&quot;&quot; nombre=&quot;&quot; documento=&quot;&quot; sexo=&quot;&quot; grupo_sanguineo=&quot;&quot; legajo_desde=&quot;2&quot; legajo_hasta=&quot;3&quot; oi_indic_activo=&quot;&quot; egresado=&quot;&quot; oi_forma_pago=&quot;&quot; oi_tipo_personal=&quot;&quot; oi_centro_costo=&quot;&quot; oi_categoria=&quot;&quot; oi_ubicacion=&quot;&quot; oi_estructura=&quot;&quot; escructura_childs=&quot;&quot; oi_afjp=&quot;&quot; oi_obra_social=&quot;&quot; oi_sindicato=&quot;&quot; legID=&quot;&quot;&gt;&#13;&#10;&#9;&lt;PERSONAS&gt;&#13;&#10;&#9;&#9;&lt;ROW VALUES=&quot;11462,11465&quot; /&gt;&#13;&#10;&#9;&lt;/PERSONAS&gt;&#13;&#10;&lt;/PAGE&gt;" name="LOAD_FL">
+			<qry:main name="" doc="PARAM">
+				<qry:element name="ROWS">
+					<qry:append-doc name="PARAMIN" doc-path="#PARAM:/PAGE"/>
+					<qry:insert-select name="SQL1" doc-path="#PARAMIN:PERSONAS/ROW"/>
+				</qry:element>
+			</qry:main>
+			<qry:select name="SQL1" doc="PARAM">
+				<qry:xquery>
+					for $r in SQL('
+				select
+					PER02_PERSONAL_EMP.e_numero_legajo as LEG,
+					LIQ09_VARIABLES.c_variable as VAR,
+					TMPVALUES.n_valor as VAL,
+					TMPVALUES.e_periodo as PER
+				from
+					PER02_PERSONAL_EMP, LIQ09_VARIABLES, 
+					(
+						select 
+							LIQ07_VAL_VAREF.oi_personal_emp,
+							LIQ07_VAL_VAREF.n_valor,
+							LIQ07_VAL_VAREF.e_periodo
+						from						
+							LIQ07_VAL_VAREF
+						where                                    
+							LIQ07_VAL_VAREF.oi_variable={%=#PARAMIN:@VAR %}
+					) as TMPVALUES
+				join                                                 
+					PER02_PERSONAL_EMP.oi_personal_emp left outer TMPVALUES.oi_personal_emp
+				where                                    
+					PER02_PERSONAL_EMP.oi_personal_emp in ({%=#PARAM:@VALUES %}) and
+					LIQ09_VARIABLES.oi_variable={%=#PARAMIN:@VAR %}
+			')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<ROW>
+						<qry:attribute name="LEG" value="$r/@LEG"/>
+						<qry:attribute name="PER" value="iif($r/@PER='','',substring($r/@PER,4,2)+'/'+substring($r/@PER,0,4))"/>
+						<qry:attribute name="VAR" value="$r/@VAR"/>
+						<qry:attribute name="VAL" value="iif(#PARAMIN:@MOD='FI',#PARAMIN:@VAL,iif($r/@VAL='',#PARAMIN:@VAL,$r/@VAL))"/>
+					</ROW>
+				</qry:out>
+			</qry:select>
+		</resource>
+		<resource declare="&lt;PAGE gcustom=&quot;&quot; VAR=&quot;430&quot; MOD=&quot;FI&quot; VAL=&quot;2.0&quot; gpers=&quot;&quot; activos=&quot;&quot; nombre=&quot;&quot; documento=&quot;&quot; sexo=&quot;&quot; grupo_sanguineo=&quot;&quot; legajo_desde=&quot;2&quot; legajo_hasta=&quot;3&quot; oi_indic_activo=&quot;&quot; egresado=&quot;&quot; oi_forma_pago=&quot;&quot; oi_tipo_personal=&quot;&quot; oi_centro_costo=&quot;&quot; oi_categoria=&quot;&quot; oi_ubicacion=&quot;&quot; oi_estructura=&quot;&quot; escructura_childs=&quot;&quot; oi_afjp=&quot;&quot; oi_obra_social=&quot;&quot; oi_sindicato=&quot;&quot; legID=&quot;&quot;&gt;&#13;&#10;&#9;&lt;PERSONAS&gt;&#13;&#10;&#9;&#9;&lt;ROW VALUES=&quot;11462,11465&quot; /&gt;&#13;&#10;&#9;&lt;/PERSONAS&gt;&#13;&#10;&lt;/PAGE&gt;" name="LOAD_AL">
+			<qry:main name="" doc="PARAM">
+				<qry:element name="ROWS">
+					<qry:append-doc name="PARAMIN" doc-path="#PARAM:/PAGE"/>
+					<qry:insert-select name="SQL1" doc-path="#PARAMIN:PERSONAS/ROW"/>
+				</qry:element>
+			</qry:main>
+			<qry:select name="SQL1" doc="PARAM">
+				<qry:xquery>
+					for $r in SQL('
+				select
+					PER02_PERSONAL_EMP.e_numero_legajo as LEG,
+					LIQ09_VARIABLES.c_variable as VAR,
+					TMPVALUES.n_valor as VAL
+				from
+					PER02_PERSONAL_EMP, LIQ09_VARIABLES, 
+					(
+						select 
+							LIQ07_VAL_VAREA.oi_personal_emp,
+							LIQ07_VAL_VAREA.n_valor
+						from						
+							LIQ07_VAL_VAREA
+						where                                    
+							LIQ07_VAL_VAREA.oi_variable={%=#PARAMIN:@VAR %}
+					) as TMPVALUES
+				join                                                 
+					PER02_PERSONAL_EMP.oi_personal_emp left outer TMPVALUES.oi_personal_emp
+				where                                    
+					PER02_PERSONAL_EMP.oi_personal_emp in ({%=#PARAM:@VALUES %}) and
+					LIQ09_VARIABLES.oi_variable={%=#PARAMIN:@VAR %}
+			')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<ROW>
+						<qry:attribute name="LEG" value="$r/@LEG"/>
+						<qry:attribute name="PER" value="iif($r/@PER='','',substring($r/@PER,4,2)+'/'+substring($r/@PER,0,4))"/>
+						<qry:attribute name="VAR" value="$r/@VAR"/>
+						<qry:attribute name="VAL" value="iif(#PARAMIN:@MOD='FI',#PARAMIN:@VAL,iif($r/@VAL='',#PARAMIN:@VAL,$r/@VAL))"/>
+					</ROW>
+				</qry:out>
+			</qry:select>
+		</resource>
+		<resource declare="&lt;PAGE gcustom=&quot;&quot; VAR=&quot;685&quot; MOD=&quot;FI&quot; VAL=&quot;10.0&quot; PER_DES=&quot;200910&quot; PER_HAS=&quot;201002&quot; gpers=&quot;&quot; activos=&quot;&quot; nombre=&quot;&quot; documento=&quot;&quot; sexo=&quot;&quot; grupo_sanguineo=&quot;&quot; legajo_desde=&quot;1&quot; legajo_hasta=&quot;10&quot; oi_indic_activo=&quot;&quot; egresado=&quot;&quot; oi_forma_pago=&quot;&quot; oi_tipo_personal=&quot;&quot; oi_centro_costo=&quot;&quot; oi_categoria=&quot;&quot; oi_ubicacion=&quot;&quot; oi_estructura=&quot;&quot; escructura_childs=&quot;&quot; oi_afjp=&quot;&quot; oi_obra_social=&quot;&quot; oi_sindicato=&quot;&quot; legID=&quot;&quot;&gt;&lt;PERSONAS&gt;&lt;ROW VALUES=&quot;11462,11465,11466,11471,11496&quot; /&gt;&lt;/PERSONAS&gt;&lt;/PAGE&gt;" name="LOAD_APL">
+			<qry:main name="" doc="PARAM">
+				<qry:element name="ROWS">
+					<qry:append-doc name="ROWS" doc-path="."/>
+					<qry:append-doc name="PARAMIN" doc-path="#PARAM:/PAGE"/>
+					<qry:insert-select name="SQL2"/>
+				</qry:element>
+			</qry:main>
+			<qry:select name="SQL1" doc="PARAM">
+				<qry:xquery>
+					for $r in SQL('
+				select
+					PER02_PERSONAL_EMP.e_numero_legajo as LEG,
+					LIQ09_VARIABLES.c_variable as VAR,
+					TMPVALUES.n_valor as VAL
+				from
+					PER02_PERSONAL_EMP, LIQ09_VARIABLES, 
+					(
+						select 
+							LIQ07_VAL_VARPA.oi_personal_emp,
+							LIQ07_VAL_VARPA.n_valor
+						from						
+							LIQ07_VAL_VARPA
+						where                                    
+							LIQ07_VAL_VARPA.oi_variable={%=#PARAMIN:@VAR %} and 
+							LIQ07_VAL_VARPA.e_periodo={%=#ROWS:@PER %}
+					) as TMPVALUES
+				join                                                 
+					PER02_PERSONAL_EMP.oi_personal_emp left outer TMPVALUES.oi_personal_emp
+				where                                    
+					PER02_PERSONAL_EMP.oi_personal_emp in ({%=#PARAM:@VALUES %}) and
+					LIQ09_VARIABLES.oi_variable={%=#PARAMIN:@VAR %}
+			')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<ROW>
+						<qry:attribute name="LEG" value="$r/@LEG"/>
+						<qry:attribute name="PER" value="iif(#ROWS:@PER='','',substring(#ROWS:@PER,4,2)+'/'+substring(#ROWS:@PER,0,4))"/>
+						<qry:attribute name="VAR" value="$r/@VAR"/>
+						<qry:attribute name="VAL" value="iif(#PARAMIN:@MOD='FI',#PARAMIN:@VAL,iif($r/@VAL='',#PARAMIN:@VAL,$r/@VAL))"/>
+					</ROW>
+				</qry:out>
+			</qry:select>
+			<qry:select name="SQL2" doc="PARAM">
+				<qry:xquery>
+					for $r in secuence('INT,{%=string(floor(#PARAMIN:@PER_DES div 100)*12+#PARAMIN:@PER_DES mod 100-1) %},{%=string(floor(#PARAMIN:@PER_HAS div 100)*12+#PARAMIN:@PER_HAS mod 100-1) %},1')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:attribute value="floor($r/@value div 12)*100+($r/@value mod 12)+1" name="PER"/>
+					<qry:insert-select name="SQL1" doc-path="#PARAMIN:PERSONAS/ROW"/>
+				</qry:out>
+			</qry:select>
+		</resource>
+		<resource declare="&lt;PAGE VAR=&quot;430&quot; oi_empresa=&quot;164&quot; oi_liquidacion=&quot;121&quot; gcustom=&quot;&quot; MOD=&quot;FI&quot; VAL=&quot;3.0&quot; gpers=&quot;&quot; activos=&quot;&quot; nombre=&quot;&quot; documento=&quot;&quot; sexo=&quot;&quot; grupo_sanguineo=&quot;&quot; legajo_desde=&quot;&quot; legajo_hasta=&quot;&quot; oi_indic_activo=&quot;&quot; egresado=&quot;&quot; oi_forma_pago=&quot;&quot; oi_tipo_personal=&quot;&quot; oi_centro_costo=&quot;&quot; oi_categoria=&quot;&quot; oi_ubicacion=&quot;&quot; oi_estructura=&quot;&quot; escructura_childs=&quot;&quot; oi_afjp=&quot;&quot; oi_obra_social=&quot;&quot; oi_sindicato=&quot;&quot; legID=&quot;&quot;&gt;&lt;PERSONAS&gt;&lt;ROW VALUES=&quot;11462,11465,11466,11471,11496,11497,11498,11499,11500,11501,11502,11503,11504,11505,11506,11509,11464,11511,11513,11514,11554,11470,11467,11468,11469,11510&quot; /&gt;&lt;/PERSONAS&gt;&lt;/PAGE&gt;" name="LOAD_NL">
+			<qry:main name="" doc="PARAM">
+				<qry:element name="ROWS">
+					<qry:append-doc name="PARAMIN" doc-path="#PARAM:/PAGE"/>
+					<qry:insert-select name="SQL1" doc-path="#PARAMIN:PERSONAS/ROW"/>
+				</qry:element>
+			</qry:main>
+			<qry:select name="SQL1" doc="PARAM">
+				<qry:xquery>
+					for $r in SQL('
+				select
+					PER02_PERSONAL_EMP.e_numero_legajo as LEG,
+					LIQ09_VARIABLES.c_variable as VAR,
+					TMPVALUES.n_valor as VAL
+				from
+					PER02_PERSONAL_EMP, LIQ09_VARIABLES, 
+					(
+						select 
+							LIQ25_PERSONAL_LIQ.oi_personal_emp,
+							LIQ25_VAL_VAREN.n_valor
+						from						
+							LIQ25_VAL_VAREN, LIQ25_PERSONAL_LIQ
+						join
+							LIQ25_VAL_VAREN.oi_personal_liq inner LIQ25_PERSONAL_LIQ.oi_personal_liq
+						where                                    
+							LIQ25_PERSONAL_LIQ.oi_liquidacion={%=#PARAMIN:@oi_liquidacion %} and
+							LIQ25_VAL_VAREN.oi_variable={%=#PARAMIN:@VAR %}
+					) as TMPVALUES
+				join                                                 
+					PER02_PERSONAL_EMP.oi_personal_emp left outer TMPVALUES.oi_personal_emp
+				where                                    
+					PER02_PERSONAL_EMP.oi_personal_emp in ({%=#PARAM:@VALUES %}) and
+					LIQ09_VARIABLES.oi_variable={%=#PARAMIN:@VAR %}
+			')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<ROW>
+						<qry:attribute name="LEG" value="$r/@LEG"/>
+						<qry:attribute name="VAR" value="$r/@VAR"/>
+						<qry:attribute name="VAL" value="iif(#PARAMIN:@MOD='FI',#PARAMIN:@VAL,iif($r/@VAL='',#PARAMIN:@VAL,$r/@VAL))"/>
+					</ROW>
+				</qry:out>
+			</qry:select>
+		</resource>
+		<resource declare="&lt;PAGE PER=&quot;201012&quot; VAR=&quot;430&quot; oi_empresa=&quot;164&quot; oi_liquidacion=&quot;121&quot; gcustom=&quot;&quot; MOD=&quot;FI&quot; VAL=&quot;3.0&quot; gpers=&quot;&quot; activos=&quot;&quot; nombre=&quot;&quot; documento=&quot;&quot; sexo=&quot;&quot; grupo_sanguineo=&quot;&quot; legajo_desde=&quot;&quot; legajo_hasta=&quot;&quot; oi_indic_activo=&quot;&quot; egresado=&quot;&quot; oi_forma_pago=&quot;&quot; oi_tipo_personal=&quot;&quot; oi_centro_costo=&quot;&quot; oi_categoria=&quot;&quot; oi_ubicacion=&quot;&quot; oi_estructura=&quot;&quot; escructura_childs=&quot;&quot; oi_afjp=&quot;&quot; oi_obra_social=&quot;&quot; oi_sindicato=&quot;&quot; legID=&quot;&quot;&gt;&lt;PERSONAS&gt;&lt;ROW VALUES=&quot;11462,11465,11466,11471,11496,11497,11498,11499,11500,11501,11502,11503,11504,11505,11506,11509,11464,11511,11513,11514,11554,11470,11467,11468,11469,11510&quot; /&gt;&lt;/PERSONAS&gt;&lt;/PAGE&gt;" name="LOAD_NLR">
+			<qry:main name="" doc="PARAM">
+				<qry:element name="ROWS">
+					<qry:append-doc name="PARAMIN" doc-path="#PARAM:/PAGE"/>
+					<qry:insert-select name="SQL1" doc-path="#PARAMIN:PERSONAS/ROW"/>
+				</qry:element>
+			</qry:main>
+			<qry:select name="SQL1" doc="PARAM">
+				<qry:xquery>
+					for $r in SQL('
+				select
+					PER02_PERSONAL_EMP.e_numero_legajo as LEG,
+					LIQ09_VARIABLES.c_variable as VAR,
+					TMPVALUES.n_valor as VAL
+				from
+					PER02_PERSONAL_EMP, LIQ09_VARIABLES, 
+					(
+						select 
+							LIQ25_PERSONAL_LIQ.oi_personal_emp,
+							LIQ25_VAL_VARPN.n_valor
+						from						
+							LIQ25_VAL_VARPN, LIQ25_PERSONAL_LIQ
+						join
+							LIQ25_VAL_VARPN.oi_personal_liq inner LIQ25_PERSONAL_LIQ.oi_personal_liq
+						where                                    
+							LIQ25_PERSONAL_LIQ.oi_liquidacion={%=#PARAMIN:@oi_liquidacion %} and
+							LIQ25_VAL_VARPN.e_periodo={%=#PARAMIN:@PER %} and
+							LIQ25_VAL_VARPN.oi_variable={%=#PARAMIN:@VAR %}
+					) as TMPVALUES
+				join                                                 
+					PER02_PERSONAL_EMP.oi_personal_emp left outer TMPVALUES.oi_personal_emp
+				where                                    
+					PER02_PERSONAL_EMP.oi_personal_emp in ({%=#PARAM:@VALUES %}) and
+					LIQ09_VARIABLES.oi_variable={%=#PARAMIN:@VAR %}
+			')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<ROW>
+						<qry:attribute name="LEG" value="$r/@LEG"/>
+						<qry:attribute name="PER" value="iif(#PARAMIN:@PER='','',substring(#PARAMIN:@PER,4,2)+'/'+substring(#PARAMIN:@PER,0,4))"/>
+						<qry:attribute name="VAR" value="$r/@VAR"/>
+						<qry:attribute name="VAL" value="iif(#PARAMIN:@MOD='FI',#PARAMIN:@VAL,iif($r/@VAL='',#PARAMIN:@VAL,$r/@VAL))"/>
+					</ROW>
+				</qry:out>
+			</qry:select>
+		</resource>
+		<resource name="LOAD_LINEAS" declare="&lt;DATA start=&quot;3&quot; end=&quot;3&quot; /&gt;">
+			<qry:main doc="PARAM">
+				<ROWS>
+					<qry:insert-select name="sql1" doc-path="#PARAM:/DATA"/>
+				</ROWS>
+			</qry:main>
+			<qry:select name="sql1" doc="PARAM">
+				<qry:xquery>
+					for $r in INTERFACE('GET_PTR:Valores.txt')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:attribute name="count" value="number(@count)+1"/>
+					<qry:if test="number(@count)&gt;=number(#PARAM:@start) and number(@count)&lt;=number(#PARAM:@end)">
+						<qry:then>
+							<qry:insert-select name="sql2" doc-path="$r"/>
+						</qry:then>
+					</qry:if>
+				</qry:out>
+			</qry:select>
+			<qry:select name="sql2" doc="PARAM">
+				<qry:xquery>
+					for $r in INTERFACE('GET_LINE:Valores.txt:{%=#PARAM:@id %}')/ROW
+				</qry:xquery>
+				<qry:out>
+					<row>
+						<qry:attribute name="line" value="substring($r/@line,0,110)"/>
+					</row>
+				</qry:out>
+			</qry:select>
+		</resource>
+		<resource name="getLegajoDNI" declare="&lt;row oi_empresa=&quot;1&quot; /&gt;">
+			<qry:main name="" doc="PARAM">
+				<qry:element name="ROWS">
+					<qry:insert-select name="SQL1" doc-path="#PARAM:/row"/>
+				</qry:element>
+			</qry:main>
+			<qry:select name="SQL1" doc="PARAM">
+				<qry:xquery>
+					for $r in SQL('
+				select 
+					PER01_PERSONAL.oi_personal,
+					PER02_PERSONAL_EMP.oi_personal_emp,
+					PER02_PERSONAL_EMP.e_numero_legajo,
+					PER01_PERSONAL.c_nro_documento,
+					PER01_PERSONAL.d_ape_y_nom
+				from 
+					PER01_PERSONAL,PER02_PERSONAL_EMP
+				join
+					PER01_PERSONAL.oi_personal inner PER02_PERSONAL_EMP.oi_personal
+				where 
+					PER02_PERSONAL_EMP.oi_empresa={#PARAM:@oi_empresa}
+			')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:insert-element doc-path="$r"/>
+				</qry:out>
+			</qry:select>
+		</resource>
+	</class>
+</class-package>

@@ -1,0 +1,266 @@
+<qry:define xmlns:qry="nomad_engine.qry" name="Query Proceso" declare="&lt;PARAMS id=&quot;2107&quot; /&gt;">
+	<qry:main doc="SOURCE">
+		<WORKFLOW>
+			<qry:append-doc name="PARAMIN" doc-path="#SOURCE:/PARAMS"/>
+			<qry:insert-select name="WORKFLOW" doc-path="$PARAMIN"/>
+		</WORKFLOW>
+	</qry:main>
+	<qry:select doc="SOURCE" name="WORKFLOW">
+		<qry:xquery>
+			for $r in SQL('
+				select
+					WF.oi_wf,
+					WF.oi_organigrama,
+					WF.c_wf,
+					WF.d_wf,
+					WF.e_version,
+					PRO.oi_process
+				from
+					WRK01_WF as WF,
+					WRK01_PROCESS as PRO
+				join           
+					WF.oi_wf inner PRO.oi_wf
+				where
+					PRO.oi_process = {$SOURCE/@id}
+			')/ROWS/ROW
+		</qry:xquery>
+		<qry:out>
+			<qry:attribute name="id" value="$r/@oi_wf"/>
+			<qry:attribute name="COD" value="$r/@c_wf"/>
+			<qry:attribute name="DES" value="$r/@d_wf"/>
+			<qry:attribute name="VER" value="$r/@e_version"/>
+			<qry:attribute name="oi_organigrama" value="$r/@oi_organigrama"/>
+			<PROCESS>
+				<qry:attribute name="oi_process" value="$r/@oi_process"/>
+				<qry:insert-select name="PROCESS" doc-path="$r"/>
+				<qry:insert-select name="NODOS" doc-path="."/>
+				<qry:insert-select name="PARAMS" doc-path="."/>
+			</PROCESS>
+			<INICIA>
+				<qry:insert-select name="ROLES_PROCESS" doc-path="$r"/>
+			</INICIA>
+			<ROLES>
+				<qry:insert-select name="ROLES" doc-path="$r"/>
+				<qry:if test="COUNT(ROL)=0">
+					<qry:then>
+						<ROL id="0">
+							<qry:attribute name="ORG" value="$r/@oi_organigrama"/>
+						</ROL>
+					</qry:then>
+				</qry:if>
+			</ROLES>
+			<ESTADOS>
+				<qry:insert-select name="ESTADOS" doc-path="$r"/>
+				<qry:if test="COUNT(ESTADO)=0">
+					<qry:then>
+						<ESTADO id="0">
+							<qry:attribute name="WF" value="$r/@oi_wf"/>
+						</ESTADO>
+					</qry:then>
+				</qry:if>
+			</ESTADOS>
+		</qry:out>
+	</qry:select>
+	<qry:select doc="SOURCE" name="PROCESS">
+		<qry:xquery>
+			for $r in SQL('
+				SELECT           
+					PRO.oi_process,
+					PRO.c_process,
+					PRO.d_process,
+					PRO.e_automatico
+				FROM             
+					WRK01_PROCESS as PRO,
+					WRK01_PROCESS as FIL
+				JOIN
+					PRO.oi_wf INNER FIL.oi_wf,
+					PRO.c_process INNER FIL.c_process
+				WHERE            
+					FIL.oi_process={$SOURCE/@oi_process}  
+				ORDER BY
+					e_automatico ASC
+			')/ROWS/ROW
+		</qry:xquery>
+		<qry:out>
+			<PRO>
+				<qry:attribute name="id" value="$r/@oi_process"/>
+				<qry:attribute name="COD" value="$r/@c_process"/>
+				<qry:attribute name="DES" value="$r/@d_process"/>
+				<qry:attribute name="AUT" value="$r/@e_automatico"/>
+			</PRO>
+		</qry:out>
+	</qry:select>
+	<qry:select doc="SOURCE" name="NODOS">
+		<qry:xquery>
+			for $r in SQL('
+				SELECT           
+					NODES.oi_process,
+					NODES.oi_node,
+					NODES.c_type,
+					NODES.d_label,
+					NODES.n_secuence
+				FROM             
+					WRK01_NODES as NODES,
+					WRK01_PROCESS as PRO,
+					WRK01_PROCESS as FIL
+				JOIN
+					PRO.oi_wf INNER FIL.oi_wf,
+					PRO.c_process INNER FIL.c_process,
+					PRO.oi_process INNER NODES.oi_process
+				WHERE            
+					FIL.oi_process={$SOURCE/@oi_process}  
+				ORDER BY
+					n_secuence asc
+			')/ROWS/ROW,
+			$p in $SOURCE/PRO
+			join
+				$r/@oi_process inner $p/@id
+		</qry:xquery>
+		<qry:out>
+			<qry:insert-select name="NODE-APPEND" doc-path="$r" to-element="$p"/>
+		</qry:out>
+	</qry:select>
+	<qry:select name="NODE-APPEND" doc="r">
+		<qry:out>
+			<NODE>
+				<qry:attribute name="oi_node" value="$r/@oi_node"/>
+				<qry:attribute name="oi_process" value="$r/@oi_process"/>
+				<qry:attribute name="c_type" value="$r/@c_type"/>
+				<qry:attribute name="d_label" value="$r/@d_label"/>
+				<qry:attribute name="n_secuence" value="$r/@n_secuence"/>
+			</NODE>
+		</qry:out>
+	</qry:select>
+	<qry:select doc="SOURCE" name="PARAMS">
+		<qry:xquery>
+			for $r in SQL('
+				SELECT           
+					PARA.oi_param,
+					PARA.oi_node,
+					PARA.c_param,
+					PARA.d_param,
+					PARA.c_type,
+					PARA.e_subproceso,
+					PARA.e_orden,
+					PARA.c_var,
+					PARA.o_formula
+				FROM             
+					WRK01_NODE_PARAMS as PARA,
+					WRK01_NODES as NODES,
+					WRK01_PROCESS as PRO,
+					WRK01_PROCESS as FIL
+				JOIN
+					PRO.oi_wf INNER FIL.oi_wf,
+					PRO.c_process INNER FIL.c_process,
+					PRO.oi_process INNER NODES.oi_process,
+					PARA.oi_node INNER NODES.oi_node
+				WHERE            
+					FIL.oi_process={$SOURCE/@oi_process}  				
+				ORDER BY     
+					e_orden ASC
+			')/ROWS/ROW,
+			$p in $SOURCE/PRO/NODE
+			join
+				$r/@oi_node inner $p/@oi_node
+		</qry:xquery>
+		<qry:out>
+			<qry:insert-select name="PARAM-APPEND" doc-path="$r" to-element="$p"/>
+		</qry:out>
+	</qry:select>
+	<qry:select name="PARAM-APPEND" doc="r">
+		<qry:out>
+			<PARAM>
+				<qry:attribute name="oi_param" value="$r/@oi_param"/>
+				<qry:attribute name="c_param" value="$r/@c_param"/>
+				<qry:attribute name="d_param" value="$r/@d_param"/>
+				<qry:attribute name="c_type" value="$r/@c_type"/>
+				<qry:attribute name="e_subproceso" value="$r/@e_subproceso"/>
+				<qry:attribute name="e_orden" value="$r/@e_orden"/>
+				<qry:attribute name="c_var" value="$r/@c_var"/>
+				<qry:attribute name="o_formula" value="$r/@o_formula"/>
+			</PARAM>
+			<qry:switch test="./@c_type">
+				<qry:case value="INI">
+					<qry:attribute name="title" value="iif(@title='','',@title+'&#10;')+$r/@c_var+' &lt;- '+$r/@c_param"/>
+				</qry:case>
+				<qry:case value="SWITCH">
+					<qry:attribute name="title" value="@o_formula"/>
+				</qry:case>
+			</qry:switch>
+		</qry:out>
+	</qry:select>
+	<qry:select doc="SOURCE" name="ROLES">
+		<qry:xquery>
+			for $r in SQL('
+				SELECT           
+					ROL.oi_role,
+					ROL.c_role,
+					ROL.d_role,
+					ROL.d_color,
+					ROL.l_unique
+					
+				FROM             
+					WRK05_ROLES as ROL
+				WHERE            
+					ROL.oi_organigrama={#SOURCE:@oi_organigrama}
+			')/ROWS/ROW
+		</qry:xquery>
+		<qry:out>
+			<ROL>
+				<qry:attribute name="id" value="$r/@oi_role"/>
+				<qry:attribute name="COD" value="$r/@c_role"/>
+				<qry:attribute name="DES" value="$r/@d_role"/>
+				<qry:attribute name="COL" value="$r/@d_color"/>
+				<qry:attribute name="UNQ" value="$r/@l_unique"/>
+				<qry:attribute name="ORG" value="$SOURCE/@oi_organigrama"/>
+				<qry:attribute name="INI" value="iif(string(../../INICIA/ROL[@ROL=$r/@c_role]/@INI)='1',1,0)"/>
+			</ROL>
+		</qry:out>
+	</qry:select>
+	<qry:select doc="SOURCE" name="ROLES_PROCESS">
+		<qry:xquery>
+			for $r in SQL('
+				SELECT           
+					ROL.oi_role_process,
+					ROL.c_rol,
+					ROL.l_iniciar
+				FROM             
+					WRK01_ROLES_PRO as ROL
+				WHERE            
+					ROL.oi_process={#SOURCE:@oi_process}
+			')/ROWS/ROW
+		</qry:xquery>
+		<qry:out>
+			<ROL>
+				<qry:attribute name="id" value="$r/@oi_role_process"/>
+				<qry:attribute name="ROL" value="$r/@c_rol"/>
+				<qry:attribute name="INI" value="$r/@l_iniciar"/>
+			</ROL>
+		</qry:out>
+	</qry:select>
+	<qry:select doc="SOURCE" name="ESTADOS">
+		<qry:xquery>
+			for $r in SQL('
+				SELECT           
+					ETA.oi_estado,
+					ETA.oi_wf,
+					ETA.c_estado,
+					ETA.d_estado,
+					ETA.c_color
+				FROM             
+					WRK01_ESTADOS as ETA
+				WHERE            
+					ETA.oi_wf={#SOURCE:@oi_wf}
+			')/ROWS/ROW
+		</qry:xquery>
+		<qry:out>
+			<ESTADO>
+				<qry:attribute name="id" value="$r/@oi_estado"/>
+				<qry:attribute name="WF" value="$r/@oi_wf"/>
+				<qry:attribute name="COD" value="$r/@c_estado"/>
+				<qry:attribute name="DES" value="$r/@d_estado"/>
+				<qry:attribute name="COL" value="$r/@c_color"/>
+			</ESTADO>
+		</qry:out>
+	</qry:select>
+</qry:define>

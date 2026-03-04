@@ -1,0 +1,229 @@
+<html:html xmlns:html="nomad_engine.html" xmlns:qry="nomad_engine.qry" name="NucleusRH.Base.Tiempos_Trabajados.ConceptosVariables.rpt" extends="Nomad.Base.BaseReport.rpt" doc="source">
+	<html:query declare="&lt;DATA&#13;&#10;c_tipo_variable=&quot;&quot;&#13;&#10;oi_tipohora=&quot;&quot;&#13;&#10;c_tipo_dato=&quot;&quot;&#13;&#10;l_con_conceptos=&quot;0&quot;&#13;&#10;l_conceptos_activos=&quot;0&quot;&#13;&#10;d_variable=&quot;&quot;&#13;&#10;oi_variable=&quot;&quot; /&gt;">
+		<qry:main doc="SOURCE">
+			<qry:append-doc name="FILTRO" doc-path="$SOURCE/DATA"/>
+			<REPORT label="Conceptos por Variables">
+				<qry:attribute value="format_date(now(),'dd/mm/yyyy HH:MM')" name="date"/>
+				<GROUPS>
+					<GROUP tag="VARIABLE" type="title" noreg="No se encontraron Variables que cumplan con los filtros seleccionados.">
+						<COLS>
+							<COL name="d_tipo_variable" label="Tipo de Variable"/>
+							<COL name="c_variable" label="C&#243;digo"/>
+							<COL name="d_variable" label="Descripci&#243;n"/>
+							<COL name="d_tipo_dato" label="Tipo de Dato"/>
+						</COLS>
+						<GROUP tag="CONCEPTO" type="table" style="width:100%" noreg="No se encontraron Conceptos que cumplan con los filtros seleccionados.">
+							<COLS>
+								<COL name="c_concepto" label="C&#243;digo" style="text-align:center"/>
+								<COL name="d_concepto" label="Descripci&#243;n"/>
+								<COL name="d_activo" label="Activo" style="text-align:center"/>
+								<COL name="e_secuencia" label="Secuencia" style="text-align:center"/>
+								<COL name="c_externo" label="Cod. Externo" style="text-align:center"/>
+								<COL name="d_tipo_parametro" label="Tipo par&#225;metro" style="text-align:center"/>
+							</COLS>
+						</GROUP>
+					</GROUP>
+				</GROUPS>
+				<qry:element name="DATA">
+					<qry:insert-select name="qryVariables" doc-path=""/>
+				</qry:element>
+			</REPORT>
+		</qry:main>
+		<qry:select name="qryVariables" doc="">
+			<qry:xquery>
+				for $r in SQL('
+			
+				SELECT
+					var.oi_variable,
+					var.c_tipo_variable,
+					var.c_variable,
+					var.d_variable,
+					var.c_tipo_dato				
+				
+				FROM				
+					TTA16_VARIABLES as var
+				
+				WHERE
+					1=1 
+					
+					{%?($FILTRO/@c_tipo_variable != '')
+						{% AND var.c_tipo_variable = {$FILTRO/@c_tipo_variable} %}
+						{% %}
+					%}
+
+          {%?($FILTRO/@oi_tipohora != '')
+						{% AND var.oi_tipohora = {$FILTRO/@oi_tipohora} %}
+						{% %}
+					%}
+
+          {%?($FILTRO/@c_tipo_dato != '')
+						{% AND var.c_tipo_dato = {$FILTRO/@c_tipo_dato} %}
+						{% %}
+					%}
+				
+					{%?($FILTRO/@oi_variable != '')
+						{% AND var.oi_variable = {$FILTRO/@oi_variable} %}
+						{% %}
+					%}
+					
+					{%?($FILTRO/@d_variable != '')
+						{% AND CONTAIN(var.d_variable, {$FILTRO/@d_variable}) %}
+						{% %}
+					%}				
+			
+			')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<VARIABLE>
+					<qry:if test="$FILTRO/@l_con_conceptos = '1' OR $FILTRO/@l_conceptos_activos = '1'">
+						<qry:then>
+							<qry:attribute name="qry-delete-child" value="1"/>
+						</qry:then>
+					</qry:if>
+					<qry:insert-select name="attTipoVariable" doc-path="$r"/>
+					<qry:attribute name="c_variable" value="$r/@c_variable"/>
+					<qry:attribute name="d_variable" value="$r/@d_variable"/>
+					<qry:insert-select name="attTipoDato" doc-path="$r"/>
+					<qry:insert-select name="qryConceptos" doc-path="$r"/>
+				</VARIABLE>
+			</qry:out>
+		</qry:select>
+		<qry:select name="attTipoVariable" doc="r">
+			<qry:out>
+				<qry:if test="$r/@c_tipo_variable = 'AUX'">
+					<qry:then>
+						<qry:attribute name="d_tipo_variable" value="'Auxiliar'"/>
+					</qry:then>
+					<qry:else>
+						<qry:if test="$r/@c_tipo_variable = 'PERACC'">
+							<qry:then>
+								<qry:attribute name="d_tipo_variable" value="'Persona Acumulador'"/>
+							</qry:then>
+							<qry:else>
+								<qry:if test="$r/@c_tipo_variable = 'PERFIJ'">
+									<qry:then>
+										<qry:attribute name="d_tipo_variable" value="'Persona Fijo'"/>
+									</qry:then>
+									<qry:else>
+										<qry:if test="$r/@c_tipo_variable = 'PERNOV'">
+											<qry:then>
+												<qry:attribute name="d_tipo_variable" value="'Persona Novedad'"/>
+											</qry:then>
+											<qry:else>
+												<qry:if test="$r/@c_tipo_variable = 'LIQNOV'">
+													<qry:then>
+														<qry:attribute name="d_tipo_variable" value="'Procesamiento Novedad'"/>
+													</qry:then>
+													<qry:else>
+														<qry:if test="$r/@c_tipo_variable = 'TIPHOR'">
+															<qry:then>
+																<qry:attribute name="d_tipo_variable" value="'Tipo de Hora'"/>
+															</qry:then>
+														</qry:if>
+													</qry:else>
+												</qry:if>
+											</qry:else>
+										</qry:if>
+									</qry:else>
+								</qry:if>
+							</qry:else>
+						</qry:if>
+					</qry:else>
+				</qry:if>
+			</qry:out>
+		</qry:select>
+		<qry:select name="attTipoDato" doc="r">
+			<qry:out>
+				<qry:if test="$r/@c_tipo_dato = 'double'">
+					<qry:then>
+						<qry:attribute name="d_tipo_dato" value="'Decimal'"/>
+					</qry:then>
+					<qry:else>
+						<qry:if test="$r/@c_tipo_dato = 'int'">
+							<qry:then>
+								<qry:attribute name="d_tipo_dato" value="'Entero'"/>
+							</qry:then>
+							<qry:else>
+								<qry:if test="$r/@c_tipo_dato = 'DateTime'">
+									<qry:then>
+										<qry:attribute name="d_tipo_dato" value="'Fecha"/>
+									</qry:then>
+									<qry:else>
+										<qry:if test="$r/@c_tipo_dato = 'bool'">
+											<qry:then>
+												<qry:attribute name="d_tipo_dato" value="'L&#243;gico'"/>
+											</qry:then>
+										</qry:if>
+									</qry:else>
+								</qry:if>
+							</qry:else>
+						</qry:if>
+					</qry:else>
+				</qry:if>
+			</qry:out>
+		</qry:select>
+		<qry:select name="qryConceptos" doc="VAR">
+			<qry:xquery>
+				for $r in SQL('
+			  
+			  SELECT
+			  	TTA15_CONC_VAR.c_tipo_parametro,
+			  	TTA15_CONCEPTOS.c_concepto,
+					TTA15_CONCEPTOS.d_concepto,
+					TTA15_CONCEPTOS.l_activo,
+					TTA15_CONCEPTOS.e_secuencia,
+					TTA15_CONCEPTOS.c_externo			  
+			  
+			  FROM
+			  	TTA15_CONC_VAR,
+			  	TTA15_CONCEPTOS
+			  
+			  JOIN
+			  	TTA15_CONC_VAR.oi_concepto INNER TTA15_CONCEPTOS.oi_concepto
+			  
+			  WHERE
+			  	TTA15_CONC_VAR.oi_variable = {$VAR/@oi_variable}
+			  	
+			  	{%?($FILTRO/@l_conceptos_activos = '1')
+						{% AND TTA15_CONCEPTOS.l_activo = 1 %}
+						{% %}
+					%}			
+			
+			')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<CONCEPTO>
+					<qry:attribute name="c_concepto" value="$r/@c_concepto"/>
+					<qry:attribute name="d_concepto" value="$r/@d_concepto"/>
+					<qry:attribute name="d_activo" value="iif($r/@l_activo = 1, 'Si', 'No')"/>
+					<qry:attribute name="e_secuencia" value="$r/@e_secuencia"/>
+					<qry:attribute name="c_externo" value="$r/@c_externo"/>
+					<qry:insert-select name="attTipoParametro" doc-path="$r"/>
+				</CONCEPTO>
+			</qry:out>
+		</qry:select>
+		<qry:select name="attTipoParametro" doc="r">
+			<qry:out>
+				<qry:if test="$r/@c_tipo_parametro = 'IN'">
+					<qry:then>
+						<qry:attribute name="d_tipo_parametro" value="'Entrada'"/>
+					</qry:then>
+					<qry:else>
+						<qry:if test="$r/@c_tipo_parametro = 'OUT'">
+							<qry:then>
+								<qry:attribute name="d_tipo_parametro" value="'Salida'"/>
+							</qry:then>
+							<qry:else>
+								<qry:if test="$r/@c_tipo_parametro = 'AC'">
+									<qry:then>
+										<qry:attribute name="d_tipo_parametro" value="'Acumula Valor"/>
+									</qry:then>
+								</qry:if>
+							</qry:else>
+						</qry:if>
+					</qry:else>
+				</qry:if>
+			</qry:out>
+		</qry:select>
+	</html:query>
+</html:html>

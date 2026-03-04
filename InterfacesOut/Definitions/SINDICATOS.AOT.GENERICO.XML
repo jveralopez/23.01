@@ -1,0 +1,176 @@
+<INTERFACE-DEF xmlns:qry="nomad_engine.qry" finalenter="1" entermode="DOS">
+	<QUERY declare="&lt;DATA c_empresa=&quot;SJAT&quot; oi_sindicato=&quot;3&quot; interface=&quot;AOT&quot; inteface2=&quot;&quot; p_periodo=&quot;202206&quot;&gt;&lt;LIQS /&gt;&lt;/DATA&gt;">
+		<qry:main doc="SOURCE">
+			<qry:element name="DATA">
+				<qry:element name="VAR">
+					<qry:append-doc name="VAR" doc-path="."/>
+					<qry:insert-select name="qry_def_variables_grupos" doc-path="#SOURCE:."/>
+					<qry:attribute name="hts:delete" value="0"/>
+				</qry:element>
+				<qry:element name="DETAILS">
+					<qry:insert-select name="qryDetail" doc-path="#SOURCE:/DATA"/>
+				</qry:element>
+			</qry:element>
+		</qry:main>
+		<qry:select doc="SOURCE" name="qryDetail">
+			<qry:xquery>
+				for $r in SQL('
+						SELECT  
+						  MAX(PER.oi_personal) as oi_personal,
+						  MAX(PER.d_apellido) as d_apellido,
+						  MAX(PER.d_nombres) as d_nombres,
+					    MAX(PE.c_nro_cuil) as c_nro_cuil,
+						  MAX(PE.d_ape_y_nom) as d_ape_y_nom,
+						  PE.e_numero_legajo,
+						  MAX(PE.c_categoria_ult) as c_categoria_ult,
+						  MAX(PE.l_afiliado_sind) as l_afiliado_sind, 
+						  MAX(UB.d_domic_expl) as d_domic_expl,
+						  MAX(PE.c_ubicacion) as c_ubicacion,
+						  MAX(LIQ.e_periodo) as e_periodo,
+						  MAX(LIQ.c_empresa) as c_empresa,
+						  MAX(V.{%=#VAR:@c_columna%}) as haberes_con_aportes
+							
+						FROM
+							LIQ97_PERSONAL_EMP as PE,
+							PER01_PERSONAL as PER,
+							LIQ99_LIQUIDACION as LIQ,
+                            LIQ99_RECIBOS as REC,
+							LIQ20_TOT_LIQ_PER as TLP,
+							LIQ93_UBICACIONES as UB,
+							LIQ20_VAR_GR_CONC as V,
+							PER30_SINDICATOS as SIND  
+              
+						JOIN		
+							LIQ.oi_liquidacion_ddo INNER REC.oi_liquidacion_ddo,
+							REC.oi_tot_liq_per INNER TLP.oi_tot_liq_per,
+							TLP.oi_per_emp_ddo INNER PE.oi_per_emp_ddo,
+							PE.c_personal INNER PER.c_personal,
+							LIQ.oi_empresa_ddo INNER UB.oi_empresa_ddo,
+							V.oi_tot_liq_per INNER TLP.oi_tot_liq_per,
+							SIND.c_sindicato INNER  PE.c_sindicato
+							
+						
+						WHERE
+							LIQ.e_periodo  =  {#SOURCE:@p_periodo} 
+							AND PE.c_empresa = {#SOURCE:@c_empresa}	
+							AND LIQ.c_estado = \'F\' 
+							AND V.c_grupo = \'4\'
+							AND PE.c_ubicacion = UB.c_ubicacion 
+							AND LIQ.c_tipo_liq != \'6\'
+							AND LIQ.c_tipo_liq != \'7\'
+							AND SIND.oi_sindicato = {#SOURCE:@oi_sindicato}
+													
+					 GROUP BY
+
+                        PE.e_numero_legajo
+						
+			')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:element name="DETAIL">
+					<qry:attribute name="apellido" value="fill_right($r/@d_apellido,' ',30)"/>
+					<qry:attribute name="apellido" value="nmd_replace(@apellido,'&#160;',' ')"/>
+					<qry:attribute name="nombre" value="fill_right($r/@d_nombres,' ',30)"/>
+					<qry:attribute name="nombre" value="nmd_replace(@nombre,'&#160;',' ')"/>
+					<qry:attribute name="cuil" value="nmd_replace(($r/@c_nro_cuil), '-', '')"/>
+					<qry:attribute name="categoria" value="$r/@c_categoria_ult"/>
+					<qry:insert-select name="qry_interfaces_categoria" doc-path="$r"/>
+					<qry:attribute name="afiliacion" value="N"/>
+					<qry:attribute name="afiliacion" value="iif($r/@l_afiliado_sind = 1, 'S', 'N')"/>
+					<qry:attribute name="horas_trabajadas" value="NUMBER(0)"/>
+					<qry:insert-select name="qryHoraSindical" doc-path="$r"/>
+					<qry:attribute name="delegacion" value="$r/@d_domic_expl"/>
+					<qry:attribute name="fabrica" value="fill_left($r/@c_ubicacion,'0',5)"/>
+					<qry:attribute name="remuneracion_bruta" value="fill_right(FORMAT_NUMBER($r/@haberes_con_aportes, 12, 2, '.', '', ''),' ',14)"/>
+				</qry:element>
+			</qry:out>
+		</qry:select>
+		<qry:select name="qryHoraSindical" doc="SOURCE">
+			<qry:xquery>
+				for $r in SQL('
+			
+			SELECT           
+				SUM(CL.n_valor) AS n_valor,
+				SUM(CL.n_cantidad) AS n_cantidad 
+        
+			FROM			
+				LIQ99_LIQUIDACION as LIQ, 
+				LIQ99_RECIBOS as REC, 
+				LIQ20_TOT_LIQ_PER as TLP,
+				LIQ97_PERSONAL_EMP as PE,
+				LIQ20_CONC_LIQ_PER as CL, 
+				LIQ96_CONCEPTOS as CDDO,
+				LIQ14_CONCEPTOS as C,
+				LIQ30_CONC_SUM as CONSUM,
+				LIQ30_TOTALES as TOT
+			JOIN		
+				LIQ.oi_liquidacion_ddo INNER REC.oi_liquidacion_ddo,
+				REC.oi_tot_liq_per INNER TLP.oi_tot_liq_per,
+				TLP.oi_per_emp_ddo INNER PE.oi_per_emp_ddo, 
+				TLP.oi_tot_liq_per INNER CL.oi_tot_liq_per,
+				CL.oi_concepto_ddo INNER CDDO.oi_concepto_ddo,
+				CDDO.c_concepto INNER C.c_concepto,
+				C.oi_concepto INNER CONSUM.oi_concepto,
+				CONSUM.oi_total INNER TOT.oi_total
+			WHERE
+				LIQ.e_periodo  =  {#SOURCE:@e_periodo} 
+				AND PE.c_empresa = {#SOURCE:@c_empresa}
+				AND PE.e_numero_legajo = {#SOURCE:@e_numero_legajo}
+				AND  TOT.c_total  =  \'INTAOT\'
+					
+			
+			')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:attribute name="horas_trabajadas" value="fill_right(NUMBER(FLOOR($r/@n_cantidad)),' ',3)"/>
+			</qry:out>
+		</qry:select>
+		<qry:select name="qry_def_variables_grupos" doc="SOURCE">
+			<qry:xquery>
+				for $r in SQL('
+			
+			    SELECT
+ 							LIQ09_VARIABLES.c_variable,
+ 							LIQ31_GRUPO_VAR.c_columna,
+  					  LIQ31_GRUPOS.c_grupo              
+ 					FROM               
+ 							LIQ31_GRUPO_VAR,
+ 							LIQ31_GRUPOS,
+ 							LIQ09_VARIABLES
+ 					JOIN      
+ 							LIQ31_GRUPOS.oi_grupo INNER LIQ31_GRUPO_VAR.oi_grupo,
+ 							LIQ09_VARIABLES.oi_variable INNER LIQ31_GRUPO_VAR.oi_variable
+ 					WHERE                                                          
+ 							LIQ31_GRUPOS.c_grupo = \'4\'
+ 							and LIQ09_VARIABLES.c_variable = \'aa_remtotalsind\'
+								
+			')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:attribute name="c_variable" value="$r/@c_variable"/>
+				<qry:attribute name="c_columna" value="$r/@c_columna"/>
+			</qry:out>
+		</qry:select>
+		<qry:select name="qry_interfaces_categoria" doc="PARAM">
+			<qry:xquery>
+				for $r in SQL('
+			                         
+			        SELECT
+			         CAT.c_interface
+			        FROM                 
+			         ORG18_CATEGORIAS as CAT                 
+			        WHERE 
+			         CAT.c_categoria = {#PARAM:@c_categoria_ult}
+			         AND LEN(CAT.c_interface) &gt; 0 
+			
+			')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:attribute name="categoria" value="SUBSTRING_BEFORE(SUBSTRING_AFTER(upper_case($r/@c_interface),'AOT:'),',')"/>
+			</qry:out>
+		</qry:select>
+	</QUERY>
+	<DETAIL>
+		{apellido:30};{nombre:30};{cuil:11};{categoria:1};{afiliacion:1};{horas_trabajadas:3};{delegacion:2};{fabrica:5};{remuneracion_bruta:14}
+	</DETAIL>
+</INTERFACE-DEF>

@@ -1,0 +1,225 @@
+<html:html xmlns:html="nomad_engine.html" xmlns:qry="nomad_engine.qry" extends="Nomad.Base.BaseReport.rpt" name="NucleusRH.Base.Liquidacion.ListadoConsumos" doc="source">
+	<html:for-each declare="&lt;FILTRO oi_clase_org=&quot;&quot; gcustom=&quot;&quot; oi_empresa=&quot;8&quot; f_desde=&quot;20190501&quot; f_hasta=&quot;20190502&quot; c_estado=&quot;A&quot; oi_tipo_consumo=&quot;6&quot; gpers=&quot;&quot; activos=&quot;&quot; nombre=&quot;&quot; documento=&quot;&quot; sexo=&quot;&quot; grupo_sanguineo=&quot;&quot; listlegajos=&quot;&quot; oi_indic_activo=&quot;&quot; egresado=&quot;&quot; oi_forma_pago=&quot;&quot; oi_tipo_personal=&quot;&quot; fecha_desde=&quot;&quot; fecha_hasta=&quot;&quot; cb_confidenciales=&quot;T&quot; oi_grupo_ccosto=&quot;&quot; oi_centro_costo=&quot;&quot; oi_convenio=&quot;&quot; soloconvenio=&quot;&quot; oi_categoria=&quot;&quot; oi_ubicacion_desde=&quot;&quot; oi_ubicacion_hasta=&quot;&quot; oi_estructura=&quot;&quot; escructura_childs=&quot;&quot; oi_contrato=&quot;&quot; oi_afjp=&quot;&quot; oi_obra_social=&quot;&quot; oi_sindicato=&quot;&quot; l_afiliado_sind=&quot;0&quot; oi_departamento=&quot;&quot; oi_sector=&quot;&quot; legID=&quot;&quot; leg_where=&quot;&quot;&gt;&#13;&#10;&#9;&lt;PERSONAS&gt;&#13;&#10;&#9;&#9;&lt;ROW VALUES=&quot;1429,1326,1430,10305,2143,2144,2145,10000,10200&quot;/&gt;&#13;&#10;&#9;&lt;/PERSONAS&gt;&#13;&#10;&lt;/FILTRO&gt;&#13;&#10;">
+		<qry:main doc="PARAM">
+			<qry:append-doc name="FILTRO" doc-path="#PARAM:/FILTRO"/>
+			<REPORT label="LISTADO DE CONSUMOS">
+				<qry:attribute value="format_date(now(),'dd/mm/yyyy HH:MM')" name="date"/>
+				<GROUPS>
+					<GROUP tag="REP" type="title">
+						<COLS>
+							<COL name="empresa" label="Empresa"/>
+							<qry:if test="#PARAM:FILTRO/@f_desde != ''">
+								<qry:then>
+									<COL name="f_desde" label="Fecha Desde"/>
+								</qry:then>
+							</qry:if>
+							<qry:if test="#PARAM:FILTRO/@f_hasta != ''">
+								<qry:then>
+									<COL name="f_hasta" label="Fecha Hasta"/>
+								</qry:then>
+							</qry:if>
+							<qry:if test="#PARAM:FILTRO/@c_estado != ''">
+								<qry:then>
+									<COL name="c_estado" label="Estado"/>
+								</qry:then>
+							</qry:if>
+							<qry:if test="#PARAM:FILTRO/@oi_tipo_consumo != ''">
+								<qry:then>
+									<COL name="tipo_consumo" label="Tipo de Consumo"/>
+								</qry:then>
+							</qry:if>
+						</COLS>
+						<GROUP tag="LEG" type="title" noreg="No se encontraron registros de Consumos.">
+							<COLS>
+								<COL name="e_numero_legajo" label="Legajo"/>
+							</COLS>
+							<GROUP tag="DATOS" type="table" style="width:100%">
+								<COLS>
+									<COL name="nro_comp" label="Nro. Comprobante" style="width:10%"/>
+									<COL name="c_consumo" label="Consumo" style="width:10%"/>
+									<COL name="c_tipo_consumo" label="Tipo de Consumo" style="width:10%"/>
+									<COL name="f_consumo" label="Fecha Consumo" style="width:10%" type="date"/>
+									<COL name="c_estado" label="Estado" style="width:15%"/>
+									<COL name="e_importe" label="Importe" style="width:10%;text-align:right"/>
+								</COLS>
+								<FCOLS>
+									<COL colspan="4"/>
+									<COL label="Monto Total" style="text-align:right;border-left:none;"/>
+									<COL name="Total" type="num" style="text-align:right;"/>
+								</FCOLS>
+							</GROUP>
+						</GROUP>
+					</GROUP>
+				</GROUPS>
+				<qry:element name="DATA">
+					<qry:element name="REP">
+						<qry:insert-select name="DATOS_EMPRESA" doc-path="#PARAM:FILTRO"/>
+						<qry:insert-select name="TIPO_CONSUMO" doc-path="#PARAM:FILTRO"/>
+						<qry:attribute name="f_desde" value="format_date(#PARAM:FILTRO/@f_desde,'dd/mm/yyyy')"/>
+						<qry:attribute name="f_hasta" value="format_date(#PARAM:FILTRO/@f_hasta,'dd/mm/yyyy')"/>
+						<qry:switch test="#FILTRO:@c_estado">
+							<qry:case value="A">
+								<qry:attribute name="c_estado" value="'Abierto'"/>
+							</qry:case>
+							<qry:case value="P">
+								<qry:attribute name="c_estado" value="'Procesado'"/>
+							</qry:case>
+							<qry:default>
+								<qry:attribute name="c_estado" value="'Todos'"/>
+							</qry:default>
+						</qry:switch>
+						<qry:attribute name="qry-orderby" value="orderby"/>
+						<qry:insert-select doc-path="#PARAM:FILTRO/PERSONAS/ROW" name="QRY_PERSONAS"/>
+					</qry:element>
+				</qry:element>
+			</REPORT>
+		</qry:main>
+		<qry:select doc="PARAM" name="DATOS_EMPRESA">
+			<qry:xquery>
+				for $r in SQL(' 
+			SELECT
+				EMPRE.c_empresa, 
+				EMPRE.d_empresa 
+			FROM
+				ORG03_EMPRESAS AS EMPRE
+			WHERE
+				EMPRE.oi_empresa = {#PARAM:@oi_empresa}
+		')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:attribute value="$r/@c_empresa + '-' + $r/@d_empresa" name="empresa"/>
+			</qry:out>
+		</qry:select>
+		<qry:select doc="PARAM" name="TIPO_CONSUMO">
+			<qry:xquery>
+				for $r in SQL(' 
+			SELECT
+				LIQ08_TIPO.c_tipo_consumo, 
+				LIQ08_TIPO.d_tipo_consumo 
+			FROM
+				LIQ08_TIPO_CONSUMO AS LIQ08_TIPO
+			WHERE
+				LIQ08_TIPO.oi_tipo_consumo = {#PARAM:@oi_tipo_consumo}
+		')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:attribute value="$r/@c_tipo_consumo + '-' + $r/@d_tipo_consumo" name="tipo_consumo"/>
+			</qry:out>
+		</qry:select>
+		<qry:select doc="PARAM" name="QRY_PERSONAS">
+			<qry:out>
+				<qry:call>
+					<FILTRO>
+						<qry:attribute value="#PARAM:@values" name="values"/>
+						<qry:attribute value="#FILTRO:@oi_empresa" name="oi_empresa"/>
+						<qry:attribute value="#FILTRO:@f_desde" name="f_desde"/>
+						<qry:attribute value="#FILTRO:@f_hasta" name="f_hasta"/>
+						<qry:attribute value="#FILTRO:@oi_tipo_consumo" name="oi_tipo_consumo"/>
+						<qry:attribute value="#FILTRO:@c_estado" name="c_estado"/>
+					</FILTRO>
+				</qry:call>
+			</qry:out>
+		</qry:select>
+	</html:for-each>
+	<html:query declare="&lt;FILTRO oi_empresa=&quot;8&quot; values=&quot;1429,1326,1430,10305,2143,2144,2145,10000,10200&quot;/&gt;&#13;&#10;">
+		<qry:main doc="PARAM">
+			<qry:append-doc name="FILTRO2" doc-path="#PARAM:FILTRO"/>
+			<qry:no-show>
+				<qry:insert-select doc-path="#PARAM:/FILTRO" name="DATOS_PERSONAS"/>
+			</qry:no-show>
+		</qry:main>
+		<qry:select doc="PARAM" name="DATOS_PERSONAS">
+			<qry:xquery>
+				for $r in sql(' 
+			SELECT 
+				PER02.e_numero_legajo, 
+				PER01.d_ape_y_nom, 
+				PER02.oi_personal_emp
+			FROM 
+				PER02_PERSONAL_EMP AS PER02,
+				PER01_PERSONAL AS PER01  
+			JOIN
+				PER02.oi_personal INNER PER01.oi_personal                  
+			WHERE
+				PER02.oi_empresa = {#PARAM:@oi_empresa} AND
+				PER02.oi_personal_emp in ({%=#PARAM:@values%})    
+			ORDER BY
+				e_numero_legajo ASC
+		')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:element name="LEG">
+					<qry:attribute name="orderby" value="nmd_fillleft($r/@e_numero_legajo,'0',10)"/>
+					<qry:attribute name="e_numero_legajo" value="$r/@e_numero_legajo + '-' + $r/@d_ape_y_nom"/>
+					<qry:attribute name="oi_personal_emp" value="$r/@oi_personal_emp"/>
+					<qry:attribute name="hts:delete" value="'1'"/>
+					<qry:insert-select name="QRY_CONSUMOS" doc-path="$r"/>
+				</qry:element>
+			</qry:out>
+		</qry:select>
+		<qry:select doc="PARAM" name="QRY_CONSUMOS">
+			<qry:xquery>
+				for $r in SQL(' 
+		SELECT 
+			LIQ07.c_consumo_per AS nro_comp,
+			LIQ08.c_consumo,
+			LIQ08.d_consumo,
+			LIQ07.f_consumo,
+			LIQ07.c_estado,
+			LIQ07.e_importe,
+			TC.c_tipo_consumo,
+			TC.d_tipo_consumo
+		FROM 
+			LIQ07_CONSUMO_PER AS LIQ07,
+			LIQ08_CONSUMOS AS LIQ08,
+			LIQ08_TIPO_CONSUMO as TC
+		JOIN 
+			LIQ07.oi_consumo INNER LIQ08.oi_consumo,
+			LIQ07.oi_tipo_consumo INNER TC.oi_tipo_consumo
+		WHERE
+			LIQ07.oi_personal_emp = {#PARAM:@oi_personal_emp}
+		 	{%? (#FILTRO2:@c_estado != '') 
+				{% AND (LIQ07.c_estado = {#FILTRO2:@c_estado}) %} 
+				{% %} 
+			%}
+			{%? (#FILTRO2:@oi_tipo_consumo != '') 
+				{% AND (LIQ08.oi_tipo_consumo = {#FILTRO2:@oi_tipo_consumo}) %} 
+				{% %} 
+			%}
+			{%? (#FILTRO2:@f_desde!= '') 
+				{% AND LIQ07.f_consumo &gt;= {Datetime(#FILTRO2:@f_desde)} %} 
+				{% %} 
+			%} 
+			{%? (#FILTRO2:@f_hasta != '') 
+				{% AND LIQ07.f_consumo &lt; {Datetime(Number(Datetime(#FILTRO2:@f_hasta))+1)} %} 
+				{% %} 
+			%}					  
+		ORDER BY
+			f_consumo ASC 
+			')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:attribute name="hts:delete" value="'0'"/>
+				<qry:element name="DATOS">
+					<qry:attribute name="nro_comp" value="$r/@nro_comp"/>
+					<qry:attribute name="c_consumo" value="$r/@c_consumo + '-' + $r/@d_consumo"/>
+					<qry:attribute name="c_tipo_consumo" value="$r/@c_tipo_consumo + '-' + $r/@d_tipo_consumo"/>
+					<qry:attribute name="f_consumo" value="format_date($r/@f_consumo,'dd/mm/yyyy')"/>
+					<qry:switch test="$r/@c_estado">
+						<qry:case value="A">
+							<qry:attribute name="c_estado" value="'Abierto'"/>
+						</qry:case>
+						<qry:case value="P">
+							<qry:attribute name="c_estado" value="'Procesado'"/>
+						</qry:case>
+						<qry:default>
+							<qry:attribute name="c_estado" value="'Todos'"/>
+						</qry:default>
+					</qry:switch>
+					<qry:attribute name="e_importe" value="iif($r/@e_importe !='', format-number($r/@e_importe,0,2,'.','',''),'')"/>
+				</qry:element>
+				<qry:attribute value="number(@Total) + number($r/@e_importe)" name="Total"/>
+			</qry:out>
+		</qry:select>
+	</html:query>
+</html:html>

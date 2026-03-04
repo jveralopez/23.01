@@ -1,0 +1,74 @@
+<flow:flow xmlns:flow="nomad_engine.flow" xmlns:qry="nomad_engine.qry" xmlns:doc="nomad_engine.doc" default_action="initialize" extends="NucleusProject.Base.Project.Solicitudes.autoflow" name="NucleusProject.Base.Project.Solicitudes">
+	<flow:info label="Flow para NucleusProject.Base.Project.Solicitudes"/>
+	<flow:declare>
+		<qry:define declare="&lt;DATOS/&gt;&#13;&#10;" name="NEW">
+			<qry:main doc="SOURCE">
+				<qry:element name="ROWS">
+					<qry:insert-select name="qry_cod_sol_max" doc-path="#SOURCE:DATOS"/>
+				</qry:element>
+			</qry:main>
+			<qry:select doc="PARAM" name="qry_cod_sol_max">
+				<qry:xquery>
+					for $r in sql('		
+					SELECT 
+						MAX(STRING2NUMBER(SUBSTR(PRY07_SOLICITUDES.c_solicitud,5,30))) AS c_sol_max 
+					FROM 
+						PRY07_SOLICITUDES
+					WHERE
+						SUBSTR(PRY07_SOLICITUDES.c_solicitud,0,5)=GETYEAR(NOW())				          
+			')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:element name="ROW">
+						<qry:attribute name="fecha" value="format_date(now(),'yyyy')"/>
+						<qry:attribute name="c_sol" value="$r/@c_sol_max+1"/>
+						<qry:attribute name="c_sol_max" value="@fecha + ' ' + @c_sol"/>
+					</qry:element>
+				</qry:out>
+			</qry:select>
+		</qry:define>
+		<doc:define name="CODSOL"/>
+		<doc:define name="FILTERDATA">
+			<DATOS/>
+		</doc:define>
+		<doc:define name="DOCVACIO">
+			<algo/>
+		</doc:define>
+	</flow:declare>
+	<flow:main doc="SOURCE">
+		<flow:action name="initialize">
+			<doc:new-object doc="NEWDDOROOT" class="NucleusProject.Base.Project.Solicitudes.SOLICITUD"/>
+			<flow:open-form doc-path="#NEWDDOROOT:" form-class="NucleusProject.Base.Project.Solicitudes.SOLICITUD.form" mode="NEW"/>
+		</flow:action>
+	</flow:main>
+	<flow:group Name="SOLICITUD">
+		<flow:form mode="NEW" form-class="NucleusProject.Base.Project.Solicitudes.SOLICITUD.form" doc="SOURCE" name="NucleusProject.Base.Project.Solicitudes.SOLICITUD.carga_veloz.form:NEW">
+			<!--flow:action name="SAVE">
+		<flow:call-action action="save-DDO"/>
+		<doc:new-object doc="NEWDDOROOT" class="NucleusProject.Base.Project.Solicitudes.SOLICITUD"/>
+		<doc:load-qry output-doc="CODSOL" qry="NEW" input-doc-path="#FILTERDATA:"/>
+		<doc:set-attribute to-attr-path="#NEWDDOROOT:@c_solicitud" from-attr-path="#CODSOL:ROW/@c_sol_max"/>
+		<doc:assign-value from-path="#NEWDDOROOT:" to-doc="SOURCE"/>
+		<flow:log text="SOURCE" text-path="#SOURCE:"/>
+		<flow:log text-path="#NEWDDOROOT:" text="NEWDDOROOT"/>
+		<flow:message message="Se guard&#243; correctamente"/>
+	</flow:action-->
+			<flow:action name="SAVE">
+				<flow:call-action action="save-DDO"/>
+				<flow:close-form/>
+				<doc:new-object doc="NEWDDOROOT" class="NucleusProject.Base.Project.Solicitudes.SOLICITUD"/>
+				<flow:open-form doc-path="#NEWDDOROOT:" form-class="NucleusProject.Base.Project.Solicitudes.SOLICITUD.form" mode="NEW"/>
+			</flow:action>
+			<flow:action name="save-DDO">
+				<doc:save-object class="NucleusProject.Base.Project.Solicitudes.SOLICITUD" doc="NEWDDOROOT"/>
+			</flow:action>
+			<flow:action name="on-show">
+				<doc:load-qry output-doc="CODSOL" qry="NEW" input-doc-path="#FILTERDATA:"/>
+				<doc:set-attribute from-attr-path="#CODSOL:ROW/@c_sol_max" to-attr-path="#SOURCE:@c_solicitud"/>
+			</flow:action>
+			<flow:action name="CANCEL">
+				<flow:close-form next-action="After-Back"/>
+			</flow:action>
+		</flow:form>
+	</flow:group>
+</flow:flow>

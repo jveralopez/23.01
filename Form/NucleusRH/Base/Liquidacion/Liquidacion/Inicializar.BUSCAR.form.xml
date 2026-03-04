@@ -1,0 +1,214 @@
+<form:Form xmlns:form="nomad_engine.form" xmlns:qry="nomad_engine.qry" extends="NucleusRH.Base.Liquidacion.Legajo.Legajo.AGREGAR2.form" doc="source" name="NucleusRH.Base.Liquidacion.Liquidacion.Inicializar.BUSCAR.form" default_mode="SHOW">
+	<form:Help/>
+	<form:Title>
+		<form:Label label="Administrar Liquidaciones - Incluir / Excluir Legajos" style="S3 LCol_w" name="lbl_titulo"/>
+	</form:Title>
+	<form:Center width="100%">
+		<form:Blank name="blank1"/>
+		<form:VGroup border="1" width="90%" label="Criterios de selecci&#243;n particulares" name="vgroupDatosCustom" collapse="1" visible="0"/>
+		<form:VGroup nvalue="#source:@gpers" border="1" width="90%" collapse="1" label="Criterios de selecci&#243;n de personas" name="vgroupDatosPers">
+			<form:Columns name="colsemps" width="100%">
+				<form:Column valign="middle" name="colemp" align="left">
+					<form:ComboBox nvalue="#source:@oi_empresa" enabled="0" queryname1="NucleusRH.Base.Organizacion.Empresas.EMPRESA.INFO" xsize="40" mode="QRY" required="1" label="Empresa" name="empresa"/>
+					<form:ComboBox nvalue="#source:@oi_liquidacion" enabled="0" queryname1="NucleusRH.Base.Liquidacion.Liquidacion.LIQUIDACION.INFO" xsize="40" mode="QRY" required="1" label="Liquidaci&#243;n" name="liquidacion"/>
+					<form:SButton name="img_ojo" img="eye.gif"/>
+				</form:Column>
+			</form:Columns>
+		</form:VGroup>
+		<form:Hidden name="l_confidencial" nvalue="#source:@l_confidencial"/>
+		<form:Hidden name="liq_confidencial" nvalue="#source:@liq_confidencial"/>
+	</form:Center>
+	<form:Bottom>
+		<form:RowAligner name="rowaligner1">
+			<form:Row name="row1">
+				<form:Button img="ok" label="Guardar" name="ACCEPT">
+					<form:Event action="Guardar" name="onclick" runat="client"/>
+				</form:Button>
+				<form:Button img="cancel" label="Cancelar" name="CANCEL">
+					<form:Event name="onclick" action="CANCEL" runat="server"/>
+				</form:Button>
+			</form:Row>
+		</form:RowAligner>
+	</form:Bottom>
+	<form:Scripts>
+		function Guardar()
+{  	  
+	FillArray(100);
+	Ctrl("main").DoEvent("SAVE");
+}                          
+     
+     
+function ONLOAD()
+{
+	var t, ROW, VALUES;
+	arrFILTER = new Array();
+	arrSELECTED = new Array();
+ 
+	//Valores Iniciales
+	for (t=0; t&lt;Ctrl("arrSELECTED").CountRow(); t++)
+	{
+		ROW=Ctrl("arrSELECTED").GetRow(t);
+		VALUES=ROW.GetAttr("VALUES").split(",");
+		for (d=0; d&lt;VALUES.length; d++)
+		if (VALUES[d]!="") arrSELECTED.push(VALUES[d]);
+	} 
+	
+	refreshSelected();
+	refreshList();    
+
+	if(!Ctrl('img_ojo').GetEnabled())
+	{
+		//cargar solo los legajos que son no confidenciales
+		Ctrl('l_confidencial').SetXValue('0');
+	}   
+	else
+	{        
+		if(Ctrl('liq_confidencial').GetXValue() =='0')
+		{   
+			Ctrl('l_confidencial').SetXValue('0');
+		}
+		else
+		{
+		   	Ctrl('l_confidencial').SetXValue('1');
+		}
+	}
+	
+	//Debug
+	//if(Ctrl('empresa').GetXValue() == "") Ctrl('empresa').SetXValue("1");
+	//if(Ctrl('liquidacion').GetXValue() == "") Ctrl('liquidacion').SetXValue("5");
+	
+	//Obtengo la informacion adicional para el filtro de legajos
+	if(Ctrl('liquidacion').GetXValue())
+	{                                         
+	  var	np = GetProxy();
+		var nSQL = np.SQLService(); 	
+		var qry = Ctrl("main").getResource("qry_info_externo");	 
+	 
+		var result = nSQL.GetXML(qry, "&lt;PARAM liquidacion=\""+Ctrl('liquidacion').GetXValue()+"\" /&gt;");
+	 	var where = "";
+	 	var sep = "";
+		
+		if (result.GetAttr("c_tipo_liq") == "1")
+		{
+			if (result.GetAttr("c_clase") == "M")
+			{                                    
+				where += sep + "LEG.oi_tipo_personal in ("+result.FindElement2("TPER", "c_tipo_personal","1").GetAttr("oi_tipo_personal")+","+result.FindElement2("TPER", "c_tipo_personal","4").GetAttr("oi_tipo_personal")+","+result.FindElement2("TPER", "c_tipo_personal","8").GetAttr("oi_tipo_personal")+","+result.FindElement2("TPER", "c_tipo_personal","3").GetAttr("oi_tipo_personal")+")";
+				sep = " AND ";
+			} 
+			else if (result.GetAttr("c_clase") == "Q")
+			{
+				where += sep + "LEG.oi_tipo_personal in ("+result.FindElement2("TPER", "c_tipo_personal","2").GetAttr("oi_tipo_personal")+","+result.FindElement2("TPER", "c_tipo_personal","5").GetAttr("oi_tipo_personal")+")";
+				sep = " AND ";
+				
+				if (result.GetAttr("e_quincena") == "1")
+				{
+					where += sep + "LEG.f_ingreso &lt; {datetime(\\'" + result.GetAttr("e_fecha3") + "\\')}";
+					sep = " AND ";
+				}
+				else if (result.GetAttr("e_quincena") == "2")
+				{
+					where += sep + "(ISNULL(LEG.f_egreso) OR LEG.f_egreso &gt;= {datetime(\\'" + result.GetAttr("e_fecha3") + "\\')})";
+					sep = " AND ";
+				}
+			}		
+		}  
+		
+		if (result.GetAttr("c_tipo_liq") == "3")
+		{
+			where += sep + "ISNOTNULL(LEG.f_egreso) AND LEG.f_egreso &gt;= {datetime(\\'" + result.GetAttr("e_fecha1")+ "\\')} AND LEG.f_egreso &lt; {datetime(\\'" + result.GetAttr("e_fecha2")+ "\\')}";
+			sep = " AND ";
+		}
+		else
+		{
+			if (result.GetAttr("l_egresados") != "1")
+			{
+				where += sep + "(ISNULL(LEG.f_egreso) OR LEG.f_egreso &gt;= {datetime(\\'" + result.GetAttr("e_fecha2")+ "\\')}) AND LEG.oi_indic_activo != 10 ";
+				sep = " AND ";
+			} 
+			else
+			{
+				where += sep + "(ISNULL(LEG.f_egreso) OR LEG.f_egreso &gt;= {datetime(\\'" + result.GetAttr("e_fecha1")+ "\\')})";
+				sep = " AND ";
+			}
+		}
+	
+		//if (result.GetAttr("c_tipo_liq") != "6")
+		//{
+			where += sep + "LEG.f_ingreso &lt; {datetime(\\'" + result.GetAttr("e_fecha2")+ "\\')}";
+			sep = " AND ";
+		//}
+		
+		if (Ctrl('l_confidencial').GetXValue() != "1")
+		{
+			where += sep + "LEG.l_confidencial = 0";
+		}
+		
+		Ctrl('where').SetXValue(where);
+	} 
+}
+	</form:Scripts>
+	<form:Resources>
+		<form:Resource declare="&lt;PARAM liquidacion=&quot;421&quot; /&gt;" name="qry_info_externo">
+			<qry:main doc="SOURCE">
+				<qry:append-doc name="PARAMIN" doc-path="#SOURCE:/PARAM"/>
+				<qry:element name="ROWS">
+					<qry:insert-select name="DatosLiq" doc-path="#SOURCE:/PARAM"/>
+				</qry:element>
+			</qry:main>
+			<qry:select name="DatosLiq" doc="SOURCE">
+				<qry:xquery>
+					for $r in sql('
+SELECT 
+LIQ19_LIQUIDACION.c_clase,
+LIQ19_LIQUIDACION.e_quincena,
+LIQ19_LIQUIDACION.e_periodo,
+LIQ01_TIPOS_LIQ.l_egresados,
+LIQ01_TIPOS_LIQ.c_tipo_liq
+FROM 
+LIQ19_LIQUIDACION,
+LIQ01_TIPOS_LIQ
+JOIN
+LIQ19_LIQUIDACION.oi_tipo_liq INNER	LIQ01_TIPOS_LIQ.oi_tipo_liq
+WHERE 
+LIQ19_LIQUIDACION.oi_liquidacion = {#SOURCE:@liquidacion}
+')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:attribute name="c_clase" value="$r/@c_clase"/>
+					<qry:attribute name="e_quincena" value="$r/@e_quincena"/>
+					<qry:attribute name="e_periodo" value="$r/@e_periodo"/>
+					<qry:attribute name="e_periodo2" value="substring(datetime($r/@e_periodo+'35'),0,6)"/>
+					<qry:attribute name="e_fecha1" value="@e_periodo+'01'"/>
+					<qry:attribute name="e_fecha2" value="@e_periodo2+'01'"/>
+					<qry:attribute name="e_fecha3" value="@e_periodo+'16'"/>
+					<qry:attribute name="l_egresados" value="$r/@l_egresados"/>
+					<qry:attribute name="c_tipo_liq" value="$r/@c_tipo_liq"/>
+					<qry:if test="$r/@c_tipo_liq = '1'">
+						<qry:then>
+							<qry:insert-select name="TIPOS_PER" doc-path="$r"/>
+						</qry:then>
+					</qry:if>
+				</qry:out>
+			</qry:select>
+			<qry:select name="TIPOS_PER" doc="SOURCE">
+				<qry:xquery>
+					for $r in sql('
+SELECT 
+PER11_TIPOS_PERS.oi_tipo_personal,
+PER11_TIPOS_PERS.c_tipo_personal
+FROM 
+PER11_TIPOS_PERS
+')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<TPER>
+						<qry:attribute name="oi_tipo_personal" value="$r/@oi_tipo_personal"/>
+						<qry:attribute name="c_tipo_personal" value="$r/@c_tipo_personal"/>
+					</TPER>
+				</qry:out>
+			</qry:select>
+		</form:Resource>
+	</form:Resources>
+	<form:Event action="ONLOAD" name="onload" runat="client"/>
+	<form:Event action="SAVE" name="SAVE" runat="server"/>
+</form:Form>

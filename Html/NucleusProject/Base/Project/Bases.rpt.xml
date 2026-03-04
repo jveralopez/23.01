@@ -1,0 +1,174 @@
+<html:html xmlns:html="nomad_engine.html" xmlns:qry="nomad_engine.qry" extends="Nomad.Base.BaseReport.rpt" xtends="Nomad.Base.BaseReport.rpt" doc="source" name="NucleusRH.Base.Liquidacion.ListadoConcepto">
+	<html:query declare="&lt;DATOS oi_recurso=&quot;&quot; oi_proyecto=&quot;490&quot; /&gt;">
+		<qry:main doc="SOURCE">
+			<REPORT label="Tareas Incluidas en el Base" style="width:90%;">
+				<qry:attribute name="date" value="format_date(Now(),'dd/mm/yyyy HH:MM')"/>
+				<qry:insert-select name="PROYECTOS" doc-path="#SOURCE:DATOS"/>
+				<GROUPS>
+					<GROUP tag="REP" style="padding-left:1px;" type="title" noreg="No se encontraron registros para los filtros seleccionados.">
+						<COLS/>
+						<GROUP tag="TRABAJOS" style="padding-left:1px;width:100%;" type="title_collapse" noreg="No se encontraron registros para los filtros seleccionados.">
+							<COLS>
+								<COL name="c_tarea" label="Tarea" align="left" style="width:100%;"/>
+							</COLS>
+							<GROUP tag="RECURSO" style="padding-left:1px;width:100%;" type="table" noreg="No se encontraron registros para los filtros seleccionados.">
+								<COLS>
+									<COL name="d_ape_y_nom" label="Apellido y Nombre" align="left" style="width:100%;"/>
+								</COLS>
+								<GROUP tag="SUBTRABAJOS" style="padding-left:10px;width:100%;" type="table" noreg="No se encontraron registros para los filtros seleccionados.">
+									<COLS>
+										<COL name="o_mensaje" label="Mensaje" align="left" style="width:800px;"/>
+										<COL name="e_revision" label="Revision" align="left" style="width:100px;"/>
+										<qry:insert-select name="ARCHIVOS" doc-path="#SOURCE:DATOS[@l_incluir_archivos=1]"/>
+									</COLS>
+								</GROUP>
+							</GROUP>
+						</GROUP>
+					</GROUP>
+				</GROUPS>
+				<qry:element name="DATA">
+					<qry:append-doc doc-path="#SOURCE:." name="PARAMIN"/>
+					<qry:element name="REP">
+						<qry:insert-select name="TRABAJOS"/>
+					</qry:element>
+				</qry:element>
+			</REPORT>
+		</qry:main>
+		<qry:select name="ARCHIVOS" doc="">
+			<COL name="o_archivos" label="Archivos" align="left" style="width:600px;"/>
+			<qry:out/>
+		</qry:select>
+		<qry:select name="PROYECTOS" doc="SOURCE">
+			<qry:xquery>
+				for $r in SQL('	
+SELECT 
+	RIGHT(Y.d_proyecto, len(Y.d_proyecto) - 5) as codigo
+FROM 	
+	PRY01_PROYECTOS AS Y
+WHERE
+	Y.oi_proyecto = {#SOURCE:@oi_proyecto}
+')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<PROYECTO>
+					<qry:attribute value="'BRANCHES/' + $r/@codigo" name="codigo"/>
+					<qry:append-doc doc-path="." name="CODIGO"/>
+				</PROYECTO>
+			</qry:out>
+		</qry:select>
+		<qry:select name="TRABAJOS" doc="">
+			<qry:xquery>
+				for $r in SQL('	
+SELECT 
+	Y.c_proyecto,
+	P.c_tarea,
+	P.d_tarea, 
+	P.oi_tarea
+FROM 
+	PRY04_TRABAJOS AS T, 
+	PRY02_TAREAS_REC AS A, 
+	PRY02_TAREAS AS P,
+	PRY05_RECURSOS AS R,
+	PRY01_PROYECTOS AS Y, PER01_PERSONAL as E
+JOIN
+	T.oi_tarea_rec INNER A.oi_tarea_rec,
+	A.oi_tarea INNER P.oi_tarea,
+	A.oi_recurso INNER R.oi_recurso,
+	P.oi_proyecto INNER Y.oi_proyecto,
+	E.oi_personal INNER R.oi_personal
+WHERE
+	CONTAIN(T.o_archivos, {#CODIGO:@codigo})
+	{%? (#PARAMIN:@oi_recurso!='') {% and R.oi_recurso = {#PARAMIN:@oi_recurso} %} {% %} %} 
+GROUP BY 
+	Y.c_proyecto,
+	P.c_tarea,
+	P.d_tarea, 
+	P.oi_tarea
+ORDER BY
+	c_proyecto ASC, 
+	c_tarea ASC
+	
+')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<TRABAJOS>
+					<qry:attribute value="'[' + $r/@c_proyecto + '-' + $r/@c_tarea + ']' + $r/@d_tarea" name="c_tarea"/>
+					<qry:attribute value="$r/@d_tarea" name="d_tarea"/>
+					<qry:insert-select name="RECURSO" doc-path="$r"/>
+				</TRABAJOS>
+			</qry:out>
+		</qry:select>
+		<qry:select name="RECURSO" doc="SOURCE">
+			<qry:xquery>
+				for $r in SQL('	
+SELECT 
+	E.d_ape_y_nom, 
+	R.oi_recurso, P.oi_tarea
+FROM 
+	PRY04_TRABAJOS AS T, 
+	PRY02_TAREAS_REC AS A, 
+	PRY02_TAREAS AS P,
+	PRY05_RECURSOS AS R,
+	PER01_PERSONAL as E
+JOIN
+	T.oi_tarea_rec INNER A.oi_tarea_rec,	
+	A.oi_tarea INNER P.oi_tarea,        	
+	A.oi_recurso INNER R.oi_recurso,    	
+	E.oi_personal INNER R.oi_personal
+WHERE
+	CONTAIN(T.o_archivos, {#CODIGO:@codigo})
+	and P.oi_tarea = {#SOURCE:@oi_tarea}   
+	{%? (#PARAMIN:@oi_recurso!='') {% and R.oi_recurso = {#PARAMIN:@oi_recurso} %} {% %} %} 
+GROUP BY
+	E.d_ape_y_nom, 
+	R.oi_recurso,P.oi_tarea
+
+')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<RECURSO>
+					<qry:attribute value="$r/@d_ape_y_nom" name="d_ape_y_nom"/>
+					<qry:insert-select name="SUBTRABAJOS" doc-path="$r"/>
+				</RECURSO>
+			</qry:out>
+		</qry:select>
+		<qry:select name="SUBTRABAJOS" doc="SOURCE">
+			<qry:xquery>
+				for $r in SQL('	
+SELECT 
+	T.e_revision, 
+	E.d_ape_y_nom, 
+	T.o_mensaje, 
+	T.o_archivos
+FROM 
+	PRY04_TRABAJOS AS T, 
+	PRY02_TAREAS_REC AS A, 
+	PRY02_TAREAS AS P,
+	PRY05_RECURSOS AS R,
+	PRY01_PROYECTOS AS Y, PER01_PERSONAL as E
+JOIN
+	T.oi_tarea_rec INNER A.oi_tarea_rec,
+	A.oi_tarea INNER P.oi_tarea,
+	A.oi_recurso INNER R.oi_recurso,
+	P.oi_proyecto INNER Y.oi_proyecto,
+	E.oi_personal INNER R.oi_personal
+WHERE
+	CONTAIN(T.o_archivos, {#CODIGO:@codigo})
+	{%? (#PARAMIN:@oi_recurso!='') {% and R.oi_recurso = {#PARAMIN:@oi_recurso} %} {% %} %} 
+	and P.oi_tarea = {#SOURCE:@oi_tarea}
+	and R.oi_recurso = {#SOURCE:@oi_recurso}
+ORDER BY 
+  e_revision ASC
+')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<SUBTRABAJOS>
+					<qry:attribute value="$r/@d_ape_y_nom" name="d_ape_y_nom"/>
+					<qry:attribute value="$r/@o_mensaje" name="o_mensaje"/>
+					<qry:attribute value="$r/@o_archivos" name="o_archivos"/>
+					<qry:attribute value="$r/@e_revision" name="e_revision"/>
+				</SUBTRABAJOS>
+			</qry:out>
+		</qry:select>
+	</html:query>
+</html:html>

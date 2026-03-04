@@ -1,0 +1,105 @@
+<flow:flow name="NucleusRH.Base.Organizacion.Responsabilidades.PERSONAL.guia" extends="NucleusRH.Base.Personal.Legajo.PERSONAL.guia.autoflow" xmlns:doc="nomad_engine.form" xmlns:qry="nomad_engine.form" xmlns:flow="nomad_engine.form">
+	<flow:info label="Flow guia para NucleusRH.Base.Personal.Legajo.PERSONAL"/>
+	<flow:main doc="SOURCE"/>
+	<flow:declare>
+		<qry:define declare="&lt;helper-mess id=&quot;405&quot;/&gt;" name="X2C">
+			<qry:main doc="SOURCE">
+				<qry:element name="ROW">
+					<qry:insert-select doc-path="#SOURCE:" name="RS1"/>
+				</qry:element>
+			</qry:main>
+			<qry:select doc="SOURCE" name="RS1">
+				<qry:xquery>
+					for $r in sql('
+				SELECT PER01_PERSONAL.oi_personal AS ID, PER01_PERSONAL.c_personal AS CODE, 
+				PER01_PERSONAL.d_ape_y_nom AS TEXT 
+				FROM PER01_PERSONAL
+				WHERE PER01_PERSONAL.d_email != \'\'
+				AND ISNOTNULL(PER01_PERSONAL.d_email)
+				AND PER01_PERSONAL.oi_personal={#SOURCE:helper-mess/@ID}
+			')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:attribute type="Nomad.NSystem.Int" value="$r/@ID" name="id"/>
+					<qry:attribute type="Nomad.NSystem.Int" value="$r/@ID" name="value"/>
+					<qry:attribute type="Nomad.NSystem.String" value="$r/@CODE" name="code"/>
+					<qry:attribute type="Nomad.NSystem.String" value="$r/@TEXT" name="text"/>
+				</qry:out>
+			</qry:select>
+		</qry:define>
+		<qry:define declare="&lt;helper-mess CODE=&quot;dni30169169&quot;/&gt;" name="C2X">
+			<qry:main doc="SOURCE">
+				<qry:append-doc doc-path="#SOURCE:helper-mess" name="INDOC"/>
+				<qry:element name="ROW">
+					<qry:insert-select doc-path="#SOURCE:" name="RS1"/>
+				</qry:element>
+			</qry:main>
+			<qry:select doc="SOURCE" name="RS1">
+				<qry:xquery>
+					for $r in sql('
+				SELECT PER01_PERSONAL.oi_personal AS ID, PER01_PERSONAL.c_personal AS CODE, 
+				PER01_PERSONAL.d_ape_y_nom AS TEXT 
+				FROM PER01_PERSONAL
+				WHERE PER01_PERSONAL.d_email != \'\'
+				AND ISNOTNULL(PER01_PERSONAL.d_email)			
+				AND PER01_PERSONAL.c_personal={substring_before(#INDOC:@CODE,\'-\')} ')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:attribute type="Nomad.NSystem.String" value="''" name="SUB_SEARCH"/>
+					<qry:attribute type="Nomad.NSystem.String" value="''" name="PARENTID"/>
+					<qry:attribute type="Nomad.NSystem.Int" value="$r/@ID" name="id"/>
+					<qry:attribute type="Nomad.NSystem.Int" value="$r/@ID" name="value"/>
+					<qry:attribute type="Nomad.NSystem.String" value="$r/@CODE" name="code"/>
+					<qry:attribute type="Nomad.NSystem.String" value="$r/@TEXT" name="text"/>
+					<qry:insert-select doc-path="$r" name="SECURITY_PERSONAL"/>
+				</qry:out>
+			</qry:select>
+			<qry:select doc="PARAM" name="SECURITY_PERSONAL">
+				<qry:xquery>
+					for $r in sql('
+				SELECT NMD_SECURITY.policy 
+				FROM NMD_SECURITY 
+				WHERE NMD_SECURITY.class=\'NucleusRH.Base.Personal.Legajo.PERSONAL\' 
+				AND NMD_SECURITY.id={#PARAM:@id}
+			')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:attribute value="$r/@policy" name="policy"/>
+				</qry:out>
+			</qry:select>
+		</qry:define>
+		<qry:define declare="&lt;DATA FILTER=&quot;fed&quot; id=&quot;&quot; /&gt;" name="HELP">
+			<qry:main doc="SOURCE">
+				<qry:element name="ROWS">
+					<qry:insert-select doc-path="#SOURCE:" name="RS1"/>
+				</qry:element>
+			</qry:main>
+			<qry:select doc="SOURCE" name="RS1">
+				<qry:xquery>
+					for $r in sql('
+				SELECT t.oi_personal as ID, 
+				t.c_personal as CODE, 
+				t.d_ape_y_nom as TEXT, 
+				SEC.policy  
+				FROM PER01_PERSONAL as t, 
+				NMD_SECURITY(class=\'NucleusRH.Base.Personal.Legajo.PERSONAL\') as SEC 
+				JOIN t.oi_personal LEFT OUTER SEC.id  
+				WHERE t.d_email != \'\'
+				AND ( CONTAIN(UCASE(t.c_personal),UCASE({#SOURCE:DATA/@FILTER})) 
+				OR CONTAIN(UCASE(t.d_ape_y_nom),UCASE({#SOURCE:DATA/@FILTER})) ) 
+				ORDER BY CODE asc
+				')/ROWS/ROW[CONTAINS(UPPER_CASE(@TEXT),UPPER_CASE(#SOURCE:DATA/@FILTER)) or CONTAINS(UPPER_CASE(@CODE),UPPER_CASE(#SOURCE:DATA/@FILTER))]
+				</qry:xquery>
+				<qry:out>
+					<qry:element name="ROW">
+						<qry:attribute value="$r/@ID" name="id"/>
+						<qry:attribute value="$r/@ID" name="value"/>
+						<qry:attribute value="$r/@CODE" name="code"/>
+						<qry:attribute value="$r/@TEXT" name="text"/>
+						<qry:attribute value="$r/@policy" name="policy"/>
+					</qry:element>
+				</qry:out>
+			</qry:select>
+		</qry:define>
+	</flow:declare>
+</flow:flow>

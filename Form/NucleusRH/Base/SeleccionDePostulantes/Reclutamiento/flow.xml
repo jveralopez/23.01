@@ -1,0 +1,359 @@
+<flow:flow xmlns:flow="nomad_engine.flow" xmlns:qry="nomad_engine.qry" xmlns:doc="nomad_engine.doc" extends="Nomad.Base.flow" name="NucleusRH.Base.SeleccionDePostulantes.Reclutamiento">
+	<flow:info label="Flow para NucleusRH.Base.SeleccionDePostulantes.Reclutamiento"/>
+	<flow:declare>
+		<qry:define declare="&lt;DATOS gaviso=&quot;&quot; oi_aviso=&quot;162&quot; grecluta=&quot;&quot; l_incluir_post=&quot;1&quot; edad_desde=&quot;10&quot; edad_hasta=&quot;&quot; c_sexo=&quot;&quot; oi_estado_civil=&quot;&quot; oi_provincia=&quot;&quot; d_localidad=&quot;&quot; f_desdeact=&quot;&quot; f_hastaact=&quot;&quot; oi_tipo_jor_lab=&quot;&quot; oi_sit_laboral=&quot;&quot; c_remuneracion=&quot;1000&quot; oi_area=&quot;&quot; c_antiguedad=&quot;&quot; h_edad_desde=&quot;&quot; h_edad_hasta=&quot;&quot;&gt;&#13;&#10;  &lt;ROWS nmd-col=&quot;1&quot;&gt;&#13;&#10;    &lt;ROW id=&quot;2&quot; n_merito=&quot;1&quot; /&gt;&#13;&#10;    &lt;ROW id=&quot;3&quot; n_merito=&quot;1&quot; /&gt;&#13;&#10;    &lt;ROW id=&quot;4&quot; n_merito=&quot;1&quot; /&gt;&#13;&#10;    &lt;ROW id=&quot;1&quot; n_merito=&quot;1&quot; /&gt;&#13;&#10;    &lt;ROW id=&quot;5&quot; n_merito=&quot;1&quot; /&gt;&#13;&#10;    &lt;ROW id=&quot;50&quot; n_merito=&quot;1&quot; /&gt;&#13;&#10;  &lt;/ROWS&gt;&#13;&#10;&lt;/DATOS&gt;&#13;&#10;" name="QRY_MERITOS">
+			<qry:main doc="SOURCE">
+				<qry:element name="DATOS">
+					<qry:attribute name="gaviso" value="#SOURCE:DATOS/@gaviso"/>
+					<qry:attribute name="oi_aviso" value="#SOURCE:DATOS/@oi_aviso"/>
+					<qry:attribute name="grecluta" value="#SOURCE:DATOS/@grecluta"/>
+					<qry:attribute name="l_incluir_post" value="#SOURCE:DATOS/@l_incluir_post"/>
+					<qry:attribute name="edad_desde" value="#SOURCE:DATOS/@edad_desde"/>
+					<qry:attribute name="edad_hasta" value="#SOURCE:DATOS/@edad_hasta"/>
+					<qry:attribute name="c_sexo" value="#SOURCE:DATOS/@c_sexo"/>
+					<qry:attribute name="oi_estado_civil" value="#SOURCE:DATOS/@oi_estado_civil"/>
+					<qry:attribute name="oi_provincia" value="#SOURCE:DATOS/@oi_provincia"/>
+					<qry:attribute name="d_localidad" value="#SOURCE:DATOS/@d_localidad"/>
+					<qry:attribute name="f_desdeact" value="#SOURCE:DATOS/@f_desdeact"/>
+					<qry:attribute name="f_hastaact" value="#SOURCE:DATOS/@f_hastaact"/>
+					<qry:attribute name="oi_tipo_jor_lab" value="#SOURCE:DATOS/@oi_tipo_jor_lab"/>
+					<qry:attribute name="oi_sit_laboral" value="#SOURCE:DATOS/@oi_sit_laboral"/>
+					<qry:attribute name="c_remuneracion" value="#SOURCE:DATOS/@c_remuneracion"/>
+					<qry:attribute name="oi_area" value="#SOURCE:DATOS/@oi_area"/>
+					<qry:attribute name="c_antiguedad" value="#SOURCE:DATOS/@c_antiguedad"/>
+					<qry:attribute name="h_edad_desde" value="#SOURCE:DATOS/@h_edad_desde"/>
+					<qry:attribute name="h_edad_hasta" value="#SOURCE:DATOS/@h_edad_hasta"/>
+					<qry:attribute name="l_incluir_inactivos" value="#SOURCE:DATOS/@l_incluir_inactivos"/>
+					<qry:attribute name="oi_area_exp" value="#SOURCE:DATOS/@oi_area_exp"/>
+					<qry:attribute name="d_empresaExp" value="#SOURCE:DATOS/@d_empresaExp"/>
+					<qry:element name="ROWS">
+						<qry:insert-select name="RS1" doc-path="#SOURCE:DATOS/ROWS"/>
+						<qry:insert-select name="RS3" doc-path="#SOURCE:DATOS/ROWS"/>
+					</qry:element>
+				</qry:element>
+			</qry:main>
+			<qry:select name="RS1" doc="PARAM">
+				<qry:xquery>
+					for $r in #PARAM:ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:insert-select name="RS2" doc-path="$r"/>
+				</qry:out>
+			</qry:select>
+			<qry:select name="RS2" doc="PARAM">
+				<qry:xquery>
+					for $r in sql('
+			SELECT 
+				SDP15_MERITOS.oi_merito,			
+				SDP15_MERITOS.n_ponderacion
+			FROM 
+				SDP15_MERITOS
+			WHERE 
+				SDP15_MERITOS.oi_merito = {#PARAM:@id}
+			')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:element name="ROW">
+						<qry:attribute value="$r/@oi_merito" name="id"/>
+						<qry:attribute value="#PARAM:@n_merito" name="n_merito"/>
+					</qry:element>
+				</qry:out>
+			</qry:select>
+			<qry:select name="RS3" doc="PARAM">
+				<qry:xquery>
+					for $r in sql('
+			SELECT 
+				SDP15_MERITOS.oi_merito,			
+				SDP15_MERITOS.n_ponderacion
+			FROM 
+				SDP15_MERITOS
+			WHERE 
+				1 = 1
+				{%? (string(#PARAM:/ROW/@id)!='') 
+					{% AND SDP15_MERITOS.oi_merito not in ({%=string(#PARAM:/ROW/@id)%}) %} 
+					{%  %} 
+				%}
+			ORDER BY
+				oi_merito ASC				
+			')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:element name="ROW">
+						<qry:attribute value="$r/@oi_merito" name="id"/>
+						<qry:attribute value="$r/@n_ponderacion" name="n_merito"/>
+					</qry:element>
+				</qry:out>
+			</qry:select>
+		</qry:define>
+		<qry:define declare="&lt;DATOS oi_aviso=&quot;134&quot;&gt;&#13;&#10;&#9;&lt;ROWS nmd-col=&quot;1&quot;&gt;&#13;&#10;&#9;&#13;&#10;&#9;&lt;/ROWS&gt;&#13;&#10;&lt;/DATOS&gt;" name="RECLUTADOS">
+			<qry:main doc="SOURCE">
+				<qry:element name="DATOS">
+					<qry:attribute name="oi_aviso" value="#SOURCE:DATOS/@oi_aviso" type="Nomad.NSystem.Int"/>
+					<qry:element name="ROWS">
+						<qry:insert-select doc-path="#SOURCE:DATOS" name="RS1"/>
+					</qry:element>
+					<qry:insert-select doc-path="#SOURCE:DATOS" name="RS2"/>
+				</qry:element>
+			</qry:main>
+			<qry:select name="RS1" doc="SOURCE">
+				<qry:xquery>
+					for $r in sql('
+				SELECT
+					SDP14_RECLUTADOS.oi_reclutado,
+					SDP14_RECLUTADOS.n_merito
+				FROM
+					SDP14_RECLUTADOS
+				WHERE
+					SDP14_RECLUTADOS.oi_aviso=  {#SOURCE:@oi_aviso} 
+					AND SDP14_RECLUTADOS.c_estado = \'V\' 
+			')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:element name="ROW">
+						<qry:attribute name="oi_reclutado" value="$r/@oi_reclutado" type="Nomad.NSystem.Int"/>
+						<qry:attribute name="elegir" value="'0'" type="Nomad.NSystem.Int"/>
+						<qry:attribute name="n_merito" value="$r/@n_merito" type="Nomad.NSystem.Int"/>
+					</qry:element>
+				</qry:out>
+			</qry:select>
+			<qry:select name="RS2" doc="SOURCE">
+				<qry:xquery>
+					for $r in sql('
+				SELECT COUNT(SDP14_RECLUTADOS.oi_reclutado) as cant					
+				FROM
+					SDP14_RECLUTADOS
+				WHERE
+					SDP14_RECLUTADOS.oi_aviso=  {#SOURCE:@oi_aviso} 
+					AND SDP14_RECLUTADOS.c_estado = \'V\' 
+			')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:attribute name="cant" value="' ' + $r/@cant"/>
+				</qry:out>
+			</qry:select>
+		</qry:define>
+		<qry:define declare="&lt;AVISO id=&quot;159&quot; /&gt;" name="QRY_INCLUIDOS">
+			<qry:main doc="SOURCE">
+				<qry:element name="FILTRO">
+					<qry:attribute value="#SOURCE:AVISO/@id" name="oi_aviso"/>
+					<qry:element name="ROWS">
+						<qry:insert-select doc-path="#SOURCE:AVISO" name="SQL1"/>
+					</qry:element>
+				</qry:element>
+			</qry:main>
+			<qry:select doc="SOURCE" name="SQL1">
+				<qry:xquery>
+					for $r in sql('
+				SELECT 
+					SDP01_CV.oi_cv,
+					SDP01_CV.d_ape_y_nom,
+					SDP14_RECLUTADOS.n_merito,
+					SDP14_RECLUTADOS.c_estado
+				FROM 
+					SDP05_AVISOS, 
+					SDP14_RECLUTADOS, 
+					SDP01_CV
+				JOIN                              
+					SDP05_AVISOS.oi_aviso INNER SDP14_RECLUTADOS.oi_aviso,
+					SDP14_RECLUTADOS.oi_cv INNER SDP01_CV.oi_cv
+				WHERE 
+					SDP05_AVISOS.oi_aviso = {#SOURCE:@id}
+				ORDER BY 
+					oi_cv ASC
+			')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:element name="ROW">
+						<qry:attribute value="$r/@oi_cv" name="id"/>
+						<qry:attribute value="$r/@d_ape_y_nom" name="d_ape_y_nom"/>
+						<qry:attribute value="number($r/@n_merito)" name="n_merito"/>
+						<qry:switch test="$r/@c_estado">
+							<qry:case value="V">
+								<qry:attribute name="c_estado" value="'Vigente'"/>
+							</qry:case>
+							<qry:case value="D">
+								<qry:attribute name="c_estado" value="'Descartado'"/>
+							</qry:case>
+							<qry:default>
+								<qry:attribute name="c_estado" value="'Contratado'"/>
+							</qry:default>
+						</qry:switch>
+					</qry:element>
+				</qry:out>
+			</qry:select>
+		</qry:define>
+		<doc:define name="INCLUIDOS"/>
+		<doc:define name="AVISO">
+			<AVISO id=""/>
+		</doc:define>
+		<qry:define declare="&lt;FILTRO oi_aviso=&quot;162&quot; batch-id=&quot;000013EC-000003C0-20110228-132341-00000094&quot;&gt;&lt;ROWS /&gt;&lt;/FILTRO&gt;" name="QRY_CANDIDATOS">
+			<qry:main doc="SOURCE">
+				<qry:element name="ROWS">
+					<qry:insert-select name="QRY_FILE_BATCH" doc-path="#SOURCE:FILTRO"/>
+				</qry:element>
+			</qry:main>
+			<qry:select name="QRY_FILE_BATCH" doc="PARAM">
+				<qry:xquery>
+					for $r in fileio('TEMP\\SDP_Reclutamiento_{%=#PARAM:@batch-id%}.xml')/DATA/CV
+				</qry:xquery>
+				<qry:out>
+					<qry:element name="ROW">
+						<qry:attribute name="oi_aviso" value="#PARAM:@oi_aviso"/>
+						<qry:attribute name="id" value="$r/@oi_cv"/>
+						<qry:attribute name="oi_cv" value="$r/@oi_cv"/>
+						<qry:attribute name="mer_3" value="$r/@mer_3"/>
+						<qry:attribute name="mer_1" value="$r/@mer_1"/>
+						<qry:attribute name="n_merito" value="$r/@result"/>
+						<qry:insert-select name="QRY_APE_Y_NOM" doc-path="$r"/>
+						<qry:attribute name="c_estado" value="'Vigente'"/>
+						<qry:insert-select name="QRY_ESTADO" doc-path="$r"/>
+						<qry:insert-select name="sql1" doc-path="#PARAM:ROWS/ROW[@id=$r/@oi_cv]"/>
+					</qry:element>
+				</qry:out>
+			</qry:select>
+			<qry:select name="QRY_APE_Y_NOM" doc="PARAM">
+				<qry:xquery>
+					for $r in SQL('
+			SELECT 
+				CV.d_ape_y_nom
+			FROM 
+				SDP01_CV AS CV			
+			WHERE 
+				CV.oi_cv = {#PARAM:@oi_cv}
+		')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:attribute name="d_ape_y_nom" value="$r/@d_ape_y_nom"/>
+				</qry:out>
+			</qry:select>
+			<qry:select name="QRY_ESTADO" doc="PARAM">
+				<qry:xquery>
+					for $r in SQL('
+			SELECT 
+				REC.c_estado
+			FROM 
+				SDP14_RECLUTADOS AS REC
+				, SDP01_CV AS CV
+			JOIN
+				CV.oi_cv INNER REC.oi_cv
+			WHERE 
+				CV.oi_cv = {#PARAM:@oi_cv} 			
+				AND REC.oi_aviso = {#PARAM:@oi_aviso} 			
+		')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:switch test="$r/@c_estado">
+						<qry:case value="V">
+							<qry:attribute name="c_estado" value="'Vigente'"/>
+						</qry:case>
+						<qry:case value="D">
+							<qry:attribute name="c_estado" value="'Descartado'"/>
+						</qry:case>
+						<qry:default>
+							<qry:attribute name="c_estado" value="'Contratado'"/>
+						</qry:default>
+					</qry:switch>
+				</qry:out>
+			</qry:select>
+			<qry:select name="sql1" doc="PARAM">
+				<qry:out>
+					<qry:attribute name="hts:delete" value="1"/>
+				</qry:out>
+			</qry:select>
+		</qry:define>
+		<doc:define name="CANDIDATOS"/>
+		<doc:define name="CVS_RECLUTADOS">
+			<ROWS>
+				<ROW id=""/>
+			</ROWS>
+		</doc:define>
+		<doc:define name="FILTERDATA">
+			<DATOS>
+				<ROWS/>
+			</DATOS>
+		</doc:define>
+		<doc:define name="PARAMETERS"/>
+	</flow:declare>
+	<flow:main doc="SOURCE">
+		<flow:action name="initializeReclutamiento">
+			<flow:open-form doc-path="#FILTERDATA:" parent-doc-path="#SOURCE:" mode="FILTER" form-class="NucleusRH.Base.SeleccionDePostulantes.Reclutamiento.Filtro.form"/>
+		</flow:action>
+	</flow:main>
+	<flow:group name="Reclutamiento">
+		<flow:form parent-doc="PARENTSOURCE" name="NucleusRH.Base.SeleccionDePostulantes.Reclutamiento.Filtro.form" mode="FILTER" doc="SOURCE" form-class="NucleusRH.Base.SeleccionDePostulantes.Reclutamiento.Filtro.form">
+			<flow:action name="on-show">
+				<flow:call-action action="Load-FILTER"/>
+				<doc:load-qry input-doc-path="#SOURCE:" output-doc="SOURCE" qry="QRY_MERITOS"/>
+				<flow:log text-path="#SOURCE:" text="PPSOURCE"/>
+			</flow:action>
+			<flow:action name="BACK">
+				<flow:close-form/>
+			</flow:action>
+			<flow:action name="FILTER">
+				<flow:call-action action="Save-FILTER"/>
+				<doc:set-attribute from-attr-path="#SOURCE:@oi_aviso" to-attr-path="#AVISO:@id"/>
+				<flow:exec-method class="NucleusRH.Base.SeleccionDePostulantes.Reclutados.RECLUTADO" method="Reclutar" out-attr-path="#BATCHDOC:@batch-id" priority="5">
+					<flow:param name="pxmlParams" doc="SOURCE" type="Nomad.NSystem.Proxy.NomadXML" mode="in"/>
+				</flow:exec-method>
+				<flow:call-action action="open-flow-BATCH"/>
+			</flow:action>
+			<flow:action name="Save-FILTER">
+				<flow:save-user-data doc-path="#SOURCE:" name="FILTER-NucleusRH.Base.SeleccionDePostulantes.Reclutamiento"/>
+			</flow:action>
+			<flow:action name="Load-FILTER">
+				<flow:load-user-data doc="SOURCE" name="FILTER-NucleusRH.Base.SeleccionDePostulantes.Reclutamiento"/>
+			</flow:action>
+			<flow:action name="open-flow-BATCH">
+				<flow:open-form parent-doc-path="#SOURCE:" form-class="Nomad.base.batch.report.form" mode="BATCH" doc-path="#BATCHDOC:"/>
+			</flow:action>
+		</flow:form>
+		<flow:form extends="Nomad.base.batch.report.form:BATCH" doc="SOURCE" form-class="Nomad.base.batch.report.form" name="Nomad.base.batch.report.form:BATCH" mode="BATCH">
+			<flow:action name="show-report">
+				<flow:close-form/>
+				<doc:load-qry output-doc="INCLUIDOS" input-doc-path="#AVISO:" qry="QRY_INCLUIDOS"/>
+				<doc:set-attribute to-attr-path="#INCLUIDOS:@batch-id" from-attr-path="#BATCHDOC:@batch-id"/>
+				<doc:load-qry input-doc-path="#INCLUIDOS:" output-doc="CANDIDATOS" qry="QRY_CANDIDATOS"/>
+				<flow:open-form parent-doc-path="#SOURCE:" doc-path="#INCLUIDOS:" form-class="NucleusRH.Base.SeleccionDePostulantes.Reclutamiento.ADMINISTRAR.form" mode="EDIT"/>
+			</flow:action>
+		</flow:form>
+	</flow:group>
+	<flow:group name="ADMINISTRAR">
+		<flow:form form-class="NucleusRH.Base.SeleccionDePostulantes.Reclutamiento.ADMINISTRAR.form" name="NucleusRH.Base.SeleccionDePostulantes.Reclutamiento.ADMINISTRAR.form:EDIT" parent-doc="PARENTSOURCE" mode="EDIT" doc="SOURCE">
+			<flow:action name="on-show">
+				<flow:attach-doc doc-path="#SOURCE:ROWS" attach-id="ARRA"/>
+				<flow:attach-doc doc-path="#CANDIDATOS:" attach-id="ARRB"/>
+			</flow:action>
+			<flow:action name="SAVE">
+				<flow:exec-method method="GuardarReclutados" priority="6" out-attr-path="#BATCHDOC:@batch-id" class="NucleusRH.Base.SeleccionDePostulantes.Reclutados.RECLUTADO">
+					<flow:param attr-path="#SOURCE:@oi_aviso" name="poi_aviso" type="Nomad.NSystem.String" mode="in"/>
+					<flow:param doc-path="#CVS_RECLUTADOS:" name="param" type="Nomad.NSystem.Proxy.NomadXML" mode="in"/>
+				</flow:exec-method>
+				<flow:open-form form-class="nomad.base.batchtolist.form" mode="BATCH" doc-path="#BATCHDOC:"/>
+				<flow:call-action action="BACK"/>
+			</flow:action>
+			<flow:action name="BACK">
+				<flow:close-form/>
+			</flow:action>
+			<flow:action name="LOGPROCESO">
+				<doc:set-attribute from-attr-path="#SOURCE:@oi_aviso" to-attr-path="#FILTERDATA:@oi_aviso"/>
+				<doc:set-attribute from-attr-path="#SOURCE:@batch-id" to-attr-path="#FILTERDATA:@batch-id"/>
+				<!--flow:exec-method out-type="Nomad.NSystem.String" out-attr-path="#FILTERDATA:@report" method="ExecReportHTMLOnline" class="Nomad.Base.Report.GeneralReport.REPORT">
+		<flow:param value="NucleusRH.Base.SeleccionDePostulantes.InfoLog.rpt" type="Nomad.NSystem.String" mode="in" name="ReportName"/>
+		<flow:param doc-path="#FILTERDATA:" name="paramIN" type="Nomad.NSystem.Proxy.NomadXML" mode="in"/>
+	</flow:exec-method-->
+				<!--flow:open-form form-class="Nomad.base.batch.report.form" mode="BATCH" doc-path="#BATCHDOC:"/-->
+				<!--flow:open-form form-class="Nomad.base.HTML_XLS.form" parent-doc-path="#SOURCE:" mode="SHOW" doc-path="#BATCHDOC:"/-->
+				<flow:html-gen input-doc-path="#FILTERDATA:" template-file="NucleusRH.Base.SeleccionDePostulantes.InfoLog.rpt" out-file-path="#FILTERDATA:@report"/>
+				<flow:open-form form-class="NucleusRH.Base.SeleccionDePostulantes.Reclutamiento.LOG.form" doc-path="#FILTERDATA:" mode="REPORT"/>
+			</flow:action>
+		</flow:form>
+		<flow:form form-class="NucleusRH.Base.SeleccionDePostulantes.Reclutamiento.LOG.form" name="NucleusRH.Base.SeleccionDePostulantes.Reclutamiento.LOG.form:REPORT" doc="SOURCE" mode="REPORT">
+			<flow:action name="on-show">
+				<flow:log text-path="#SOURCE:" text="wmiSOURCE"/>
+			</flow:action>
+			<flow:action name="BACK">
+				<flow:close-form/>
+			</flow:action>
+		</flow:form>
+	</flow:group>
+</flow:flow>

@@ -1,0 +1,468 @@
+<form:Form xmlns:form="nomad_engine.form" xmlns:qry="nomad_engine.qry" name="Menu">
+	<form:Resources>
+		<form:Resource declare="&lt;DATA name=&quot;Base.menu.xml&quot; /&gt;" name="QryApp">
+			<qry:main doc="source" name="">
+				<qry:element name="APP-MENU">
+					<qry:insert-select name="APP" doc-path="#source:/DATA"/>
+				</qry:element>
+			</qry:main>
+			<qry:select name="APP" doc="source">
+				<qry:xquery>
+					for $r in FILESTORE('Menus/{%=#source:@name%}')/APP-MENU
+				</qry:xquery>
+				<qry:out>
+					<qry:attribute name="label" value="$r/@label"/>
+					<qry:insert-select name="MODULE" doc-path="$r/MODULE"/>
+				</qry:out>
+			</qry:select>
+			<qry:select name="MODULE" doc="source">
+				<qry:out>
+					<!--qry:if test="Number(@idx)=0">
+				<qry:then>
+					<qry:insert-element doc-path="#source:"/>
+				</qry:then>
+				<qry:else>
+					<qry:element name="MODULE">
+						<qry:attribute name="idx" value="Number(../@idx)"/>
+						<qry:attribute name="label" value="#source:@label"/>
+						<qry:attribute name="descr" value="#source:@descr"/>
+						<qry:attribute name="image" value="#source:@image"/>
+						<qry:attribute name="X-POLICY" value="#source:@X-POLICY"/>
+					</qry:element>
+				</qry:else>
+			</qry:if-->
+					<qry:element name="MODULE">
+						<qry:attribute name="idx" value="Number(../@idx)"/>
+						<qry:attribute name="label" value="#source:@label"/>
+						<qry:attribute name="descr" value="#source:@descr"/>
+						<qry:attribute name="image" value="#source:@image"/>
+						<qry:attribute name="X-POLICY" value="#source:@X-POLICY"/>
+					</qry:element>
+					<qry:attribute name="idx" value="Number(@idx)+1"/>
+				</qry:out>
+			</qry:select>
+		</form:Resource>
+		<form:Resource declare="&lt;DATA name=&quot;Base.menu.xml&quot; idx=&quot;2&quot; /&gt;" name="QryModulo">
+			<qry:main doc="source" name="">
+				<qry:insert-select name="MODULE" doc-path="#source:/DATA"/>
+			</qry:main>
+			<qry:select name="MODULE" doc="source">
+				<qry:xquery>
+					for $r in FILESTORE('Menus/{%=#source:@name%}')/APP-MENU
+				</qry:xquery>
+				<qry:out>
+					<qry:insert-element name="MODULE" doc-path="$r/MODULE[number(#source:@idx)]"/>
+				</qry:out>
+			</qry:select>
+		</form:Resource>
+		<form:Resource name="LeftRoot">
+			<SECTION>
+				<GROUP type="FAV" image="R_FAV" descr="Los item de menu favoritos del usuario." label="Favoritos" enabled="1"/>
+				<GROUP type="RECENT" image="R_RECENT" descr="Los 20 ultimos items de menu seleccionados." label="Recientes" enabled="1"/>
+				<GROUP type="FIND" image="R_FIND" descr="Resultado de la ultima busqueda realizada." label="Resultado" enabled="1"/>
+			</SECTION>
+		</form:Resource>
+		<form:Resource declare="&lt;DATA TEXT=&quot;empre&quot;  name=&quot;Base.menu.xml&quot; /&gt;" name="QryFind">
+			<qry:main doc="source" name="">
+				<GROUP type="FIND" image="R_FIND" descr="Resultado de la ultima busqueda realizada." label="Resultado" enabled="1">
+					<qry:insert-select name="APP" doc-path="#source:/DATA"/>
+				</GROUP>
+			</qry:main>
+			<qry:select name="APP" doc="source">
+				<qry:xquery>
+					for $r in FILESTORE('Menus/{%=#source:@name%}')/APP-MENU/MODULE/SECTION[@type!='MAIN']/GROUP/ITEM[contains(upper_case(@label),upper_case(#SOURCE:@TEXT)) or contains(upper_case(@labelext),upper_case(#SOURCE:@TEXT))]
+				</qry:xquery>
+				<qry:out>
+					<qry:element name="ITEM">
+						<qry:attribute name="X-POLICY" value="$r/@X-POLICY"/>
+						<qry:attribute name="action" value="$r/@action"/>
+						<qry:attribute name="label" value="iif($r/@labelext='',$r/@label,$r/@labelext)"/>
+						<qry:attribute name="labelext" value="$r/@labelext"/>
+					</qry:element>
+				</qry:out>
+			</qry:select>
+		</form:Resource>
+	</form:Resources>
+	<form:Scripts>
+		var myMENU, myRESULT, myXML, myFAV, myRECENT;
+        
+function GetRecent()
+{
+	if (myRECENT==null)
+	{            
+		myRECENT=myXML.FirstChild().Next();
+		
+		if (GetProxy().StoreService().ExistUserStore("RECIENTES"))
+			myRECENT=new NomadXML(GetProxy().StoreService().GetUserStore("RECIENTES"));
+	}
+		
+	return myRECENT;
+}        
+        
+function GetFav()
+{
+	if (myFAV==null)
+	{            
+		myFAV=myXML.FirstChild();
+		
+		if (GetProxy().StoreService().ExistUserStore("FAVORITOS"))
+			myFAV=new NomadXML(GetProxy().StoreService().GetUserStore("FAVORITOS"));
+	}
+		
+	return myFAV;
+}        
+   
+var ArrIdx;   
+   
+function onLoad() 
+{        
+	var proxy = GetProxy();
+	var menuBase=proxy.SQLService().Get(Ctrl("main").getResource("QryApp"),'&lt;DATA name="'+proxy.GetCfgResource("start-form-menu")+'" /&gt;');
+	
+	myMENU=new nomadDOM(menuBase);
+	
+	ArrIdx=new Array();
+	for (t=0; t&lt;myMENU.Child.length; t++)
+		ArrIdx[t]=myMENU.Child[t].idx;
+	
+	Ctrl("Modulos").SetArray(myMENU.Child);
+	Ctrl("Modulos").SetCValue("0");
+	
+	
+	
+	
+	
+	myRIGHT=new nomadDOM(Ctrl("main").getResource("LeftRoot"));
+	
+	myXML   =new NomadXML(Ctrl("main").getResource("LeftRoot"));
+	myFAV   =null;
+	myRECENT=null;
+	myRESULT=myXML.FirstChild().Next().Next();
+	
+	
+	Ctrl("menuTopRight").SetArray(myRIGHT.Child);
+	Ctrl("menuTopRight").SetCValue("2");
+	
+}              
+
+function ChangeModule(OBJ)
+{                        
+	if (OBJ.values[parseInt(OBJ.GetXValue(),10)].Child.length==0)
+	{                                                 
+	 	var proxy = GetProxy();
+	 	var menuBase=proxy.SQLService().Get(Ctrl("main").getResource("QryModulo"),'&lt;DATA name="'+proxy.GetCfgResource("start-form-menu")+'" idx="'+ArrIdx[parseInt(OBJ.GetXValue(),10)]+'" /&gt;');
+	 	OBJ.values[parseInt(OBJ.GetXValue(),10)]=new nomadDOM(menuBase);
+	}
+
+	Ctrl("Nivel1").SetArray(OBJ.values[parseInt(OBJ.GetXValue(),10)].Child);
+	Ctrl("Nivel1").SetCValue("0");
+	ChangeNivel1(Ctrl("Nivel1"));
+}
+
+function ChangeNivel1(OBJ)
+{
+	var newArray=new Array();    
+	
+	newArray[0]=OBJ.values[parseInt(OBJ.GetXValue(),10)];
+	Ctrl("Nivel1_sel").SetArray(newArray);
+	Ctrl("Nivel2").SetArray(OBJ.values[parseInt(OBJ.GetXValue(),10)].Child);
+}
+
+function ChangeTopRight(OBJ)
+{  
+	switch(OBJ.values[parseInt(OBJ.GetXValue(),10)].type)
+	{
+		case "FIND": 
+			Ctrl("menuResult").EnabledContextMenu("FAV_ADD",true);
+			Ctrl("menuResult").EnabledContextMenu("FAV_UP" ,false);
+			Ctrl("menuResult").EnabledContextMenu("FAV_DW" ,false);
+			Ctrl("menuResult").EnabledContextMenu("FAV_DEL",false);
+			Find();
+		break;	           
+		
+		case "FAV":
+			Ctrl("menuResult").EnabledContextMenu("FAV_ADD",false);
+			Ctrl("menuResult").EnabledContextMenu("FAV_UP" ,true);
+			Ctrl("menuResult").EnabledContextMenu("FAV_DW" ,true);
+			Ctrl("menuResult").EnabledContextMenu("FAV_DEL",true);
+
+			var newArray=new Array();
+			newArray[0]=new nomadDOM(GetFav().ToString());	
+			Ctrl("menuResult").SetArray(newArray);
+		break;	
+		
+		case "RECENT":
+			Ctrl("menuResult").EnabledContextMenu("FAV_ADD",true);
+			Ctrl("menuResult").EnabledContextMenu("FAV_UP" ,false);
+			Ctrl("menuResult").EnabledContextMenu("FAV_DW" ,false);
+			Ctrl("menuResult").EnabledContextMenu("FAV_DEL",false);
+
+			var newArray=new Array();
+			newArray[0]=new nomadDOM(GetRecent().ToString());	
+			Ctrl("menuResult").SetArray(newArray);
+		break;	
+	}
+}    
+
+function SaveFav()
+{
+	//Actualizo la ventana de Recientes
+	if (Ctrl("menuTopRight").GetCValue()=="0")                 
+	{
+			var newArray=new Array();
+			newArray[0]=new nomadDOM(GetFav().ToString());	
+			Ctrl("menuResult").SetArray(newArray);
+	}      
+	
+	//Actualizo el Archivo en el Servidor
+	GetProxy().StoreService().SetUserStore("FAVORITOS", GetFav().ToString());
+}
+
+function AddToFav(OBJ)  
+{
+	//Agrego el Primer Elemento
+	var ITEM=GetFav().AddHeadElement("ITEM");
+	ITEM.SetAttr("action",OBJ.LastAction);
+	ITEM.SetAttr("label" ,OBJ.LastLabel);
+
+	//Los Elementos Restantes                            
+	for (var myCUR=GetFav().FirstChild().Next(); myCUR!=null; myCUR=myCUR.Next())
+	{                             
+		if (myCUR.GetAttr("action")==OBJ.LastAction)
+		{
+			GetFav().DeleteChild(myCUR);
+			myCUR=GetFav().FirstChild();
+		}
+	}
+	
+	SaveFav();        
+}             
+
+function DelFav(OBJ)  
+{
+	//Lo Elimino de Favorito
+	for (var myCUR=GetFav().FirstChild(); myCUR!=null; myCUR=myCUR.Next())
+	{                             
+		if (myCUR.GetAttr("action")==OBJ.LastAction)
+		{
+			GetFav().DeleteChild(myCUR);
+			myCUR=GetFav().FirstChild();
+			break;
+		}
+	}
+	
+	SaveFav();        
+}             
+
+function UpFav(OBJ)  
+{    
+	var Arr=new Array(), pos, Aux;
+	for (var myCUR=GetFav().FirstChild(); myCUR!=null; myCUR=myCUR.Next())
+	{
+		if (myCUR.GetAttr("action")==OBJ.LastAction) pos=Arr.length;
+		Arr[Arr.length]=myCUR;
+	}
+
+	if (pos&lt;=0) return;
+	Aux=Arr[pos]; Arr[pos]=Arr[pos-1]; Arr[pos-1]=Aux;
+	
+	//Reconstruyo el XML	
+	while (GetFav().FirstChild()!=null) GetFav().DeleteChild(GetFav().FirstChild());
+	for (t=0; t&lt;Arr.length; t++)
+		GetFav().AddText(Arr[t].ToString());
+
+	SaveFav();
+}             
+
+function DownFav(OBJ)  
+{
+	var Arr=new Array(), pos=-1, Aux;
+	
+	for (var myCUR=GetFav().FirstChild(); myCUR!=null; myCUR=myCUR.Next())
+	{
+		if (myCUR.GetAttr("action")==OBJ.LastAction) pos=Arr.length;
+		Arr[Arr.length]=myCUR;
+	}
+ 
+ 	if (pos&lt;0) return;
+	if (pos&gt;=Arr.length-1) return;
+	Aux=Arr[pos]; Arr[pos]=Arr[pos+1]; Arr[pos+1]=Aux;
+	
+	//Reconstruyo el XML	
+	while (GetFav().FirstChild()!=null) GetFav().DeleteChild(GetFav().FirstChild());
+	for (t=0; t&lt;Arr.length; t++)
+		GetFav().AddText(Arr[t].ToString());
+	
+	SaveFav();
+}             
+
+function Find()
+{
+	var proxy = GetProxy();
+	var menuBase;
+	var newArray=new Array();
+
+	if (Ctrl("menuTopRight").GetCValue()!="2")
+	{                                   
+		Ctrl("menuTopRight").SetCValue("2");
+	} else
+	if (Ctrl("txtBuscar").GetXValue()=="")
+	{
+		newArray[0]=new nomadDOM(myRESULT.ToString());	
+		Ctrl("menuResult").SetArray(newArray);
+	} else
+	if (Ctrl("txtBuscar").GetXValue()!="")
+	{
+		var x=new NomadXML("DATA");
+		x.SetAttr("name",proxy.GetCfgResource("start-form-menu"));
+		x.SetAttr("text",Ctrl("txtBuscar").GetXValue());
+		menuBase=proxy.SQLService().Get(Ctrl("main").getResource("QryFind"),x.ToString());
+		newArray[0]=new nomadDOM(menuBase);	
+		Ctrl("menuResult").SetArray(newArray);
+	}
+}
+
+function CallFlow(OBJ) 
+{                                          
+
+	//Agrego el Primer Elemento
+	var ITEM=GetRecent().AddHeadElement("ITEM");
+	ITEM.SetAttr("action",OBJ.LastAction);
+	ITEM.SetAttr("label" ,OBJ.LastLabel);
+	
+	//Los Elementos Restantes                            
+	for (var myCUR=GetRecent().FirstChild().Next(); myCUR!=null; myCUR=myCUR.Next())
+	{                             
+		if (myCUR.GetAttr("action")==OBJ.LastAction)
+		{
+			GetRecent().DeleteChild(myCUR);
+			myCUR=GetRecent().FirstChild();
+		}
+	}        
+	
+	//Limito la Lista a 20 Items
+	var Childs=GetRecent().GetChilds();
+	for (var t=20; t&lt;Childs.length; t++)
+		GetRecent().DeleteChild(Childs[t]);
+	
+
+	//Actualizo la ventana de Recientes
+	if (Ctrl("menuTopRight").GetCValue()=="1")                 
+	{
+			var newArray=new Array();
+			newArray[0]=new nomadDOM(GetRecent().ToString());	
+			Ctrl("menuResult").SetArray(newArray);
+	}      
+	
+	//Actualizo el Archivo en el Servidor
+	GetProxy().StoreService().SetUserStore("RECIENTES", GetRecent().ToString());
+                               
+
+	if (OBJ.LastAction.split(":")[0]=="CUBE")
+		getFormInMain('Nomad.Cube.flow', 'initialize', '&lt;DATA cube-name="'+OBJ.LastAction.split(":")[1]+'" /&gt;', false);
+	else         
+	{
+		var Params;
+		var Actions=OBJ.LastAction.split(":");
+		Params=new NomadXML("PARAMS");
+		
+		if (Actions.length&gt;2)
+		{
+			var values=Actions[2].split("&amp;");
+			for (var t=0; t&lt;values.length; t++)
+			{    
+				if (values[t].indexOf("=")&gt;=0)
+					Params.SetAttr(	values[t].substr(0,values[t].indexOf("=")), values[t].substr(values[t].indexOf("=")+1));
+			}
+		}
+		getFormInMain(Actions[0], Actions[1], Params.ToString(), false);
+	}
+}
+
+function Clave()
+{
+	openNewFlowWait('Nomad.Base.Login.Cuentas.flow',"PASSWORD","",new ObjtectResult(),"");	
+}
+ 
+function ObjtectResult()
+{        
+	this.processResult= function(xmlin)
+	{		
+	}
+}
+	</form:Scripts>
+	<form:Title width="100%">
+		<form:Columns width="100%" name="cols">
+			<form:Column visible="0" valign="middle" name="col1" separation="0" align="center"/>
+			<form:Column valign="middle" name="col2" separation="0" align="right">
+				<form:Label label="Sistema de Gesti&#243;n Integral para el Capital Humano" style="M1 LCol_w" name="lbl1"/>
+				<form:Blank width="300px" name="bltitle"/>
+			</form:Column>
+			<form:Column width="17%" name="col3" separation="2" align="center" valign="top"/>
+			<form:Column width="13%" valign="middle" name="col4" separation="0" align="right">
+				<form:Link nowrap="1" label="Cambiar Contrase&#241;a" name="clave">
+					<form:Event action="Clave" name="onclick" runat="client"/>
+				</form:Link>
+			</form:Column>
+		</form:Columns>
+	</form:Title>
+	<form:Left height="100%" width="230px">
+		<form:MenuControl item-height="70px" item-width="230px" height="100%" width="230px" imgselback="module_sel_background.jpg" imgback="module_background.jpg" showchilds="0" showtext="1" descrip="Lista de Modulos Disponibles en la Aplicacion" name="Modulos" layout="VERT" colrow="1" showimg="1">
+			<form:Event action="ChangeModule" name="onchange" runat="client"/>
+		</form:MenuControl>
+	</form:Left>
+	<form:Center height="100%" width="100%">
+		<form:Columns imgback="menu/nivel1_background.jpg" separation="10px" name="Cols" height="86px">
+			<form:Column separation="0" valign="top" align="left" name="c1" width="250px" height="86px">
+				<form:MenuControl item-height="80px" item-width="50px" height="86px" width="250px" descrip="Nivel 1 del Menu" name="Nivel1" layout="HORZ" colrow="1" showimg="1" showtext="0" showchilds="0">
+					<form:Event action="ChangeNivel1" name="onchange" runat="client"/>
+				</form:MenuControl>
+			</form:Column>
+			<form:Column separation="0" align="left" valign="top" name="c2" width="100%" height="86px">
+				<form:MenuControl width="100%" height="86px" descrip="Nivel Seleccionado" name="Nivel1_sel" layout="VERT" colrow="1" showimg="0" showtext="1" showchilds="0"/>
+			</form:Column>
+		</form:Columns>
+		<form:MenuControl height="100%" width="100%" descrip="Nivel2 del Menu" name="Nivel2" layout="VERT" colrow="2" showimg="0" showtext="1" showchilds="1">
+			<form:Event action="CallFlow" name="OnItemClick" runat="client"/>
+			<form:Menu>
+				<form:Item name="FAV_ADD" label="Agregar a Favoritos" img="./SmallButtons/sum_n.gif"/>
+			</form:Menu>
+			<form:Event action="AddToFav" name="CONTEX_MENU_FAV_ADD" runat="client"/>
+		</form:MenuControl>
+	</form:Center>
+	<form:Right height="100%" collapse="1" width="300px">
+		<form:Columns width="280px" name="colRight" height="120px">
+			<form:Column width="280px" name="C1" separation="2" align="center" valign="top">
+				<form:Blank name="b1"/>
+				<form:Label style="S2 LCol_t" align="left" dynamic="0" help-stop="0" label="Buscar" name="lblBuscar"/>
+				<form:TextBox xsize="40" length="50" help-stop="0" name="txtBuscar">
+					<form:SButtons>
+						<form:SButton img="search" name="btnBuscar">
+							<form:Event action="Find" name="onclick" runat="client"/>
+						</form:SButton>
+					</form:SButtons>
+					<form:Event name="onpressenter" runat="client" action="Find"/>
+				</form:TextBox>
+				<form:MenuControl descrip="MenuTopRight" name="menuTopRight" item-height="80px" item-width="50px" height="86px" width="250px" layout="HORZ" colrow="1" showimg="1" showtext="0" showchilds="0">
+					<form:Event action="ChangeTopRight" name="onchange" runat="client"/>
+				</form:MenuControl>
+			</form:Column>
+		</form:Columns>
+		<form:MenuControl height="100%" width="300px" name="menuResult" descrip="menuResult" layout="VERT" colrow="1" showimg="0" showtext="1" showchilds="1">
+			<form:Event action="CallFlow" name="OnItemClick" runat="client"/>
+			<form:Event action="AddToFav" name="CONTEX_MENU_FAV_ADD" runat="client"/>
+			<form:Event action="DelFav" name="CONTEX_MENU_FAV_DEL" runat="client"/>
+			<form:Event action="UpFav" name="CONTEX_MENU_FAV_UP" runat="client"/>
+			<form:Event action="DownFav" name="CONTEX_MENU_FAV_DW" runat="client"/>
+			<form:Menu>
+				<form:Item name="FAV_ADD" label="Agregar a Favoritos" img="./SmallButtons/sum_n.gif"/>
+				<form:Separator name="FAV_SEP_1" label="-"/>
+				<form:Item name="FAV_UP" label="Subir una Posici&#243;n" img="./SmallButtons/up_n.gif"/>
+				<form:Item name="FAV_DW" label="Bajar una Posici&#243;n" img="./SmallButtons/down_n.gif"/>
+				<form:Separator name="FAV_SEP_2" label="-"/>
+				<form:Item name="FAV_DEL" label="Eliminar de Favoritos" img="./SmallButtons/err_n.gif"/>
+			</form:Menu>
+		</form:MenuControl>
+	</form:Right>
+	<form:Event action="onLoad" name="onload" runat="client"/>
+</form:Form>

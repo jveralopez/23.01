@@ -1,0 +1,62 @@
+<qry:define xmlns:qry="nomad_engine.qry" declare="&lt;DATOS oi_empresa=&quot;1&quot; e_desde=&quot;4&quot; e_hasta=&quot;67&quot; /&gt;" name="sql_Crsytal">
+	<qry:main doc="SOURCE">
+		<qry:append-doc name="HASTA" doc-path="#SOURCE:DATOS"/>
+		<qry:element name="REPORTE">
+			<qry:insert-select doc-path="#SOURCE:DATOS" name="SQL1"/>
+			<qry:insert-select doc-path="#SOURCE:DATOS" name="SQL2"/>
+		</qry:element>
+	</qry:main>
+	<qry:select name="SQL1" doc="SOURCE">
+		<qry:xquery>
+			for $r in SQL(' 
+				SELECT ORG03_EMPRESAS.d_empresa,
+				ORG03_EMPRESAS.d_domicilio,
+				ORG03_EMPRESAS.c_cuit,
+				ORG34_ACTIVIDADES.d_actividad,
+				ORG03_EMPRESAS.oi_localidad
+
+				FROM ORG03_EMPRESAS, ORG34_ACTIVIDADES
+				WHERE ORG03_EMPRESAS.oi_actividad = ORG34_ACTIVIDADES.oi_actividad and
+				ORG03_EMPRESAS.oi_empresa = {#SOURCE:@oi_empresa}
+')/ROWS/ROW
+		</qry:xquery>
+		<qry:out>
+			<qry:attribute name="empresa" value="$r/@d_empresa"/>
+			<qry:attribute name="actividad" value="$r/@d_actividad"/>
+			<qry:attribute name="domicilio" value="$r/@d_domicilio"/>
+			<qry:attribute name="cuit" value="$r/@c_cuit"/>
+			<qry:insert-select name="qry_localidad" doc-path="$r"/>
+		</qry:out>
+	</qry:select>
+	<qry:select name="SQL2" doc="SOURCE">
+		<qry:xquery>
+			for $r in secuence('int,{%=#SOURCE:@e_desde%},{%=#SOURCE:@e_hasta%},1')/ROWS/ROW
+		</qry:xquery>
+		<qry:out>
+			<qry:element name="PAG">
+				<qry:attribute name="value" value="$r/@value"/>
+			</qry:element>
+		</qry:out>
+	</qry:select>
+	<qry:select name="qry_localidad" doc="SOURCE">
+		<qry:xquery>
+			for $r in SQL('
+select
+	org19_localidades.d_localidad, org35_provincias.d_provincia, org35_paises.d_pais
+from
+	org19_localidades, org35_provincias, org35_paises
+where 
+	org19_localidades.oi_provincia = org35_provincias.oi_provincia and
+	org35_provincias.oi_pais = org35_paises.oi_pais and
+	org19_localidades.oi_localidad = {$SOURCE/@oi_localidad}
+')/ROWS/ROW
+		</qry:xquery>
+		<qry:out>
+			<qry:if test="$r/@d_localidad != ''">
+				<qry:then>
+					<qry:attribute name="domicilio" value="@domicilio + ' - ' + $r/@d_localidad + ', ' + $r/@d_provincia + ', ' + $r/@d_pais"/>
+				</qry:then>
+			</qry:if>
+		</qry:out>
+	</qry:select>
+</qry:define>

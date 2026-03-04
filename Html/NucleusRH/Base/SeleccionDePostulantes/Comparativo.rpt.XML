@@ -1,0 +1,1483 @@
+<html:html xmlns:html="nomad_engine.html" xmlns:qry="nomad_engine.qry" xmlns:xsl="http://www.w3.org/1999/XSL/Transform" name="NucleusRH.Base.SeleccionDePostulantes.Comparativo" doc="source">
+	<html:query declare="&lt;PARAMS oi_aviso=&quot;162&quot; oi_cv=&quot;59831&quot; /&gt;">
+		<qry:main doc="PARAM">
+			<qry:append-doc name="DATOS_FILTRO" doc-path="#PARAM:/PARAMS"/>
+			<qry:element name="datos">
+				<qry:element name="cabecera">
+					<qry:insert-select doc-path="#PARAM:/PARAMS" name="qry_cabecera"/>
+					<qry:insert-select doc-path="#PARAM:/PARAMS" name="qry_cabecera1"/>
+				</qry:element>
+			</qry:element>
+		</qry:main>
+		<qry:select doc="PARAM" name="qry_cabecera">
+			<qry:xquery>
+				for $r in sql('
+			SELECT 
+				AVISO.c_aviso,
+				AVISO.d_puesto,
+				AVISO.f_aviso,
+				AVISO.c_estado,
+				AVISO.c_tipo,
+				AVISO.oi_aviso
+			FROM
+				SDP05_AVISOS AS AVISO
+			WHERE
+					AVISO.oi_aviso= {#PARAM:@oi_aviso}
+			')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:attribute name="oi_aviso" value="$r/@oi_aviso"/>
+				<qry:attribute name="aviso" value="$r/@c_aviso + ' - ' + $r/@d_puesto"/>
+				<qry:attribute name="f_aviso" value="format_date($r/@f_aviso, 'dd/mm/yyyy')"/>
+				<qry:attribute name="f_emision" value="format_date(now(),'dd/mm/yyyy HH:MM')"/>
+				<qry:switch test="$r/@c_tipo">
+					<qry:case value="I">
+						<qry:attribute name="tipo_aviso" value="'Interno'"/>
+					</qry:case>
+					<qry:case value="E">
+						<qry:attribute name="tipo_aviso" value="'Externo'"/>
+					</qry:case>
+					<qry:default>
+						<qry:attribute name="tipo_aviso" value="'Interno / Externo'"/>
+					</qry:default>
+				</qry:switch>
+				<qry:switch test="$r/@c_estado">
+					<qry:case value="P">
+						<qry:attribute name="estado_aviso" value="'Publicado'"/>
+					</qry:case>
+					<qry:case value="R">
+						<qry:attribute name="estado_aviso" value="'Reclutando'"/>
+					</qry:case>
+					<qry:case value="C">
+						<qry:attribute name="estado_aviso" value="'Cancelado'"/>
+					</qry:case>
+					<qry:default>
+						<qry:attribute name="estado_aviso" value="'Finalizado'"/>
+					</qry:default>
+				</qry:switch>
+				<qry:attribute name="oi_cv" value="#PARAM:@oi_cv"/>
+				<qry:element name="idiomas">
+					<qry:insert-select doc-path="$r" name="qry_idiomas"/>
+					<qry:attribute name="ids_idiomas" value="substring(@ids_idiomas,1,100)"/>
+					<qry:insert-select doc-path="." name="qry_idiomas_cv"/>
+				</qry:element>
+				<qry:element name="estudios">
+					<qry:insert-select doc-path="$r" name="qry_estudios"/>
+					<qry:attribute name="ids_estudios" value="substring(@ids_estudios,1,100)"/>
+					<qry:insert-select doc-path="." name="qry_estudios_cv"/>
+				</qry:element>
+				<qry:element name="conocimientos">
+					<qry:insert-select doc-path="$r" name="qry_conocimientos"/>
+					<qry:attribute name="ids_info" value="substring(@ids_info,1,100)"/>
+					<qry:insert-select doc-path="." name="qry_conocimientos_cv"/>
+				</qry:element>
+				<qry:element name="experiencias">
+					<qry:insert-select doc-path="$r" name="qry_experiencias"/>
+					<qry:attribute name="ids_exp" value="substring(@ids_exp,1,100)"/>
+					<qry:insert-select doc-path="." name="qry_experiencias_cv"/>
+				</qry:element>
+			</qry:out>
+		</qry:select>
+		<qry:select name="qry_cabecera1" doc="PARAM">
+			<qry:xquery>
+				for $r in sql('
+			SELECT   
+				CV.d_ape_y_nom,
+				CV.f_nacim,
+				CV.c_sexo,
+				ORG22.d_estado_civil,
+				CV.oi_foto,
+				CV.oi_doc_digital,
+				CV.oi_cv
+			FROM
+				SDP01_CV AS CV,
+				ORG22_EST_CIVIL AS ORG22
+			JOIN
+				CV.oi_estado_civil LEFT OUTER ORG22.oi_estado_civil
+			 WHERE
+					CV.oi_cv = {#PARAM:@oi_cv}
+			')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:attribute name="cv" value="$r/@d_ape_y_nom"/>
+				<qry:attribute name="oi_cv" value="$r/@oi_cv"/>
+				<qry:attribute name="oi_foto" value="$r/@oi_foto"/>
+				<qry:attribute name="oi_doc_digital" value="$r/@oi_doc_digital"/>
+				<qry:attribute name="f_nacim" value="format_date($r/@f_nacim,'dd/mm/yyyy')"/>
+				<qry:attribute name="edad" value="iif($r/@f_nacim != 0, FLOOR((Number(now()) - Number(Datetime($r/@f_nacim))) DIV 365),'')"/>
+				<qry:attribute value="$r/@d_estado_civil" name="d_estado_civil"/>
+				<qry:attribute name="c_sexo" value="iif($r/@c_sexo ='M', 'Masculino', iif($r/@c_sexo='F','Femenino','Sin Especificar'))"/>
+			</qry:out>
+		</qry:select>
+		<qry:select doc="PARAM" name="qry_idiomas">
+			<qry:xquery>
+				for $r in sql('		
+				SELECT 
+					ORG20_IDIOMAS.c_idioma, 
+					ORG20_IDIOMAS.d_idioma, 
+					ORG04_PUESTO_IDIO.oi_idioma,
+					NI1.c_nivel_equiv AS niv_habla, 
+					NI2.c_nivel_equiv AS niv_lee, 
+					NI3.c_nivel_equiv AS niv_escribe
+				FROM 
+					SDP05_AVISOS,
+					ORG04_PUESTOS, 
+					ORG04_PUESTO_IDIO, 
+					ORG20_IDIOMAS,
+					ORG24_NIV_IDIOMA AS NI1, 
+					ORG24_NIV_IDIOMA AS NI2, 
+					ORG24_NIV_IDIOMA AS NI3				
+				JOIN          
+					SDP05_AVISOS.oi_puesto INNER ORG04_PUESTOS.oi_puesto,
+					ORG04_PUESTO_IDIO.oi_idioma INNER ORG20_IDIOMAS.oi_idioma,
+					ORG04_PUESTOS.oi_puesto INNER ORG04_PUESTO_IDIO.oi_puesto,
+					ORG04_PUESTO_IDIO.oi_nivel_habla INNER NI1.oi_nivel_idioma,
+					ORG04_PUESTO_IDIO.oi_nivel_lee INNER NI2.oi_nivel_idioma,
+					ORG04_PUESTO_IDIO.oi_nivel_escribe INNER NI3.oi_nivel_idioma				
+				WHERE 
+					SDP05_AVISOS.oi_aviso = {#PARAM:@oi_aviso} 
+				ORDER BY
+					d_idioma ASC
+			')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:attribute name="ids_idiomas" value="@ids_idiomas +','+ $r/@oi_idioma"/>
+				<qry:element name="idioma">
+					<qry:attribute name="oi_puesto" value="#PARAM:@oi_puesto"/>
+					<qry:attribute name="oi_idioma" value="$r/@oi_idioma"/>
+					<qry:attribute name="oi_cv" value="#PARAM:@oi_cv"/>
+					<qry:attribute name="c_idioma" value="$r/@c_idioma"/>
+					<qry:attribute name="d_idioma" value="$r/@d_idioma"/>
+					<!--qry:attribute name="nivel_lee" value="$r/@niv_lee"/>
+	<qry:attribute name="nivel_escribe" value="$r/@niv_escribe"/>
+	<qry:attribute name="nivel_habla" value="$r/@niv_habla"/-->
+					<qry:switch test="$r/@niv_habla">
+						<qry:case value="1">
+							<qry:attribute name="nivel_habla" value="'B&#193;SICO'"/>
+						</qry:case>
+						<qry:case value="2">
+							<qry:attribute name="nivel_habla" value="'INTERMEDIO'"/>
+						</qry:case>
+						<qry:default>
+							<qry:attribute name="nivel_habla" value="'AVANZADO'"/>
+						</qry:default>
+					</qry:switch>
+					<qry:switch test="$r/@niv_lee">
+						<qry:case value="1">
+							<qry:attribute name="nivel_lee" value="'B&#193;SICO'"/>
+						</qry:case>
+						<qry:case value="2">
+							<qry:attribute name="nivel_lee" value="'INTERMEDIO'"/>
+						</qry:case>
+						<qry:default>
+							<qry:attribute name="nivel_lee" value="'AVANZADO'"/>
+						</qry:default>
+					</qry:switch>
+					<qry:switch test="$r/@niv_escribe">
+						<qry:case value="1">
+							<qry:attribute name="nivel_escribe" value="'B&#193;SICO'"/>
+						</qry:case>
+						<qry:case value="2">
+							<qry:attribute name="nivel_escribe" value="'INTERMEDIO'"/>
+						</qry:case>
+						<qry:default>
+							<qry:attribute name="nivel_escribe" value="'AVANZADO'"/>
+						</qry:default>
+					</qry:switch>
+					<qry:attribute name="cumple" value="'NO'"/>
+					<qry:attribute name="niv_habla_cv" value="'NO'"/>
+					<qry:attribute name="niv_lee_cv" value="'NO'"/>
+					<qry:attribute name="niv_escribe_cv" value="'NO'"/>
+					<qry:insert-select name="qry_idiomas_cv" doc-path="$r"/>
+				</qry:element>
+			</qry:out>
+		</qry:select>
+		<!--qry:select doc="PARAM" name="qry_idiomas_cv">
+<qry:xquery>
+			for $r in sql('
+				SELECT 
+					SDP01_CV.oi_cv, 
+					SDP01_IDIOMAS_CV.oi_idioma, 
+					SDP01_IDIOMAS_CV.oi_idioma AS cumple
+				FROM 
+					SDP01_CV, 
+					SDP01_IDIOMAS_CV
+				JOIN 
+					SDP01_CV.oi_cv INNER SDP01_IDIOMAS_CV.oi_cv
+				WHERE 
+					SDP01_CV.oi_cv= {#PARAM:@oi_cv} 
+			')/ROWS/ROW
+</qry:xquery>
+<qry:out>
+	<qry:element name="idioma_cv">
+		<qry:attribute name="cumple" value="iif($r/@cumple='', 'No')"/>
+		<qry:attribute name="oi_idioma_cv" value="$r/@oi_idioma"/>
+	</qry:element>
+</qry:out>
+</qry:select-->
+		<qry:select doc="PARAM" name="qry_idiomas_cv">
+			<qry:xquery>
+				for $r in sql('
+				SELECT 
+					ORG20_IDIOMAS.c_idioma,
+					ORG20_IDIOMAS.d_idioma as d_idioma,
+					SDP01_IDIOMAS_CV.d_idioma as d_idioma_cv,
+					SDP01_IDIOMAS_CV.c_nivel_habla, 
+					SDP01_IDIOMAS_CV.c_nivel_lee, 
+					SDP01_IDIOMAS_CV.c_nivel_escribe
+				FROM 
+					SDP01_IDIOMAS_CV,
+					SDP01_CV AS CV,
+					ORG20_IDIOMAS
+				JOIN           
+					CV.oi_cv LEFT OUTER SDP01_IDIOMAS_CV.oi_cv,
+					SDP01_IDIOMAS_CV.oi_idioma LEFT OUTER ORG20_IDIOMAS.oi_idioma
+				WHERE
+				  CV.oi_cv = {#DATOS_FILTRO:@oi_cv} 
+					{%? (#PARAM:@oi_idioma != '') 
+						{% AND ORG20_IDIOMAS.oi_idioma = {#PARAM:@oi_idioma} 
+						%} 
+						{% 
+							{%? (#PARAM:@ids_idiomas != '') 
+								{% AND ORG20_IDIOMAS.oi_idioma NOT IN ({%=#PARAM:@ids_idiomas%}) %} 
+								{% %}						 
+							%}						
+						%}						 
+					%}
+				ORDER BY 
+					d_idioma ASC 			  
+			')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:attribute name="cumple" value="'SI'"/>
+				<qry:if test="#PARAM:@oi_idioma=''">
+					<qry:then>
+						<qry:element name="idioma_cv">
+							<qry:switch test="$r/@c_nivel_habla">
+								<qry:case value="1">
+									<qry:attribute name="niv_habla_cv" value="'B&#193;SICO'"/>
+								</qry:case>
+								<qry:case value="2">
+									<qry:attribute name="niv_habla_cv" value="'INTERMEDIO'"/>
+								</qry:case>
+								<qry:default>
+									<qry:attribute name="niv_habla_cv" value="'AVANZADO'"/>
+								</qry:default>
+							</qry:switch>
+							<qry:switch test="$r/@c_nivel_lee">
+								<qry:case value="1">
+									<qry:attribute name="niv_lee_cv" value="'B&#193;SICO'"/>
+								</qry:case>
+								<qry:case value="2">
+									<qry:attribute name="niv_lee_cv" value="'INTERMEDIO'"/>
+								</qry:case>
+								<qry:default>
+									<qry:attribute name="niv_lee_cv" value="'AVANZADO'"/>
+								</qry:default>
+							</qry:switch>
+							<qry:switch test="$r/@c_nivel_escribe">
+								<qry:case value="1">
+									<qry:attribute name="niv_escribe_cv" value="'B&#193;SICO'"/>
+								</qry:case>
+								<qry:case value="2">
+									<qry:attribute name="niv_escribe_cv" value="'INTERMEDIO'"/>
+								</qry:case>
+								<qry:default>
+									<qry:attribute name="niv_escribe_cv" value="'AVANZADO'"/>
+								</qry:default>
+							</qry:switch>
+							<qry:attribute name="c_idioma" value="$r/@c_idioma"/>
+							<qry:attribute name="d_idioma" value="iif($r/@d_idioma_cv!='',$r/@d_idioma+'('+$r/@d_idioma_cv+')',$r/@d_idioma)"/>
+						</qry:element>
+					</qry:then>
+					<qry:else>
+						<qry:switch test="$r/@c_nivel_habla">
+							<qry:case value="1">
+								<qry:attribute name="niv_habla_cv" value="'B&#193;SICO'"/>
+							</qry:case>
+							<qry:case value="2">
+								<qry:attribute name="niv_habla_cv" value="'INTERMEDIO'"/>
+							</qry:case>
+							<qry:default>
+								<qry:attribute name="niv_habla_cv" value="'AVANZADO'"/>
+							</qry:default>
+						</qry:switch>
+						<qry:switch test="$r/@c_nivel_lee">
+							<qry:case value="1">
+								<qry:attribute name="niv_lee_cv" value="'B&#193;SICO'"/>
+							</qry:case>
+							<qry:case value="2">
+								<qry:attribute name="niv_lee_cv" value="'INTERMEDIO'"/>
+							</qry:case>
+							<qry:default>
+								<qry:attribute name="niv_lee_cv" value="'AVANZADO'"/>
+							</qry:default>
+						</qry:switch>
+						<qry:switch test="$r/@c_nivel_escribe">
+							<qry:case value="1">
+								<qry:attribute name="niv_escribe_cv" value="'B&#193;SICO'"/>
+							</qry:case>
+							<qry:case value="2">
+								<qry:attribute name="niv_escribe_cv" value="'INTERMEDIO'"/>
+							</qry:case>
+							<qry:default>
+								<qry:attribute name="niv_escribe_cv" value="'AVANZADO'"/>
+							</qry:default>
+						</qry:switch>
+						<qry:attribute name="c_idioma" value="$r/@c_idioma"/>
+						<qry:attribute name="d_idioma" value="iif($r/@d_idioma_cv!='',$r/@d_idioma+'('+$r/@d_idioma_cv+')',$r/@d_idioma)"/>
+					</qry:else>
+				</qry:if>
+			</qry:out>
+		</qry:select>
+		<qry:select doc="PARAM" name="qry_estudios">
+			<qry:xquery>
+				for $r in sql('		
+				SELECT 
+					ORG11_ESTUDIOS.oi_estudio, 
+					ORG11_ESTUDIOS.c_estudio, 
+					ORG11_ESTUDIOS.d_estudio, 
+					PER12_NIVELES_EST.d_nivel_estudio,
+					ORG43_AREAS_EST.oi_area_est,
+					ORG43_AREAS_EST.d_area_est
+				FROM 
+					SDP05_AVISOS,
+					ORG04_PUESTOS,
+					ORG04_PUESTO_ESTUD, 
+					PER12_NIVELES_EST, 
+					ORG11_ESTUDIOS,
+					ORG43_AREAS_EST
+				JOIN       
+					SDP05_AVISOS.oi_puesto INNER ORG04_PUESTOS.oi_puesto,
+					ORG04_PUESTOS.oi_puesto INNER ORG04_PUESTO_ESTUD.oi_puesto,
+					ORG04_PUESTO_ESTUD.oi_nivel_estudio INNER PER12_NIVELES_EST.oi_nivel_estudio,
+					ORG04_PUESTO_ESTUD.oi_estudio INNER ORG11_ESTUDIOS.oi_estudio,
+					ORG43_AREAS_EST.oi_area_est INNER ORG11_ESTUDIOS.oi_area_est
+				WHERE 
+					SDP05_AVISOS.oi_aviso= {#PARAM:@oi_aviso}
+				GROUP BY 
+					ORG43_AREAS_EST.oi_area_est,
+					ORG11_ESTUDIOS.oi_estudio, 
+					ORG11_ESTUDIOS.c_estudio, 
+					ORG11_ESTUDIOS.d_estudio, 
+					PER12_NIVELES_EST.d_nivel_estudio,
+					ORG43_AREAS_EST.d_area_est 			  
+				ORDER BY
+					d_area_est ASC
+				
+			')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:attribute name="ids_estudios" value="@ids_estudios +','+ $r/@oi_area_est"/>
+				<qry:element name="estudio">
+					<qry:attribute name="oi_estudio" value="$r/@oi_estudio"/>
+					<qry:attribute name="oi_cv" value="#PARAM:@oi_cv"/>
+					<qry:attribute name="oi_area_est" value="$r/@oi_area_est"/>
+					<qry:attribute name="cumple" value="'NO'"/>
+					<qry:attribute name="d_nivel_est_aviso" value="$r/@d_nivel_estudio"/>
+					<qry:attribute name="d_area_est" value="$r/@d_area_est + ' | ' +$r/@d_estudio"/>
+					<qry:attribute name="d_nivel_est_cv" value="'NO'"/>
+					<qry:insert-select doc-path="$r" name="qry_estudios_cv"/>
+				</qry:element>
+			</qry:out>
+		</qry:select>
+		<qry:select name="qry_estudios_cv" doc="PARAM">
+			<qry:xquery>
+				for $r in sql('
+				SELECT 
+					ORG43_AREAS_EST.d_area_est,
+					PER12_NIVELES_EST.d_nivel_estudio,
+					ORG43_AREAS_EST.oi_area_est,
+					ORG11_ESTUDIOS.d_estudio,
+					SDP01_ESTUDIOS_CV.c_estado
+				FROM 
+					PER12_NIVELES_EST,
+					SDP01_ESTUDIOS_CV,
+					SDP01_CV AS CV,
+					ORG43_AREAS_EST,
+					ORG11_ESTUDIOS
+				JOIN           
+					CV.oi_cv LEFT OUTER SDP01_ESTUDIOS_CV.oi_cv,
+					SDP01_ESTUDIOS_CV.oi_nivel_estudio INNER PER12_NIVELES_EST.oi_nivel_estudio,
+					SDP01_ESTUDIOS_CV.oi_area_est INNER ORG43_AREAS_EST.oi_area_est,
+					SDP01_ESTUDIOS_CV.oi_estudio LEFT OUTER ORG11_ESTUDIOS.oi_estudio
+				WHERE
+				  CV.oi_cv = {#DATOS_FILTRO:@oi_cv} 
+					{%? (#PARAM:@oi_area_est != '') 
+						{% AND SDP01_ESTUDIOS_CV.oi_area_est = {#PARAM:@oi_area_est} 
+						%} 
+						{% 
+							{%? (#PARAM:@ids_estudios != '') 
+								{% AND SDP01_ESTUDIOS_CV.oi_area_est NOT IN ({%=#PARAM:@ids_estudios%}) %} 
+								{% %}						 
+							%}						
+						%}						 
+					%}
+				GROUP BY 
+					ORG43_AREAS_EST.oi_area_est,
+					ORG43_AREAS_EST.d_area_est,
+					PER12_NIVELES_EST.d_nivel_estudio,
+					ORG11_ESTUDIOS.d_estudio,
+					SDP01_ESTUDIOS_CV.c_estado
+				ORDER BY 
+					d_area_est ASC
+			
+			')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:attribute name="estado" value="'Completo'"/>
+				<qry:attribute name="estado" value="iif($r/@c_estado = '2', 'Incompleto', @estado)"/>
+				<qry:attribute name="estado" value="iif($r/@c_estado = '3', 'En Curso', @estado)"/>
+				<qry:attribute name="cumple" value="'SI'"/>
+				<qry:if test="#PARAM:@oi_estudio=''">
+					<qry:then>
+						<qry:element name="estudio_cv">
+							<qry:attribute name="d_area_est" value="$r/@d_area_est + ' | ' + $r/@d_estudio + ' | ' + ../@estado"/>
+							<qry:attribute name="d_nivel_est_cv" value="$r/@d_nivel_estudio"/>
+						</qry:element>
+					</qry:then>
+					<qry:else>
+						<qry:attribute name="d_area_est" value="$r/@d_area_est + ' | ' + $r/@d_estudio + ' | ' + ../@estado"/>
+						<qry:attribute name="d_nivel_est_cv" value="$r/@d_nivel_estudio"/>
+					</qry:else>
+				</qry:if>
+			</qry:out>
+		</qry:select>
+		<qry:select name="qry_conocimientos" doc="PARAM">
+			<qry:xquery>
+				for $r in sql('		
+			SELECT                            
+			 	SDP10_PUESTO_INFO.c_nivel,
+			 	SDP10_PUESTO_INFO.oi_informatica,
+			 	SDP08_INFORMATICA.d_informatica
+			FROM 
+				SDP05_AVISOS,
+				ORG04_PUESTOS, 
+				SDP10_PUESTOS,
+				SDP10_PUESTO_INFO,
+				SDP08_INFORMATICA
+			JOIN  
+				SDP05_AVISOS.oi_puesto INNER ORG04_PUESTOS.oi_puesto,  
+				ORG04_PUESTOS.oi_puesto INNER SDP10_PUESTOS.oi_puesto,
+				SDP10_PUESTO_INFO.oi_informatica INNER SDP08_INFORMATICA.oi_informatica,
+				SDP10_PUESTOS.oi_puesto INNER SDP10_PUESTO_INFO.oi_puesto
+			WHERE 
+				SDP05_AVISOS.oi_aviso = {#PARAM:@oi_aviso} 
+			ORDER BY
+				d_informatica ASC			
+		')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:attribute name="ids_info" value="@ids_info +','+ $r/@oi_informatica"/>
+				<qry:element name="conocimiento">
+					<qry:attribute name="oi_puesto" value="$r/@oi_puesto"/>
+					<qry:attribute name="oi_informatica" value="$r/@oi_informatica"/>
+					<qry:attribute name="d_informatica" value="$r/@d_informatica"/>
+					<qry:attribute name="oi_cv" value="#PARAM:@oi_cv"/>
+					<qry:switch test="$r/@c_nivel">
+						<qry:case value="1">
+							<qry:attribute name="c_nivel_aviso" value="'BASICO'"/>
+						</qry:case>
+						<qry:case value="2">
+							<qry:attribute name="c_nivel_aviso" value="'INTERMEDIO'"/>
+						</qry:case>
+						<qry:default>
+							<qry:attribute name="c_nivel_aviso" value="'AVANZADO'"/>
+						</qry:default>
+					</qry:switch>
+					<qry:attribute name="cumple" value="'NO'"/>
+					<qry:attribute name="c_nivel_cv" value="'NO'"/>
+					<qry:insert-select doc-path="$r" name="qry_conocimientos_cv"/>
+				</qry:element>
+			</qry:out>
+		</qry:select>
+		<qry:select name="qry_conocimientos_cv" doc="PARAM">
+			<qry:xquery>
+				for $r in sql('
+				SELECT
+					SDP01_INFORMATICA.oi_informatica_cv, 
+					SDP01_INFORMATICA.oi_informatica_cv  AS cumple,
+					SDP01_INFORMATICA.c_nivel,
+					SDP08_INFORMATICA.d_informatica
+				FROM 
+					SDP01_CV,
+					SDP01_INFORMATICA,
+					SDP08_INFORMATICA				
+				JOIN 
+					SDP01_CV.oi_cv INNER SDP01_INFORMATICA.oi_cv,
+					SDP01_INFORMATICA.oi_informatica INNER SDP08_INFORMATICA.oi_informatica
+				WHERE
+				 	SDP01_CV.oi_cv = {#DATOS_FILTRO:@oi_cv} 
+					{%? (#PARAM:@oi_informatica != '') 
+						{% AND SDP08_INFORMATICA.oi_informatica = {#PARAM:@oi_informatica} 
+						%} 
+						{% 
+							{%? (#PARAM:@ids_info != '') 
+								{% AND SDP08_INFORMATICA.oi_informatica NOT IN ({%=#PARAM:@ids_info%}) %} 
+								{% %}						 
+							%}						
+						%}						 
+					%}
+				ORDER BY 
+					d_informatica ASC 			  
+			')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:attribute name="cumple" value="'SI'"/>
+				<qry:if test="#PARAM:@oi_informatica=''">
+					<qry:then>
+						<qry:element name="conocimiento_cv">
+							<qry:switch test="$r/@c_nivel">
+								<qry:case value="1">
+									<qry:attribute name="c_nivel_cv" value="'BASICO'"/>
+								</qry:case>
+								<qry:case value="2">
+									<qry:attribute name="c_nivel_cv" value="'INTERMEDIO'"/>
+								</qry:case>
+								<qry:default>
+									<qry:attribute name="c_nivel_cv" value="'AVANZADO'"/>
+								</qry:default>
+							</qry:switch>
+							<qry:attribute name="d_informatica" value="$r/@d_informatica"/>
+						</qry:element>
+					</qry:then>
+					<qry:else>
+						<qry:switch test="$r/@c_nivel">
+							<qry:case value="1">
+								<qry:attribute name="c_nivel_cv" value="'BASICO'"/>
+							</qry:case>
+							<qry:case value="2">
+								<qry:attribute name="c_nivel_cv" value="'INTERMEDIO'"/>
+							</qry:case>
+							<qry:default>
+								<qry:attribute name="c_nivel_cv" value="'AVANZADO'"/>
+							</qry:default>
+						</qry:switch>
+						<qry:attribute name="d_informatica" value="$r/@d_informatica"/>
+					</qry:else>
+				</qry:if>
+			</qry:out>
+		</qry:select>
+		<qry:select doc="PARAM" name="qry_experiencias">
+			<qry:xquery>
+				for $r in sql('		
+				SELECT 
+					ORG04_PUESTOS.oi_puesto, 
+					ORG04_PUESTO_EXP.oi_puesto_req_exp,
+					ORG04_PUESTOS.c_puesto, 
+					ORG04_PUESTOS.d_puesto, 
+					ORG03_EMPRESAS.d_empresa
+				FROM
+					SDP05_AVISOS, 
+					ORG04_PUESTO_EXP, 
+					ORG04_PUESTOS, 
+					ORG03_EMPRESAS
+				JOIN          
+					ORG03_EMPRESAS.oi_empresa LEFT OUTER ORG04_PUESTOS.oi_empresa,
+					SDP05_AVISOS.oi_puesto INNER ORG04_PUESTOS.oi_puesto,
+					ORG04_PUESTO_EXP.oi_puesto_req_exp INNER ORG04_PUESTOS.oi_puesto
+				WHERE 
+					SDP05_AVISOS.oi_aviso = {#PARAM:@oi_aviso}
+				ORDER BY
+					d_empresa ASC, d_puesto ASC 			  				
+			')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:attribute name="ids_exp" value="@ids_exp +','+ $r/@oi_puesto"/>
+				<qry:element name="experiencia">
+					<qry:attribute name="oi_aviso" value="#PARAM:@oi_aviso"/>
+					<qry:attribute name="oi_puesto_req_exp" value="$r/@oi_puesto_req_exp"/>
+					<qry:attribute name="oi_puesto" value="$r/@oi_puesto"/>
+					<qry:attribute name="d_empresa" value="$r/@d_empresa"/>
+					<qry:attribute name="d_puesto_aviso" value="$r/@d_puesto"/>
+					<qry:attribute name="oi_personal_emp" value="#PARAM:@oi_personal_emp"/>
+					<qry:attribute name="cumple" value="'NO'"/>
+					<qry:insert-select doc-path="$r" name="qry_experiencias_cv"/>
+				</qry:element>
+			</qry:out>
+		</qry:select>
+		<qry:select name="qry_experiencias_cv" doc="PARAM">
+			<qry:xquery>
+				for $r in sql('
+				SELECT 
+					SDP01_EXPERIENCIA.d_empresa, 
+					SDP09_PUESTO_EXP.d_puesto_exp
+				FROM 
+					SDP01_EXPERIENCIA, 
+					SDP09_PUESTO_EXP,
+					SDP09_PUESTOS_POR_EXP, 
+					SDP01_CV
+				JOIN 
+					SDP01_CV.oi_cv INNER SDP01_EXPERIENCIA.oi_cv, 
+					SDP01_EXPERIENCIA.oi_puesto_exp INNER SDP09_PUESTO_EXP.oi_puesto_exp,
+				  SDP09_PUESTO_EXP.oi_puesto_exp INNER SDP09_PUESTOS_POR_EXP.oi_puesto_exp
+				WHERE 
+					SDP01_CV.oi_cv = {#DATOS_FILTRO:@oi_cv} 
+					{%? (#PARAM:@oi_puesto != '') 
+						{% AND SDP09_PUESTOS_POR_EXP.oi_puesto = {#PARAM:@oi_puesto} 
+						%} 
+						{% 
+							{%? (#PARAM:@ids_exp != '') 
+								{% AND SDP09_PUESTOS_POR_EXP.oi_puesto NOT IN ({%=#PARAM:@ids_exp%}) %} 
+								{% %}						 
+							%}						
+						%}						 
+					%}
+					
+				ORDER BY 
+					d_empresa ASC, d_puesto_exp ASC 			  
+			')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:attribute name="cumple" value="'SI'"/>
+				<qry:if test="#PARAM:@oi_puesto=''">
+					<qry:then>
+						<qry:element name="experiencia_cv">
+							<qry:attribute name="d_empresa_cv" value="$r/@d_empresa"/>
+							<qry:attribute name="d_puesto_cv" value="$r/@d_puesto_exp"/>
+						</qry:element>
+					</qry:then>
+					<qry:else>
+						<qry:attribute name="d_empresa_cv" value="$r/@d_empresa"/>
+						<qry:attribute name="d_puesto_cv" value="$r/@d_puesto_exp"/>
+					</qry:else>
+				</qry:if>
+			</qry:out>
+		</qry:select>
+	</html:query>
+	<html:xslt>
+		<xsl:template match="/datos">
+			<html>
+				<head>
+					<LINK href="../Skins/Styles/GReport.css" type="text/css" rel="stylesheet"/>
+					<STYLE>
+						body{background-color:#FFFFFF;}
+table.tabla
+{
+	cellpadding: 0;
+	cellspacing: 0;
+	border-collapse: collapse;
+}
+td.tit
+{
+	font-family:verdana;
+	font-weight: bolder;
+	font-size: 16px;
+	padding: 2px 2px 2px 2px;	
+	text-align: center;
+}
+td.FontTitle
+{
+	font-weight: 200;
+	font-size: 15px;
+	font-style: bold;
+	color: #2897B3;
+	font-family: verdana;
+	text-decoration: none;
+	text-align: left;
+	border-bottom:solid 2px #2897B3;
+	width:100%;
+}
+td.txtc
+{
+	text-align:center;
+	font-family:verdana;
+	font-weight: normal;
+	font-size: 10px;
+	font-style: normal;
+	border-bottom-width: 1;
+	border-bottom-style: solid;
+	border-bottom-color: #000000;
+	border-left-width: 1;
+	border-left-style: solid;
+	border-left-color: #000000;
+	border-right-width: 1;
+	border-right-style: solid;
+	border-right-color: #000000;
+	border-top-width: 1;
+	border-top-style: solid;
+	border-top-color: #000000;
+	padding: 2px 2px 2px 2px;
+	color:#0B0B61;	
+} 
+
+td.txtd
+{
+	text-align:right;
+	font-family:verdana;
+	font-weight: normal;
+	font-size: 10px;
+	font-style: normal;
+	border-bottom-width: 1;
+	border-bottom-style: solid;
+	border-bottom-color: #000000;
+	border-left-width: 1;
+	border-left-style: solid;
+	border-left-color: #000000;
+	border-right-width: 1;
+	border-right-style: solid;
+	border-right-color: #000000;
+	border-top-width: 1;
+	border-top-style: solid;
+	border-top-color: #000000;
+	padding: 2px 2px 2px 2px;
+	color:#0B0B61;	
+}
+td.txttitle
+{
+	text-align:right;
+	font-family:verdana;
+	font-weight: normal;
+	font-size: 10px;
+	font-style: normal;
+	border-bottom-width: 1;
+	border-bottom-style: solid;
+	border-bottom-color: #000000;
+	border-left-width: 1;
+	border-left-style: solid;
+	border-left-color: #000000;
+	border-right-width: 1;
+	border-right-style: solid;
+	border-right-color: #000000;
+	border-top-width: 1;
+	border-top-style: solid;
+	border-top-color: #000000;
+	padding: 2px 2px 2px 2px;
+	color:#B40404;
+	fore-color:#BDBDBD;	
+}
+
+
+td.txti
+{
+	text-align:left;
+	font-family:verdana;
+	font-weight: normal;
+	font-size: 10px;
+	font-style: normal;
+	border-bottom-width: 1;
+	border-bottom-style: solid;
+	border-bottom-color: #000000;
+	border-left-width: 1;
+	border-left-style: solid;
+	border-left-color: #000000;
+	border-right-width: 1;
+	border-right-style: solid;
+	border-right-color: #000000;
+	border-top-width: 1;
+	border-top-style: solid;
+	border-top-color: #000000;
+	padding: 2px 2px 2px 2px;	
+}
+td.x1
+{
+	text-align:left;
+	font-family:verdana;
+	font-weight: normal;
+	font-size: 13px;
+	font-style: normal;
+	
+	padding: 2px 2px 2px 2px;	 
+	color:#0B0B61;
+}
+td.x2
+{ 
+ text-align:left;
+	font-family:verdana;
+	font-weight: bold;
+	font-size: 10px;
+	font-style: normal;
+	border-top-width: 1;
+	border-top-style: solid;
+	border-top-color: #000000;
+	border-left-width: 1;
+	border-left-style: solid;
+	border-left-color: #000000;
+	border-bottom-width: 1;
+	border-bottom-style: solid;
+	border-bottom-color: #000000;
+	border-right-width: 1;
+	border-right-style: solid;
+	border-right-color: #000000;	
+	padding: 2px 2px 2px 2px;	
+	color:#0B0B61;
+}  
+td.x3
+{ 
+ text-align:center;
+	font-family:verdana;
+	font-weight: bold;
+	font-size: 10px;
+	font-style: normal;
+	border-top-width: 1;
+	border-top-style: solid;
+	border-top-color: #000000;
+	border-left-width: 1;
+	border-left-style: solid;
+	border-left-color: #000000;
+	border-bottom-width: 1;
+	border-bottom-style: solid;
+	border-bottom-color: #000000;
+	border-right-width: 1;
+	border-right-style: solid;
+	border-right-color: #000000;	
+	padding: 2px 2px 2px 2px;	
+	color:#0B0B61; 
+	
+}  
+td.x4
+{ 
+ text-align:left;
+	font-family:verdana;
+	font-weight: bold;
+	font-size: 10px;
+	font-style: normal;
+	border-top-width: 1;
+	border-top-style: solid;
+	border-top-color: #000000;
+	border-left-width: 1;
+	border-left-style: solid;
+	border-left-color: #000000;
+	border-bottom-width: 1;
+	border-bottom-style: solid;
+	border-bottom-color: #000000;
+	border-right-width: 1;
+	border-right-style: solid;
+	border-right-color: #000000;	
+	padding: 2px 2px 2px 2px;	
+	color:green;
+}  
+
+.img
+{
+	width:1px;
+	font-size:1px;
+}
+td.x2t
+{
+	text-align:right;
+	font-family:verdana;
+	font-weight: bold;
+	font-size: 10px;
+	font-style: normal;
+	padding: 2px 2px 2px 2px;	
+}      
+td.txtt
+{
+	text-align:right;
+	font-family:verdana;
+	font-weight: normal;
+	font-size: 10px;
+	font-style: normal;
+	padding: 2px 2px 2px 2px;	
+}
+td.txtf
+{
+	text-align:left;
+	font-family:verdana;
+	font-weight: normal;
+	font-size: 10px;
+	font-style: normal;
+	padding: 2px 2px 2px 2px;	
+}
+					</STYLE>
+				</head>
+				<body bgcolor="#F2F2EC">
+					<table width="100%">
+						<tr>
+							<td>
+								<xsl:apply-templates select="cabecera"/>
+								<xsl:if test="count(cabecera)=0">
+									<span style="text-align:center;width:100%;font-size:24px;font-weight:800;">
+										No se encontro el Recibo
+									</span>
+								</xsl:if>
+							</td>
+						</tr>
+					</table>
+				</body>
+			</html>
+		</xsl:template>
+		<xsl:template match="cabecera">
+			<table class="tabla" width="100%">
+				<tr>
+					<td class="tit" colspan="12">
+						<font size="4">
+							<CENTER>
+								<b>
+									Requisitos del Aviso vs Aptitudes del CV
+								</b>
+							</CENTER>
+						</font>
+					</td>
+				</tr>
+				<tr>
+					<td class="FontTitle" colspan="24">
+						<font size="2">
+							<b>
+								DATOS PRINCIPALES
+							</b>
+						</font>
+					</td>
+				</tr>
+				<tr>
+					<td width="50%" class="x1">
+						<b>
+							Aviso:&#160;
+						</b>
+						<xsl:value-of select="@aviso"/>
+						<br/>
+						<b>
+							Tipo:&#160;
+						</b>
+						<xsl:value-of select="@tipo_aviso"/>
+						<br/>
+						<b>
+							Estado:&#160;
+						</b>
+						<xsl:value-of select="@estado_aviso"/>
+						<br/>
+						<b>
+							Fecha Publicaci&#243;n:&#160;
+						</b>
+						<xsl:value-of select="@f_aviso"/>
+						<br/>
+					</td>
+					<td width="50%" class="x1">
+						<b>
+							CV:&#160;
+						</b>
+						<xsl:value-of select="@cv"/>
+						<br/>
+						<b>
+							Sexo:&#160;
+						</b>
+						<xsl:value-of select="@c_sexo"/>
+						<br/>
+						<b>
+							Estado Civil:&#160;
+						</b>
+						<xsl:value-of select="@d_estado_civil"/>
+						<br/>
+						<b>
+							Fecha Nacimiento:&#160;
+						</b>
+						<xsl:value-of select="@f_nacim"/>
+						<br/>
+						<b>
+							Edad:&#160;
+						</b>
+						<xsl:value-of select="@edad"/>
+						<br/>
+					</td>
+					<td style="text-align:center;">
+						<img height="100px">
+							<xsl:choose>
+								<xsl:when test="@oi_foto = 'no'">
+									<xsl:attribute name="src">
+										<xsl:value-of select="'Images/Reports/unknown-person.jpg'"/>
+									</xsl:attribute>
+								</xsl:when>
+								<xsl:otherwise>
+									<xsl:attribute name="src">
+										<xsl:value-of select="concat('NomadFile.aspx?mode=DB&amp;class=NucleusRH.Base.SeleccionDePostulantes.DocumentosDigitales.HEAD&amp;height=120&amp;id=', @oi_foto)"/>
+									</xsl:attribute>
+								</xsl:otherwise>
+							</xsl:choose>
+						</img>
+					</td>
+				</tr>
+			</table>
+			<xsl:apply-templates select="idiomas"/>
+			<xsl:apply-templates select="estudios"/>
+			<xsl:apply-templates select="conocimientos"/>
+			<xsl:apply-templates select="experiencias"/>
+		</xsl:template>
+		<xsl:template match="idiomas">
+			<br/>
+			<table width="100%">
+				<tr>
+					<td class="FontTitle" colspan="12">
+						<font size="2">
+							<b>
+								IDIOMAS
+							</b>
+						</font>
+					</td>
+				</tr>
+			</table>
+			<table class="tabla" width="100%">
+				<tr>
+					<tr>
+						<td class="txtd"/>
+						<td class="txtd" colspan="3">
+							<font size="1">
+								<CENTER>
+									<b>
+										AVISO
+									</b>
+								</CENTER>
+							</font>
+						</td>
+						<td class="txtd" colspan="4">
+							<font size="1">
+								<CENTER>
+									<b>
+										CV
+									</b>
+								</CENTER>
+							</font>
+						</td>
+					</tr>
+					<tr>
+						<td class="x3" width="30%">
+							<b>
+								IDIOMA
+							</b>
+						</td>
+						<td class="x3" width="10%">
+							<b>
+								Nivel Lee
+							</b>
+						</td>
+						<td class="x3" width="10%">
+							<b>
+								Nivel Escribe
+							</b>
+						</td>
+						<td class="x3" width="10%">
+							<b>
+								Nivel Habla
+							</b>
+						</td>
+						<td class="x3" width="10%">
+							<b>
+								Nivel Lee
+							</b>
+						</td>
+						<td class="x3" width="10%">
+							<b>
+								Nivel Escribe
+							</b>
+						</td>
+						<td class="x3" width="10%">
+							<b>
+								Nivel Habla
+							</b>
+						</td>
+					</tr>
+					<xsl:for-each select="idioma">
+						<td rowspan="2" class="x2" width="30%">
+							<xsl:value-of select="@c_idioma"/>
+							<span>
+								-
+							</span>
+							<xsl:value-of select="@d_idioma"/>
+						</td>
+						<tr>
+							<td class="txtc" width="10%">
+								<xsl:value-of select="@nivel_lee"/>
+								&#160;
+							</td>
+							<td class="txtc" width="10%">
+								<xsl:value-of select="@nivel_escribe"/>
+								&#160;
+							</td>
+							<td class="txtc" width="10%">
+								<xsl:value-of select="@nivel_habla"/>
+								&#160;
+							</td>
+							<!--td class="txtc">
+								<xsl:value-of select="@niv_lee_cv"/>
+								&#160;
+							</td-->
+							<xsl:if test="@niv_lee_cv!='NO'">
+								<td class="txtc" width="10%">
+									<xsl:value-of select="@niv_lee_cv"/>
+									&#160;
+								</td>
+							</xsl:if>
+							<xsl:if test="@niv_lee_cv='NO'">
+								<td class="txtc" style="background-color:#F8E0E0" width="10%">
+									<xsl:value-of select="@niv_lee_cv"/>
+									&#160;
+								</td>
+							</xsl:if>
+							<xsl:if test="@niv_escribe_cv!='NO'">
+								<td class="txtc" width="10%">
+									<xsl:value-of select="@niv_escribe_cv"/>
+									&#160;
+								</td>
+							</xsl:if>
+							<xsl:if test="@niv_escribe_cv='NO'">
+								<td class="txtc" style="background-color:#F8E0E0" width="10%">
+									<xsl:value-of select="@niv_escribe_cv"/>
+									&#160;
+								</td>
+							</xsl:if>
+							<xsl:if test="@niv_habla_cv!='NO'">
+								<td class="txtc" width="10%">
+									<xsl:value-of select="@niv_habla_cv"/>
+									&#160;
+								</td>
+							</xsl:if>
+							<xsl:if test="@niv_habla_cv='NO'">
+								<td class="txtc" style="background-color:#F8E0E0" width="10%">
+									<xsl:value-of select="@niv_habla_cv"/>
+									&#160;
+								</td>
+							</xsl:if>
+							<!--td class="txtc">
+						<xsl:value-of select="@niv_escribe_cv"/>
+						&#160;
+					</td>
+					<td class="txtc">
+						<xsl:value-of select="@niv_habla_cv"/>
+						&#160;
+					</td-->
+						</tr>
+					</xsl:for-each>
+					<xsl:for-each select="idioma_cv">
+						<td rowspan="2" class="x4">
+							<xsl:value-of select="@c_idioma"/>
+							<span>
+								-
+							</span>
+							<xsl:value-of select="@d_idioma"/>
+						</td>
+						<tr>
+							<td class="txtc">
+								--
+						&#160;
+							</td>
+							<td class="txtc">
+								--
+						&#160;
+							</td>
+							<td class="txtc">
+								--
+						&#160;
+							</td>
+							<!--xsl:if test="@niv_lee_cv!='NO'">
+						<td class="txtc">
+							<xsl:value-of select="'pp'+@niv_lee_cv"/>
+							&#160;
+						</td>
+					</xsl:if>
+					<xsl:if test="@niv_lee_cv='NO'">
+						<td style="background-color:#F6CECE">
+							<xsl:value-of select="'kk'+@niv_lee_cv"/>
+							&#160;
+						</td>
+					</xsl:if-->
+							<!--/td-->
+							<td class="txtc">
+								<xsl:value-of select="@niv_lee_cv"/>
+								&#160;
+							</td>
+							<td class="txtc">
+								<xsl:value-of select="@niv_escribe_cv"/>
+								&#160;
+							</td>
+							<td class="txtc">
+								<xsl:value-of select="@niv_habla_cv"/>
+								&#160;
+							</td>
+						</tr>
+					</xsl:for-each>
+					<!--/xsl:for-each-->
+				</tr>
+			</table>
+		</xsl:template>
+		<xsl:template match="estudios">
+			<br/>
+			<table width="100%">
+				<tr>
+					<td class="FontTitle" colspan="8">
+						<font size="2">
+							<b>
+								ESTUDIOS
+							</b>
+						</font>
+					</td>
+				</tr>
+			</table>
+			<table class="tabla" width="100%">
+				<tr>
+					<tr>
+						<td class="txtd"/>
+						<td class="txtd" colspan="1">
+							<font size="1">
+								<CENTER>
+									<b>
+										AVISO
+									</b>
+								</CENTER>
+							</font>
+						</td>
+						<td class="txtd" colspan="2">
+							<font size="1">
+								<CENTER>
+									<b>
+										CV
+									</b>
+								</CENTER>
+							</font>
+						</td>
+					</tr>
+					<tr>
+						<td class="x3" width="30%">
+							<b>
+								AREA | ESTUDIO
+							</b>
+						</td>
+						<td class="x3" width="30%">
+							<b>
+								Nivel
+							</b>
+						</td>
+						<td class="x3" width="30%">
+							<b>
+								Nivel
+							</b>
+						</td>
+					</tr>
+					<xsl:for-each select="estudio">
+						<td rowspan="2" class="x2" width="30%">
+							<xsl:value-of select="@d_area_est"/>
+						</td>
+						<tr>
+							<td class="txtc">
+								<xsl:value-of select="@d_nivel_est_aviso"/>
+								&#160;
+							</td>
+							<!--td class="txtc">
+						<xsl:value-of select="@d_nivel_est_cv"/>
+						&#160;
+					</td-->
+							<xsl:if test="@d_nivel_est_cv!='NO'">
+								<td class="txtc">
+									<xsl:value-of select="@d_nivel_est_cv"/>
+									&#160;
+								</td>
+							</xsl:if>
+							<xsl:if test="@d_nivel_est_cv='NO'">
+								<td class="txtc" style="background-color:#F8E0E0">
+									<xsl:value-of select="@d_nivel_est_cv"/>
+									&#160;
+								</td>
+							</xsl:if>
+						</tr>
+					</xsl:for-each>
+					<xsl:for-each select="estudio_cv">
+						<td rowspan="2" class="x4">
+							<xsl:value-of select="@d_area_est"/>
+						</td>
+						<tr>
+							<td class="txtc">
+								--
+						&#160;
+							</td>
+							<td class="txtc">
+								<xsl:value-of select="@d_nivel_est_cv"/>
+								&#160;
+							</td>
+						</tr>
+					</xsl:for-each>
+				</tr>
+			</table>
+		</xsl:template>
+		<xsl:template match="conocimientos">
+			<br/>
+			<table width="100%">
+				<tr>
+					<td width="100%" class="FontTitle" colspan="12">
+						<font size="2">
+							<b>
+								CONOCIMIENTOS INFORM&#193;TICOS
+							</b>
+						</font>
+					</td>
+				</tr>
+			</table>
+			<table class="tabla" width="100%">
+				<tr>
+					<tr>
+						<td class="txtd"/>
+						<td color="#6E6E6E" class="txtd" colspan="1">
+							<font size="1">
+								<CENTER>
+									<b>
+										AVISO
+									</b>
+								</CENTER>
+							</font>
+						</td>
+						<td color="#6E6E6E" class="txtd" colspan="4">
+							<font size="1">
+								<CENTER>
+									<b>
+										CV
+									</b>
+								</CENTER>
+							</font>
+						</td>
+					</tr>
+					<tr>
+						<td class="x3" width="30%">
+							<b>
+								CONOCIMIENTO
+							</b>
+						</td>
+						<td class="x3" width="30%">
+							<b>
+								Nivel
+							</b>
+						</td>
+						<td class="x3" width="30%">
+							<b>
+								Nivel
+							</b>
+						</td>
+					</tr>
+					<xsl:for-each select="conocimiento">
+						<td rowspan="2" class="x2" width="30%">
+							<xsl:value-of select="@d_informatica"/>
+						</td>
+						<tr>
+							<td class="txtc" width="30%">
+								<xsl:value-of select="@c_nivel_aviso"/>
+								&#160;
+							</td>
+							<!--td class="txtc">
+						<xsl:value-of select="@c_nivel_cv"/>
+						&#160;
+					</td-->
+							<xsl:if test="@c_nivel_cv!='NO'">
+								<td class="txtc" width="30%">
+									<xsl:value-of select="@c_nivel_cv"/>
+									&#160;
+								</td>
+							</xsl:if>
+							<xsl:if test="@c_nivel_cv='NO'">
+								<td class="txtc" style="background-color:#F8E0E0" width="30%">
+									<xsl:value-of select="@c_nivel_cv"/>
+									&#160;
+								</td>
+							</xsl:if>
+						</tr>
+					</xsl:for-each>
+					<xsl:for-each select="conocimiento_cv">
+						<td rowspan="2" class="x4" width="30%">
+							<xsl:value-of select="@d_informatica"/>
+						</td>
+						<tr>
+							<td class="txtc">
+								--
+						&#160;
+							</td>
+							<td class="txtc" width="30%">
+								<xsl:value-of select="@c_nivel_cv"/>
+								&#160;
+							</td>
+						</tr>
+					</xsl:for-each>
+				</tr>
+			</table>
+		</xsl:template>
+		<xsl:template match="experiencias">
+			<br/>
+			<table width="100%">
+				<tr>
+					<td class="FontTitle" colspan="20">
+						<font size="2">
+							<b>
+								EXPERIENCIAS DE TRABAJO
+							</b>
+						</font>
+					</td>
+				</tr>
+			</table>
+			<table class="tabla" width="100%">
+				<tr>
+					<tr>
+						<!--td class="txtd"/-->
+						<td class="txtd" width="50%">
+							<font size="1">
+								<CENTER>
+									<b>
+										AVISO
+									</b>
+								</CENTER>
+							</font>
+						</td>
+						<td class="txtd" width="50%">
+							<font size="1">
+								<CENTER>
+									<b>
+										CV
+									</b>
+								</CENTER>
+							</font>
+						</td>
+					</tr>
+					<tr>
+						<!--td class="x3">
+					<!--b>
+						EMPRESA
+					</b>
+				</td-->
+						<td class="x3">
+							<b>
+								Puesto
+							</b>
+						</td>
+						<td class="x3">
+							<b>
+								Puesto
+							</b>
+						</td>
+					</tr>
+					<xsl:for-each select="experiencia">
+						<!--td rowspan="2" class="x2">
+					<xsl:value-of select="@d_empresa"/>
+				</td-->
+						<tr>
+							<td class="txtc" width="50%">
+								<xsl:value-of select="@d_puesto_aviso"/>
+								&#160;
+							</td>
+							<xsl:if test="@d_puesto_cv!='NO'">
+								<td class="txtc" width="50%">
+									<xsl:value-of select="@d_puesto_cv"/>
+									&#160;
+								</td>
+							</xsl:if>
+							<xsl:if test="@d_puesto_cv='NO'">
+								<td class="txtc" style="background-color:#F8E0E0">
+									<xsl:value-of select="@d_puesto_cv"/>
+									&#160;
+								</td>
+							</xsl:if>
+						</tr>
+					</xsl:for-each>
+					<xsl:for-each select="experiencia_cv">
+						<!--td rowspan="2" class="x2">
+					<xsl:value-of select="@d_empresa_cv"/>
+				</td-->
+						<tr>
+							<td class="txtc">
+								--
+						&#160;
+							</td>
+							<td class="txtc">
+								<xsl:value-of select="@d_puesto_cv"/>
+								&#160;
+							</td>
+						</tr>
+					</xsl:for-each>
+				</tr>
+			</table>
+		</xsl:template>
+	</html:xslt>
+</html:html>

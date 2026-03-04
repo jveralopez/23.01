@@ -1,0 +1,73 @@
+<flow:flow xmlns:flow="nomad_engine.flow" xmlns:qry="nomad_engine.qry" xmlns:doc="nomad_engine.doc" default_action="initialize" extends="Nomad.base.HTML_XLS.flow" name="ReporteDetalleHorasConceptos">
+	<flow:declare>
+		<qry:define name="QRY_CONC">
+			<qry:main doc="SOURCE">
+				<qry:element name="ROWS">
+					<qry:insert-select name="CONC"/>
+				</qry:element>
+			</qry:main>
+			<qry:select name="CONC" doc="">
+				<qry:xquery>
+					for $r in SQL('			
+			SELECT 
+				TTA15_CONCEPTOS.oi_concepto as id,
+				TTA15_CONCEPTOS.d_concepto as des,
+				TTA15_CONCEPTOS.c_coleccion as coleccion,
+				TTA15_CONCEPTOS.e_mostrar
+			FROM 
+				TTA15_CONCEPTOS
+			WHERE 
+				TTA15_CONCEPTOS.e_mostrar != 0
+				AND TTA15_CONCEPTOS.l_activo != 0 
+			ORDER BY 
+				e_mostrar ASC
+	')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:element name="ROW">
+						<qry:attribute value="$r/@id" name="id"/>
+						<qry:attribute value="$r/@des" name="des"/>
+						<qry:attribute value="$r/@coleccion" name="coleccion"/>
+					</qry:element>
+				</qry:out>
+			</qry:select>
+		</qry:define>
+		<doc:define name="CONC"/>
+		<doc:define name="FILTERDATA">
+			<FILTRO>
+				<PERSONAS/>
+				<CONC/>
+			</FILTRO>
+		</doc:define>
+	</flow:declare>
+	<flow:main doc="SOURCE">
+		<flow:action name="initialize">
+			<doc:load-qry qry="QRY_CONC" output-doc="CONC"/>
+			<flow:open-form form-class="NucleusRH.Base.Tiempos_Trabajados.Reporte.DetalleHorasConceptos.filter.form" doc-path="#FILTERDATA:" mode="FILTER"/>
+		</flow:action>
+	</flow:main>
+	<flow:form form-class="NucleusRH.Base.Tiempos_Trabajados.Reporte.DetalleHorasConceptos.filter.form" name="NucleusRH.Base.Tiempos_Trabajados.Reporte.DetalleHorasConceptos.filter.form:FILTER" parent-doc="PARENTSOURCE" doc="SOURCE" mode="FILTER">
+		<flow:action name="on-show">
+			<flow:attach-doc attach-id="CONC" doc-path="#CONC:"/>
+			<flow:call-action action="Load-FILTER"/>
+		</flow:action>
+		<flow:action name="BACK">
+			<flow:close-form/>
+		</flow:action>
+		<flow:action name="Save-FILTER">
+			<flow:save-user-data name="FILTER-NucleusRH.Base.Tiempos_Trabajados.Reporte.DetalleHorasConceptosb" doc-path="#FILTERDATA:"/>
+		</flow:action>
+		<flow:action name="Load-FILTER">
+			<flow:load-user-data name="FILTER-NucleusRH.Base.Tiempos_Trabajados.Reporte.DetalleHorasConceptosb" doc="FILTERDATA"/>
+		</flow:action>
+		<flow:action name="ACCEPT">
+			<flow:call-action action="Save-FILTER"/>
+			<flow:exec-method method="ExecReportHTML" out-attr-path="#BATCHDOC:@batch-id" priority="9" class="Nomad.Base.Report.GeneralReport.REPORT">
+				<flow:param value="NucleusRH.Base.Tiempos_Trabajados.DetalleHorasConceptos.rpt" type="Nomad.NSystem.String" mode="in" name="ReportName"/>
+				<flow:param doc-path="#FILTERDATA:" name="paramIN" type="Nomad.NSystem.Proxy.NomadXML" mode="in"/>
+			</flow:exec-method>
+			<doc:set-attribute from-value="204 - Informe de Horas y Conceptos" to-attr-path="#BATCHDOC:@title"/>
+			<flow:open-form form-class="Nomad.base.HTML_XLS.form" parent-doc-path="#SOURCE:" mode="SHOW" doc-path="#BATCHDOC:"/>
+		</flow:action>
+	</flow:form>
+</flow:flow>

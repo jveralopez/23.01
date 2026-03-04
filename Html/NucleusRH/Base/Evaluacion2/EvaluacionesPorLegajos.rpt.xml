@@ -1,0 +1,822 @@
+<html:html xmlns:html="nomad_engine.html" xmlns:qry="nomad_engine.qry" xmlns:xsl="http://www.w3.org/1999/XSL/Transform" extends="Nomad.Base.BaseReport.rpt" name="Lista de Evaluaciones por Legajo" doc="source">
+	<html:for-each declare="&lt;FILTRO gcustom=&quot;&quot; gpers=&quot;&quot; empresa=&quot;9&quot; activos=&quot;&quot; nombre=&quot;&quot; documento=&quot;&quot; sexo=&quot;&quot; grupo_sanguineo=&quot;&quot; listlegajos=&quot;&quot; oi_indic_activo=&quot;&quot; egresado=&quot;&quot; oi_forma_pago=&quot;&quot; oi_tipo_personal=&quot;&quot; fecha_desde=&quot;&quot; fecha_hasta=&quot;&quot; cb_confidenciales=&quot;&quot; oi_grupo_ccosto=&quot;&quot; oi_centro_costo=&quot;&quot; oi_convenio=&quot;&quot; soloconvenio=&quot;&quot; oi_categoria=&quot;&quot; oi_ubicacion_desde=&quot;&quot; oi_ubicacion_hasta=&quot;&quot; oi_estructura=&quot;&quot; escructura_childs=&quot;&quot; oi_contrato=&quot;&quot; oi_afjp=&quot;&quot; oi_obra_social=&quot;&quot; oi_sindicato=&quot;&quot; l_afiliado_sind=&quot;0&quot; oi_departamento=&quot;&quot; oi_sector=&quot;&quot; supervisor=&quot;&quot; evaluador=&quot;&quot; estado=&quot;&quot; legID=&quot;&quot; leg_where=&quot;&quot;&gt;&lt;PERSONAS&gt;&lt;ROW VALUES=&quot;1431,1432,2911&quot; /&gt;&lt;/PERSONAS&gt;&lt;EVENTOS&gt;&lt;EVENTO id=&quot;2&quot; /&gt;&lt;/EVENTOS&gt;&lt;/FILTRO&gt;">
+		<qry:main doc="SOURCE">
+			<qry:append-doc name="DOC_FILTRO" doc-path="#SOURCE:FILTRO"/>
+			<ROWS>
+				<qry:insert-select name="SQL_PLA" doc-path="#SOURCE:/FILTRO"/>
+				<qry:insert-select name="SQL_EMPRESA" doc-path="#SOURCE:/FILTRO"/>
+			</ROWS>
+		</qry:main>
+		<qry:select doc="SOURCE" name="SQL_EMPRESA">
+			<qry:xquery>
+				for $r in SQL('
+		SELECT
+			EMP.c_empresa,
+			EMP.d_empresa,
+			PER.e_numero_legajo,
+			PER01.d_ape_y_nom,
+			PER.oi_personal_emp
+		FROM
+			ORG03_EMPRESAS as EMP,
+			PER02_PERSONAL_EMP AS PER,
+			PER01_PERSONAL AS PER01,
+			EDD03_EVALUACION AS E
+	  JOIN                
+			EMP.oi_empresa inner PER.oi_empresa,
+			PER.oi_personal inner PER01.oi_personal,
+			PER.oi_personal_emp INNER E.oi_personal_emp
+		WHERE 
+		  1=1
+			{%? (string(#SOURCE:PERSONAS/ROW/@VALUES)!='') 
+				{% AND PER.oi_personal_emp in ({%=string(#SOURCE:PERSONAS/ROW/@VALUES) %}) %} 
+				{%  %} 
+			%}
+		GROUP BY
+			EMP.c_empresa,
+			EMP.d_empresa,
+			PER.e_numero_legajo,
+			PER01.d_ape_y_nom,
+			PER.oi_personal_emp	
+		')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:attribute name="c_empresa" value="$r/@c_empresa"/>
+				<qry:attribute name="d_empresa" value="$r/@d_empresa"/>
+				<qry:element name="LEGAJO">
+					<qry:attribute name="e_numero_legajo" value="$r/@e_numero_legajo"/>
+					<qry:attribute name="d_ape_y_nom" value="$r/@d_ape_y_nom"/>
+					<qry:insert-select name="SQL_EVENTO" doc-path="$r"/>
+				</qry:element>
+			</qry:out>
+		</qry:select>
+		<qry:select doc="SOURCE" name="SQL_EVENTO">
+			<qry:xquery>
+				for $r in SQL('
+		SELECT
+			EV.oi_evento,
+			EV.c_evento,
+			EV.d_evento,
+			EV.c_estado,
+			EVA.oi_evaluacion
+		FROM
+			EDD02_EVENTOS as EV,
+			EDD03_EVALUACION AS EVA
+		JOIN
+			EV.oi_evento inner EVA.oi_evento
+		WHERE  
+			EVA.oi_personal_emp = {#SOURCE:@oi_personal_emp} 
+			{%? (string(#DOC_FILTRO:/EVENTOS/EVENTO/@id)!='') 
+  			{% AND EV.oi_evento in ({%=string(#DOC_FILTRO:/EVENTOS/EVENTO/@id) %}) 
+  			%} 
+  			{%  %} 
+  		%}
+  		
+		')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:element name="EVENTO">
+					<qry:attribute name="oi_personal_emp" value="#SOURCE:@oi_personal_emp"/>
+					<qry:attribute name="oi_evento" value="$r/@oi_evento"/>
+					<qry:attribute name="c_evento" value="$r/@c_evento"/>
+					<qry:attribute name="d_evento" value="$r/@d_evento"/>
+					<qry:attribute name="evento" value="'['+$r/@c_evento+'] '+$r/@d_evento"/>
+					<qry:attribute name="d_estado" value="iif($r/@c_estado='A','Abierto',@d_estado)"/>
+					<qry:attribute name="d_estado" value="iif($r/@c_estado='H','Habilitado',@d_estado)"/>
+					<qry:attribute name="d_estado" value="iif($r/@c_estado='C','Cerrado',@d_estado)"/>
+					<qry:call>
+						<param>
+							<qry:attribute name="oi_evaluacion" value="$r/@oi_evaluacion"/>
+						</param>
+					</qry:call>
+				</qry:element>
+			</qry:out>
+		</qry:select>
+		<qry:select name="SQL_PLA" doc="SOURCE">
+			<qry:xquery>
+				for $r in SQL('
+		SELECT 
+			DEF.oi_plantilla,                    
+			DEF.d_plantilla,
+			DEF.d_cus1,
+			DEF.e_orden
+		FROM
+			EDD02_EVENTOS    as EVE,  
+			EDD01_PLANTILLAS as DEF
+		WHERE
+			DEF.l_mostrar_res=1 AND
+			DEF.oi_tipo_eval=EVE.oi_tipo_eval
+			{%? (string(#DOC_FILTRO:/EVENTOS/EVENTO/@id)!='') 
+  			{% AND EVE.oi_evento in ({%=string(#DOC_FILTRO:/EVENTOS/EVENTO/@id) %}) 
+  			%} 
+  			{%  %} 
+  		%}
+			
+	  GROUP BY
+	  	DEF.oi_plantilla,                    
+			DEF.d_plantilla,
+			DEF.d_cus1,
+			DEF.e_orden 	  
+		ORDER BY	    
+			e_orden ASC	
+			')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<PLA>
+					<qry:attribute name="oi_plantilla" value="$r/@oi_plantilla"/>
+					<!--qry:attribute name="d_plantilla" value="iif($r/@d_cus1='',$r/@d_plantilla,$r/@d_cus1)"/-->
+					<qry:attribute name="d_plantilla" value="$r/@d_plantilla"/>
+				</PLA>
+			</qry:out>
+		</qry:select>
+	</html:for-each>
+	<html:query declare="&lt;param oi_evaluacion=&quot;106&quot;/&gt;" name="qry_report">
+		<qry:main doc="SOURCE">
+			<qry:append-doc name="DOC_PLANTILLAS" doc-path="#SOURCE:"/>
+			<qry:insert-element doc-path="DOC_PLANTILLAS"/>
+			<REPORT>
+				<qry:attribute name="pos" value="#SOURCE:/param/@pos"/>
+				<qry:attribute name="ut" value="#PROXY:@token"/>
+				<qry:insert-select name="REPORT" doc-path="#SOURCE:/param"/>
+			</REPORT>
+		</qry:main>
+		<qry:select doc="SOURCE" name="REPORT">
+			<qry:xquery>
+				for $r in SQL('
+				SELECT           
+					EV.c_evento as EV_c_evento,
+					EV.d_evento as EV_d_evento,
+					EV.f_desde as EV_f_desde,
+					EV.f_desde as EV_f_hasta,
+					EV.o_evento as EV_o_evento,
+					EV.d_cus1 as EV_a,
+					EV.d_cus2 as EV_d_cus2,
+					EV.d_cus3 as EV_d_cus3,
+					EV.d_cus4 as EV_d_cus4,
+					EV.d_cus5 as EV_d_cus5,
+					EV.oi_escala,
+					E.oi_evaluacion,
+					E.c_estado,
+					E.o_evaluado,
+					E.o_evaluador,
+					E.f_evaluacion,
+					E.n_resultado,
+					E.n_resultado2,
+					E.n_resultado3,
+					E.d_cus1,
+					E.d_cus2,
+					E.d_cus3,
+					E.d_cus4,
+					E.d_cus5,    
+					LE.legajo as E_legajo,
+					LE.nombre as E_nombre,
+					LU.d_unidad_org as E_unidad,
+					LP.d_posicion as E_posicion,    
+					EE.codemp as J_codemp,
+					EE.empresa as J_empresa,
+					EE.legajo as J_legajo,
+					EE.nombre as J_nombre,
+					EU.d_unidad_org as J_unidad,
+					EP.d_posicion as J_posicion,    
+					SE.legajo as S_legajo,
+					SE.nombre as S_nombre,
+					SU.d_unidad_org as S_unidad,
+					SP.d_posicion as S_posicion
+				FROM             
+					EDD02_EVENTOS as EV,
+					EDD03_EVALUACION as E,   
+					ORG01_UNI_ORG as LU,
+					ORG01_UNI_ORG as EU,
+					ORG01_UNI_ORG as SU,    
+					ORG04_POSICIONES as LP,
+					ORG04_POSICIONES as EP,
+					ORG04_POSICIONES as SP,
+
+					(select
+						L1.oi_personal_emp as oi_personal_emp,
+						E1.c_empresa       as codemp,
+						E1.d_empresa       as empresa,
+						L1.e_numero_legajo as legajo,
+						H1.d_ape_y_nom     as nombre
+					from
+						ORG03_EMPRESAS     as E1,
+						PER02_PERSONAL_EMP as L1,
+						PER01_PERSONAL     as H1
+					join
+						L1.oi_personal inner H1.oi_personal,
+						L1.oi_empresa inner E1.oi_empresa) as LE,
+					(select
+						L1.oi_personal_emp as oi_personal_emp,
+						E1.c_empresa       as codemp,
+						E1.d_empresa       as empresa,
+						L1.e_numero_legajo as legajo,
+						H1.d_ape_y_nom     as nombre
+					from
+						ORG03_EMPRESAS     as E1,
+						PER02_PERSONAL_EMP as L1,
+						PER01_PERSONAL     as H1
+					join
+						L1.oi_personal inner H1.oi_personal,
+						L1.oi_empresa inner E1.oi_empresa) as EE,
+					(select
+						L1.oi_personal_emp as oi_personal_emp,
+						E1.c_empresa       as codemp,
+						E1.d_empresa       as empresa,
+						L1.e_numero_legajo as legajo,
+						H1.d_ape_y_nom     as nombre
+					from
+						ORG03_EMPRESAS     as E1,
+						PER02_PERSONAL_EMP as L1,
+						PER01_PERSONAL     as H1
+					join
+						L1.oi_personal inner H1.oi_personal,
+						L1.oi_empresa inner E1.oi_empresa) as SE
+
+				join
+					EV.oi_evento inner E.oi_evento,
+					E.oi_personal_emp inner LE.oi_personal_emp,
+					E.oi_evaluador inner EE.oi_personal_emp,
+					E.oi_supervisor left outer SE.oi_personal_emp,
+					E.oi_uni_evaluado left outer LU.oi_unidad_org,
+					E.oi_uni_evaluador left outer EU.oi_unidad_org,
+					E.oi_uni_supervisor left outer SU.oi_unidad_org,
+					E.oi_pos_evaluado left outer LP.oi_posicion,
+					E.oi_pos_evaluador left outer EP.oi_posicion,
+					E.oi_pos_supervisor left outer SP.oi_posicion
+				WHERE            
+					E.oi_evaluacion = {#SOURCE:@oi_evaluacion} 
+			')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:attribute name="EV_c_evento" value="$r/@EV_c_evento"/>
+				<qry:attribute name="EV_d_evento" value="$r/@EV_d_evento"/>
+				<qry:attribute value="format_date($r/@EV_f_desde,'dd/mm/yyyy')" name="EV_f_desde"/>
+				<qry:attribute value="format_date($r/@EV_f_hasta,'dd/mm/yyyy')" name="EV_f_hasta"/>
+				<qry:attribute name="EV_o_evento" value="$r/@EV_o_evento"/>
+				<qry:attribute name="EV_d_cus1" value="$r/@EV_d_cus1"/>
+				<qry:attribute name="EV_d_cus2" value="$r/@EV_d_cus2"/>
+				<qry:attribute name="EV_d_cus3" value="$r/@EV_d_cus3"/>
+				<qry:attribute name="EV_d_cus4" value="$r/@EV_d_cus4"/>
+				<qry:attribute name="EV_d_cus5" value="$r/@EV_d_cus5"/>
+				<qry:attribute name="oi_evaluacion" value="$r/@oi_evaluacion"/>
+				<qry:attribute value="format_date($r/@E_ingreso,'dd/mm/yyyy')" name="E_ingreso"/>
+				<qry:attribute name="E_text" value="iif($r/@E_nombre='','','['+$r/@E_legajo+'] '+$r/@E_nombre)"/>
+				<qry:attribute name="E_unidad" value="$r/@E_unidad"/>
+				<qry:attribute name="E_posicion" value="$r/@E_posicion"/>
+				<qry:attribute name="J_text" value="iif($r/@J_nombre='','','['+$r/@J_legajo+'] '+$r/@J_nombre)"/>
+				<qry:attribute name="J_unidad" value="$r/@J_unidad"/>
+				<qry:attribute name="J_posicion" value="$r/@J_posicion"/>
+				<qry:attribute name="S_text" value="iif($r/@S_nombre='','','['+$r/@S_legajo+'] '+$r/@S_nombre)"/>
+				<qry:attribute name="S_unidad" value="$r/@S_unidad"/>
+				<qry:attribute name="S_posicion" value="$r/@S_posicion"/>
+				<qry:attribute name="c_estado" value="$r/@c_estado"/>
+				<qry:switch test="$r/@c_estado">
+					<qry:case value="AB">
+						<qry:attribute name="d_estado" value="'Abierta'"/>
+					</qry:case>
+					<qry:case value="HA">
+						<qry:attribute name="d_estado" value="'Habilitada'"/>
+					</qry:case>
+					<qry:case value="EV">
+						<qry:attribute name="d_estado" value="'Evaluada'"/>
+					</qry:case>
+					<qry:case value="CO">
+						<qry:attribute name="d_estado" value="'Confirmada'"/>
+					</qry:case>
+					<qry:case value="AP">
+						<qry:attribute name="d_estado" value="'Aprobada'"/>
+					</qry:case>
+					<qry:case value="RZ">
+						<qry:attribute name="d_estado" value="'Rechazada'"/>
+					</qry:case>
+					<qry:case value="AN">
+						<qry:attribute name="d_estado" value="'Anulada'"/>
+					</qry:case>
+					<qry:case value="PU">
+						<qry:attribute name="d_estado" value="'Publicada'"/>
+					</qry:case>
+					<qry:case value="CE">
+						<qry:attribute name="d_estado" value="'Cerrada'"/>
+					</qry:case>
+				</qry:switch>
+				<qry:attribute name="o_evaluado" value="$r/@o_evaluado"/>
+				<qry:attribute name="o_evaluador" value="$r/@o_evaluador"/>
+				<qry:attribute value="format_date($r/@f_evaluacion,'dd/mm/yyyy')" name="f_evaluacion"/>
+				<qry:attribute name="n_resultado" value="$r/@n_resultado"/>
+				<qry:attribute name="n_resultado2" value="$r/@n_resultado2"/>
+				<qry:attribute name="n_resultado3" value="$r/@n_resultado3"/>
+				<qry:attribute name="d_cus1" value="$r/@d_cus1"/>
+				<qry:attribute name="d_cus2" value="$r/@d_cus2"/>
+				<qry:attribute name="d_cus3" value="$r/@d_cus3"/>
+				<qry:attribute name="d_cus4" value="$r/@d_cus4"/>
+				<qry:attribute name="d_cus5" value="$r/@d_cus5"/>
+				<qry:attribute name="oi_empresa" value="$r/@oi_empresa"/>
+				<qry:attribute name="EM_oi_logotipo" value="$r/@EM_oi_logotipo"/>
+				<qry:insert-select name="SQL3" doc-path="$r"/>
+				<qry:insert-select name="SQL2" doc-path="$r"/>
+			</qry:out>
+		</qry:select>
+		<qry:select name="SQL2" doc="SOURCE">
+			<qry:xquery>
+				for $r in SQL('
+		SELECT 
+			PLA.oi_plantilla,
+			EVA.n_ponderacion as EVA_n_ponderacion,
+			EVA.n_resultado as EVA_n_resultado,
+			EVA.n_resultado2 as EVA_n_resultado2,
+			EVA.n_resultado3 as EVA_n_resultado3,
+			EVE.n_ponderacion as EVE_n_ponderacion,
+			EVE.oi_escala,                    
+			max(VAL.n_val_hasta) as EVE_MAX_VAL
+		FROM  
+			ORG29_VAL_ESCALAS as VAL,
+			EDD03_PLANTILLAS as EVA,  
+			EDD02_PLANTILLAS as EVE,
+			EDD01_PLANTILLAS AS PLA
+		JOIN
+			EVA.oi_plantilla_eve INNER EVE.oi_plantilla,
+			PLA.oi_plantilla INNER EVE.oi_plantilla_def,
+		  EVE.oi_escala INNER VAL.oi_escala
+		WHERE
+		  PLA.l_mostrar_res=1 and
+			EVA.oi_evaluacion={#SOURCE:@oi_evaluacion}
+		GROUP BY
+			EVA.n_ponderacion, EVA.n_resultado, EVA.n_resultado2, 
+			EVA.n_resultado3, EVE.n_ponderacion, EVE.oi_escala,
+			PLA.oi_plantilla
+			')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<VAL>
+					<qry:attribute name="oi_plantilla" value="$r/@oi_plantilla"/>
+					<qry:attribute name="POND" value="iif($r/@EVA_n_resultado!='',substring_before(Round(100 * number($r/@EVA_n_ponderacion) * number($r/@EVA_n_resultado) div number($r/@EVE_MAX_VAL) div number(../@MAX)),'.')+'%','')"/>
+					<qry:attribute name="POND2" value="iif($r/@EVA_n_resultado2!='',substring_before(Round(100 * number($r/@EVA_n_ponderacion) * number($r/@EVA_n_resultado2) div number($r/@EVE_MAX_VAL) div number(../@MAX)),'.')+'%','')"/>
+					<qry:attribute name="POND3" value="iif($r/@EVA_n_resultado3!='',substring_before(Round(100 * number($r/@EVA_n_ponderacion) * number($r/@EVA_n_resultado3) div number($r/@EVE_MAX_VAL) div number(../@MAX)),'.')+'%','')"/>
+					<!--qry:attribute name="PARC" value="iif($r/@EVA_n_resultado!='',substring_before(Round(100 * number($r/@EVA_n_resultado) div number($r/@EVE_MAX_VAL)),'.')+'%','')"/>
+					<qry:attribute name="PARC2" value="iif($r/@EVA_n_resultado2!='',substring_before(Round(100 * number($r/@EVA_n_resultado2) div number($r/@EVE_MAX_VAL)),'.')+'%','')"/>
+					<qry:attribute name="PARC3" value="iif($r/@EVA_n_resultado3!='',substring_before(Round(100 * number($r/@EVA_n_resultado3) div number($r/@EVE_MAX_VAL)),'.')+'%','')"/-->
+				</VAL>
+			</qry:out>
+		</qry:select>
+		<qry:select name="SQL3" doc="SOURCE">
+			<qry:xquery>
+				for $r in SQL('
+		SELECT 
+			SUM(EVA.n_ponderacion) as mx
+		FROM 
+			EDD03_PLANTILLAS as EVA,  
+			EDD02_PLANTILLAS as EVE,
+			EDD01_PLANTILLAS as DEF
+		JOIN
+			EVA.oi_plantilla_eve INNER EVE.oi_plantilla,
+			EVE.oi_plantilla_def INNER DEF.oi_plantilla
+		WHERE
+			DEF.l_mostrar_res=1 and
+			EVA.oi_evaluacion={#SOURCE:@oi_evaluacion}
+		')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:attribute name="MAX" value="$r/@mx"/>
+			</qry:out>
+		</qry:select>
+	</html:query>
+	<html:xslt>
+		<xsl:template match="ROWS">
+			<html>
+				<head>
+					<script languaje="javascript">
+						/*function openEvaluacion(ut, oi_evaluacion,reporte,mode) {  
+						window.open("./ReportViewer.aspx?ut="+parent.GetProxy().UserToken()+String.fromCharCode(38)+"file=NucleusRH.Base.Evaluacion2.PLA_Evaluacion2.rpt"+String.fromCharCode(38)+"oi_evaluacion="+oi_evaluacion+String.fromCharCode(38)+"mode="+mode, '', 'channelmode=no,directories=no,fullscreen=no,location=no,menubar=no,resizable=yes,scrollbars=yes,status=no,titlebar=no,toolbar=no,left=0,top=0,width='+(screen.width-12)+',height='+(screen.height-60)); 
+				 	}
+					
+				 	function ObjetoActualizador() {
+				 		this.processResult = function(){
+				 			parent.Ctrl('REFRESH').DoEvent('onclick');
+				 		}
+				 	}*/
+					</script>
+					<style media="print">
+						BODY
+						{
+							background-color: #FFFFFF;
+							font-size: 6pt;
+							font-family: Verdana;
+							color: #000000;
+						}
+						.CABECERA_TITLE
+						{
+							background-color: #FFFFFF;
+             	font-size: 120%;  
+							font-family: Verdana;
+							color: #000000;
+							text-align:left;
+							width:100%;
+							border:none;    
+							padding-top:5px;
+							padding-bottom:5px;
+							
+						}
+						.CABECERA_TITLE TH
+						{
+							font-size: 160%;  
+							text-align:center;
+						}
+						.PLANTILLA
+						{
+							border-collapse:collapse;
+							background-color: #FFFFFF;
+              font-weight:bold;
+							font-size: 100%;  
+							font-family: Verdana;
+							text-align:left;
+							width:100%;
+							border:1px solid black; 
+							
+						}
+						.PLANTILLA TH
+						{
+							font-size: 120%;  
+							text-align:center;
+							font-weight: bold;     
+							border:1px solid black;
+							background-color:#BBBBBB;
+						}
+						.PLANTILLA TD
+						{
+							font-size: 100%;  
+							text-align:center;
+							font-weight: normal;   
+							border:1px solid black;
+						} 
+						.LEG
+						{
+							background-color: #FFFFFF;
+        			font-size: 100%;  
+							font-family: Verdana;
+							color: #000000;
+							text-align:left;
+							width:100%;
+							border:none;    
+							padding-top:3px;
+							padding-bottom:5px;
+							
+						}
+						.EVE
+						{
+							background-color: #FFFFFF;
+              font-size: 100%;  
+							font-family: Verdana;
+							color: #000000;
+							text-align:left;
+							width:100%;
+							border:none;    
+							padding-top:5px;
+							padding-bottom:5px;
+							
+						}
+						
+						screen
+						{      
+							display:none;
+						}
+						td.txt
+						{	
+							font-family:verdana;
+							font-size: 10px;
+							padding: 2px 2px 2px 2px;	
+							text-align: left;
+						}
+						td.PLAN
+						{
+							font-size: 100%;  
+							text-align:center;
+							font-weight: bold;   
+							border:1px solid black;
+							padding: 2px 2px 2px 2px;
+						}
+					</style>
+					<style media="screen">
+						BODY
+						{
+							background-color: #FFFFFF;
+							font-size: 10px;
+							font-family: Verdana;
+							color: #000000;
+						}
+						.CABECERA_TITLE
+						{
+							background-color: #FFFFFF;
+      			  font-size: 12px;  
+							font-family: Verdana;
+							color: #000000;
+							text-align:left;
+							width:100%;
+							border:none;    
+							padding-top:5px;
+							padding-bottom:5px;
+							
+						}
+						.CABECERA_TITLE TH
+						{
+							font-size: 16px;  
+							text-align:center;
+						}
+						.PLANTILLA
+						{
+							border-collapse:collapse;
+							background-color: #FFFFFF;
+              font-weight:bold;
+							font-size: 10px;  
+							font-family: Verdana;
+							text-align:left;
+							width:100%;
+							border:1px solid black; 
+							
+						}
+						.PLANTILLA TH
+						{
+							font-size: 12px;  
+							text-align:center;
+							font-weight: bold;     
+							border:1px solid black;
+							background-color:#BBBBBB;
+						}
+						.PLANTILLA TD
+						{
+							font-size: 10px;  
+							text-align:center;
+							font-weight: normal;   
+							border:1px solid black;
+						}
+						.screen
+						{
+						}  
+						.LEG
+						{
+							background-color: #FFFFFF;
+       				font-size: 10px;  
+							font-family: Verdana;
+							color: #000000;
+							text-align:left;
+							width:100%;
+							border:none;    
+							padding-top:3px;
+							padding-bottom:3px;
+						}	
+						.EVE
+						{
+							background-color: #FFFFFF;
+       				font-size: 10px;  
+							font-family: Verdana;
+							color: #000000;
+							text-align:left;
+							width:100%;
+							border:none;    
+							padding-top:5px;
+							padding-bottom:5px;
+						} 
+						td.txt
+						{	
+							font-family:verdana;
+							font-size: 10px;
+							padding: 2px 2px 2px 2px;	
+							text-align: left;
+						}
+						td.PLAN
+						{
+							font-size: 10px;  
+							text-align:center;
+							font-weight: bold;   
+							border:1px solid black;
+							padding: 2px 2px 2px 2px;
+						}
+					</style>
+					<style media="all">
+						BODY
+						{
+							background-color: #FFFFFF;
+							font-size: 10px;
+							font-family: Verdana;
+							color: #000000;
+						}
+						.CABECERA_TITLE
+						{
+							background-color: #FFFFFF;
+      			  font-size: 12px;  
+							font-family: Verdana;
+							color: #000000;
+							text-align:left;
+							width:100%;
+							border:none;    
+							padding-top:5px;
+							padding-bottom:5px;
+							
+						}
+						.CABECERA_TITLE TH
+						{
+							font-size: 16px;  
+							text-align:center;
+						}
+						.PLANTILLA
+						{
+							border-collapse:collapse;
+							background-color: #FFFFFF;
+              font-weight:bold;
+							font-size: 10px;  
+							font-family: Verdana;
+							text-align: center;
+							width:100%;
+							border:1px solid black; 
+							
+						}
+						.PLANTILLA TH
+						{
+							font-size: 12px;  
+							text-align:center;
+							font-weight: bold;     
+							border:1px solid black;
+							background-color:#BBBBBB;
+						}
+						.PLANTILLA TD
+						{
+							font-size: 10px;  
+							text-align:center;
+							font-weight: normal;   
+							border:1px solid black;
+						}
+						.screen
+						{
+						}  
+						.LEG
+						{
+							background-color: #FFFFFF;
+       				font-size: 10px;  
+							font-family: Verdana;
+							color: #000000;
+							text-align:left;
+							
+							border:none;    
+							padding-top:3px;
+							padding-bottom:3px;
+						}	
+						.EVE
+						{
+							background-color: #FFFFFF;
+       				font-size: 10px;  
+							font-family: Verdana;
+							color: #000000;
+							text-align:left;
+							
+							border:none;    
+							padding-top:5px;
+							padding-bottom:5px;
+						} 
+						td.txt
+						{	
+							font-family:verdana;
+							font-size: 10px;
+							padding: 2px 2px 2px 2px;	
+							text-align: left;
+						}
+						td.PLAN
+						{
+							font-size: 10px;  
+							text-align:center;
+							font-weight: bold;   
+							border:1px solid black;
+							padding: 2px 2px 2px 2px;
+						}
+					</style>
+				</head>
+				<body>
+					<table class="CABECERA_TITLE" CELLPADDING="0" CELLSPACING="0">
+						<tr>
+							<th>
+								Reporte de Evaluaciones por Legajo
+							</th>
+						</tr>
+						<tr>
+							<td style="font-size:10pt">
+								<b>
+									Empresa:&#160;
+								</b>
+								<xsl:value-of select="concat('[',@c_empresa,'] ',@d_empresa)"/>
+							</td>
+						</tr>
+					</table>
+					<xsl:for-each select="LEGAJO">
+						<br/>
+						<table class="LEG" CELLPADDING="0" CELLSPACING="0">
+							<tr>
+								<td style="font-size:10pt">
+									<b>
+										Legajo:&#160;
+									</b>
+									<xsl:value-of select="concat('[',@e_numero_legajo,'] ',@d_ape_y_nom)"/>
+								</td>
+							</tr>
+							<xsl:for-each select="EVENTO">
+								<table class="EVE" CELLPADDING="2" CELLSPACING="2">
+									<tr>
+										<br/>
+										<td style="font-size:8pt">
+											<b>
+												Evento Evaluativo:&#160;
+											</b>
+											<xsl:value-of select="concat('[',@c_evento,'] ',@d_evento)"/>
+										</td>
+									</tr>
+									<tr>
+										<td style="font-size:8pt">
+											<b>
+												Evaluaci&#243;n
+											</b>
+										</td>
+									</tr>
+									<table class="PLANTILLA" CELLPADDING="0" CELLSPACING="0">
+										<tr>
+											<th rowspan="2" style="width:200px">
+												Validador
+											</th>
+											<th rowspan="2" class="PLAN" style="width:200px">
+												Evaluador
+											</th>
+											<th rowspan="2" class="PLAN" style="width:200px">
+												Unidad Organizativa Evaluado
+											</th>
+											<th rowspan="2" style="width:200px">
+												Posici&#243;n Evaluado
+											</th>
+											<th rowspan="2" style="width:80px">
+												Estado Evaluaci&#243;n
+											</th>
+											<xsl:for-each select="/ROWS/PLA">
+												<xsl:if test="@d_plantilla!=''">
+													<th colspan="3">
+														<xsl:value-of select="@d_plantilla"/>
+													</th>
+												</xsl:if>
+											</xsl:for-each>
+										</tr>
+										<tr>
+											<xsl:for-each select="/ROWS/PLA">
+												<xsl:if test="@d_plantilla!=''">
+													<th style="font-weight: normal;font-size: 10px;">
+														Resultado Evaluaci&#243;n
+													</th>
+													<th style="font-weight: normal;font-size: 10px;">
+														Resultado Autoevaluaci&#243;n
+													</th>
+													<th style="font-weight: normal;font-size: 10px;">
+														Resultado Supervisi&#243;n
+													</th>
+												</xsl:if>
+											</xsl:for-each>
+										</tr>
+										<xsl:apply-templates select="REPORT">
+											<xsl:with-param name="PARAM" select="REPORT"/>
+										</xsl:apply-templates>
+									</table>
+								</table>
+							</xsl:for-each>
+						</table>
+					</xsl:for-each>
+				</body>
+			</html>
+		</xsl:template>
+		<xsl:template match="REPORT">
+			<xsl:param name="PARAM"/>
+			<tr style="cursor:pointer;">
+				<!--<xsl:attribute name="onclick">
+	<xsl:value-of select="concat('javascript:openEvaluacion(&quot;', @ut, '&quot;,&quot;', @oi_evaluacion,'&quot;,&quot;', @d_reporte,'&quot;,&quot;SHOW&quot;)')"/>
+</xsl:attribute>-->
+				<td class="txt">
+					<xsl:value-of select="@S_text"/>
+				</td>
+				<td class="txt">
+					<xsl:value-of select="@J_text"/>
+				</td>
+				<td class="txt">
+					<xsl:value-of select="@E_unidad"/>
+				</td>
+				<td class="txt">
+					<xsl:value-of select="@E_posicion"/>
+				</td>
+				<td class="txt" style="text-align:center;">
+					<xsl:value-of select="@d_estado"/>
+				</td>
+				<xsl:for-each select="/ROWS/PLA">
+					<xsl:variable name="PLA" select="."/>
+					<td style="text-align:center;" class="txt">
+						<xsl:value-of select="$PARAM/VAL[@oi_plantilla=$PLA/@oi_plantilla]/@POND"/>
+					</td>
+					<td style="text-align:center;" class="txt">
+						<xsl:value-of select="$PARAM/VAL[@oi_plantilla=$PLA/@oi_plantilla]/@POND2"/>
+					</td>
+					<td style="text-align:center;" class="txt">
+						<xsl:value-of select="$PARAM/VAL[@oi_plantilla=$PLA/@oi_plantilla]/@POND3"/>
+					</td>
+				</xsl:for-each>
+			</tr>
+		</xsl:template>
+	</html:xslt>
+</html:html>

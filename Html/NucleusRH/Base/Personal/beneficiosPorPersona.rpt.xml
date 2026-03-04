@@ -1,0 +1,177 @@
+<html:html xmlns:html="nomad_engine.html" xmlns:qry="nomad_engine.qry" extends="Nomad.Base.BaseReport.rpt" doc="source" name="NucleusRH.Base.Liquidacion.NovedadesLiquidacion">
+	<html:query declare="&lt;DATOS salida=&quot;HTML&quot; f_desde=&quot;20090202&quot; f_hasta=&quot;20090302&quot;&#9;report=&quot;&quot;&gt;&#13;&#10;      &lt;ROWS nmd-col=&quot;1&quot;&gt;&#13;&#10;          &lt;!--ROW id=&quot;1350&quot; /&gt;&#13;&#10;          &lt;ROW id=&quot;1&quot; /&gt;&#13;&#10;          &lt;ROW id=&quot;2&quot; /&gt;&#13;&#10;          &lt;ROW id=&quot;4&quot; /--&gt;&#13;&#10;      &lt;/ROWS&gt;&#13;&#10;&lt;/DATOS&gt;">
+		<qry:main doc="SOURCE">
+			<qry:append-doc name="PARAMIN" doc-path="#SOURCE:DATOS"/>
+			<REPORT label="Beneficios de los Legajos">
+				<qry:attribute name="date" value="format_date(Now(),'dd/mm/yyyy HH:MM')"/>
+				<GROUPS>
+					<GROUP tag="REP" type="title">
+						<COLS>
+							<COL name="f_desde" label="Fecha Desde" type="date"/>
+							<COL name="f_hasta" label="Fecha Hasta" type="date"/>
+						</COLS>
+						<GROUP tag="TIPOS" type="title_collapse">
+							<COLS>
+								<COL name="TipoBENEf" label="Tipo de Beneficio"/>
+							</COLS>
+							<GROUP tag="BENEFICIOS" style="padding-left:50px;" type="title_collapse" noreg="No se encontraron registros para los filtros seleccionados.">
+								<COLS>
+									<COL name="c_beneficio" label="Beneficio" style=""/>
+								</COLS>
+								<GROUP tag="PERSONAS" style="padding-left:50px;" type="table" noreg="No se encontraron registros para los filtros seleccionados.">
+									<COLS>
+										<COL name="Empresa" label="Empresa" style="width:10%"/>
+										<COL name="e_numero_legajo" label="Legajo" style="width:10%"/>
+										<COL name="d_ape_y_nom" label="Apellido y Nombre" style="width:10%"/>
+										<COL name="d_posicion" label="Puesto - Posicion" style="width:20%"/>
+										<COL name="d_categoria" label="Convenio - Categoria" style="width:20%"/>
+										<COL name="f_desde" label="Fecha Desde" style="width:10%" type="date"/>
+										<COL name="f_hasta" label="Fecha Hasta" style="width:10%" type="date"/>
+										<COL label="Valor" name="n_valor" type="num" style="width:10%"/>
+									</COLS>
+								</GROUP>
+							</GROUP>
+						</GROUP>
+					</GROUP>
+				</GROUPS>
+				<qry:element name="DATA">
+					<qry:element name="REP">
+						<qry:attribute name="f_desde" value="iif(#PARAMIN:@f_desde!='',format_date(#PARAMIN:@f_desde, 'dd/mm/yyyy'), '-')"/>
+						<qry:attribute name="f_hasta" value="iif(#PARAMIN:@f_hasta!='',format_date(#PARAMIN:@f_hasta, 'dd/mm/yyyy'), '-')"/>
+						<qry:insert-select name="qry_cabecera"/>
+					</qry:element>
+				</qry:element>
+			</REPORT>
+		</qry:main>
+		<qry:select name="qry_cabecera" doc="SOURCE">
+			<qry:xquery>
+				for $r in sql('
+				SELECT
+	ORG10_TIPOS_BENEF.oi_tipo_benef,
+	ORG10_TIPOS_BENEF.c_tipo_benef,
+	ORG10_TIPOS_BENEF.d_tipo_benef
+FROM
+	ORG10_TIPOS_BENEF as ORG10_TIPOS_BENEF
+				where 1=1
+				{%? (#PARAMIN:@oi_tipo_benef!='')	{% AND ORG10_TIPOS_BENEF.oi_tipo_benef = {%= #PARAMIN:@oi_tipo_benef %} %} {% %} %}
+				ORDER BY c_tipo_benef ASC
+			')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:element name="TIPOS">
+					<qry:attribute name="hts:delete" value="1"/>
+					<qry:attribute name="TipoBENEf" value="$r/@c_tipo_benef + ' - ' + $r/@d_tipo_benef" type="Nomad.NSystem.String"/>
+					<qry:insert-select doc-path="$r" name="qry_bene"/>
+				</qry:element>
+			</qry:out>
+		</qry:select>
+		<qry:select name="qry_bene" doc="SOURCE">
+			<qry:xquery>
+				for $r in sql(' 
+SELECT
+  ORG23_BENEFICIOS.oi_beneficio,
+  ORG23_BENEFICIOS.c_beneficio,
+  ORG23_BENEFICIOS.d_beneficio
+FROM
+  ORG23_BENEFICIOS as ORG23_BENEFICIOS
+where
+  ORG23_BENEFICIOS.oi_tipo_benef = {#SOURCE:@oi_tipo_benef} 
+  {%? (#PARAMIN:@oi_beneficio!='') {% AND ORG23_BENEFICIOS.oi_beneficio = {%= #PARAMIN:@oi_beneficio %} %} {% %} %}
+ORDER BY 
+  c_beneficio ASC
+				
+				')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:element name="BENEFICIOS">
+					<qry:attribute name="c_beneficio" value="$r/@c_beneficio + ' - ' + $r/@d_beneficio" type="Nomad.NSystem.Int"/>
+					<qry:attribute name="hts:delete" value="1"/>
+					<qry:insert-select doc-path="$r" name="qry_per"/>
+				</qry:element>
+				<qry:attribute name="hts:delete" value="0"/>
+			</qry:out>
+		</qry:select>
+		<qry:select name="qry_per" doc="SOURCE">
+			<qry:xquery>
+				for $r in sql(' 
+				SELECT
+	PER02_BENEF_PER.oi_beneficio,
+	per02_personal_emp.e_numero_legajo,
+  PER01_PERSONAL.d_ape_y_nom,
+	PER02_BENEF_PER.f_desde,
+	PER02_BENEF_PER.f_hasta,	
+	ORG04_POSICIONES.oi_puesto,
+	ORG04_POSICIONES.d_posicion,
+	ORG18_CATEGORIAS.d_categoria,
+	ORG18_CATEGORIAS.oi_convenio,
+	PER02_BENEF_PER.n_valor, ORG03_EMPRESAS.d_empresa
+FROM
+	PER02_BENEF_PER, 
+	PER02_PERSONAL_EMP, 
+	PER01_PERSONAL,
+	ORG04_POSICIONES, ORG18_CATEGORIAS, ORG03_EMPRESAS
+	
+JOIN
+ 	PER02_BENEF_PER.oi_personal_emp INNER  PER02_PERSONAL_EMP.oi_personal_emp,
+PER02_PERSONAL_EMP.oi_personal INNER  PER01_PERSONAL.oi_personal,
+PER02_PERSONAL_EMP.oi_posicion_ult LEFT OUTER ORG04_POSICIONES.oi_posicion,
+PER02_PERSONAL_EMP.oi_categoria_ult LEFT OUTER ORG18_CATEGORIAS.oi_categoria  ,
+PER02_PERSONAL_EMP.oi_empresa INNER ORG03_EMPRESAS.oi_empresa
+WHERE	      
+				PER02_BENEF_PER.oi_beneficio = {%=#SOURCE:@oi_beneficio%}
+				{%?(#PARAMIN:@f_desde != '') {% AND (PER02_BENEF_PER.f_hasta &gt; {datetime(#PARAMIN:@f_desde)} 
+																			 OR ISNULL(PER02_BENEF_PER.f_hasta)) %} {% %} %}
+				{%?(#PARAMIN:@f_hasta != '') {% AND PER02_BENEF_PER.f_desde &lt; {datetime(#PARAMIN:@f_hasta)} %} {% %} %}
+				
+				ORDER BY e_numero_legajo ASC
+			')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:element name="PERSONAS">
+					<qry:attribute name="Empresa" value="$r/@d_empresa"/>
+					<qry:attribute name="e_numero_legajo" value="$r/@e_numero_legajo"/>
+					<qry:attribute name="d_ape_y_nom" value="$r/@d_ape_y_nom"/>
+					<qry:attribute name="f_desde" value="format_date($r/@f_desde,'dd/mm/yyyy')"/>
+					<qry:attribute name="f_hasta" value="format_date($r/@f_hasta,'dd/mm/yyyy')"/>
+					<qry:attribute name="n_valor" value="$r/@n_valor"/>
+					<qry:insert-select doc-path="$r" name="qry_puesto"/>
+					<qry:attribute name="d_posicion" value="@d_posicion1 + $r/@d_posicion"/>
+					<qry:insert-select doc-path="$r" name="qry_convenio"/>
+					<qry:attribute name="d_categoria" value="@d_categoria1 + $r/@d_categoria"/>
+				</qry:element>
+				<qry:attribute name="hts:delete" value="0"/>
+			</qry:out>
+		</qry:select>
+		<qry:select name="qry_convenio" doc="SOURCE">
+			<qry:xquery>
+				for $r in sql(' 
+SELECT
+	ORG18_CONVENIOS.d_convenio
+FROM
+	ORG18_CONVENIOS
+WHERE ORG18_CONVENIOS.oi_convenio = {#SOURCE:@oi_convenio} 
+				
+				')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:attribute name="d_categoria1" value="$r/@d_convenio + ' - '"/>
+			</qry:out>
+		</qry:select>
+		<qry:select name="qry_puesto" doc="SOURCE">
+			<qry:xquery>
+				for $r in sql(' 
+SELECT
+	ORG04_PUESTOS.d_puesto
+FROM
+	ORG04_PUESTOS
+WHERE 
+	ORG04_PUESTOS.oi_puesto = {#SOURCE:@oi_puesto} 
+				
+				')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:attribute name="d_posicion1" value="$r/@d_puesto + ' - '"/>
+			</qry:out>
+		</qry:select>
+	</html:query>
+</html:html>

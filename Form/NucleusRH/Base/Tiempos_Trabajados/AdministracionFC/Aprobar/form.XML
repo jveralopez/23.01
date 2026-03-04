@@ -1,0 +1,235 @@
+<form:Form xmlns:form="nomad_engine.form" xmlns:qry="nomad_engine.qry" name="NucleusRH.Base.Tiempos_Trabajados.AdministracionFC.Aprobar.form" mess="&#191;Est&#225; seguro que desa cancelar la operaci&#243;n?" doc="source">
+	<form:Title width="90%">
+		<form:RowAligner name="ralTitle">
+			<form:Row name="row1">
+				<form:Label nowrap="1" align="center" visible="SHOW|LIST|LIST_EDIT" style="S3 LCol_w" label="Aprobaci&#243;n de Francos Compensatorios" name="GEN_SHOW"/>
+			</form:Row>
+		</form:RowAligner>
+	</form:Title>
+	<form:Center width="95%">
+		<form:Columns name="columnas">
+			<form:Column separation="10" name="col1" align="left" valign="top">
+				<form:ListView width="550" paging="1" rows="15" docname="RS" name="LIST">
+					<form:Event action="ListClick" name="OnClick" runat="client"/>
+					<form:LVColumns>
+						<form:LVColumn additional="&lt;fk action=&quot;X2C&quot; flow=&quot;NucleusRH.Base.Tiempos_Trabajados.Personal.PERSONAL_EMP.guia.autoflow&quot; /&gt;" align="left" sorteable="1" width="50px" type="fk" label="Legajo" attrname="oi_personal_emp" name="oi_personal_emp"/>
+						<form:LVColumn label="Banco de Horas" align="left" sorteable="1" width="40px" type="string" attrname="oi_banco_hora" name="oi_banco_hora"/>
+						<form:LVColumn label="Por Aprobar" additional="###,###,##0" align="right" sorteable="1" width="50px" type="number" attrname="n_saldo" name="n_saldo"/>
+					</form:LVColumns>
+				</form:ListView>
+			</form:Column>
+			<form:Column separation="10" align="right" name="col2" valign="top">
+				<form:Grid rows="10" allowdel="0" allownew="0" paging="1" name="MAIN_GRID">
+					<form:GColumns>
+						<form:GColumn name="gcolsel">
+							<form:CheckBox name="l_aprueba">
+								<form:Event action="Aprobar" name="onclick" runat="client"/>
+							</form:CheckBox>
+						</form:GColumn>
+						<form:GColumn name="gcol_fecha">
+							<form:DateTime enabled="0" pattern="YYYYMMDD" label="Fecha" name="f_registro_fc"/>
+						</form:GColumn>
+						<form:GColumn name="gcol_saldo">
+							<form:NumberBox enabled="0" label="Total" name="n_saldo"/>
+						</form:GColumn>
+						<form:GColumn name="gcol_cant_aprob">
+							<form:NumberBox label="A aprobar" name="n_cant_aprob">
+								<form:Event action="Aprobar" name="onchange" runat="client"/>
+							</form:NumberBox>
+						</form:GColumn>
+						<form:GColumn name="gcol_cant_aprob_ant">
+							<form:NumberBox label="Anterior" name="n_cant_aprob_ant" enabled="0"/>
+						</form:GColumn>
+					</form:GColumns>
+				</form:Grid>
+				<form:HiddenArr descrip="Carga los ids de los registros de la grilla" nvalue="#source:IDS" name="ids" proto="&lt;ROW id=&quot;1&quot;/&gt;">
+					<form:Attr name="id"/>
+				</form:HiddenArr>
+				<form:HiddenArr proto="&lt;ROW id=&quot;1&quot; n_cant_aprob=&quot;1&quot; n_saldo=&quot;1&quot;/&gt;" descrip="Carga los registros completos aprobados" nvalue="#source:APROBADOS" name="aprobados">
+					<form:Attr name="id"/>
+					<form:Attr name="n_cant_aprob"/>
+					<form:Attr name="n_saldo"/>
+				</form:HiddenArr>
+			</form:Column>
+		</form:Columns>
+		<form:Hidden nvalue="#source:@f_desde" name="f_desde"/>
+		<form:Hidden nvalue="#source:@f_hasta" name="f_hasta"/>
+	</form:Center>
+	<form:Bottom>
+		<form:RowAligner name="buttonlinks">
+			<form:Row name="row1">
+				<form:Button name="APROBAR" policy="NucleusRH/Base/Tiempos_Trabajados/AdministracionFC/EDIT" visible="SHOW|LIST" descrip="Aprobar" img="ok" label="Aprobar">
+					<form:Event action="Validar" name="onclick" runat="client"/>
+					<form:Event action="APROBAR" name="onclick" runat="server"/>
+				</form:Button>
+				<form:Button label="Cancelar" name="CANCELAR" img="cancel" policy="NucleusRH/Base/Tiempos_Trabajados/AdministracionFC/NEW" visible="SHOW|LIST" descrip="Cancelar">
+					<form:Event action="CANCELAR" name="onclick" runat="server"/>
+				</form:Button>
+			</form:Row>
+		</form:RowAligner>
+	</form:Bottom>
+	<form:Scripts>
+		function ListClick()
+{         
+	// Limpia la grilla actual para pasar al Legajo-Banco Seleccionado
+	Ctrl('MAIN_GRID').DelAllRows();
+	Ctrl('ids').DelAllRow();   
+	var i=0;      
+	
+	// Completa los parametros para hacer el qry
+	var param= new NomadXML("PARAM");
+	param.SetAttr("oi_registro_fc",Ctrl("LIST").GetSelectAttrValue("id"));
+	param.SetAttr("f_desde",Ctrl("f_desde").GetXValue());
+	param.SetAttr("f_hasta",Ctrl("f_hasta").GetXValue());                         
+	            
+	// Realiza el Query para obtener los Registros FC correspondientes al Legajo-Banco seleccionado
+	var np = new NomadProxy("", ut);
+	var nSQL = np.SQLService();
+	var xmlRegistros = nSQL.GetXML(Ctrl("main").getResource("QRY_REGISTROS"), param.ToString());
+                                                                                  
+    // Completa la grilla con todos los Registros FC del Legajo-Banco                                                                            
+	for (registro = xmlRegistros.FirstChild(); registro != null; registro = registro.Next()) 
+		{
+			Ctrl('MAIN_GRID').AddNew(); 
+			Ctrl('ids').AddRow().SetAttr('id', registro.GetAttr("oi_registro_fc"));         
+			Ctrl('MAIN_GRID').GetCellControl('f_registro_fc',i).SetXValue(registro.GetAttr("f_registro_fc"));
+			Ctrl('MAIN_GRID').GetCellControl('n_saldo',i).SetXValue(registro.GetAttr("n_saldo"));
+			Ctrl('MAIN_GRID').GetCellControl('n_cant_aprob_ant',i).SetXValue(registro.GetAttr("n_cant_aprob_ant"));
+			// Si esta aprobado actualiza la informaci&#243;n del campo con la que esta guardada en la lista de aprobados
+			if(Ctrl('aprobados').GetRowByAttr("id",registro.GetAttr("oi_registro_fc"))!=null) 
+				{                           
+				Ctrl('MAIN_GRID').GetCellControl('l_aprueba',i).SetXValue("1");
+				Ctrl('MAIN_GRID').GetCellControl('n_cant_aprob',i).SetXValue(Ctrl('aprobados').GetRowByAttr("id",registro.GetAttr("oi_registro_fc")).GetAttr("n_cant_aprob"));	
+				Ctrl('MAIN_GRID').GetCellControl('n_saldo',i).SetXValue(Ctrl('aprobados').GetRowByAttr("id",registro.GetAttr("oi_registro_fc")).GetAttr("n_saldo"));
+				}
+			i++;	
+		}
+                                   
+}            
+
+function OnLoad()
+{
+	ListClick();
+}           
+     
+function Aprobar()
+{           
+	// Recorre la Grilla
+	for(i=0; i&lt;Ctrl('MAIN_GRID').TotalRowsCount(); i++)
+	{              
+		// Revisa si figura como aprobado o no
+		if(Ctrl('MAIN_GRID').GetCellXValue('l_aprueba',i)=='1')
+			{  
+				// Actualiza el registro en aprobados
+				if(Ctrl('aprobados').GetRowByAttr("id",Ctrl('ids').GetRow(i).GetAttr("id").toString())!=null) 
+					Ctrl('aprobados').GetRowByAttr("id",Ctrl('ids').GetRow(i).GetAttr("id").toString()).SetAttr('n_cant_aprob',Ctrl('MAIN_GRID').GetCellXValue('n_cant_aprob',i));
+				// Agrega registro en aprobados
+				else
+					{
+					Ctrl('aprobados').AddRow().SetAttr('id', Ctrl('ids').GetRow(i).GetAttr("id").toString());  
+					Ctrl('aprobados').GetRowByAttr("id",Ctrl('ids').GetRow(i).GetAttr("id").toString()).SetAttr('n_cant_aprob',Ctrl('MAIN_GRID').GetCellXValue('n_cant_aprob',i)); 
+					Ctrl('aprobados').GetRowByAttr("id",Ctrl('ids').GetRow(i).GetAttr("id").toString()).SetAttr('n_saldo',Ctrl('MAIN_GRID').GetCellXValue('n_saldo',i));
+					}
+			}  
+					// Elimina el registro en aprobados
+			else if(Ctrl('aprobados').GetRowByAttr("id",Ctrl('ids').GetRow(i).GetAttr("id").toString())!=null)
+					Ctrl('aprobados').DelRowByAttr("id",Ctrl('ids').GetRow(i).GetAttr("id").toString()); 
+			 
+	}       
+
+}
+   
+function Validar()
+{
+	// Valida que tenga al menos un Registro FC para aprobar
+	if(Ctrl('aprobados').CountRow()==0)
+		{
+			alert("Debe seleccionar al menos un registro para aprobar y completar la cantidad a aprobar del mismo.");
+			return false;
+		} 
+		
+	// Por cada registro aprobado
+	for(i=0; i&lt;Ctrl('aprobados').CountRow(); i++)
+	{       
+			//Si la cantidad a aprobar esta vacia
+			if(Ctrl('aprobados').GetRow(i).GetAttr('n_cant_aprob')=='')
+				{
+					alert("Debe completar la cantidad a aprobar en todos los registros aprobados.");  
+					return false;
+				}
+					 //Si la cantidad a aprobar es menor o igual a 0
+				else if(Ctrl('aprobados').GetRow(i).GetAttr('n_cant_aprob')&lt;=0)
+						{
+							alert("La cantidad a aprobar debe ser mayor a 0 en todos los registros aprobados.");  
+							return false;
+						} 
+							//Si la cantidad a aprobar es mayor al total del registro
+						else if(parseInt(Ctrl('aprobados').GetRow(i).GetAttr('n_cant_aprob'))&gt;parseInt(Ctrl('aprobados').GetRow(i).GetAttr('n_saldo')))
+								{	   
+								alert("La cantidad a aprobar no debe superar al total para todos los registros aprobados.");  
+								return false;
+								} 
+				 
+	} 
+	
+	return true;
+}
+	</form:Scripts>
+	<form:Resources>
+		<form:Resource declare="&lt;PARAM oi_registro_fc=&quot;1&quot; f_desde=&quot;20150101&quot; f_hasta=&quot;20170101&quot;/&gt;" name="QRY_REGISTROS">
+			<qry:main doc="SOURCE" name="">
+				<qry:element name="RESULT">
+					<qry:insert-select name="RS1" doc-path="#SOURCE:PARAM"/>
+				</qry:element>
+			</qry:main>
+			<qry:select doc="SOURCE" name="RS1">
+				<qry:xquery>
+					for $r in SQL('
+				SELECT
+					TTA20_REGISTRO_FC.oi_personal_emp,
+					TTA20_REGISTRO_FC.oi_banco_hora
+				FROM
+					TTA20_REGISTRO_FC
+				WHERE
+					TTA20_REGISTRO_FC.oi_registro_fc = {#SOURCE:@oi_registro_fc}
+			')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:attribute name="oi_personal_emp" value="$r/@oi_personal_emp"/>
+					<qry:attribute name="oi_banco_hora" value="$r/@oi_banco_hora"/>
+					<qry:attribute name="f_desde" value="#SOURCE:@f_desde"/>
+					<qry:attribute name="f_hasta" value="#SOURCE:@f_hasta"/>
+					<qry:insert-select name="RS2" doc-path="."/>
+				</qry:out>
+			</qry:select>
+			<qry:select doc="SOURCE" name="RS2">
+				<qry:xquery>
+					for $r in SQL('
+				SELECT
+					TTA20_REGISTRO_FC.oi_registro_fc,
+					TTA20_REGISTRO_FC.f_registro_fc,
+					TTA20_REGISTRO_FC.n_saldo,
+					TTA20_REGISTRO_FC.n_cant_aprob_ant
+				FROM
+					TTA20_REGISTRO_FC
+				WHERE 
+					TTA20_REGISTRO_FC.l_aprob=0
+					AND TTA20_REGISTRO_FC.oi_personal_emp = {#SOURCE:@oi_personal_emp}  
+					AND TTA20_REGISTRO_FC.oi_banco_hora = {#SOURCE:@oi_banco_hora}
+					AND TTA20_REGISTRO_FC.f_registro_fc &gt;= {Datetime(#SOURCE:@f_desde)} 
+					AND TTA20_REGISTRO_FC.f_registro_fc &lt;= {Datetime(#SOURCE:@f_hasta)}
+			')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<REGISTRO>
+						<qry:attribute name="oi_registro_fc" value="$r/@oi_registro_fc"/>
+						<qry:attribute name="f_registro_fc" value="$r/@f_registro_fc"/>
+						<qry:attribute name="n_saldo" value="$r/@n_saldo"/>
+						<qry:attribute name="n_cant_aprob_ant" value="$r/@n_cant_aprob_ant"/>
+					</REGISTRO>
+				</qry:out>
+			</qry:select>
+		</form:Resource>
+	</form:Resources>
+	<form:Event action="OnLoad" name="onload" runat="client"/>
+</form:Form>

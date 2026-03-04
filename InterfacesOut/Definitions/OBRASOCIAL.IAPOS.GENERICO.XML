@@ -1,0 +1,120 @@
+<INTERFACE-DEF xmlns:qry="nomad_engine.qry" code="" desc="" entermode="DOS" finalenter="1">
+	<QUERY declare="&lt;DATA c_empresa=&quot;TadeoCZ&quot; oi_obra_social=&quot;35&quot; interface=&quot;IAPOS&quot; p_periodo=&quot;200802&quot;&gt;&#13;&#10;&#9;&lt;LIQS&gt;&#13;&#10;&#9;&#9;&lt;aROW id=&quot;3&quot; /&gt;&#13;&#10;&#9;&lt;/LIQS&gt;&#13;&#10;&lt;/DATA&gt;">
+		<qry:main doc="SOURCE">
+			<qry:element name="DATA">
+				<qry:element name="DETAILS">
+					<qry:insert-select name="qryDetail" doc-path="#SOURCE:DATA"/>
+					<qry:insert-select name="qryDetail-ADDreg" doc-path=".[@ultpersona !='']"/>
+				</qry:element>
+			</qry:element>
+		</qry:main>
+		<qry:select name="qryDetail" doc="SOURCE">
+			<qry:xquery>
+				for $r in SQL('
+SELECT
+	LIQ97_P.c_tipo_documento,
+	LIQ97_P.c_nro_documento, 
+	LIQ97_P.d_ape_y_nom, 
+	LCASE(LIQ20_V.c_variable) as c_variable,
+	LIQ97_P.c_sexo,  
+	LIQ97_P.e_numero_legajo,
+	
+	LIQ20_V.n_valor_s, 
+	LIQ96_C.c_tipo_concepto, 
+	LIQ99_L.oi_empresa_ddo, 
+	LIQ99_L.e_periodo, 
+	LIQ99_L.c_estado
+
+FROM
+	LIQ19_LIQUIDACION as LIQ,
+	LIQ19_EJECUCIONES as liq19_e,
+	LIQ93_EMPRESAS as EMP,
+	LIQ20_CONC_LIQ_PER as LIQ20_C, 
+	LIQ20_TOT_LIQ_PER as LIQ20_T,
+	LIQ20_VAR_LIQ_CONC as LIQ20_V,
+	LIQ99_RECIBOS as LIQ99_R, 
+	LIQ99_LIQUIDACION as LIQ99_L,
+	LIQ97_PERSONAL_EMP as LIQ97_P, 
+	LIQ96_CONCEPTOS as LIQ96_C,
+	PER06_OBRAS_SOC as PER06_OS
+
+JOIN 
+	LIQ.oi_liquidacion INNER liq19_e.oi_liquidacion,
+	liq19_e.oi_liquidacion_ddo INNER LIQ99_L.oi_liquidacion_ddo,
+	LIQ99_L.oi_empresa_ddo  INNER EMP.oi_empresa_ddo,
+	LIQ20_C.oi_tot_liq_per INNER LIQ20_T.oi_tot_liq_per,
+	LIQ20_C.oi_conc_liq_per INNER LIQ20_V.oi_conc_liq_per,
+	LIQ99_R.oi_liquidacion_ddo INNER LIQ99_L.oi_liquidacion_ddo,
+	LIQ20_T.oi_tot_liq_per INNER LIQ99_R.oi_tot_liq_per,
+	LIQ20_T.oi_per_emp_ddo INNER LIQ97_P.oi_per_emp_ddo,
+	LIQ20_C.oi_concepto_ddo INNER LIQ96_C.oi_concepto_ddo,
+	LIQ97_P.c_obra_social INNER PER06_OS.c_obra_social
+
+WHERE LIQ96_C.c_concepto = \'99999997\'
+	AND LIQ.oi_empresa = {#SOURCE:@oi_empresa}
+	AND LIQ99_L.e_periodo = {#SOURCE:@p_periodo}
+	AND LIQ99_L.c_estado = \'F\'
+	AND PER06_OS.oi_obra_social = {#SOURCE:@oi_obra_social}
+
+	{%? (string(#SOURCE:LIQS/ROW/@id)!='') {% AND liq19_e.oi_liquidacion in ({%=string(#SOURCE:LIQS/ROW/@id) %}) %} {% %} %}
+	{%? (#SOURCE:@f_cierre!='') {% AND ISNOTNULL(LIQ99_L.f_cierre) %} {% %} %}
+
+ORDER BY e_numero_legajo ASC
+')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:insert-select name="qryDetail-ADDreg" doc-path=".[@ultpersona != $r/@e_numero_legajo AND @ultpersona !='']"/>
+				<qry:attribute name="e_numero_legajo" value="$r/@e_numero_legajo"/>
+				<qry:attribute name="c_tipo_documento" value="$r/@c_tipo_documento"/>
+				<qry:attribute name="c_nro_documento" value="$r/@c_nro_documento"/>
+				<qry:attribute name="d_ape_y_nom" value="$r/@d_ape_y_nom"/>
+				<qry:attribute name="c_sexo" value="$r/@c_sexo"/>
+				<qry:attribute name="sitrevista" value="IIF($r/@c_variable = 'vs_iapossitrevista', $r/@n_valor_s, ./@sitrevista)"/>
+				<qry:attribute name="totHabDesc" value="IIF($r/@c_variable = 'vs_iaposremunerativo', NUMBER(./@totHabDesc) + IIF(./@oi_tot_liq_per = $r/@oi_tot_liq_per, NUMBER($r/@n_valor_s), 0), ./@totHabDesc)"/>
+				<qry:attribute name="porcenDesc" value="IIF($r/@c_variable = 'vs_iaposporcentaje', $r/@n_valor_s, ./@porcenDesc)"/>
+				<qry:attribute name="importeDesc" value="IIF($r/@c_variable = 'vs_iaposimporte', NUMBER(./@importeDesc) + IIF(./@oi_tot_liq_per = $r/@oi_tot_liq_per, NUMBER($r/@n_valor_s), 0), ./@importeDesc)"/>
+				<qry:attribute name="importeServCom" value="IIF($r/@c_variable = 'vs_iaposservicioscomp', NUMBER(./@importeServCom) + IIF(./@oi_tot_liq_per = $r/@oi_tot_liq_per, NUMBER($r/@n_valor_s), 0), ./@importeServCom)"/>
+				<qry:attribute name="afiliados" value="IIF($r/@c_variable = 'vs_iaposafiliados', NUMBER(./@afiliados) + IIF(./@oi_tot_liq_per = $r/@oi_tot_liq_per, NUMBER($r/@n_valor_s), 0), ./@afiliados)"/>
+				<qry:attribute name="ultpersona" value="$r/@e_numero_legajo"/>
+				<qry:attribute name="aportes" value="IIF($r/@c_variable = 'vs_iaposaportes', NUMBER(./@aportes) + IIF(./@oi_tot_liq_per = $r/@oi_tot_liq_per, NUMBER($r/@n_valor_s), 0), ./@aportes)"/>
+				<qry:attribute name="oi_tot_liq_per" value="$r/@oi_tot_liq_per"/>
+			</qry:out>
+		</qry:select>
+		<qry:select name="qryDetail-ADDreg" doc="SOURCE">
+			<qry:out>
+				<qry:element name="DETAIL">
+					<qry:attribute name="rowdesc" value="#SOURCE:/@d_ape_y_nom"/>
+					<qry:attribute value="IIF(#SOURCE:@c_tipo_documento = 'DNI', '1', IIF(#SOURCE:@c_tipo_documento = 'LE', '2', IIF(#SOURCE:@c_tipo_documento = 'CI', 3, ' ')))" name="c_tipo_documento"/>
+					<qry:attribute name="d_ape_y_nom" value="NMD_FILLRIGHT(#SOURCE:@d_ape_y_nom, ' ', 20, 'R')"/>
+					<qry:attribute name="c_nro_documento" value="NMD_FILLLEFT(#SOURCE:@c_nro_documento, '0', 8, 'R')"/>
+					<qry:attribute name="c_sexo" value="IIF(#SOURCE:@c_sexo = 'F', '1', '2')"/>
+					<qry:attribute name="e_numero_legajo" value="FORMAT_NUMBER(#SOURCE:@e_numero_legajo, 8, 2, '', '', '')"/>
+					<qry:attribute value="FORMAT_NUMBER(#SOURCE:@sitrevista, '0')" name="sitrevista"/>
+					<qry:attribute value="FORMAT_NUMBER(#SOURCE:@totHabDesc, 6, 2, '', '', '0')" name="totHabDesc"/>
+					<qry:attribute value="FORMAT_NUMBER(#SOURCE:@porcenDesc, 2, 2, '', '', '0')" name="porcenDesc"/>
+					<qry:attribute value="FORMAT_NUMBER(ABS(#SOURCE:@importeDesc), 6, 2, '', '', '0')" name="importeDesc"/>
+					<qry:attribute value="FORMAT_NUMBER(ABS(#SOURCE:@importeServCom), 6, 2, '', '', '0')" name="importeServCom"/>
+					<qry:attribute value="FORMAT_NUMBER(ABS(#SOURCE:@afiliados), 6, 2, '', '', '0')" name="afiliados"/>
+					<qry:attribute value="FORMAT_NUMBER(#SOURCE:@aportes, 6, 2, '', '', '0')" name="aportes"/>
+				</qry:element>
+				<qry:attribute name="c_tipo_documento" value="''"/>
+				<qry:attribute name="d_ape_y_nom" value="''"/>
+				<qry:attribute name="c_sexo" value="''"/>
+				<qry:attribute name="c_nro_documento" value="''"/>
+				<qry:attribute name="sitrevista" value="''"/>
+				<qry:attribute name="totHabDesc" value="''"/>
+				<qry:attribute name="porcenDesc" value="''"/>
+				<qry:attribute name="importeDesc" value="''"/>
+				<qry:attribute name="importeServCom" value="''"/>
+				<qry:attribute name="afiliados" value="''"/>
+				<qry:attribute name="aportes" value="''"/>
+			</qry:out>
+		</qry:select>
+	</QUERY>
+	<DETAIL>
+		{space(1)}{c_tipo_documento:1}{c_nro_documento:8}{space(1)}{d_ape_y_nom:20}{sitrevista:1}{c_sexo:1}{totHabDesc:8}{porcenDesc:4}{importeDesc:8}{importeServCom:8}{afiliados:8}{aportes:8}{e_numero_legajo:8}
+	</DETAIL>
+	<MESS>
+		<EMPTY mess="No se encontraron registros. Por favor valide que los legajos est&#233;n asociados a la Obra Social correcta."/>
+	</MESS>
+</INTERFACE-DEF>

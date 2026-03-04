@@ -1,0 +1,660 @@
+<flow:flow xmlns:flow="nomad_engine.flow" xmlns:doc="nomad_engine.doc" xmlns:qry="nomad_engine.qry" extends="NucleusRH.Base.Presupuesto.Legajos.autoflow" name="NucleusRH.Base.Presupuesto.Legajos">
+	<flow:info label="Flow para NucleusRH.Base.Presupuesto.Legajos"/>
+	<flow:declare>
+		<doc:define name="POSICION">
+			<DATA id=""/>
+		</doc:define>
+		<doc:define name="INCORPORAR">
+			<DATA id=""/>
+		</doc:define>
+		<doc:define name="FILTERDATA">
+			<DATA id=""/>
+		</doc:define>
+		<doc:define name="TITULO">
+			<DATA id="" CODE="" DESC=""/>
+		</doc:define>
+		<qry:define name="FILTER">
+			<qry:main doc="SOURCE">
+				<qry:element name="ROWS">
+					<qry:insert-select name="sql1" doc-path="#SOURCE:DATA"/>
+				</qry:element>
+			</qry:main>
+			<qry:select doc="PARAM" name="sql1">
+				<qry:xquery>
+					for $r in sql('
+			SELECT 
+				t0.oi_legajo as oi_legajo, 
+				SEC.policy 
+			FROM 
+				PRE05_LEGAJOS as t0,NMD_SECURITY(class=\'NucleusRH.Base.Presupuesto.Legajos.LEGAJO\') as SEC 
+			JOIN 
+				t0.oi_legajo LEFT OUTER SEC.id  
+			WHERE
+				t0.oi_escenario = {#PARAM:@id_esce}
+			ORDER BY 
+				oi_legajo asc')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:element name="ROW">
+						<qry:attribute name="policy" value="$r/@policy"/>
+						<qry:attribute name="id" value="$r/@oi_legajo"/>
+					</qry:element>
+				</qry:out>
+			</qry:select>
+		</qry:define>
+		<qry:define declare="&#13;&#10;&lt;DATA id=&quot;1&quot; Modo=&quot;L&quot; nivel=&quot;&quot; id_esce=&quot;1&quot; Modo_esce=&quot;L&quot; LoadDDO_esce=&quot;M&quot; /&gt;" name="LIST">
+			<qry:include name="NucleusRH.Base.Presupuesto.Escenarios.ESCENARIO.INFO"/>
+			<qry:include name="NucleusRH.Base.Presupuesto.GruposPersonas.GRUPO.INFO"/>
+			<qry:main doc="SOURCE">
+				<qry:element name="ROWS">
+					<qry:insert-select name="sql1" doc-path="#SOURCE:DATA"/>
+				</qry:element>
+			</qry:main>
+			<qry:select doc="PARAM" name="sql1">
+				<qry:xquery>
+					for $r in sql('
+			SELECT t0.oi_legajo as oi_legajo, 
+			t0.e_posicion as e_posicion, 
+			t0.e_numero_legajo as e_numero_legajo, 
+			t0.d_legajo as d_legajo, 
+			t0.f_ingreso as f_ingreso, 
+			t0.f_egreso as f_egreso, t0.f_antiguedad as f_antiguedad, 
+			SEC.policy,
+			t0.e_numero_legajo as CODE,
+			t0.d_legajo as TEXT,
+			t0.oi_escenario as oi_escenario,
+			t0.oi_grupo as oi_grupo 
+		FROM 
+			PRE05_LEGAJOS as t0,
+			NMD_SECURITY(class=\'NucleusRH.Base.Presupuesto.Legajos.LEGAJO\') as SEC 
+		JOIN 
+			t0.oi_legajo LEFT OUTER SEC.id  
+		WHERE
+			t0.oi_escenario = {#PARAM:@id_esce}
+		ORDER BY 
+			e_numero_legajo asc')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:element name="ROW">
+						<qry:attribute name="policy" value="$r/@policy"/>
+						<qry:attribute name="id" value="$r/@oi_legajo"/>
+						<qry:attribute name="e_posicion" value="$r/@e_posicion"/>
+						<qry:attribute name="e_numero_legajo" value="$r/@e_numero_legajo"/>
+						<qry:attribute name="d_legajo" value="$r/@d_legajo"/>
+						<qry:attribute name="f_ingreso" value="$r/@f_ingreso"/>
+						<qry:attribute name="f_egreso" value="$r/@f_egreso"/>
+						<qry:attribute name="f_antiguedad" value="$r/@f_antiguedad"/>
+						<qry:attribute name="CODE" value="$r/@CODE"/>
+						<qry:attribute name="TEXT" value="$r/@TEXT"/>
+						<qry:if test="$r/@oi_grupo!=''">
+							<qry:then>
+								<qry:element name="oi_grupo">
+									<qry:attribute name="OI_FIND" value="$r/@oi_grupo"/>
+									<qry:insert-select name="NucleusRH.Base.Presupuesto.GruposPersonas.GRUPO.QUERY" doc-path="."/>
+								</qry:element>
+								<qry:attribute name="oi_grupo" value="'['+oi_grupo/ROW/@COD+'] '+oi_grupo/ROW/@DES"/>
+							</qry:then>
+						</qry:if>
+					</qry:element>
+				</qry:out>
+			</qry:select>
+		</qry:define>
+		<qry:define name="LIST:NucleusRH.Base.Presupuesto.Legajos.DET_CONCEPTO">
+			<qry:include name="NucleusRH.Base.Presupuesto.ConceptosPres.CONCEPTO.INFO"/>
+			<qry:include name="NucleusRH.Base.Presupuesto.Escenarios.DETALLE_PRES.INFO"/>
+			<qry:include name="NucleusRH.Base.Personal.ModalidadesContratacion.MOD_CONTR.INFO"/>
+			<qry:main doc="PARAM" maxdeep="2">
+				<qry:element name="ROWS">
+					<qry:insert-select doc-path="#PARAM:./DET_CONCEPTO[substring_before(@nmd-status,',')!='~d' and substring_before(@nmd-status,',')!='~x']" name="sql1"/>
+				</qry:element>
+			</qry:main>
+			<qry:select doc="PARAM" name="sql1">
+				<qry:xquery>
+					for $r in #PARAM:
+				</qry:xquery>
+				<qry:out>
+					<qry:element name="ROW">
+						<qry:attribute name="id" value="$r/@id"/>
+						<qry:attribute name="c_det_concepto" value="$r/@c_det_concepto"/>
+						<qry:attribute name="c_ultimo_nivel" value="$r/@c_ultimo_nivel"/>
+						<qry:attribute name="d_formula" value="$r/@d_formula"/>
+						<qry:attribute name="n_valor_final" value="$r/@n_valor_final"/>
+						<qry:attribute name="n_valor_aux" value="$r/@n_valor_aux"/>
+						<qry:attribute name="CODE" value="$r/@CODE"/>
+						<qry:attribute name="TEXT" value="$r/@TEXT"/>
+						<qry:if test="$r/oi_concepto/@value!=''">
+							<qry:then>
+								<qry:element name="oi_concepto">
+									<qry:attribute name="OI_FIND" value="$r/oi_concepto/@value"/>
+									<qry:insert-select name="NucleusRH.Base.Presupuesto.ConceptosPres.CONCEPTO.QUERY" doc-path="."/>
+								</qry:element>
+								<qry:attribute name="oi_concepto" value="'['+oi_concepto/ROW/@COD+'] '+oi_concepto/ROW/@DES"/>
+							</qry:then>
+						</qry:if>
+						<qry:if test="$r/oi_detalle_pres/@value!=''">
+							<qry:then>
+								<qry:element name="oi_detalle_pres">
+									<qry:attribute name="OI_FIND" value="$r/oi_detalle_pres/@value"/>
+									<qry:insert-select name="NucleusRH.Base.Presupuesto.Escenarios.DETALLE_PRES.QUERY" doc-path="."/>
+								</qry:element>
+								<qry:attribute name="oi_detalle_pres" value="'['+oi_detalle_pres/ROW/@COD+'] '+oi_detalle_pres/ROW/@DES"/>
+							</qry:then>
+						</qry:if>
+						<qry:if test="$r/oi_modalidad/@value!=''">
+							<qry:then>
+								<qry:element name="oi_modalidad">
+									<qry:attribute name="OI_FIND" value="$r/oi_modalidad/@value"/>
+									<qry:insert-select name="NucleusRH.Base.Personal.ModalidadesContratacion.MOD_CONTR.QUERY" doc-path="."/>
+								</qry:element>
+								<qry:attribute name="oi_modalidad" value="'['+oi_modalidad/ROW/@COD+'] '+oi_modalidad/ROW/@DES"/>
+							</qry:then>
+						</qry:if>
+					</qry:element>
+				</qry:out>
+			</qry:select>
+		</qry:define>
+		<qry:define declare="&lt;DATA id_esce=&quot;1&quot;/&gt;" name="qry_posicion_leg">
+			<qry:main doc="SOURCE">
+				<qry:element name="DATA">
+					<qry:insert-select name="sql1" doc-path="#SOURCE:DATA"/>
+				</qry:element>
+			</qry:main>
+			<qry:select doc="PARAM" name="sql1">
+				<qry:xquery>
+					for $r in sql('
+	SELECT max(PRE05_LEGAJOS.e_posicion) AS maximo
+FROM PRE05_LEGAJOS
+WHERE PRE05_LEGAJOS.oi_escenario = {#PARAM:@id_esce}
+	
+')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:attribute name="e_posicion" value="$r/@maximo"/>
+				</qry:out>
+			</qry:select>
+		</qry:define>
+		<qry:define declare="&lt;DATA id_esce=&quot;1&quot;/&gt;" name="qry_titulo_esce">
+			<qry:main doc="SOURCE">
+				<qry:element name="DATA">
+					<qry:insert-select name="sql1" doc-path="#SOURCE:DATA"/>
+					<qry:insert-select name="sqlParametro"/>
+				</qry:element>
+			</qry:main>
+			<qry:select doc="PARAM" name="sql1">
+				<qry:xquery>
+					for $r in sql('
+	SELECT 
+	O.d_empresa, 
+	P.d_presupuesto, 
+	E.e_numero, E.C_ESTADO
+FROM 
+	PRE03_ESCENARIOS AS E, 
+	PRE12_PRESUPUESTO AS P, 
+	ORG03_EMPRESAS AS O
+WHERE 
+	E.oi_presupuesto = P.oi_presupuesto
+	AND
+	P.oi_empresa = O.oi_empresa
+	AND
+	E.oi_escenario = {#PARAM:@id_esce}
+	
+')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:attribute name="id" value="$r/@oi_escenario"/>
+					<qry:attribute name="C_ESTADO" value="$r/@C_ESTADO"/>
+					<qry:attribute name="DESC" value="$r/@d_empresa + '-' + $r/@d_presupuesto + '-' + $r/@e_numero"/>
+				</qry:out>
+			</qry:select>
+			<qry:select doc="" name="sqlParametro">
+				<qry:xquery>
+					for $r in sql('
+	SELECT
+	ORG26_PARAMETROS.d_valor
+FROM
+	ORG26_PARAMETROS
+WHERE 
+	ORG26_PARAMETROS.c_parametro = \'valorNivel\'
+	
+')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:attribute name="ValorNivel" value="$r/@d_valor"/>
+				</qry:out>
+			</qry:select>
+		</qry:define>
+		<qry:define declare="&lt;DATA id=&quot;&quot; oi_presupuesto=&quot;1&quot; oi_escenario=&quot;1&quot; e_posicion=&quot;1&quot; oi_detalle_desde=&quot;1&quot; oi_detalle_hasta=&quot;11&quot; oi_grupo=&quot;4&quot; oi_modalidad=&quot;1&quot; e_numero_legajo=&quot;5&quot; d_legajo=&quot;55&quot; c_ultimo_nivel=&quot;55&quot; f_ingreso=&quot;20090101&quot; f_egreso=&quot;20100101&quot; f_antiguedad=&quot;20090904&quot; o_legajo=&quot;&quot; /&gt;" name="qry_incorporar_conceptos">
+			<qry:main doc="SOURCE">
+				<qry:element name="ROOT">
+					<qry:insert-element doc-path="#SOURCE:DATA" name="DATA"/>
+					<qry:attribute name="error" value="'0'"/>
+					<qry:insert-select name="buscarError" doc-path="#SOURCE:DATA"/>
+					<qry:element name="CONCEPTOS">
+						<qry:insert-select name="sql1" doc-path="#SOURCE:DATA"/>
+					</qry:element>
+				</qry:element>
+			</qry:main>
+			<qry:select doc="PARAM" name="sql1">
+				<qry:xquery>
+					for $r in sql('
+	SELECT C.oi_concepto, C.e_concepto, C.d_concepto 
+FROM 
+	PRE07_CONCEPTOS AS C
+WHERE
+	C.l_valorizable = 1 AND
+	C.l_activo = 1
+group by 
+C.oi_concepto, C.e_concepto, C.d_concepto	
+ORDER BY
+e_concepto ASC
+')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:element name="CONCEPTO">
+						<qry:attribute name="oi_concepto" value="$r/@oi_concepto"/>
+						<qry:attribute name="e_concepto" value="$r/@e_concepto"/>
+						<qry:attribute name="d_concepto" value="$r/@d_concepto"/>
+						<qry:attribute name="n_valor" value="0"/>
+					</qry:element>
+				</qry:out>
+			</qry:select>
+			<qry:select doc="PARAM" name="buscarError">
+				<qry:xquery>
+					for $r in sql('
+	SELECT P.oi_escenario
+FROM PRE05_LEGAJOS AS P
+WHERE P.oi_escenario = {#PARAM:@oi_escenario}     
+AND 
+P.e_numero_legajo = {#PARAM:@e_numero_legajo}     
+')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:attribute name="error" value="'1'"/>
+				</qry:out>
+			</qry:select>
+		</qry:define>
+		<doc:define class="NucleusRH.Base.Presupuesto.Legajos.LEGAJO" name="LEGAJO"/>
+		<doc:define name="REPORTE">
+			<DATA/>
+		</doc:define>
+		<doc:define name="INCORPORAR2">
+			<DATA id=""/>
+		</doc:define>
+		<qry:define declare="&lt;DATA id_esce=&quot;9&quot; /&gt;" name="UBICACION">
+			<qry:main doc="SOURCE">
+				<qry:element name="ROWS">
+					<qry:insert-select doc-path="#SOURCE:." name="SQL1"/>
+				</qry:element>
+			</qry:main>
+			<qry:select doc="SOURCE" name="SQL1">
+				<qry:xquery>
+					for $r in SQL(
+'maxsize 1
+	select 
+		PRE11_NIVELES.oi_nivel,
+		PRE11_NIVELES.e_orden,
+		PRE06_EST_REPORTE.oi_nodo
+	from
+		PRE06_EST_REPORTE, 
+		PRE11_NIVELES, 
+		PRE03_ESCENARIOS
+	join              
+		PRE06_EST_REPORTE.oi_est_reporte inner PRE03_ESCENARIOS.oi_est_reporte,
+		PRE11_NIVELES.oi_def_reporte inner PRE06_EST_REPORTE.oi_def_reporte
+	where
+		PRE03_ESCENARIOS.oi_escenario={#SOURCE:@id_esce}
+	order by
+		e_orden desc
+')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:attribute name="oi_nivel" value="$r/@oi_nivel"/>
+					<qry:attribute name="oi_nodo" value="$r/@oi_nodo"/>
+					<qry:insert-select doc-path="." name="SQL2"/>
+					<qry:attribute name="oi_nivel" value="''"/>
+					<qry:attribute name="oi_nodo" value="''"/>
+				</qry:out>
+			</qry:select>
+			<qry:select doc="SOURCE" name="SQL2">
+				<qry:xquery>
+					for $r in SQL(
+'select 
+		PRE06_NODOS.oi_nodo,
+		PRE06_NODOS.oi_nivel,
+		PRE06_NODOS.d_nodo,
+		PRE06_NODOS.c_valor_iden
+	from
+		PRE06_NODOS
+	where
+		PRE06_NODOS.oi_nodo_padre={#SOURCE:@oi_nodo}
+')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:if test="@oi_nivel=$r/@oi_nivel">
+						<qry:then>
+							<qry:element name="option">
+								<qry:attribute name="value" value="$r/@c_valor_iden"/>
+								<qry:attribute name="text" value="$r/@d_nodo"/>
+							</qry:element>
+						</qry:then>
+					</qry:if>
+					<qry:insert-select doc-path="$r" name="SQL2"/>
+				</qry:out>
+			</qry:select>
+		</qry:define>
+		<doc:define name="UBICACION"/>
+	</flow:declare>
+	<flow:main doc="SOURCE">
+		<flow:action name="initialize">
+			<flow:log text-path="#SOURCE:" text="egg13"/>
+			<doc:set-attribute from-attr-path="#SOURCE:@id" to-attr-path="#FILTERDATA:@id"/>
+			<doc:set-attribute from-attr-path="#SOURCE:@Modo" to-attr-path="#FILTERDATA:@Modo"/>
+			<doc:set-attribute from-attr-path="#SOURCE:@nivel" to-attr-path="#FILTERDATA:@nivel"/>
+			<doc:set-attribute from-attr-path="#SOURCE:@id_esce" to-attr-path="#FILTERDATA:@id_esce"/>
+			<doc:set-attribute from-attr-path="#SOURCE:@Modo_esce" to-attr-path="#FILTERDATA:@Modo_esce"/>
+			<doc:set-attribute from-value="M" to-attr-path="#FILTERDATA:@LoadDDO_esce"/>
+			<flow:log text-path="#FILTERDATA:" text="egg14"/>
+			<doc:load-qry output-doc="TITULO" input-doc-path="#SOURCE:" qry="qry_titulo_esce"/>
+			<flow:open-form doc-path="#FILTERDATA:" mode="FILTER" form-class="NucleusRH.Base.Presupuesto.Legajos.LEGAJO.filter.autoform"/>
+		</flow:action>
+		<flow:action name="initializeIncorporar">
+			<doc:set-attribute from-attr-path="#SOURCE:@id" to-attr-path="#FILTERDATA:@id"/>
+			<doc:set-attribute from-attr-path="#SOURCE:@Modo" to-attr-path="#FILTERDATA:@Modo"/>
+			<doc:set-attribute from-attr-path="#SOURCE:@nivel" to-attr-path="#FILTERDATA:@nivel"/>
+			<doc:set-attribute from-attr-path="#SOURCE:@id_esce" to-attr-path="#FILTERDATA:@id_esce"/>
+			<doc:set-attribute from-attr-path="#SOURCE:@Modo_esce" to-attr-path="#FILTERDATA:@Modo_esce"/>
+			<doc:load-qry output-doc="TITULO" input-doc-path="#SOURCE:" qry="qry_titulo_esce"/>
+			<doc:load-qry output-doc="POSICION" input-doc-path="#SOURCE:" qry="qry_posicion_leg"/>
+			<doc:set-attribute from-attr-path="#SOURCE:@id" to-attr-path="#INCORPORAR:@oi_presupuesto"/>
+			<doc:set-attribute from-attr-path="#SOURCE:@id_esce" to-attr-path="#INCORPORAR:@oi_escenario"/>
+			<doc:set-attribute from-attr-path="#POSICION:@e_posicion" to-attr-path="#INCORPORAR:@e_posicion"/>
+			<flow:open-form doc-path="#FILTERDATA:" mode="EDIT" form-class="NucleusRH.Base.Presupuesto.Legajos.IncorporarPersonas.form"/>
+		</flow:action>
+	</flow:main>
+	<flow:group Name="LEGAJO">
+		<flow:form extends="NucleusRH.Base.Presupuesto.Legajos.LEGAJO.filter.autoform:FILTER" parent-doc="PARENTSOURCE" doc="SOURCE" name="NucleusRH.Base.Presupuesto.Legajos.LEGAJO.filter.form:FILTER" form-class="NucleusRH.Base.Presupuesto.Legajos.LEGAJO.filter.autoform" mode="FILTER">
+			<flow:action name="on-show">
+				<flow:call-action action="inits-DDO"/>
+				<flow:close-form/>
+				<flow:call-action action="FILTER"/>
+			</flow:action>
+			<flow:action name="inits-DDO">
+				<doc:new-object doc="DDO" class="NucleusRH.Base.Presupuesto.Legajos.LEGAJO"/>
+				<doc:new-object doc="NEWDDOROOT" class="NucleusRH.Base.Presupuesto.Legajos.LEGAJO"/>
+			</flow:action>
+			<flow:action name="new-DDO">
+				<doc:new-object doc="NEWDDOROOT" class="NucleusRH.Base.Presupuesto.Legajos.LEGAJO"/>
+				<doc:set-attribute from-attr-path="#FILTERDATA:@id_esce" to-attr-path="#NEWDDOROOT:oi_escenario/@value"/>
+			</flow:action>
+			<flow:action name="open-flow-SHOW">
+				<flow:open-form iter-index="#QRY:ROW/@id" parent-doc-path="#QRY:" doc-path="#DDO:" mode="SHOW" form-class="NucleusRH.Base.Presupuesto.Legajos.LEGAJO.noreg.autoform"/>
+			</flow:action>
+			<flow:action name="open-flow-ADD">
+				<flow:open-form doc-path="#NEWDDOROOT:" mode="NEW" form-class="NucleusRH.Base.Presupuesto.Legajos.LEGAJO.form"/>
+			</flow:action>
+			<flow:action name="open-flow-LIST">
+				<flow:open-form iter-index="#QRY:ROW/@id" parent-doc-path="#QRY:" doc-path="#DDO:" mode="SHOW" form-class="NucleusRH.Base.Presupuesto.Legajos.LEGAJO.form"/>
+			</flow:action>
+			<flow:action name="Load-FILTER"/>
+			<flow:action name="Save-FILTER"/>
+		</flow:form>
+		<flow:form extends="NucleusRH.Base.Presupuesto.Legajos.LEGAJO.noreg.autoform:EDIT" parent-doc="PARENTSOURCE" doc="SOURCE" name="NucleusRH.Base.Presupuesto.Legajos.LEGAJO.noreg.form:EDIT" form-class="NucleusRH.Base.Presupuesto.Legajos.LEGAJO.noreg.autoform" mode="SHOW">
+			<flow:action name="new-DDO">
+				<doc:new-object doc="NEWDDOROOT" class="NucleusRH.Base.Presupuesto.Legajos.LEGAJO"/>
+				<doc:set-attribute from-attr-path="#FILTERDATA:@id_esce" to-attr-path="#NEWDDOROOT:oi_escenario/@value"/>
+			</flow:action>
+			<flow:action name="load-DDO">
+				<doc:load-object id-path="#QRY:ROW[1]/@id" class="NucleusRH.Base.Presupuesto.Legajos.LEGAJO" doc="DDO"/>
+			</flow:action>
+			<flow:action name="open-flow-SHOW">
+				<flow:open-form iter-index="#QRY:ROW/@id" parent-doc-path="#QRY:" doc-path="#DDO:" mode="SHOW" form-class="NucleusRH.Base.Presupuesto.Legajos.LEGAJO.form"/>
+			</flow:action>
+			<flow:action name="open-flow-ADD">
+				<flow:open-form doc-path="#NEWDDOROOT:" mode="NEW" form-class="NucleusRH.Base.Presupuesto.Legajos.LEGAJO.form"/>
+			</flow:action>
+			<flow:action name="open-flow-LIST">
+				<flow:open-form iter-index="#QRY_LIST:ROW/@id" parent-doc-path="#QRY_LIST:" doc-path="#DDO:" mode="LIST" form-class="NucleusRH.Base.Presupuesto.Legajos.LEGAJO.form"/>
+			</flow:action>
+			<flow:action name="on-move-iterator">
+				<flow:call-action action="load-DDO"/>
+				<flow:call-action action="goto-list"/>
+			</flow:action>
+			<flow:action name="After-Back">
+				<flow:log text="egg18" text-path="#FILTERDATA:"/>
+				<flow:exit-flow next-action="initializeLegajo" next-flow="NucleusRH.Base.Presupuesto.Escenarios.flow" return-path="#FILTERDATA:"/>
+			</flow:action>
+			<flow:action name="BACK">
+				<flow:log text="egg19" text-path="#FILTERDATA:"/>
+				<flow:exit-flow next-action="initializeLegajo" next-flow="NucleusRH.Base.Presupuesto.Escenarios.flow" return-path="#FILTERDATA:"/>
+			</flow:action>
+		</flow:form>
+		<flow:form extends="NucleusRH.Base.Presupuesto.Legajos.LEGAJO.autoform:SHOW" parent-doc="PARENTSOURCE" doc="SOURCE" name="NucleusRH.Base.Presupuesto.Legajos.LEGAJO.form:SHOW" form-class="NucleusRH.Base.Presupuesto.Legajos.LEGAJO.form" mode="SHOW">
+			<flow:action name="new-DDO">
+				<doc:new-object doc="NEWDDOROOT" class="NucleusRH.Base.Presupuesto.Legajos.LEGAJO"/>
+				<doc:set-attribute from-attr-path="#FILTERDATA:@id_esce" to-attr-path="#NEWDDOROOT:oi_escenario/@value"/>
+			</flow:action>
+			<flow:action name="load-DDO">
+				<doc:load-object id-path="#iter-cursor:@value" class="NucleusRH.Base.Presupuesto.Legajos.LEGAJO" doc="DDO"/>
+			</flow:action>
+			<flow:action name="save-DDO">
+				<doc:save-object class="NucleusRH.Base.Presupuesto.Legajos.LEGAJO" doc="DDO"/>
+			</flow:action>
+			<flow:action name="delete-DDO">
+				<doc:delete-object doc-path="#DDO:" class="NucleusRH.Base.Presupuesto.Legajos.LEGAJO" doc="DDO"/>
+				<doc:save-object class="NucleusRH.Base.Presupuesto.Legajos.LEGAJO" doc="DDO"/>
+			</flow:action>
+			<flow:action name="open-flow-EDIT">
+				<flow:open-form doc-path="#DDO:" mode="EDIT" form-class="NucleusRH.Base.Presupuesto.Legajos.LEGAJO.form"/>
+			</flow:action>
+			<flow:action name="open-flow-ADD">
+				<flow:open-form doc-path="#NEWDDOROOT:" mode="NEW" form-class="NucleusRH.Base.Presupuesto.Legajos.LEGAJO.form"/>
+			</flow:action>
+			<flow:action name="CALL:DET_CONCEPTO">
+				<flow:open-form iter-index="#DDO:DET_CONCEPTOS/DET_CONCEPTO/@id" parent-doc-path="#DDO:DET_CONCEPTOS" doc-path="#DDO:DET_CONCEPTOS" mode="SHOW" form-class="NucleusRH.Base.Presupuesto.Legajos.DET_CONCEPTO.noreg.autoform"/>
+			</flow:action>
+			<flow:action name="CALL:REPORTE">
+				<flow:html-gen ext="html" input-doc-path="#DDO:" template-file="NucleusRH.Base.Presupuesto.PorPersona.rpt" out-file-path="#REPORTE:@report"/>
+				<flow:open-form doc-path="#REPORTE:" mode="SHOW" form-class="NucleusRH.Base.Presupuesto.Legajos.IncorporarPersonas.Reporte.form"/>
+			</flow:action>
+		</flow:form>
+		<flow:form extends="NucleusRH.Base.Presupuesto.Legajos.LEGAJO.autoform:LIST" parent-doc="PARENTSOURCE" doc="SOURCE" name="NucleusRH.Base.Presupuesto.Legajos.LEGAJO.form:LIST" form-class="NucleusRH.Base.Presupuesto.Legajos.LEGAJO.form" mode="LIST">
+			<flow:action name="new-DDO">
+				<doc:new-object doc="NEWDDOROOT" class="NucleusRH.Base.Presupuesto.Legajos.LEGAJO"/>
+				<doc:set-attribute from-attr-path="#FILTERDATA:@id_esce" to-attr-path="#NEWDDOROOT:oi_escenario/@value"/>
+			</flow:action>
+			<flow:action name="load-DDO">
+				<doc:load-object id-path="#FORM:ctrl[@id='LIST']/@xval" class="NucleusRH.Base.Presupuesto.Legajos.LEGAJO" doc="DDO"/>
+			</flow:action>
+			<flow:action name="save-DDO">
+				<doc:save-object class="NucleusRH.Base.Presupuesto.Legajos.LEGAJO" doc="DDO"/>
+			</flow:action>
+			<flow:action name="delete-DDO">
+				<doc:delete-object doc-path="#DDO:" class="NucleusRH.Base.Presupuesto.Legajos.LEGAJO" doc="DDO"/>
+				<doc:save-object class="NucleusRH.Base.Presupuesto.Legajos.LEGAJO" doc="DDO"/>
+			</flow:action>
+			<flow:action name="open-flow-EDIT">
+				<flow:open-form doc-path="#DDO:" mode="EDIT" form-class="NucleusRH.Base.Presupuesto.Legajos.LEGAJO.form"/>
+			</flow:action>
+			<flow:action name="open-flow-ADD">
+				<flow:open-form doc-path="#NEWDDOROOT:" mode="NEW" form-class="NucleusRH.Base.Presupuesto.Legajos.LEGAJO.form"/>
+			</flow:action>
+			<flow:action name="CALL:DET_CONCEPTO">
+				<flow:call-action action="load-DDO"/>
+				<flow:open-form iter-index="#DDO:DET_CONCEPTOS/DET_CONCEPTO/@id" parent-doc-path="#DDO:DET_CONCEPTOS" doc-path="#DDO:DET_CONCEPTOS" mode="SHOW" form-class="NucleusRH.Base.Presupuesto.Legajos.DET_CONCEPTO.noreg.autoform"/>
+			</flow:action>
+			<flow:action name="CALL:REPORTE">
+				<flow:call-action action="load-DDO"/>
+				<flow:html-gen ext="html" input-doc-path="#DDO:" template-file="NucleusRH.Base.Presupuesto.PorPersona.rpt" out-file-path="#REPORTE:@report"/>
+				<flow:open-form doc-path="#REPORTE:" mode="SHOW" form-class="NucleusRH.Base.Presupuesto.Legajos.IncorporarPersonas.Reporte.form"/>
+			</flow:action>
+		</flow:form>
+		<flow:form extends="NucleusRH.Base.Presupuesto.Legajos.LEGAJO.autoform:EDIT" parent-doc="PARENTSOURCE" doc="SOURCE" name="NucleusRH.Base.Presupuesto.Legajos.LEGAJO.form:EDIT" form-class="NucleusRH.Base.Presupuesto.Legajos.LEGAJO.form" mode="EDIT">
+			<flow:action name="save-DDO">
+				<doc:save-object class="NucleusRH.Base.Presupuesto.Legajos.LEGAJO" doc="DDO"/>
+			</flow:action>
+			<flow:action name="delete-DDO">
+				<doc:delete-object doc-path="#DDO:" class="NucleusRH.Base.Presupuesto.Legajos.LEGAJO" doc="DDO"/>
+				<doc:save-object class="NucleusRH.Base.Presupuesto.Legajos.LEGAJO" doc="DDO"/>
+			</flow:action>
+			<flow:action name="CALL:DET_CONCEPTO">
+				<flow:open-form iter-index="#SOURCE:DET_CONCEPTOS/DET_CONCEPTO/@id" parent-doc-path="#SOURCE:DET_CONCEPTOS" doc-path="#SOURCE:DET_CONCEPTOS" mode="EDIT" form-class="NucleusRH.Base.Presupuesto.Legajos.DET_CONCEPTO.noreg.autoform"/>
+			</flow:action>
+		</flow:form>
+		<flow:form extends="NucleusRH.Base.Presupuesto.Legajos.LEGAJO.autoform:NEW" parent-doc="PARENTSOURCE" doc="SOURCE" name="NucleusRH.Base.Presupuesto.Legajos.LEGAJO.form:NEW" form-class="NucleusRH.Base.Presupuesto.Legajos.LEGAJO.form" mode="NEW">
+			<flow:action name="save-DDO">
+				<doc:save-object class="NucleusRH.Base.Presupuesto.Legajos.LEGAJO" doc="NEWDDOROOT"/>
+				<doc:load-object id-path="#NEWDDOROOT:@id" class="NucleusRH.Base.Presupuesto.Legajos.LEGAJO" doc="DDO"/>
+			</flow:action>
+			<flow:action name="CALL:DET_CONCEPTO">
+				<flow:open-form iter-index="#SOURCE:DET_CONCEPTOS/DET_CONCEPTO/@id" parent-doc-path="#SOURCE:DET_CONCEPTOS" doc-path="#SOURCE:DET_CONCEPTOS" mode="EDIT" form-class="NucleusRH.Base.Presupuesto.Legajos.DET_CONCEPTO.noreg.autoform"/>
+			</flow:action>
+		</flow:form>
+	</flow:group>
+	<flow:group name="INCORPORAR">
+		<flow:form name="NucleusRH.Base.Presupuesto.Legajos.IncorporarPersonas.form" parent-doc="PARENTSOURCE" mode="EDIT" form-class="NucleusRH.Base.Presupuesto.Legajos.IncorporarPersonas.form" doc="SOURCE">
+			<flow:action name="BACK">
+				<flow:exit-flow next-action="initializeLegajo" next-flow="NucleusRH.Base.Presupuesto.Escenarios.flow" return-path="#FILTERDATA:"/>
+			</flow:action>
+			<flow:action name="Siguiente">
+				<doc:load-qry output-doc="INCORPORAR2" input-doc-path="#INCORPORAR:" qry="qry_incorporar_conceptos"/>
+				<flow:call-action if="#INCORPORAR2:@error" else="abrirSiguiente" eq="1" action="error"/>
+			</flow:action>
+			<flow:action name="after-back">
+				<flow:exit-flow next-action="initializeLegajo" next-flow="NucleusRH.Base.Presupuesto.Escenarios.flow" return-path="#FILTERDATA:"/>
+			</flow:action>
+			<flow:action name="error">
+				<flow:message message="No puede repetir el numero de legajo en el escenario."/>
+			</flow:action>
+			<flow:action name="abrirSiguiente">
+				<flow:open-form parent-doc-path="#INCORPORAR2:" doc-path="#INCORPORAR2:" mode="EDIT" form-class="NucleusRH.Base.Presupuesto.Legajos.IncorporarPersonas.Conceptos.form"/>
+			</flow:action>
+			<flow:action name="on-show">
+				<doc:load-qry input-doc-path="#FILTERDATA:" output-doc="UBICACION" qry="UBICACION"/>
+				<flow:attach-doc doc-path="#UBICACION:" attach-id="UBICACION"/>
+			</flow:action>
+		</flow:form>
+		<flow:form parent-doc="PARENTSOURCE" mode="EDIT" form-class="NucleusRH.Base.Presupuesto.Legajos.IncorporarPersonas.Conceptos.form" name="NucleusRH.Base.Presupuesto.Legajos.IncorporarPersonas.Conceptos.form" doc="SOURCE">
+			<flow:action name="BACK">
+				<flow:close-form/>
+			</flow:action>
+			<flow:action name="Siguiente">
+				<flow:log text-path="#INCORPORAR2:" text="egg51"/>
+				<flow:exec-method out-doc="LEGAJO" class="NucleusRH.Base.Presupuesto.Legajos.LEGAJO" method="CrearLegajo">
+					<flow:param doc-path="#INCORPORAR2:" type="Nomad.NSystem.Proxy.NomadXML" mode="in" name="xmlParam"/>
+				</flow:exec-method>
+				<flow:html-gen ext="html" input-doc-path="#LEGAJO:" template-file="NucleusRH.Base.Presupuesto.PorPersona.rpt" out-file-path="#REPORTE:@report"/>
+				<flow:open-form doc-path="#REPORTE:" mode="EDIT" form-class="NucleusRH.Base.Presupuesto.Legajos.IncorporarPersonas.Reporte.form"/>
+			</flow:action>
+			<flow:action name="after-back">
+				<flow:close-form next-action="after-back"/>
+			</flow:action>
+		</flow:form>
+		<flow:form parent-doc="PARENTSOURCE" mode="EDIT" doc="SOURCE" name="NucleusRH.Base.Presupuesto.Legajos.IncorporarPersonas.Reporte.form" form-class="NucleusRH.Base.Presupuesto.Legajos.IncorporarPersonas.Reporte.form">
+			<flow:action name="BACK">
+				<flow:close-form/>
+			</flow:action>
+			<flow:action name="SAVE">
+				<doc:save-object class="NucleusRH.Base.Presupuesto.Legajos.LEGAJO" doc="LEGAJO"/>
+				<flow:call-action action="after-back"/>
+			</flow:action>
+			<flow:action name="after-back">
+				<flow:close-form next-action="after-back"/>
+			</flow:action>
+		</flow:form>
+		<flow:form parent-doc="PARENTSOURCE" mode="SHOW" doc="SOURCE" name="NucleusRH.Base.Presupuesto.Legajos.IncorporarPersonas.Reporte.form" form-class="NucleusRH.Base.Presupuesto.Legajos.IncorporarPersonas.Reporte.form">
+			<flow:action name="BACK">
+				<flow:close-form/>
+			</flow:action>
+			<flow:action name="after-back">
+				<flow:close-form next-action="after-back"/>
+			</flow:action>
+		</flow:form>
+	</flow:group>
+	<flow:group Name="DET_CONCEPTO">
+		<flow:form extends="NucleusRH.Base.Presupuesto.Legajos.DET_CONCEPTO.noreg.autoform:SHOW" parent-doc="PARENTSOURCE" doc="SOURCE" name="NucleusRH.Base.Presupuesto.Legajos.DET_CONCEPTO.noreg.form:SHOW" form-class="NucleusRH.Base.Presupuesto.Legajos.DET_CONCEPTO.noreg.autoform" mode="SHOW">
+			<flow:action name="open-flow-SHOW">
+				<flow:open-form iter-index="#PARENTSOURCE:DET_CONCEPTO/@id" parent-doc-path="#PARENTSOURCE:" doc-path="#PARENTSOURCE:" mode="SHOW" form-class="NucleusRH.Base.Presupuesto.Legajos.DET_CONCEPTO.autoform"/>
+			</flow:action>
+			<flow:action name="open-flow-LIST">
+				<flow:open-form iter-index="#PARENTSOURCE:DET_CONCEPTO/@id" parent-doc-path="#PARENTSOURCE:" doc-path="#PARENTSOURCE:" mode="LIST" form-class="NucleusRH.Base.Presupuesto.Legajos.DET_CONCEPTO.autoform"/>
+			</flow:action>
+			<flow:action name="load-child-LIST">
+				<doc:load-qry output-doc="QRY_LIST" input-doc-path="#PARENTSOURCE:" qry="LIST:NucleusRH.Base.Presupuesto.Legajos.DET_CONCEPTO"/>
+			</flow:action>
+		</flow:form>
+		<flow:form extends="NucleusRH.Base.Presupuesto.Legajos.DET_CONCEPTO.autoform:SHOW" doc-path="/DET_CONCEPTO[@id='{#iter-cursor:@value}']" parent-doc="PARENTSOURCE" doc="SOURCE" name="NucleusRH.Base.Presupuesto.Legajos.DET_CONCEPTO.form:SHOW" form-class="NucleusRH.Base.Presupuesto.Legajos.DET_CONCEPTO.autoform" mode="SHOW"/>
+		<flow:form extends="NucleusRH.Base.Presupuesto.Legajos.DET_CONCEPTO.autoform:LIST" doc-path="/DET_CONCEPTO[@id='{#iter-cursor:@value}']" parent-doc="PARENTSOURCE" doc="SOURCE" name="NucleusRH.Base.Presupuesto.Legajos.DET_CONCEPTO.form:LIST" form-class="NucleusRH.Base.Presupuesto.Legajos.DET_CONCEPTO.autoform" mode="LIST">
+			<flow:action name="load-child-LIST">
+				<doc:load-qry output-doc="QRY_LIST" input-doc-path="#PARENTSOURCE:" qry="LIST:NucleusRH.Base.Presupuesto.Legajos.DET_CONCEPTO"/>
+			</flow:action>
+		</flow:form>
+		<flow:form extends="NucleusRH.Base.Presupuesto.Legajos.DET_CONCEPTO.autoform:LIST_EDIT" doc-path="/DET_CONCEPTO[@id='{#iter-cursor:@value}']" parent-doc="PARENTSOURCE" doc="SOURCE" name="NucleusRH.Base.Presupuesto.Legajos.DET_CONCEPTO.form:LIST_EDIT" form-class="NucleusRH.Base.Presupuesto.Legajos.DET_CONCEPTO.autoform" mode="LIST_EDIT">
+			<flow:action name="new-DDO">
+				<doc:new-object doc="NEWDDO" class="NucleusRH.Base.Presupuesto.Legajos.DET_CONCEPTO"/>
+			</flow:action>
+			<flow:action name="delete-DDO">
+				<doc:delete-object doc-path="#PARENTSOURCE:DET_CONCEPTO[@id='{#FORM:ctrl[@id='LIST']/@xval}']" class="NucleusRH.Base.Presupuesto.Legajos.DET_CONCEPTO"/>
+			</flow:action>
+			<flow:action name="open-flow-ADD">
+				<flow:open-form parent-doc-path="#PARENTSOURCE:" doc-path="#NEWDDO:" mode="NEW" form-class="NucleusRH.Base.Presupuesto.Legajos.DET_CONCEPTO.autoform"/>
+			</flow:action>
+			<flow:action name="open-flow-LIST">
+				<flow:open-form iter-index="#PARENTSOURCE:DET_CONCEPTO/@id" parent-doc-path="#PARENTSOURCE:" doc-path="#PARENTSOURCE:" mode="LIST_EDIT" form-class="NucleusRH.Base.Presupuesto.Legajos.DET_CONCEPTO.autoform"/>
+			</flow:action>
+			<flow:action name="load-child-LIST">
+				<doc:load-qry output-doc="QRY_LIST" input-doc-path="#PARENTSOURCE:" qry="LIST:NucleusRH.Base.Presupuesto.Legajos.DET_CONCEPTO"/>
+			</flow:action>
+		</flow:form>
+		<flow:form extends="NucleusRH.Base.Presupuesto.Legajos.DET_CONCEPTO.noreg.autoform:EDIT" parent-doc="PARENTSOURCE" doc="SOURCE" name="NucleusRH.Base.Presupuesto.Legajos.DET_CONCEPTO.noreg.form:EDIT" form-class="NucleusRH.Base.Presupuesto.Legajos.DET_CONCEPTO.noreg.autoform" mode="EDIT">
+			<flow:action name="new-DDO">
+				<doc:new-object doc="NEWDDO" class="NucleusRH.Base.Presupuesto.Legajos.DET_CONCEPTO"/>
+			</flow:action>
+			<flow:action name="delete-DDO">
+				<doc:delete-object doc-path="#PARENTSOURCE:DET_CONCEPTO[@id='{#FORM:ctrl[@id='LIST']/@xval}']" class="NucleusRH.Base.Presupuesto.Legajos.DET_CONCEPTO"/>
+			</flow:action>
+			<flow:action name="open-flow-EDIT">
+				<flow:open-form iter-index="#PARENTSOURCE:DET_CONCEPTO/@id" parent-doc-path="#PARENTSOURCE:" doc-path="#PARENTSOURCE:" mode="EDIT" form-class="NucleusRH.Base.Presupuesto.Legajos.DET_CONCEPTO.autoform"/>
+			</flow:action>
+			<flow:action name="open-flow-ADD">
+				<flow:open-form parent-doc-path="#PARENTSOURCE:" doc-path="#NEWDDO:" mode="NEW" form-class="NucleusRH.Base.Presupuesto.Legajos.DET_CONCEPTO.autoform"/>
+			</flow:action>
+			<flow:action name="open-flow-LIST">
+				<flow:open-form iter-index="#PARENTSOURCE:DET_CONCEPTO/@id" parent-doc-path="#PARENTSOURCE:" doc-path="#PARENTSOURCE:" mode="LIST_EDIT" form-class="NucleusRH.Base.Presupuesto.Legajos.DET_CONCEPTO.autoform"/>
+			</flow:action>
+			<flow:action name="load-child-LIST">
+				<doc:load-qry output-doc="QRY_LIST" input-doc-path="#PARENTSOURCE:" qry="LIST:NucleusRH.Base.Presupuesto.Legajos.DET_CONCEPTO"/>
+			</flow:action>
+		</flow:form>
+		<flow:form extends="NucleusRH.Base.Presupuesto.Legajos.DET_CONCEPTO.autoform:EDIT" doc-path="/DET_CONCEPTO[@id='{#iter-cursor:@value}']" parent-doc="PARENTSOURCE" doc="SOURCE" name="NucleusRH.Base.Presupuesto.Legajos.DET_CONCEPTO.form:EDIT" form-class="NucleusRH.Base.Presupuesto.Legajos.DET_CONCEPTO.autoform" mode="EDIT">
+			<flow:action name="new-DDO">
+				<doc:new-object doc="NEWDDO" class="NucleusRH.Base.Presupuesto.Legajos.DET_CONCEPTO"/>
+			</flow:action>
+			<flow:action name="delete-DDO">
+				<doc:delete-object doc-path="#SOURCE:" class="NucleusRH.Base.Presupuesto.Legajos.DET_CONCEPTO" doc="SOURCE"/>
+			</flow:action>
+			<flow:action name="open-flow-ADD">
+				<flow:open-form parent-doc-path="#PARENTSOURCE:" doc-path="#NEWDDO:" mode="NEW" form-class="NucleusRH.Base.Presupuesto.Legajos.DET_CONCEPTO.autoform"/>
+			</flow:action>
+		</flow:form>
+		<flow:form extends="NucleusRH.Base.Presupuesto.Legajos.DET_CONCEPTO.autoform:NEW" parent-doc="PARENTSOURCE" doc="SOURCE" name="NucleusRH.Base.Presupuesto.Legajos.DET_CONCEPTO.form:NEW" form-class="NucleusRH.Base.Presupuesto.Legajos.DET_CONCEPTO.autoform" mode="NEW"/>
+	</flow:group>
+	<flow:group Name="NOV_LEGAJO">
+		<flow:form extends="NucleusRH.Base.Presupuesto.Legajos.NOV_LEGAJO.noreg.autoform:SHOW" parent-doc="PARENTSOURCE" doc="SOURCE" name="NucleusRH.Base.Presupuesto.Legajos.NOV_LEGAJO.noreg.form:SHOW" form-class="NucleusRH.Base.Presupuesto.Legajos.NOV_LEGAJO.noreg.autoform" mode="SHOW">
+			<flow:action name="on-move-iterator">
+				<flow:open-form iter-index="#PARENTSOURCE:NOV_LEGAJO/@id" parent-doc-path="#PARENTSOURCE:" doc-path="#PARENTSOURCE:" mode="SHOW" form-class="NucleusRH.Base.Presupuesto.Legajos.NOV_LEGAJO.form"/>
+			</flow:action>
+		</flow:form>
+		<flow:form extends="NucleusRH.Base.Presupuesto.Legajos.NOV_LEGAJO.autoform:SHOW" parent-doc="PARENTSOURCE" doc="SOURCE" name="NucleusRH.Base.Presupuesto.Legajos.NOV_LEGAJO.form:SHOW" form-class="NucleusRH.Base.Presupuesto.Legajos.NOV_LEGAJO.form" mode="SHOW"/>
+		<flow:form extends="NucleusRH.Base.Presupuesto.Legajos.NOV_LEGAJO.noreg.autoform:EDIT" parent-doc="PARENTSOURCE" doc="SOURCE" name="NucleusRH.Base.Presupuesto.Legajos.NOV_LEGAJO.noreg.form:EDIT" form-class="NucleusRH.Base.Presupuesto.Legajos.NOV_LEGAJO.noreg.autoform" mode="EDIT">
+			<flow:action name="on-move-iterator">
+				<flow:open-form iter-index="#PARENTSOURCE:NOV_LEGAJO/@id" parent-doc-path="#PARENTSOURCE:" doc-path="#PARENTSOURCE:" mode="EDIT" form-class="NucleusRH.Base.Presupuesto.Legajos.NOV_LEGAJO.form"/>
+			</flow:action>
+			<flow:action name="ADD">
+				<doc:new-object doc="NEWDDO" class="NucleusRH.Base.Presupuesto.Legajos.NOV_LEGAJO"/>
+				<doc:add-object doc-path="#NEWDDO:" parent-doc-path="#PARENTSOURCE:"/>
+				<flow:open-form iter-index="#PARENTSOURCE:NOV_LEGAJO/@id" parent-doc-path="#PARENTSOURCE:" doc-path="#PARENTSOURCE:" mode="EDIT" form-class="NucleusRH.Base.Presupuesto.Legajos.NOV_LEGAJO.form"/>
+			</flow:action>
+		</flow:form>
+		<flow:form extends="NucleusRH.Base.Presupuesto.Legajos.NOV_LEGAJO.autoform:EDIT" parent-doc="PARENTSOURCE" doc="SOURCE" name="NucleusRH.Base.Presupuesto.Legajos.NOV_LEGAJO.form:EDIT" form-class="NucleusRH.Base.Presupuesto.Legajos.NOV_LEGAJO.form" mode="EDIT"/>
+	</flow:group>
+</flow:flow>

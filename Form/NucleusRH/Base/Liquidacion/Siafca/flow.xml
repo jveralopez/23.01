@@ -1,0 +1,63 @@
+<flow:flow xmlns:flow="nomad_engine.flow" xmlns:doc="nomad_engine.doc" xmlns:qry="nomad_engine.qry" extends="Nomad.Base.flow" name="NucleusRH.Base.Liquidacion.Siafca.flow" default_action="initialize">
+	<flow:info label="Flow para NucleusRH.Base.Liquidacion.Siafca"/>
+	<flow:declare>
+		<doc:define name="FILTERDATA">
+			<FILTRO/>
+		</doc:define>
+		<qry:define name="qry_interfaces">
+			<qry:main doc="SOURCE">
+				<qry:element name="options">
+					<qry:insert-select name="SQLSIAFCA"/>
+				</qry:element>
+			</qry:main>
+			<qry:select name="SQLSIAFCA">
+				<qry:xquery>
+					for $r in FILEIO('INTERFACE-DEF\\siafca.def.xml')/INTERFACE-TYPE/INTERFACE
+				</qry:xquery>
+				<qry:out>
+					<qry:element name="option">
+						<qry:attribute value="$r/@code" name="value"/>
+						<qry:attribute value="$r/@desc" name="text"/>
+					</qry:element>
+				</qry:out>
+			</qry:select>
+		</qry:define>
+		<doc:define name="INTERFACES"/>
+	</flow:declare>
+	<flow:main doc="SOURCE">
+		<flow:action name="initialize">
+			<flow:open-form form-class="NucleusRH.Base.Liquidacion.Siafca.form" doc-path="#FILTERDATA:" mode="FILTER"/>
+		</flow:action>
+	</flow:main>
+	<flow:form form-class="NucleusRH.Base.Liquidacion.Siafca.form" name="NucleusRH.Base.Liquidacion.Siafca.form:FILTER" parent-doc="PARENTSOURCE" doc="SOURCE" mode="FILTER">
+		<flow:action name="ACCEPT">
+			<flow:call-action action="Save-FILTER"/>
+			<doc:set-attribute from-value="SIAFCA.json" to-attr-path="#BATCHDOC:@nombreArchivo"/>
+			<flow:exec-method method="InterfaceSalidaJson" class="NucleusRH.Base.Liquidacion.Liquidacion.LIQUIDACION" out-attr-path="#BATCHDOC:@batch-id" out-type="String" priority="5">
+				<flow:param value="SIAFCA" mode="in" name="interfaceTIPO" type="Nomad.NSystem.String"/>
+				<flow:param attr-path="#SOURCE:@t_declaracion" mode="in" type="Nomad.NSystem.String" name="interdaceID"/>
+				<flow:param name="xmlParametros" doc-path="#FILTERDATA:" type="Nomad.NSystem.Object" mode="in"/>
+			</flow:exec-method>
+			<flow:open-form mode="DOWNLOAD" form-class="Nomad.Base.Batch.Download.form" doc-path="#BATCHDOC:"/>
+		</flow:action>
+		<flow:action name="BACK">
+			<flow:close-form/>
+		</flow:action>
+		<flow:action name="on-open">
+			<doc:load-qry qry="qry_interfaces" output-doc="INTERFACES"/>
+			<flow:attach-doc doc-path="#INTERFACES:" attach-id="RS"/>
+			<flow:call-action action="Load-FILTER"/>
+		</flow:action>
+		<flow:action name="Load-FILTER">
+			<flow:load-user-data name="FILTER-NucleusRH.Base.Liquidacion.Siafca" doc="FILTERDATA"/>
+			<!-- <flow:exec-method class="NucleusRH.Base.Organizacion.Empresas.UBICACION" priority="9" out-attr-path="#BATCHDOC:@batch-id" method="InterfaceSalida">
+		<flow:param value="SIAFCA" type="Nomad.NSystem.String" mode="in" name="interfaceTipo"/>
+		<flow:param attr-path="#SOURCE:@t_declaracion" type="Nomad.NSystem.String" mode="in" name="interfaceID"/>
+		<flow:param name="parametros" mode="in" type="Nomad.NSystem.Object" doc-path="#FILTERDATA:"/>
+	</flow:exec-method> -->
+		</flow:action>
+		<flow:action name="Save-FILTER">
+			<flow:save-user-data name="FILTER-NucleusRH.Base.Liquidacion.Siafca" doc-path="#FILTERDATA:"/>
+		</flow:action>
+	</flow:form>
+</flow:flow>

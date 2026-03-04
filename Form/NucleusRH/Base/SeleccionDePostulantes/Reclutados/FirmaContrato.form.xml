@@ -1,0 +1,628 @@
+<form:Form xmlns:form="nomad_engine.form" xmlns:qry="nomad_engine.qry" name="NucleusRH.Base.SeleccionDePostulantes.Reclutados.FirmaContrato.form" extends="nomad.rootIter.form" doc="source">
+	<form:Title width="90%">
+		<form:RowAligner name="ralTitle">
+			<form:Row name="row1">
+				<form:Label nowrap="1" align="center" style="S3 LCol_w" label="Firma de Contrato" name="GEN_NEW"/>
+			</form:Row>
+		</form:RowAligner>
+	</form:Title>
+	<form:Center width="95%">
+		<form:Columns visible="SHOW|EDIT|DELETE|NEW" name="main_columnsPERSONAL_EMP">
+			<form:Column name="main_columnsPERSONAL_EMPcolumn1">
+				<form:Blank name="blank_iter01"/>
+				<form:ComboBox queryname1="NucleusRH.Base.SeleccionDePostulantes.Avisos.AVISO.INFO" enabled="0" xsize="40" mode="QRY" required="1" label="Aviso" nvalue="#source:@oi_aviso" name="oi_aviso"/>
+				<form:ComboBox where1="SDP14_RECLUTADOS.c_estado = 'V'" enabled="0" queryname1="NucleusRH.Base.SeleccionDePostulantes.Reclutados.RECLUTADO.INFO" nvalue="#source:@oi_reclutado" label="Reclutado" name="oi_reclutado" xsize="40" mode="QRY" required="1"/>
+				<form:Blank help-stop="1" name="blank_iter02"/>
+				<form:ComboBox queryname1="NucleusRH.Base.Organizacion.Empresas.EMPRESA.INFO" xsize="40" mode="QRY" required="1" enabled="0" label="Empresa" nvalue="#source:@oi_empresa" name="oi_empresa"/>
+				<form:ComboBox enabled="0" prev="oi_empresa" nvalue="#source:@oi_puesto" queryname1="NucleusRH.Base.Organizacion.Puestos.PUESTO.INFO" label="Puesto" name="oi_puesto" xsize="40" mode="QRY" required="1"/>
+				<form:ComboBox prev="oi_puesto" nvalue="#source:@oi_posicion" label="Posici&#243;n" name="oi_posicion" queryname1="NucleusRH.Base.Organizacion.Puestos.POSICION.INFO" xsize="40" mode="QRY" required="1"/>
+				<form:DateTime label="Fecha Contrato" pattern="YYYYMMDD" required="1" enabled="NEW|EDIT" descr="Fecha de Ingreso del empleado a la Empresa." mask="dd/mm/yyyy" nvalue="#source:@f_ingreso" name="f_ingreso">
+					<form:SButtons>
+						<form:SButton visible="EDIT|NEW" descrip="Fecha de Ingreso del empleado a la Empresa." img="Calendar" label="Calendar" name="Calendar">
+							<form:Event action="SHOW_HELPER" name="onclick" runat="client"/>
+						</form:SButton>
+					</form:SButtons>
+				</form:DateTime>
+				<form:NumberBox label="N&#250;mero de Legajo" required="1" enabled="NEW|EDIT" descr="N&#250;mero de Legajo." mask="###.###.##0" xsize="12" nvalue="#source:@e_numero_legajo" name="e_numero_legajo"/>
+				<form:ComboBox queryname1="NucleusRH.Base.Personal.TiposPersonal.TIPO_PERSONAL.INFO" xsize="40" mode="QRY" required="1" enabled="NEW|EDIT" label="Tipo Personal" nvalue="#source:@oi_tipo_personal" name="oi_tipo_personal"/>
+				<form:Combo name="c_sexo" nvalue="#source:@c_sexo" label="Sexo" enabled="NEW|EDIT" required="1" flow="NucleusRH.Base.Sexo.enum" action="COMBO"/>
+				<form:ComboBox queryname1="NucleusRH.Base.Organizacion.Centros_de_Costos.CENTRO_COSTO.INFO" xsize="40" mode="QRY" required="1" enabled="NEW|EDIT" label="Centro de Costo" nvalue="#source:@oi_ctro_costo" name="oi_ctro_costo"/>
+				<form:ComboBox queryname1="NucleusRH.Base.Organizacion.Calendario_Feriados.CALENDARIO.INFO" xsize="40" mode="QRY" required="1" enabled="NEW|EDIT" label="Calendario" nvalue="#source:@oi_calendario" name="oi_calendario"/>
+				<form:TextBox enabled="NEW|EDIT" required="0" ysize="4" xsize="50" length="1000" label="Motivo de Incorporaci&#243;n" nvalue="#source:@o_motivo_incorp" name="o_motivo_incorp" X-POLICY="./FORM/NucleusRH/Base/Personal/LegajoEmpresa/PERSONAL_EMP/form/o_motivo_incorp"/>
+				<form:TextBox required="0" enabled="NEW|EDIT" ysize="4" xsize="50" length="1000" label="Observaciones" nvalue="#source:@o_personal_emp" name="o_personal_emp"/>
+			</form:Column>
+		</form:Columns>
+		<form:Hidden nvalue="#source:@caso" name="hid_caso"/>
+		<form:Hidden nvalue="#source:@per_emp_ant" name="hid_per_emp"/>
+	</form:Center>
+	<form:Event action="LoadForm" name="onload" runat="client"/>
+	<form:Scripts>
+		function LoadForm()
+{
+  SetPuesto();
+  Ctrl('oi_calendario').SetWhere("ORG27_CAL_FERIADOS.oi_calendario IN (SELECT ORG03_FERIADOS_EMP.oi_calendario FROM ORG03_FERIADOS_EMP WHERE ORG03_FERIADOS_EMP.oi_empresa = "+ Ctrl("oi_empresa").GetXValue() + ")");		
+	Ctrl('f_ingreso').SetTypedValue(new Date());			
+		
+	//PRIMERO IDENTIFICO QUE CASO ESTOY TRATANDO EN LA FIRMA DEL CONTRATO	
+	var persona;	
+	var np = new NomadProxy("", ut);
+	var nSQL = np.SQLService();	
+	persona = nSQL.GetOBJ(Ctrl("main").getResource("QRY_PERSONA_REC"), "&lt;PARAM oi_reclutado=\""+Ctrl("oi_reclutado").GetXValue()+"\" /&gt;"); 			
+		
+	//CASO A. EL CV DEL RECLUTADO NO TIENE ASIGNADO OI_PERSONAL. ES UN POSTULANTE EXTERNO
+	if(persona.oi_personal == "0")   
+	{
+		existePer = nSQL.GetOBJ(Ctrl("main").getResource("QRY_EXISTE_PER"), "&lt;PARAM oi_reclutado=\""+Ctrl("oi_reclutado").GetXValue()+"\" /&gt;"); 			
+		if(existePer.value == "1")
+		{
+			CtrlEnabled("SAVE", false);
+			alert('Ya existe registrada una persona para el reclutado indicado. Por favor, asocie la misma al CV en la pantalla de Administraci&#243;n de CVs');
+		}
+		else
+		{			
+			Ctrl('hid_caso').SetXValue("1"); 		
+			SetLegajo();  
+			SetSexo();
+			CtrlEnabled("e_numero_legajo", true);
+		}
+	}
+	else
+	{
+		legajoAct = nSQL.GetOBJ(Ctrl("main").getResource("QRY_LEGAJO_ACTIVO"), "&lt;PARAM oi_aviso=\""+Ctrl("oi_aviso").GetXValue()+"\" oi_reclutado=\""+Ctrl("oi_reclutado").GetXValue()+"\" /&gt;"); 					
+		//CASO B.1. EL CV TIENE CARGADO PERSONAL, LA PERSONA TIENE UN LEGAJO ACTIVO EN LA EMPRESA DEL AVISO
+		if(legajoAct.oi_personal_emp != "0")
+		{
+			Ctrl('hid_caso').SetXValue("2");
+			Ctrl('hid_per_emp').SetCValue(legajoAct.oi_personal_emp)			
+			Ctrl('e_numero_legajo').SetXValue(legajoAct.e_numero_legajo);			
+			Ctrl('oi_tipo_personal').SetXValue(legajoAct.oi_tipo_personal);
+			Ctrl('oi_calendario').SetXValue(legajoAct.oi_calendario_ult);
+			Ctrl('oi_ctro_costo').SetXValue(legajoAct.oi_ctro_costo_ult);
+			Ctrl('o_personal_emp').SetXValue(legajoAct.o_personal_emp);		
+			Ctrl('c_sexo').SetXValue(legajoAct.c_sexo);			
+			CtrlEnabled("e_numero_legajo", false);			
+		}
+		else
+		{
+			//CASO B.2. EL CV TIENE CARGADO PERSONAL, LA PERSONA TIENE UN LEGAJO ACTIVO EN UNA EMPRESA DIFERENTE A LA DEL PUESTO DEL AVISO
+			legajoActDif = nSQL.GetOBJ(Ctrl("main").getResource("QRY_LEG_ACTIVO_DIF"), "&lt;PARAM oi_aviso=\""+Ctrl("oi_aviso").GetXValue()+"\" oi_reclutado=\""+Ctrl("oi_reclutado").GetXValue()+"\" /&gt;"); 				    
+	    if(legajoActDif.oi_personal_emp != "0")
+	    {	
+	    	Ctrl('hid_caso').SetXValue("3");
+				SetLegajo();
+				//VER COMO HACER EL EGRESO EN ESTE CASO 
+				Ctrl('hid_per_emp').SetCValue(legajoActDif.oi_personal_emp)				
+				Ctrl('oi_tipo_personal').SetXValue(legajoActDif.oi_tipo_personal);
+				Ctrl('oi_calendario').SetXValue(legajoActDif.oi_calendario_ult);
+				Ctrl('oi_ctro_costo').SetXValue(legajoActDif.oi_ctro_costo_ult);
+				Ctrl('o_personal_emp').SetXValue(legajoActDif.o_personal_emp);
+				Ctrl('c_sexo').SetXValue(legajoActDif.c_sexo);					
+				CtrlEnabled("e_numero_legajo", true);				
+			}
+			else
+			{
+				//CASO B.3. EL CV TIENE CARGADO PERSONAL, LA PERSONA TIENE UN LEGAJO INACTIVO EN LA EMPRESA DEL PUESTO DEL AVISO 
+				legajoInactivo = nSQL.GetOBJ(Ctrl("main").getResource("QRY_LEG_INACTIVO"), "&lt;PARAM oi_aviso=\""+Ctrl("oi_aviso").GetXValue()+"\" oi_reclutado=\""+Ctrl("oi_reclutado").GetXValue()+"\" /&gt;"); 				   	 	
+	    	if(legajoInactivo.oi_personal_emp != "0")
+	    	{	
+	    		Ctrl('hid_caso').SetXValue("4");
+					//VER COMO HACER EL REINGRESO EN ESTE CASO 
+					Ctrl('hid_per_emp').SetCValue(legajoInactivo.oi_personal_emp)
+					Ctrl('e_numero_legajo').SetXValue(legajoInactivo.e_numero_legajo);					
+					Ctrl('oi_tipo_personal').SetXValue(legajoInactivo.oi_tipo_personal);
+					Ctrl('oi_calendario').SetXValue(legajoInactivo.oi_calendario_ult);
+					Ctrl('oi_ctro_costo').SetXValue(legajoInactivo.oi_ctro_costo_ult);
+					Ctrl('o_personal_emp').SetXValue(legajoInactivo.o_personal_emp);
+					Ctrl('c_sexo').SetXValue(legajoInactivo.c_sexo);						
+					CtrlEnabled("e_numero_legajo", false);
+				}
+				else
+				{
+					//EXISTE LA PERSONA Y EL LEGAJO ESTA INACTIVO EN OTRA EMPRESA. SE TRATA COMO UN CASO 1
+					Ctrl('hid_caso').SetXValue("1"); 		
+					SetLegajo();
+					CtrlEnabled("e_numero_legajo", true);
+				}
+			}			
+	  }
+	} 
+}
+
+function SetLegajo()
+{
+	var legajo;				
+	var np = new NomadProxy("", ut);
+	var nSQL = np.SQLService();
+	
+	legajo = nSQL.GetOBJ(Ctrl("main").getResource("QRY_LEGAJO"), "&lt;PARAM oi_aviso=\""+Ctrl("oi_aviso").GetXValue()+"\" /&gt;"); 			
+	Ctrl("e_numero_legajo").SetXValue(legajo.e_numero_legajo);					
+ 	CtrlEnabled("e_numero_legajo", false);                         	
+}       
+function SetSexo()
+{
+	var legajo;				
+	var np = new NomadProxy("", ut);
+	var nSQL = np.SQLService();
+	
+	cv = nSQL.GetOBJ(Ctrl("main").getResource("QRY_SEXO"), "&lt;PARAM oi_reclutado=\""+Ctrl("oi_reclutado").GetXValue()+"\" /&gt;"); 			
+	if(cv.c_sexo == 'SE' || cv.c_sexo == '')
+	{                                   
+		Ctrl("c_sexo").SetXValue(''); 
+		CtrlEnabled("c_sexo",true);
+	}                           
+	else
+	{
+		Ctrl("c_sexo").SetXValue(cv.c_sexo);					
+		CtrlEnabled("c_sexo",false);	
+	}
+                        	
+}
+
+function SetPuesto()
+{
+	var puesto;
+	var np = new NomadProxy("", ut);
+	var nSQL = np.SQLService();
+	
+	puesto = nSQL.GetOBJ(Ctrl("main").getResource("QRY_PUESTO"), "&lt;PARAM oi_reclutado=\""+Ctrl("oi_reclutado").GetXValue()+"\" /&gt;"); 		
+  if (puesto.oi_puesto!="0")  
+  {
+  	Ctrl("oi_empresa").SetXValue(puesto.oi_empresa);
+  	Ctrl("oi_puesto").SetXValue(puesto.oi_puesto);
+  } 
+  else 
+  {
+  	Ctrl("oi_puesto").SetXValue("");
+  }
+  
+}
+	</form:Scripts>
+	<form:Resources>
+		<form:Resource name="QRY_PERSONA_REC" declare="&lt;PARAM oi_reclutado=&quot;2&quot;/&gt;">
+			<qry:main doc="SOURCE">
+				<qry:element name="DATO">
+					<qry:attribute name="oi_personal" value="'0'"/>
+					<qry:insert-select name="RS1" doc-path="#SOURCE:PARAM"/>
+				</qry:element>
+			</qry:main>
+			<qry:select name="RS1" doc="SOURCE">
+				<qry:xquery>
+					for $r in sql('
+				SELECT 
+					SDP01_CV.oi_personal,
+					SDP14_RECLUTADOS.oi_cv
+				FROM 
+					SDP14_RECLUTADOS,
+					SDP01_CV
+				JOIN
+					SDP14_RECLUTADOS.oi_cv INNER SDP01_CV.oi_cv 
+				WHERE 
+					SDP14_RECLUTADOS.oi_reclutado = {#SOURCE:@oi_reclutado} 
+      ')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:if test="$r/@oi_personal !=''">
+						<qry:then>
+							<qry:attribute name="oi_personal" value="$r/@oi_personal"/>
+						</qry:then>
+					</qry:if>
+				</qry:out>
+			</qry:select>
+		</form:Resource>
+		<form:Resource name="QRY_EXISTE_PER" declare="&lt;PARAM oi_reclutado=&quot;2&quot;/&gt;">
+			<qry:main doc="SOURCE">
+				<qry:element name="DATO">
+					<qry:attribute name="value" value="'0'"/>
+					<qry:insert-select name="RS1" doc-path="#SOURCE:PARAM"/>
+				</qry:element>
+			</qry:main>
+			<qry:select name="RS1" doc="SOURCE">
+				<qry:xquery>
+					for $r in sql('
+				SELECT 
+					PER01_PERSONAL.oi_personal
+				FROM 
+					SDP14_RECLUTADOS,
+					SDP01_CV,
+					PER01_PERSONAL
+				JOIN
+					SDP14_RECLUTADOS.oi_cv INNER SDP01_CV.oi_cv,
+					PER01_PERSONAL.c_personal INNER SDP01_CV.c_cv
+				WHERE 
+					SDP14_RECLUTADOS.oi_reclutado = {#SOURCE:@oi_reclutado} 
+      ')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:if test="$r/@oi_personal !=''">
+						<qry:then>
+							<qry:attribute name="value" value="'1'"/>
+						</qry:then>
+					</qry:if>
+				</qry:out>
+			</qry:select>
+		</form:Resource>
+		<form:Resource declare="&lt;PARAM oi_reclutado=&quot;2&quot; oi_aviso=&quot;102&quot;/&gt;" name="QRY_LEGAJO_ACTIVO">
+			<qry:main doc="SOURCE">
+				<qry:append-doc name="FILTRO" doc-path="#SOURCE:PARAM"/>
+				<qry:element name="DATO">
+					<qry:attribute name="oi_personal_emp" value="'0'"/>
+					<qry:insert-select name="RS1" doc-path="#SOURCE:PARAM"/>
+				</qry:element>
+			</qry:main>
+			<qry:select name="RS1" doc="SOURCE">
+				<qry:xquery>
+					for $r in sql('
+				SELECT ORG04_PUESTOS.oi_empresa 
+				FROM 
+					SDP05_AVISOS, ORG04_PUESTOS
+				JOIN
+					SDP05_AVISOS.oi_puesto INNER ORG04_PUESTOS.oi_puesto
+				WHERE
+					SDP05_AVISOS.oi_aviso = {#SOURCE:@oi_aviso}				
+      ')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:insert-select name="RS2" doc-path="$r"/>
+				</qry:out>
+			</qry:select>
+			<qry:select name="RS2" doc="SOURCE">
+				<qry:xquery>
+					for $r in sql('
+				SELECT 
+					PER02_PERSONAL_EMP.oi_personal_emp,
+					PER02_PERSONAL_EMP.e_numero_legajo,
+					PER02_PERSONAL_EMP.f_ingreso,
+					PER02_PERSONAL_EMP.f_antiguedad_rec,
+					PER02_PERSONAL_EMP.oi_tipo_personal,
+					PER02_PERSONAL_EMP.oi_calendario_ult,
+					PER02_PERSONAL_EMP.oi_ctro_costo_ult,
+					PER02_PERSONAL_EMP.o_personal_emp,
+					PER01_PERSONAL.c_sexo
+				FROM 
+					SDP14_RECLUTADOS, 
+					SDP01_CV, 
+					PER02_PERSONAL_EMP,
+					PER01_PERSONAL
+				JOIN 
+					SDP14_RECLUTADOS.oi_cv INNER SDP01_CV.oi_cv,
+					SDP01_CV.oi_personal INNER PER02_PERSONAL_EMP.oi_personal,
+					PER01_PERSONAL.oi_personal INNER SDP01_CV.oi_personal
+				WHERE 
+					SDP14_RECLUTADOS.oi_reclutado = {#FILTRO:@oi_reclutado}
+					AND PER02_PERSONAL_EMP.oi_empresa = {#SOURCE:@oi_empresa}				
+					AND PER02_PERSONAL_EMP.oi_indic_activo = 1
+					AND ISNULL(PER02_PERSONAL_EMP.f_egreso)
+      ')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:attribute name="oi_personal_emp" value="$r/@oi_personal_emp"/>
+					<qry:attribute name="e_numero_legajo" value="$r/@e_numero_legajo"/>
+					<qry:attribute name="f_ingreso" value="format_date($r/@f_ingreso,'dd/mm/yyyy')"/>
+					<qry:attribute name="oi_tipo_personal" value="$r/@oi_tipo_personal"/>
+					<qry:attribute name="oi_calendario_ult" value="$r/@oi_calendario_ult"/>
+					<qry:attribute name="oi_ctro_costo_ult" value="$r/@oi_ctro_costo_ult"/>
+					<qry:attribute name="o_personal_emp" value="$r/@o_personal_emp"/>
+					<qry:attribute name="c_sexo" value="$r/@c_sexo"/>
+				</qry:out>
+			</qry:select>
+		</form:Resource>
+		<form:Resource name="QRY_LEG_ACTIVO_DIF" declare="&lt;PARAM oi_reclutado=&quot;2&quot; oi_aviso=&quot;102&quot;/&gt;">
+			<qry:main doc="SOURCE">
+				<qry:append-doc name="FILTRO" doc-path="#SOURCE:PARAM"/>
+				<qry:element name="DATO">
+					<qry:attribute name="oi_personal_emp" value="'0'"/>
+					<qry:insert-select name="RS1" doc-path="#SOURCE:PARAM"/>
+				</qry:element>
+			</qry:main>
+			<qry:select name="RS1" doc="SOURCE">
+				<qry:xquery>
+					for $r in sql('
+				SELECT ORG04_PUESTOS.oi_empresa 
+				FROM 
+					SDP05_AVISOS, ORG04_PUESTOS
+				JOIN
+					SDP05_AVISOS.oi_puesto INNER ORG04_PUESTOS.oi_puesto
+				WHERE
+					SDP05_AVISOS.oi_aviso = {#SOURCE:@oi_aviso}				
+      ')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<!--qry:attribute name="dsds" value="$r/@oi_empresa"/-->
+					<qry:insert-select name="RS2" doc-path="$r"/>
+				</qry:out>
+			</qry:select>
+			<qry:select name="RS2" doc="SOURCE">
+				<qry:xquery>
+					for $r in sql('
+				SELECT 
+					PER02_PERSONAL_EMP.oi_personal_emp,
+					PER02_PERSONAL_EMP.oi_empresa,
+					PER02_PERSONAL_EMP.f_ingreso,
+					PER02_PERSONAL_EMP.f_antiguedad_rec,
+					PER02_PERSONAL_EMP.oi_tipo_personal,
+					PER02_PERSONAL_EMP.oi_calendario_ult,
+					PER02_PERSONAL_EMP.oi_ctro_costo_ult,
+					PER02_PERSONAL_EMP.o_personal_emp,
+					PER01_PERSONAL.c_sexo
+				FROM 
+					SDP14_RECLUTADOS, 
+					SDP01_CV, 
+					PER02_PERSONAL_EMP,
+					PER01_PERSONAL
+				JOIN 
+					SDP14_RECLUTADOS.oi_cv INNER SDP01_CV.oi_cv,
+					SDP01_CV.oi_personal INNER PER02_PERSONAL_EMP.oi_personal,
+					PER01_PERSONAL.oi_personal INNER SDP01_CV.oi_personal
+				WHERE
+					SDP14_RECLUTADOS.oi_reclutado = {#FILTRO:@oi_reclutado}
+					AND PER02_PERSONAL_EMP.oi_empresa != {#SOURCE:@oi_empresa}				
+					AND PER02_PERSONAL_EMP.oi_indic_activo = 1
+					AND ISNULL(PER02_PERSONAL_EMP.f_egreso)
+      ')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:attribute name="oi_personal_emp" value="$r/@oi_personal_emp"/>
+					<qry:attribute name="f_ingreso" value="format_date($r/@f_ingreso,'dd/mm/yyyy')"/>
+					<qry:attribute name="oi_tipo_personal" value="$r/@oi_tipo_personal"/>
+					<qry:attribute name="oi_calendario_ult" value="$r/@oi_calendario_ult"/>
+					<qry:attribute name="oi_ctro_costo_ult" value="$r/@oi_ctro_costo_ult"/>
+					<qry:attribute name="o_personal_emp" value="$r/@o_personal_emp"/>
+					<qry:attribute name="c_sexo" value="$r/@c_sexo"/>
+				</qry:out>
+			</qry:select>
+		</form:Resource>
+		<form:Resource name="QRY_LEG_INACTIVO" declare="&lt;PARAM oi_reclutado=&quot;2&quot; oi_aviso=&quot;102&quot;/&gt;">
+			<qry:main doc="SOURCE">
+				<qry:append-doc name="FILTRO" doc-path="#SOURCE:PARAM"/>
+				<qry:element name="DATO">
+					<qry:attribute name="oi_personal_emp" value="'0'"/>
+					<qry:insert-select name="RS1" doc-path="#SOURCE:PARAM"/>
+				</qry:element>
+			</qry:main>
+			<qry:select name="RS1" doc="SOURCE">
+				<qry:xquery>
+					for $r in sql('
+				SELECT ORG04_PUESTOS.oi_empresa 
+				FROM 
+					SDP05_AVISOS, ORG04_PUESTOS
+				JOIN
+					SDP05_AVISOS.oi_puesto INNER ORG04_PUESTOS.oi_puesto
+				WHERE
+					SDP05_AVISOS.oi_aviso = {#SOURCE:@oi_aviso}				
+      ')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<!--qry:attribute name="dsds" value="$r/@oi_empresa"/-->
+					<qry:insert-select name="RS2" doc-path="$r"/>
+				</qry:out>
+			</qry:select>
+			<qry:select name="RS2" doc="SOURCE">
+				<qry:xquery>
+					for $r in sql('
+				SELECT 
+					PER02_PERSONAL_EMP.oi_personal_emp,
+					PER02_PERSONAL_EMP.e_numero_legajo,
+					PER02_PERSONAL_EMP.f_ingreso,
+					PER02_PERSONAL_EMP.f_antiguedad_rec,
+					PER02_PERSONAL_EMP.oi_tipo_personal,
+					PER02_PERSONAL_EMP.oi_calendario_ult,
+					PER02_PERSONAL_EMP.oi_ctro_costo_ult,
+					PER02_PERSONAL_EMP.o_personal_emp,
+					PER01_PERSONAL.c_sexo
+				FROM 
+					SDP14_RECLUTADOS, 
+					SDP01_CV, 
+					PER02_PERSONAL_EMP,
+					PER01_PERSONAL
+					
+				JOIN 
+					SDP14_RECLUTADOS.oi_cv INNER SDP01_CV.oi_cv,
+					SDP01_CV.oi_personal INNER PER02_PERSONAL_EMP.oi_personal,
+					PER01_PERSONAL.oi_personal INNER SDP01_CV.oi_personal
+				WHERE  
+					SDP14_RECLUTADOS.oi_reclutado = {#FILTRO:@oi_reclutado}
+					AND PER02_PERSONAL_EMP.oi_empresa = {#SOURCE:@oi_empresa}				
+					AND PER02_PERSONAL_EMP.oi_indic_activo = 4
+					AND ISNOTNULL(PER02_PERSONAL_EMP.f_egreso)
+      ')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:attribute name="oi_personal_emp" value="$r/@oi_personal_emp"/>
+					<qry:attribute name="e_numero_legajo" value="$r/@e_numero_legajo"/>
+					<qry:attribute name="f_ingreso" value="format_date($r/@f_ingreso,'dd/mm/yyyy')"/>
+					<qry:attribute name="oi_tipo_personal" value="$r/@oi_tipo_personal"/>
+					<qry:attribute name="oi_calendario_ult" value="$r/@oi_calendario_ult"/>
+					<qry:attribute name="oi_ctro_costo_ult" value="$r/@oi_ctro_costo_ult"/>
+					<qry:attribute name="o_personal_emp" value="$r/@o_personal_emp"/>
+					<qry:attribute name="c_sexo" value="$r/@c_sexo"/>
+				</qry:out>
+			</qry:select>
+		</form:Resource>
+		<!--form:Resource name="QRY_RECLUTADO" declare="&lt;PARAM oi_reclutado=&quot;2&quot;/&gt;">
+		<qry:main doc="SOURCE">
+			<qry:element name="DATO">
+				<qry:attribute name="oi_personal" value="'0'"/>
+				<qry:attribute name="oi_cv" value="'0'"/>
+				<qry:insert-select name="RS1" doc-path="#SOURCE:PARAM"/>
+			</qry:element>
+		</qry:main>
+		<qry:select name="RS1" doc="SOURCE">
+			<qry:xquery>
+				for $r in sql('
+				SELECT 
+					SDP01_CV.oi_personal,
+					SDP14_RECLUTADOS.oi_cv
+				FROM 
+					SDP14_RECLUTADOS,
+					SDP01_CV
+				JOIN
+					SDP14_RECLUTADOS.oi_cv INNER SDP01_CV.oi_cv 
+				WHERE 
+					SDP14_RECLUTADOS.oi_reclutado = {#SOURCE:@oi_reclutado} 
+      ')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:if test="$r/@oi_personal !=''">
+					<qry:then>
+						<qry:attribute name="oi_personal" value="$r/@oi_personal"/>
+						<qry:insert-select name="RS2" doc-path="$r"/>
+					</qry:then>
+				</qry:if>
+				<qry:if test="$r/@oi_cv!=''">
+					<qry:then>
+						<qry:attribute name="oi_cv" value="$r/@oi_cv"/>
+					</qry:then>
+				</qry:if>
+			</qry:out>
+		</qry:select>
+		<qry:select name="RS2" doc="SOURCE">
+			<qry:xquery>
+				for $r in sql('
+				SELECT 
+					PER02_PERSONAL_EMP.e_numero_legajo,
+					PER02_PERSONAL_EMP.oi_ctro_costo_ult,
+					PER02_PERSONAL_EMP.oi_calendario_ult,
+					PER02_PERSONAL_EMP.oi_tipo_personal,
+					PER02_PERSONAL_EMP.oi_empresa
+				FROM 
+					PER02_PERSONAL_EMP,
+					PER01_PERSONAL
+				JOIN
+					PER02_PERSONAL_EMP.oi_personal INNER PER01_PERSONAL.oi_personal
+				WHERE 
+					PER02_PERSONAL_EMP.oi_personal = {#SOURCE:@oi_personal} 
+      ')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:attribute name="e_numero_legajo" value="$r/@e_numero_legajo"/>
+				<qry:attribute name="oi_ctro_costo" value="$r/@oi_ctro_costo_ult"/>
+				<qry:attribute name="oi_calendario" value="$r/@oi_calendario_ult"/>
+				<qry:attribute name="oi_tipo_personal" value="$r/@oi_tipo_personal"/>
+				<qry:attribute name="oi_empresa" value="$r/@oi_empresa"/>
+			</qry:out>
+		</qry:select>
+	</form:Resource>
+	<form:Resource name="QRY_LEGAJO_ACTUAL" declare="&lt;DATOS oi_personal=&quot;11774&quot; oi_aviso=&quot;153&quot; /&gt;">
+		<qry:main doc="SOURCE">
+			<qry:element name="ROW">
+				<qry:attribute name="oi_personal_emp" value="0" type="Nomad.NSystem.String"/>
+				<qry:insert-select name="RS1" doc-path="#SOURCE:DATOS"/>
+			</qry:element>
+		</qry:main>
+		<qry:select name="RS1" doc="SOURCE">
+			<qry:xquery>
+				for $r in sql('
+				SELECT
+					PER02.oi_personal_emp
+				FROM
+					PER02_PERSONAL_EMP AS PER02,
+					ORG04_PUESTOS AS PUESTO,
+					SDP05_AVISOS AS AVI,
+					ORG03_EMPRESAS AS EMPRE
+				JOIN
+			 		PER02.oi_empresa INNER EMPRE.oi_empresa,
+			 		EMPRE.oi_empresa INNER PUESTO.oi_empresa,
+			 		PUESTO.oi_puesto INNER AVI.oi_puesto		
+				WHERE
+					PER02.oi_personal = {#SOURCE:@oi_personal}
+					AND AVI.oi_aviso = {#SOURCE:@oi_aviso}
+					AND PER02.oi_indic_activo = 1
+					AND ISNULL(PER02.f_egreso)
+			')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:attribute name="oi_personal_emp" value="$r/@oi_personal_emp" type="Nomad.NSystem.String"/>
+			</qry:out>
+		</qry:select>
+	</form:Resource-->
+		<form:Resource declare="&lt;PARAM oi_reclutado=&quot;2&quot;/&gt;" name="QRY_PUESTO">
+			<qry:main doc="SOURCE">
+				<qry:element name="DATO">
+					<qry:attribute name="oi_puesto" value="'0'"/>
+					<qry:insert-select name="RS1" doc-path="#SOURCE:PARAM"/>
+				</qry:element>
+			</qry:main>
+			<qry:select name="RS1" doc="SOURCE">
+				<qry:xquery>
+					for $r in sql('
+				SELECT 
+					SDP05_AVISOS.oi_puesto
+					, ORG04_PUESTOS.oi_empresa
+					
+				FROM 
+					SDP05_AVISOS, 
+					ORG04_PUESTOS,
+					SDP14_RECLUTADOS
+				JOIN      
+					SDP14_RECLUTADOS.oi_aviso INNER SDP05_AVISOS.oi_aviso,
+					SDP05_AVISOS.oi_puesto INNER ORG04_PUESTOS.oi_puesto
+				WHERE 
+						SDP14_RECLUTADOS.oi_reclutado = {#SOURCE:@oi_reclutado}
+						AND isnotnull(SDP05_AVISOS.oi_puesto)
+      ')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:attribute name="oi_puesto" value="$r/@oi_puesto"/>
+					<qry:attribute name="oi_empresa" value="$r/@oi_empresa"/>
+				</qry:out>
+			</qry:select>
+		</form:Resource>
+		<form:Resource declare="&lt;PARAM oi_aviso=&quot;102&quot;/&gt;" name="QRY_LEGAJO">
+			<qry:main doc="SOURCE">
+				<qry:element name="DATO">
+					<qry:insert-select name="RS1" doc-path="#SOURCE:PARAM"/>
+				</qry:element>
+			</qry:main>
+			<qry:select name="RS1" doc="SOURCE">
+				<qry:xquery>
+					for $r in sql('
+				SELECT 
+					MAX(PER02_PERSONAL_EMP.e_numero_legajo) as nro	
+				FROM 
+					PER02_PERSONAL_EMP,
+					SDP05_AVISOS AS AVI,
+					ORG04_PUESTOS AS PUESTO,
+					ORG03_EMPRESAS AS EMPRE
+				JOIN
+					EMPRE.oi_empresa INNER PER02_PERSONAL_EMP.oi_empresa,
+					EMPRE.oi_empresa INNER PUESTO.oi_empresa,
+					AVI.oi_puesto INNER PUESTO.oi_puesto  					
+				WHERE 
+					AVI.oi_aviso = {#SOURCE:@oi_aviso} 
+      ')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:attribute name="e_numero_legajo" value="Number($r/@nro) + 1"/>
+				</qry:out>
+			</qry:select>
+		</form:Resource>
+		<form:Resource declare="&lt;PARAM oi_reclutado=&quot;2&quot; oi_aviso=&quot;102&quot;/&gt;" name="QRY_SEXO">
+			<qry:main doc="SOURCE">
+				<qry:append-doc name="FILTRO" doc-path="#SOURCE:PARAM"/>
+				<qry:element name="DATO">
+					<qry:insert-select name="RS1" doc-path="#SOURCE:PARAM"/>
+				</qry:element>
+			</qry:main>
+			<qry:select name="RS1" doc="SOURCE">
+				<qry:xquery>
+					for $r in sql('
+				SELECT 
+					SDP01_CV.c_sexo
+				FROM 
+					SDP14_RECLUTADOS, 
+					SDP01_CV
+				JOIN 
+					SDP14_RECLUTADOS.oi_cv INNER SDP01_CV.oi_cv
+					 
+				WHERE 
+					SDP14_RECLUTADOS.oi_reclutado = {#FILTRO:@oi_reclutado}
+
+      ')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:attribute name="c_sexo" value="$r/@c_sexo"/>
+				</qry:out>
+			</qry:select>
+		</form:Resource>
+	</form:Resources>
+</form:Form>

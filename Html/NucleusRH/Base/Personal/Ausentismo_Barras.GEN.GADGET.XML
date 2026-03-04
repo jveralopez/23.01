@@ -1,0 +1,220 @@
+<html:html xmlns:html="nomad_engine.html" xmlns:qry="nomad_engine.qry" xmlns:xsl="http://www.w3.org/1999/XSL/Transform" name="Ausentismo por per&#237;odos (Barras)" doctype="HTML5" extends="NucleusRH.Base.Configuracion.GadgetBASE.rpt" doc="source">
+	<html:query declare="&lt;PARAMS licencias=&quot;V,F&quot; anio=&quot;2018&quot; empresas='2'/&gt;&#13;&#10;">
+		<qry:main doc="SOURCE">
+			<qry:element name="MAIN">
+				<qry:element name="DATA">
+					<qry:element name="ROOT">
+						<qry:append-doc name="DATOS" doc-path="."/>
+						<qry:attribute name="type" value="'O'"/>
+						<qry:element name="property">
+							<qry:attribute name="value" value="#SOURCE:PARAMS/@altura"/>
+							<qry:attribute name="name" value="'height'"/>
+							<qry:attribute name="type" value="'S'"/>
+						</qry:element>
+						<qry:attribute name="lics" value="#SOURCE:PARAMS/@licencias"/>
+						<qry:attribute value="concat('\\\'', nmd-replace(#SOURCE:PARAMS/@licencias,',','\\\',\\\''), '\\\'')" name="licencias"/>
+						<qry:attribute name="anio" value="#SOURCE:PARAMS/@anio"/>
+						<qry:attribute name="periodos" value="'01,02,03,04,05,06,07,08,09,10,11,12'"/>
+						<qry:attribute name="empresas" value="#SOURCE:PARAMS/@empresas"/>
+						<qry:attribute value="concat('\\\'', nmd-replace(#SOURCE:PARAMS/@empresas,',','\\\',\\\''), '\\\'')" name="empresas"/>
+						<qry:insert-select doc-path="." name="qry_dempresas"/>
+						<qry:element name="property">
+							<qry:attribute name="value" value="'x'"/>
+							<qry:attribute name="name" value="'xkey'"/>
+							<qry:attribute name="type" value="'S'"/>
+						</qry:element>
+						<qry:element name="property">
+							<qry:attribute name="type" value="'ARRO'"/>
+							<qry:attribute name="name" value="'data'"/>
+							<qry:insert-select doc-path="." name="qrySplit"/>
+						</qry:element>
+						<qry:attribute name="c" value="0"/>
+						<property>
+							<qry:attribute name="name" value="'ykeys'"/>
+							<qry:attribute name="type" value="'ARRV'"/>
+							<qry:insert-select doc-path="." name="qry_ykeys"/>
+						</property>
+						<property>
+							<qry:attribute name="name" value="'labels'"/>
+							<qry:attribute name="type" value="'ARRV'"/>
+							<qry:insert-select doc-path="." name="qryLabels"/>
+						</property>
+					</qry:element>
+				</qry:element>
+			</qry:element>
+		</qry:main>
+		<qry:select name="qrySplit" doc="PARAM">
+			<qry:xquery>
+				for $r in SPLIT('1;{%=#DATOS:@periodos%}')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:append-doc name="DATA" doc-path="."/>
+				<qry:attribute name="periodo" value="#DATOS:@anio + $r/@value"/>
+				<qry:attribute name="licencias" value="#DATOS:@licencias"/>
+				<qry:attribute name="empresas" value="#DATOS:@empresas"/>
+				<item>
+					<qry:attribute name="type" value="'O'"/>
+					<property>
+						<qry:attribute name="name" value="'x'"/>
+						<qry:attribute name="value" value="format-date(#DATA:@periodo+'01', 'mm/yyyy')"/>
+						<qry:attribute name="type" value="'S'"/>
+					</property>
+					<qry:insert-select doc-path="." name="qryLicencias"/>
+				</item>
+			</qry:out>
+		</qry:select>
+		<qry:select name="qryLicencias" doc="SOURCE">
+			<qry:xquery>
+				for $r in sql('
+				SELECT
+          			count(LPER.oi_licencia_per) as cantidad,
+          			LIC.oi_licencia,
+          			LIC.c_licencia,
+          			LIC.d_licencia
+				FROM
+			   		PER02_LICEN_PER as LPER,
+			   		PER16_LICENCIAS as LIC,
+			   		PER02_PERSONAL_EMP as LEG,
+			   		ORG03_EMPRESAS as EMP 
+				JOIN 
+					LPER.oi_licencia INNER LIC.oi_licencia,
+					LPER.oi_personal_emp INNER LEG.oi_personal_emp,
+					LEG.oi_empresa INNER EMP.oi_empresa
+				WHERE
+					( 
+						GETPER(LPER.f_inicio) = {#DATA:@periodo}
+						OR GETPER(LPER.f_fin) = {#DATA:@periodo}
+						OR (GETPER(LPER.f_inicio) &lt;= {#DATA:@periodo} AND GETPER(LPER.f_fin) &gt;= {#DATA:@periodo}))
+					AND LIC.c_licencia in ({%=#DATA:@licencias%}) 
+					AND EMP.c_empresa in ({%=#DATA:@empresas%})
+			   	GROUP BY 
+			   		LIC.oi_licencia,
+          			LIC.c_licencia,
+          			LIC.d_licencia
+			')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<property>
+					<qry:attribute name="name" value="$r/@c_licencia"/>
+					<qry:attribute name="value" value="$r/@cantidad"/>
+					<qry:attribute name="type" value="'N'"/>
+				</property>
+			</qry:out>
+		</qry:select>
+		<qry:select name="qry_ykeys" doc="SOURCE">
+			<qry:xquery>
+				for $r in sql('
+				SELECT
+          			LIC.oi_licencia,
+          			LIC.c_licencia,
+          			LIC.d_licencia
+				FROM
+			   		PER16_LICENCIAS as LIC 
+				WHERE
+					LIC.c_licencia in ({%=#DATOS:@licencias%})
+			')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<item>
+					<qry:attribute name="value" value="$r/@c_licencia"/>
+					<qry:attribute name="type" value="'S'"/>
+				</item>
+			</qry:out>
+		</qry:select>
+		<qry:select name="qry_dempresas" doc="SOURCE">
+			<qry:xquery>
+				for $r in sql('
+				SELECT
+          			ORG.d_empresa
+				FROM
+			   		ORG03_EMPRESAS as ORG 
+				WHERE
+					ORG.c_empresa in ({%=#DATOS:@empresas%})
+			')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:attribute name="d_empresas" value="iif(@d_empresas!='', @d_empresas+' - '+$r/@d_empresa,$r/@d_empresa)"/>
+			</qry:out>
+		</qry:select>
+		<qry:select name="qryLabels" doc="SOURCE">
+			<qry:xquery>
+				for $r in sql('
+				SELECT
+          			LIC.oi_licencia,
+          			LIC.c_licencia,
+          			LIC.d_licencia
+				FROM
+			   		PER16_LICENCIAS as LIC 
+				WHERE
+					LIC.c_licencia in ({%=#DATOS:@licencias%})
+			')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<item>
+					<qry:attribute name="value" value="$r/@d_licencia"/>
+					<qry:attribute name="type" value="'S'"/>
+				</item>
+			</qry:out>
+		</qry:select>
+	</html:query>
+	<html:xslt>
+		<xsl:template name="MainReport" match="DATA">
+			<body bgcolor="#F2F2EC" scroll="no" style="margin:5px">
+				<div id="general" style="padding: 10px;">
+					<table class="tabla_detail estilo1" cellspacing="0" cellpadding="0" style="height:10px;text-align:center;">
+						<tr id="trtitulo">
+							<th id="thid" style="border-radius: 15px;-moz-border-radius: 15px;-webkit-border-radius: 15px;border-top-style:none;border-left-style:none;border-right-style:none;">
+								<xsl:value-of select="concat('Comparativo de licencias por Per&#237;odo - Empresas: ', ./ROOT/@d_empresas)"/>
+							</th>
+						</tr>
+					</table>
+					<div id="graphActCV" style="top:50px; bottom:100px; position:absolute; left:10px; right:10px;"/>
+					<script>
+						var datos = new Array();     
+						
+						var strXML = document.getElementById("xml").innerHTML;
+						var xmlData = new NomadXML("XML");
+						var objxml = new NomadXML("objxml"); 
+						var propxml = new NomadXML("propxml");
+						xmlData.AddText(strXML); 
+					    var objROOT = new Object();
+					 
+						var objROOT = toObject(xmlData.FirstChild().FirstChild().ToString());   
+							
+					 	Morris.Bar({
+												 element: 'graphActCV',
+												 data: objROOT.data,
+												 xkey: objROOT.xkey,
+												 ykeys: objROOT.ykeys,
+												 labels: objROOT.labels,
+			  									 hideHover:true,
+												 resize:true
+												});
+					</script>
+				</div>
+			</body>
+		</xsl:template>
+		<xsl:template name="ReportSCRIPT">
+			function Detail(poiNov) {
+				var dir;
+				
+				dir = "../../../ReportViewer.aspx?";
+				dir = dir + "report={#PROXY.APP#}.NucleusRH.Base.Portal_Empleado.NovedadesEmpresa_detail.GEN.GADGET";
+				dir = dir + "{#CHAR.AMP#}oi_novedad=" + poiNov;
+        dir = dir + "{#CHAR.AMP#}LANG={#PROXY.LANG#}";
+                
+				window.open(dir, 'Novedades', 'width=800,height=600,resizable=yes');
+			}
+		</xsl:template>
+		<xsl:template name="BaseSCRIPT">
+			<script id="xml" type="text/xml">
+				<xsl:copy-of select="DATA"/>
+			</script>
+		</xsl:template>
+		<xsl:template name="GADGET_PARAM">
+			<param name="licencias" label="Licencias" type="STRING"/>
+			<param name="anio" label="A&#241;o" type="STRING"/>
+			<param name="empresas" label="Empresas" type="STRING"/>
+		</xsl:template>
+	</html:xslt>
+</html:html>

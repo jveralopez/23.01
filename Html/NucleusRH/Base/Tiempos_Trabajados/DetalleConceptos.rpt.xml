@@ -1,0 +1,200 @@
+<html:html xmlns:html="nomad_engine.html" xmlns:qry="nomad_engine.qry" name="NucleusRH.Base.Tiempos_Trabajados.DetalleConceptos" extends="Nomad.Base.BaseReport.rpt" doc="source">
+	<html:query declare="&lt;FILTRO oi_liquidacion=&quot;8&quot;/&gt;&#13;&#10;">
+		<qry:main doc="PARAM">
+			<qry:append-doc name="FILTRO" doc-path="#PARAM:/FILTRO"/>
+			<REPORT label="Detalle de Conceptos" style="width:100%">
+				<qry:attribute value="format_date(now(),'dd/mm/yyyy HH:MM')" name="date"/>
+				<GROUPS>
+					<GROUP tag="LIQ" type="title">
+						<COLS>
+							<COL name="procesamiento" label="Procesamiento"/>
+						</COLS>
+						<GROUP tag="LEG" type="title">
+							<COLS>
+								<COL name="legajo" label="Legajo"/>
+							</COLS>
+							<GROUP tag="CONC" type="title">
+								<COLS>
+									<COL name="concepto" label="Concepto"/>
+									<COL name="valor" label="Valor Total"/>
+								</COLS>
+								<GROUP tag="DET" type="table" style="width:25%">
+									<COLS>
+										<COL name="fecha" label="Fecha" style="text-align:center"/>
+										<COL name="valor" label="Valor" style="text-align:right"/>
+									</COLS>
+								</GROUP>
+							</GROUP>
+						</GROUP>
+					</GROUP>
+				</GROUPS>
+				<qry:element name="DATA">
+					<qry:insert-select doc-path="#FILTRO:" name="QRY_LIQUIDACION"/>
+				</qry:element>
+			</REPORT>
+		</qry:main>
+		<qry:select name="QRY_LIQUIDACION" doc="PARAM">
+			<qry:xquery>
+				for $r in sql('
+				SELECT
+					TTA09_LIQUIDACION.oi_liquidacion,
+					TTA09_LIQUIDACION.c_liquidacion,
+					TTA09_LIQUIDACION.d_liquidacion
+					FROM TTA09_LIQUIDACION
+					WHERE TTA09_LIQUIDACION.oi_liquidacion = {#PARAM:@oi_liquidacion}
+			')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:element name="LIQ">
+					<qry:attribute value="$r/@oi_liquidacion" name="oi_liquidacion"/>
+					<qry:attribute value="$r/@c_liquidacion + ' - ' + $r/@d_liquidacion" name="procesamiento"/>
+					<qry:insert-select doc-path="$r" name="QRY_LEGAJOS"/>
+				</qry:element>
+			</qry:out>
+		</qry:select>
+		<qry:select doc="PARAM" name="QRY_LEGAJOS">
+			<qry:xquery>
+				for $r in sql('
+				SELECT 
+					PER02_PERSONAL_EMP.oi_personal_emp,
+					TTA10_LIQUIDACPERS.oi_liquidacionpers,					
+					ORG03_EMPRESAS.c_empresa,
+					PER02_PERSONAL_EMP.e_numero_legajo,
+					PER01_PERSONAL.d_ape_y_nom					 
+				FROM 
+					TTA10_CONC_PER, 
+					TTA10_LIQUIDACPERS,
+					TTA15_CONCEPTOS, 					
+					PER02_PERSONAL_EMP,
+					ORG03_EMPRESAS,
+					PER01_PERSONAL					
+				JOIN 
+					TTA10_CONC_PER.oi_liquidacionpers INNER TTA10_LIQUIDACPERS.oi_liquidacionpers,					
+					TTA10_LIQUIDACPERS.oi_personal_emp INNER PER02_PERSONAL_EMP.oi_personal_emp,
+					TTA10_CONC_PER.oi_concepto INNER TTA15_CONCEPTOS.oi_concepto,
+					PER02_PERSONAL_EMP.oi_empresa INNER ORG03_EMPRESAS.oi_empresa,
+					PER01_PERSONAL.oi_personal INNER PER02_PERSONAL_EMP.oi_personal					
+				WHERE 
+					TTA10_LIQUIDACPERS.oi_liquidacion = {#PARAM:@oi_liquidacion} AND
+					TTA15_CONCEPTOS.e_mostrar != 0 AND 
+					TTA15_CONCEPTOS.c_coleccion = \'fecha\'
+    		GROUP BY            
+					PER02_PERSONAL_EMP.oi_personal_emp,
+					TTA10_LIQUIDACPERS.oi_liquidacionpers,					
+					ORG03_EMPRESAS.c_empresa,
+					PER02_PERSONAL_EMP.e_numero_legajo, 
+					PER01_PERSONAL.d_ape_y_nom	
+				ORDER BY 
+					e_numero_legajo ASC,
+					oi_liquidacionpers ASC
+			')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:element name="LEG">
+					<qry:attribute value="$r/@oi_personal_emp" name="oi_personal_emp"/>
+					<qry:attribute value="$r/@oi_liquidacionpers" name="oi_liquidacionpers"/>
+					<qry:attribute value="'(' + $r/@c_empresa + ' - ' + $r/@e_numero_legajo + ') ' + $r/@d_ape_y_nom" name="legajo"/>
+					<qry:insert-select doc-path="$r" name="QRY_CONCEPTOS"/>
+				</qry:element>
+			</qry:out>
+		</qry:select>
+		<qry:select doc="PARAM" name="QRY_CONCEPTOS">
+			<qry:xquery>
+				for $r in sql('
+				SELECT 					
+					TTA10_LIQUIDACPERS.oi_liquidacionpers,
+					TTA10_CONC_PER.oi_concepto,
+					TTA15_CONCEPTOS.c_concepto,
+					TTA15_CONCEPTOS.d_concepto,
+					TTA15_CONCEPTOS.e_mostrar,
+					TTA15_CONCEPTOS.c_unidad,
+					SUM(TTA10_CONC_PER.n_valor) as n_valor										 
+				FROM 
+					TTA10_CONC_PER, 
+					TTA10_LIQUIDACPERS, 
+					TTA15_CONCEPTOS					
+				JOIN 
+					TTA10_CONC_PER.oi_liquidacionpers INNER TTA10_LIQUIDACPERS.oi_liquidacionpers,
+					TTA10_CONC_PER.oi_concepto INNER TTA15_CONCEPTOS.oi_concepto
+				WHERE 
+					TTA10_LIQUIDACPERS.oi_liquidacionpers = {#PARAM:@oi_liquidacionpers} AND
+					TTA15_CONCEPTOS.e_mostrar != 0 AND 
+					TTA15_CONCEPTOS.c_coleccion = \'fecha\'
+				GROUP BY            					
+					TTA10_LIQUIDACPERS.oi_liquidacionpers,
+					TTA10_CONC_PER.oi_concepto,
+					TTA15_CONCEPTOS.c_concepto,
+					TTA15_CONCEPTOS.d_concepto,
+					TTA15_CONCEPTOS.e_mostrar,
+					TTA15_CONCEPTOS.c_unidad				
+				ORDER BY 					
+					e_mostrar ASC				
+			')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:element name="CONC">
+					<qry:attribute value="$r/@c_concepto + ' - '+ $r/@d_concepto" name="concepto"/>
+					<qry:if test="$r/@c_unidad= 'horas'">
+						<qry:then>
+							<qry:attribute value="floor($r/@n_valor)" name="horas"/>
+							<qry:attribute value="format_number(($r/@n_valor*60) MOD 60,'00')" name="minutos"/>
+							<qry:attribute value="@horas + ':' + @minutos + ' Hs.'" name="valor"/>
+						</qry:then>
+						<qry:else>
+							<qry:if test="$r/@c_unidad= 'pesos'">
+								<qry:then>
+									<qry:attribute value="format_number(Number($r/@n_valor), '$ ####0,00')" name="valor"/>
+								</qry:then>
+								<qry:else>
+									<qry:attribute value="$r/@n_valor + ' ' + $r/@c_unidad" name="valor"/>
+								</qry:else>
+							</qry:if>
+						</qry:else>
+					</qry:if>
+					<qry:insert-select doc-path="$r" name="QRY_DETALLE"/>
+				</qry:element>
+			</qry:out>
+		</qry:select>
+		<qry:select doc="PARAM" name="QRY_DETALLE">
+			<qry:xquery>
+				for $r in sql('
+				SELECT 										
+					TTA10_CONC_PER.e_clave,
+					TTA10_CONC_PER.n_valor,
+					TTA15_CONCEPTOS.c_unidad
+				FROM 
+					TTA10_CONC_PER, TTA15_CONCEPTOS
+				JOIN 					
+					TTA10_CONC_PER.oi_concepto INNER TTA15_CONCEPTOS.oi_concepto					
+				WHERE 
+					TTA10_CONC_PER.oi_liquidacionpers = {#PARAM:@oi_liquidacionpers} AND
+					TTA10_CONC_PER.oi_concepto = {#PARAM:@oi_concepto} AND
+					TTA15_CONCEPTOS.e_mostrar != 0 AND 
+					TTA15_CONCEPTOS.c_coleccion = \'fecha\'
+			')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:element name="DET">
+					<qry:attribute value="substring($r/@e_clave, 6, 2) + '/' + substring($r/@e_clave, 4, 2) + '/' + substring($r/@e_clave, 0, 4)" name="fecha"/>
+					<qry:if test="$r/@c_unidad= 'horas'">
+						<qry:then>
+							<qry:attribute value="floor($r/@n_valor)" name="horas"/>
+							<qry:attribute value="format_number(($r/@n_valor*60) MOD 60,'00')" name="minutos"/>
+							<qry:attribute value="@horas + ':' + @minutos + ' Hs.'" name="valor"/>
+						</qry:then>
+						<qry:else>
+							<qry:if test="$r/@c_unidad= 'pesos'">
+								<qry:then>
+									<qry:attribute value="format_number(Number($r/@n_valor), '$ ####0,00')" name="valor"/>
+								</qry:then>
+								<qry:else>
+									<qry:attribute value="$r/@n_valor + ' ' + $r/@c_unidad" name="valor"/>
+								</qry:else>
+							</qry:if>
+						</qry:else>
+					</qry:if>
+				</qry:element>
+			</qry:out>
+		</qry:select>
+	</html:query>
+</html:html>

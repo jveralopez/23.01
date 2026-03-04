@@ -1,0 +1,282 @@
+<flow:flow xmlns:flow="nomad_engine.flow" xmlns:qry="nomad_engine.qry" name="NucleusRH.Base.Presupuesto.Escenarios.PRESUPUESTO_ESCENARIO.guia" extends="NucleusRH.Base.Presupuesto.Escenarios.ESCENARIO.guia.autoflow" default_action="HELP">
+	<flow:info label="Flow guia para NucleusRH.Base.Presupuesto.Interface.NovedadesPorLegajo"/>
+	<flow:declare>
+		<qry:define name="X2C">
+			<qry:main doc="SOURCE">
+				<qry:element name="ROW">
+					<qry:insert-select doc-path="#SOURCE:" name="RS1"/>
+				</qry:element>
+			</qry:main>
+			<qry:select doc="SOURCE" name="RS1">
+				<qry:xquery>
+					for $r in sql('
+	SELECT 
+	t.oi_escenario as ID, 
+	t.e_numero as CODE, 
+	t.e_numero as TEXT, 
+	t.oi_presupuesto as PID, 
+	SEC.policy  
+	FROM 
+	PRE03_ESCENARIOS as t, 
+	NMD_SECURITY(class=\'NucleusRH.Base.Presupuesto.Escenarios.ESCENARIO\') as SEC 
+	JOIN 
+	t.oi_escenario LEFT OUTER SEC.id  
+	WHERE 
+	t.oi_escenario={#SOURCE:helper-mess/@ID} 
+	AND t.c_estado=\'P\'
+	ORDER BY CODE asc')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:attribute value="$r/@ID" name="id"/>
+					<qry:attribute value="$r/@ID" name="value"/>
+					<qry:attribute value="$r/@CODE" name="code"/>
+					<qry:attribute value="$r/@TEXT" name="text"/>
+					<qry:attribute type="Nomad.NSystem.Int" value="$r/@PID" name="PID"/>
+					<qry:insert-select doc-path="." name="RS2"/>
+				</qry:out>
+			</qry:select>
+			<qry:select doc="SOURCE" name="RS2">
+				<qry:xquery>
+					for $r in sql('
+	SELECT 
+	t.oi_presupuesto as ID, 
+	t.c_presupuesto as CODE, 
+	t.d_presupuesto as TEXT, 
+	SEC.policy  
+	FROM 
+	PRE12_PRESUPUESTO as t, 
+	NMD_SECURITY(class=\'NucleusRH.Base.Presupuesto.Presupuestos.PRESUPUESTO\') as SEC 
+	JOIN 
+	t.oi_presupuesto LEFT OUTER SEC.id  
+	WHERE 
+	t.oi_presupuesto={#SOURCE:@PID}
+	AND t.c_estado=\'A\'
+	ORDER BY CODE asc')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:attribute value="$r/@CODE+'-'+#SOURCE:@CODE" name="code"/>
+					<qry:attribute value="$r/@TEXT+'-'+#SOURCE:@TEXT" name="text"/>
+				</qry:out>
+			</qry:select>
+		</qry:define>
+		<qry:define name="C2X">
+			<qry:main doc="SOURCE">
+				<qry:append-doc doc-path="#SOURCE:helper-mess" name="INDOC"/>
+				<qry:element name="ROW">
+					<qry:insert-select doc-path="#SOURCE:" name="RS1"/>
+				</qry:element>
+			</qry:main>
+			<qry:select doc="SOURCE" name="RS1">
+				<qry:xquery>
+					for $r in sql('
+	SELECT 
+	t.oi_presupuesto as ID, 
+	t.c_presupuesto as CODE, 
+	t.d_presupuesto as TEXT, 
+	SEC.policy  
+	FROM 
+	PRE12_PRESUPUESTO as t, 
+	NMD_SECURITY(class=\'NucleusRH.Base.Presupuesto.Presupuestos.PRESUPUESTO\') as SEC 
+	JOIN 
+	t.oi_presupuesto LEFT OUTER SEC.id  
+	WHERE 
+	t.c_presupuesto={substring_before(#INDOC:@CODE,\'-\')}
+	AND t.c_estado=\'A\' 
+	ORDER BY CODE asc')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:attribute value="$r/@policy" name="policy"/>
+					<qry:attribute value="substring_after(#INDOC:@CODE,'-')" name="SUB_SEARCH"/>
+					<qry:attribute value="$r/@ID" name="PARENTID"/>
+					<qry:attribute value="$r/@CODE" name="code"/>
+					<qry:attribute value="$r/@TEXT" name="text"/>
+					<qry:insert-select doc-path="." name="RS2"/>
+				</qry:out>
+			</qry:select>
+			<qry:select doc="SOURCE" name="RS2">
+				<qry:xquery>
+					for $r in sql('
+	SELECT 
+	t.oi_escenario as ID, 
+	t.e_numero as CODE, 
+	t.e_numero as TEXT, 
+	t.oi_presupuesto as PID, 
+	SEC.policy  
+	FROM 
+	PRE03_ESCENARIOS as t, 
+	NMD_SECURITY(class=\'NucleusRH.Base.Presupuesto.Escenarios.ESCENARIO\') as SEC 
+	JOIN 
+	t.oi_escenario LEFT OUTER SEC.id  
+	WHERE 
+	t.e_numero={substring_before(#SOURCE:@SUB_SEARCH,\'-\')} 
+	AND t.oi_presupuesto={#SOURCE:@PARENTID}
+	AND t.c_estado=\'P\' 
+	ORDER BY CODE asc')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:attribute value="$r/@policy" name="policy"/>
+					<qry:attribute value="''" name="SUB_SEARCH"/>
+					<qry:attribute value="''" name="PARENTID"/>
+					<qry:attribute value="$r/@ID" name="id"/>
+					<qry:attribute value="$r/@ID" name="value"/>
+					<qry:attribute value="#SOURCE:@CODE+'-'+$r/@CODE" name="code"/>
+					<qry:attribute value="#SOURCE:@TEXT+'-'+$r/@TEXT" name="text"/>
+				</qry:out>
+			</qry:select>
+		</qry:define>
+		<qry:define name="HELP">
+			<qry:main doc="SOURCE">
+				<qry:element name="ROW">
+					<qry:attribute value="#SOURCE:ROW/@PARENTID" name="PARENTID"/>
+					<qry:attribute value="#SOURCE:ROW/@CODE" name="CODE"/>
+					<qry:attribute value="#SOURCE:ROW/@TEXT" name="TEXT"/>
+					<qry:attribute value="#SOURCE:ROW/@FILTER" name="FILTER"/>
+					<qry:insert-select doc-path="." name="RS2"/>
+					<qry:element name="ROWS">
+						<qry:insert-select doc-path=".." name="RS1"/>
+					</qry:element>
+				</qry:element>
+			</qry:main>
+			<qry:select doc="SOURCE" name="RS2">
+				<qry:xquery>
+					for $r in sql('
+	SELECT 
+	t.oi_presupuesto as ID, 
+	t.c_presupuesto as CODE, 
+	t.d_presupuesto as TEXT, 
+	SEC.policy  
+	FROM PRE12_PRESUPUESTO as t, 
+	NMD_SECURITY(class=\'NucleusRH.Base.Presupuesto.Presupuestos.PRESUPUESTO\') as SEC 
+	JOIN 
+	t.oi_presupuesto LEFT OUTER SEC.id  
+	WHERE 
+	t.oi_presupuesto={#SOURCE:@PARENTID}
+	AND t.c_estado=\'A\' 
+	ORDER BY CODE asc')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:attribute value="$r/@CODE" name="code"/>
+					<qry:attribute value="$r/@TEXT" name="text"/>
+				</qry:out>
+			</qry:select>
+			<qry:select doc="SOURCE" name="RS1">
+				<qry:xquery>
+					for $r in sql('
+	SELECT 
+	t.oi_escenario as ID, 
+	t.e_numero as CODE, 
+	t.e_numero as TEXT, 
+	t.oi_presupuesto as PID, 
+	SEC.policy  
+	FROM 
+	PRE03_ESCENARIOS as t, 
+	NMD_SECURITY(class=\'NucleusRH.Base.Presupuesto.Escenarios.ESCENARIO\') as SEC 
+	JOIN 
+	t.oi_escenario LEFT OUTER SEC.id  
+	WHERE  
+	t.oi_presupuesto={#SOURCE:@PARENTID}
+	AND t.c_estado=\'P\' 
+	ORDER BY CODE asc')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:element name="ROW">
+						<qry:attribute value="$r/@ID" name="id"/>
+						<qry:attribute value="$r/@ID" name="value"/>
+						<qry:attribute value="$r/@CODE" name="code1"/>
+						<qry:attribute value="$r/@TEXT" name="text1"/>
+						<qry:attribute value="#SOURCE:@CODE+'-'+$r/@CODE" name="code"/>
+						<qry:attribute value="#SOURCE:@TEXT+'-'+$r/@TEXT" name="text"/>
+					</qry:element>
+				</qry:out>
+			</qry:select>
+		</qry:define>
+		<qry:define name="PRELOAD">
+			<qry:main doc="SOURCE">
+				<qry:append-doc doc-path="#SOURCE:helper-mess" name="HM"/>
+				<qry:element name="ROW">
+					<qry:insert-select doc-path="#SOURCE:helper-mess" name="RS2"/>
+					<qry:insert-select doc-path="." name="RS3"/>
+					<qry:element name="ROWS">
+						<qry:insert-select doc-path=".." name="RS1"/>
+					</qry:element>
+					<qry:attribute value="substring(#HM:@TEXT,1+string_length(./@TEXT))" name="FILTER"/>
+				</qry:element>
+			</qry:main>
+			<qry:select doc="SOURCE" name="RS3">
+				<qry:xquery>
+					for $r in sql('
+	SELECT 
+	t.oi_presupuesto as ID, 
+	t.c_presupuesto as CODE, 
+	t.d_presupuesto as TEXT, 
+	SEC.policy  
+	FROM 
+	PRE12_PRESUPUESTO as t, 
+	NMD_SECURITY(class=\'NucleusRH.Base.Presupuesto.Presupuestos.PRESUPUESTO\') as SEC 
+	JOIN 
+	t.oi_presupuesto LEFT OUTER SEC.id  
+	WHERE 
+	t.oi_presupuesto={#SOURCE:@PARENTID}
+	AND t.c_estado=\'A\' 
+	ORDER BY CODE asc')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:attribute value="$r/@CODE" name="code"/>
+					<qry:attribute value="$r/@TEXT" name="text"/>
+				</qry:out>
+			</qry:select>
+			<qry:select doc="SOURCE" name="RS2">
+				<qry:xquery>
+					for $r in sql('
+	select 
+	t.oi_presupuesto 
+	from 
+	PRE03_ESCENARIOS as t 
+	where
+	t.oi_escenario={#SOURCE:@ID}
+	AND t.c_estado=\'P\'
+	')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:attribute value="$r/@oi_presupuesto" name="PARENTID"/>
+				</qry:out>
+			</qry:select>
+			<qry:select doc="SOURCE" name="RS1">
+				<qry:xquery>
+					for $r in sql('
+	SELECT 
+	t.oi_escenario as ID, 
+	t.e_numero as CODE, 
+	t.e_numero as TEXT, 
+	t.oi_presupuesto as PID, 
+	SEC.policy  
+	FROM 
+	PRE03_ESCENARIOS as t, 
+	NMD_SECURITY(class=\'NucleusRH.Base.Presupuesto.Escenarios.ESCENARIO\') as SEC 
+	JOIN 
+	t.oi_escenario LEFT OUTER SEC.id  
+	WHERE  
+	t.oi_presupuesto={#SOURCE:@PARENTID} 
+	AND t.c_estado=\'P\'
+	ORDER BY CODE asc')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:element name="ROW">
+						<qry:attribute value="$r/@ID" name="id"/>
+						<qry:attribute value="$r/@ID" name="value"/>
+						<qry:attribute value="$r/@CODE" name="code1"/>
+						<qry:attribute value="$r/@TEXT" name="text1"/>
+						<qry:attribute value="#SOURCE:@CODE+'-'+$r/@CODE" name="code"/>
+						<qry:attribute value="#SOURCE:@TEXT+'-'+$r/@TEXT" name="text"/>
+					</qry:element>
+				</qry:out>
+			</qry:select>
+		</qry:define>
+	</flow:declare>
+	<flow:main doc="SOURCE">
+		<flow:action name="OPEN-GUIA">
+			<flow:open-form form-class="NucleusRH.Base.Presupuesto.Escenarios.PRESUPUESTO_ESCENARIO.guia.form" mode="SHOW" parent-doc-path="#SOURCE:" doc-path="#RS:"/>
+		</flow:action>
+	</flow:main>
+	<flow:form extends="NucleusRH.Base.Presupuesto.Escenarios.ESCENARIO.guia.autoform:SHOW" parent-doc="INVAL" mode="SHOW" form-class="NucleusRH.Base.Presupuesto.Escenarios.PRESUPUESTO_ESCENARIO.guia.form" name="NucleusRH.Base.Presupuesto.Escenarios.PRESUPUESTO_ESCENARIO.guia.form:SHOW" doc="SOURCE"/>
+</flow:flow>

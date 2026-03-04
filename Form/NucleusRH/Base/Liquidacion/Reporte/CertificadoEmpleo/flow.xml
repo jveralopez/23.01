@@ -1,0 +1,76 @@
+<flow:flow xmlns:flow="nomad_engine.flow" xmlns:doc="nomad_engine.doc" xmlns:qry="nomad_engine.qry" name="NucleusRH.Base.Liquidacion.Reporte.CertificadoEmpleo.flow" extends="Nomad.Base.flow" default_action="initialize">
+	<flow:info label="Flow para NucleusRH.Base.Liquidacion.Reporte.CertificadoEmpleo"/>
+	<flow:declare>
+		<doc:define name="FILTERDATA">
+			<PARAMS oi_personal_emp=""/>
+		</doc:define>
+		<doc:define name="REPORT">
+			<DATA empty-attr=""/>
+		</doc:define>
+		<qry:define declare="&lt;PARAMS oi_personal_emp=&quot;11437&quot; /&gt;" name="QRY_EMPRESA">
+			<qry:main doc="SOURCE">
+				<qry:element name="ROWS">
+					<qry:attribute name="oi_empresa" value="''"/>
+					<qry:insert-select name="RS1" doc-path="#SOURCE:PARAMS"/>
+				</qry:element>
+			</qry:main>
+			<qry:select doc="PARAM" name="RS1">
+				<qry:xquery>
+					for $r in sql('
+			SELECT 
+				PER02_PERSONAL_EMP.oi_empresa,
+				PER02_PERSONAL_EMP.oi_personal_emp
+			FROM 
+				PER02_PERSONAL_EMP
+			WHERE 
+				PER02_PERSONAL_EMP.oi_personal_emp = {#PARAM:@oi_personal_emp}
+		')ROWS/ROW[0]
+				</qry:xquery>
+				<qry:out>
+					<qry:attribute name="oi_empresa" value="$r/@oi_empresa"/>
+					<qry:attribute name="oi_personal_emp" value="$r/@oi_personal_emp"/>
+				</qry:out>
+			</qry:select>
+		</qry:define>
+		<doc:define name="EMP"/>
+		<doc:define name="DATOS">
+			<FILTER oi_personal_emp="" oi_empresa=""/>
+		</doc:define>
+	</flow:declare>
+	<flow:main doc="SOURCE">
+		<flow:action name="initialize">
+			<flow:open-form form-class="NucleusRH.Base.Liquidacion.Reporte.CertificadoEmpleo.filter.form" doc-path="#SOURCE:" mode="FILTER"/>
+		</flow:action>
+	</flow:main>
+	<flow:form name="NucleusRH.Base.Liquidacion.Reporte.CertificadoEmpleo.filter.form:FILTER" form-class="NucleusRH.Base.Liquidacion.Reporte.CertificadoEmpleo.filter.form" doc="SOURCE" mode="FILTER">
+		<flow:action name="ACCEPT">
+			<flow:call-action action="Save-FILTER"/>
+			<doc:load-qry input-doc-path="#SOURCE:" qry="QRY_EMPRESA" output-doc="EMP"/>
+			<doc:set-attribute to-attr-path="#FILTERDATA:@oi_empresa" from-attr-path="#EMP:@oi_empresa"/>
+			<doc:set-attribute to-attr-path="#FILTERDATA:@oi_personal_emp" from-attr-path="#EMP:@oi_personal_emp"/>
+			<flow:exec-method class="NucleusRH.Base.Personal.LegajoEmpresa.PERSONAL_EMP" out-type="Nomad.NSystem.Proxy.NomadXML" method="Certificado" out-doc="DATOS">
+				<flow:param doc="FILTERDATA" mode="inout" type="Nomad.NSystem.Proxy.NomadXML" name="xmlparam"/>
+			</flow:exec-method>
+			<flow:exec-method class="Nomad.Base.Report.GeneralReport.REPORT" method="ExecReportFO" out-attr-path="#BATCHDOC:@batch-id" priority="5">
+				<flow:param value="NucleusRH.Base.Liquidacion.Certificado.CertificadoEmpleo.rpt" type="Nomad.NSystem.String" mode="in" name="ReportName"/>
+				<flow:param doc-path="#DATOS:" type="Nomad.NSystem.Proxy.NomadXML" mode="in" name="xmlParam"/>
+			</flow:exec-method>
+			<doc:set-attribute from-value="Certificado de Empleo" to-attr-path="#BATCHDOC:@title"/>
+			<flow:open-form form-class="Nomad.base.batch.report.form" mode="BATCH" doc-path="#BATCHDOC:"/>
+		</flow:action>
+		<flow:action name="BACK">
+			<flow:close-form/>
+		</flow:action>
+		<flow:action name="Save-FILTER">
+			<flow:save-user-data name="FILTER-NucleusRH.Base.Liquidacion.Reporte.CertificadoEmpleo" doc-path="#FILTERDATA:"/>
+		</flow:action>
+		<flow:action name="Load-FILTER">
+			<flow:load-user-data name="FILTER-NucleusRH.Base.Liquidacion.Reporte.CertificadoEmpleo" doc="FILTERDATA"/>
+		</flow:action>
+	</flow:form>
+	<flow:form form-class="NucleusRH.Base.Liquidacion.Reporte.CertificadoEmpleo.Reportes.form" name="NucleusRH.Base.Liquidacion.Reporte.CertificadoEmpleo.Reportes.form" mode="BATCH" doc="source">
+		<flow:action name="BACK">
+			<flow:exit-flow return-path="#FILTERDATA:"/>
+		</flow:action>
+	</flow:form>
+</flow:flow>

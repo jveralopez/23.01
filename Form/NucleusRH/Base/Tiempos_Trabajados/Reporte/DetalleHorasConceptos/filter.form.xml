@@ -1,0 +1,264 @@
+<form:Form xmlns:form="nomad_engine.form" xmlns:qry="nomad_engine.qry" extends="NucleusRH.Base.Tiempos_Trabajados.Reporte.filter3.form" name="DetalleHorasConceptosfilter" doc="source">
+	<form:Title>
+		<form:Label label="204 - Informe de Horas y Conceptos" name="lbl_titulo" visible="" style="S3 LCol_w" align="center"/>
+	</form:Title>
+	<form:Center width="100%">
+		<form:VGroup label="Criterios de selecci&#243;n de par&#225;metros para el reporte" nvalue="#source:@gcustom" border="1" width="90%" name="vgroupDatosCustom" collapse="1">
+			<form:Columns name="colsext" width="100%">
+				<form:Column name="col1ext" valign="top" align="left">
+					<form:Combo visible="0" descrip="Indica el Organigrama que se utilizar&#225; para realizar el agrupamiento de la informaci&#243;n" label="Organigrama" name="oi_clase_org" nvalue="#source:@oi_clase_org" enabled="" required="1" flow="NucleusRH.Base.Organizacion.Clases_Organizativas.CLASE_ORG.Combo.autoflow" action="COMBO"/>
+					<form:DateTime nvalue="#source:@f_desde" name="f_desde" pattern="YYYYMMDD" required="1" enabled="" mask="dd/mm/yyyy" label="Fecha Desde">
+						<form:SButtons>
+							<form:SButton img="Calendar" label="Calendar" name="Calendar" visible="">
+								<form:Event action="SHOW_HELPER" name="onclick" runat="client"/>
+							</form:SButton>
+						</form:SButtons>
+					</form:DateTime>
+					<form:DateTime name="f_hasta" nvalue="#source:@f_hasta" pattern="YYYYMMDD" required="1" enabled="" mask="dd/mm/yyyy" label="Fecha Hasta">
+						<form:SButtons>
+							<form:SButton img="Calendar" label="Calendar" name="Calendar" visible="">
+								<form:Event action="SHOW_HELPER" name="onclick" runat="client"/>
+							</form:SButton>
+						</form:SButtons>
+					</form:DateTime>
+					<form:ComboBox queryname1="NucleusRH.Base.Tiempos_Trabajados.Liquidacion.LIQUIDACION.INFO" xsize="40" mode="QRY" required="0" label="Procesamiento" nvalue="#source:@oi_liquidacion" name="oi_liquidacion">
+						<form:Event action="SetDates" name="onchange" runat="client"/>
+					</form:ComboBox>
+					<form:CheckBox label="Omitir Encabezado" nvalue="#source:@encabezado" name="encabezado"/>
+					<form:CheckBox label="Salto de P&#225;gina por Legajo" nvalue="#source:@legporhoja" name="legporhoja"/>
+					<form:CheckBox label="Fichadas Anuladas" nvalue="#source:@anuladas" name="anuladas"/>
+					<form:CheckBox label="Listar por D&#237;a" name="pordia" nvalue="#source:@pordia"/>
+					<form:CheckBox nvalue="#source:@reporteDoc" name="reporteDoc" label="Reporte para Nucleus DOC">
+						<form:Event action="reporteDoc" name="onclick" runat="client"/>
+					</form:CheckBox>
+				</form:Column>
+				<form:Column label="Informaci&#243;n a mostrar" name="col2ext" valign="top" align="left">
+					<form:TextBox xsize="35" length="100" name="iter_search" ysize="1" descr="Busca." X-POLICY="./FORM/NucleusRH/Base/Organizacion/Escalas/ESCALA/autoform/iter_search">
+						<form:Event runat="client" name="onpressenter" action="Find"/>
+						<form:SButtons>
+							<form:SButton name="Search" label="Buscar" img="search" descrip="Ejecuta la busqueda.">
+								<form:Event runat="client" name="onclick" action="Find"/>
+							</form:SButton>
+						</form:SButtons>
+					</form:TextBox>
+					<form:ListView docname="CONC" arr-control="CONC" nvalue="#source:@selected" rows="4" width="300px" label="Conceptos" name="Conceptos">
+						<form:LVColumns>
+							<form:LVColumn visible="1" sorteable="1" label="coleccion" width="50%" name="coleccion" type="string" attrname="coleccion"/>
+							<form:LVColumn width="50%" attrname="des" type="string" sorteable="1" label="Concepto" name="des"/>
+						</form:LVColumns>
+						<form:SButtons>
+							<form:SButton img="table_check" descrip="Marcar los Elementos" name="Mark">
+								<form:Event action="FullCONC" name="OnClick" runat="client"/>
+							</form:SButton>
+							<form:SButton img="table_uncheck" descrip="Desmarcar los Elementos" name="UnMark">
+								<form:Event action="ClearCONC" name="OnClick" runat="client"/>
+							</form:SButton>
+						</form:SButtons>
+					</form:ListView>
+					<form:HiddenArr nvalue="#source:CONC" proto="&lt;C /&gt;" name="CONC">
+						<form:Attr name="id"/>
+					</form:HiddenArr>
+				</form:Column>
+			</form:Columns>
+		</form:VGroup>
+		<form:Hidden name="f_ini"/>
+		<form:Hidden name="f_fin"/>
+	</form:Center>
+	<form:Resources>
+		<form:Resource name="qry_externo">
+			<qry:main name="qry" doc="SOURCE">
+				<qry:element name="ROWS">
+					<qry:insert-select name="sql1" doc-path="#SOURCE:/PARAM"/>
+				</qry:element>
+			</qry:main>
+			<qry:select name="sql1" doc="SOURCE">
+				<qry:xquery>
+					for $r in sql('			
+				SELECT 
+					PER02_PERSONAL_EMP.oi_personal_emp
+				FROM 
+					PER02_PERSONAL_EMP
+					{%?(#SOURCE:@oi_liquidacion!='') 
+						{% , TTA10_LIQUIDACPERS
+						JOIN
+							PER02_PERSONAL_EMP.oi_personal_emp INNER TTA10_LIQUIDACPERS.oi_personal_emp %} 
+						{% %} 
+					%}
+				WHERE 
+					1 = 1
+					{%?(#SOURCE:@oi_liquidacion!='') 
+						{% AND TTA10_LIQUIDACPERS.oi_liquidacion = {#SOURCE:@oi_liquidacion} %} 
+						{% %} 
+					%}
+			')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:element name="ROW">
+						<qry:attribute name="id" value="$r/@oi_personal_emp"/>
+					</qry:element>
+				</qry:out>
+			</qry:select>
+			<qry:params>
+				##oi_liquidacion##
+			</qry:params>
+		</form:Resource>
+		<form:Resource declare="&lt;PARAM oi_liquidacion=&quot;1&quot;/&gt;" name="QRY_FECHAS">
+			<qry:main doc="SOURCE">
+				<qry:element name="DATO">
+					<qry:insert-select name="RS1" doc-path="#SOURCE:PARAM"/>
+				</qry:element>
+			</qry:main>
+			<qry:select name="RS1" doc="SOURCE">
+				<qry:xquery>
+					for $r in sql('
+				SELECT
+					TTA09_LIQUIDACION.f_fechainicio,
+					TTA09_LIQUIDACION.f_fechafin
+				FROM 
+					TTA09_LIQUIDACION
+				WHERE 
+					TTA09_LIQUIDACION.oi_liquidacion = {#SOURCE:@oi_liquidacion} 
+      ')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:attribute name="f_fechainicio" value="$r/@f_fechainicio"/>
+					<qry:attribute name="f_fechafin" value="$r/@f_fechafin"/>
+				</qry:out>
+			</qry:select>
+		</form:Resource>
+		<form:Resource declare="&lt;param id='1000' /&gt;" name="QRY_COLECCION">
+			<qry:main name="qry_main" doc="SOURCE">
+				<qry:element name="ROWS">
+					<qry:insert-select name="qry_coleccion" doc-path="#SOURCE:."/>
+				</qry:element>
+			</qry:main>
+			<qry:select name="qry_coleccion" doc="SOURCE">
+				<qry:xquery>
+					for $r in SQL('
+		  SELECT 
+			TTA15_CONCEPTOS.c_coleccion as coleccion
+		FROM 
+			TTA15_CONCEPTOS
+		WHERE 
+			TTA15_CONCEPTOS.oi_concepto = {#SOURCE:@id}
+		
+		')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:element name="ROW">
+						<qry:attribute name="coleccion" value="$r/@coleccion"/>
+					</qry:element>
+				</qry:out>
+			</qry:select>
+		</form:Resource>
+	</form:Resources>
+	<form:Scripts>
+		&#13;&#10;function Find()
+{        
+Ctrl("Conceptos").filter("",Ctrl("iter_search").GetCValue());
+}
+
+function ClearCONC()
+{
+Ctrl("CONC").DelAllRow();
+Ctrl("Conceptos").Refresh();
+}
+
+function FullCONC()
+{            
+Ctrl("CONC").DelAllRow();     
+for (var t=0; t&lt;Ctrl("Conceptos").TotalRowsCount(); t++)
+{
+   Ctrl("CONC").AddRow().SetAttr("id", Ctrl("Conceptos").GetAttrValue(t, "id"));
+
+}
+	
+Ctrl("Conceptos").Refresh();
+}
+
+function SetDates()
+{
+var fechas;				
+var np = new NomadProxy("", ut);
+var nSQL = np.SQLService();
+
+if(Ctrl("oi_liquidacion").GetXValue() != "")
+{	
+	fechas = nSQL.GetOBJ(Ctrl("main").getResource("QRY_FECHAS"), "&lt;PARAM oi_liquidacion=\""+Ctrl("oi_liquidacion").GetXValue()+"\" /&gt;"); 				
+	Ctrl("f_desde").SetXValue(fechas.f_fechainicio);				
+	Ctrl("f_hasta").SetXValue(fechas.f_fechafin);
+	Ctrl("f_ini").SetXValue(fechas.f_fechainicio);				
+	Ctrl("f_fin").SetXValue(fechas.f_fechafin);
+}
+}
+
+function Ejecutar()
+{
+ if(Ctrl("oi_liquidacion").GetXValue() != "")
+ {
+ if((Ctrl("f_desde").GetXValue() &lt; Ctrl("f_ini").GetXValue() || Ctrl("f_desde").GetXValue() &gt; Ctrl("f_fin").GetXValue()) || (Ctrl("f_hasta").GetXValue() &lt; Ctrl("f_ini").GetXValue() || Ctrl("f_hasta").GetXValue() &gt; Ctrl("f_fin").GetXValue()))
+ {
+	alert("El rango de fechas se encuentra fuera del procesamiento");
+	return false; 	
+ }  
+ }		 
+ if (arrFILTER.length==0)
+ {             
+ 	alert("No hay legajos filtrados.");
+ 	return false;
+ }
+ 
+ if (Ctrl("CONC").CountRow()==0)
+ {		
+ 	alert("Debe seleccionar al menos un Concepto");
+    return false; 
+ }   
+ else
+ {  
+    if(Ctrl("pordia").GetXValue() == '1') 
+    {
+    	for(i = 0;i&lt;Ctrl("CONC").CountRow();i++)
+ 		{
+	 		var fila = Ctrl("CONC").GetRow(i); 
+	 		var id = fila.GetAttr("id");
+	 		
+	 		var xml = GetProxy().SQLService().GetXML(Ctrl("main").getResource("QRY_COLECCION"),"&lt;PARAM id='"+id+"' /&gt;");
+	 		xml = xml.FirstChild();
+	 		if(xml.GetAttr("coleccion") == 'no') 
+	 		{
+	 			alert("Algun concepto seleccionado no se puede listar");
+	 			return false;
+ 			}
+ 		}
+    }
+ 		
+ 	 	
+
+ }
+ 
+ FillArray(100);
+ Ctrl("main").DoEvent("FILTER");	
+}
+
+
+function ONLOAD_custom()
+{
+SetDates(); 
+reporteDoc();
+}                 
+
+function reporteDoc()
+{
+	valor = Ctrl('reporteDoc').GetXValue();   
+	valorbool =  Ctrl('reporteDoc').GetXValue() =='1'? false: true;
+	
+	Ctrl('encabezado').SetXValue(valor);
+	Ctrl('legporhoja').SetXValue(valor);
+	Ctrl('pordia').SetXValue('0');
+	
+	CtrlEnabled('encabezado',valorbool);     		
+	CtrlEnabled('legporhoja',valorbool);  		
+	CtrlEnabled('pordia',valorbool);  
+}
+	</form:Scripts>
+</form:Form>

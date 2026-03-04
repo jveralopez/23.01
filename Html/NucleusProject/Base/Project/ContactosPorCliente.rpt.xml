@@ -1,0 +1,104 @@
+<html:html xmlns:html="nomad_engine.html" xmlns:qry="nomad_engine.qry" extends="Nomad.Base.BaseReport.rpt" doc="source" name="NucleusProject.Base.Project.ContactosPorCliente">
+	<html:query declare="&lt;DATA PARENT=&quot;&quot; oi_cliente=&quot;1&quot; l_activo=&quot;0&quot; ID=&quot;&quot; /&gt;&#13;&#10;">
+		<qry:main doc="SOURCE">
+			<qry:append-doc name="FILTER" doc-path="$SOURCE/DATA"/>
+			<REPORT label="Listado de contactos">
+				<GROUPS>
+					<GROUP tag="CLIENTE" style="padding-left:1px;" type="title">
+						<COLS>
+							<COL name="c_cliente" label="Codigo"/>
+							<COL name="d_nom_cliente" label="Cliente"/>
+							<COL name="d_nom_contacto" label="Contacto"/>
+							<COL name="te_telefono" label="Telefono"/>
+							<COL name="d_direccion" label="Direccion"/>
+							<COL name="d_email" label="Correo Electronico"/>
+						</COLS>
+						<GROUP tag="CONTACTO" style="padding-left:1px;" type="table" noreg="No se encontraron contactos para el cliente seleccionado.">
+							<COLS>
+								<COL name="c_contacto" label="Codigo" align="left" style="width:50px;" nowrap="1"/>
+								<COL name="d_nom_y_ape" label="Contacto" align="left" style="width:100px;" nowrap="1"/>
+								<COL name="d_email" label="Correo Electronico" align="left" style="width:200px;" nowrap="1"/>
+								<COL name="te_telefono" label="Telefono" align="left" style="width:100px;" nowrap="1"/>
+								<COL name="te_interno" label="Interno" align="left" style="width:100px;" nowrap="1"/>
+								<COL name="l_activo" label="Activo?" align="left" style="width:50px;" nowrap="1"/>
+							</COLS>
+						</GROUP>
+					</GROUP>
+				</GROUPS>
+				<qry:element name="DATA">
+					<qry:insert-select name="qryCliente" doc-path="#SOURCE:."/>
+				</qry:element>
+			</REPORT>
+		</qry:main>
+		<qry:select name="qryCliente" doc="PARAM">
+			<qry:xquery>
+				for $r in SQL('   
+SELECT 
+c.oi_cliente,
+c.c_cliente,
+c.d_nom_cliente,
+c.d_nom_contacto,
+c.te_telefono,
+c.d_direccion,
+c.d_email
+FROM
+PRY08_CLIENTES as c   
+WHERE
+c.oi_cliente = {$PARAM/@oi_cliente} 	
+
+
+			')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<CLIENTE>
+					<qry:attribute name="c_cliente" value="$r/@c_cliente"/>
+					<qry:attribute name="d_nom_cliente" value="$r/@d_nom_cliente"/>
+					<qry:attribute name="d_nom_contacto" value="$r/@d_nom_contacto"/>
+					<qry:attribute name="te_telefono" value="$r/@te_telefono"/>
+					<qry:attribute name="d_direccion" value="$r/@d_direccion"/>
+					<qry:attribute name="d_email" value="$r/@d_email"/>
+					<qry:insert-select name="qryContactos" doc-path="$r"/>
+				</CLIENTE>
+			</qry:out>
+		</qry:select>
+		<qry:select name="qryContactos" doc="PARAM">
+			<qry:xquery>
+				for $r in SQL('  
+SELECT 
+co.oi_contacto,
+co.c_contacto,
+co.d_nom_y_ape,
+co.d_email,
+co.te_telefono,
+co.te_interno,
+co.l_activo
+FROM
+PRY08_CONTACTOS as co
+WHERE	
+co.oi_cliente = {$PARAM/@oi_cliente}  
+
+{%? ($FILTER/@l_activo='1') 
+
+     {% AND co.l_activo =1 %}                 
+
+     {%  %} 
+	
+%}
+
+
+ 
+			')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<CONTACTO>
+					<qry:attribute name="c_contacto" value="$r/@c_contacto"/>
+					<qry:attribute name="d_nom_y_ape" value="$r/@d_nom_y_ape"/>
+					<qry:attribute name="d_email" value="$r/@d_email"/>
+					<qry:attribute name="te_telefono" value="$r/@te_telefono"/>
+					<qry:attribute name="te_interno" value="$r/@te_interno"/>
+					<qry:attribute name="l_activo" value="iif($r/@l_activo=1, 'Si', 'No')"/>
+				</CONTACTO>
+			</qry:out>
+		</qry:select>
+	</html:query>
+</html:html>

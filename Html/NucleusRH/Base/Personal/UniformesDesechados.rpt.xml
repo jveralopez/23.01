@@ -1,0 +1,72 @@
+<html:html xmlns:html="nomad_engine.html" xmlns:qry="nomad_engine.qry" name="NucleusRH.Base.Personal.UniformesInutilizables" extends="Nomad.Base.BaseReport.rpt" doc="source">
+	<html:query declare="&lt;DATOS f_desde=&quot;20120301&quot; f_hasta=&quot;20130601&quot;&gt;&lt;ROWS /&gt;&lt;/DATOS&gt;">
+		<qry:main doc="PARAM">
+			<qry:append-doc name="PARAMIN" doc-path="#PARAM:DATOS"/>
+			<REPORT label="Listado de Uniformes Inutilizables">
+				<qry:attribute name="date" value="format_date(Now(),'dd/mm/yyyy HH:MM')"/>
+				<GROUPS>
+					<GROUP tag="TIT" type="title" noreg="No se encontraron registros para los filtros seleccionados.">
+						<COLS>
+							<COL name="f_desde" label="Fecha Desde" style="width:13%;" type="date"/>
+							<COL name="f_hasta" label="Fecha Hasta" style="width:10%;" type="date"/>
+						</COLS>
+						<GROUP tag="UNIF" type="table" noreg="No se encontraron registros de Uniformes Inutilizables.">
+							<COLS>
+								<COL name="fecha" label="Fecha" style="width:10%;" type="date"/>
+								<COL name="legajo" label="Legajo" style="width:50%;"/>
+								<COL name="uniforme" label="Uniforme" style="width:30%;"/>
+								<COL name="cantidad" label="Cantidad" style="width:10%;text-align:right"/>
+							</COLS>
+						</GROUP>
+					</GROUP>
+				</GROUPS>
+				<qry:element name="DATA">
+					<qry:element name="TIT">
+						<qry:attribute value="format_date(#PARAM:DATOS/@f_desde, 'dd/mm/yyyy')" name="f_desde"/>
+						<qry:attribute value="format_date(#PARAM:DATOS/@f_hasta, 'dd/mm/yyyy')" name="f_hasta"/>
+						<qry:insert-select doc-path="#PARAM:DATOS" name="DESECHADOS"/>
+					</qry:element>
+				</qry:element>
+			</REPORT>
+		</qry:main>
+		<qry:select doc="PARAM" name="DESECHADOS">
+			<qry:xquery>
+				for $r in sql('
+					SELECT
+						PER02_PERSONAL_EMP.e_numero_legajo,
+						PER01_PERSONAL.d_ape_y_nom,
+						PER02_DEV_UNIF.e_cantidad,
+						PER02_DEV_UNIF.f_dev_unif,
+						ORG16_UNIFORMES.c_uniforme, 
+						ORG16_UNIFORMES.d_uniforme
+					FROM 
+						PER02_DEV_UNIF,
+						PER02_PERSONAL_EMP,
+						PER01_PERSONAL,
+						PER02_UNIF_PER,
+						ORG16_UNIFORMES
+					JOIN
+						PER02_DEV_UNIF.oi_uniforme_per INNER PER02_UNIF_PER.oi_uniforme_per,
+						PER02_PERSONAL_EMP.oi_personal INNER PER01_PERSONAL.oi_personal,
+						PER02_PERSONAL_EMP.oi_personal_emp INNER PER02_UNIF_PER.oi_personal_emp,
+						PER02_UNIF_PER.oi_uniforme INNER ORG16_UNIFORMES.oi_uniforme 
+					WHERE     			
+						PER02_DEV_UNIF.l_repone_stock = 0 AND 
+						PER02_DEV_UNIF.f_dev_unif &gt;= {Datetime(#PARAMIN:@f_desde)} AND
+						PER02_DEV_UNIF.f_dev_unif &lt;= {Datetime(#PARAMIN:@f_hasta)}
+					ORDER BY			
+						f_dev_unif ASC,
+						e_numero_legajo ASC
+				')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:element name="UNIF">
+					<qry:attribute name="fecha" value="format_date($r/@f_dev_unif, 'dd/mm/yyyy')"/>
+					<qry:attribute name="legajo" value="$r/@e_numero_legajo + ' - ' + $r/@d_ape_y_nom"/>
+					<qry:attribute name="uniforme" value="$r/@c_uniforme + ' - ' + $r/@d_uniforme"/>
+					<qry:attribute name="cantidad" value="$r/@e_cantidad"/>
+				</qry:element>
+			</qry:out>
+		</qry:select>
+	</html:query>
+</html:html>

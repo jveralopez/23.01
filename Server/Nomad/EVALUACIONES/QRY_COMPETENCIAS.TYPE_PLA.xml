@@ -1,0 +1,71 @@
+<qry:define xmlns:qry="nomad_engine.qry" name="Competencias" declare="&lt;DATA oi_personal_emp=&quot;11429&quot; /&gt;">
+	<qry:main doc="PARAM">
+		<qry:element name="EVALUACION">
+			<qry:insert-select name="qryCompetencia" doc-path="#PARAM:DATA"/>
+		</qry:element>
+	</qry:main>
+	<qry:select name="qryCompetencia" doc="PARAM">
+		<qry:xquery>
+			for $f in sql('
+			SELECT
+				c.oi_competencia,
+				c.c_competencia AS COD,
+				c.d_competencia AS DES,
+				opc.n_ponderacion AS PON,
+				c.t_competencia AS OBS
+			FROM
+				ORG21_COMPETENCIAS AS c,
+				ORG04_POSIC_COMP AS opc,
+				ORG04_POSICIONES AS op,
+				PER02_PERSONAL_EMP AS ppe
+			JOIN
+				c.oi_competencia INNER opc.oi_competencia,
+				opc.oi_posicion INNER op.oi_posicion,
+				op.oi_posicion INNER ppe.oi_posicion_ult
+			WHERE
+				ppe.oi_personal_emp = {%=#PARAM:@oi_personal_emp %}
+		UNION
+			SELECT
+				c.oi_competencia,
+				c.c_competencia AS COD,
+				c.d_competencia AS DES,
+				opc.n_ponderacion AS PON,
+				c.t_competencia AS OBS
+			FROM
+				ORG21_COMPETENCIAS AS c,
+				ORG04_PUESTO_COMP AS opc,
+				ORG04_PUESTOS AS op,
+				PER02_PERSONAL_EMP AS ppe
+			JOIN
+				c.oi_competencia INNER opc.oi_competencia,
+       	opc.oi_puesto INNER op.oi_puesto,
+				op.oi_puesto INNER ppe.oi_puesto_ult
+			WHERE
+				ppe.oi_personal_emp = {%=#PARAM:@oi_personal_emp %}
+				AND c.oi_competencia NOT IN 
+				(
+					SELECT
+						opc1.oi_competencia
+					FROM
+						ORG04_POSIC_COMP AS opc1,
+						ORG04_POSICIONES AS op1,
+						PER02_PERSONAL_EMP AS ppe1
+					JOIN
+						opc1.oi_posicion INNER op1.oi_posicion,
+						op1.oi_posicion INNER ppe1.oi_posicion_ult
+					WHERE
+						ppe1.oi_personal_emp = {%=#PARAM:@oi_personal_emp %}
+				)
+        ')/ROWS/ROW
+		</qry:xquery>
+		<qry:out>
+			<qry:element name="ITEM">
+				<qry:attribute value="$f/@COD" name="COD"/>
+				<qry:attribute value="$f/@DES" name="DES"/>
+				<qry:attribute value="$f/@OBS" name="OBS"/>
+				<qry:attribute value="$f/@PON" name="PON"/>
+				<qry:attribute value="$f/@oi_competencia" name="oi_competencia"/>
+			</qry:element>
+		</qry:out>
+	</qry:select>
+</qry:define>

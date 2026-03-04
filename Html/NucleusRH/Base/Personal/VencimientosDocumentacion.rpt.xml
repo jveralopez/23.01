@@ -1,0 +1,134 @@
+<html:html xmlns:html="nomad_engine.html" xmlns:qry="nomad_engine.qry" name="NucleusRH.Base.Personal.VencimientosDocumentacion" extends="Nomad.Base.BaseReport.rpt" doc="source">
+	<html:query declare="&lt;FILTRO oi_empresa=&quot;7&quot; f_desde=&quot;20000830&quot; f_hasta=&quot;20120830&quot; l_incluir=&quot;0&quot; selected=&quot;1&quot;&gt;&#13;&#10;&#9;&lt;ROWS/&gt;&#13;&#10;&#9;&lt;DOC nmd-col=&quot;1&quot;&gt;&#13;&#10;&#9;&#9;&lt;C id=&quot;1&quot;/&gt;&#13;&#10;&#9;&#9;&lt;C id=&quot;6&quot;/&gt;&#13;&#10;&#9;&lt;/DOC&gt;&#13;&#10;&lt;/FILTRO&gt;">
+		<qry:main doc="PARAM">
+			<qry:append-doc name="FILTRO" doc-path="#PARAM:FILTRO"/>
+			<REPORT label="Listado de Vencimientos Documentaci&#243;n">
+				<qry:attribute value="format_date(now(),'dd/mm/yyyy HH:MM')" name="date"/>
+				<GROUPS>
+					<GROUP tag="TIT" type="title">
+						<COLS>
+							<qry:if test="#PARAM:FILTRO/@oi_empresa!=''">
+								<qry:then>
+									<COL name="empresa" label="Empresa"/>
+								</qry:then>
+							</qry:if>
+							<COL name="f_desde" label="Fecha Desde" type="date"/>
+							<COL name="f_hasta" label="Fecha Hasta" type="date"/>
+							<COL name="l_incluir" label="Solo Activos?"/>
+							<COL name="tipo_documento" label="Tipo Documento"/>
+						</COLS>
+						<GROUP tag="DATOS" label="Documentos" type="table" noreg="No se encontraron registros de Vencimientos.">
+							<COLS>
+								<COL name="c_empresa" label="Empresa" style="width:10%"/>
+								<COL name="legajo" label="Legajo" style="width:10%"/>
+								<COL name="d_ape_y_nom" label="Apellido y Nombre" style="width:40%"/>
+								<COL name="tipo_doc" label="Tipo de Documento" style="width:25%"/>
+								<COL name="f_vencimiento" label="F. Vencimiento" style="width:10%;text-align:center" type="date"/>
+								<COL name="f_entrega" label="Fecha de Entrega" style="width:10%;text-align:center" type="date"/>
+								<COL name="o_documento_per" label="Observaciones" style="width:10%;text-align:center"/>
+							</COLS>
+						</GROUP>
+					</GROUP>
+				</GROUPS>
+				<qry:element name="DATA">
+					<qry:element name="TIT">
+						<qry:if test="#PARAM:FILTRO/@oi_empresa!=''">
+							<qry:then>
+								<qry:insert-select doc-path="#PARAM:FILTRO" name="QRY_EMPRESA"/>
+							</qry:then>
+						</qry:if>
+						<qry:attribute name="f_desde" value="format_date(#PARAM:FILTRO/@f_desde, 'dd/mm/yyyy')"/>
+						<qry:attribute name="f_hasta" value="format_date(#PARAM:FILTRO/@f_hasta, 'dd/mm/yyyy')"/>
+						<qry:attribute name="l_incluir" value="iif(#PARAM:FILTRO/@l_incluir = '1', 'Si','No')"/>
+						<qry:insert-select doc-path="#PARAM:FILTRO" name="QRY_DATOS"/>
+						<qry:insert-select doc-path="#PARAM:FILTRO" name="QRY_TIPOS"/>
+					</qry:element>
+				</qry:element>
+			</REPORT>
+		</qry:main>
+		<qry:select doc="PARAM" name="QRY_EMPRESA">
+			<qry:xquery>
+				for $r in sql('
+				SELECT 
+				  ORG03_EMPRESAS.oi_empresa,
+				  ORG03_EMPRESAS.c_empresa,
+					ORG03_EMPRESAS.d_empresa
+				FROM 
+					ORG03_EMPRESAS
+				WHERE
+					ORG03_EMPRESAS.oi_empresa = {#PARAM:@oi_empresa} 
+			')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:attribute name="empresa" value="$r/@c_empresa + ' - ' + $r/@d_empresa"/>
+			</qry:out>
+		</qry:select>
+		<qry:select doc="PARAM" name="QRY_DATOS">
+			<qry:xquery>
+				for $r in sql('		
+					SELECT 
+					  ORG03_EMPRESAS.c_empresa,
+						PER02_PERSONAL_EMP.e_numero_legajo,
+						PER01_PERSONAL.d_ape_y_nom,
+						PER01_DOCUM_PER.f_vencimiento_doc,
+						PER01_DOCUM_PER.o_documento_per,
+						PER01_DOCUM_PER.f_entrega,
+						PER20_TIPOS_DOC.d_tipo_documento
+					FROM                
+						ORG03_EMPRESAS,
+						PER02_PERSONAL_EMP,
+						PER01_PERSONAL, 
+						PER01_DOCUM_PER,
+						PER20_TIPOS_DOC
+					JOIN
+						ORG03_EMPRESAS.oi_empresa INNER  PER02_PERSONAL_EMP.oi_empresa,
+						PER02_PERSONAL_EMP.oi_personal INNER PER01_PERSONAL.oi_personal,
+						PER01_PERSONAL.oi_personal LEFT OUTER PER01_DOCUM_PER.oi_personal,
+						PER01_DOCUM_PER.oi_tipo_documento LEFT OUTER PER20_TIPOS_DOC.oi_tipo_documento
+					WHERE                                  
+						PER01_DOCUM_PER.f_vencimiento_doc &gt;= {Datetime(#PARAM:@f_desde)} AND
+						PER01_DOCUM_PER.f_vencimiento_doc &lt;= {Datetime(#PARAM:@f_hasta)}
+						{%? (#FILTRO:@l_incluir='1') 
+							{% AND PER02_PERSONAL_EMP.oi_indic_activo = 1 %}
+							{% %} 
+						%}
+						{%? (#FILTRO:@oi_empresa!='') 
+							{% AND ORG03_EMPRESAS.oi_empresa = ({%=string(#FILTRO:@oi_empresa) %}) %}
+							{% %} 
+						%}
+						AND PER20_TIPOS_DOC.oi_tipo_documento in ({%=string(#PARAM:DOC/C/@id) %})
+				  ORDER BY
+          	c_empresa ASC,
+          	e_numero_legajo ASC,
+          	f_vencimiento_doc ASC
+				')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:element name="DATOS">
+					<qry:attribute name="c_empresa" value="$r/@c_empresa"/>
+					<qry:attribute name="legajo" value="$r/@e_numero_legajo"/>
+					<qry:attribute name="d_ape_y_nom" value="$r/@d_ape_y_nom"/>
+					<qry:attribute name="f_vencimiento" value="format_date($r/@f_vencimiento_doc,'dd/mm/yyyy')"/>
+					<qry:attribute name="f_entrega" value="format_date($r/@f_entrega,'dd/mm/yyyy')"/>
+					<qry:attribute name="o_documento_per" value="$r/@o_documento_per"/>
+					<qry:attribute name="tipo_doc" value="$r/@d_tipo_documento"/>
+				</qry:element>
+			</qry:out>
+		</qry:select>
+		<qry:select doc="PARAM" name="QRY_TIPOS">
+			<qry:xquery>
+				for $r in sql('
+				SELECT 
+				  PER20_TIPOS_DOC.c_tipo_documento
+				FROM 
+					PER20_TIPOS_DOC
+				WHERE
+					PER20_TIPOS_DOC.oi_tipo_documento in ({%=string(#PARAM:DOC/C/@id) %})
+			')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:attribute name="tipo_documento" value="@tipo_documento + iif(@tipo_documento != '', '|','') + $r/@c_tipo_documento"/>
+			</qry:out>
+		</qry:select>
+	</html:query>
+</html:html>

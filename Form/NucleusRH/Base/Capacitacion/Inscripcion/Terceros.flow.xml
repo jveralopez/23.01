@@ -1,0 +1,79 @@
+<flow:flow xmlns:flow="nomad_engine.flow" xmlns:doc="nomad_engine.doc" xmlns:qry="nomad_engine.qry" extends="Nomad.Base.flow" name="NucleusRH.Base.Capacitacion.Inscripcion.Terceros.flow">
+	<flow:info label="Flow para NucleusRH.Base.Capacitacion.Inscripcion.Terceros.flow"/>
+	<flow:declare>
+		<doc:define name="INSCRIPTOS"/>
+		<qry:define declare="&lt;DICTADO oi_dictado=&quot;1204&quot; /&gt;" name="QRY_INSCRIPTOS">
+			<qry:main doc="SOURCE" maxdeep="3">
+				<qry:element name="DATOS">
+					<qry:attribute name="oi_dictado" value="#SOURCE:DICTADO/@oi_dictado"/>
+					<qry:element name="ROWS">
+						<qry:insert-select name="sql1" doc-path="#SOURCE:DICTADO"/>
+					</qry:element>
+				</qry:element>
+			</qry:main>
+			<qry:select doc="PARAM" name="sql1">
+				<qry:xquery>
+					for $r in sql('
+				SELECT 
+					CYD02_INSCRIPTOS.oi_inscripto,
+					t0.oi_tercero as oi_tercero, 
+					t0.c_documento as c_documento, 
+					t0.d_apellido as d_apellido, 
+					t0.d_nombres as d_nombres, 
+					t0.d_ape_y_nom as d_ape_y_nom, 
+					t0.c_sexo as c_sexo, 
+					t0.f_nacimiento as f_nacimiento, 
+					t0.d_domicilio as d_domicilio, 
+					t0.d_telefono as d_telefono, 
+					t0.d_mail as d_mail, 
+					t0.d_empresa as d_empresa, 
+					SEC.policy, 
+					t0.c_documento as CODE, 
+					t0.d_ape_y_nom as TEXT, 
+					t0.oi_tipo_documento as oi_tipo_documento,
+					PER20_TIPOS_DOC.c_tipo_documento
+				FROM 
+					CYD17_TERCEROS as t0,
+				 	CYD02_INSCRIPTOS,
+				 	PER20_TIPOS_DOC,
+					NMD_SECURITY(class=\'NucleusRH.Base.Capacitacion.Terceros.TERCERO\') as SEC 
+				JOIN 
+					t0.oi_tercero INNER CYD02_INSCRIPTOS.oi_tercero,
+					t0.oi_tipo_documento INNER PER20_TIPOS_DOC.oi_tipo_documento,
+					t0.oi_tercero LEFT OUTER SEC.id  
+				WHERE
+					CYD02_INSCRIPTOS.oi_dictado = {#PARAM:@oi_dictado} 
+				ORDER BY 
+					oi_tercero asc
+			')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:element name="ROW">
+						<qry:attribute name="policy" value="$r/@policy"/>
+						<qry:attribute name="id" value="$r/@oi_tercero"/>
+						<qry:attribute name="oid" value="$r/@oi_tercero"/>
+					</qry:element>
+				</qry:out>
+			</qry:select>
+		</qry:define>
+	</flow:declare>
+	<flow:main doc="SOURCE">
+		<flow:action name="INITTERCEROS">
+			<doc:load-qry output-doc="INSCRIPTOS" input-doc-path="#SOURCE:" qry="QRY_INSCRIPTOS"/>
+			<flow:open-form form-class="NucleusRH.Base.Capacitacion.Inscripcion.Terceros.form" doc-path="#INSCRIPTOS:" parent-doc-path="#SOURCE:" mode="LIST"/>
+		</flow:action>
+	</flow:main>
+	<flow:form name="NucleusRH.Base.Capacitacion.Inscripcion.Terceros.form:LIST" form-class="NucleusRH.Base.Capacitacion.Inscripcion.Terceros.form" mode="LIST" doc="SOURCE">
+		<flow:action name="CANCEL">
+			<flow:close-form/>
+		</flow:action>
+		<flow:action name="SAVE">
+			<flow:exec-method method="Inscripcion" out-attr-path="#BATCHDOC:@batch-id" priority="3" class="NucleusRH.Base.Capacitacion.Dictados.DICTADO">
+				<flow:param doc-path="#SOURCE:ROWS" name="inscriptos" type="Nomad.NSystem.Proxy.NomadXML" mode="in"/>
+				<flow:param attr-path="#SOURCE:@oi_dictado" type="Nomad.NSystem.String" mode="in" name="oi_dictado"/>
+				<flow:param value="1" type="Nomad.NSystem.Boolean" mode="in" name="tercero"/>
+			</flow:exec-method>
+			<flow:open-form form-class="nomad.base.batchtolist.form" mode="BATCH" doc-path="#BATCHDOC:"/>
+		</flow:action>
+	</flow:form>
+</flow:flow>

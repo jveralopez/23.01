@@ -1,0 +1,147 @@
+<form:Form xmlns:form="nomad_engine.form" xmlns:qry="nomad_engine.qry" name="NucleusRH.Base.Liquidacion.Grupos.GRUPO_VAR.MAIN.STD_REG.form" extends="NucleusRH.Base.Liquidacion.Grupos.GRUPO_VAR.MAIN.STD_REG.autoform" mess="&#191;Est&#225; seguro que desa cancelar la operaci&#243;n?" doc="source">
+	<form:Bottom width="100%">
+		<form:RowAligner name="buttonlinks">
+			<form:Row name="row1">
+				<form:Button visible="SHOW" descrip="Propiedades del Registro" img="lock" label="Seguridad" name="ADMIN">
+					<form:Event action="ADMIN" name="onclick" runat="server"/>
+				</form:Button>
+				<form:Button name="ACCEPT" descrip="Aceptar" img="OK" label="Aceptar" visible="NEW|EDIT" startvalidate="1">
+					<form:Event action="ValidarDatos" name="onclick" runat="client"/>
+				</form:Button>
+				<form:Blank name="BB2" width="20px"/>
+				<form:Button visible="SHOW" descrip="Volver" img="BACK" label="Volver" name="BACK">
+					<form:Event action="BACK" name="onclick" runat="server"/>
+				</form:Button>
+				<form:Button name="CANCEL" descrip="Cancelar" img="CANCEL" label="Cancelar" visible="NEW|EDIT">
+					<form:Event action="CANCEL" name="onclick" runat="server"/>
+				</form:Button>
+			</form:Row>
+		</form:RowAligner>
+	</form:Bottom>
+	<form:Scripts>
+		function ValidarDatos()
+{               
+      var blnDatosOK = false;
+      
+      blnDatosOK = EstaDisponible();
+      
+      if (blnDatosOK)
+      {
+				Ctrl("main").DoEvent("GUARDAR");
+			}	 		
+}     
+
+	function EstaDisponible()
+	{  
+		//verifica si ya existe la variable en el Grupo o Subgrupos	
+		var np = new NomadProxy("", ut);
+		var nSQL = np.SQLService();       
+		var blnresult = true;
+		
+		var oi_grupo = Ctrl("PARENT").GetXValue();
+
+		var c_grupo = GetValueFromQry(nSQL, "QRY_GRUPO", "&lt;PARAMS oi_grupo=\"" + oi_grupo + "\"/&gt;", "");        		
+	
+		//obtiene el grupo o la parte izquieda del punto (si contiene)
+		var strpatron = (c_grupo.indexOf('.')&gt;0?c_grupo.substring(0, c_grupo.indexOf('.')):c_grupo);		
+		var lpatron = strpatron.length;
+		
+		var oi_variable = Ctrl("oi_variable").GetXValue();
+		
+		var strvariable = Ctrl("oi_variable").GetCValue();		
+		
+ 	 	result = GetValuesFromQry(nSQL, "campo", "QRY_BUSCA_VAR", "&lt;PARAMS patron=\""+ strpatron  + "\" lpatron=\""+ lpatron + "\" oi_variable=\"" + oi_variable + "\"/&gt;","");		
+		
+		if (result != "")
+		{
+			alert("La variable (" + strvariable + ") ya se encuentra utilizada en los grupos (" + result + ")." );		
+			blnresult = false;
+		}
+		
+		return blnresult;
+	}   
+	
+	function GetValueFromQry(pSQL, pQry, pFilters, vDefault)
+	{ 
+		//ejecuta el query recibido	con los filtros y retorna lo encontrado o el valor default
+
+	  var valor;	
+		var param = pSQL.GetOBJ(Ctrl("main").getResource(pQry), pFilters);	
+	  
+		if (typeof (param.valor) != "undefined")
+		{
+			valor = param.valor;  //retorna el valor encontrado
+		}
+		else
+		{
+			valor = vDefault; //retorna el valor por default 
+		} 
+	
+		return valor;
+	}    
+	
+	function GetValuesFromQry(pSQL, pField, pQry, pFilters, vDefault)
+	{ 
+		//ejecuta el query recibido y retorna el valor del campo recibido separado por ,
+		
+		var xmlRESULT = pSQL.GetXML(Ctrl("main").getResource(pQry), pFilters);	
+		var values = vDefault;
+	
+		//Recorre los registros hallados y concatena los oi_liquidacion
+		var xmlItem, item=0;
+		for (xmlItem = xmlRESULT.FirstChild(); xmlItem != null; xmlItem = xmlItem.Next()) 
+		{	
+			if (values != "") values += ","; 
+			values += xmlItem.GetAttr(pField);			
+		}
+		
+		return values;
+	}
+	</form:Scripts>
+	<form:Event action="SAVE" name="GUARDAR" runat="server"/>
+	<form:Resources>
+		<form:Resource name="QRY_GRUPO" description="Dado un oi_grupo, retorna el c_grupo" declare="&lt;PARAM oi_grupo=&quot;1&quot; /&gt;">
+			<qry:main doc="PARAM" name="">
+				<qry:element name="ROWS">
+					<qry:insert-select name="QRY_RS1" doc-path="#PARAM:."/>
+				</qry:element>
+			</qry:main>
+			<qry:select doc="PARAM" name="QRY_RS1">
+				<qry:xquery>
+					for $r in SQL('SELECT t.c_grupo FROM LIQ31_GRUPOS AS t WHERE t.oi_grupo = {#PARAM:@oi_grupo}')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:attribute name="valor" value="$r/@c_grupo"/>
+				</qry:out>
+			</qry:select>
+		</form:Resource>
+		<form:Resource name="QRY_BUSCA_VAR" declare="&lt;PARAMS patron=&quot;&quot; lpatron=&quot;&quot; oi_variable=&quot;&quot; /&gt;">
+			<qry:main doc="PARAM">
+				<qry:element name="DATO">
+					<qry:insert-select name="QRY_RS2" doc-path="$PARAM/PARAMS"/>
+				</qry:element>
+			</qry:main>
+			<qry:select name="QRY_RS2" doc="PARAM">
+				<qry:xquery>
+					for $r in sql('					
+						SELECT 
+							G.c_grupo 
+						FROM 
+							LIQ31_GRUPO_VAR AS GV,
+							LIQ31_GRUPOS as G
+						JOIN	
+						G.oi_grupo INNER GV.oi_grupo
+						WHERE 
+							GV.oi_variable = \'{%=#PARAM:@oi_variable%}\' 
+							and substr(G.c_grupo,0,{%=#PARAM:@lpatron%}) = \'{%=#PARAM:@patron%}\'
+			    ')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<DATA>
+						<qry:attribute name="campo" value="$r/@c_grupo"/>
+					</DATA>
+				</qry:out>
+			</qry:select>
+		</form:Resource>
+	</form:Resources>
+</form:Form>

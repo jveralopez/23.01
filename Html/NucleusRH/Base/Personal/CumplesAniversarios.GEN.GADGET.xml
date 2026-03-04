@@ -1,0 +1,523 @@
+<html:html xmlns:html="nomad_engine.html" xmlns:qry="nomad_engine.qry" xmlns:xsl="http://www.w3.org/1999/XSL/Transform" name="Cumplea&#241;osAniversarios" extends="NucleusRH.Base.Configuracion.GadgetBASE.rpt" doc="source">
+	<html:query declare="&lt;PARAMS seldate=&quot;12&quot; evento=&quot;c&quot; tipoFam=&quot;1,2,3,4,5,6,T&quot;/&gt;">
+		<qry:main doc="SOURCE">
+			<qry:element name="MAIN">
+				<qry:attribute name="timestamp" value="concat(FORMAT_DATE(Now()+1, 'yyyymmdd'), '000000')"/>
+				<qry:element name="DATA">
+					<qry:attribute name="ut" value="#PROXY:@TOKEN"/>
+					<qry:attribute name="seldate" value="#SOURCE:PARAMS/@seldate"/>
+					<qry:attribute name="evento" value="IIF ((upper-case(#SOURCE:PARAMS/@evento)='A' OR upper-case(#SOURCE:PARAMS/@evento)='C' OR upper-case(#SOURCE:PARAMS/@evento)='AC' ), upper-case(#SOURCE:PARAMS/@evento), 'AC')"/>
+					<qry:if test="@seldate = ''">
+						<qry:then>
+							<qry:attribute name="seldate" value="'13'"/>
+						</qry:then>
+					</qry:if>
+					<qry:if test="@seldate = '13'">
+						<qry:then>
+							<qry:attribute name="mes" value="'hoy'"/>
+							<qry:attribute name="selmes" value="'13'"/>
+						</qry:then>
+						<qry:else>
+							<qry:if test="@seldate = '00'">
+								<qry:then>
+									<qry:attribute name="mes" value="FORMAT_DATE(Now(), 'mmm')"/>
+									<qry:attribute name="selmes" value="FORMAT_DATE(Now(), 'mm')"/>
+								</qry:then>
+								<qry:else>
+									<qry:attribute name="mes" value="FORMAT_DATE(DATETIME('2009' + @seldate + '01'), 'mmm')"/>
+									<qry:attribute name="selmes" value="FORMAT_DATE(DATETIME('2009' + @seldate + '01'), 'mm')"/>
+								</qry:else>
+							</qry:if>
+						</qry:else>
+					</qry:if>
+					<qry:attribute name="tipoFam" value="concat('\\\'', nmd-replace(#SOURCE:PARAMS/@tipoFam,',','\\\',\\\''), '\\\'')"/>
+					<qry:attribute name="tipoFamHid" value="#SOURCE:PARAMS/@tipoFam"/>
+					<qry:insert-select doc-path="." name="qryCumplesAniversarios"/>
+					<qry:attribute name="oi_personal_ant" value=""/>
+				</qry:element>
+			</qry:element>
+		</qry:main>
+		<qry:select name="qryCumplesAniversarios" doc="SOURCE">
+			<qry:xquery>
+				for $r in sql('
+			{%? ((#SOURCE:@evento = 'AC') OR (#SOURCE:@evento = 'A'))
+				{%
+				SELECT
+					per.oi_personal,
+					per.d_nombres,
+					per.d_apellido,
+			 	  	pemp.f_ingreso as fecha,
+					GETDAY(pemp.f_ingreso) as dia,
+					per.oi_foto, 
+					loc.d_localidad,
+					pues.d_puesto,
+					emp.d_empresa,  
+					\'\' as parentesco,
+					\'\' as familiarde_nombre,
+					\'\' as familiarde_apellido,
+					\'Aniversario\' as evento
+
+				FROM
+			   		PER01_PERSONAL as per,
+					PER02_PERSONAL_EMP as pemp,
+					ORG04_PUESTOS as pues,
+					ORG03_EMPRESAS as emp,
+					ORG19_LOCALIDADES as loc
+                
+				JOIN 
+					per.oi_personal INNER pemp.oi_personal,
+					pemp.oi_puesto_ult LEFT OUTER pues.oi_puesto,
+					pemp.oi_empresa LEFT OUTER emp.oi_empresa,
+					emp.oi_localidad LEFT OUTER loc.oi_localidad
+
+				WHERE
+					pemp.oi_indic_activo = 1
+				  {%? (#SOURCE:@selmes = '13')
+				      {% and GETMONTH(pemp.f_ingreso) = {%=STRING(month_from_dateTime(Now()))%} and GETDAY(pemp.f_ingreso) = {%=STRING(day_from_dateTime(Now()))%} %}
+				      {% and GETMONTH(pemp.f_ingreso) = {#SOURCE:@selmes} %}
+				  %}
+              	%}
+              	{%%}
+              %}      
+                    
+                 {%?(#SOURCE:@evento = 'AC')
+                 {% 
+                 UNION
+                 %}
+                 {% %}
+                 %}   
+                    
+                    
+            {%? ((#SOURCE:@evento = 'AC') OR (#SOURCE:@evento = 'C'))
+				{%        
+            SELECT
+					per.oi_personal,
+					per.d_nombres,
+					per.d_apellido,
+			 	  	per.f_nacim as fecha,
+					GETDAY(per.f_nacim) as dia,
+					per.oi_foto,
+					loc.d_localidad,
+					pues.d_puesto,
+					emp.d_empresa,     
+					\'\' as parentesco,
+					\'\' as familiarde_nombre,
+					\'\' as familiarde_apellido,
+					\'Cumplea&#241;os\' as evento
+
+				FROM
+			   		PER01_PERSONAL as per,
+					PER02_PERSONAL_EMP as pemp,
+					ORG04_PUESTOS as pues,
+					ORG03_EMPRESAS as emp,
+					ORG19_LOCALIDADES as loc
+                
+				JOIN 
+					per.oi_personal INNER pemp.oi_personal,
+					pemp.oi_puesto_ult LEFT OUTER pues.oi_puesto,
+					pemp.oi_empresa LEFT OUTER emp.oi_empresa,
+					emp.oi_localidad LEFT OUTER loc.oi_localidad
+
+				WHERE
+					pemp.oi_indic_activo = 1
+				  {%? (#SOURCE:@selmes = '13')
+				      {% and GETMONTH(per.f_nacim) = {%=STRING(month_from_dateTime(Now()))%} and GETDAY(per.f_nacim) = {%=STRING(day_from_dateTime(Now()))%} %}
+				      {% and GETMONTH(per.f_nacim) = {#SOURCE:@selmes} %}
+				  %}
+
+                 UNION          
+                 
+                  SELECT
+					PER01_PERSONAL.oi_personal,
+					PER01_FLIARES_PER.d_nombres,
+					PER01_FLIARES_PER.d_apellido,
+			 	  	PER01_FLIARES_PER.f_nacimiento as fecha,
+					GETDAY(PER01_FLIARES_PER.f_nacimiento) as dia,
+					PER01_PERSONAL.oi_foto,
+					ORG19_LOCALIDADES.d_localidad,
+					ORG04_PUESTOS.d_puesto,
+					ORG03_EMPRESAS.d_empresa,     
+					PER15_TIPOS_FAM.d_tipo_familiar as parentesco,
+					PER01_PERSONAL.d_nombres as familiarde_nombre,
+					PER01_PERSONAL.d_apellido as familiarde_apellido,
+					\'Cumplea&#241;os\' as evento
+
+				FROM
+			   		PER01_PERSONAL,
+					PER02_PERSONAL_EMP,
+					ORG04_PUESTOS,
+					ORG03_EMPRESAS,
+					ORG19_LOCALIDADES,
+					PER01_FLIARES_PER,
+					PER15_TIPOS_FAM
+                
+				JOIN       
+					PER01_FLIARES_PER.oi_personal INNER  PER01_PERSONAL.oi_personal,                  
+					PER01_PERSONAL.oi_personal INNER PER02_PERSONAL_EMP.oi_personal,
+					PER02_PERSONAL_EMP.oi_puesto_ult LEFT OUTER ORG04_PUESTOS.oi_puesto,
+					PER02_PERSONAL_EMP.oi_empresa LEFT OUTER ORG03_EMPRESAS.oi_empresa,
+					ORG03_EMPRESAS.oi_localidad LEFT OUTER ORG19_LOCALIDADES.oi_localidad,
+					PER15_TIPOS_FAM.oi_tipo_familiar INNER PER01_FLIARES_PER.oi_tipo_familiar
+					
+				WHERE
+					PER02_PERSONAL_EMP.oi_indic_activo = 1 and
+					PER01_FLIARES_PER.l_vive=1 and
+					PER15_TIPOS_FAM.c_tipo_familiar IN ({%=#SOURCE:@tipoFam%})  
+				
+				  {%? (#SOURCE:@selmes = '13')
+				      {% and GETMONTH(PER01_FLIARES_PER.f_nacimiento) = {%=STRING(month_from_dateTime(Now()))%} and GETDAY(PER01_FLIARES_PER.f_nacimiento) = {%=STRING(day_from_dateTime(Now()))%} %}
+				      {% and GETMONTH(PER01_FLIARES_PER.f_nacimiento) = {#SOURCE:@selmes} %}
+				  %}
+				  
+				  %}
+                  {% %}
+                  %}
+
+				
+				 {%? ((#SOURCE:@evento = 'AC') OR (#SOURCE:@evento = 'A') OR (#SOURCE:@evento = 'C') )
+					{%
+				 ORDER BY 
+				 dia ASC, d_nombres ASC, d_apellido ASC
+                     %} 
+                     {%
+                     
+                     
+                     %}
+                     %}
+                    
+                    
+
+			')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:attribute name="col" value="number(./@col) + 1"/>
+				<qry:attribute name="col" value="IIF(./@col = '4', 1, ./@col)"/>
+				<qry:attribute name="rtipo" value="IIF(number(./@rtipo) = 1, 0, 1)"/>
+				<qry:element name="LEGAJO">
+					<qry:attribute name="primero" value="IIF($r/@oi_personal = ../@oi_personal_ant, 0, 1)"/>
+					<qry:attribute name="oi_foto" value="IIF($r/@oi_foto = '', '0', $r/@oi_foto)"/>
+					<qry:attribute name="dia" value="FORMAT_DATE($r/@fecha, 'dd')"/>
+					<qry:attribute name="nombre" value="$r/@d_nombres + ' ' + $r/@d_apellido"/>
+					<qry:attribute name="nombre_cap" value="nmd_capital(@nombre)"/>
+					<qry:attribute name="oi_personal" value="$r/@oi_personal"/>
+					<qry:attribute name="loc_empresa" value="$r/@d_localidad"/>
+					<qry:attribute name="fecha" value="$r/@fecha"/>
+					<qry:attribute name="mesdia" value="FORMAT_DATE($r/@fecha, 'dd-mm')"/>
+					<qry:attribute name="cant" value="Number(format_date(now(), 'yyyy')) - Number(format_date(@fecha, 'yyyy'))"/>
+					<qry:attribute name="puesto" value="$r/@d_puesto"/>
+					<qry:attribute name="empresa" value="$r/@d_empresa + ' - ' + $r/@d_localidad"/>
+					<qry:attribute name="col" value="../@col"/>
+					<qry:attribute name="rtipo" value="../@rtipo"/>
+					<qry:attribute name="evento" value="$r/@evento"/>
+					<qry:attribute name="parentesco" value="$r/@parentesco"/>
+					<qry:attribute name="familiarde_nombre" value="$r/@familiarde_nombre + ' ' + $r/@familiarde_apellido"/>
+					<qry:attribute name="familiarde_nombre_cap" value="nmd_capital(@familiarde_nombre)"/>
+				</qry:element>
+				<qry:attribute name="oi_personal_ant" value="$r/@oi_personal"/>
+			</qry:out>
+		</qry:select>
+	</html:query>
+	<html:xslt>
+		<xsl:template name="MainReport" match="DATA">
+			<body bgcolor="#F2F2EC" scroll="no">
+				<table class="tabla_detail estilo1" cellspacing="0" cellpadding="0">
+					<tr>
+						<th>
+							<input id="txtEvento" name="txtEvento" type="hidden">
+								<xsl:attribute name="value">
+									<xsl:value-of select="@evento"/>
+								</xsl:attribute>
+							</input>
+							<xsl:choose>
+								<xsl:when test="@evento = 'A'">
+									Aniversarios
+								</xsl:when>
+								<xsl:when test="@evento = 'C'">
+									Cumplea&#241;os
+								</xsl:when>
+								<xsl:when test="@evento = 'AC'">
+									Aniversarios y Cumplea&#241;os
+								</xsl:when>
+								<xsl:otherwise>
+									Aniversarios y Cumplea&#241;os
+								</xsl:otherwise>
+							</xsl:choose>
+							<input id="txtTiposFamiliares" name="txtTiposFamiliares" type="hidden">
+								<xsl:attribute name="value">
+									<xsl:value-of select="@tipoFamHid"/>
+								</xsl:attribute>
+							</input>
+						</th>
+					</tr>
+					<tr>
+						<td class="titu_1 underline" height="28px">
+							<xsl:text>
+								Fecha:&#160;
+							</xsl:text>
+							<SELECT id="cboDate" name="cboDate" onChange="ChangeDate(this);">
+								<OPTION VALUE="13">
+									<xsl:if test="@seldate = '13'">
+										<xsl:attribute name="selected">
+											<xsl:value-of select="@seldate"/>
+										</xsl:attribute>
+									</xsl:if>
+									Hoy
+								</OPTION>
+								<OPTION VALUE="00">
+									<xsl:if test="@seldate = '00'">
+										<xsl:attribute name="selected">
+											<xsl:value-of select="@seldate"/>
+										</xsl:attribute>
+									</xsl:if>
+									Mes actual
+								</OPTION>
+								<OPTION VALUE="01">
+									<xsl:if test="@seldate = '01'">
+										<xsl:attribute name="selected">
+											<xsl:value-of select="@seldate"/>
+										</xsl:attribute>
+									</xsl:if>
+									Enero
+								</OPTION>
+								<OPTION VALUE="02">
+									<xsl:if test="@seldate = '02'">
+										<xsl:attribute name="selected">
+											<xsl:value-of select="@seldate"/>
+										</xsl:attribute>
+									</xsl:if>
+									Febrero
+								</OPTION>
+								<OPTION VALUE="03">
+									<xsl:if test="@seldate = '03'">
+										<xsl:attribute name="selected">
+											<xsl:value-of select="@seldate"/>
+										</xsl:attribute>
+									</xsl:if>
+									Marzo
+								</OPTION>
+								<OPTION VALUE="04">
+									<xsl:if test="@seldate = '04'">
+										<xsl:attribute name="selected">
+											<xsl:value-of select="@seldate"/>
+										</xsl:attribute>
+									</xsl:if>
+									Abril
+								</OPTION>
+								<OPTION VALUE="05">
+									<xsl:if test="@seldate = '05'">
+										<xsl:attribute name="selected">
+											<xsl:value-of select="@seldate"/>
+										</xsl:attribute>
+									</xsl:if>
+									Mayo
+								</OPTION>
+								<OPTION VALUE="06">
+									<xsl:if test="@seldate = '06'">
+										<xsl:attribute name="selected">
+											<xsl:value-of select="@seldate"/>
+										</xsl:attribute>
+									</xsl:if>
+									Junio
+								</OPTION>
+								<OPTION VALUE="07">
+									<xsl:if test="@seldate = '07'">
+										<xsl:attribute name="selected">
+											<xsl:value-of select="@seldate"/>
+										</xsl:attribute>
+									</xsl:if>
+									Julio
+								</OPTION>
+								<OPTION VALUE="08">
+									<xsl:if test="@seldate = '08'">
+										<xsl:attribute name="selected">
+											<xsl:value-of select="@seldate"/>
+										</xsl:attribute>
+									</xsl:if>
+									Agosto
+								</OPTION>
+								<OPTION VALUE="09">
+									<xsl:if test="@seldate = '09'">
+										<xsl:attribute name="selected">
+											<xsl:value-of select="@seldate"/>
+										</xsl:attribute>
+									</xsl:if>
+									Septiembre
+								</OPTION>
+								<OPTION VALUE="10">
+									<xsl:if test="@seldate = '10'">
+										<xsl:attribute name="selected">
+											<xsl:value-of select="@seldate"/>
+										</xsl:attribute>
+									</xsl:if>
+									Octubre
+								</OPTION>
+								<OPTION VALUE="11">
+									<xsl:if test="@seldate = '11'">
+										<xsl:attribute name="selected">
+											<xsl:value-of select="@seldate"/>
+										</xsl:attribute>
+									</xsl:if>
+									Noviembre
+								</OPTION>
+								<OPTION VALUE="12">
+									<xsl:if test="@seldate = '12'">
+										<xsl:attribute name="selected">
+											<xsl:value-of select="@seldate"/>
+										</xsl:attribute>
+									</xsl:if>
+									Diciembre
+								</OPTION>
+							</SELECT>
+						</td>
+					</tr>
+					<tr>
+						<td>
+							<div>
+								<table style="width:100%;font-size: 11px;" class="tabla_noticia estilo1">
+									<xsl:for-each select="LEGAJO[@primero = 1]">
+										<tr>
+											<td height="40px" class="img_back underline">
+												<xsl:if test="@oi_foto != '0'">
+													<xsl:attribute name="style">
+														<xsl:value-of select="concat('background-image:url(data:image/jpg;base64,(#IMAGE.DB(x36;NucleusRH.Base.Personal.Imagenes.HEAD;', @oi_foto, ')#))')"/>
+													</xsl:attribute>
+												</xsl:if>
+												<xsl:if test="@oi_foto = '0'">
+													<xsl:attribute name="style">
+														<xsl:value-of select="'background-image:url(data:image/jpg;base64,/9j/4AAQSkZJRgABAQEAYABgAAD/4QBmRXhpZgAASUkqAAgAAAAEABoBBQABAAAAPgAAABsBBQABAAAARgAAACgBAwABAAAAAgAAADEBAgAQAAAATgAAAAAAAAAsAQAAAQAAACwBAAABAAAAUGFpbnQuTkVUIHYzLjA4AP/bAEMACAYGBwYFCAcHBwkJCAoMFA0MCwsMGRITDxQdGh8eHRocHCAkLicgIiwjHBwoNyksMDE0NDQfJzk9ODI8LjM0Mv/bAEMBCQkJDAsMGA0NGDIhHCEyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMv/AABEIACIAIgMBIgACEQEDEQH/xAAfAAABBQEBAQEBAQAAAAAAAAAAAQIDBAUGBwgJCgv/xAC1EAACAQMDAgQDBQUEBAAAAX0BAgMABBEFEiExQQYTUWEHInEUMoGRoQgjQrHBFVLR8CQzYnKCCQoWFxgZGiUmJygpKjQ1Njc4OTpDREVGR0hJSlNUVVZXWFlaY2RlZmdoaWpzdHV2d3h5eoOEhYaHiImKkpOUlZaXmJmaoqOkpaanqKmqsrO0tba3uLm6wsPExcbHyMnK0tPU1dbX2Nna4eLj5OXm5+jp6vHy8/T19vf4+fr/xAAfAQADAQEBAQEBAQEBAAAAAAAAAQIDBAUGBwgJCgv/xAC1EQACAQIEBAMEBwUEBAABAncAAQIDEQQFITEGEkFRB2FxEyIygQgUQpGhscEJIzNS8BVictEKFiQ04SXxFxgZGiYnKCkqNTY3ODk6Q0RFRkdISUpTVFVWV1hZWmNkZWZnaGlqc3R1dnd4eXqCg4SFhoeIiYqSk5SVlpeYmZqio6Slpqeoqaqys7S1tre4ubrCw8TFxsfIycrS09TV1tfY2dri4+Tl5ufo6ery8/T19vf4+fr/2gAMAwEAAhEDEQA/AO3EftWRfai4lMdv8u04LEA5+ldF5dcpJFiVxndhjz612QVzkkx0Op3MbDzCJF7ggA/hW6iiRFdeVYAiud8uunsYStjCD12A0TVhRZH5ftRVzy/rRWZZaEdc3qFmLe8dByp+YfjXTXd1FZgBwzMeQorBupWupzKwA4wAOwrSCZEihFbmWVY16scCuqWEIiqOigAVgRboZVkTG5TkZrftL6K6YR4ZJCOhHB+hpzTCI7y6Kt+XRWRRl61/r4v9z+tZlFFbR2RD3Crml/8AIRj+h/lRRTewup0VFFFc5sf/2Q==)'"/>
+													</xsl:attribute>
+												</xsl:if>
+												<xsl:if test="@evento = 'Aniversario'">
+													<img width="24px">
+														<xsl:attribute name="src">
+															<xsl:value-of select="'data:image/jpg;base64,iVBORw0KGgoAAAANSUhEUgAAABgAAAAYCAYAAADgdz34AAAE+klEQVR4XoVVXWgUVxT+ZnZms9ndZN2Nu0mMWE2KuPGnRGlBEozNQ+wPBCkUfWxNBX1RqG8KpUUfC5ZW0zyE9kloHwSrUJqikKQ00fiT3RDxZ5NINjGNxuZnzd/szsztuade7K5aP7i7d87Z+51zvnPuDl6F7u6elnv3U19d67+OVyGZHPx2YCCxC/8DQ20+2PMeFIQQmJx4+FkwGFw/OzP7DfnmUIAvT52K3h4aatqydWsl+XsAaACE8v/a+RtvdBDeb94jST2u6/pohWiVrn1jXbjt7NnRK5cvV7OtYI2OjKyNxmLD359tq3Acp1SdkxySSyWsgVAWifiqN2w46Xn7w0MzWVeTFWwsj/g2GYtu998iN7+SFSiArkHbFPZ7t8QC2s93Hq9omga5KrQV4X0w8EV6PP3d/VTKNt7d1YhEMunXNa3+Ubwp+MD2QsJOXMCuzas9A8F3TMdkGwtQ4TcwvWzDsW1sT/2EVEktcjs/Cow9tUARUGxNYN2juzvtnN0uafRMZh4CQs/lcrrt2KD0ETZ0PK6qw9dpL4pMA0xPdgkfpR4tNrC62MR5bxwXngbh1TUKbCJI57JWFpZleUg2bfu2t6BLA+lGy4FwBVpro9i0yodPG7agZvNWfBKP4fO6CoD5BSJEtD7kw5rSYmRjG4DIGlSWeFFVUkRBDcnF1dl2DtlsFoZND6Q5OZgB51MzOLStHEuWg+WiVSiirLomMtwt+eGnZ5+pw7JdIBiGK2UhmwdAxtKYy3FcDkRVwFDausKFIMfakIk/0vNYzrkoKzLwCwUcXchCNSE9u4JlIqc+cFA6hdEny0jNLXMPNrqCiSEK7oFNh37/OI5oeTnykDfer7ff6LNx8or9wkXjCkpNDSGyKExPT+Po0aPYv38/Wlpa2LaysoL29nbcunULfr8f+/btQ1NTE0sjETA02FSBgg4VgEtzQT3hNTMzg8OHD6O3txfj4+PSxqUfOXIEp0+fxtLSEgc5cOAAuru71TmZKDdZFAYQzxw0rujr6+Osksnks+Au2xcXF9HT04PGxkacO3cOHR0dTNrZ2cl+WsThUCK2kLiTus8SKRJZGh8YGRlBfX09du/ejWPHjkkf23Vdx82bN+X48ZqcnOTbG4lE2E/gJEgJCZHXg+fza7Pee/fuRX9/v/rzUwQKGBsbw4kTJ1BSUsK/Vf6FhQWpBlHJOcYLFXCZCqQ5Z6gkUkin0zh48CBne+bMGRmE/R6PB5lMBq7jOlY2W1iBUBXkBVDBlX1qagqtra1M2NbWhtraWvaZpsmDUVzs56PZrKUqUBBUATf5pQFUhsePH8f8/Dx27NiBrq4uJBIJNDQ0oK6uDomBBKqqqqDpuivVyA8gALugAtqrK8/74eFhDA0NcaDBwUG2Nzc3MynJxc/hSBm0l73RBIQigkI8HsfFixdl+WyvrKzEpUuX+DkUCiEcDoPeenhEsl3vv4Hq6jehe3QeCgVDl00UrtCgsWaF0+L1evFfe1lZGRMHAgE8oZt+7eo1WFYONTU1iEZjmJ2bZakVDGia1NfxFfuc3j+vgt4PeX9Wz+sV0IQGj+FRY8tBYrFykiXMYzvxcAIZ6o9pmFAwbt+7K0fRnp2be/DjDx1xy7JYAsqcl+mlvemFYRryojG5Y7OUaol/L57FiQX8AUxO/TWG/Pz4O0SBTN6/HkJdwFdgGcACCP8AkSoe4rliY2EAAAAASUVORK5CYII='"/>
+														</xsl:attribute>
+													</img>
+												</xsl:if>
+												<xsl:if test="@evento = 'Cumplea&#241;os'">
+													<img width="24px">
+														<xsl:attribute name="src">
+															<xsl:value-of select="'data:image/jpg;base64,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'"/>
+														</xsl:attribute>
+													</img>
+												</xsl:if>
+												<span class="row_estilo_1" style="padding-left:10px">
+													<xsl:value-of select="@dia"/>
+												</span>
+												<span>
+													&#160;|&#160;
+												</span>
+												<xsl:if test="not(@parentesco)">
+													<span>
+														<a>
+															<xsl:attribute name="href">
+																<xsl:value-of select="concat('javascript:Detail(', @oi_personal, ')')"/>
+															</xsl:attribute>
+															<xsl:value-of select="@nombre_cap"/>
+														</a>
+													</span>
+												</xsl:if>
+												<xsl:if test="@parentesco!=''">
+													<span class="row_estilo_1" style="color:#338F4A">
+														<xsl:value-of select="@nombre_cap"/>
+													</span>
+												</xsl:if>
+												<xsl:if test="../@evento = 'AC'">
+													<span>
+														&#160;|&#160;
+													</span>
+													<span class="row_estilo_1" style="color:grey">
+														<xsl:value-of select="@evento"/>
+													</span>
+												</xsl:if>
+												<xsl:if test="@evento = 'Aniversario'">
+													<span>
+														&#160;[
+													</span>
+													<span>
+														<xsl:value-of select="@cant"/>
+													</span>
+													<span style="padding-right:10px">
+														]&#160;
+													</span>
+												</xsl:if>
+												<xsl:if test="@parentesco != ''">
+													<span>
+														&#160;|&#160;
+													</span>
+													<span class="row_estilo_1" style="color:grey">
+														<xsl:value-of select="concat(@parentesco,' de ')"/>
+													</span>
+													<a>
+														<xsl:attribute name="href">
+															<xsl:value-of select="concat('javascript:Detail(', @oi_personal, ')')"/>
+														</xsl:attribute>
+														<xsl:value-of select="@familiarde_nombre_cap"/>
+													</a>
+												</xsl:if>
+											</td>
+										</tr>
+									</xsl:for-each>
+								</table>
+							</div>
+						</td>
+					</tr>
+				</table>
+			</body>
+		</xsl:template>
+		<xsl:template name="ReportSCRIPT">
+			function Detail(poiPer) {
+				var dir;
+
+				dir = "../../../ReportViewer.aspx?";
+				dir = dir + "report={#PROXY.APP#}.NucleusRH.Base.Personal.BuscadorLegajos.GEN.GADGET";
+				dir = dir + "{#CHAR.AMP#}oi_personal=" + poiPer;
+                
+				window.open(dir, 'Buscador', 'width=800,height=600,resizable=yes');
+			}
+
+			function ChangeDate(objCbo) {
+				
+				var dir;
+				
+
+				dir = "../../../ReportViewer.aspx?";
+				dir = dir + "report={#PROXY.APP#}.NucleusRH.Base.Personal.CumplesAniversarios.GEN.GADGET";
+				dir = dir + "{#CHAR.AMP#}seldate=" + objCbo.value; 
+				dir = dir + "{#CHAR.AMP#}evento=" + document.getElementById('txtEvento').value;
+				dir = dir + "{#CHAR.AMP#}tipoFam=" + document.getElementById('txtTiposFamiliares').value;
+				
+				document.location = dir;
+				return;
+			}
+		</xsl:template>
+		<xsl:template name="GADGET_PARAM">
+			<param name="seldate" label="Mes" type="ENUM">
+				<ROWS>
+					<row id="00" text="Mes actual"/>
+					<row id="01" text="Enero"/>
+					<row id="02" text="Febrero"/>
+					<row id="03" text="Marzo"/>
+					<row id="04" text="Abril"/>
+					<row id="05" text="Mayo"/>
+					<row id="06" text="Junio"/>
+					<row id="07" text="Julio"/>
+					<row id="08" text="Agosto"/>
+					<row id="09" text="Septiembre"/>
+					<row id="10" text="Octubre"/>
+					<row id="11" text="Noviembre"/>
+					<row id="12" text="Diciembre"/>
+					<row id="13" text="Hoy"/>
+				</ROWS>
+			</param>
+			<param name="evento" label="Evento" type="ENUM">
+				<ROWS>
+					<row id="AC" text="Aniversarios y Cumplea&#241;os"/>
+					<row id="A" text="Aniversarios"/>
+					<row id="C" text="Cumplea&#241;os"/>
+				</ROWS>
+			</param>
+			<param name="tipoFam" label="Tipos de Familiares" type="STRING"/>
+		</xsl:template>
+	</html:xslt>
+</html:html>

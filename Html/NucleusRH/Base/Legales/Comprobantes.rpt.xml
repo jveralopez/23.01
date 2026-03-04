@@ -1,0 +1,160 @@
+<html:html xmlns:html="nomad_engine.html" xmlns:qry="nomad_engine.qry" name="NucleusRH.Base.Legales.Comprobantes" extends="Nomad.Base.BaseReport.rpt" doc="source">
+	<html:query declare="&lt;ROW&#13;&#10;oi_empresa=&quot;&quot;&#13;&#10;oi_carpeta=&quot;&quot;&#13;&#10;oi_adelanto=&quot;&quot;&#13;&#10;l_rend_anuladas=&quot;1&quot;&#13;&#10;f_rend_desde=&quot;&quot;&#13;&#10;f_rend_hasta=&quot;&quot;&#13;&#10;l_no_transf_gp=&quot;1&quot;&#13;&#10;f_transf_gp_desde=&quot;&quot;&#13;&#10;f_transf_gp_hasta=&quot;&quot;&#13;&#10;/&gt;">
+		<qry:main doc="SOURCE">
+			<qry:append-doc doc-path="#SOURCE:." name="FILTRO"/>
+			<REPORT label="Comprobantes Rendidos">
+				<qry:attribute value="format_date(now(),'dd/mm/yyyy HH:MM')" name="date"/>
+				<GROUPS>
+					<GROUP tag="COMPROBANTE" noreg="No se encontraron registros">
+						<COLS>
+							<COL name="empresa" label="Empresa"/>
+							<COL name="carpeta" label="Carpeta"/>
+							<COL name="oi_adelanto" label="Nro. Adelanto" style="text-align:center;"/>
+							<COL name="responsable" label="Responsable"/>
+							<COL name="sucursal" label="Sucursal"/>
+							<COL name="oi_rendicion" label="Nro. Rendici&#243;n" style="text-align:center;"/>
+							<COL name="f_rendicion" label="Fecha Hora Rendici&#243;n" style="text-align:center;"/>
+							<COL name="n_monto_rendicion" label="Monto" style="text-align:right;"/>
+							<COL name="l_anulado" label="Anulada" style="text-align:center;">
+								<OPT value="No" id="0"/>
+								<OPT value="Si" id="1"/>
+							</COL>
+							<COL name="f_comprobante" label="Fecha Comprobante" style="text-align:center;"/>
+							<COL name="d_razon_social" label="Raz&#243;n Social / Descripci&#243;n"/>
+							<COL name="tipo_comprob" label="Tipo Comprobante"/>
+							<COL name="c_nro_comp" label="Nro. Comprobante" style="text-align:center;"/>
+							<COL name="n_subtotal" label="Subtotal" style="text-align:right;"/>
+							<COL name="n_iva" label="Total IVA" style="text-align:right;"/>
+							<COL name="n_otros_impuestos" label="Otros Impuestos" style="text-align:right;"/>
+							<COL name="n_total" label="Importe Total" style="text-align:right;"/>
+							<COL name="f_transferido" label="Fecha Transferido GP" style="text-align:center;"/>
+						</COLS>
+					</GROUP>
+				</GROUPS>
+				<qry:element name="DATA">
+					<qry:insert-select doc-path="#FILTRO:" name="sqlComprobantes"/>
+				</qry:element>
+			</REPORT>
+		</qry:main>
+		<qry:select doc="SOURCE" name="sqlComprobantes">
+			<qry:xquery>
+				for $r in sql('
+			
+				SELECT
+					EMP.c_empresa,
+					EMP.d_empresa,
+					CAR.c_carpeta,
+					CAR.d_carpeta,
+					ADE.oi_adelanto,
+					SUJ.c_sujeto,
+					SUJ.d_sujeto,
+					SUC.c_ubicacion,
+					SUC.d_ubicacion,
+					REN.oi_rendicion,
+					REN.f_rendicion,
+					REN.n_monto_rendicion,
+					REN.l_anulado,
+					CMP.f_comprobante,
+					CMP.d_razon_social,
+					TC.c_tipo_comprob,
+					TC.d_tipo_comprob,
+					CMP.c_nro_comp,
+					CMP.n_subtotal,
+					CMP.n_iva,
+					CMP.n_otros_impuestos,
+					CMP.n_total,
+					CMP.f_transferido					
+				
+				FROM				
+					LEG06_COMPS_RENDICION as CMP,
+					LEG06_RENDICIONES as REN,
+					LEG04_ADELANTOS as ADE,
+					LEG01_CARPETAS as CAR,
+					ORG03_EMPRESAS as EMP,
+					LEG40_CLASIF_SUJ as CS,
+		     	LEG40_SUJETOS as SUJ,
+		     	ORG03_UBICACIONES as SUC,
+		     	LEG63_TIPOS_COMPROB as TC				
+				
+				JOIN
+					CMP.oi_rendicion INNER REN.oi_rendicion,
+					REN.oi_adelanto INNER ADE.oi_adelanto,
+					ADE.oi_carpeta INNER CAR.oi_carpeta,
+					CAR.oi_empresa INNER EMP.oi_empresa,
+					ADE.oi_clasif_sujeto INNER CS.oi_clasif_sujeto,
+					CS.oi_sujeto INNER SUJ.oi_sujeto,
+					ADE.oi_ubicacion INNER SUC.oi_ubicacion,
+					CMP.oi_tipo_comprob INNER TC.oi_tipo_comprob											
+					
+				WHERE
+					1=1
+					{%? (#FILTRO:@oi_empresa!='')
+						{% AND CAR.oi_empresa = {#FILTRO:@oi_empresa} %}
+						{% %}
+					%}
+					{%? (#FILTRO:@oi_carpeta!='')
+						{% AND ADE.oi_carpeta = {#FILTRO:@oi_carpeta} %}
+						{% %}
+					%}
+					{%? (#FILTRO:@oi_adelanto!='')
+						{% AND REN.oi_adelanto = {#FILTRO:@oi_adelanto} %}
+						{% %}
+					%}
+					{%? (#FILTRO:@l_rend_anuladas!='1')
+						{% AND REN.l_anulado = 0 %}
+						{% %}
+					%}
+					{%? (#FILTRO:@f_rend_desde!='')
+						{% AND REN.f_rendicion &gt;= {#FILTRO:@f_rend_desde} %}
+						{% %}
+					%}
+					{%? (#FILTRO:@f_rend_hasta!='')
+						{% AND REN.f_rendicion &lt;= ADDDAYS({#FILTRO:@f_rend_hasta},1) %}
+						{% %}
+					%}					
+					{%? (#FILTRO:@l_no_transf_gp='1')
+						{% AND ISNULL(CMP.f_transferido) %}
+						{% %}
+					%}					
+					{%? (#FILTRO:@f_transf_gp_desde!='')
+						{% AND CMP.f_transferido &gt;= {#FILTRO:@f_transf_gp_desde} %}
+						{% %}
+					%}
+					{%? (#FILTRO:@f_transf_gp_hasta!='')
+						{% AND CMP.f_transferido &lt;= ADDDAYS({#FILTRO:@f_transf_gp_hasta},1) %}
+						{% %}
+					%}
+				
+				ORDER BY
+					c_empresa ASC,
+					c_carpeta ASC,
+					oi_adelanto ASC,
+					oi_rendicion ASC
+					
+			')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<COMPROBANTE>
+					<qry:attribute name="empresa" value="'['+$r/@c_empresa+'] '+$r/@d_empresa"/>
+					<qry:attribute name="carpeta" value="'['+$r/@c_carpeta+'] '+$r/@d_carpeta"/>
+					<qry:attribute name="oi_adelanto" value="$r/@oi_adelanto"/>
+					<qry:attribute name="responsable" value="'['+$r/@c_sujeto+'] '+$r/@d_sujeto"/>
+					<qry:attribute name="sucursal" value="'['+$r/@c_ubicacion+'] '+$r/@d_ubicacion"/>
+					<qry:attribute name="oi_rendicion" value="$r/@oi_rendicion"/>
+					<qry:attribute name="f_rendicion" value="format-date($r/@f_rendicion,'dd/mm/yyyy hh:MM')"/>
+					<qry:attribute name="n_monto_rendicion" value="format-number($r/@n_monto_rendicion,0,2,',','.','')"/>
+					<qry:attribute name="l_anulado" value="$r/@l_anulado"/>
+					<qry:attribute name="f_comprobante" value="format-date($r/@f_comprobante,'dd/mm/yyyy')"/>
+					<qry:attribute name="d_razon_social" value="$r/@d_razon_social"/>
+					<qry:attribute name="tipo_comprob" value="'['+$r/@c_tipo_comprob+'] '+$r/@d_tipo_comprob"/>
+					<qry:attribute name="c_nro_comp" value="$r/@c_nro_comp"/>
+					<qry:attribute name="n_subtotal" value="format-number($r/@n_subtotal,0,2,',','.','')"/>
+					<qry:attribute name="n_iva" value="format-number($r/@n_iva,0,2,',','.','')"/>
+					<qry:attribute name="n_otros_impuestos" value="format-number($r/@n_otros_impuestos,0,2,',','.','')"/>
+					<qry:attribute name="n_total" value="format-number($r/@n_total,0,2,',','.','')"/>
+					<qry:attribute name="f_transferido" value="format-date($r/@f_transferido,'dd/mm/yyyy')"/>
+				</COMPROBANTE>
+			</qry:out>
+		</qry:select>
+	</html:query>
+</html:html>

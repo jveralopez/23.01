@@ -1,0 +1,333 @@
+<flow:flow xmlns:flow="nomad_engine.flow" xmlns:doc="nomad_engine.doc" xmlns:qry="nomad_engine.qry" default_action="initialize" name="NucleusProject.Base.Project.Proyectos" extends="NucleusProject.Base.Project.Proyectos.autoflow">
+	<flow:declare>
+		<doc:define name="doc-start">
+			<ROWS>
+				<ROW id=""/>
+			</ROWS>
+		</doc:define>
+		<doc:define name="PARAMIN"/>
+		<doc:define name="AUXOBJ"/>
+		<qry:define name="Templates">
+			<qry:main doc="SOURCE">
+				<qry:element name="ROWS">
+					<ROW id="0" code="_blank" text="Proyecto en Blanco"/>
+					<qry:insert-select name="SQL1"/>
+				</qry:element>
+			</qry:main>
+			<qry:select name="SQL1" doc="PARAM">
+				<qry:xquery>
+					for $r in SQL('
+				select 
+					P.oi_proyecto,
+					P.c_proyecto,
+					P.d_proyecto
+				from
+					PRY01_PROYECTOS as P
+				where
+					isNull(P.oi_proyecto_parent) and P.c_estado=\'L\'
+			')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:element name="ROW">
+						<qry:attribute name="id" value="$r/@oi_proyecto"/>
+						<qry:attribute name="code" value="$r/@c_proyecto"/>
+						<qry:attribute name="text" value="$r/@d_proyecto"/>
+					</qry:element>
+				</qry:out>
+			</qry:select>
+		</qry:define>
+		<doc:define name="TEMPLATE"/>
+		<doc:define name="PARAMETERS">
+			<FILTER ocultarReporte=""/>
+		</doc:define>
+		<qry:define declare="&lt;PRESUPUESTO nmd-col=&quot;1&quot;&gt;&#13;&#10;&#9;&lt;PRESUPUESTO descr=&quot;Nuevo&quot; nmd-status=&quot;~i,&quot; id=&quot;~94516447508A-945D19031EC8-000000000169&quot; c_presupuesto=&quot;123&quot; d_presupuesto=&quot;123&quot; f_presupuesto=&quot;20121120&quot;&gt;&#13;&#10;&#9;&#9;&lt;oi_doc_digital nmd-agr=&quot;1&quot; value=&quot;108&quot; nmd-status=&quot;~u,value,&quot; /&gt;&#13;&#10;&#9;&lt;/PRESUPUESTO&gt;&#13;&#10;&lt;/PRESUPUESTO&gt;" name="LIST:NucleusProject.Base.Project.Proyectos.PRESUPUESTO">
+			<qry:main doc="PARAM" maxdeep="2">
+				<qry:element name="ROWS">
+					<qry:insert-select doc-path="#PARAM:./PRESUPUESTO[substring_before(@nmd-status,',')!='~d' and substring_before(@nmd-status,',')!='~x']" name="sql1"/>
+				</qry:element>
+			</qry:main>
+			<qry:select doc="PARAM" name="sql1">
+				<qry:xquery>
+					for $r in #PARAM:
+				</qry:xquery>
+				<qry:out>
+					<qry:element name="ROW">
+						<qry:attribute name="id" value="$r/@id"/>
+						<qry:attribute name="c_presupuesto" value="$r/@c_presupuesto"/>
+						<qry:attribute name="d_presupuesto" value="$r/@d_presupuesto"/>
+						<qry:attribute name="f_presupuesto" value="$r/@f_presupuesto"/>
+						<qry:attribute name="CODE" value="$r/@CODE"/>
+						<qry:attribute name="TEXT" value="$r/@TEXT"/>
+						<qry:attribute name="oi_doc_digital" value="#PARAM:oi_doc_digital/@value"/>
+						<qry:insert-select doc-path="." name="sql2"/>
+					</qry:element>
+				</qry:out>
+			</qry:select>
+			<qry:select doc="PARAM" name="sql2">
+				<qry:xquery>
+					for $r in sql('
+			SELECT
+				PRY15.o_doc_digital				 
+			FROM
+				PRY15_DOCUM_DIG as PRY15
+			WHERE
+				PRY15.oi_doc_digital = {#PARAM:@oi_doc_digital}
+			')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:attribute name="o_doc_digital" value="$r/@o_doc_digital"/>
+				</qry:out>
+			</qry:select>
+		</qry:define>
+	</flow:declare>
+	<flow:main doc="PARAMETERS">
+		<flow:action name="SHOW">
+			<doc:assign-value from-path="#PARAMETERS:" to-doc="PARAMIN"/>
+			<doc:new-object doc="DDO" class="NucleusProject.Base.Project.Proyectos.PROYECTO"/>
+			<doc:load-object id-path="#PARAMETERS:@id" doc="DDO" class="NucleusProject.Base.Project.Proyectos.PROYECTO"/>
+			<flow:open-form doc-path="#DDO:" mode="SHOW" form-class="NucleusProject.Base.Project.Proyectos.PROYECTO_MAIN.form"/>
+		</flow:action>
+		<flow:action name="EDIT">
+			<doc:assign-value from-path="#PARAMETERS:" to-doc="PARAMIN"/>
+			<doc:new-object doc="DDO" class="NucleusProject.Base.Project.Proyectos.PROYECTO"/>
+			<doc:load-object id-path="#PARAMETERS:@id" doc="DDO" class="NucleusProject.Base.Project.Proyectos.PROYECTO"/>
+			<doc:set-attribute to-attr-path="#PARAMIN:@oi_proy_originalp" from-attr-path="#DDO:oi_proyecto_parent/@value"/>
+			<flow:open-form form-class="NucleusProject.Base.Project.Proyectos.PROYECTO_MAIN.form" doc-path="#DDO:" mode="EDIT"/>
+		</flow:action>
+		<flow:action name="ADD">
+			<doc:load-qry output-doc="TEMPLATE" qry="Templates"/>
+			<doc:assign-value from-path="#PARAMETERS:" to-doc="PARAMIN"/>
+			<doc:new-object doc="DDO" class="NucleusProject.Base.Project.Proyectos.PROYECTO"/>
+			<doc:new-object doc="NEWDDOROOT" class="NucleusProject.Base.Project.Proyectos.PROYECTO"/>
+			<doc:set-attribute from-attr-path="#PARAMETERS:@id" to-attr-path="#NEWDDOROOT:oi_proyecto_parent/@value"/>
+			<doc:set-attribute from-value="I" to-attr-path="#NEWDDOROOT:@c_estado"/>
+			<flow:call-action if="#PARAMETERS:@id" action="PARENT-NOCOPY" else="PARENT-COPY" eq=""/>
+			<flow:open-form doc-path="#NEWDDOROOT:" mode="NEW" form-class="NucleusProject.Base.Project.Proyectos.MAIN-TEMP.form"/>
+		</flow:action>
+		<flow:action name="DEL">
+			<doc:assign-value from-path="#PARAMETERS:" to-doc="PARAMIN"/>
+			<doc:new-object doc="DDO" class="NucleusProject.Base.Project.Proyectos.PROYECTO"/>
+			<doc:load-object id-path="#PARAMETERS:@id" doc="DDO" class="NucleusProject.Base.Project.Proyectos.PROYECTO"/>
+			<flow:exec-method method="Eliminar" this-doc="DDO"/>
+			<doc:set-attribute to-attr-path="#PARAMETERS:@id" from-value=""/>
+			<flow:exit-flow return-path="#PARAMETERS:"/>
+		</flow:action>
+		<flow:action name="initialize">
+			<flow:load-user-data name="NucleusProject.Base.Project.Proyectos.MAIN.flow_parameters" doc="PARAMETERS"/>
+			<flow:open-form doc-path="#PARAMETERS:" mode="SHOW" form-class="NucleusProject.Base.Project.Proyectos.MAIN.form"/>
+		</flow:action>
+		<flow:action name="PARENT-COPY">
+			<doc:new-object class="NucleusProject.Base.Project.Proyectos.PROYECTO" doc="AUXOBJ"/>
+			<doc:load-object id-path="#PARAMETERS:@id" class="NucleusProject.Base.Project.Proyectos.PROYECTO" doc="AUXOBJ"/>
+			<doc:set-attribute from-attr-path="#AUXOBJ:oi_recurso/@value" to-attr-path="#NEWDDOROOT:oi_recurso/@value"/>
+			<doc:set-attribute from-attr-path="#AUXOBJ:@c_proyecto" to-attr-path="#NEWDDOROOT:@c_proyecto"/>
+			<flow:call-action eq="L" if="#AUXOBJ:@c_estado" action="PARENT-ESTADO"/>
+		</flow:action>
+		<flow:action name="PARENT-NOCOPY"/>
+		<flow:action name="PARENT-ESTADO">
+			<doc:set-attribute from-attr-path="#AUXOBJ:@c_estado" to-attr-path="#NEWDDOROOT:@c_estado"/>
+		</flow:action>
+		<flow:action name="ANULE">
+			<doc:assign-value from-path="#PARAMETERS:" to-doc="PARAMIN"/>
+			<doc:new-object doc="DDO" class="NucleusProject.Base.Project.Proyectos.PROYECTO"/>
+			<doc:load-object id-path="#PARAMETERS:@id" doc="DDO" class="NucleusProject.Base.Project.Proyectos.PROYECTO"/>
+			<flow:exec-method this-doc="DDO" method="CambiarEstado">
+				<flow:param value="A" type="Nomad.NSystem.String" mode="in" name="estado"/>
+			</flow:exec-method>
+			<flow:exit-flow return-path="#PARAMETERS:"/>
+		</flow:action>
+		<flow:action name="FINALIZE">
+			<doc:new-object doc="DDO" class="NucleusProject.Base.Project.Proyectos.PROYECTO"/>
+			<doc:load-object id-path="#PARAMETERS:@id" doc="DDO" class="NucleusProject.Base.Project.Proyectos.PROYECTO"/>
+			<flow:call-action else="open-flow-FINALIZAR" action="open-flow-FINALIZARMAIL" if="#DDO:oi_tipo_proyecto/@value" eq="1"/>
+		</flow:action>
+		<flow:action name="initialize_all">
+			<flow:load-user-data name="NucleusProject.Base.Project.Proyectos.MAIN.flow_parameters" doc="PARAMETERS"/>
+			<flow:open-form form-class="NucleusProject.Base.Project.Proyectos.MAIN_ALL.form" doc-path="#PARAMETERS:" mode="SHOW"/>
+		</flow:action>
+		<flow:action name="open-flow-FINALIZAR">
+			<flow:open-form doc-path="#PARAMETERS:" mode="FINALIZE" form-class="NucleusProject.Base.Project.Proyectos.CAMBIO_EST.form"/>
+		</flow:action>
+		<flow:action name="open-flow-FINALIZARMAIL">
+			<flow:open-form doc-path="#PARAMETERS:" mode="FINALIZEMAIL" form-class="NucleusProject.Base.Project.Proyectos.CAMBIO_EST.form"/>
+		</flow:action>
+	</flow:main>
+	<flow:form form-class="NucleusProject.Base.Project.Proyectos.MAIN.form" name="NucleusProject.Base.Project.Proyectos.MAIN.form:SHOW" doc="SOURCE" mode="SHOW">
+		<flow:action name="BACK">
+			<flow:save-user-data doc-path="#PARAMETERS:" name="NucleusProject.Base.Project.Proyectos.MAIN.flow_parameters"/>
+			<flow:exit-flow return-path="#SOURCE:"/>
+		</flow:action>
+	</flow:form>
+	<flow:form extends="NucleusProject.Base.Project.Proyectos.PROYECTO.autoform:SHOW" form-class="NucleusProject.Base.Project.Proyectos.PROYECTO_MAIN.form" name="NucleusProject.Base.Project.Proyectos.PROYECTO_MAIN.form:SHOW" doc="SOURCE" mode="SHOW">
+		<flow:action name="EDIT">
+			<flow:close-form/>
+			<flow:open-form form-class="NucleusProject.Base.Project.Proyectos.PROYECTO_MAIN.form" doc-path="#DDO:" mode="EDIT"/>
+		</flow:action>
+		<flow:action name="DELETE">
+			<flow:exec-method method="Eliminar" this-doc="DDO"/>
+			<doc:set-attribute from-value="" to-attr-path="#PARAMIN:@id"/>
+			<flow:exit-flow return-path="#PARAMIN:"/>
+		</flow:action>
+		<flow:action name="BACK">
+			<flow:exit-flow return-path="#PARAMIN:"/>
+		</flow:action>
+		<flow:action name="TEMPLATE">
+			<flow:exec-method this-doc="DDO" method="CambiarEstado">
+				<flow:param value="L" type="Nomad.NSystem.String" mode="in" name="estado"/>
+			</flow:exec-method>
+		</flow:action>
+		<flow:action name="ANULE">
+			<flow:exec-method this-doc="DDO" method="CambiarEstado">
+				<flow:param value="A" type="Nomad.NSystem.String" mode="in" name="estado"/>
+			</flow:exec-method>
+		</flow:action>
+		<flow:action name="FINALIZE">
+			<flow:call-action if="#SOURCE:oi_tipo_proyecto/@value" else="open-flow-FINALIZAR" action="open-flow-FINALIZARMAIL" eq="1"/>
+		</flow:action>
+		<flow:action name="open-flow-FINALIZAR">
+			<flow:open-form doc-path="#PARAMETERS:" mode="FINALIZE" form-class="NucleusProject.Base.Project.Proyectos.CAMBIO_EST.form"/>
+		</flow:action>
+		<flow:action name="open-flow-FINALIZARMAIL">
+			<flow:open-form doc-path="#PARAMETERS:" mode="FINALIZEMAIL" form-class="NucleusProject.Base.Project.Proyectos.CAMBIO_EST.form"/>
+		</flow:action>
+	</flow:form>
+	<flow:form extends="NucleusProject.Base.Project.Proyectos.PROYECTO.autoform:EDIT" form-class="NucleusProject.Base.Project.Proyectos.PROYECTO_MAIN.form" name="NucleusProject.Base.Project.Proyectos.PROYECTO_MAIN.form:EDIT" doc="SOURCE" mode="EDIT">
+		<flow:action name="SAVE">
+			<flow:call-action action="save-DDO"/>
+			<doc:set-attribute to-attr-path="#PARAMIN:@oi_proyecto_parent" from-attr-path="#SOURCE:oi_proyecto_parent/@value"/>
+			<flow:exit-flow return-path="#PARAMIN:"/>
+		</flow:action>
+		<flow:action name="DELETE">
+			<flow:exec-method method="Eliminar" this-doc="DDO"/>
+			<doc:set-attribute from-value="" to-attr-path="#PARAMIN:@id"/>
+			<flow:exit-flow return-path="#PARAMIN:"/>
+		</flow:action>
+		<flow:action name="CANCEL">
+			<flow:exit-flow return-path="#PARAMIN:"/>
+		</flow:action>
+	</flow:form>
+	<flow:form extends="NucleusProject.Base.Project.Proyectos.PROYECTO.autoform:NEW" form-class="NucleusProject.Base.Project.Proyectos.PROYECTO_MAIN.form" name="NucleusProject.Base.Project.Proyectos.PROYECTO_MAIN.form:NEW" doc="SOURCE" mode="NEW">
+		<flow:action name="SAVE">
+			<flow:call-action action="save-DDO"/>
+			<doc:set-attribute to-attr-path="#PARAMIN:@id" from-attr-path="#SOURCE:@id"/>
+			<flow:exit-flow return-path="#PARAMIN:"/>
+		</flow:action>
+		<flow:action name="CANCEL">
+			<doc:set-attribute to-attr-path="#PARAMIN:@id" from-value=""/>
+			<flow:exit-flow return-path="#PARAMIN:"/>
+		</flow:action>
+	</flow:form>
+	<flow:form form-class="NucleusProject.Base.Project.Proyectos.MAIN-TEMP.form" name="NucleusProject.Base.Project.Proyectos.MAIN-TEMP.form:NEW" parent-doc="PARENTSOURCE" doc="SOURCE" mode="NEW">
+		<flow:action name="ACCEPT">
+			<flow:exec-method method="Copiar" this-doc="NEWDDOROOT">
+				<flow:param attr-path="#FORM:ctrl[@id='LIST']/@xval" type="Nomad.NSystem.String" mode="in" name="templateId"/>
+				<flow:param attr-path="#PARAMIN:@id" type="Nomad.NSystem.String" mode="in" name="parentId"/>
+				<flow:param attr-path="#FORM:ctrl[@id='precode']/@xval" type="Nomad.NSystem.String" mode="in" name="parentCode"/>
+			</flow:exec-method>
+			<flow:open-form form-class="NucleusProject.Base.Project.Proyectos.PROYECTO_MAIN.form" doc-path="#NEWDDOROOT:" mode="NEW"/>
+		</flow:action>
+		<flow:action name="CANCEL">
+			<flow:close-form next-action="After-Back"/>
+		</flow:action>
+		<flow:action name="on-show">
+			<flow:attach-doc doc-path="#TEMPLATE:" attach-id="RS"/>
+		</flow:action>
+	</flow:form>
+	<flow:form name="NucleusProject.Base.Project.Proyectos.MAIN_ALL.form:SHOW" form-class="NucleusProject.Base.Project.Proyectos.MAIN_ALL.form" extends="NucleusProject.Base.Project.Proyectos.MAIN.form:SHOW" doc="SOURCE" mode="SHOW"/>
+	<flow:form mode="FINALIZE" name="NucleusProject.Base.Project.Proyectos.CAMBIO_EST.form:FINALIZE" form-class="NucleusProject.Base.Project.Proyectos.CAMBIO_EST.form" doc="SOURCE">
+		<flow:action name="ACCEPT">
+			<doc:assign-value from-path="#PARAMETERS:" to-doc="PARAMIN"/>
+			<doc:set-attribute from-attr-path="#SOURCE:@o_motivo" to-attr-path="#DDO:@o_motivo"/>
+			<flow:exec-method method="CambiarEstado" this-doc="DDO">
+				<flow:param value="F" type="Nomad.NSystem.String" mode="in" name="estado"/>
+			</flow:exec-method>
+			<flow:exit-flow return-path="#PARAMETERS:"/>
+		</flow:action>
+		<flow:action name="CANCEL">
+			<flow:close-form/>
+		</flow:action>
+	</flow:form>
+	<flow:form name="NucleusProject.Base.Project.Proyectos.CAMBIO_EST.form:FINALIZEMAIL" mode="FINALIZEMAIL" form-class="NucleusProject.Base.Project.Proyectos.CAMBIO_EST.form" doc="SOURCE">
+		<flow:action name="ACCEPT">
+			<doc:assign-value from-path="#PARAMETERS:" to-doc="PARAMIN"/>
+			<doc:set-attribute from-attr-path="#SOURCE:@o_motivo" to-attr-path="#DDO:@o_motivo"/>
+			<flow:exec-method method="CambiarEstadoMails" this-doc="DDO">
+				<flow:param value="F" type="Nomad.NSystem.String" mode="in" name="estado"/>
+				<flow:param doc-path="#SOURCE:" type="Nomad.NSystem.Proxy.NomadXML" mode="in" name="mails"/>
+			</flow:exec-method>
+			<flow:exit-flow return-path="#PARAMETERS:"/>
+		</flow:action>
+		<flow:action name="CANCEL">
+			<flow:close-form/>
+		</flow:action>
+	</flow:form>
+	<flow:group Name="PRESUPUESTO">
+		<flow:form extends="CLASSNOROOT:NOREG:SHOW" parent-doc="PARENTSOURCE" doc="SOURCE" name="NucleusProject.Base.Project.Proyectos.PRESUPUESTO.noreg.autoform:SHOW" form-class="NucleusProject.Base.Project.Proyectos.PRESUPUESTO.noreg.autoform" mode="SHOW">
+			<flow:action name="open-flow-SHOW">
+				<flow:open-form iter-index="#PARENTSOURCE:PRESUPUESTO/@id" parent-doc-path="#PARENTSOURCE:" doc-path="#PARENTSOURCE:" mode="SHOW" form-class="NucleusProject.Base.Project.Proyectos.PRESUPUESTO.autoform"/>
+			</flow:action>
+			<flow:action name="open-flow-LIST">
+				<flow:open-form iter-index="#PARENTSOURCE:PRESUPUESTO/@id" parent-doc-path="#PARENTSOURCE:" doc-path="#PARENTSOURCE:" mode="LIST" form-class="NucleusProject.Base.Project.Proyectos.PRESUPUESTO.form"/>
+			</flow:action>
+			<flow:action name="load-child-LIST">
+				<doc:load-qry output-doc="QRY_LIST" input-doc-path="#PARENTSOURCE:" qry="LIST:NucleusProject.Base.Project.Proyectos.PRESUPUESTO"/>
+			</flow:action>
+		</flow:form>
+		<flow:form extends="CLASSNOROOT:SHOW" doc-path="/PRESUPUESTO[@id='{#iter-cursor:@value}']" parent-doc="PARENTSOURCE" doc="SOURCE" name="NucleusProject.Base.Project.Proyectos.PRESUPUESTO.autoform:SHOW" form-class="NucleusProject.Base.Project.Proyectos.PRESUPUESTO.autoform" mode="SHOW"/>
+		<flow:form extends="NucleusProject.Base.Project.Proyectos.PRESUPUESTO.autoform:LIST" doc-path="/PRESUPUESTO[@id='{#iter-cursor:@value}']" parent-doc="PARENTSOURCE" doc="SOURCE" name="NucleusProject.Base.Project.Proyectos.PRESUPUESTO.form:LIST" form-class="NucleusProject.Base.Project.Proyectos.PRESUPUESTO.form" mode="LIST">
+			<flow:action name="load-child-LIST">
+				<doc:load-qry output-doc="QRY_LIST" input-doc-path="#PARENTSOURCE:" qry="LIST:NucleusProject.Base.Project.Proyectos.PRESUPUESTO"/>
+			</flow:action>
+		</flow:form>
+		<flow:form extends="NucleusProject.Base.Project.Proyectos.PRESUPUESTO.autoform:LIST_EDIT" doc-path="/PRESUPUESTO[@id='{#iter-cursor:@value}']" parent-doc="PARENTSOURCE" doc="SOURCE" name="NucleusProject.Base.Project.Proyectos.PRESUPUESTO.form:LIST_EDIT" form-class="NucleusProject.Base.Project.Proyectos.PRESUPUESTO.form" mode="LIST_EDIT">
+			<flow:action name="new-DDO">
+				<doc:new-object doc="NEWDDO" class="NucleusProject.Base.Project.Proyectos.PRESUPUESTO"/>
+			</flow:action>
+			<flow:action name="delete-DDO">
+				<doc:delete-object doc-path="#PARENTSOURCE:PRESUPUESTO[@id='{#FORM:ctrl[@id='LIST']/@xval}']" class="NucleusProject.Base.Project.Proyectos.PRESUPUESTO"/>
+			</flow:action>
+			<flow:action name="open-flow-ADD">
+				<flow:open-form parent-doc-path="#PARENTSOURCE:" doc-path="#NEWDDO:" mode="NEW" form-class="NucleusProject.Base.Project.Proyectos.PRESUPUESTO.autoform"/>
+			</flow:action>
+			<flow:action name="open-flow-LIST">
+				<flow:open-form iter-index="#PARENTSOURCE:PRESUPUESTO/@id" parent-doc-path="#PARENTSOURCE:" doc-path="#PARENTSOURCE:" mode="LIST_EDIT" form-class="NucleusProject.Base.Project.Proyectos.PRESUPUESTO.form"/>
+			</flow:action>
+			<flow:action name="load-child-LIST">
+				<doc:load-qry output-doc="QRY_LIST" input-doc-path="#PARENTSOURCE:" qry="LIST:NucleusProject.Base.Project.Proyectos.PRESUPUESTO"/>
+			</flow:action>
+		</flow:form>
+		<flow:form extends="CLASSNOROOT:NOREG:EDIT" parent-doc="PARENTSOURCE" doc="SOURCE" name="NucleusProject.Base.Project.Proyectos.PRESUPUESTO.noreg.autoform:EDIT" form-class="NucleusProject.Base.Project.Proyectos.PRESUPUESTO.noreg.autoform" mode="EDIT">
+			<flow:action name="new-DDO">
+				<doc:new-object doc="NEWDDO" class="NucleusProject.Base.Project.Proyectos.PRESUPUESTO"/>
+			</flow:action>
+			<flow:action name="delete-DDO">
+				<doc:delete-object doc-path="#PARENTSOURCE:PRESUPUESTO[@id='{#FORM:ctrl[@id='LIST']/@xval}']" class="NucleusProject.Base.Project.Proyectos.PRESUPUESTO"/>
+			</flow:action>
+			<flow:action name="open-flow-EDIT">
+				<flow:open-form iter-index="#PARENTSOURCE:PRESUPUESTO/@id" parent-doc-path="#PARENTSOURCE:" doc-path="#PARENTSOURCE:" mode="EDIT" form-class="NucleusProject.Base.Project.Proyectos.PRESUPUESTO.autoform"/>
+			</flow:action>
+			<flow:action name="open-flow-ADD">
+				<flow:open-form parent-doc-path="#PARENTSOURCE:" doc-path="#NEWDDO:" mode="NEW" form-class="NucleusProject.Base.Project.Proyectos.PRESUPUESTO.autoform"/>
+			</flow:action>
+			<flow:action name="open-flow-LIST">
+				<flow:open-form iter-index="#PARENTSOURCE:PRESUPUESTO/@id" parent-doc-path="#PARENTSOURCE:" doc-path="#PARENTSOURCE:" mode="LIST_EDIT" form-class="NucleusProject.Base.Project.Proyectos.PRESUPUESTO.form"/>
+			</flow:action>
+			<flow:action name="load-child-LIST">
+				<flow:log text="chueka-list" text-path="#PARENTSOURCE:"/>
+				<doc:load-qry output-doc="QRY_LIST" input-doc-path="#PARENTSOURCE:" qry="LIST:NucleusProject.Base.Project.Proyectos.PRESUPUESTO"/>
+			</flow:action>
+		</flow:form>
+		<flow:form extends="CLASSNOROOT:EDIT" doc-path="/PRESUPUESTO[@id='{#iter-cursor:@value}']" parent-doc="PARENTSOURCE" doc="SOURCE" name="NucleusProject.Base.Project.Proyectos.PRESUPUESTO.autoform:EDIT" form-class="NucleusProject.Base.Project.Proyectos.PRESUPUESTO.autoform" mode="EDIT">
+			<flow:action name="new-DDO">
+				<doc:new-object doc="NEWDDO" class="NucleusProject.Base.Project.Proyectos.PRESUPUESTO"/>
+			</flow:action>
+			<flow:action name="delete-DDO">
+				<doc:delete-object doc-path="#SOURCE:" class="NucleusProject.Base.Project.Proyectos.PRESUPUESTO" doc="SOURCE"/>
+			</flow:action>
+			<flow:action name="open-flow-ADD">
+				<flow:open-form parent-doc-path="#PARENTSOURCE:" doc-path="#NEWDDO:" mode="NEW" form-class="NucleusProject.Base.Project.Proyectos.PRESUPUESTO.autoform"/>
+			</flow:action>
+		</flow:form>
+		<flow:form extends="CLASSNOROOT:NEW" parent-doc="PARENTSOURCE" doc="SOURCE" name="NucleusProject.Base.Project.Proyectos.PRESUPUESTO.autoform:NEW" form-class="NucleusProject.Base.Project.Proyectos.PRESUPUESTO.autoform" mode="NEW"/>
+	</flow:group>
+</flow:flow>

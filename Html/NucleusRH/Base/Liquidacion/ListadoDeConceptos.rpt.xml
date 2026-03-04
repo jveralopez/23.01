@@ -1,0 +1,369 @@
+<html:html xmlns:html="nomad_engine.html" xmlns:qry="nomad_engine.qry" extends="Nomad.Base.BaseReport.rpt" doc="source" name="NucleusRH.Base.LiquidacionDeConceptos">
+	<html:query declare="&lt;FILTRO salida=&quot;HTML&quot; l_incluir=&quot;&quot; report=&quot;&quot; ORDEN1=&quot;&quot; ca_fig_recibo=&quot;&quot; l_activo=&quot;&quot; oi_tipo_concepto=&quot;&quot; oi_clase_concepto=&quot;&quot; cod_desde=&quot;DE00001&quot; cod_hasta=&quot;93954000&quot; l_incluir1=&quot;&quot; contiene_observacion=&quot;&quot; oi_tipo_liq=&quot;&quot; oi_empresa=&quot;&quot; ATRIB_ORDEN1=&quot;&quot;&gt;&#13;&#10;  &lt;CONCEPTOS /&gt;&#13;&#10;&lt;/FILTRO&gt;">
+		<qry:main doc="SOURCE">
+			<REPORT label="Listado de Conceptos">
+				<qry:attribute value="format_date(now(),'dd/mm/yyyy HH:MM')" name="date"/>
+				<GROUPS>
+					<GROUP tag="DATOS" type="title">
+						<COLS>
+							<COL name="activo" label="Activo" style="width:5%" nowrap="1"/>
+							<COL name="fig_recibo" label="Figura en Recibo?" style="width:5%" nowrap="1"/>
+							<COL name="d_tipo_liq" label="Tipo de Liquidaci&#243;n" style="width:5%" nowrap="1"/>
+							<COL name="d_empresa" label="Descripci&#243;n Empresa" style="width:5%" nowrap="1"/>
+							<COL name="formula" label="Contiene F&#243;rmula" style="width:5%" nowrap="0"/>
+							<COL name="Observaciones" label="Observaciones" style="width:5%" nowrap="0"/>
+						</COLS>
+						<GROUP tag="CONCEPTO" type="table">
+							<COLS>
+								<COL name="c_concepto" label="C&#243;digo" style="width:5%" nowrap="1"/>
+								<COL name="d_concepto" label="Descripci&#243;n" style="width:5%" nowrap="1"/>
+								<COL name="c_version" label="Versi&#243;n" style="width:5%" nowrap="1"/>
+								<COL name="e_secuencia" label="Secuencia" style="width:5%" nowrap="1"/>
+								<COL name="l_activo" label="Activo?" style="width:5%" nowrap="1"/>
+								<COL name="d_tipo_concepto" label="Tipo de Concepto" style="width:5%" nowrap="1"/>
+								<COL name="d_grupo_tipo_liq" label="Grupo Tipo Liquidacion" style="width:5%" nowrap="1"/>
+								<COL name="d_clase_concepto" label="Clase de Concepto" style="width:5%" nowrap="1"/>
+								<COL name="ca_acum_ganancia" label="Acumula Ganancia" style="width:5%" nowrap="1"/>
+								<COL name="n_coef_ganancia" label="Coeficiente Ganancias" style="width:5%" nowrap="1"/>
+								<COL name="ca_fig_recibo" label="Figura en Recibo?" style="width:5%" nowrap="1"/>
+								<COL name="e_etapa" label="Etapa de Ejecucion" style="width:5%" nowrap="1"/>
+								<COL name="l_retroactivo" label="Retroactivo" style="width:5%" nowrap="1"/>
+								<COL name="l_ej_ajuste" label="Concepto de Ajuste" style="width:5%" nowrap="1"/>
+								<qry:if test="#SOURCE:FILTRO/@l_incluir1='1'">
+									<qry:then>
+										<COL name="o_concepto" label="Observaciones" style="width:25%" nowrap="0"/>
+									</qry:then>
+								</qry:if>
+								<qry:if test="#SOURCE:FILTRO/@l_incluir='1'">
+									<qry:then>
+										<COL name="t_formula" label="Formula" style="width:25%" nowrap="0"/>
+									</qry:then>
+								</qry:if>
+								<COL label="Grupo Empresa" name="d_grupo_empresa"/>
+								<COL label="Equivalencia LSD" name="c_equivalencia"/>
+								<COL label="Informa Equivalencia LSD?" name="l_informa"/>
+								<COL label="C&#243;digo LSD" name="e_lsd"/>
+								<COL label="Subgrupo" name="d_subgrupo"/>
+							</COLS>
+						</GROUP>
+					</GROUP>
+				</GROUPS>
+				<qry:element name="DATA">
+					<qry:element name="DATOS">
+						<qry:switch test="#SOURCE:FILTRO/@l_activo">
+							<qry:case value="1">
+								<qry:attribute name="activo" value="'Si'"/>
+							</qry:case>
+							<qry:case value="0">
+								<qry:attribute name="activo" value="'No'"/>
+							</qry:case>
+							<qry:default>
+								<qry:attribute name="activo" value="'Todos'"/>
+							</qry:default>
+						</qry:switch>
+						<qry:switch test="#SOURCE:FILTRO/@ca_fig_recibo">
+							<qry:case value="1">
+								<qry:attribute name="fig_recibo" value="'Si / Importe'"/>
+							</qry:case>
+							<qry:case value="0">
+								<qry:attribute name="fig_recibo" value="'No'"/>
+							</qry:case>
+							<qry:default>
+								<qry:attribute name="fig_recibo" value="'Todos'"/>
+							</qry:default>
+						</qry:switch>
+						<qry:attribute name="formula" value="iif(#SOURCE:FILTRO/@l_incluir='1','Si', 'No')"/>
+						<qry:attribute name="Observaciones" value="iif(#SOURCE:FILTRO/@l_incluir1='1','Si', 'No')"/>
+						<qry:insert-select doc-path="#SOURCE:FILTRO" name="QRY_CONCEPTOS"/>
+						<qry:insert-select doc-path="#SOURCE:FILTRO" name="QRY_TIPOS_LIQ"/>
+						<qry:insert-select doc-path="#SOURCE:FILTRO" name="QRY_EMPRESAS"/>
+					</qry:element>
+				</qry:element>
+			</REPORT>
+		</qry:main>
+		<qry:select doc="SOURCE" name="QRY_CONCEPTOS">
+			<qry:xquery>
+				for $r in sql(' 
+SELECT 
+	LIQ14.oi_concepto, 
+	LIQ14.c_concepto, 
+	LIQ14.d_concepto,
+	LIQ14.c_version,  
+	LIQ02.c_grupo_tliq,
+	LIQ02.d_grupo_tliq,  
+	LIQ12.d_tipo_concepto, 
+	LIQ13.d_clase_concepto,   
+	LIQ13.c_clase_concepto, 
+	LIQ24.d_grupo_empresa,  
+	LIQ24.c_grupo_empresa, 
+	LIQ14.ca_fig_recibo, 
+	LIQ14.ca_acum_ganancia,
+	LIQ14.n_coef_ganancia, 
+	LIQ14.l_activo,  
+	LIQ14.l_ej_ajuste,  
+	LIQ14.l_retroactivo, 
+	LIQ14.l_interno,   
+	{%? (#SOURCE:@l_incluir='1') {% LIQ14.t_formula, %} {% %} %}
+	LIQ14.o_concepto,
+	LIQ14.e_secuencia as e_secuencia,   
+	LIQ14.e_etapa,
+	E.c_equivalencia,
+	E.l_informa,
+	IIFISNULL(E.e_lsd, \'\') as e_lsd                                                       
+FROM 
+	LIQ14_CONCEPTOS as LIQ14, 
+	LIQ02_GRUPOS_TLIQ as LIQ02,
+	LIQ12_TIPOS_CONC as LIQ12,
+	LIQ13_CLASES_CONC as LIQ13,
+	LIQ24_GRUPOS_EMPRE as LIQ24,
+	LIQ14_EQUIVALENCIA  as E
+JOIN
+	LIQ14.oi_grupo_tliq left outer LIQ02.oi_grupo_tliq,
+	LIQ14.oi_tipo_concepto left outer LIQ12.oi_tipo_concepto, 
+	LIQ14.oi_clase_concepto left outer LIQ13.oi_clase_concepto,
+	LIQ14.oi_grupo_empresa left outer LIQ24.oi_grupo_empresa,
+	LIQ14.oi_concepto LEFT OUTER E.oi_concepto
+WHERE 
+
+  1=1
+  {%? (string(#SOURCE:CONCEPTOS/CONCEPTO/@id)!='') 
+  	{% AND LIQ14.OI_CONCEPTO in ({%=string(#SOURCE:CONCEPTOS/CONCEPTO/@id) %}) 
+  	%} 
+  	{%  %} 
+  %}
+  
+  {%? (#SOURCE:@cod_desde!='') 
+  	{% AND LIQ14.c_concepto &gt;= {#SOURCE:@cod_desde} 
+  	%} 
+  	{%  %}
+  %}
+  
+  {%? (#SOURCE:@cod_hasta!='') 
+  	{% AND LIQ14.c_concepto &lt;= {#SOURCE:@cod_hasta} 
+  	%} 
+  	{%  %}
+  %}
+     
+  
+  {%? (#SOURCE:@oi_tipo_concepto!='') 
+  	{% AND LIQ14.oi_tipo_concepto = {#SOURCE:@oi_tipo_concepto} 
+  	%} 
+  	{%  %}
+  %}
+    
+  {%? (#SOURCE:@ca_fig_recibo!='') 
+  	{% {%? (#SOURCE:@ca_fig_recibo!='1') 
+  				{% AND LIQ14.ca_fig_recibo=\'N\' %} 
+  				{% AND (LIQ14.ca_fig_recibo=\'S\' OR LIQ14.ca_fig_recibo=\'I\')%}
+  			%} 
+  	%}
+  	{% %} 
+  %}
+  
+  {%? (#SOURCE:@l_activo!='')	
+  	{% AND LIQ14.l_activo= {#SOURCE:@l_activo} 
+  	%} 
+  	{% %} 
+  %}
+  
+  {%? (#SOURCE:@oi_grupo_tliq!='')	
+  	{% AND LIQ14.oi_grupo_tliq= {#SOURCE:@oi_grupo_tliq}
+  	%} 
+  	{% %} 
+  %}
+  
+  {%? (#SOURCE:@oi_grupo_empresa!='')	
+  	{% AND LIQ14.oi_grupo_empresa= {#SOURCE:@oi_grupo_empresa}
+  	%} 
+  	{% %} 
+  %} 
+    
+  {%?(#SOURCE:@contiene_observacion!='')
+		{% AND contain(LIQ14.d_concepto, {#SOURCE:@contiene_observacion}) 
+		%}
+		{% %}
+	%} 
+	
+	{%? (#SOURCE:@oi_tipo_liq!='')	
+  	{% AND LIQ14.oi_grupo_tliq IN (
+					SELECT LIQ02.oi_grupo_tliq 
+						FROM LIQ02_TLIQ_GRUPO AS LIQ02, 
+								 LIQ02_GRUPOS_TLIQ AS LIQ03 
+					WHERE LIQ02.oi_grupo_tliq = LIQ03.oi_grupo_tliq and 
+							  LIQ02.oi_tipo_liq ={%=#SOURCE:@oi_tipo_liq%} ) 
+  	%} 
+  	{% %} 
+  %}
+	
+	{%? (#SOURCE:@oi_empresa!='')	
+  	{% AND LIQ14.oi_grupo_empresa IN (
+					SELECT LIQ24.oi_grupo_empresa 
+					 FROM LIQ24_EMP_GRUPOEMP AS LIQ24, 
+					 			LIQ24_GRUPOS_EMPRE AS LIQ25 
+					WHERE LIQ24.oi_grupo_empresa = LIQ25.oi_grupo_empresa and 
+								LIQ24.oi_empresa = {%=#SOURCE:@oi_empresa%}) 
+  	%} 
+  	{% %} 
+  %}  
+          
+ORDER BY        			
+	{%? (#SOURCE:@ATRIB_ORDEN1!='')	
+		{% {%=#SOURCE:@ATRIB_ORDEN1%} 
+			{%? (#SOURCE:@ORDEN1!='') 
+				{% {%=#SOURCE:@ORDEN1%} %} 
+				{% ASC %}	
+			%} 
+		%} 
+		{% e_secuencia ASC %} 
+	%}    			
+')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:element name="CONCEPTO">
+					<qry:if test="$r/@l_activo = '0'">
+						<qry:then>
+							<qry:attribute name="l_activo" value="'No'"/>
+						</qry:then>
+						<qry:else>
+							<qry:attribute name="l_activo" value="'Si'"/>
+						</qry:else>
+					</qry:if>
+					<qry:switch test="$r/@ca_fig_recibo">
+						<qry:case value="S">
+							<qry:attribute name="ca_fig_recibo" value="'Si'"/>
+						</qry:case>
+						<qry:case value="N">
+							<qry:attribute name="ca_fig_recibo" value="'No'"/>
+						</qry:case>
+						<qry:case value="I">
+							<qry:attribute name="ca_fig_recibo" value="'Importe'"/>
+						</qry:case>
+					</qry:switch>
+					<qry:attribute name="d_tipo_liq" value="$r/@d_tipo_liq"/>
+					<qry:attribute name="d_empresa" value="$r/@d_empresa"/>
+					<qry:attribute name="c_concepto" value="$r/@c_concepto"/>
+					<qry:attribute name="d_concepto" value="$r/@d_concepto"/>
+					<qry:attribute name="e_secuencia" value="$r/@e_secuencia"/>
+					<qry:attribute name="c_version" value="$r/@c_version"/>
+					<qry:attribute name="d_tipo_concepto" value="$r/@d_tipo_concepto"/>
+					<qry:attribute name="d_clase_concepto" value="iif($r/@c_clase_concepto !='',concat('[',$r/@c_clase_concepto,'] ',$r/@d_clase_concepto),'')"/>
+					<qry:attribute name="ca_acum_ganancia" value="iif($r/@ca_acum_ganancia='H','Acumula Haberes',iif($r/@ca_acum_ganancia='D','Acumula Deducciones','No Acumula'))"/>
+					<qry:switch test="$r/@ca_acum_ganancia">
+						<qry:case value="H">
+							<qry:attribute value="'Acumula Haberes'" name="ca_acum_ganancia"/>
+						</qry:case>
+						<qry:case value="D">
+							<qry:attribute value="'Acumula Deducciones'" name="ca_acum_ganancia"/>
+						</qry:case>
+						<qry:case value="P">
+							<qry:attribute value="'Acumula Haberes No Habituales (Prorrateo)'" name="ca_acum_ganancia"/>
+						</qry:case>
+						<qry:case value="E">
+							<qry:attribute value="'Acumula Horas Extras'" name="ca_acum_ganancia"/>
+						</qry:case>
+						<qry:case value="X">
+							<qry:attribute value="'Acumula Haberes Exentos'" name="ca_acum_ganancia"/>
+						</qry:case>
+						<qry:case value="S">
+							<qry:attribute value="'Acumula SAC'" name="ca_acum_ganancia"/>
+						</qry:case>
+						<qry:case value="N">
+							<qry:attribute value="'No Acumula'" name="ca_acum_ganancia"/>
+						</qry:case>
+						<qry:default>
+							<qry:attribute value="'No Acumula'" name="ca_acum_ganancia"/>
+						</qry:default>
+					</qry:switch>
+					<qry:attribute name="l_retroactivo" value="iif($r/@l_retroactivo = '1','Si','No')"/>
+					<qry:attribute name="l_interno" value="$r/@l_interno"/>
+					<qry:attribute name="t_formula" value="$r/@t_formula"/>
+					<qry:attribute name="l_ej_ajuste" value="iif($r/@l_ej_ajuste = '1','Si','No')"/>
+					<qry:attribute name="o_concepto" value="$r/@o_concepto"/>
+					<qry:switch test="$r/@e_etapa">
+						<qry:case value="0">
+							<qry:attribute name="e_etapa" value="'Inicial'"/>
+						</qry:case>
+						<qry:case value="1">
+							<qry:attribute name="e_etapa" value="'Cargos'"/>
+						</qry:case>
+						<qry:case value="2">
+							<qry:attribute name="e_etapa" value="'Final'"/>
+						</qry:case>
+					</qry:switch>
+					<qry:if test="$r/@n_coef_ganancia != ''">
+						<qry:then>
+							<qry:attribute name="n_coef_ganancia" value="format-number($r/@n_coef_ganancia,0,2,',','.',' ')"/>
+						</qry:then>
+					</qry:if>
+					<qry:attribute name="d_grupo_tipo_liq" value="concat($r/@c_grupo_tliq,' - ',$r/@d_grupo_tliq)"/>
+					<qry:attribute name="d_grupo_empresa" value="concat($r/@c_grupo_empresa,' - ',$r/@d_grupo_empresa)"/>
+					<qry:attribute name="formula" value="iif(#SOURCE:FILTRO/@l_incluir='1','Si', 'No')"/>
+					<qry:attribute name="l_informa" value="iif($r/@l_informa = '1','Si','No')"/>
+					<qry:attribute name="c_equivalencia" value="$r/@c_equivalencia"/>
+					<qry:attribute name="e_lsd" value="iif($r/@e_lsd!=0,$r/@e_lsd,'')"/>
+					<qry:if test="$r/@e_lsd!=0">
+						<qry:then>
+							<qry:insert-select doc-path="$r" name="QRY_SUBGRUPO"/>
+						</qry:then>
+					</qry:if>
+				</qry:element>
+			</qry:out>
+		</qry:select>
+		<qry:select doc="SOURCE" name="QRY_TIPOS_LIQ">
+			<!--SACO EL TIPO DE LIQUIDACION-->
+			<qry:xquery>
+				for $r in sql('
+							 SELECT
+									LIQ01.d_tipo_liq
+               FROM
+               		LIQ01_TIPOS_LIQ AS LIQ01
+               WHERE
+               		{%? (#SOURCE:@oi_tipo_liq!='')	
+  								{% LIQ01.oi_tipo_liq= {%=#SOURCE:@oi_tipo_liq %} 
+							  	%} 
+							  	{% 1=2 %} 
+							  	%}     
+			')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:attribute name="d_tipo_liq" value="iif(#SOURCE:@oi_tipo_liq='','', $r/@d_tipo_liq)"/>
+			</qry:out>
+		</qry:select>
+		<qry:select doc="SOURCE" name="QRY_EMPRESAS">
+			<!--SACO EL TIPO DE EMPRESA-->
+			<qry:xquery>
+				for $r in sql('
+							 SELECT
+									ORG03.d_empresa
+               FROM
+               		ORG03_EMPRESAS AS ORG03
+               WHERE
+               		{%? (#SOURCE:@oi_empresa!='')	
+  								{% ORG03.oi_empresa= {%=#SOURCE:@oi_empresa %} 
+							  	%} 
+							  	{% 1=2 %} 
+							  	%}     
+			')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:attribute name="d_empresa" value="iif(#SOURCE:@oi_empresa='','', $r/@d_empresa)"/>
+			</qry:out>
+		</qry:select>
+		<qry:select name="QRY_SUBGRUPO" doc="PARAM">
+			<qry:xquery>
+				for $r in SQL('
+			SELECT
+				LSD.d_subgrupo
+			FROM
+				LIQ32_SUBGRUPO_LSD as LSD
+			WHERE
+				{#PARAM:@e_lsd} &gt;= LSD.e_lsd_inicial AND
+				{#PARAM:@e_lsd} &lt;= LSD.e_lsd_final
+			')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:attribute name="d_subgrupo" value="$r/@d_subgrupo"/>
+			</qry:out>
+		</qry:select>
+	</html:query>
+</html:html>

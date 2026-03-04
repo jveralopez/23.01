@@ -1,0 +1,1025 @@
+<html:html xmlns:html="nomad_engine.html" xmlns:qry="nomad_engine.qry" xmlns:xsl="http://www.w3.org/1999/XSL/Transform" name="NucleusProject.Base.Project.ImputacionesPorSolicitud.rpt" doc="source" extends="Nomad.Base.BaseReport.rpt">
+	<html:query declare="&lt;DATOS l_detalle='0' f_desde=&quot;20200519&quot; f_hasta=&quot;20200524&quot;&gt;&lt;ROWS/&gt;&lt;CLIENTES nmd-col=&quot;1&quot;&gt;&lt;CLIENTE id=&quot;2&quot;/&gt;&lt;CLIENTE id=&quot;1&quot;/&gt;&lt;/CLIENTES&gt;&lt;/DATOS&gt;">
+		<qry:main doc="SOURCE">
+			<qry:element name="DATOS">
+				<qry:attribute name="l_detalle" value="#SOURCE:DATOS/@l_detalle"/>
+				<qry:element name="CLIENTE">
+					<qry:attribute value="format_date(now(),'dd/mm/yyyy HH:MM')" name="date"/>
+					<qry:append-doc name="PARAMIN" doc-path="#SOURCE:DATOS"/>
+					<qry:attribute name="f_desde" value="format_date($PARAMIN/@f_desde,'dd/mm/yyyy')"/>
+					<qry:attribute name="f_hasta" value="format_date($PARAMIN/@f_hasta,'dd/mm/yyyy')"/>
+					<qry:insert-select doc-path="#SOURCE:DATOS" name="qry_clientes"/>
+					<qry:element name="SOPORTE">
+						<qry:attribute name="total" value="0"/>
+						<qry:attribute name="bandera_datos" value="'no'"/>
+						<qry:insert-select doc-path="#SOURCE:DATOS" name="qry_soporte"/>
+						<qry:insert-select name="qry_total" doc-path="."/>
+					</qry:element>
+					<qry:element name="IMPUTACIONES">
+						<qry:attribute name="bandera_datos" value="'no'"/>
+						<qry:attribute name="total_tarea" value="0"/>
+						<qry:insert-select doc-path="#SOURCE:DATOS" name="qry_tarea_imp"/>
+						<qry:if test="@bandera_datos='si'">
+							<qry:then>
+								<qry:attribute name="total_tarea" value="./TAREA/@total_tarea"/>
+							</qry:then>
+						</qry:if>
+					</qry:element>
+					<qry:element name="BUGS">
+						<qry:attribute name="bandera_datos" value="'no'"/>
+						<qry:insert-select doc-path="#SOURCE:DATOS" name="qry_bugs"/>
+						<qry:insert-select name="qry_total" doc-path="."/>
+					</qry:element>
+				</qry:element>
+			</qry:element>
+		</qry:main>
+		<qry:select doc="PARAM" name="qry_clientes">
+			<qry:xquery>
+				for $r in sql('
+SELECT 
+ 	cli.d_nom_cliente,
+ 	SOP.n_cantidad_horas,
+ 	cli.oi_cliente,
+ 	cli.c_cliente as c_cliente
+FROM 
+PRY08_CLIENTES as cli,
+PRY08_SOPORTE as SOP   
+JOIN
+SOP.oi_cliente INNER cli.oi_cliente
+WHERE 
+cli.oi_cliente in ({%= #PARAM:CLIENTES/CLIENTE/@id %})  
+order by c_cliente asc
+		')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:element name="CLIENTE">
+					<qry:attribute name="nom_cliente" value="$r/@d_nom_cliente"/>
+					<qry:attribute name="horas_convenio" value="$r/@n_cantidad_horas"/>
+					<qry:attribute name="oi_cliente" value="$r/@oi_cliente"/>
+				</qry:element>
+			</qry:out>
+		</qry:select>
+		<qry:select doc="PARAM" name="qry_soporte">
+			<qry:xquery>
+				for $r in sql('		
+SELECT 
+	sol.oi_solicitud
+	, sol.c_solicitud
+	, sol.f_solicitud    
+	, max(sol.c_reclamo) as c_reclamo
+	, cont.d_nom_y_ape
+	, mod.c_modulo 
+	, sol.c_estado
+	, sol.d_solicitud
+	, rec.c_recurso
+	, pt.oi_pry_imputa
+	, pt.oi_tarea
+	, max(cli.d_nom_cliente) as d_nom_cliente
+	, max(cli.c_cliente) as c_cliente 
+	,max(cli.oi_cliente) as oi_cliente
+FROM 
+	PRY01_PROYECTOS AS padre
+	,	PRY01_PROYECTOS AS hijo
+	, PRY02_TAREAS AS pt
+	, PRY08_CLIENTES AS cli
+	, PRY05_RECURSOS AS rec
+	, PRY04_TRABAJOS AS tra
+	, PRY07_SOLICITUDES AS sol
+	, PRY11_MODULOS AS mod
+	, PRY08_CONTACTOS as cont  
+JOIN         
+	padre.oi_proyecto INNER hijo.oi_proyecto_parent					
+	, padre.c_enlace INNER cli.c_cliente
+	, hijo.oi_proyecto INNER pt.oi_pry_imputa
+	, pt.oi_solicitud INNER sol.oi_solicitud
+	, sol.oi_recurso LEFT OUTER rec.oi_recurso
+  , pt.oi_tarea INNER tra.oi_tarea
+	, sol.oi_modulo LEFT OUTER mod.oi_modulo
+	, sol.oi_contacto LEFT OUTER cont.oi_contacto
+WHERE 
+	cli.oi_cliente in ({%= #PARAM:CLIENTES/CLIENTE/@id %})			
+AND
+	UCASE(hijo.d_proyecto) = UCASE(\'Soporte\')
+AND 
+	NOT(CONTAIN(pt.d_tarea, \'Soporte Tel\'))
+AND
+	tra.f_fecha &gt;= {Datetime(#PARAM:@f_desde)}
+AND
+	tra.f_fecha &lt;= {Datetime(#PARAM:@f_hasta)}
+GROUP BY
+	sol.oi_solicitud
+	, sol.c_solicitud
+	, sol.f_solicitud
+	, cont.d_nom_y_ape
+	, mod.c_modulo 
+	, sol.c_estado
+	, sol.d_solicitud
+	, rec.c_recurso
+	, pt.oi_pry_imputa
+	, pt.oi_tarea
+ORDER BY
+ 	c_cliente asc, f_solicitud DESC		
+		')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:element name="SOL">
+					<qry:attribute name="c_solicitud" value="$r/@c_solicitud"/>
+					<qry:attribute name="f_solicitud" value="format_date($r/@f_solicitud, 'dd/mm/yyyy')"/>
+					<qry:attribute name="d_solicitante" value="$r/@d_nom_y_ape"/>
+					<qry:attribute name="c_modulo" value="$r/@c_modulo"/>
+					<qry:attribute name="c_reclamo" value="$r/@c_reclamo"/>
+					<qry:attribute name="oi_cli" value="$r/@oi_cliente"/>
+					<qry:attribute name="d_cliente" value="concat('[',$r/@c_cliente,'] ',$r/@d_nom_cliente)"/>
+					<qry:switch test="$r/@c_estado">
+						<qry:case value="1">
+							<qry:attribute name="d_estado" value="'PENDIENTE'"/>
+						</qry:case>
+						<qry:case value="2">
+							<qry:attribute name="d_estado" value="'DERIVADO A PMO'"/>
+						</qry:case>
+						<qry:case value="3">
+							<qry:attribute name="d_estado" value="'DERIVADO A ESTIM/DESA'"/>
+						</qry:case>
+						<qry:case value="4">
+							<qry:attribute name="d_estado" value="'DERIVADO A CLIENTE'"/>
+						</qry:case>
+						<qry:case value="5">
+							<qry:attribute name="d_estado" value="'CERRADO'"/>
+						</qry:case>
+						<qry:case value="6">
+							<qry:attribute name="d_estado" value="'CERRADO POR EL CLIENTE'"/>
+						</qry:case>
+						<qry:case value="7">
+							<qry:attribute name="d_estado" value="'RECHAZADO'"/>
+						</qry:case>
+						<qry:case value="8">
+							<qry:attribute name="d_estado" value="'TRABAJANDO'"/>
+						</qry:case>
+						<qry:case value="9">
+							<qry:attribute name="d_estado" value="'PRESUPUESTADO'"/>
+						</qry:case>
+						<qry:default>
+							<qry:attribute name="d_estado" value="$r/@c_estado"/>
+						</qry:default>
+					</qry:switch>
+					<qry:attribute name="d_solicitud" value="$r/@d_solicitud"/>
+					<qry:attribute name="d_responsable" value="$r/@c_recurso"/>
+					<qry:insert-select name="qry_trabajo" doc-path="$r"/>
+					<qry:insert-select name="qry_total_sol" doc-path="."/>
+				</qry:element>
+				<qry:attribute name="bandera_datos" value="'si'"/>
+			</qry:out>
+		</qry:select>
+		<qry:select name="qry_trabajo" doc="PARAM">
+			<qry:xquery>
+				for $r in sql('		
+SELECT 
+	tra.f_fecha
+	, tra.o_mensaje
+	, rec.c_recurso
+	, tra.e_duracion
+	, ut.c_unidad_tiempo as unid
+FROM 
+	PRY04_TRABAJOS AS tra
+  ,	PRY05_RECURSOS AS rec
+  , PRY03_UND_TIEMPO AS ut
+JOIN         
+	tra.oi_recurso LEFT OUTER rec.oi_recurso
+	, tra.oi_unidad_tiempo INNER ut.oi_unidad_tiempo
+WHERE 
+	tra.oi_tarea = {#PARAM:@oi_tarea}					
+AND
+	tra.f_fecha &gt;= {Datetime(#PARAMIN:@f_desde)}
+AND
+	tra.f_fecha &lt;= {Datetime(#PARAMIN:@f_hasta)}
+ORDER BY
+ 	f_fecha DESC
+		')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:element name="TRAB">
+					<qry:attribute name="f_trabajo" value="format_date($r/@f_fecha, 'dd/mm/yyyy')"/>
+					<qry:attribute name="d_trabajo" value="$r/@o_mensaje"/>
+					<qry:attribute name="d_responsable" value="$r/@c_recurso"/>
+					<qry:switch test="$r/@unid">
+						<qry:case value="H">
+							<qry:attribute name="hs_insumidas_trabajo" value="format_number($r/@e_duracion,'###0.0')"/>
+						</qry:case>
+						<qry:case value="M">
+							<qry:attribute name="hs_insumidas_trabajo" value="format_number($r/@e_duracion div 60,'###0.0')"/>
+						</qry:case>
+						<qry:case value="S">
+							<qry:attribute name="hs_insumidas_trabajo" value="format_number($r/@e_duracion * 40,'###0.0')"/>
+						</qry:case>
+						<qry:case value="D">
+							<qry:attribute name="hs_insumidas_trabajo" value="format_number($r/@e_duracion * 8,'###0.0')"/>
+						</qry:case>
+					</qry:switch>
+				</qry:element>
+			</qry:out>
+		</qry:select>
+		<qry:select name="qry_tarea_imp" doc="PARAM">
+			<qry:xquery>
+				for $r in sql('		
+SELECT 
+	pt.oi_tarea
+	, pt.c_tarea
+	, pt.f_inicio
+	, pt.d_tarea
+	, rec.c_recurso
+	, max(cli.c_cliente) as c_cliente
+	, max(cli.d_nom_cliente) as d_nom_cliente  
+		,max(cli.oi_cliente) as oi_cliente
+FROM 
+	PRY01_PROYECTOS AS padre
+	,	PRY01_PROYECTOS AS hijo
+	, PRY02_TAREAS AS pt
+	, PRY08_CLIENTES AS cli
+	, PRY05_RECURSOS AS rec
+	, PRY04_TRABAJOS AS tra
+JOIN         
+	padre.oi_proyecto INNER hijo.oi_proyecto_parent					
+	, padre.c_enlace INNER cli.c_cliente
+	, hijo.oi_proyecto INNER pt.oi_pry_imputa
+	, pt.oi_recurso LEFT OUTER rec.oi_recurso
+  , pt.oi_tarea INNER tra.oi_tarea
+WHERE 
+	cli.oi_cliente   in ({%= #PARAM:CLIENTES/CLIENTE/@id %})					
+AND
+	UCASE(hijo.d_proyecto) = UCASE(\'Soporte\')
+AND 
+	CONTAIN(pt.d_tarea, \'Soporte Tel\')
+AND
+	tra.f_fecha &gt;= {Datetime(#PARAM:@f_desde)}
+AND
+	tra.f_fecha &lt;= {Datetime(#PARAM:@f_hasta)}
+GROUP BY
+	pt.oi_tarea
+	, pt.c_tarea
+	, pt.f_inicio
+	, pt.d_tarea
+	, rec.c_recurso     
+order by c_cliente asc
+		
+		')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:element name="TAREA">
+					<qry:attribute name="total_tarea" value="0"/>
+					<qry:attribute name="c_tarea" value="$r/@c_tarea"/>
+					<qry:attribute name="oi_cli" value="$r/@oi_cliente"/>
+					<qry:attribute name="f_tarea" value="format_date($r/@f_inicio, 'dd/mm/yyyy')"/>
+					<qry:attribute name="d_tarea" value="$r/@d_tarea"/>
+					<qry:attribute name="d_responsable" value="$r/@c_recurso"/>
+					<qry:attribute name="d_cliente" value="concat('[',$r/@c_cliente,'] ',$r/@d_nom_cliente)"/>
+					<qry:insert-select name="qry_trabajo" doc-path="$r"/>
+					<qry:insert-select name="qry_total_tarea" doc-path="."/>
+				</qry:element>
+				<qry:attribute name="bandera_datos" value="'si'"/>
+			</qry:out>
+		</qry:select>
+		<qry:select doc="PARAM" name="qry_bugs">
+			<qry:xquery>
+				for $r in sql('		
+SELECT 
+	sol.oi_solicitud
+	, sol.c_solicitud
+	, sol.f_solicitud
+	, cont.d_nom_y_ape
+	, mod.c_modulo 
+	, sol.c_estado
+	, sol.d_solicitud
+	, rec.c_recurso
+	, pt.oi_pry_imputa
+	, pt.oi_tarea
+	, max(cli.c_cliente) as c_cliente
+	, max(cli.d_nom_cliente) as d_nom_cliente  
+		,max(cli.oi_cliente) as oi_cliente
+FROM 
+	PRY01_PROYECTOS AS padre
+	,	PRY01_PROYECTOS AS hijo
+	, PRY02_TAREAS AS pt
+	, PRY08_CLIENTES AS cli
+	, PRY05_RECURSOS AS rec
+	, PRY04_TRABAJOS AS tra
+	, PRY07_SOLICITUDES AS sol
+	, PRY11_MODULOS AS mod
+	, PRY08_CONTACTOS as cont  
+JOIN         
+	padre.oi_proyecto INNER hijo.oi_proyecto_parent					
+	, padre.c_enlace INNER cli.c_cliente
+	, hijo.oi_proyecto INNER pt.oi_pry_imputa
+	, pt.oi_solicitud INNER sol.oi_solicitud
+	, sol.oi_recurso LEFT OUTER rec.oi_recurso
+  , pt.oi_tarea INNER tra.oi_tarea
+	, sol.oi_modulo LEFT OUTER mod.oi_modulo
+	, sol.oi_contacto LEFT OUTER cont.oi_contacto
+WHERE 
+	cli.oi_cliente  in ({%= #PARAM:CLIENTES/CLIENTE/@id %})						
+AND
+	UCASE(hijo.d_proyecto) = UCASE(\'Bugs\')
+AND
+	tra.f_fecha &gt;= {Datetime(#PARAM:@f_desde)}
+AND
+	tra.f_fecha &lt;= {Datetime(#PARAM:@f_hasta)}
+GROUP BY
+	sol.oi_solicitud
+	, sol.c_solicitud
+	, sol.f_solicitud
+	, cont.d_nom_y_ape
+	, mod.c_modulo 
+	, sol.c_estado
+	, sol.d_solicitud
+	, rec.c_recurso
+	, pt.oi_pry_imputa
+	, pt.oi_tarea
+ORDER BY
+ 	c_cliente asc, f_solicitud DESC		
+		')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:element name="SOL">
+					<qry:attribute name="c_solicitud" value="$r/@c_solicitud"/>
+					<qry:attribute name="f_solicitud" value="format_date($r/@f_solicitud, 'dd/mm/yyyy')"/>
+					<qry:attribute name="d_solicitante" value="$r/@d_nom_y_ape"/>
+					<qry:attribute name="d_cliente" value="concat('[',$r/@c_cliente,'] ',$r/@d_nom_cliente)"/>
+					<qry:attribute name="c_modulo" value="$r/@c_modulo"/>
+					<qry:switch test="$r/@c_estado">
+						<qry:case value="1">
+							<qry:attribute name="d_estado" value="'PENDIENTE'"/>
+						</qry:case>
+						<qry:case value="2">
+							<qry:attribute name="d_estado" value="'DERIVADO A PMO'"/>
+						</qry:case>
+						<qry:case value="3">
+							<qry:attribute name="d_estado" value="'DERIVADO A ESTIM/DESA'"/>
+						</qry:case>
+						<qry:case value="4">
+							<qry:attribute name="d_estado" value="'DERIVADO A CLIENTE'"/>
+						</qry:case>
+						<qry:case value="5">
+							<qry:attribute name="d_estado" value="'CERRADO'"/>
+						</qry:case>
+						<qry:case value="6">
+							<qry:attribute name="d_estado" value="'CERRADO POR EL CLIENTE'"/>
+						</qry:case>
+						<qry:case value="7">
+							<qry:attribute name="d_estado" value="'RECHAZADO'"/>
+						</qry:case>
+						<qry:case value="8">
+							<qry:attribute name="d_estado" value="'TRABAJANDO'"/>
+						</qry:case>
+						<qry:case value="9">
+							<qry:attribute name="d_estado" value="'PRESUPUESTADO'"/>
+						</qry:case>
+						<qry:default>
+							<qry:attribute name="d_estado" value="$r/@c_estado"/>
+						</qry:default>
+					</qry:switch>
+					<qry:attribute name="d_solicitud" value="$r/@d_solicitud"/>
+					<qry:attribute name="d_responsable" value="$r/@c_recurso"/>
+					<qry:insert-select name="qry_trabajo" doc-path="$r"/>
+					<qry:insert-select name="qry_total_sol" doc-path="."/>
+				</qry:element>
+				<qry:attribute name="bandera_datos" value="'si'"/>
+			</qry:out>
+		</qry:select>
+		<qry:select name="qry_total_sol" doc="PARAM">
+			<qry:xquery>
+				for $r in #PARAM:TRAB
+			</qry:xquery>
+			<qry:out>
+				<qry:attribute name="hs_insumidas_sol" value="format_number(NUMBER(@hs_insumidas_sol) + NUMBER($r/@hs_insumidas_trabajo),'###0.0')"/>
+				<qry:attribute name="hs_ins_sol" value=" NUMBER(@hs_ins_sol) + NUMBER($r/@hs_insumidas_trabajo) "/>
+			</qry:out>
+		</qry:select>
+		<qry:select name="qry_total_tarea" doc="PARAM">
+			<qry:xquery>
+				for $r in #PARAM:TRAB
+			</qry:xquery>
+			<qry:out>
+				<qry:attribute name="total_tarea" value="format_number(NUMBER(@total_tarea) + NUMBER($r/@hs_insumidas_trabajo),'###0.0')"/>
+			</qry:out>
+		</qry:select>
+		<qry:select name="qry_total" doc="PARAM">
+			<qry:xquery>
+				for $r in #PARAM:SOL
+			</qry:xquery>
+			<qry:out>
+				<qry:attribute name="total" value="format_number(NUMBER(@total) + NUMBER($r/@hs_insumidas_sol),'###0.0')"/>
+			</qry:out>
+		</qry:select>
+	</html:query>
+	<html:xslt>
+		<xsl:template match="DATOS">
+			<html>
+				<head>
+					<meta http-equiv="Content-Type" content="text/html; charset=utf-8"/>
+					<style media="screen">
+						.body {
+          font-family:verdana;
+          font-weight:normal;
+          background-color:#B0B0B0;
+          font-size:11px;
+          width:100%;
+          margin:30px;}
+          
+          .bodysinmarco {
+					PADDING-RIGHT: 0px; 
+					PADDING-LEFT: 0px; 
+					PADDING-BOTTOM: 0px; 
+					MARGIN: 0px; 
+					BORDER-TOP-STYLE: none; 
+					PADDING-TOP: 0px; 
+					BORDER-RIGHT-STYLE: none; 
+					BORDER-LEFT-STYLE: none; 
+					BORDER-BOTTOM-STYLE: none;
+          
+          font-family:verdana;
+          font-weight:normal;          
+          font-size:11px;
+          width:100%;}
+
+          .title {
+          font-size:15px;
+          font-family:verdana;
+          font-weight:bold;}
+
+          .table_table_style {
+          border: none;
+          border-collapse: collapse;
+          background-color:#FFFFFF;
+          font-size: 11px;
+          font-family: verdana;
+          width:100%;}
+          
+          .table_in_style {
+          border: none;
+          border-collapse: collapse;
+          background-color:#FFFFFF;
+          font-size: 11px;
+          font-family: verdana;}
+
+          .table_title_style {
+          border:none;
+          font-family:verdana;
+          background-color:#FFFFFF;
+          font-size:12px;
+          font-weight:normal;
+          width:100%;}
+
+          .group_td {
+          padding-left:30px; }
+
+          .coll_img {
+          padding:0px; margin:0px;
+          font-family:verdana;
+          font-weight:bold;
+          text-align:center;
+          cursor:pointer;
+          border:1px solid black;
+          font-size:8px;
+          width:12px;
+          height:12px;}
+
+          .table_span_style {
+          font-family:verdana;
+          font-weight:bold;
+
+          }
+
+          tfoot {
+          font-family:verdana;
+          font-weight:bold;
+          }
+
+          .stitle {
+          width:100%;
+          background-color:#FFFFFF;
+          }
+          
+          .divmarco {
+          border:solid 1px #555555;
+          border-top:solid 2px #555555;
+          border-right:solid 8px #555555;
+          background-color:white;
+          margin:0px; 
+          padding:20px;
+          width:100%;
+          height:100%}
+          
+          .divsinmarco {          
+          background-color:white;
+          margin:0px;           
+          width:100%;}
+ 
+          .scontent {
+          width:100%;
+          aheight:100%;
+          background-color:#FFFFFF; }
+					</style>
+					<style media="print">
+						.body {
+					font-family:verdana;
+					font-weight:normal; 
+					background-color:white; 
+					font-size:8pt;
+					width:20cm;}
+					
+					.bodysinmarco {
+					font-family:verdana;
+					font-weight:normal; 
+					background-color:white; 
+					font-size:8pt;
+					width:20cm;}
+					
+					.titulo {
+					font-family:verdana;
+					font-size:11pt;
+					font-weight:bold;}
+					
+					.table_table_style {
+					border: none; 
+					border-collapse: collapse; 
+					font-size: 8pt; 
+					font-family: verdana;
+					width:100%;}
+					
+					.table_in_style {
+          border: none;
+          border-collapse: collapse;
+          font-size: 8px;
+          font-family: verdana;}
+					
+					.table_title_style {
+					border:none; 
+					font-family:verdana;
+					font-size:9pt;
+					font-weight:normal;
+					width:100%;}
+								
+					.table_span_style {
+					font-family:verdana;
+					font-weight:bold;
+					}
+					
+					.group_td {
+					padding-left:30px; }
+					
+					.coll_img {
+					display:none;}
+					
+					.stitle {
+					background-color:#FFFFFF; 
+					border:none;}
+					
+					.scontent {
+					background-color:#FFFFFF; 
+					border:none;}
+					</style>
+					<style media="all">
+						.table_table_style td {
+					border: solid 1px black; 
+					padding-left: 3px; 
+					padding-right: 3px;
+					text-align: left;}
+					
+		.table_in_style td {
+					border: solid 1px black; 
+					padding-left: 3px; 
+					padding-right: 3px;
+					text-align: left;}
+					
+					.table_table_style td#num{
+					mso-number-format:0.0;
+					text-align:right;}
+					
+					.table_in_style td#num{
+					mso-number-format:0.0;
+					text-align:right;}
+					
+					.table_table_style th {
+					border:solid 1px black;
+					background-color:#BBBBBB; 
+					border-bottom:solid 2px black;
+					padding-left: 3px; 
+					padding-right: 3px;
+					text-align: center;} 
+					
+					.table_in_style th {
+					border:solid 1px black;
+					background-color:#BBBBBB; 
+					border-bottom:solid 2px black;
+					padding-left: 3px; 
+					padding-right: 3px;
+					text-align: center;}
+					
+					.table_titles_style tr {
+					border:none;
+					font-weight:bold;
+					text-align: left;}
+					
+					.table_title_style span#label {
+					font-family:verdana;
+					font-weight: bold; }
+					</style>
+				</head>
+				<body>
+					<table class="table_title_style" align="center">
+						<tr>
+							<td style="text-align:right;">
+								<xsl:value-of select="concat('Fecha de Informe: ', ./CLIENTE/@date)"/>
+							</td>
+						</tr>
+					</table>
+					<table class="title" align="center">
+						<tr>
+							<td>
+								Imputaciones por Solicitud
+							</td>
+						</tr>
+					</table>
+					<table class="table_title_style" CELLPADDING="0" CELLSPACING="0">
+						<tr>
+							<td>
+								<xsl:value-of select="concat('Fecha Desde: ',./CLIENTE/@f_desde)"/>
+							</td>
+						</tr>
+						<tr>
+							<td>
+								<xsl:value-of select="concat('Fecha Hasta: ',./CLIENTE/@f_hasta)"/>
+							</td>
+						</tr>
+					</table>
+					<table style="width:30%" class="table_table_style" CELLPADDING="0" CELLSPACING="0">
+						<tr>
+							<th>
+								<xsl:text>
+									Cliente
+								</xsl:text>
+							</th>
+							<th>
+								<xsl:text>
+									Total Hs. Soporte
+								</xsl:text>
+							</th>
+							<th>
+								<xsl:text>
+									Total Hs. por convenio
+								</xsl:text>
+							</th>
+						</tr>
+						<xsl:apply-templates select="CLIENTE/CLIENTE"/>
+						<!--<tr>   
+						
+<td>
+<xsl:value-of select="concat('Cliente: ',./CLIENTE/@nom_cliente)"/>
+</td>
+</tr>
+<tr>
+<td>
+<xsl:value-of select="concat('Fecha Desde: ',./CLIENTE/@f_desde)"/>
+</td>
+</tr>
+<tr>
+<td>
+<xsl:value-of select="concat('Fecha Hasta: ',./CLIENTE/@f_hasta)"/>
+</td>
+</tr>
+<tr>
+<td>
+<xsl:value-of select="concat('Total Hs. Soporte: ',./CLIENTE/SOPORTE/@total + ./CLIENTE/IMPUTACIONES/@total_tarea)"/>
+</td>
+</tr>
+<tr>
+<td>
+<xsl:value-of select="concat(concat('Total Hs. por convenio: ',./CLIENTE/@horas_convenio),' hs')"/>
+</td>
+</tr> -->
+					</table>
+					<br/>
+					<table class="table_table_style">
+						<tr style="font-weight: bold;">
+							Soporte
+						</tr>
+						<xsl:choose>
+							<xsl:when test="CLIENTE/SOPORTE/@bandera_datos ='si'">
+								<tr>
+									<th>
+										Cliente
+									</th>
+									<th>
+										Solicitud
+									</th>
+									<th>
+										Trabajo
+									</th>
+									<th>
+										Fecha
+									</th>
+									<th>
+										Nro. Reclamo
+									</th>
+									<th>
+										Solicitante
+									</th>
+									<th>
+										Modulo
+									</th>
+									<th>
+										Estado
+									</th>
+									<th>
+										Detalle
+									</th>
+									<th>
+										Responsable
+									</th>
+									<th>
+										Hs. Insumidas
+									</th>
+								</tr>
+								<xsl:for-each select="./CLIENTE/SOPORTE/SOL">
+									<tr style="font-weight: bold;">
+										<td style="width:8%">
+											<xsl:value-of select="./@d_cliente"/>
+										</td>
+										<td style="width:8%">
+											<xsl:value-of select="./@c_solicitud"/>
+										</td>
+										<td style="width:6%"/>
+										<td style="width:6%">
+											<xsl:value-of select="./@f_solicitud"/>
+										</td>
+										<td style="width:6%">
+											<xsl:value-of select="./@c_reclamo"/>
+										</td>
+										<td style="width:13%">
+											<xsl:value-of select="./@d_solicitante"/>
+										</td>
+										<td style="width:5%">
+											<xsl:value-of select="./@c_modulo"/>
+										</td>
+										<td style="width:8%">
+											<xsl:value-of select="./@d_estado"/>
+										</td>
+										<td style="width:32%">
+											<xsl:value-of select="./@d_solicitud"/>
+										</td>
+										<td style="width:11%">
+											<xsl:value-of select="./@d_responsable"/>
+										</td>
+										<td style="width:11%">
+											<xsl:value-of select="./@hs_insumidas_sol"/>
+										</td>
+									</tr>
+									<xsl:if test="../../../@l_detalle = 1">
+										<xsl:for-each select="TRAB">
+											<tr>
+												<td/>
+												<td/>
+												<td>
+													<center>
+														*
+													</center>
+												</td>
+												<td>
+													<xsl:value-of select="./@f_trabajo"/>
+												</td>
+												<td/>
+												<td/>
+												<td/>
+												<td/>
+												<td>
+													<xsl:value-of select="./@d_trabajo"/>
+												</td>
+												<td>
+													<xsl:value-of select="./@d_responsable"/>
+												</td>
+												<td>
+													<xsl:value-of select="./@hs_insumidas_trabajo"/>
+												</td>
+											</tr>
+										</xsl:for-each>
+									</xsl:if>
+								</xsl:for-each>
+							</xsl:when>
+						</xsl:choose>
+					</table>
+					<br/>
+					<table class="table_table_style">
+						<tr style="font-weight: bold;">
+							Imputaciones
+						</tr>
+						<xsl:choose>
+							<xsl:when test="CLIENTE/IMPUTACIONES/@bandera_datos ='si'">
+								<tr>
+									<th>
+										Cliente
+									</th>
+									<th>
+										Solicitud
+									</th>
+									<th>
+										Trabajo
+									</th>
+									<th>
+										Fecha
+									</th>
+									<th>
+										Solicitante
+									</th>
+									<th>
+										Modulo
+									</th>
+									<th>
+										Estado
+									</th>
+									<th>
+										Detalle
+									</th>
+									<th>
+										Responsable
+									</th>
+									<th>
+										Hs. Insumidas
+									</th>
+								</tr>
+								<xsl:for-each select="./CLIENTE/IMPUTACIONES/TAREA">
+									<tr style="font-weight: bold;">
+										<td style="width:8%">
+											<xsl:value-of select="./@d_cliente"/>
+										</td>
+										<td style="width:8%">
+											<xsl:value-of select="./@c_tarea"/>
+										</td>
+										<td style="width:6%"/>
+										<td style="width:6%">
+											<xsl:value-of select="./@f_tarea"/>
+										</td>
+										<td style="width:13%"/>
+										<td style="width:5%"/>
+										<td style="width:8%"/>
+										<td style="width:32%">
+											<xsl:value-of select="./@d_tarea"/>
+										</td>
+										<td style="width:11%">
+											<xsl:value-of select="./@d_responsable"/>
+										</td>
+										<td style="width:11%">
+											<xsl:value-of select="./@total_tarea"/>
+										</td>
+									</tr>
+									<xsl:if test="../../../@l_detalle = 1">
+										<xsl:for-each select="TRAB">
+											<tr>
+												<td/>
+												<td/>
+												<td>
+													<center>
+														*
+													</center>
+												</td>
+												<td>
+													<xsl:value-of select="./@f_trabajo"/>
+												</td>
+												<td/>
+												<td/>
+												<td/>
+												<td>
+													<xsl:value-of select="./@d_trabajo"/>
+												</td>
+												<td>
+													<xsl:value-of select="./@d_responsable"/>
+												</td>
+												<td>
+													<xsl:value-of select="./@hs_insumidas_trabajo"/>
+												</td>
+											</tr>
+										</xsl:for-each>
+									</xsl:if>
+								</xsl:for-each>
+							</xsl:when>
+						</xsl:choose>
+					</table>
+					<br/>
+					<table class="table_table_style" style="margin:0">
+						<tr style="font-weight: bold;">
+							Bugs
+						</tr>
+						<xsl:choose>
+							<xsl:when test="CLIENTE/BUGS/@bandera_datos ='si'">
+								<tr>
+									<th>
+										Cliente
+									</th>
+									<th>
+										Solicitud
+									</th>
+									<th>
+										Trabajo
+									</th>
+									<th>
+										Fecha
+									</th>
+									<th>
+										Solicitante
+									</th>
+									<th>
+										Modulo
+									</th>
+									<th>
+										Estado
+									</th>
+									<th>
+										Detalle
+									</th>
+									<th>
+										Responsable
+									</th>
+									<th>
+										Hs. Insumidas
+									</th>
+								</tr>
+								<xsl:for-each select="./CLIENTE/BUGS/SOL">
+									<tr style="font-weight: bold;">
+										<td style="width:8%">
+											<xsl:value-of select="./@d_cliente"/>
+										</td>
+										<td style="width:8%">
+											<xsl:value-of select="./@c_solicitud"/>
+										</td>
+										<td style="width:6%"/>
+										<td style="width:6%">
+											<xsl:value-of select="./@f_solicitud"/>
+										</td>
+										<td style="width:13%">
+											<xsl:value-of select="./@d_solicitante"/>
+										</td>
+										<td style="width:5%">
+											<xsl:value-of select="./@c_modulo"/>
+										</td>
+										<td style="width:8%">
+											<xsl:value-of select="./@d_estado"/>
+										</td>
+										<td style="width:32%">
+											<xsl:value-of select="./@d_solicitud"/>
+										</td>
+										<td style="width:11%">
+											<xsl:value-of select="./@d_responsable"/>
+										</td>
+										<td style="width:11%">
+											<xsl:value-of select="./@hs_insumidas_sol"/>
+										</td>
+									</tr>
+									<xsl:if test="../../../@l_detalle = 1">
+										<xsl:for-each select="TRAB">
+											<tr>
+												<td/>
+												<td/>
+												<td>
+													<center>
+														*
+													</center>
+												</td>
+												<td>
+													<xsl:value-of select="./@f_trabajo"/>
+												</td>
+												<td/>
+												<td/>
+												<td/>
+												<td>
+													<xsl:value-of select="./@d_trabajo"/>
+												</td>
+												<td>
+													<xsl:value-of select="./@d_responsable"/>
+												</td>
+												<td>
+													<xsl:value-of select="./@hs_insumidas_trabajo"/>
+												</td>
+											</tr>
+										</xsl:for-each>
+									</xsl:if>
+								</xsl:for-each>
+							</xsl:when>
+						</xsl:choose>
+					</table>
+				</body>
+			</html>
+		</xsl:template>
+		<xsl:template match="CLIENTE">
+			<tr>
+				<xsl:variable name="CLI" select="."/>
+				<td>
+					<xsl:value-of select="$CLI/@nom_cliente"/>
+				</td>
+				<td>
+					<xsl:value-of select="sum(../SOPORTE/SOL[@oi_cli=$CLI/@oi_cliente]/@hs_insumidas_sol)   + sum(../IMPUTACIONES/TAREA[@oi_cli=$CLI/@oi_cliente]/@hs_insumidas_trabajo)"/>
+				</td>
+				<td>
+					<xsl:value-of select="concat(@horas_convenio,' hs')"/>
+				</td>
+			</tr>
+		</xsl:template>
+	</html:xslt>
+</html:html>

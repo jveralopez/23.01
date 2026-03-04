@@ -1,0 +1,123 @@
+<form:Form xmlns:form="nomad_engine.form" xmlns:qry="nomad_engine.qry" name="NucleusRH.Base.PresupuestoLiquidacion.Liquidacion.LIQUIDACION" mess="&#191;Est&#225; seguro que desa cancelar la operaci&#243;n?" doc="source">
+	<form:Title width="90%">
+		<form:RowAligner name="ralTitle">
+			<form:Row name="row1">
+				<form:Label label="Presupuestacion -" name="GEN" nowrap="1" align="center" style="S3 LCol_w"/>
+				<form:Label visible="SHOW" name="GEN1" label="Selecionar Liquidaciones a Importar (Paso 1 de 5)" nowrap="1" align="center" style="S3 LCol_w"/>
+				<form:Label visible="NOVEDAD" name="GEN2" label="Selecionar Liquidaciones a Importar (Paso 1 de 2)" nowrap="1" align="center" style="S3 LCol_w"/>
+			</form:Row>
+		</form:RowAligner>
+	</form:Title>
+	<form:Center>
+		<form:Hidden nvalue="#source:@oi_empresa" name="oi_empresa"/>
+		<form:Hidden nvalue="#source:@oi_escenario" name="oi_escenario"/>
+		<form:Blank name="b1"/>
+		<form:ComboBox queryname1="NucleusRH.Base.Presupuesto.Escenarios.DETALLE_PRES.INFO" required="1" xsize="30" mode="QRY" prev="oi_escenario" nvalue="#source:@oi_detalle_pres" label="Periodo Presupuesto" name="oi_detalle_pres">
+			<options/>
+		</form:ComboBox>
+		<form:Blank name="b2"/>
+		<form:Grid doc="source" idvalue="#source:LIQ/@oi_liquidacion" allowdelall="1" allowdel="1" allownew="1" label="Lista de Liquidaciones" proto="&lt;LIQ /&gt;" nvalue="#source:LIQS" width="400px" rows="8" paging="1" name="LIST">
+			<form:GColumns>
+				<form:GColumn label="Liquidaciones" name="LIQ">
+					<form:ComboBox queryname1="NucleusRH.Base.Liquidacion.Liquidacion.LIQUIDACION.INFO" required="1" xsize="50" mode="QRY" prev="oi_empresa" nvalue="#source:@oi_liquidacion" label="Liquidacion" name="oi_liquidacion">
+						<options/>
+					</form:ComboBox>
+				</form:GColumn>
+			</form:GColumns>
+			<form:SButtons>
+				<form:SButton img="newlist" label="Agregar Liquidaciones Automaticamente." name="AUTO">
+					<form:Event action="AddAuto" name="onclick" runat="client"/>
+				</form:SButton>
+			</form:SButtons>
+		</form:Grid>
+	</form:Center>
+	<form:Bottom>
+		<form:RowAligner name="buttonlinks">
+			<form:Row name="row1">
+				<form:Button startvalidate="1" enabled="0" descrip="Paso Anterior" img="prev" label="Anterior" name="PREV">
+					<form:Event action="PREV" name="onclick" runat="server"/>
+				</form:Button>
+				<form:Button startvalidate="1" img="next" label="Siguiente" name="NEXT" descrip="Proximo Paso">
+					<form:Event action="NEXT" name="onclick" runat="client"/>
+					<form:Event action="NEXT" name="onclick" runat="server"/>
+				</form:Button>
+				<form:Button enabled="0" descrip="Finalizar la Operacion" label="Finalizar" img="ok" name="ACCEPT">
+					<form:Event action="CANCEL" name="onclick" runat="server"/>
+				</form:Button>
+				<form:Button img="cancel" name="CANCEL" descrip="Cancelar la Operacion" label="Cancelar">
+					<form:Event action="CANCEL" name="onclick" runat="server"/>
+				</form:Button>
+			</form:Row>
+		</form:RowAligner>
+	</form:Bottom>
+	<form:Scripts>
+		function AddAuto()
+{                                
+	if (Ctrl("oi_detalle_pres").GetXValue()=="")
+		return;
+		
+	var param='&lt;DATA oi_detalle_pres="'+Ctrl("oi_detalle_pres").GetXValue()+'" oi_empresa="'+Ctrl("oi_empresa").GetXValue()+'" /&gt;';
+	var RS=GetProxy().SQLService().GetXML(Ctrl('main').getResource("LIQAUTO"), param);
+	
+	for (var cur=RS.FirstChild(); cur!=null; cur=cur.Next())
+	{      
+		if (Ctrl("LIST").ID2IDX(cur.GetAttr("oi_liquidacion"))==-1)
+		{
+			Ctrl("LIST").AddNew();
+			Ctrl("LIST").SetCellXValue("oi_liquidacion",Ctrl("LIST").SelectedRowIDX(),cur.GetAttr("oi_liquidacion"));
+		}
+	}
+}   
+
+function NEXT()
+{               
+	if (Ctrl("LIST").RowsCount()==0)
+	{             
+		alert("La Liquidaci&#243;n es Requerida.");
+		return false;
+	}      
+	
+	
+	for (t=0; t&lt;Ctrl("LIST").RowsCount(); t++)
+		if (Ctrl("LIST").GetCellXValue("oi_liquidacion",t)=="")
+		{
+			alert("La Liquidaci&#243;n es Requerida.");
+			return false;
+		}
+	
+	return true;
+}
+	</form:Scripts>
+	<form:Resources>
+		<form:Resource declare="&lt;DATA oi_detalle_pres=&quot;161&quot; oi_empresa=&quot;9&quot; /&gt;" name="LIQAUTO">
+			<qry:main doc="SOURCE" name="">
+				<qry:element name="ROWS">
+					<qry:insert-select doc-path="#SOURCE:." name="SQL1"/>
+				</qry:element>
+			</qry:main>
+			<qry:select doc="SOURCE" name="SQL1">
+				<qry:xquery>
+					for $r in SQL('
+select                 
+  LIQ.oi_liquidacion,
+  LIQ.e_periodo
+from
+	LIQ19_LIQUIDACION as LIQ, 
+	PRE01_PER_FISCAL as PF,
+	PRE03_DETALLES as PER
+join
+	PF.oi_periodo_fiscal inner PER.oi_periodo_fiscal,
+	PF.e_periodo inner LIQ.e_periodo
+where
+	LIQ.oi_empresa={#SOURCE:@oi_empresa} 
+and               
+	PER.oi_detalle_pres={#SOURCE:@oi_detalle_pres}
+')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:insert-element doc-path="$r"/>
+				</qry:out>
+			</qry:select>
+		</form:Resource>
+	</form:Resources>
+</form:Form>

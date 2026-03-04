@@ -1,0 +1,533 @@
+<HTML>
+	<HEAD>
+		<META http-equiv="Content-Type" content="text/html; charset=ISO-8859-1">
+		
+		<LINK HREF="./Styles/General.css" REL="stylesheet" TYPE="text/css">
+		
+		<script src="./Scripts/nmdProxy.js" type="text/javascript"></script>
+		<script src="./Scripts/engComm.js"  type="text/javascript"></script>
+		<script src="./Scripts/nmdXML.js"   type="text/javascript"></script>
+
+		<SCRIPT src="./Scripts/controls.js" type="text/javascript"></SCRIPT>
+		
+		<SCRIPT type="text/javascript" language="javascript">
+			var gobjFields;
+			var gobjPhoto;
+			var gobjCV;
+			var gObject;
+			
+			var garrSec;
+			var gSecNumber;
+			
+			function PageLoad() {
+				LoadSections();
+				
+				gobjPhoto = new clsDigitalDoc("NucleusRH.Base.SeleccionDePostulantes.DocumentosDigitales.HEAD", "IMG", "photo", "", "");
+				gobjCV = new clsDigitalDoc("NucleusRH.Base.SeleccionDePostulantes.DocumentosDigitales.HEAD", "DOC", "cv", "", "");
+				
+				gobjFields = new clsFields();
+				gobjFields.AddNewField("Nombres",             "d_nombres", "d_nombres", "TXT", true);
+				gobjFields.AddNewField("Apellido",            "d_apellido", "d_apellido", "TXT", true);
+				gobjFields.AddNewField("Tipo de documento",   "oi_tipo_documento", "oi_tipo_documento", "COMBO", false);
+				gobjFields.AddNewField("Nro. de documento",   "c_nro_doc", "c_nro_doc", "TXT", false);
+				gobjFields.AddNewField("Nro. de CUIL",        "c_nro_cuil_1", "c_nro_cuil_1", "TXT", false);
+				gobjFields.AddNewField("Nro. de CUIL",        "c_nro_cuil_2", "c_nro_cuil_2", "TXT", false);
+				gobjFields.AddNewField("Nro. de CUIL",        "c_nro_cuil_3", "c_nro_cuil_3", "TXT", false);
+				gobjFields.AddNewField("Día de nacimiento",   "dia_nac", "dia_nac", "COMBO", true);
+				gobjFields.AddNewField("Mes de nacimiento",   "mes_nac", "mes_nac", "COMBO", true);
+				gobjFields.AddNewField("Año de nacimiento",   "ano_nac", "ano_nac", "COMBO", true);
+				gobjFields.AddNewField("Sexo",                "c_sexo", "c_sexo", "RADIO", true);
+				gobjFields.AddNewField("Estado civil",        "oi_estado_civil", "oi_estado_civil", "COMBO", true);
+				gobjFields.AddNewField("e-Mail",              "d_email", "d_email", "TXT", true);
+				gobjFields.AddNewField("País",                "oi_pais", "oi_pais", "COMBO", false);
+				gobjFields.AddNewField("Provincia",           "oi_provincia", "oi_provincia", "COMBO", false);
+				gobjFields.AddNewField("Localidad",           "d_localidad", "d_localidad", "TXT", true);
+				gobjFields.AddNewField("Código postal",       "c_codigo_postal", "c_codigo_postal", "TXT", false);
+				gobjFields.AddNewField("Calle", "d_calle",    "d_calle", "TXT", false);
+				gobjFields.AddNewField("Número", "c_nro",     "c_nro", "TXT", false);
+				gobjFields.AddNewField("Piso", "c_piso",      "c_piso", "TXT", false);
+				gobjFields.AddNewField("Departamento",        "c_departamento", "c_departamento", "TXT", false);
+				gobjFields.AddNewField("Código país",         "c_pais", "c_pais", "TXT", false);
+				gobjFields.AddNewField("Código área",         "c_area", "c_area", "TXT", false);
+				gobjFields.AddNewField("Nro. teléfono",       "te_nro", "te_nro", "TXT", false);
+				gobjFields.AddNewField("Código país celular", "c_pais_cel", "c_pais_cel", "TXT", false);
+				gobjFields.AddNewField("Código área celular", "c_area_cel", "c_area_cel", "TXT", false);
+				gobjFields.AddNewField("Nro. celular",        "te_celular", "te_celular", "TXT", false);
+				
+				gobjFields.AddNewDoc("Foto", gobjPhoto, "oi_foto", false);
+				gobjFields.AddNewDoc("CV digital", gobjCV, "oi_doc_digital", false);
+				
+				gobjFields.SetSource(parent.gxmlUData);
+				
+				//Carga las provincias segun el pais en el XML
+				FillProvincia(gobjFields.GetXMLValue("oi_pais"));
+
+				gobjFields.MapFromSource();
+				
+				parent.LogMode("CV");
+			}
+			
+			function ValidateFields() {
+				if (gobjFields.ValidateMandatories()) {
+
+					//Valida el CUIL
+					if (gobjFields.GetValue("c_nro_cuil_1") != "" || gobjFields.GetValue("c_nro_cuil_2") != "" || gobjFields.GetValue("c_nro_cuil_3") != "") {
+						if (gobjFields.GetValue("c_nro_cuil_1") != "" && gobjFields.GetValue("c_nro_cuil_2") != "" && gobjFields.GetValue("c_nro_cuil_3") != "") {
+							if (gobjFields.GetValue("c_nro_cuil_2") != gobjFields.GetValue("c_nro_doc")) {
+								alert("El CUIL cargado no es válido.");
+								gobjFields.GetHTMLObject("c_nro_cuil_1").focus();
+								parent.ShowWait(false);
+								return false;
+							}
+						} else {
+							alert("El CUIL cargado no es válido.");
+							gobjFields.GetHTMLObject("c_nro_cuil_1").focus();
+							parent.ShowWait(false);
+							return false;
+						}
+					}
+
+					//Valida el telefono
+					if (gobjFields.GetValue("c_pais") != "" || gobjFields.GetValue("c_area") != "" || gobjFields.GetValue("te_nro") != "") {
+						if (gobjFields.GetValue("c_pais") != "" && gobjFields.GetValue("c_area") != "" && gobjFields.GetValue("te_nro") != "") {
+
+						} else {
+							alert("El Teléfono cargado no es válido. Debe cargarse el código de país + código de área + nro.");
+							gobjFields.GetHTMLObject("c_pais").focus();
+							parent.ShowWait(false);
+							return false;
+						}
+					}
+
+					//Valida el celular
+					if (gobjFields.GetValue("c_pais_cel") != "" || gobjFields.GetValue("c_area_cel") != "" || gobjFields.GetValue("te_celular") != "") {
+						if (gobjFields.GetValue("c_pais_cel") != "" && gobjFields.GetValue("c_area_cel") != "" && gobjFields.GetValue("te_celular") != "") {
+
+						} else {
+							alert("El Celular cargado no es válido. Debe cargarse el código de país + código de área + nro.");
+							gobjFields.GetHTMLObject("c_pais_cel").focus();
+							parent.ShowWait(false);
+							return false;
+						}
+					}
+					
+				} else {
+					return false;
+				}
+
+				return true;
+
+			}
+			
+			function btnGuardar_Click() {
+				CallTimeOut("Procesando los datos...", "Save();");
+			}
+			
+			function Save() {			
+				var xmlResult;
+				
+				if (ValidateFields()) {
+					gobjFields.MapToSource();
+					
+					xmlResult = parent.ExecuteNomadMethod("NucleusRH.Base.SeleccionDePostulantes.CVs.CV", "SaveCV", parent.gxmlUData);
+					
+					if (xmlResult == null) {
+						alert("Se produjo un error en el sistema. Por favor reintente nuevamente en unos minutos.")
+						parent.ShowWait(false);
+					} else {
+						if (xmlResult.GetAttr("out") == "OK") {
+							parent.gxmlUData = xmlResult;
+							parent.LogMode("LO");
+							location.href = "ShowCV.htm";
+						} else {
+							alert(xmlResult.GetAttr("out"));
+						}
+					}
+				}
+			}
+
+			function btnVolver_Click() {
+				if (confirm("Las modificaciones realizadas se perderán.\nEstás seguro que deseas cancelar la edición?")) {
+					parent.LogMode("LO");
+					location.href = "ShowCV.htm";
+				}
+			}
+			
+
+			function oi_pais_Change() {
+				//Actualiza el combo de provincias con las provincias correspondientes al pais seleccionado
+				var objHTML = gobjFields.GetHTMLObject("oi_pais");
+				FillProvincia(objHTML.value);
+			}
+
+			//----------------------------------------------------------------------------------
+			// Links de secciones
+
+			function LoadSections() {
+				garrSec = new Array();
+				garrSec[garrSec.length] = "CargaCV_DatosPer.htm";
+				garrSec[garrSec.length] = "CargaCV_Formacion.htm";
+				garrSec[garrSec.length] = "CargaCV_Experiencia.htm";
+				garrSec[garrSec.length] = "CargaCV_Idiomas.htm";
+				garrSec[garrSec.length] = "CargaCV_Informatica.htm";
+				garrSec[garrSec.length] = "CargaCV_ALaborales.htm";
+				garrSec[garrSec.length] = "CargaCV_DatosAd.htm";
+				
+				gSecNumber = 0;
+			}
+			
+			function btnNext_Click() {
+				GotoSection(gSecNumber + 1);
+			}
+
+			function btnPrev_Click() {
+				GotoSection(gSecNumber - 1);
+			}
+
+			function GotoSection(pSection) {
+				if (ValidateFields()) {
+					gobjFields.MapToSource();
+					location.href = garrSec[pSection];
+				}
+			}			
+			
+			//----------------------------------------------------------------------------------
+			
+			var arrProvincias = null;
+			function FillProvincia(pOIPais) {
+				var arrProvincia;
+				var objSelect;
+				
+				//Borra los options actuales
+				objSelect = document.getElementById("oi_provincia");
+				objSelect.innerHTML = "";
+				objSelect.options[0] = new Option("- Seleccione -", "");
+				
+				if (arrProvincias == null) {
+					var ARRVALUES = new Array();
+					{#QRY:NucleusRH.Provincias_X_Pais.xml#}
+					arrProvincias = ARRVALUES;
+				}
+				
+				arrProvincia = arrProvincias[pOIPais.toString()];
+				
+				if (arrProvincia) {
+					if (arrProvincia.constructor.toString().indexOf("String") >= 0) {
+						arrProvincia = arrProvincia.split("()");
+					}
+
+					var X = 0;
+					var srtOption;
+					
+					for (X = 0; X < arrProvincia.length; X++) {
+						srtOption = arrProvincia[X];
+						srtOption = srtOption.split("|");
+						objSelect.options[X + 1] = new Option(srtOption[1], srtOption[0]);
+					}		
+				
+				} else {
+					arrProvincias[pOIPais.toString()] = "";
+				}
+				
+			}
+			
+			//Abre ventana modal para cargar el archivo
+			function AddDocument(object) {
+				parent.gObject = object;
+				gObject = parent.gObject;
+				parent.openUploadFrame(gObject);
+			}
+			
+			
+		</SCRIPT>
+
+	</HEAD>
+	<BODY onload="PageLoad();" sscroll="no" class="Main">
+		<table style="TABLE-LAYOUT: fixed" cellpadding="0" cellspacing="0" height="100%" width="100%">
+			<col width="220px" />
+			<col width="100%" />
+			
+			<tr>
+				<td style="vertical-align:top;" class="LeftColumn">
+					<table class="TableDependencias text_1" cellpadding="0" cellspacing="0" width="100%">
+						<col width="100%"/>
+						<tr><th class="alignLeft">Secciones</th></tr>
+						<tr><td class="TDep_s">Datos personales</td></tr>
+						<tr><td class="TDep_n" onclick="GotoSection(1);" onmouseover="LinkChangeStyle(this, 'OVER');" onmouseout="LinkChangeStyle(this, 'NORMAL');">Formaci&oacute;n</td></tr>
+						<tr><td class="TDep_n" onclick="GotoSection(2);" onmouseover="LinkChangeStyle(this, 'OVER');" onmouseout="LinkChangeStyle(this, 'NORMAL');">Experiencia laboral</td></tr>
+						<tr><td class="TDep_n" onclick="GotoSection(3);" onmouseover="LinkChangeStyle(this, 'OVER');" onmouseout="LinkChangeStyle(this, 'NORMAL');">Idiomas</td></tr>
+						<tr><td class="TDep_n" onclick="GotoSection(4);" onmouseover="LinkChangeStyle(this, 'OVER');" onmouseout="LinkChangeStyle(this, 'NORMAL');">Conocimientos de inform&aacute;tica</td></tr>
+						<tr><td class="TDep_n" onclick="GotoSection(5);" onmouseover="LinkChangeStyle(this, 'OVER');" onmouseout="LinkChangeStyle(this, 'NORMAL');">&Aacute;reas laborales</td></tr>
+						<tr><td class="TDep_n" onclick="GotoSection(6);" onmouseover="LinkChangeStyle(this, 'OVER');" onmouseout="LinkChangeStyle(this, 'NORMAL');">Datos adicionales</td></tr>
+						<tr><td style="border-bottom:1px solid #949698;">&nbsp;</td></tr>
+						<tr><td style="BACKGROUND-IMAGE:url(./images/Buttons/save_n.gif);" class="TDep_n" onclick="btnGuardar_Click();" onmouseover="LinkChangeStyle(this, 'OVER');" onmouseout="LinkChangeStyle(this, 'NORMAL');">Finalizar edici&oacute;n</td></tr>
+						<tr><td style="BACKGROUND-IMAGE:url(./images/Buttons/back_n.gif);" class="TDep_n" onclick="btnVolver_Click();" onmouseover="LinkChangeStyle(this, 'OVER');" onmouseout="LinkChangeStyle(this, 'NORMAL');">Cancelar edici&oacute;n</td></tr>
+					</table>
+					</br>
+					<table class="Adv" cellpadding="0" cellspacing="0" width="100%">
+						<col width="100%"/>
+						<tr><th class="alignLeft">Consejos</th></tr>
+						<tr><td>EL CV est&aacute; dividido en varias &aacute;reas tem&aacute;ticas de carga llamadas secciones.
+						<br /><br />Pod&eacute;s recorrer las diferentes secciones de tu CV con los botones <b>secci&oacute;n siguiente</b> y <b>secci&oacute;n anterior</b>. Tambi&eacute;n pod&eacute;s acceder directamente haciendo click sobre el nombre de la secci&oacute;n.
+						<br /><br />Al finalizar la carga de tu CV hac&eacute; click sobre <b>Finalizar edici&oacute;n</b> para guardar los datos.
+						</td></tr>
+					</table>
+				</td>			
+				
+				<td style="vertical-align:top; padding-top:5px;" class="alignCenter">
+				
+					<table style="TABLE-LAYOUT: fixed" width="80%">
+						<col width="50%" />
+						<col width="50%" />
+						
+						<!-- Botonera de secciones --------------------------------------------->
+						<tr class="BotoneraSecciones">
+							<td><span class="BotSec_n">&nbsp;</span></td>
+							<td style="TEXT-ALIGN: right;"><span onclick="btnNext_Click();" class="BotSec_n BotSecR" onmouseover="LinkChangeStyle(this, 'OVER');" onmouseout="LinkChangeStyle(this, 'NORMAL');">secci&oacute;n siguiente</span></td>
+						</tr>
+						
+						<!-- Datos personales-------------------------------------------------->
+						<tr>
+							<td class="titulo_1" colspan="2">Datos personales</td>
+						</tr>
+
+						<!--Imagen Nombre y Apellido-->
+						<tr>
+							<td style="padding-left:0px;">
+								<table style="TABLE-LAYOUT:fixed;" width="100%">
+									<col width="100%" />
+
+									<tr>
+										<td class="label_r"><span style="FONT-WEIGHT:normal;">Los datos con asteriscos son obligatorios</span></td>
+									</tr>
+									<tr>
+										<td>&nbsp;</td>
+									</tr>
+
+									<!--Label Nombre y Apellido-->
+									<tr>
+										<td class="label_r">Nombres</td>
+									</tr>
+			
+									<tr>
+										<td>
+											<INPUT name="d_nombres" id="d_nombres" class="Box" style="width:100%;" type="text" VALUE=""/>
+										</td>
+									</tr>
+
+									<tr>
+										<td class="label_r">Apellido</td>
+									</tr>
+			
+									<tr>
+										<td>
+											<INPUT name="d_apellido" id="d_apellido" class="Box" type="text" VALUE="" style="width:100%"/>
+										</td>
+									</tr>
+									
+									<tr>
+										<td class="label_r">Sexo</td>
+									</tr>
+
+									<td class="label">
+										<input name="c_sexo" id="c_sexo" type="radio" value="M" />Masculino
+										<input name="c_sexo" id="c_sexo" type="radio" value="F" />Femenino
+									</td>									
+								</table>
+							</td>
+							<td>
+								<table class="recuadro_1">
+									<col width="50%"/>
+									<col width="50%"/>
+
+									<!--Imagen de la FOTO-->
+									<tr>
+										<td>
+											<img id="photoImg" name="photoImg" src="./Images/Reports/unknown-person.jpg" height="120px">
+										</td>
+										<td>
+											<img id="cvImg" name="cvImg" src="./Images/Reports/cvDoc_d.gif">
+										</td>
+									</tr>
+									
+									<tr>
+										<td valign="top">
+											<span class="links" id="photoAdd" name="photoAdd" onclick="AddDocument(gobjPhoto);">Agregar una foto</br></span>
+											<span class="links" id="photoChg" name="photoChg" onclick="AddDocument(gobjPhoto);">Cambiar la foto</br></span>
+											<span class="links" id="photoDel" name="photoDel" onclick="gobjPhoto.Delete();">Eliminar la foto</br></span>
+										</td>
+										<td valign="top">
+											<span class="links" id="cvAdd" name="cvAdd" onclick="AddDocument(gobjCV);">Agregar CV</br></span>
+											<span class="links" id="cvDown" name="cvDown" onclick="gobjCV.Download();">Descargar CV</br></span>
+											<span class="links" id="cvDel" name="cvDel" onclick="gobjCV.Delete();">Eliminar CV</br></span>
+											<iframe id="cvIfr" name="cvIfr" src="about:blank" style="display:none;" ></iframe>
+										</td>
+									</tr>
+								</table>
+							</td>
+						</tr>
+						
+						<!-- Tipo y nro de documento -------------------------------------->
+						<tr>
+							<td class="label">Tipo de documento</td>
+							<td class="label">Nro. de documento</td>
+						</tr>
+						
+						<tr>
+							<td>
+								<select name="oi_tipo_documento" id="oi_tipo_documento" class="BoxD" disabled="disabled" style="width:100%;">
+									{#QRY:NucleusRH.Tipos_Documento.xml#}
+								</select>
+							</td>
+							<td>
+								<INPUT maxlength="30" size="30" name="c_nro_doc" id="c_nro_doc" type="text" class="BoxD" VALUE="" disabled="disabled"/>
+							</td>
+						</tr>
+						
+						<!--Label Nro. Cuil y Fecha de Nacimiento-->	
+						<tr>
+							<td class="label">Nro. CUIL</td>
+							<td class="label_r">Fecha de nacimiento</td>
+						</tr>
+						
+						<tr>
+							<td>
+								<INPUT maxlength="2" size="2"  name="c_nro_cuil_1" id="c_nro_cuil_1" type="text" class="Box" VALUE="" />
+								<span> - </span> 
+								<INPUT maxlength="8" size="9"  name="c_nro_cuil_2" id="c_nro_cuil_2" type="text" class="Box" VALUE="" />
+								<span> - </span> 
+								<INPUT maxlength="1" size="1"  name="c_nro_cuil_3" id="c_nro_cuil_3" type="text" class="Box" VALUE="" />
+							</td>
+							<td>
+								<select name="dia_nac" id="dia_nac">
+									{#QRY:NucleusRH.DiasMes.xml#}
+								</select>
+								<select name="mes_nac" id="mes_nac">
+									{#QRY:NucleusRH.Meses.xml#}
+								</select>
+								<select name="ano_nac" id="ano_nac">
+									{#QRY:NucleusRH.Anios.xml#}
+								</select>
+							</td>
+						</tr>
+						
+						<!--Label Estado Civil-->
+						<tr>
+							<td class="label_r">Estado civil</td>
+							<td>&nbsp;</td>
+						</tr>
+						
+						<tr>
+							<td> 
+								<select name="oi_estado_civil" id="oi_estado_civil">
+									{#QRY:NucleusRH.Estados_Civiles.xml#}
+								</select>
+							</td>
+							
+							<td>&nbsp;</td>
+						</tr>
+
+						<!--Label Mail-->
+						<tr>
+							<td class="label_r">e-Mail</td>
+							<td>&nbsp;</td>
+						</tr>
+						
+						<tr>
+							<td> 
+								<INPUT class="Box" maxlength="100" size="50" id="d_email"  name="d_email"  type="text" class="Box" VALUE="" style="width:100%"/>
+							</td>
+							<td>&nbsp;</td>
+						</tr>
+						
+						<!--Label País y Provincia-->	
+						<tr>	
+							<td class="label">Pa&iacute;s</td>
+							<td class="label">Provincia</td>
+						</tr>
+						
+						<tr>	
+							<td> 
+								<select name="oi_pais" id="oi_pais" onchange="oi_pais_Change();">
+									{#QRY:NucleusRH.Paises.xml#}
+								</select>
+							</td>
+							<td> 
+								<select name="oi_provincia" id="oi_provincia">
+								</select>
+							</td>
+						</tr>
+
+						<!--Label Localidad y Código Postal-->	
+						<tr>
+							<td class="label_r">Localidad</td>
+							<td class="label">C&oacute;digo postal</td>
+						</tr>
+						
+						<tr>
+							<td>
+								<INPUT class="Box" maxlength="100" size="50"  name="d_localidad"  id="d_localidad" type="text" VALUE="" style="width:100%"/>
+							</td>																
+							<td>
+								<INPUT maxlength="30" size="30"  name="c_codigo_postal" id="c_codigo_postal" type="text" class="Box" VALUE="" />
+							</td>								
+						</tr>
+						
+						<!--Label Domicilio-->
+						<tr>
+							<td>
+								<span class="label" style="width:65%">Calle</span> 
+								<span class="label" style="width:10%">Nro</span> 
+								<span class="label" style="width:10%">Piso</span> 
+								<span class="label" style="width:10%">Dpto</span> 
+							</td>
+							<td>&nbsp;</td>
+						</tr>
+						
+						<tr>
+							<td>
+								<INPUT style="width:65%" name="d_calle" id="d_calle" type="text" class="Box" VALUE="" />
+								<INPUT style="width:10%" name="c_nro" id="c_nro" type="text" class="Box" VALUE="" />
+								<INPUT style="width:10%" name="c_piso" id="c_piso" type="text" class="Box" VALUE="" />
+								<INPUT style="width:10%" name="c_departamento" id="c_departamento" type="text" class="Box" VALUE="" />
+							</td>
+							<td>&nbsp;</td>
+						</tr>
+
+						<!--Label Teléfono Particular y Celular-->
+						<tr>
+							<td class="label">
+								Tel&eacute;fono particular</br>
+								<span style="FONT-WEIGHT:normal;">(Código país) + (Código &aacute;rea + Número local) Ej.: (054-041) 4609412</span></td>
+								</td>
+							<td class="label">
+								Celular</br>
+								<span style="FONT-WEIGHT:normal;">(Código país) + (Código &aacute;rea + Número local) Ej.: (054-041) 155756584</span></td>
+						</tr>
+						
+						<tr>
+							<td>
+								<INPUT maxlength="5" size="9" name="c_pais" id="c_pais" type="text" class="Box" VALUE="" />
+								<INPUT maxlength="5" size="9" name="c_area" id="c_area" type="text" class="Box" VALUE="" />
+								<INPUT maxlength="30" size="25" name="te_nro" id="te_nro" type="text" class="Box" VALUE="" />
+							</td>
+							<td>
+								<INPUT maxlength="5" size="9" name="c_pais_cel" id="c_pais_cel" type="text" class="Box" VALUE="" />
+								<INPUT maxlength="5" size="9" name="c_area_cel" id="c_area_cel" type="text" class="Box" VALUE="" />
+								<INPUT maxlength="30" size="25" name="te_celular" id="te_celular" type="text" class="Box" VALUE="" />
+							</td>
+						</tr>						
+					
+						<!-- Botonera de secciones --------------------------------------------->
+						<tr><td colspan="2" class="TDBottomLine">&nbsp;</td></tr>
+						<tr class="BotoneraSecciones">
+							<td><span class="BotSec_n">&nbsp;</span></td>
+							<td style="TEXT-ALIGN: right;"><span onclick="btnNext_Click();" class="BotSec_n BotSecR" onmouseover="LinkChangeStyle(this, 'OVER');" onmouseout="LinkChangeStyle(this, 'NORMAL');">secci&oacute;n siguiente</span></td>
+						</tr>
+						
+					</table>				
+				</td>
+			</tr>
+		</table>
+	</BODY>
+</HTML>

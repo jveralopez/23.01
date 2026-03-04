@@ -1,0 +1,49 @@
+<flow:flow xmlns:flow="nomad_engine.flow" xmlns:qry="nomad_engine.qry" xmlns:doc="nomad_engine.doc" name="NucleusRH.Base.Configuracion.Alertas.PROG_DET.flow" extends="NucleusRH.Base.Configuracion.Progs.PROG_DET.MAIN.STD.flow" description="Flow para responder las acciones sobre las alertas." default_action="LIST">
+	<flow:info label="Flow para responder las acciones sobre las alertas."/>
+	<flow:declare>
+		<qry:define declare="&lt;DATA PARENT=&quot;301&quot; /&gt;" name="QRY_FIND">
+			<qry:main doc="SOURCE">
+				<DATA>
+					<qry:insert-select name="SQL1" doc-path="#SOURCE:."/>
+				</DATA>
+			</qry:main>
+			<qry:select name="SQL1" doc="SOURCE">
+				<qry:xquery>
+					for $r in SQL('
+select 
+	A.oi_prog 
+from 
+	CFG01_ALERTAS as A
+where 
+	A.oi_alerta={$SOURCE/@PARENT}
+')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:attribute name="PARENT" value="$r/@oi_prog"/>
+					<qry:attribute name="ID" value="$r/@oi_prog"/>
+					<qry:attribute name="ID" value="iif($SOURCE/@LIST='',@ID,$SOURCE/@LIST)"/>
+				</qry:out>
+			</qry:select>
+		</qry:define>
+	</flow:declare>
+	<flow:main doc="SOURCE">
+		<flow:action name="LIST">
+			<doc:load-qry input-doc-path="#SOURCE:" qry="QRY_FIND" output-doc="SELECT"/>
+			<flow:open-form mode="LIST" parent-doc-path="#SOURCE:" doc-path="#SELECT:" form-class="NucleusRH.Base.Configuracion.Progs.PROG_DET.MAIN.STD_LIST.autoform"/>
+		</flow:action>
+		<flow:action name="EDIT">
+			<doc:load-qry input-doc-path="#SOURCE:" qry="QRY_FIND" output-doc="SELECT"/>
+			<flow:open-form mode="EDIT" parent-doc-path="#SOURCE:" doc-path="#SELECT:" form-class="NucleusRH.Base.Configuracion.Progs.PROG_DET.MAIN.STD_REG.autoform"/>
+		</flow:action>
+		<flow:action name="DEL">
+			<flow:exec-method class="NucleusRH.Base.Configuracion.Progs.PROG_DET" method="Delete">
+				<flow:param attr-path="#SOURCE:@LIST" type="Nomad.NSystem.String" mode="in" name="ID"/>
+			</flow:exec-method>
+			<flow:exit-flow return-path="#SOURCE:"/>
+		</flow:action>
+		<flow:action name="ADD">
+			<doc:load-qry input-doc-path="#SOURCE:" qry="QRY_FIND" output-doc="SELECT"/>
+			<flow:open-form mode="NEW" parent-doc-path="#SELECT:" doc-path="#SELECT:" form-class="NucleusRH.Base.Configuracion.Progs.PROG_DET.MAIN.STD_REG.autoform"/>
+		</flow:action>
+	</flow:main>
+</flow:flow>

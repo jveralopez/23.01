@@ -1,0 +1,267 @@
+<flow:flow xmlns:flow="nomad_engine.flow" xmlns:doc="nomad_engine.doc" xmlns:qry="nomad_engine.qry" default_action="initialize" extends="NucleusRH.Base.Organizacion.Clases_Organizativas.autoflow" name="NucleusRH.Base.Organizacion.Clases_Organizativas.flow">
+	<flow:info label="Flow para NucleusRH.Base.Organizacion.Clases_Organizativas"/>
+	<flow:main doc="SOURCE">
+		<flow:action name="initialize">
+			<flow:open-form doc-path="#SOURCE:" mode="FILTER" form-class="NucleusRH.Base.Organizacion.Clases_Organizativas.CLASE_ORG.filter.autoform"/>
+		</flow:action>
+		<flow:action name="SHOWORG">
+			<doc:set-attribute from-attr-path="#SOURCE:@OI_CLASE_ORG" to-attr-path="#PARAMETERS:@oi_clase_org"/>
+			<doc:load-qry output-doc="DESC" input-doc-path="#PARAMETERS:" qry="CLASE_ORG_DESC"/>
+			<flow:open-form parent-doc-path="#PARAMETERS:" doc-path="#PARAMETERS:" form-class="NucleusRH.Base.Organizacion.Clases_Organizativas.ORGANIGRAMA.form" mode="SHOW"/>
+		</flow:action>
+		<flow:action name="SPLITORG">
+			<doc:load-qry output-doc="UNIDAD_ORG" input-doc-path="#SOURCE:" qry="QRY_UNIDAD_ORG"/>
+			<doc:new-object doc="NEWDDOROOT" class="NucleusRH.Base.Organizacion.Clases_Organizativas.CLASE_ORG"/>
+			<doc:new-object doc="DDO" class="NucleusRH.Base.Organizacion.Clases_Organizativas.CLASE_ORG"/>
+			<doc:set-attribute from-attr-path="#UNIDAD_ORG:@oi_unidad_org" to-attr-path="#NEWDDOROOT:oi_estructura_org/oi_unidad_org/@value"/>
+			<flow:open-form parent-doc-path="#SOURCE:" mode="SPLIT" doc-path="#NEWDDOROOT:" form-class="NucleusRH.Base.Organizacion.Clases_Organizativas.CLASE_ORG.form"/>
+		</flow:action>
+	</flow:main>
+	<flow:declare>
+		<doc:define name="PARAMETERS">
+			<PARAMETERS oi_clase_org=""/>
+		</doc:define>
+		<qry:define name="FILTER">
+			<qry:main maxdeep="2">
+				<qry:element name="ROWS">
+					<qry:insert-select name="sql1"/>
+				</qry:element>
+			</qry:main>
+			<qry:select doc="PARAM" name="sql1">
+				<qry:xquery>
+					for $r in sql('
+				SELECT t0.oi_clase_org as oi_clase_org,
+				SEC.policy 
+				FROM ORG02_CLASES_ORG as t0,
+				NMD_SECURITY(class=\'NucleusRH.Base.Organizacion.Clases_Organizativas.CLASE_ORG\') as SEC JOIN t0.oi_clase_org LEFT OUTER SEC.id  
+				WHERE t0.l_automatica != \'1\'
+				ORDER BY oi_clase_org asc
+			')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:element name="ROW">
+						<qry:attribute name="policy" value="$r/@policy"/>
+						<qry:attribute name="id" value="$r/@oi_clase_org"/>
+					</qry:element>
+				</qry:out>
+			</qry:select>
+		</qry:define>
+		<qry:define name="LIST">
+			<qry:main maxdeep="2">
+				<qry:element name="ROWS">
+					<qry:insert-select name="sql1"/>
+				</qry:element>
+			</qry:main>
+			<qry:select doc="PARAM" name="sql1">
+				<qry:xquery>
+					for $r in sql('
+				SELECT 
+					t0.oi_clase_org as oi_clase_org, 
+					t0.c_clase_org as c_clase_org, 
+					t0.d_clase_org as d_clase_org, 
+					t0.c_estado as c_estado, 
+					t0.c_clase_org as CODE, 
+					t0.d_clase_org as TEXT, 
+					t0.f_desde_vigencia,
+					t0.f_hasta_vigencia,
+					t0.e_version,
+					t0.oi_estructura_org as oi_estructura_org,
+					SEC.policy
+				FROM 
+					ORG02_CLASES_ORG as t0,
+					NMD_SECURITY(class=\'NucleusRH.Base.Organizacion.Clases_Organizativas.CLASE_ORG\') as SEC JOIN t0.oi_clase_org LEFT OUTER SEC.id  
+				WHERE 
+					t0.l_automatica != \'1\'
+				ORDER BY 
+					oi_clase_org asc
+			')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:element name="ROW">
+						<qry:attribute name="policy" value="$r/@policy"/>
+						<qry:attribute name="id" value="$r/@oi_clase_org"/>
+						<qry:attribute name="c_clase_org" value="$r/@c_clase_org"/>
+						<qry:attribute name="d_clase_org" value="$r/@d_clase_org"/>
+						<qry:attribute name="e_version" value="$r/@e_version"/>
+						<qry:attribute name="f_desde_vigencia" value="$r/@f_desde_vigencia"/>
+						<qry:attribute name="f_hasta_vigencia" value="$r/@f_hasta_vigencia"/>
+						<qry:attribute name="c_estado" value="$r/@c_estado"/>
+						<qry:attribute name="CODE" value="$r/@CODE"/>
+						<qry:attribute name="TEXT" value="$r/@TEXT"/>
+					</qry:element>
+				</qry:out>
+			</qry:select>
+		</qry:define>
+		<doc:define name="DESC">
+			<DATO d_clase_org=""/>
+		</doc:define>
+		<qry:define declare="&lt;PARAMETERS oi_clase_org=&quot;6&quot;/&gt;" name="CLASE_ORG_DESC">
+			<qry:main doc="SOURCE">
+				<qry:element name="DATO">
+					<qry:insert-select name="RS1" doc-path="#SOURCE:PARAMETERS"/>
+				</qry:element>
+			</qry:main>
+			<qry:select name="RS1" doc="SOURCE">
+				<qry:xquery>
+					for $r in sql('
+				SELECT 
+					ORG02_CLASES_ORG.c_clase_org, 
+					ORG02_CLASES_ORG.d_clase_org,
+					ORG02_CLASES_ORG.c_estado,
+					ORG02_CLASES_ORG.f_desde_vigencia,
+					ORG02_CLASES_ORG.f_hasta_vigencia					
+				FROM 
+					ORG02_CLASES_ORG
+				WHERE 
+					ORG02_CLASES_ORG.oi_clase_org = {#SOURCE:@oi_clase_org}
+			')ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:attribute name="d_clase_org" value="'[' + $r/@c_clase_org + ']' + ' ' +  $r/@d_clase_org"/>
+					<qry:attribute name="f_desde_vigencia" value="format_date($r/@f_desde_vigencia, 'dd/mm/yyyy')"/>
+					<qry:attribute name="f_hasta_vigencia" value="format_date($r/@f_hasta_vigencia, 'dd/mm/yyyy')"/>
+					<qry:attribute name="c_estado" value="$r/@c_estado"/>
+					<qry:if test="$r/@c_estado = 'V'">
+						<qry:then>
+							<qry:attribute name="estado" value="'Vigente'"/>
+							<qry:attribute name="d_clase_org" value="@d_clase_org + ': ' + @estado + ' desde el ' + @f_desde_vigencia"/>
+						</qry:then>
+					</qry:if>
+					<qry:if test="$r/@c_estado = 'R'">
+						<qry:then>
+							<qry:attribute name="estado" value="'Rechazado'"/>
+							<qry:attribute name="d_clase_org" value="@d_clase_org + ': ' + @estado"/>
+						</qry:then>
+					</qry:if>
+					<qry:if test="$r/@c_estado = 'P'">
+						<qry:then>
+							<qry:attribute name="estado" value="'Planificado'"/>
+							<qry:attribute name="d_clase_org" value="@d_clase_org + ': ' + @estado"/>
+						</qry:then>
+					</qry:if>
+					<qry:if test="$r/@c_estado = 'D'">
+						<qry:then>
+							<qry:attribute name="estado" value="'Discontinuado'"/>
+							<qry:attribute name="d_clase_org" value="@d_clase_org + ': ' + @estado + ' desde el ' + @f_hasta_vigencia"/>
+						</qry:then>
+					</qry:if>
+				</qry:out>
+			</qry:select>
+		</qry:define>
+		<doc:define name="UNIDAD_ORG">
+			<UNIDAD_ORG oi_unidad_org=""/>
+		</doc:define>
+		<qry:define declare="&lt;ID oi_estructura=&quot;21&quot;/&gt;" name="QRY_UNIDAD_ORG">
+			<qry:main doc="SOURCE">
+				<qry:element name="DATO">
+					<qry:insert-select name="RS1" doc-path="#SOURCE:ID"/>
+				</qry:element>
+			</qry:main>
+			<qry:select name="RS1" doc="SOURCE">
+				<qry:xquery>
+					for $r in sql('
+				SELECT ORG02_ESTRUCTURAS.oi_unidad_org
+				FROM ORG02_ESTRUCTURAS
+				WHERE ORG02_ESTRUCTURAS.oi_estructura= {#SOURCE:@oi_estructura}
+			')ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:attribute name="oi_unidad_org" value="$r/@oi_unidad_org"/>
+				</qry:out>
+			</qry:select>
+		</qry:define>
+	</flow:declare>
+	<flow:group Name="CLASE_ORG">
+		<flow:form parent-doc="PARENTSOURCE" doc="SOURCE" name="NucleusRH.Base.Organizacion.Clases_Organizativas.CLASE_ORG.noreg.form:EDIT" form-class="NucleusRH.Base.Organizacion.Clases_Organizativas.CLASE_ORG.noreg.autoform" mode="EDIT" extends="NucleusRH.Base.Organizacion.Clases_Organizativas.CLASE_ORG.noreg.autoform:EDIT">
+			<flow:action name="open-flow-SHOW">
+				<flow:open-form form-class="NucleusRH.Base.Organizacion.Clases_Organizativas.ORGANIGRAMA.form" iter-index="#QRY:ROW/@id" parent-doc-path="#QRY:" doc-path="#DDO:" mode="SHOW"/>
+			</flow:action>
+			<flow:action name="open-flow-ADD">
+				<flow:open-form doc-path="#NEWDDOROOT:" mode="NEW" form-class="NucleusRH.Base.Organizacion.Clases_Organizativas.CLASE_ORG.form"/>
+			</flow:action>
+			<flow:action name="open-flow-LIST">
+				<flow:open-form iter-index="#QRY_LIST:ROW/@id" parent-doc-path="#QRY_LIST:" doc-path="#DDO:" mode="LIST" form-class="NucleusRH.Base.Organizacion.Clases_Organizativas.CLASE_ORG.form"/>
+			</flow:action>
+			<flow:action name="load-DDO"/>
+		</flow:form>
+		<flow:form mode="SHOW" form-class="NucleusRH.Base.Organizacion.Clases_Organizativas.CLASE_ORG.form" name="NucleusRH.Base.Organizacion.Clases_Organizativas.CLASE_ORG.form:SHOW" doc="SOURCE" parent-doc="PARENTSOURCE" extends="NucleusRH.Base.Organizacion.Clases_Organizativas.CLASE_ORG.autoform:SHOW">
+			<flow:action name="open-flow-ADD">
+				<flow:open-form doc-path="#NEWDDOROOT:" mode="NEW" form-class="NucleusRH.Base.Organizacion.Clases_Organizativas.CLASE_ORG.form"/>
+			</flow:action>
+			<flow:action name="open-flow-EDIT">
+				<flow:open-form doc-path="#DDO:" mode="EDIT" form-class="NucleusRH.Base.Organizacion.Clases_Organizativas.CLASE_ORG.form"/>
+			</flow:action>
+		</flow:form>
+		<flow:form mode="NEW" form-class="NucleusRH.Base.Organizacion.Clases_Organizativas.CLASE_ORG.form" name="NucleusRH.Base.Organizacion.Clases_Organizativas.CLASE_ORG.form:NEW" doc="SOURCE" parent-doc="PARENTSOURCE" extends="NucleusRH.Base.Organizacion.Clases_Organizativas.CLASE_ORG.autoform:NEW"/>
+		<flow:form name="NucleusRH.Base.Organizacion.Clases_Organizativas.CLASE_ORG.form:SPLIT" mode="SPLIT" form-class="NucleusRH.Base.Organizacion.Clases_Organizativas.CLASE_ORG.form" doc="SOURCE" parent-doc="PARENTSOURCE" extends="NucleusRH.Base.Organizacion.Clases_Organizativas.CLASE_ORG.autoform:NEW">
+			<flow:action name="SAVE">
+				<flow:call-action action="save-DDO"/>
+				<flow:call-action action="SPLIT"/>
+				<flow:close-form next-action="After-Change"/>
+			</flow:action>
+			<flow:action name="SPLIT">
+				<flow:exec-method class="NucleusRH.Base.Organizacion.Clases_Organizativas.CLASE_ORG" this-doc="DDO" method="SplitOrganigrama">
+					<flow:param attr-path="#PARENTSOURCE:@OI_ESTRUCTURA" type="Nomad.NSystem.String" mode="in" name="estructura_id"/>
+				</flow:exec-method>
+			</flow:action>
+		</flow:form>
+		<flow:form extends="NucleusRH.Base.Organizacion.Clases_Organizativas.CLASE_ORG.autoform:LIST" name="NucleusRH.Base.Organizacion.Clases_Organizativas.CLASE_ORG.form:LIST" mode="LIST" form-class="NucleusRH.Base.Organizacion.Clases_Organizativas.CLASE_ORG.form" doc="SOURCE" parent-doc="PARENTSOURCE">
+			<flow:action name="open-flow-ADD">
+				<flow:open-form doc-path="#NEWDDOROOT:" mode="NEW" form-class="NucleusRH.Base.Organizacion.Clases_Organizativas.CLASE_ORG.form"/>
+			</flow:action>
+			<flow:action name="DETAIL">
+				<doc:set-attribute from-attr-path="#FORM:ctrl[@id='LIST']/@xval" to-attr-path="#PARAMETERS:@oi_clase_org"/>
+				<flow:call-action action="DRAW"/>
+			</flow:action>
+			<flow:action name="on-open"/>
+			<flow:action name="open-flow-EDIT">
+				<flow:open-form doc-path="#DDO:" mode="EDIT" form-class="NucleusRH.Base.Organizacion.Clases_Organizativas.CLASE_ORG.form"/>
+			</flow:action>
+			<flow:action name="DRAW">
+				<doc:load-qry output-doc="DESC" input-doc-path="#PARAMETERS:" qry="CLASE_ORG_DESC"/>
+				<flow:open-form parent-doc-path="#DDO:" form-class="NucleusRH.Base.Organizacion.Clases_Organizativas.ORGANIGRAMA.form" doc-path="#PARAMETERS:" mode="SHOW"/>
+			</flow:action>
+			<flow:action name="on-show">
+				<flow:attach-doc attach-id="RS" doc-path="#QRY_LIST:"/>
+			</flow:action>
+		</flow:form>
+		<flow:form extends="NucleusRH.Base.Organizacion.Clases_Organizativas.CLASE_ORG.autoform:EDIT" parent-doc="PARENTSOURCE" doc="SOURCE" name="NucleusRH.Base.Organizacion.Clases_Organizativas.CLASE_ORG.form:EDIT" form-class="NucleusRH.Base.Organizacion.Clases_Organizativas.CLASE_ORG.form" mode="EDIT"/>
+	</flow:group>
+	<flow:group name="ORGANIGRAMA">
+		<flow:form form-class="NucleusRH.Base.Organizacion.Clases_Organizativas.ORGANIGRAMA.form" name="NucleusRH.Base.Organizacion.Clases_Organizativas.ORGANIGRAMA.form:SHOW" doc="SOURCE" mode="SHOW">
+			<flow:action name="on-show"/>
+			<flow:action name="BACK">
+				<flow:close-form next-action="After-Change"/>
+			</flow:action>
+			<flow:action name="DISCONTINUAR">
+				<flow:exec-method priority="7" out-attr-path="#BATCHDOC:@batch-id" class="NucleusRH.Base.Organizacion.Clases_Organizativas.CLASE_ORG" method="Discontinuar">
+					<flow:param attr-path="#SOURCE:@oi_clase_org" name="orgId" type="Nomad.NSystem.String" mode="in"/>
+				</flow:exec-method>
+				<flow:open-form form-class="nomad.base.batchtolist.form" mode="BATCH" doc-path="#BATCHDOC:"/>
+			</flow:action>
+			<flow:action name="PLANIFICAR">
+				<flow:exec-method class="NucleusRH.Base.Organizacion.Clases_Organizativas.CLASE_ORG" priority="7" out-attr-path="#BATCHDOC:@batch-id" method="Planificar">
+					<flow:param attr-path="#SOURCE:@oi_clase_org" name="orgId" type="Nomad.NSystem.String" mode="in"/>
+				</flow:exec-method>
+				<flow:open-form form-class="nomad.base.batchtolist.form" mode="BATCH" doc-path="#BATCHDOC:"/>
+			</flow:action>
+			<flow:action name="RECHAZAR">
+				<flow:exec-method class="NucleusRH.Base.Organizacion.Clases_Organizativas.CLASE_ORG" method="Rechazar">
+					<flow:param attr-path="#SOURCE:@oi_clase_org" name="orgId" type="Nomad.NSystem.String" mode="in"/>
+				</flow:exec-method>
+				<flow:close-form next-action="DRAW"/>
+			</flow:action>
+			<flow:action name="VIGENTE">
+				<flow:exec-method class="NucleusRH.Base.Organizacion.Clases_Organizativas.CLASE_ORG" method="Vigente">
+					<flow:param attr-path="#SOURCE:@oi_clase_org" name="orgId" type="Nomad.NSystem.String" mode="in"/>
+				</flow:exec-method>
+				<flow:open-form form-class="nomad.base.batchtolist.form" mode="BATCH" doc-path="#BATCHDOC:"/>
+			</flow:action>
+		</flow:form>
+	</flow:group>
+	<flow:form extends="nomad.base.batchtolist.form:BATCH" mode="BATCH" name="nomad.base.batchtolist.form" form-class="nomad.base.batchtolist.form" doc="SOURCE">
+		<flow:action name="EXIT">
+			<flow:close-form next-action="BACK"/>
+		</flow:action>
+	</flow:form>
+</flow:flow>

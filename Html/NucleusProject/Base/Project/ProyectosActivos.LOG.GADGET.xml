@@ -1,0 +1,270 @@
+<html:html xmlns:html="nomad_engine.html" xmlns:qry="nomad_engine.qry" xmlns:xsl="http://www.w3.org/1999/XSL/Transform" extends="NucleusRH.Base.Configuracion.GadgetBASE.rpt" doc="source" name="ProyectosActivos">
+	<html:query declare="&lt;PARAMS /&gt;">
+		<qry:main doc="SOURCE">
+			<qry:element name="MAIN">
+				<qry:element name="DATA">
+					<qry:attribute name="hoy" value="format-date(Now(),'dd/mm/yyyy')"/>
+					<qry:insert-select doc-path="." name="qryProyecto"/>
+				</qry:element>
+			</qry:element>
+		</qry:main>
+		<qry:select doc="SOURCE" name="qryProyecto">
+			<qry:xquery>
+				for $r in SQL(' 
+SELECT
+	p.oi_proyecto,   
+  	p.c_proyecto,
+  	p.d_proyecto,
+  	p.f_inicio,
+  	p.f_fin_est,
+  	p.e_estimado,
+  	ut.c_unidad_tiempo, 
+  	ut.d_unidad_tiempo
+		
+FROM
+PRY01_PROYECTOS as p, 
+PRY03_UND_TIEMPO AS ut,
+PRY05_RECURSOS as r,
+PER01_PERSONAL as per
+
+JOIN
+p.oi_recurso INNER r.oi_recurso,
+r.oi_personal INNER per.oi_personal,
+p.oi_unidad_tiempo LEFT OUTER ut.oi_unidad_tiempo
+
+
+WHERE   
+(p.c_estado=\'I\' OR p.c_estado=\'T\' )  
+AND p.oi_tipo_proyecto=1
+AND per.oi_usuario_sistema={$PROXY/@etty}
+
+ORDER BY f_inicio DESC
+
+
+	
+')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:element name="PROYECTO">
+					<qry:attribute name="oi_proyecto" value="$r/@oi_proyecto"/>
+					<qry:attribute name="id" value="$r/@oi_proyecto"/>
+					<qry:attribute name="c_proyecto" value="$r/@c_proyecto"/>
+					<qry:attribute name="d_proyecto" value="$r/@d_proyecto"/>
+					<qry:attribute name="f_inicio" value="format-date($r/@f_inicio,'dd/mm/yyyy')"/>
+					<qry:attribute name="f_fin_est" value="format-date($r/@f_fin_est,'dd/mm/yyyy')"/>
+					<qry:attribute name="e_estimado" value="$r/@e_estimado"/>
+					<qry:attribute name="c_unidad_tiempo" value="$r/@c_unidad_tiempo"/>
+					<qry:attribute name="d_unidad_tiempo" value="$r/@d_unidad_tiempo"/>
+					<qry:attribute name="color_alerta" value="'#A0A0A0'"/>
+					<qry:insert-select doc-path="." name="qryUltAvance"/>
+					<qry:insert-select doc-path="." name="qryTrabajo"/>
+					<qry:insert-select name="qryTrabajosHijo" doc-path="."/>
+				</qry:element>
+			</qry:out>
+		</qry:select>
+		<qry:select name="qryUltAvance" doc="SOURCE">
+			<qry:xquery>
+				for $r in SQL('
+			MAXSIZE 1	
+			
+			SELECT 
+		  	a.c_estado,
+		  	a.f_avance
+		  		
+			FROM  
+			PRY01_AVANCES as a
+            
+            WHERE    
+			a.oi_proyecto={$SOURCE/@oi_proyecto}
+			
+			ORDER BY f_avance DESC
+
+')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:switch test="$r/@c_estado">
+					<qry:case value="V">
+						<qry:attribute name="c_estado_ult_avance" value="'Verde'"/>
+						<qry:attribute name="color_alerta" value="'#46AA5D'"/>
+					</qry:case>
+					<qry:case value="A">
+						<qry:attribute name="c_estado_ult_avance" value="'Amarillo'"/>
+						<qry:attribute name="color_alerta" value="'#EAEA3A'"/>
+					</qry:case>
+					<qry:case value="R">
+						<qry:attribute name="c_estado_ult_avance" value="'Rojo'"/>
+						<qry:attribute name="color_alerta" value="'#D34D41'"/>
+					</qry:case>
+					<qry:default/>
+				</qry:switch>
+			</qry:out>
+		</qry:select>
+		<qry:select doc="SOURCE" name="qryTrabajo">
+			<qry:xquery>
+				for $r in SQL('	
+SELECT 
+	PRY04_TRABAJOS.e_duracion,
+	PRY03_UND_TIEMPO.e_minutos
+FROM 
+	PRY04_TRABAJOS,
+	PRY03_UND_TIEMPO,
+	PRY02_TAREAS
+JOIN
+	PRY04_TRABAJOS.oi_unidad_tiempo INNER PRY03_UND_TIEMPO.oi_unidad_tiempo,
+	PRY04_TRABAJOS.oi_tarea INNER PRY02_TAREAS.oi_tarea
+WHERE
+	PRY02_TAREAS.oi_proyecto = {#SOURCE:@id}	
+')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:attribute name="hs_imputadas" value="@hs_imputadas + (number($r/@e_duracion) * number($r/@e_minutos)) div 60"/>
+			</qry:out>
+		</qry:select>
+		<qry:select name="qryTrabajosHijo" doc="PARAM">
+			<qry:xquery>
+				for $r in SQL('
+			SELECT p.oi_proyecto
+			
+			FROM
+			PRY01_PROYECTOS as pp,
+			PRY01_PROYECTOS as p
+			
+			JOIN
+			pp.oi_proyecto INNER p.oi_proyecto_parent
+			
+			WHERE
+			pp.oi_proyecto = {#PARAM:@id}
+			
+			')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:attribute name="id" value="$r/@oi_proyecto"/>
+				<qry:if test="$r/@oi_proyecto!=''">
+					<qry:then>
+						<qry:insert-select name="qryTrabajo" doc-path="."/>
+						<qry:insert-select name="qryTrabajosHijo" doc-path="."/>
+					</qry:then>
+				</qry:if>
+			</qry:out>
+		</qry:select>
+	</html:query>
+	<html:xslt>
+		<xsl:template name="MainReport" match="DATA">
+			<body bgcolor="#F2F2EC" scroll="no">
+				<table class="tabla_detail estilo1" cellspacing="0" cellpadding="0">
+					<tr>
+						<th>
+							<xsl:value-of select="concat('Lista de Proyectos Activos al d&#237;a: ',./@hoy)"/>
+						</th>
+					</tr>
+					<tr>
+						<td>
+							<div>
+								<table style="width:100%;font-size: 11px;" class="tabla_noticia estilo1">
+									<tr>
+										<th style="width:30%;">
+											Proyecto
+										</th>
+										<th style="width:3%;">
+											Inicio
+										</th>
+										<th style="width:12%;">
+											Fin Estimado
+										</th>
+										<th style="width:18%;">
+											Tiempo Estimado
+										</th>
+										<th style="width:15%;">
+											Tiempo Imputado
+										</th>
+										<th style="width:25%;">
+											Estado &#218;ltimo Avance
+										</th>
+									</tr>
+									<xsl:for-each select="PROYECTO">
+										<tr>
+											<td height="40px" class="img_back underline">
+												<a>
+													<xsl:attribute name="href">
+														<xsl:value-of select="concat('javascript:Detail(',@oi_proyecto, ')')"/>
+													</xsl:attribute>
+													<xsl:value-of select="concat('[',@c_proyecto,'] ',@d_proyecto)"/>
+												</a>
+											</td>
+											<td height="40px" class="img_back underline" style="padding-right:20px">
+												<xsl:if test="@f_inicio">
+													<xsl:value-of select="@f_inicio"/>
+												</xsl:if>
+												<xsl:if test="not(@f_inicio)">
+													&#160;
+												</xsl:if>
+											</td>
+											<td height="40px" class="img_back underline">
+												<xsl:if test="@f_fin_est">
+													<xsl:value-of select="@f_fin_est"/>
+												</xsl:if>
+												<xsl:if test="not(@f_fin_est)">
+													&#160;
+												</xsl:if>
+											</td>
+											<td height="40px" class="img_back underline">
+												<xsl:if test="@e_estimado!=0">
+													<xsl:value-of select="concat(@e_estimado,' [',@c_unidad_tiempo,'] ',@d_unidad_tiempo)"/>
+												</xsl:if>
+												<xsl:if test="@e_estimado=0">
+													No Calculado
+												</xsl:if>
+											</td>
+											<td height="40px" class="img_back underline">
+												<xsl:if test="@hs_imputadas">
+													<xsl:if test="contains(@hs_imputadas,'.')">
+														<xsl:value-of select="concat(format-number(@hs_imputadas,'0.00'),' [H] Hora')"/>
+													</xsl:if>
+													<xsl:if test="not(contains(@hs_imputadas,'.'))">
+														<xsl:value-of select="concat(@hs_imputadas,' [H] Hora')"/>
+													</xsl:if>
+												</xsl:if>
+												<xsl:if test="not(@hs_imputadas)">
+													<xsl:value-of select="'Ninguna'"/>
+												</xsl:if>
+											</td>
+											<td height="40px" class="img_back underline">
+												<span>
+													<xsl:attribute name="style">
+														<xsl:value-of select="concat('background-color:',@color_alerta)"/>
+													</xsl:attribute>
+													&#160;&#160;&#160;&#160;
+												</span>
+												<span>
+													&#160;&#160;
+												</span>
+												<xsl:if test="@c_estado_ult_avance">
+													<xsl:value-of select="@c_estado_ult_avance"/>
+												</xsl:if>
+												<xsl:if test="not(@c_estado_ult_avance)">
+													No hay ning&#250;n informe
+												</xsl:if>
+											</td>
+										</tr>
+									</xsl:for-each>
+								</table>
+							</div>
+						</td>
+					</tr>
+				</table>
+			</body>
+		</xsl:template>
+		<xsl:template name="ReportSCRIPT">
+			function Detail(poiProyecto) {
+				var dir;
+
+				dir = "../../../ReportViewer.aspx?";
+				dir = dir + "report={#PROXY.APP#}.NucleusProject.Base.Project.Proyecto.GEN.GADGET";
+				dir = dir + "{#CHAR.AMP#}oi_proyecto=" + poiProyecto;
+                
+				ventana=window.open(dir, 'Buscador', 'width=850,height=600,resizable=yes,top=10px,left=10px');
+				
+			}
+		</xsl:template>
+	</html:xslt>
+</html:html>

@@ -1,0 +1,66 @@
+<ALERT xmlns:qry="nomad_engine.qry" label="Alta de Proyectos" name="ALTA_PRY.alert">
+	<PARAMS>
+		<PARAM type="int" req="1" label="Cantidad de d&#237;as previos" name="cantDiasPrev"/>
+	</PARAMS>
+	<QRY declare="&lt;PARAMS cantDiasPrev=&quot;10&quot;/&gt;">
+		<qry:main name="" doc="PARAMS">
+			<ROWS>
+				<TODOS>
+					<qry:insert-select name="QRY_PRY" doc-path="$PARAMS/PARAMS"/>
+				</TODOS>
+			</ROWS>
+		</qry:main>
+		<qry:select name="QRY_PRY" doc="SOURCE">
+			<qry:xquery>
+				for $r in SQL('
+			   SELECT
+			   	PRY.c_proyecto,
+			   	PRY.d_proyecto,
+			   	CLI.d_nom_cliente,
+					PRY.o_descripcion,
+					PRY.f_inicio
+			   FROM
+			   	PRY01_PROYECTOS as PRY,
+			   	PRY08_CLIENTES as CLI
+			   JOIN
+			   	PRY.oi_cliente INNER CLI.oi_cliente
+			   WHERE
+			   	ISNOTNULL(PRY.f_inicio)
+			   	AND DATE2STRING(PRY.f_inicio)&gt;=DATE2STRING(ADDDAYS(NOW(), -{%=#SOURCE:@cantDiasPrev%}))
+			   	AND DATE2STRING(PRY.f_inicio)&lt;=DATE2STRING(NOW()) 			   
+			   	AND PRY.oi_tipo_proyecto = 1
+			   ORDER BY
+			   	 f_inicio ASC
+			')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<PRY>
+					<qry:attribute name="c_proyecto" value="$r/@c_proyecto"/>
+					<qry:attribute name="d_proyecto" value="$r/@d_proyecto"/>
+					<qry:attribute name="o_descripcion" value="translate($r/@o_descripcion,'&#13;&#10;',' ')"/>
+					<qry:attribute name="f_inicio" value="format-date($r/@f_inicio,'dd/mm/yyyy')"/>
+					<qry:attribute name="d_nom_cliente" value="$r/@d_nom_cliente"/>
+				</PRY>
+			</qry:out>
+		</qry:select>
+	</QRY>
+	<MAILS>
+		<MAIL suject="Alta nuevo proyecto" group="TODOS">
+			**Le informamos que los siguientes proyectos han sido dados de alta:**
+^Cliente          ^C&#243;d. Proyecto          ^Nombre Proyecto         ^Descripci&#243;n                ^Fecha de Inicio          ^ 
+{%FOR-EACH PRY%}| {% @PRY.d_nom_cliente %} | {% @PRY.c_proyecto %} | {% @PRY.d_proyecto %} | {% @PRY.o_descripcion %} | {% @PRY.f_inicio %} |
+{%END PRY%}
+		</MAIL>
+	</MAILS>
+	<GROUPS>
+		<GROUP label="Por Proyecto" name="PRY">
+			<FIELD type="string" label="c_proyecto" name="c_proyecto"/>
+			<FIELD type="string" label="d_proyecto" name="d_proyecto"/>
+			<FIELD type="string" label="o_descripcion" name="o_descripcion"/>
+			<FIELD type="string" label="f_inicio" name="f_inicio"/>
+			<FIELD type="string" label="d_nom_cliente" name="d_nom_cliente"/>
+		</GROUP>
+		<GROUP label="Sin Agrupar" name="TODOS"/>
+	</GROUPS>
+	<ENUMS/>
+</ALERT>

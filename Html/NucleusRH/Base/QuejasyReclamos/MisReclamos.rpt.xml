@@ -1,0 +1,376 @@
+<html:html xmlns:html="nomad_engine.html" xmlns:qry="nomad_engine.qry" xmlns:xsl="http://www.w3.org/1999/XSL/Transform" name="NucleusRH.Base.QuejasyReclamos.MisReclamos.rpt" extends="Nomad.Base.BaseReport.rpt" doc="source">
+	<html:query declare="&lt;PARAMS llamado_desde=&quot;flow&quot; /&gt;" name="">
+		<qry:main doc="SOURCE">
+			<qry:append-doc name="ENTRADA" doc-path="#SOURCE:"/>
+			<qry:element name="ROWS">
+				<qry:insert-select doc-path="#SOURCE:" name="CONFIG"/>
+				<qry:element name="ROWS_ORDER">
+					<qry:attribute name="count" value="'0'"/>
+					<qry:insert-select doc-path="#SOURCE:" name="sql1"/>
+					<qry:attribute name="hts:delete" value="1"/>
+				</qry:element>
+				<qry:insert-select doc-path="./ROWS_ORDER" name="sql5"/>
+				<qry:if test="ROWS_ORDER/@count = '0'">
+					<qry:then>
+						<qry:element name="NO_ROW">
+							<qry:attribute name="cod" value="'No tiene reclamos pendientes'"/>
+						</qry:element>
+					</qry:then>
+					<qry:else/>
+				</qry:if>
+			</qry:element>
+		</qry:main>
+		<qry:select doc="PARAM" name="sql1">
+			<qry:xquery>
+				for $r in FILE('Nomad\\Base\\Workflow\\Indices\\{%=#PROXY:@app%}.NucleusRH.Base.QuejasyReclamos.Reclamo.IDX.XML')/index/files/file[@dueno=#PROXY:@etty]
+			</qry:xquery>
+			<qry:out>
+				<qry:element name="ROW">
+					<qry:attribute name="id" value="$r/@name"/>
+					<qry:attribute name="ut" value="#PROXY:@token"/>
+					<qry:attribute name="app" value="#PROXY:@app"/>
+					<qry:attribute name="entrada" value="#ENTRADA:PARAMS/@llamado_desde"/>
+					<qry:insert-select name="RECLAMO" doc-path="$r"/>
+				</qry:element>
+				<qry:attribute name="count" value="iif($r/@name != '', '1', '0')"/>
+			</qry:out>
+		</qry:select>
+		<qry:select name="RECLAMO" doc="DOC">
+			<qry:xquery>
+				for $r in FILE('Nomad\\Base\\Workflow\\WorkflowInstancias\\{%=#DOC:@name%}')/WFI
+			</qry:xquery>
+			<qry:out>
+				<qry:attribute name="id" value="$r/@id"/>
+				<qry:attribute name="t_reclamo" value="$r/DATOS/RECLAMO/@t_reclamo"/>
+				<qry:switch test="$r/DATOS/RECLAMO/@n_criticidad">
+					<qry:default>
+						<qry:attribute name="n_criticidad" value="'-'"/>
+					</qry:default>
+					<qry:case value="1">
+						<qry:attribute name="n_criticidad" value="'Muy Baja'"/>
+					</qry:case>
+					<qry:case value="2">
+						<qry:attribute name="n_criticidad" value="'Baja'"/>
+					</qry:case>
+					<qry:case value="3">
+						<qry:attribute name="n_criticidad" value="'Normal'"/>
+					</qry:case>
+					<qry:case value="4">
+						<qry:attribute name="n_criticidad" value="'Alta'"/>
+					</qry:case>
+					<qry:case value="5">
+						<qry:attribute name="n_criticidad" value="'Muy Alta'"/>
+					</qry:case>
+				</qry:switch>
+				<qry:attribute name="oi_reclamo" value="$r/DATOS/RECLAMO/@oi_reclamo"/>
+				<qry:attribute name="diff" value="normalize_space(format_number(ceiling(datetime($r/DATOS/RECLAMO/@f_vencimiento))-floor(now()), '##0'))"/>
+				<qry:attribute name="diff" value="iif(starts_with(@diff, '-'), 0, @diff)"/>
+				<qry:insert-select name="sql6" doc-path="$r/DATOS/RECLAMO"/>
+				<qry:attribute name="c_asunto" value="$r/DATOS/RECLAMO/@c_asunto"/>
+				<qry:insert-select name="resolve_etapa" doc-path="$r/HISTETAPAS/HISTETAPA[@ACTIVO = '1']"/>
+				<qry:insert-select name="resolve_etapa" doc-path="$r/HISTETAPAS/HISTETAPA[@COD = 'Final']"/>
+				<qry:attribute name="url" value="'../Skins/_Default/Pages/MiniMain.htm?skin=_Default&amp;ut='+#PROXY:@token+'&amp;wfclass='+#PROXY:@app+'.NucleusRH.Base.QuejasyReclamos.Reclamo&amp;wfid='+./@id+'&amp;wfetapa='+./@cod_etapa"/>
+				<qry:attribute name="f_reclamo" value="format_date($r/@F_INICIO, 'dd/mm/yyyy HH:MM')"/>
+				<qry:attribute name="f_order" value="$r/@F_INICIO"/>
+				<qry:insert-select name="ENTIDAD" doc-path="$r/DUENO"/>
+			</qry:out>
+		</qry:select>
+		<qry:select name="CONFIG" doc="DOC">
+			<qry:xquery>
+				for $r in FILE('Nomad\\Base\\Workflow\\WorkflowConfig\\{%=#PROXY:@app%}.NucleusRH.Base.QuejasyReclamos.Reclamo.WF.XML')/WF
+			</qry:xquery>
+			<qry:out>
+				<qry:append-doc name="CONFIG" doc-path="$r"/>
+			</qry:out>
+		</qry:select>
+		<qry:select name="resolve_etapa" doc="DOC">
+			<qry:out>
+				<qry:attribute name="cod" value="#DOC:@COD"/>
+				<qry:attribute name="cod_etapa" value="#DOC:@COD"/>
+				<qry:attribute name="f_ult_estado" value="format_date(#DOC:@F_INICIO, 'dd/mm/yyyy HH:MM')"/>
+				<qry:insert-select name="get_desc_etapa" doc-path="#CONFIG:ETAPAS/ETAPA[@COD=#DOC:@cod]"/>
+			</qry:out>
+		</qry:select>
+		<qry:select name="get_desc_etapa" doc="DOC">
+			<qry:out>
+				<qry:attribute name="cod" value="#DOC:@DES"/>
+			</qry:out>
+		</qry:select>
+		<qry:select name="ENTIDAD" doc="DOC">
+			<qry:xquery>
+				for $r in FILE('Nomad\\Base\\Login\\Entidades\\{%=#DOC:@VALUE %}.ENTIDAD.XML')/ENTIDAD
+			</qry:xquery>
+			<qry:out>
+				<qry:attribute name="d_usuario" value="$r/@DES"/>
+			</qry:out>
+		</qry:select>
+		<qry:select name="sql5" doc="DOC">
+			<qry:xquery>
+				for $r in #DOC:ROW  
+			ORDERBY $r/@f_order DESC
+			</qry:xquery>
+			<qry:out>
+				<qry:insert-element doc-path="$r"/>
+			</qry:out>
+		</qry:select>
+		<qry:select name="sql6" doc="DOC">
+			<qry:xquery>
+				for $r in SQL('
+					SELECT
+						QYR01_RECLAMOS.oi_tipo_problema,
+						QYR04_TIPO_PROBLEMA.n_resolucion
+					FROM
+						QYR01_RECLAMOS,
+						QYR04_TIPO_PROBLEMA
+					JOIN
+						QYR01_RECLAMOS.oi_tipo_problema INNER QYR04_TIPO_PROBLEMA.oi_tipo_problema
+					WHERE
+						QYR01_RECLAMOS.oi_reclamo = {#DOC:@oi_reclamo}
+			')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:attribute name="n_resolucion" value="$r/@n_resolucion"/>
+			</qry:out>
+		</qry:select>
+	</html:query>
+	<html:xslt>
+		<xsl:template match="/ROWS">
+			<html>
+				<head>
+					<script languaje="javascript">
+						function openReclamo(url, ut, entrada, id, cod_etapa, app) { 
+						if(cod_etapa != "PendConf")
+							window.open("../ReportViewer.aspx?ut="+ut+String.fromCharCode(38)+"file=NucleusRH.Base.QuejasyReclamos.Workflow.Reclamo.CONSULTA.rpt"+String.fromCharCode(38)+"WFIid="+id, '', 'channelmode=no,directories=no,fullscreen=no,location=no,menubar=no,resizable=yes,scrollbars=yes,status=no,titlebar=no,toolbar=no,left=0,top=0,width='+(screen.width-12)+',height='+(screen.height-60)); 
+						else {
+							if(entrada != "flow")
+								window.open(url, '', 'channelmode=no,directories=no,fullscreen=no,location=no,menubar=no,resizable=yes,scrollbars=yes,status=no,titlebar=no,toolbar=no,left=0,top=0,width='+(screen.width-12)+',height='+(screen.height-60)); 
+							else    
+							  parent.openNewFlow("NucleusRH.Base.QuejasyReclamos.Workflow.Reclamo.autoflow","GET-WF",String.fromCharCode(60)+'DATA WFI="'+id+'" Etapa="' +cod_etapa+ '" WF="'+app+'.NucleusRH.Base.QuejasyReclamos.Reclamo" /'+String.fromCharCode(62),new ObjetoActualizador(),"L");
+						}	
+				 	}
+				 	function ObjetoActualizador() {
+				 		this.processResult = function(){
+				 			parent.Ctrl('REFRESH').DoEvent('onclick');
+				 		}
+				 	}
+					</script>
+					<meta http-equiv="Content-Type" content="text/html; charset=utf-8"/>
+					<style media="screen">
+						body {
+          font-family:verdana;
+          font-weight:normal;
+          background-color:#FFFFFF;
+          font-size:11px;
+          margin:30px;   
+          cursor:default;
+          PADDING-RIGHT: 0px; 
+          PADDING-LEFT: 0px; 
+          PADDING-BOTTOM: 0px; 
+          MARGIN: 0px; 
+          BORDER-TOP-STYLE: none; 
+          PADDING-TOP: 0px; 
+          BORDER-RIGHT-STYLE: none; 
+          BORDER-LEFT-STYLE: none; 
+          BORDER-BOTTOM-STYLE: none;
+          }
+
+          .title {
+          font-size:15px;
+          font-weight:bold;}
+
+          .table_table_style {
+          border: none;
+          border-collapse: collapse;
+          background-color:#FFFFFF;
+          font-size: 11px;
+          font-family: verdana;
+          width:100%;}
+
+          .table_title_style {
+          
+          font-family:verdana;
+          background-color:#FFFFFF;
+          font-size:14px;
+          font-weight:normal;
+          text-align:center;
+          width:100%;}
+
+          .group_td {
+          padding-left:30px; }
+
+          .coll_img {
+          padding:0px; margin:0px;
+          font-weight:bold;
+          text-align:center;
+          cursor:pointer;
+          
+          font-size:8px;
+          width:12px;
+          height:12px;}
+
+          .table_span_style {
+          font-weight:bold;
+
+          }
+
+          tfoot {
+          font-weight:bold;
+          }
+
+          .stitle {
+          width:100%;
+          background-color:#FFFFFF;
+          }
+          
+          .divmarco {
+          
+          
+          
+          background-color:white;
+          margin:0px; 
+          padding:20px;
+          width:100%;
+          height:100%}
+ 
+          .scontent {
+          width:100%;
+          aheight:100%;
+          background-color:#FFFFFF; }
+					</style>
+					<style media="print">
+						body {
+					font-family:verdana;
+					font-weight:normal; 
+					background-color:white; 
+					font-size:8pt;
+					width:20cm;}
+					
+					.titulo {
+					font-size:11pt;
+					font-weight:bold;}
+					
+					.table_table_style {
+					border: none; 
+					border-collapse: collapse; 
+					font-size: 8pt; 
+					font-family: verdana;
+					width:100%;}
+					
+					.table_title_style {
+					
+					font-family:verdana;
+					font-size:9pt;
+					font-weight:normal;
+					width:100%;}
+					</style>
+					<style media="all">
+						.table_table_style td {
+					border: solid 1px black; 
+					padding-left: 3px; 
+					padding-right: 3px;
+					text-align: left;}
+					
+					.table_table_style td#num{
+					mso-number-format:0.00;
+					text-align:right;}
+					
+					.table_table_style th {
+					border:solid 1px black;
+					background-color:#BBBBBB; 
+					border-bottom:solid 2px black;
+					padding-left: 3px; 
+					padding-right: 3px;
+					text-align: center;}
+					</style>
+				</head>
+				<body style="PADDING-RIGHT: 0px; PADDING-LEFT: 0px; PADDING-BOTTOM: 0px; MARGIN: 0px; BORDER-TOP-STYLE: none; PADDING-TOP: 0px; BORDER-RIGHT-STYLE: none; BORDER-LEFT-STYLE: none; BORDER-BOTTOM-STYLE: none;" scroll="yes">
+					<xsl:if test="ROW">
+						<table class="table_title_style" border="0">
+							<tr>
+								<td colspan="2">
+									<table VALIGN="top" class="table_table_style" cellspacing="0" cellpadding="0" border="0" style="width:100%">
+										<thead style="display: table-header-group;">
+											<span class="table_span_style"/>
+											<tr>
+												<th>
+													Nro. Reclamo
+												</th>
+												<th>
+													Asunto
+												</th>
+												<th>
+													Fecha - Hora Creaci&#243;n
+												</th>
+												<th>
+													Estado
+												</th>
+												<th>
+													Tiempo de Resoluci&#243;n(d&#237;as)
+												</th>
+												<th>
+													Tiempo Remanente(d&#237;as)
+												</th>
+												<th>
+													Fecha - Hora Ultimo Estado
+												</th>
+												<th>
+													Criticidad
+												</th>
+											</tr>
+										</thead>
+										<tbody>
+											<xsl:apply-templates select="ROW"/>
+										</tbody>
+									</table>
+								</td>
+							</tr>
+						</table>
+						<br/>
+					</xsl:if>
+					<xsl:if test="NO_ROW">
+						<tr>
+							<td colspan="2">
+								<br/>
+								<h3 align="center">
+									No tiene Reclamos Creados
+								</h3>
+							</td>
+						</tr>
+						<br/>
+					</xsl:if>
+				</body>
+			</html>
+		</xsl:template>
+		<xsl:template match="ROW">
+			<tr>
+				<xsl:attribute name="onclick">
+					<xsl:value-of select="concat('javascript:openReclamo(&quot;', @url, '&quot;,&quot;', @ut, '&quot;,&quot;', @entrada,'&quot;,&quot;', @id,'&quot;,&quot;', @cod_etapa,'&quot;,&quot;', @app,'&quot;)')"/>
+				</xsl:attribute>
+				<td style="cursor:pointer;">
+					<xsl:value-of select="@oi_reclamo"/>
+				</td>
+				<td style="cursor:pointer;">
+					<xsl:value-of select="@c_asunto"/>
+				</td>
+				<td style="cursor:pointer;">
+					<xsl:value-of select="@f_reclamo"/>
+				</td>
+				<td style="cursor:pointer;">
+					<xsl:value-of select="@cod"/>
+				</td>
+				<td style="cursor:pointer;text-align:right;">
+					<xsl:value-of select="@n_resolucion"/>
+				</td>
+				<td style="cursor:pointer;text-align:right;">
+					<xsl:value-of select="@diff"/>
+				</td>
+				<td style="cursor:pointer;">
+					<xsl:value-of select="@f_ult_estado"/>
+				</td>
+				<td style="cursor:pointer;">
+					<xsl:value-of select="@n_criticidad"/>
+				</td>
+			</tr>
+		</xsl:template>
+	</html:xslt>
+</html:html>

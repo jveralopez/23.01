@@ -1,0 +1,118 @@
+<ALERT xmlns:qry="nomad_engine.qry" label="Recordatorio de fecha pr&#243;xima consulta m&#233;dica" name="REC_PROXIMA_CONSULTA.alert">
+	<PARAMS>
+		<PARAM name="DiasPrevDesde" label="D&#237;as previos a la fecha indicada en el modo" type="int" req="1"/>
+		<PARAM type="string" req="1" label="Modo de consulta." name="Modo"/>
+	</PARAMS>
+	<QRY declare="&lt;PARAMS Modo=&quot;F_CONSULTA&quot; DiasPrevDesde=&quot;3&quot;/&gt;">
+		<qry:main doc="PARAMS">
+			<qry:element name="ROWS">
+				<qry:append-doc name="PARAMIN" doc-path="$PARAMS/PARAMS"/>
+				<TODOS>
+					<qry:attribute name="Modo" value="#PARAMIN:@Modo"/>
+					<qry:attribute name="f_desde_f_creacion" value="now-date() - #PARAMIN:@DiasPrevDesde"/>
+					<qry:attribute name="f_desde_f_visita" value="now-date() + #PARAMIN:@DiasPrevDesde"/>
+					<qry:insert-select name="QRY_CONSULTAS" doc-path="."/>
+				</TODOS>
+			</qry:element>
+		</qry:main>
+		<qry:select doc="PARAM" name="QRY_CONSULTAS">
+			<qry:xquery>
+				for $r in sql('
+			SELECT
+				PER.d_ape_y_nom,
+				PER.c_nro_documento,
+				PER.d_email,
+				LEG.e_numero_legajo,
+				CON.f_prox_consulta,
+				CON.f_creacion
+
+			FROM
+				PER01_PERSONAL as PER,
+				PER02_PERSONAL_EMP as LEG,
+				MED04_HIST_CLINICA as CON
+					
+			JOIN
+				PER.oi_personal INNER LEG.oi_personal,
+				LEG.oi_personal_emp INNER CON.oi_personal_emp
+			
+			WHERE
+				CON.l_envio_mail = 1 AND 
+				CON.f_prox_consulta &gt;= Now()
+				
+        {%? (#PARAM:@Modo='F_CREACION')
+          {% 
+          	AND CON.f_creacion &gt;= {Datetime(#PARAM:@f_desde_f_creacion)} 
+          %} 
+          {% 
+          	AND CON.f_prox_consulta &lt;= {Datetime(#PARAM:@f_desde_f_visita)}
+          %} 
+        %}  
+						
+			ORDER BY d_ape_y_nom ASC
+				
+		')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:element name="EMP">
+					<qry:attribute name="LEGAJO" value="$r/@e_numero_legajo"/>
+					<qry:attribute name="NOMBRE" value="$r/@d_ape_y_nom"/>
+					<qry:attribute name="NRODOC" value="$r/@c_nro_documento"/>
+					<qry:attribute name="MAIL" value="$r/@d_email"/>
+					<qry:attribute name="FECHA_CONSULTA" value="format_date($r/@f_prox_consulta, 'dd/mm/yyyy HH:MM')"/>
+					<qry:attribute name="FECHA_CREACION" value="format_date($r/@f_creacion, 'dd/mm/yyyy HH:MM')"/>
+				</qry:element>
+			</qry:out>
+		</qry:select>
+	</QRY>
+	<MAILS>
+		<MAIL suject=" Recordatorio de fecha pr&#243;xima consulta m&#233;dica " group="EMP">
+			Estimado/a {% @EMP.NOMBRE %} - {% @EMP.LEGAJO %},
+Le recordamos que su pr&#243;ximo turno para seguimiento en el Servicio de Medicina Laboral ser&#225; el d&#237;a {% @EMP.FECHA_CONSULTA %} dentro de los siguientes horarios seg&#250;n corresponda a su d&#237;a de citaci&#243;n: 
+
+CRONOGRAMA DE HORARIOS:
+- Lunes 17 a 20
+- Martes 7 a 10
+- Mi&#233;rcoles 17 a 20
+- Jueves 11 a 14
+- Viernes 7 a 10
+
+Le recordamos que la asistencia es de car&#225;cter obligatorio y deber&#225; presentarse con los estudios complementarios y certificados m&#233;dicos en caso de corresponder. 
+Ante eventos de fuerza mayor por los cuales no pueda presentarse al control, deber&#225; notificarlo con antelaci&#243;n a Recursos Humanos (4469-9500 Int. 276 / 838).
+
+Saludos cordiales,
+Servicio de Medicina Laboral.
+		</MAIL>
+		<MAIL group="TODOS" suject="[Alertas NucleusRH] Recordatorio fechas pr&#243;xima consulta m&#233;dica ">
+			**Los siguientes legajos tienen documentos personales con vencimiento entre {% @EMP.DIASDESDE %} y {% @EMP.DIASHASTA %} d&#237;as:**
+
+         
+^Empresa              ^Legajo              ^Documento              ^Vencimiento     ^Cantidad de D&#237;as    ^
+{%FOR-EACH EMP%}|[{% @EMP.CODEMPRESA %}] {% @EMP.DESCEMPRESA %}  |[{% @EMP.LEGAJO %}] {% @EMP.NOMBRE %}  |[{% @EMP.TIPODOC %}] {% @EMP.NRODOC %}  |{% @EMP.VENCIMIENTO %}  |   {% @EMP.DIAS_VENC %}|
+{%END EMP%}
+		</MAIL>
+	</MAILS>
+	<GROUPS>
+		<GROUP label="Por Empleado" name="EMP">
+			<FIELD type="int" label="Legajo" name="LEGAJO"/>
+			<FIELD type="string" label="Apellido y Nombre" name="NOMBRE"/>
+			<FIELD type="string" label="Nro. Documento" name="NRODOC"/>
+			<FIELD label="E-Mail" type="string" name="MAIL"/>
+			<FIELD label="Fecha pr&#243;xima consulta" name="FECHA_CONSULTA" type="string"/>
+		</GROUP>
+		<GROUP label="Sin Agrupar" name="TODOS">
+			<FIELD type="string" label="Modo de alerta" name="MODO"/>
+			<FIELD label="Cantidad de meses de mas" type="int" name="CANTMES"/>
+			<FIELD type="int" label="Mes de la alerta" name="MES"/>
+			<FIELD name="DIAHOY" type="int" label="D&#237;a de la fecha"/>
+			<FIELD type="string" label="C&#243;digo Empresa" name="CODEMP"/>
+			<FIELD name="TOTREG" label="Cantidad de Registros que genera la Consulta" type="int"/>
+			<FIELD label="Cantidad de Registros que genera la consulta con el l&#237;mite establecido" name="TOTSHOW" type="int"/>
+		</GROUP>
+	</GROUPS>
+	<ENUMS>
+		<ENUM name="Modos">
+			<ITEM text="Seg&#250;n fecha de creaci&#243;n" value="F_CREACION"/>
+			<ITEM value="F_VISITA" text="Seg&#250;n fecha pr&#243;xima visita"/>
+		</ENUM>
+	</ENUMS>
+</ALERT>

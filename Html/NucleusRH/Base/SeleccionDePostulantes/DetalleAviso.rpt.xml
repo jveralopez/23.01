@@ -1,0 +1,252 @@
+<html:html xmlns:html="nomad_engine.html" xmlns:qry="nomad_engine.qry" xmlns:xsl="http://www.w3.org/1999/XSL/Transform" name="NucleusRH.Base.SeleccionDePostulantes.DetalleAviso" doc="source">
+	<html:query declare="&lt;PARAMS oi_aviso=&quot;6&quot;/&gt;" name="dd">
+		<qry:main doc="SOURCE">
+			<qry:element name="OFERTA">
+				<qry:insert-select doc-path="#SOURCE:PARAMS" name="sql1"/>
+			</qry:element>
+		</qry:main>
+		<qry:select doc="SOURCE" name="sql1">
+			<qry:xquery>
+				for $r in sql('
+
+        SELECT
+          avi.oi_aviso,
+          avi.c_aviso,
+          avi.f_aviso,
+          avi.f_cierre,
+          avi.c_sexo,
+          avi.o_aviso,
+          avi.d_mail,
+          avi.c_tipo,
+          avi.oi_pais,
+          avi.oi_provincia,
+          avi.oi_localidad,
+          avi.oi_jerarquia,
+          avi.oi_puesto,
+          avi.oi_area,
+          avi.d_puesto as d_puesto_aviso,
+
+          pais.d_pais,
+          prov.d_provincia,
+          loc.d_localidad,
+
+          jer.d_jerarquia,
+          pu.d_puesto,
+          a.d_area,
+
+          postu.f_postulacion
+
+        FROM
+          SDP05_AVISOS as avi,
+          ORG35_PAISES as pais,
+          ORG35_PROVINCIAS as prov,
+          ORG19_LOCALIDADES as loc,
+          SDP07_JERARQUIA as jer,
+          ORG04_PUESTOS as pu,
+          SDP09_AREAS as a,
+
+          SDP01_POSTU_CV(SDP01_POSTU_CV.oi_cv = {%? (#SOURCE:@oi_cv='') {%='0'%} {%=#SOURCE:@oi_cv%} %}) as postu
+
+        JOIN
+          avi.oi_pais LEFT OUTER pais.oi_pais,
+          avi.oi_provincia LEFT OUTER prov.oi_provincia,
+          avi.oi_localidad LEFT OUTER loc.oi_localidad,
+          avi.oi_jerarquia LEFT OUTER jer.oi_jerarquia,
+          avi.oi_puesto LEFT OUTER pu.oi_puesto,
+          avi.oi_area LEFT OUTER a.oi_area,
+           avi.oi_aviso LEFT OUTER postu.oi_aviso
+
+          WHERE
+            avi.oi_aviso = {#SOURCE:@oi_aviso}
+
+        ')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:element name="DATA">
+					<qry:attribute name="oi_aviso" value="$r/@oi_aviso"/>
+					<qry:attribute name="c_aviso" value="$r/@c_aviso"/>
+					<qry:attribute name="f_aviso" value="format_date($r/@f_aviso, 'dd/mm/yyyy')"/>
+					<qry:attribute name="f_cierre" value="format_date($r/@f_cierre, 'dd/mm/yyyy')"/>
+					<qry:attribute name="c_sexo" value="$r/@c_sexo"/>
+					<qry:attribute name="o_aviso" value="$r/@o_aviso"/>
+					<qry:attribute name="o_aviso2" value="substring($r/@o_aviso, 0, 150) + iif(string_length($r/@o_aviso) &gt; 150, '...', '')"/>
+					<qry:attribute name="d_mail" value="$r/@d_mail"/>
+					<qry:attribute name="d_pais" value="$r/@d_pais"/>
+					<qry:attribute name="d_provincia" value="$r/@d_provincia"/>
+					<qry:attribute name="d_localidad" value="$r/@d_localidad"/>
+					<qry:attribute name="d_jerarquia" value="$r/@d_jerarquia"/>
+					<qry:attribute name="d_puesto" value="iif($r/@d_puesto = '', $r/@d_puesto_aviso, $r/@d_puesto)"/>
+					<qry:attribute name="d_area" value="$r/@d_area"/>
+					<qry:attribute name="postulado" value="iif($r/@f_postulacion != '', '1', '0')"/>
+					<qry:attribute name="oi_cv" value="iif(#SOURCE:@oi_cv = '', '0', #SOURCE:@oi_cv)"/>
+					<qry:attribute name="waitoff" value="iif(#SOURCE:@waitoff = '1', '1', '0')"/>
+				</qry:element>
+			</qry:out>
+		</qry:select>
+	</html:query>
+	<html:xslt>
+		<xsl:template match="/OFERTA/DATA">
+			<html>
+				<HEAD>
+					<meta property="og:title">
+						<xsl:attribute name="content">
+							<xsl:value-of select="@d_puesto"/>
+						</xsl:attribute>
+					</meta>
+					<meta property="og:description">
+						<xsl:attribute name="content">
+							<xsl:value-of select="concat('C&#243;digo de Referencia:&#160;', @c_aviso, '&#160;',  @o_aviso2)"/>
+						</xsl:attribute>
+					</meta>
+					<meta property="og:image">
+						<xsl:attribute name="content">
+							<xsl:value-of select="@urlimage"/>
+						</xsl:attribute>
+					</meta>
+					<LINK href="./Styles/Reports.css" type="text/css" rel="stylesheet"/>
+					<LINK href="./Styles/General.css" type="text/css" rel="stylesheet"/>
+					<script src="./Scripts/controls.js" type="text/javascript">
+						//Script
+					</script>
+					<script languaje="javascript">
+						<xsl:text>
+							function PageOnLoad() {
+						</xsl:text>
+						<xsl:value-of select="concat('var waitoff = ', @waitoff, ';')"/>
+						<xsl:text>
+							if (waitoff == 1) { parent.PageShowWait(false); }
+            }
+						</xsl:text>
+						<xsl:text>
+							function btnPostularse_Click() {
+						</xsl:text>
+						<xsl:value-of select="concat('var oi_aviso = ', @oi_aviso, ';')"/>
+						<xsl:value-of select="concat('var oi_cv = ', @oi_cv, ';')"/>
+						<xsl:value-of select="concat('var postulado = (', @postulado, ' == 1);')"/>
+						<xsl:text>
+							if (postulado) {
+              alert("Usted ya se encuentra postulado a este aviso.");
+            } else {
+              if (oi_cv == 0) {
+                  if (confirm("Para postularse es necesario estar registrado.\n&#191;Desea ir a la pantalla principal para registrarse o iniciar sesi&#243;n?")) {
+                    var URLdir = "Main.htm?oi_aviso=" + oi_aviso;
+                    window.open(URLdir, "_top");
+                  }
+                } else {
+                  parent.btnPostularse_Click(oi_aviso);
+                }
+              }
+            }
+						</xsl:text>
+					</script>
+				</HEAD>
+				<body class="BodyMain" onload="PageOnLoad();">
+					<table cellpadding="0" cellspacing="0" width="100%">
+						<tr>
+							<td class="Det_Titulo">
+								<xsl:value-of select="@d_puesto"/>
+							</td>
+						</tr>
+						<tr>
+							<td valign="top">
+								<table class="Det_Datos" style="margin-left:12px;" cellpadding="1" cellspacing="1" width="100%">
+									<col width="95px"/>
+									<col width="50%"/>
+									<col width="95px"/>
+									<col width="50%"/>
+									<tr>
+										<td class="Det_Label" colspan="4" style="font-style:italic; padding-bottom:15px; color:#7E7E7E;">
+											<xsl:text>
+												C&#243;digo de Referencia:&#160;
+											</xsl:text>
+											<xsl:value-of select="@c_aviso"/>
+										</td>
+									</tr>
+									<xsl:if test="@postulado = '1'">
+										<tr>
+											<td colspan="4" style="font-style:italic; padding-bottom:15px;">
+												<img src="images/Reports/tag_green.gif" title="Ya estoy postulado a esta oferta."/>
+												<xsl:text>
+													&#160;Usted ya se encuentra postulado a este aviso.
+												</xsl:text>
+											</td>
+										</tr>
+									</xsl:if>
+									<tr>
+										<td class="Det_Label">
+											Fecha:&#160;
+										</td>
+										<td>
+											<xsl:value-of select="@f_aviso"/>
+										</td>
+										<td class="Det_Label">
+											&#193;rea&#160;Laboral:&#160;
+										</td>
+										<td>
+											<xsl:value-of select="@d_area"/>
+										</td>
+									</tr>
+									<tr>
+										<td class="Det_Label">
+											Provincia:&#160;
+										</td>
+										<td>
+											<xsl:value-of select="@d_provincia"/>
+										</td>
+										<td class="Det_Label">
+											Sexo:&#160;
+										</td>
+										<td>
+											<xsl:choose>
+												<xsl:when test="@c_sexo = 'M'">
+													Masculino
+												</xsl:when>
+												<xsl:when test="@c_sexo = 'F'">
+													Femenino
+												</xsl:when>
+												<xsl:otherwise>
+													Indistinto
+												</xsl:otherwise>
+											</xsl:choose>
+										</td>
+									</tr>
+									<tr>
+										<td class="Det_Label">
+											Localidad:&#160;
+										</td>
+										<td>
+											<xsl:value-of select="@d_localidad"/>
+										</td>
+										<td class="Det_Label">
+											Jerarqu&#237;a:&#160;
+										</td>
+										<td>
+											<xsl:value-of select="@d_jerarquia"/>
+										</td>
+									</tr>
+									<tr>
+										<td class="Det_Label" colspan="4" style="border-top: 1px #A7A5A6 solid;">
+											Detalle:&#160;
+										</td>
+									</tr>
+									<tr>
+										<td colspan="4" class="Det_Notas" style="border-bottom: 1px #A7A5A6 solid;">
+											<xsl:value-of select="@o_aviso"/>
+										</td>
+									</tr>
+									<tr>
+										<td colspan="4" style="height:50px; text-align:center; vertical-align:bottom;">
+											<a name="btnPostularse" id="btnPostularse" href="javascript:CallNothing();" class="Buttons BImg BC_n" style="background-image: url(./Images/Buttons/postularse_n.gif);" onclick="btnPostularse_Click();" onkeypress="btnPostularse_Click();" onmouseover="ButtonChangeStyle(this,'OVER');" onmouseout="ButtonChangeStyle(this,'NORMAL');" onfocus="ButtonChangeStyle(this,'OVER');" onblur="ButtonChangeStyle(this,'NORMAL');">
+												Postularse
+											</a>
+										</td>
+									</tr>
+								</table>
+							</td>
+						</tr>
+					</table>
+				</body>
+			</html>
+		</xsl:template>
+	</html:xslt>
+</html:html>

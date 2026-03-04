@@ -1,0 +1,153 @@
+<flow:flow default_action="initialize" extends="Nomad.Base.flow" xmlns:flow="nomad_engine.form" xmlns:doc="nomad_engine.form" xmlns:qry="nomad_engine.form" name="ReportePresentismoAusencia">
+	<flow:info label="ReportePresentismoAusencia"/>
+	<flow:declare>
+		<doc:define name="FILTERDATA">
+			<FILTRO oi_clase_org="" oi_horario="" oi_empresa="" file-name="" batch-id="">
+				<PERSONAS/>
+			</FILTRO>
+		</doc:define>
+		<qry:define declare="&lt;FILTRO oi_horario =&quot;1&quot;  oi_estructura=&quot;&quot; &#13;&#10;oi_empresa=&quot;1&quot; file-name=&quot;&quot; batch-id=&quot;&quot; f_des=&quot;20070101&quot; f_has=&quot;20070301&quot;/&gt;&#13;&#10;" name="querySlect">
+			<qry:main doc="PARAM">
+				<qry:append-doc name="FILTRO" doc-path="#PARAM:/FILTRO"/>
+				<qry:insert-select doc-path="#FILTRO:" name="filtro_empresa"/>
+			</qry:main>
+			<qry:select doc="PARAM" name="filtro_empresa">
+				<qry:xquery>
+					for $r in table('
+						select d_empresa from org03_empresas where oi_empresa= {#FILTRO:@oi_empresa}
+					')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:element name="DATOS">
+						<qry:attribute type="Nomad.NSystem.String" value="$r/@d_empresa" name="d_empresa"/>
+						<qry:attribute value="format_date(#FILTRO:@f_des,'dd/mm/yyyy')" name="f_des"/>
+						<qry:attribute value="format_date(#FILTRO:@f_has,'dd/mm/yyyy')" name="has"/>
+						<qry:insert-select name="QRY_NomHorario" doc-path="#FILTRO:"/>
+						<qry:insert-select name="QRY_Calendario" doc-path="#FILTRO:"/>
+					</qry:element>
+				</qry:out>
+			</qry:select>
+			<qry:select doc="PARAM" name="QRY_NomHorario">
+				<qry:xquery>
+					for $r in table('
+select distinct c_horario , d_horario
+from dbo.TTA02_horarios 
+where  oi_horario ={%=#FILTRO:@oi_horario%}   
+')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:attribute type="Nomad.NSystem.String" value="$r/@c_horario" name="c_horario"/>
+					<qry:attribute type="Nomad.NSystem.String" value="$r/@d_horario" name="d_horario"/>
+				</qry:out>
+			</qry:select>
+			<qry:select name="QRY_Calendario" doc="PARAM_CAL" xmlns:qry="nomad.xquery">
+				<qry:xquery>
+					for $r in table('
+select distinct dbo.ORG27_CAL_FERIADOS.oi_calendario oi_calendario ,
+ dbo.ORG27_CAL_FERIADOS.c_calendario  c_calendario ,  dbo.ORG27_CAL_FERIADOS.d_calendario  d_calendario
+from dbo.TTA13_CalendarEsp  , dbo.ORG27_CAL_FERIADOS
+where  dbo.TTA13_CalendarEsp.oi_horario ={%=#FILTRO:@oi_horario%}  
+and  dbo.TTA13_CalendarEsp.oi_empresa ={%=#FILTRO:@oi_empresa%}   ')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:element name="CALENDARIO">
+						<qry:attribute value="$r/@c_calendario" name="c_calendario"/>
+						<qry:attribute value="$r/@d_calendario" name="d_calendario"/>
+						<qry:attribute value="$r/@oi_calendario" name="oi_calendario"/>
+						<qry:insert-select doc-path="$r" name="qry_SelEscuadras"/>
+					</qry:element>
+				</qry:out>
+			</qry:select>
+			<qry:select doc="PARAM_SELesc" name="qry_SelEscuadras" xmlns:qry="nomad.xquery">
+				<qry:xquery>
+					for $r in table('
+select distinct dbo.TTA03_ESPERANZA.oi_horario oi_horario ,  
+oi_calendario ,isnull(dbo.TTA03_ESPERANZA.oi_escuadra,0)   oi_escuadra , 
+ isnull(c_escuadra,\'SE\') c_escuadra, isnull(d_escuadra,\'\') d_escuadra  
+from dbo.TTA03_ESPERANZA , dbo.TTA02_ESCUADRAS 
+where dbo.TTA03_ESPERANZA.oi_escuadra *=  dbo.TTA02_ESCUADRAS.oi_escuadra  
+AND dbo.TTA03_ESPERANZA.oi_horario *=  dbo.TTA02_ESCUADRAS.oi_horario 
+AND dbo.TTA03_ESPERANZA.oi_horario ={%=#FILTRO:@oi_horario%}   
+and  oi_empresa ={%=#FILTRO:@oi_empresa%}   
+and oi_calendario ={%=#PARAM_SELesc:@oi_calendario%} ')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:element name="ESCUADRAS">
+						<qry:attribute value="$r/@c_escuadra" name="escuadra"/>
+						<qry:attribute value="$r/@d_escuadra" name="d_escuadra"/>
+						<qry:attribute name="oi_escuadra" value="$r/@oi_escuadra"/>
+						<qry:attribute name="oi_calendario" value="$r/@oi_calendario"/>
+						<qry:insert-select doc-path="$r" name="qry_SelDatos"/>
+					</qry:element>
+				</qry:out>
+			</qry:select>
+			<qry:select doc="PARAM_SEL" name="qry_SelDatos" xmlns:qry="nomad.xquery">
+				<qry:xquery>
+					for $r in table('
+
+
+select 
+NombreDia = case datepart(dw,EZ.f_fecha)  when 1 then \'Lunes\' 
+					when 2 then \'Martes\' 
+					when 3 then \'Miercoles\' 
+					when 4 then \'Jueves\' 
+					when 5 then \'Viernes\' 
+					when 6 then \'Sabado\' 
+					when 7 then \'Domingo\' end
+,f_Horainicio  = EZ.f_Horainicio  
+,f_Horafin = EZ.f_Horafin 
+,Tipo_Hora = TH.d_tipohora
+,UnidadOrg = UO.d_unidad_org
+, Posicion = e_posicion
+FROM TTA03_ESPERANZA   EZ ,
+	TTA01_TipoHoras   TH  ,
+	ORG02_ESTRUCTURAS EST , 
+	ORG01_UNI_ORG     UO 
+WHERE 	EZ.oi_TipoHora = TH.oi_TipoHora
+and	EZ.oi_estructura = EST.oi_estructura
+and	EST.oi_unidad_org = UO.oi_unidad_org      
+and oi_horario ={%=#FILTRO:@oi_horario%}   
+and  oi_empresa ={%=#FILTRO:@oi_empresa%}
+    
+and  oi_calendario ={%=#PARAM_SEL:@oi_calendario%}      
+{%? (#PARAM_SEL:@oi_escuadra!=0) {% and oi_escuadra &gt; {#PARAM_SEL:@oi_escuadra} %} {% %} %}
+{%? (#FILTRO:@f_des!='') {% and f_fecha &gt; {#FILTRO:@f_des} %} {% %} %}
+{%? (#FILTRO:@f_has!='') {% and f_fecha &lt; {#FILTRO:@f_has} %} {% %} %} 
+ 
+
+   ')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:element name="semana">
+						<qry:attribute value="$r/@NombreDia" name="NombreDia" type="Nomad.NSystem.String"/>
+						<qry:attribute value="format_date($r/@f_Horainicio,'yyyy/mm/dd')" name="Dia" type="Nomad.NSystem.String"/>
+						<qry:attribute value="$r/@Posicion" name="Posicion" type="Nomad.NSystem.String"/>
+						<qry:attribute value="format_date($r/@f_Horainicio,'HH:MM')" name="Desde" type="Nomad.NSystem.String"/>
+						<qry:attribute value="format_date($r/@f_Horafin,'HH:MM')" name="Hasta" type="Nomad.NSystem.String"/>
+						<qry:attribute value="$r/@Tipo_Hora" name="Tipo_Hora" type="Nomad.NSystem.String"/>
+						<qry:attribute value="$r/@UnidadOrg" name="UnidadOrganizativa" type="Nomad.NSystem.String"/>
+					</qry:element>
+				</qry:out>
+			</qry:select>
+		</qry:define>
+	</flow:declare>
+	<flow:main doc="SOURCE">
+		<flow:action name="initialize">
+			<flow:open-form doc-path="#SOURCE:" mode="FILTER" form-class="NucleusRH.Base.Tiempos_Trabajados.Reporte.CalendarEsp.filter.form"/>
+		</flow:action>
+	</flow:main>
+	<flow:form name="NucleusRH.Base.Tiempos_Trabajados.Reporte.CalendarEsp.filter.form:FILTER" parent-doc="PARENTSOURCE" doc="SOURCE" mode="FILTER" form-class="NucleusRH.Base.Tiempos_Trabajados.Reporte.CalendarEsp.filter.form">
+		<flow:action name="BACK">
+			<flow:close-form/>
+		</flow:action>
+		<flow:action name="ACCEPT">
+			<flow:log text="ppfilterdata" text-path="#FILTERDATA:"/>
+			<flow:exec-method out-attr-path="#FILTERDATA:@batch-id" out-type="String" priority="5" method="execute" class="Nomad.NSystem.Crystal.NmdCrystalBatch">
+				<flow:param value="NucleusRH.Base.Tiempos_Trabajados.CalendarEsp\CalendarEsp.def" name="report-name" mode="in" type="Nomad.NSystem.String"/>
+				<flow:param name="report-param" mode="in" type="Nomad.NSystem.Object" doc="FILTERDATA"/>
+				<flow:param attr-path="#FILTERDATA:@file-name" name="report-file" mode="in" type="Nomad.NSystem.String"/>
+			</flow:exec-method>
+			<flow:open-form form-class="Nomad.base.batch.report.form" mode="BATCH" doc-path="#FILTERDATA:"/>
+		</flow:action>
+	</flow:form>
+</flow:flow>

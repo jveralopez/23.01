@@ -1,0 +1,54 @@
+<interface:interface doc="source" name="NucleusRH.Base.Tiempos_Trabajados.Liquidacion.InterfaceAcreditacionHoras" xmlns:interface="nomad:interface" xmlns:qry="nomad:query" xmlns:xsl="http://www.w3.org/1999/XSL/Transform" xmlns:fo="http://www.w3.org/1999/XSL/Format">
+	<interface:query>
+		<qry:main doc="PARAM">
+			<qry:element name="ROWS">
+				<qry:insert-select doc-path="#PARAM:FILTRO" name="qry_legajos"/>
+			</qry:element>
+		</qry:main>
+		<qry:select doc="PARAM" name="qry_legajos">
+			<qry:xquery>
+				for $r in table('
+select min(oi_liquidacionproc) id, c_empresa, c_liquidacion, e_numero_legajo, tta01_tipohoras.c_tipohora, c_liquidador, SUM(n_cantidadhs) Cantidad
+from tta10_liquidacproc, tta10_liquidacpers, tta09_liquidacion, org03_empresas, per02_personal_emp, tta01_tipohoras, tta10_liquidacjor
+where tta10_liquidacpers.oi_liquidacionpers =  tta10_liquidacjor.oi_liquidacionpers 
+and tta10_liquidacproc.oi_liquidacjor  =  tta10_liquidacjor.oi_liquidacjor 
+and tta10_liquidacpers.oi_liquidacion = tta09_liquidacion.oi_liquidacion
+and tta10_liquidacpers.oi_personal_emp =  per02_personal_emp.oi_personal_emp
+and tta09_liquidacion.oi_empresa = org03_empresas.oi_empresa
+and tta10_liquidacproc.oi_tipohora = tta01_tipohoras.oi_tipohora
+and tta09_liquidacion.oi_liquidacion = {#PARAM:@id}
+group by c_empresa, c_liquidacion, e_numero_legajo, tta01_tipohoras.c_tipohora, c_liquidador
+order by e_numero_legajo	
+							')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:element name="ROW">
+					<qry:attribute value="$r/@c_empresa" name="c_empresa" type="Nomad.NSystem.Int"/>
+					<qry:attribute value="$r/@c_liquidacion" name="c_liquidacion" type="Nomad.NSystem.Int"/>
+					<qry:attribute value="$r/@e_numero_legajo" name="e_numero_legajo" type="Nomad.NSystem.Int"/>
+					<qry:attribute value="$r/@c_tipohora" name="c_tipohora" type="Nomad.NSystem.Int"/>
+					<qry:attribute value="$r/@c_liquidador" name="c_liquidador" type="Nomad.NSystem.Int"/>
+					<qry:attribute value="$r/@Cantidad" name="Cantidad" type="Nomad.NSystem.Int"/>
+				</qry:element>
+			</qry:out>
+		</qry:select>
+	</interface:query>
+	<interface:block>
+		<xsl:output method="text"/>
+		<xsl:template match="/">
+			<xsl:apply-templates select="ROWS"/>
+		</xsl:template>
+		<xsl:template match="ROW">
+			<xsl:value-of select="@c_empresa"/>
+			<xsl:value-of select="@c_liquidacion"/>
+			<xsl:value-of select="@e_numero_legajo"/>
+			<xsl:value-of select="@c_tipohora"/>
+			<xsl:value-of select="@importe"/>
+			<xsl:value-of select="@c_liquidador"/>
+			<xsl:value-of select="@Cantidad"/>
+			<xsl:text>
+				&#13;&#10;
+			</xsl:text>
+		</xsl:template>
+	</interface:block>
+</interface:interface>

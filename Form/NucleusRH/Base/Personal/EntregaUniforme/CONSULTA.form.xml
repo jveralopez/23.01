@@ -1,0 +1,140 @@
+<form:Form xmlns:form="nomad_engine.form" xmlns:qry="nomad_engine.qry" default_mode="SHOW" mess="&#191;Est&#225; seguro que desa cancelar la operaci&#243;n?" doc="source" name="NucleusRH.Base.Personal.EntregaUniforme.CONSULTA">
+	<form:Title width="90%">
+		<form:Label label="Entrega de Uniformes" nowrap="1" align="center" style="S3 LCol_w" name="GEN_NEW"/>
+	</form:Title>
+	<form:Center width="95%">
+		<form:Columns visible="SHOW|EDIT|DELETE|NEW" name="main_columnsCONSULTAS">
+			<form:Column separation="2" valign="top" align="center" name="main_columnsCONSULTAcolumn1">
+				<form:Blank name="bl1"/>
+				<form:ComboBox where1="PER02_PERSONAL_EMP.oi_indic_activo = 1" queryname2="NucleusRH.Base.Organizacion.Empresas.EMPRESA.INFO" queryname1="NucleusRH.Base.Personal.LegajoEmpresa.PERSONAL_EMP.INFO" xsize="30" mode="QRY" required="1" enabled="NEW|EDIT" label="Empresa - Legajo" nvalue="#source:@oi_personal_emp" name="oi_personal_emp"/>
+				<form:Blank name="bl2"/>
+				<form:Line width="50%" name="lin_ext_NucleusRH.Base.Personal.Licencias.LICENCIA"/>
+				<form:Blank name="bl3"/>
+				<form:ComboBox queryname1="NucleusRH.Base.Organizacion.Uniformes.UNIFORME.INFO" xsize="40" mode="QRY" required="1" label="Uniforme" nvalue="#source:@oi_uniforme" name="oi_uniforme"/>
+				<form:DateTime label="Fecha Entrega" pattern="YYYYMMDD" required="1" mask="dd/mm/yyyy" nvalue="#source:@f_desde" name="f_desde">
+					<form:SButtons>
+						<form:SButton visible="EDIT|NEW" img="Calendar" label="Calendar" name="Calendar">
+							<form:Event action="SHOW_HELPER" name="onclick" runat="client"/>
+						</form:SButton>
+					</form:SButtons>
+				</form:DateTime>
+				<form:ComboBox queryname1="NucleusRH.Base.Personal.Mot_Entrega.MOT_ENTREGA.INFO" xsize="40" mode="QRY" required="1" label="Motivo Entrega" nvalue="#source:@oi_mot_entrega" name="oi_mot_entrega"/>
+				<form:NumberBox xsize="12" required="1" label="Cantidad" nvalue="#source:@e_cantidad" name="e_cantidad"/>
+			</form:Column>
+		</form:Columns>
+	</form:Center>
+	<form:Bottom>
+		<form:RowAligner name="buttonlinks">
+			<form:Row name="row2">
+				<form:Button visible="NEW|EDIT|SHOW" descrip="Guarda los cambios realizados" label="Guardar" startvalidate="1" img="save" name="SAVE">
+					<form:Event action="ValidaStock" runat="client" name="onClick"/>
+					<form:Event action="SAVE" name="onclick" runat="server"/>
+				</form:Button>
+				<form:Button visible="NEW|EDIT|DELETE|SHOW" descrip="Cancelar la operacion actual." mess="&#191;Est&#225; seguro que desea cancelar la operaci&#243;n?" img="cancel" label="Cancelar" name="CANCEL">
+					<form:Event action="CANCEL" name="onclick" runat="server"/>
+				</form:Button>
+			</form:Row>
+		</form:RowAligner>
+	</form:Bottom>
+	<form:Scripts>
+		function ValidaStock()
+{
+	var cantDisp;  
+  var nSQL = GetProxy().SQLService();
+  var param = "&lt;PARAM oi_uniforme=\""+Ctrl('oi_uniforme').GetXValue() + "\"/&gt;"; 
+  
+  cantDisp = nSQL.GetOBJ(Ctrl("main").getResource("QRY_EXISTENCIAS"), param);	
+  
+  if(parseInt(Ctrl('e_cantidad').GetXValue(),10) &gt; parseInt(cantDisp.stock,10)) 
+		return confirm("No hay stock disponible a la fecha. Desea continuar de todos modos?");		  
+  return true;
+}
+	</form:Scripts>
+	<form:Resources>
+		<form:Resource declare="&lt;PARAM oi_uniforme=&quot;1&quot;/&gt;" name="QRY_EXISTENCIAS">
+			<qry:main doc="SOURCE">
+				<qry:element name="DATO">
+					<qry:attribute name="oi_uniforme" value="#SOURCE:PARAM/@oi_uniforme"/>
+					<qry:insert-select name="RS1" doc-path="#SOURCE:PARAM"/>
+					<qry:insert-select name="RS2" doc-path="."/>
+					<qry:insert-select name="RS2_1" doc-path="."/>
+					<qry:insert-select name="RS3" doc-path="."/>
+					<qry:attribute name="stock" value="number(@recuento) + number(@repuesto) + number(@devuelto) - number(@entregado)"/>
+				</qry:element>
+			</qry:main>
+			<qry:select name="RS1" doc="SOURCE">
+				<qry:xquery>
+					for $r in sql('
+   		SELECT 
+   			MAX(ORG16_UNIF_REC.f_recuento) as f_recuento,
+				ORG16_UNIF_REC.e_cantidad as cant
+			FROM 
+				ORG16_UNIF_REC
+			WHERE 
+				ORG16_UNIF_REC.oi_uniforme = {#SOURCE:@oi_uniforme}			
+			GROUP BY 
+				ORG16_UNIF_REC.e_cantidad
+			ORDER BY 
+				f_recuento ASC			
+      ')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:attribute name="recuento" value="$r/@cant"/>
+					<qry:attribute name="f_recuento" value="$r/@f_recuento"/>
+				</qry:out>
+			</qry:select>
+			<qry:select name="RS2" doc="SOURCE">
+				<qry:xquery>
+					for $r in sql('
+    	SELECT 
+      	SUM(PER02_UNIF_PER.e_cantidad) as cant
+			FROM 
+				PER02_UNIF_PER
+			WHERE				
+				PER02_UNIF_PER.oi_uniforme = {#SOURCE:@oi_uniforme} AND  
+				PER02_UNIF_PER.f_desde &gt;= {Datetime(#SOURCE:@f_recuento)}
+      ')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:attribute name="entregado" value="$r/@cant"/>
+				</qry:out>
+			</qry:select>
+			<qry:select name="RS2_1" doc="SOURCE">
+				<qry:xquery>
+					for $r in sql('
+    	SELECT 
+      	SUM(PER02_DEV_UNIF.e_cantidad) as cant
+			FROM 
+				PER02_DEV_UNIF, 
+				PER02_UNIF_PER
+			JOIN
+				PER02_DEV_UNIF.oi_uniforme_per INNER PER02_UNIF_PER.oi_uniforme_per
+			WHERE 				
+				PER02_DEV_UNIF.l_repone_stock = 1 AND 
+				PER02_UNIF_PER.oi_uniforme = {#SOURCE:@oi_uniforme} AND  
+				PER02_DEV_UNIF.f_dev_unif &gt;= {Datetime(#SOURCE:@f_recuento)}												
+      ')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:attribute name="devuelto" value="$r/@cant"/>
+				</qry:out>
+			</qry:select>
+			<qry:select name="RS3" doc="SOURCE">
+				<qry:xquery>
+					for $r in sql('
+    	SELECT 
+      	SUM(ORG16_UNIF_REP.e_cant_repuesta) as cant
+			FROM 
+				ORG16_UNIF_REP
+			WHERE 
+				ORG16_UNIF_REP.oi_uniforme = {#SOURCE:@oi_uniforme} AND  
+				ORG16_UNIF_REP.f_reposicion &gt;= {Datetime(#SOURCE:@f_recuento)}
+		 ')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:attribute name="repuesto" value="$r/@cant"/>
+				</qry:out>
+			</qry:select>
+		</form:Resource>
+	</form:Resources>
+</form:Form>

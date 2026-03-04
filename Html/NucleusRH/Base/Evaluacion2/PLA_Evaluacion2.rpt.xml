@@ -1,0 +1,3905 @@
+<html:html xmlns:html="nomad_engine.html" xmlns:xsl="http://www.w3.org/1999/XSL/Transform" extends="NucleusRH.Base.Evaluacion2.BASE_Evaluacion2.rpt" doctype="HTML5" name="Evaluacion Base 2.0" doc="source" impl="M">
+	<html:xslt>
+		<xsl:template name="COMBO_TEMPLATES">
+			<OPT value="ITEM_ESC_COMBO" code="ITEM_ESC_COMBO" text="Items Combo" impl="EEASCS-" param1="Etiqueta Resultado" param2="Decimales Valor"/>
+			<OPT value="ITEM_ESC_COMBO_POND" code="ITEM_ESC_COMBO_POND" text="Items Combo con Ponderaci&#243;n" impl="EEASCS-" param1="Etiqueta Resultado" param2="Decimales Valor" param3="Decimales Ponderacion"/>
+			<OPT value="ITEM_ESC_NUM" code="ITEM_ESC_NUM" text="Items Valor Numerico" impl="EEASCS-" param1="Etiqueta Resultado" param2="Decimales Valor" param3="Decimales Ponderacion"/>
+			<OPT value="ITEM_ESC_NUM_POND" code="ITEM_ESC_NUM_POND" text="Items Valor Numerico con Ponderaci&#243;n" impl="EEASCS-" param1="Etiqueta Resultado" param2="Decimales Valor" param3="Decimales Ponderacion"/>
+			<OPT value="SUBITEM_ESC_COMBO" code="SUBITEM_ESC_COMBO" text="Subitems Combo" impl="EEASCS3" param1="Etiqueta Resultado" param2="Decimales Valor"/>
+			<OPT value="ITEM_ESC_FOR_POND" code="ITEM_ESC_FOR_POND" text="Items Valor Formula con Ponderaci&#243;n" impl="EEASCS-" param1="Etiqueta Resultado" param2="Decimales Valor" param3="Decimales Ponderacion" param4="Columnas Adicionales" param5="Formula"/>
+			<OPT value="ITEM_NOESCALA" code="ITEM_NOESCALA" text="Listas de Comentarios" impl="E---C--" param1="Columna 1" param2="Columna 2" param3="Columna 3" param4="Columna 4" param5="Columna 5"/>
+			<OPT value="RESUMEN" code="RESUMEN" text="Resumen de Resultados" impl="-EASC-3" param1="Decimales"/>
+			<OPT value="COMENT" code="COMENT" text="Comentarios" impl="----C--"/>
+			<OPT value="COMENT_360" code="COMENT_360" text="Comentarios por Usuario" impl="------3" param1="Etiqueta Evaluador" param2="Etiqueta Supervisor" param3="Etiqueta Evaluado"/>
+			<OPT value="FIRMA" code="FIRMA" text="Firma" impl="----C--" param1="Etiqueta Evaluador" param2="Etiqueta Supervisor" param3="Etiqueta Evaluado"/>
+		</xsl:template>
+		<xsl:template match="REPORT">
+			<xsl:variable name="REPORT" select="."/>
+			<html>
+				<xsl:attribute name="nmd_timestamp">
+					<xsl:value-of select="@timestamp"/>
+				</xsl:attribute>
+				<head>
+					<xsl:call-template name="STYLE"/>
+					<script>
+						<xsl:text>
+							/////////////////////////////////////////////////////
+//
+//
+var EVALUADOR;
+var EVALUADORES = new Object();            
+
+EVALUADORES.items=new Array();           
+EVALUADORES.Add = function(EVALUADOR) { this.items["K"+EVALUADOR.oi_personal_emp]=EVALUADOR; };
+EVALUADORES.Get = function(oi_personal_emp) { return this.items["K"+oi_personal_emp]; };
+						</xsl:text>
+						<xsl:value-of select="concat('EVALUADORES.oi_evaluador_360=',EVALUADORES/@oi_evaluador_360,';')"/>
+						<xsl:for-each select="EVALUADORES/EVALUADOR">
+							<xsl:text>
+								EVALUADOR=new Object();
+							</xsl:text>
+							<xsl:value-of select="concat('EVALUADOR.oi_personal_emp=',@oi_personal_emp,';')"/>
+							<xsl:value-of select="concat('EVALUADOR.oi_rol=',@oi_rol,';')"/>
+							<xsl:value-of select="concat('EVALUADOR.d_rol=&quot;',@d_rol,'&quot;;')"/>
+							<xsl:value-of select="concat('EVALUADOR.c_estado=&quot;',@c_estado,'&quot;;')"/>
+							<xsl:text>
+								EVALUADORES.Add(EVALUADOR);
+							</xsl:text>
+						</xsl:for-each>
+						<xsl:text>
+							/////////////////////////////////////////////////////
+//
+//
+var ESCALAS = new Object();            
+
+ESCALAS.items=new Array();
+ESCALAS.Add = function(ESCALA) { this.items["K"+ESCALA.oi_escala]=ESCALA; }
+ESCALAS.Get = function(oi_escala) { return this.items["K"+oi_escala]; }
+
+var ESCALA, ESCVAL;
+						</xsl:text>
+						<xsl:for-each select="ESCALAS/ESCALA">
+							<xsl:text>
+								ESCALA=new Object();
+							ESCALA.Valores=new Array();
+							</xsl:text>
+							<xsl:value-of select="concat('ESCALA.oi_escala=',@oi_escala,';')"/>
+							<xsl:value-of select="concat('ESCALA.min=',@min,';')"/>
+							<xsl:value-of select="concat('ESCALA.max=',@max,';')"/>
+							<xsl:for-each select="VAL">
+								<xsl:text>
+									ESCVAL=new Object();
+								</xsl:text>
+								<xsl:value-of select="concat('ESCVAL.min=',@VAL_min,';')"/>
+								<xsl:value-of select="concat('ESCVAL.max=',@VAL_max,';')"/>
+								<xsl:value-of select="concat('ESCVAL.cod=&quot;',@VAL_cod,'&quot;;')"/>
+								<xsl:value-of select="concat('ESCVAL.des=&quot;',@VAL_des,'&quot;;')"/>
+								<xsl:text>
+									ESCALA.Valores.push(ESCVAL);
+								</xsl:text>
+							</xsl:for-each>
+							<xsl:text>
+								ESCALAS.Add(ESCALA);
+							</xsl:text>
+						</xsl:for-each>
+						<xsl:text>
+							/////////////////////////////////////////////////////
+//
+//   
+
+function PlantillaBase(pID)
+{               
+	this.Count=0;                
+	this.Id=pID;
+	this.Escala=0;
+	this.Pond=1.0;
+	this.Decimales=0;     
+	this.PondDecimales=0;  
+
+	//Estados	
+	this.Show=0;
+	this.Edit=0;
+	this.Evaluador=0;
+	this.Evaluador360=0;
+	this.Evaluado=0;
+	this.Supervisor=0;
+	this.Comentarios=0;
+	this.MostrarResumen=0;  
+	
+	//Permite
+	this.SumEva=0;
+	this.SumAut=0;
+	this.SumSup=0;
+	this.Sum360=0;      
+ 
+ 	//Valores
+	this.Value1=null;
+	this.Value2=null;
+	this.Value3=null;              
+	this.Values=new Array();
+	
+	//Elementos Hijos
+	this.Items=new Array();          
+
+	//Funciones para ITEMS
+	this.AddItem = function(IT) { this.Items["K_"+IT.Id]=IT; }       
+	this.GetItem = function(ITID) { return this.Items["K_"+ITID]; }       
+	this.DelItem = function(Id)
+	{              
+		if (!confirm("Esta seguro que quiere Eliminarlo?")) return;
+		
+		var MyIT=this.GetItem(Id);
+		MyIT.Delete=true;  
+		
+		//Elimino los ROWS HIJOS
+		for (key in MyIT.Subitems)
+		{
+			var MySUBITEM=MyIT.Subitems[key];
+			if (!MySUBITEM.Delete)
+			this.DelSubitem(Id,MySUBITEM.Id,true);
+		}                                
+	  
+	  var MyTR;
+		var TBL=document.getElementById("TBL_"+this.Id);
+		if (TBL)
+		{
+			//Elimino el ROW
+			MyTR=document.getElementById("TR_O_"+Id);
+			if (MyTR) TBL.deleteRow(MyTR.rowIndex);
+			
+			//Elimino el ROWADD
+			MyTR=document.getElementById("TR_OA_"+Id);
+			if (MyTR) TBL.deleteRow(MyTR.rowIndex);
+			
+			//Elimino el ROW SUBTOTAL
+			MyTR=document.getElementById("TR_OR_"+Id);
+			if (MyTR) TBL.deleteRow(MyTR.rowIndex);
+			
+			//Elimino el ROW SUBTOTAL
+			MyTR=document.getElementById("TR_ST_"+Id);
+			if (MyTR) TBL.deleteRow(MyTR.rowIndex);
+		}
+		
+		this.RECALC();
+		this.REFRESH();
+	}                     
+	this.NewItem = function()
+	{              
+		this.Count++;        
+		
+		var ITEM=new Object();  
+		ITEM.Id="N_"+this.Id+"_"+this.Count;
+		ITEM.Pond=1;
+		ITEM.Escala=this.Escala;
+		ITEM.Values=new Array();	
+		ITEM.Value1=null;
+		ITEM.Value2=null;
+		ITEM.Value3=null;
+		ITEM.Cus1="";
+		ITEM.Cus2="";
+		ITEM.Cus3="";
+		ITEM.Cus4="";
+		ITEM.Cus5="";
+		ITEM.New=true;
+		ITEM.Delete=false;
+		ITEM.Subitems=new Array();
+		this.AddItem(ITEM);
+
+		//Cargos los TRS
+		var arr_TR_TMP=new Array();
+		var TR_TMP;
+		for (var i=0; i!=4; i++)
+		{
+			switch(i)
+			{
+				case 0: TR_TMP=document.getElementById("TR_OT_"+this.Id); break;
+				case 1: TR_TMP=document.getElementById("TR_OTA_"+this.Id); break;
+				case 2: TR_TMP=document.getElementById("TR_OTR_"+this.Id); break;
+				case 3: TR_TMP=document.getElementById("TR_STT_"+this.Id); break;
+			}        
+			if (TR_TMP) arr_TR_TMP.push(TR_TMP);
+		}
+		 
+		var TBL=document.getElementById("TBL_"+this.Id);
+	
+		//Agrego los ROWs
+		if (TBL)
+		for (var i=0; i!=arr_TR_TMP.length; i++)
+		{
+			var TBL=document.getElementById("TBL_"+this.Id);
+			var TR_TMP=arr_TR_TMP[i];
+	
+			var TR=TBL.insertRow(TBL.rows.length-1-arr_TR_TMP.length);
+			TR.className=TR_TMP.className;
+	
+			switch(i)
+			{
+				case 0: TR.id="TR_O_"+ITEM.Id; break;
+				case 1: TR.id="TR_OA_"+ITEM.Id; break;
+				case 2: TR.id="TR_OR_"+ITEM.Id; break;
+				case 3: TR.id="TR_ST_"+ITEM.Id; TR.style.display="none"; break;
+			}
+	
+	
+			for (var t=0; t!=TR_TMP.cells.length; t++)
+			{                 
+				var CELD=TR.insertCell(-1);
+				
+				strHTML=TR_TMP.cells.item(t).innerHTML;
+				strHTML=Replace(strHTML,"STR_REPLACE_NAME","'"+ITEM.Id+"'");
+				strHTML=Replace(strHTML,"REPLACE_NAME",ITEM.Id);
+				strHTML=Replace(strHTML,"REPLACE_X_NAME","REPLACE_NAME");
+				
+				CELD.innerHTML=strHTML;
+				CELD.className=TR_TMP.cells.item(t).className;
+			}
+		}          
+	
+		this.RECALC();
+		this.REFRESH();
+	}
+	
+
+	//Funciones para SUBITEMS
+	this.AddSubitem = function(ITID, SIT) { this.Items["K_"+ITID].Subitems["K_"+SIT.Id]=SIT; }       
+	this.GetSubitem = function(ITID, SITID) { return this.Items["K_"+ITID].Subitems["K_"+SITID]; }   
+	this.DelSubitem = function(ItemID, SubitemID, force)
+	{                                                 
+		if (force?false:true) if (!confirm("Esta seguro que quiere Eliminarlo?")) return;
+	
+		var MyIT=this.GetSubitem(ItemID, SubitemID);
+		MyIT.Delete=true;  
+		                               
+		//Elimino el ROW
+		var TBL=document.getElementById("TBL_"+this.Id);
+		if (TBL)
+		{
+			var MyTR=document.getElementById("TR_S_"+ItemID+"_"+SubitemID);
+			if (MyTR) TBL.deleteRow(MyTR.rowIndex);
+		}
+	                     
+		if (force?false:true)
+		{                     
+			this.RECALC();
+			this.REFRESH();
+		}
+	}       
+	this.NewSubitem = function(ItemId)
+	{              
+		this.Count++;             
+		
+		var ITEM=this.GetItem(ItemId);
+		
+		var SUBITEM=new Object();  
+		SUBITEM.Id=ItemId+"_N_"+this.Count;
+		SUBITEM.Pond=1;
+		SUBITEM.Escala=this.Escala;
+		SUBITEM.Values=new Array();	
+		SUBITEM.Value1=null;
+		SUBITEM.Value2=null;
+		SUBITEM.Value3=null;
+		SUBITEM.New=true;
+		SUBITEM.Delete=false;
+		this.AddSubitem(ItemId,SUBITEM);
+		
+		var rowIndex=document.getElementById("TR_OA_"+ItemId).rowIndex;
+		
+		//Agrego los ROWs
+		var TBL=document.getElementById("TBL_"+this.Id);
+		var TR_TMP=document.getElementById("TR_ST_"+ItemId);
+		
+		var TR=TBL.insertRow(rowIndex);
+		TR.className=TR_TMP.className;
+		TR.id="TR_S_"+ItemId+"_"+SUBITEM.Id;
+	
+		for (var t=0; t!=TR_TMP.cells.length; t++)
+		{                 
+			var CELD=TR.insertCell(-1);
+			
+			strHTML=TR_TMP.cells.item(t).innerHTML;
+			strHTML=Replace(strHTML,"STR_REPLACE_NAME","'"+SUBITEM.Id+"'");
+			strHTML=Replace(strHTML,"REPLACE_NAME",SUBITEM.Id);
+			strHTML=Replace(strHTML,"REPLACE_X_NAME","REPLACE_NAME");
+			
+			CELD.innerHTML=strHTML;
+			CELD.className=TR_TMP.cells.item(t).className;
+		}
+		
+		this.RECALC();
+		this.REFRESH();
+	}
+	
+
+	this.RECALC = function()
+	{                
+		this.OK=true;   
+	}
+	
+	this.REFRESH = function()
+	{
+		var MyITEM, CELD, key;
+		if (this.Show!='1') return;
+	
+		//Totales ITEMS
+		for (key in this.Items)
+		{
+			MyITEM=this.Items[key];
+			if (MyITEM.Delete) continue;
+			
+			CELD=document.getElementById("TE_"+this.Id+"_"+MyITEM.Id);
+			if (CELD) CELD.innerHTML=FormatTotal(MyITEM.Escala, MyITEM.Value1, this.Decimales);
+			
+			CELD=document.getElementById("TA_"+this.Id+"_"+MyITEM.Id);
+			if (CELD) CELD.innerHTML=FormatTotal(MyITEM.Escala, MyITEM.Value2, this.Decimales);
+			
+			CELD=document.getElementById("TS_"+this.Id+"_"+MyITEM.Id);
+			if (CELD) CELD.innerHTML=FormatTotal(MyITEM.Escala, MyITEM.Value3, this.Decimales);
+			
+			if (this.Evaluador360=='2')
+			{  
+				for (key in EVALUADORES.items)
+				{
+					CELD=document.getElementById("T3_"+this.Id+"_"+MyITEM.Id+"_"+key.substr(1));
+					if (CELD) CELD.innerHTML=FormatTotal(MyITEM.Escala, MyITEM.Values[key], this.Decimales);
+				}
+			} else
+			{
+				CELD=document.getElementById("T3_"+this.Id+"_"+MyITEM.Id+"_"+EVALUADORES.oi_evaluador_360);
+				if (CELD) CELD.innerHTML=FormatTotal(MyITEM.Escala, MyITEM.Values["K"+EVALUADORES.oi_evaluador_360], this.Decimales);
+			}
+		}
+	  
+	  //Totales Plantilla
+		CELD=document.getElementById("TE_"+this.Id);
+		if (CELD) CELD.innerHTML=FormatTotal(this.Escala, this.Value1, this.Decimales);
+		
+		CELD=document.getElementById("TA_"+this.Id);
+		if (CELD) CELD.innerHTML=FormatTotal(this.Escala, this.Value2, this.Decimales);
+		
+		CELD=document.getElementById("TS_"+this.Id);
+		if (CELD) CELD.innerHTML=FormatTotal(this.Escala, this.Value3, this.Decimales);
+		
+		if (this.Evaluador360=='2')
+		{       
+			for (key in EVALUADORES.items)
+			{
+				CELD=document.getElementById("T3_"+this.Id+"_"+key.substr(1));
+				if (CELD) CELD.innerHTML=FormatTotal(this.Escala, this.Values[key], this.Decimales);
+			}
+		} else
+		{
+			CELD=document.getElementById("T3_"+this.Id+"_"+EVALUADORES.oi_evaluador_360);
+			if (CELD) CELD.innerHTML=FormatTotal(this.Escala, this.Values["K"+EVALUADORES.oi_evaluador_360], this.Decimales);
+		}
+
+		//Cambios Especiales
+		this.REFRESH_ADIC();
+	}
+	
+	
+	this.DDOCHANGE = function(DDOEVA, DDOPLA)
+	{               
+		if (this.Show!='1') return;
+		DDOPLA.SetAttr("nmd-status" , "~u,");
+ 	
+		//Cambios Basicos
+		if (this.Evaluador =="2") DDOPLA.SetAttr("n_resultado" , this.Value1==null?"":this.Value1);
+		if (this.Evaluado  =="2") DDOPLA.SetAttr("n_resultado2", this.Value2==null?"":this.Value2);
+		if (this.Supervisor=="2") DDOPLA.SetAttr("n_resultado3", this.Value3==null?"":this.Value3);
+
+		//Comentarios de la Plantilla
+		if (this.Comentarios=='2')                                                 
+		{
+			var COMENT=document.getElementById("COMMENT_"+this.Id);
+			if (COMENT)
+			{              
+				CheckSize("COMENT",4000,COMENT);
+				DDOPLA.SetAttr("nmd-status"  , "~u,");
+				DDOPLA.SetAttr("n_resultado" , "");
+				DDOPLA.SetAttr("n_resultado2", "");
+				DDOPLA.SetAttr("n_resultado3", "");
+				DDOPLA.SetAttr("o_plantilla" , COMENT.value);
+			}
+		}    
+		
+		//Cambios Especiales
+		this.DDOCHANGE_ADIC(DDOEVA, DDOPLA);
+	}                   
+	
+	this.DDOCHANGE_ADIC=function() {	}
+	this.REFRESH_ADIC=function() {	}
+
+	EVA.AddPlantilla(this);
+}
+
+
+
+var EVA=new Object();
+EVA.Values=new Array();
+EVA.Plantillas=new Array();
+						</xsl:text>
+						<xsl:value-of select="concat('EVA.Escala=',@oi_escala,';')"/>
+						<xsl:value-of select="concat('EVA.ShowCol2=',@ET_l_eve2,';')"/>
+						<xsl:value-of select="concat('EVA.ShowCol3=',@ET_l_eve3,';')"/>
+						<xsl:text>
+							EVA.AddPlantilla = function(MyOBJ)
+{                
+	this.Plantillas["K_"+MyOBJ.Id]=MyOBJ;
+}
+
+EVA.GetPlantilla = function(Id)
+{                
+	return this.Plantillas["K_"+Id];
+}
+
+function compare(V1, V2)
+{
+	var DIF=V2-V1;
+	if (DIF==0) return 0;
+	if (Math.abs(DIF)==DIF) return -1;
+	
+	return 1;
+}
+
+function Replace(strin, strfnd, strrpl) 
+{
+	return strin.replace(new RegExp(strfnd, "ig"), strrpl);
+}   
+                  
+function GetNumber(num,dec) 
+{              
+	var fnum=parseFloat(Replace(num.toString(),',','.'));
+	if (isNaN(fnum))  
+	{ 
+		switch(num.toString().toUpperCase())
+		{             
+			case "NA":
+			case "N/A":
+			case "NO":
+			case "NO APLICA":
+				return -1;
+				
+			default:
+				return null;
+		}
+		
+	} else
+		return Number(fnum).toFixed(dec);
+}           
+
+function FormatNumber(num, dec) 
+{              
+	var value=Replace(""+num,',','.');
+	if (isNaN(value)) return "";
+	                    
+	if (compare(num,0)==-1) return "N/A";
+	
+	//Genero el valor
+	for (var t=0; t!=dec; t++) value=value*10;
+	value=Math.round(value).toString();
+	                                      
+	//Agrego los Ceros faltantes                                      
+	while(compare(value.length,1+dec)==-1) value="0"+value;
+	
+	if (dec!=0)
+	value=value.substr(0,value.length-dec)+"."+value.substr(value.length-dec);
+	
+	//Resultado
+	return value;
+}     
+
+function FormatTotal(oi_escala, valor, dec)
+{
+	var t;
+	var ESCALA=ESCALAS.Get(oi_escala);     
+	
+	//Verifico el VACIO
+	if (isNaN(valor)) return "";
+	if (valor==null) return "";
+	
+	//Calculo el VALOR
+	if (ESCALA.Valores.length==0)
+	{ //Continuo de 0 a 100
+		if (compare(valor,0)==-1)
+			return "N/A";
+		else
+			return FormatNumber(valor,dec)+"%";
+	} else                       
+	if (ESCALA.Valores.length==1)
+	{ //Continuo de min a max
+		if (compare(valor,0)==-1)
+			return "N/A";
+		else
+			return FormatNumber(valor,dec)+"/"+FormatNumber(ESCALA.max,dec);
+	} else
+	{ //Busco la Enumeracion
+		for (t=0; compare(t,ESCALA.Valores.length-1)!=1; t++)
+		{
+			ESCVAL=ESCALA.Valores[t];
+			if (compare(valor,ESCVAL.max)!=1)
+				if (compare(valor,ESCVAL.min)==1)
+				{
+					if (compare(valor,0)==-1)
+						return ESCVAL.des;
+					else
+						return ESCVAL.des+" ("+FormatNumber(valor,dec)+"/"+FormatNumber(ESCALA.max,dec)+")";
+				}
+		}  
+			
+		if (compare(valor,0)==-1)
+			return "N/A";
+		else
+			return "? ("+FormatNumber(valor,dec)+"/"+FormatNumber(ESCALA.max,dec)+")";
+	}
+	
+	return retval;
+}
+
+                  
+function ShowTooltip(obj)
+{                       
+	var xxx=obj.getElementsByTagName("div");
+	if (xxx)
+	if (xxx.length!=0)
+	if (xxx[0].className=="tooltip")  
+	{
+		xxx[0].style.display="block";
+		xxx[0].style.opacity=1; 
+	}
+}
+function HideTooltip(obj)
+{
+	var xxx=obj.getElementsByTagName("div");
+	if (xxx)
+	if (xxx.length!=0)           
+	if (xxx[0].className=="tooltip")     
+	{	
+		xxx[0].style.opacity=0;
+		xxx[0].style.display="none";
+	}
+}          
+
+
+var objERR;
+function CallbackError() { objERR.focus(); }
+
+function ThrowError(MSG, OBJ)
+{         
+	objERR=OBJ;  
+	MyPARAM=new Array(); MyPARAM[0]=""; MyPARAM[1]=""; MyPARAM[2]=""; MyPARAM[3]=""; MyPARAM[4]=""; MyPARAM[5]=""; MyPARAM[6]=""; MyPARAM[7]=""; MyPARAM[8]=""; MyPARAM[9]="";
+	parent.ClientThrowErrorArr(MSG, MyPARAM, CallbackError);
+}                                     
+
+function CheckSize(tipe, size, OBJ)
+{                                 
+	if (compare(OBJ.value.length,size)==1)
+		ThrowError("EDD.EVA."+tipe, OBJ);
+}
+
+
+function IsComplete()
+{  
+	var key;          
+	for(key in EVA.Plantillas)
+		if (EVA.Plantillas[key].Show=='1')
+			if (!(EVA.Plantillas[key].OK))
+				return false;
+
+	return true;                  
+}
+
+function REFRESH()
+{ 
+	var key, MyPLA;
+	if (parent.set_report_window)
+		parent.set_report_window(window);
+ 
+	/////////////////////////////////////////////////////
+	//Realizando los Calculos individuales   
+	for(key in EVA.Plantillas)
+	{                 
+		MyPLA=EVA.Plantillas[key];
+		MyPLA.RECALC();
+	}
+
+	/////////////////////////////////////////////////////
+	//Calculando Totales
+	EVA.Value1  =0.0;
+	EVA.Value2  =0.0;
+	EVA.Value3  =0.0;
+	EVA.Values["K"+EVALUADORES.oi_evaluador_360]=0.0;
+	EVA.MaxValue1=0.0;
+	EVA.MaxValue2=0.0;
+	EVA.MaxValue3=0.0;
+	EVA.MaxValues=0.0;
+
+	for(key in EVA.Plantillas)
+	{
+		MyPLA=EVA.Plantillas[key];
+		if (!MyPLA.MostrarResumen) continue;
+
+		//Recalcula los Valores
+		MyPLA.RECALC();
+
+		//Calculo del Valores
+		escMax=ESCALAS.Get(MyPLA.Escala).max;
+
+		if (MyPLA.SumEva) 
+		{                 
+			if (MyPLA.Value1==null || EVA.Value1==null) 
+				EVA.Value1 =null;
+			else
+			if (compare(MyPLA.Value1,0)!=-1)         
+			{
+				EVA.MaxValue1+=MyPLA.Pond;
+				EVA.Value1+=MyPLA.Pond*MyPLA.Value1/escMax;
+			}
+		}                 
+		if (MyPLA.SumAut)  
+		{
+			if (MyPLA.Value2==null || EVA.Value2==null) 
+				EVA.Value2 =null;
+			else
+			if (compare(MyPLA.Value2,0)!=-1)         
+			{
+				EVA.MaxValue2+=MyPLA.Pond;
+				EVA.Value2+=MyPLA.Pond*MyPLA.Value2/escMax;
+			}
+		}                 
+		if (MyPLA.SumSup)  
+		{
+			if (MyPLA.Value3==null || EVA.Value3==null) 
+				EVA.Value3=null;
+			else
+			if (compare(MyPLA.Value3,0)!=-1)         
+			{
+				EVA.MaxValue3+=MyPLA.Pond;
+				EVA.Value3+=MyPLA.Pond*MyPLA.Value3/escMax;
+			}
+		}                 
+
+		if (MyPLA.Sum360)  
+		if (MyPLA.Values)
+		{
+		
+			if (MyPLA.Values["K"+EVALUADORES.oi_evaluador_360]==null || EVA.Values["K"+EVALUADORES.oi_evaluador_360]==null) 
+				EVA.Values["K"+EVALUADORES.oi_evaluador_360] =null;
+			else
+			if (compare(MyPLA.Values["K"+EVALUADORES.oi_evaluador_360],0)!=-1)         
+			{
+				EVA.MaxValues+=MyPLA.Pond;
+				EVA.Values["K"+EVALUADORES.oi_evaluador_360]+=MyPLA.Pond*MyPLA.Values["K"+EVALUADORES.oi_evaluador_360]/escMax;
+			}
+		}                 
+	}                                 
+ 
+ 	if (EVA.Value1!=null)
+ 	{
+ 		if (compare(EVA.Value1,0)==-1 || EVA.MaxValue1==0.0) EVA.Value1=-1; else EVA.Value1=EVA.Value1/EVA.MaxValue1*ESCALAS.Get(EVA.Escala).max;
+ 	}
+ 	if (EVA.Value2!=null)
+ 	{
+ 		if (compare(EVA.Value2,0)==-1 || EVA.MaxValue2==0.0) EVA.Value2=-1; else EVA.Value2=EVA.Value2/EVA.MaxValue2*ESCALAS.Get(EVA.Escala).max;
+ 	}
+ 	if (EVA.Value3!=null)
+ 	{
+ 		if (compare(EVA.Value3,0)==-1 || EVA.MaxValue3==0.0) EVA.Value3=-1; else EVA.Value3=EVA.Value3/EVA.MaxValue3*ESCALAS.Get(EVA.Escala).max;
+ 	}
+ 	if (EVA.Values["K"+EVALUADORES.oi_evaluador_360]!=null || EVA.MaxValues==0.0)
+ 	{
+ 		if (compare(EVA.Values["K"+EVALUADORES.oi_evaluador_360],0)==-1) EVA.Values["K"+EVALUADORES.oi_evaluador_360]=-1; else EVA.Values["K"+EVALUADORES.oi_evaluador_360]=EVA.Values["K"+EVALUADORES.oi_evaluador_360]/EVA.MaxValues*ESCALAS.Get(EVA.Escala).max;
+ 	}
+	
+	
+	
+	/////////////////////////////////////////////////////
+  //Actualizar HTML   
+	for(key in EVA.Plantillas)
+	{                              
+		MyPLA=EVA.Plantillas[key];
+		MyPLA.REFRESH();
+	}
+}
+
+function DDOCHANGE(DDOEVA)
+{
+	var key, MyPLA, DDO360, CUR;
+	
+	DDOEVA.SetAttr("nmd-status","~u,");
+
+     
+	/////////////////////////////////////////////////////
+	//Realizando los Calculos individuales   
+	for(key in EVA.Plantillas)
+	{
+		MyPLA=EVA.Plantillas[key];
+		MyPLA.DDOCHANGE(DDOEVA, DDOEVA.FindElement("PLANTILLAS").FindElement2("PLANTILLA","ID",MyPLA.Id));
+	}
+
+	DDOEVA.SetAttr("n_resultado" , (EVA.Value1==null?"":EVA.Value1)); 
+	DDOEVA.SetAttr("n_resultado2", (EVA.Value2==null?"":EVA.Value2)); 
+	DDOEVA.SetAttr("n_resultado3", (EVA.Value3==null?"":EVA.Value3)); 
+
+	/////////////////////////////////////////////////////
+	//TOTAL 360
+	DDO360=null;
+	for (CUR=DDOEVA.FindElement("EVALUADORES").FirstChild(); CUR!=null; CUR=CUR.Next())
+		if (CUR.FindElement("oi_personal_emp").GetAttr("value")==EVALUADORES.oi_evaluador_360)
+		{
+			DDO360=CUR;
+			break;
+		}      
+
+	if (DDO360!=null)     
+	{
+		DDO360.SetAttr("nmd-status","~u,");                             
+		DDO360.SetAttr("n_resultado", (EVA.Values["K"+EVALUADORES.oi_evaluador_360]==null?"":EVA.Values["K"+EVALUADORES.oi_evaluador_360])); 
+
+		if (DDO360.GetAttr("c_estado")=="I" || DDO360.GetAttr("c_estado")=="C")
+			DDO360.SetAttr("c_estado", EVA.Values["K"+EVALUADORES.oi_evaluador_360]==null?"I":"C");
+	}
+};
+						</xsl:text>
+						<xsl:for-each select="$REPORT/EVALUADORES/EVALUADOR">
+							<xsl:variable name="EVALUADOR" select="."/>
+							<xsl:value-of select="concat('EVA.Values[&quot;K',$EVALUADOR/@oi_personal_emp,'&quot;]=',$REPORT/attribute::*[name() = concat('EVA_n_res_',$EVALUADOR/@oi_personal_emp)],';')"/>
+						</xsl:for-each>
+						<xsl:text>
+							//
+//
+/////////////////////////////////////////////////////
+						</xsl:text>
+					</script>
+				</head>
+				<body onload="REFRESH();">
+					<div class="PAGE">
+						<xsl:call-template name="HEAD"/>
+						<xsl:apply-templates select="PLANTILLA"/>
+					</div>
+				</body>
+			</html>
+		</xsl:template>
+		<xsl:template match="PLANTILLA[@DEF_d_reporte='ITEM_ESC_COMBO_POND' or @DEF_d_reporte='ITEM_ESC_COMBO']">
+			<xsl:variable name="PLANTILLA" select="."/>
+			<xsl:variable name="REPORT" select=".."/>
+			<xsl:variable name="EVALUADORES" select="../EVALUADORES"/>
+			<xsl:variable name="ESCALAS" select="../ESCALAS"/>
+			<xsl:variable name="POND" select="@DEF_d_reporte='ITEM_ESC_COMBO_POND'"/>
+			<script>
+				<xsl:call-template name="SCRIPT_PLANTILLA_INIT"/>
+				<xsl:text>
+					PLA.RECALC = function()
+{    
+	if (this.Show!='1') return;
+	            
+	var key, MyITEM, t, found=false;   
+	
+	this.Value1=0.0;
+	this.Value2=0.0;
+	this.Value3=0.0;
+	this.MaxValue1=0.0;
+	this.MaxValue2=0.0;
+	this.MaxValue3=0.0;
+	this.OK=true;
+
+	//Recorro los ITEMS
+	for (key in this.Items)
+	{
+		MyITEM=this.Items[key];
+		if (MyITEM.Delete) continue;
+		found=true;
+
+		CELD=document.getElementById("POND_"+MyITEM.Id);
+		if (CELD)
+		{
+			var pond = GetNumber(CELD.value, this.PondDecimales);
+			if (!isNaN(parseFloat(pond))) MyITEM.Pond=parseFloat(pond);
+			CELD.value=FormatNumber(MyITEM.Pond, this.PondDecimales);
+		}
+
+		if (this.Evaluador =='2') 
+		{
+			CELD=document.getElementById("OE_"+MyITEM.Id); 
+			if (CELD)
+			{
+				MyITEM.Value1=(CELD.value==""?null:parseFloat(CELD.value));
+				if (MyITEM.Value1==null) this.OK=false;
+			}
+		}
+		if (this.Evaluado  =='2') 
+		{
+			CELD=document.getElementById("OA_"+MyITEM.Id);
+			if (CELD)
+			{
+				MyITEM.Value2=(CELD.value==""?null:parseFloat(CELD.value));
+				if (MyITEM.Value2==null) this.OK=false;
+			}
+		}
+		if (this.Supervisor=='2') 
+		{
+			CELD=document.getElementById("OS_"+MyITEM.Id);
+			if (CELD)
+			{
+				MyITEM.Value3=(CELD.value==""?null:parseFloat(CELD.value));
+				if (MyITEM.Value3==null) this.OK=false;
+			}                           
+		}                           
+
+
+		//Totales      
+		if (this.Value1==null || MyITEM.Value1==null) 
+			this.Value1=null; 
+		else 
+		if (compare(MyITEM.Value1,0)!=-1)
+		{
+	    this.MaxValue1+=MyITEM.Pond*ESCALAS.Get(MyITEM.Escala).max;
+			this.Value1   +=MyITEM.Pond*MyITEM.Value1;
+		}
+		
+		if (this.Value2==null || MyITEM.Value2==null) 
+			this.Value2=null; 
+		else 
+		if (compare(MyITEM.Value2,0)!=-1)
+		{
+	    this.MaxValue2+=MyITEM.Pond*ESCALAS.Get(MyITEM.Escala).max;
+			this.Value2   +=MyITEM.Pond*MyITEM.Value2;
+		}
+			
+		if (this.Value3==null || MyITEM.Value3==null) 
+			this.Value3=null; 
+		else 
+		if (compare(MyITEM.Value3,0)!=-1)
+		{
+	    this.MaxValue3+=MyITEM.Pond*ESCALAS.Get(MyITEM.Escala).max;
+			this.Value3   +=MyITEM.Pond*MyITEM.Value3;
+		}
+	}
+
+	if (!found)     
+	{
+		this.Value1=-1;
+		this.Value2=-1;
+		this.Value3=-1;      
+	}
+
+	if (this.Value1!=null) { this.Value1=(this.MaxValue1==0?-1:this.Value1/this.MaxValue1*ESCALAS.Get(this.Escala).max); }
+	if (this.Value2!=null) { this.Value2=(this.MaxValue2==0?-1:this.Value2/this.MaxValue2*ESCALAS.Get(this.Escala).max); }
+	if (this.Value3!=null) { this.Value3=(this.MaxValue3==0?-1:this.Value3/this.MaxValue3*ESCALAS.Get(this.Escala).max); }
+}
+   
+
+PLA.DDOCHANGE_ADIC = function(DDOEVA, DDOPLA)
+{
+	var key, MyITEM, DDOITEM, COMENT;
+	
+	var MaxID=0;
+	for (DDOITEM=DDOPLA.FindElement("OBJETIVOS").FirstChild(); DDOITEM!=null; DDOITEM=DDOITEM.Next())
+	if	(!isNaN(DDOITEM.GetAttrInt("c_objetivo"))) 
+	if	(compare(DDOITEM.GetAttrInt("c_objetivo"),MaxID)==1) 
+	MaxID=DDOITEM.GetAttrInt("c_objetivo");
+  
+ 	for (key in this.Items)
+ 	{                      
+ 		MyITEM=this.Items[key];
+ 		
+ 		if (MyITEM.New)
+ 		{                              
+ 			if (MyITEM.Delete) continue;
+ 			CheckSize("OBJETIVO",1000,document.getElementById("MSG_"+MyITEM.Id));
+ 			
+ 			MaxID++;
+			DDOITEM=DDOPLA.FindElement("OBJETIVOS").AddTailElement("OBJETIVO");
+			DDOITEM.SetAttr("nmd-status"   , "~i,");							
+			DDOITEM.SetAttr("id"           , "~"+MyITEM.Id);
+			DDOITEM.SetAttr("c_objetivo"   , MaxID);
+			DDOITEM.SetAttr("d_objetivo"   , document.getElementById("MSG_"+MyITEM.Id).value);
+			DDOITEM.SetAttr("n_ponderacion", MyITEM.Pond);
+			if (this.Evaluador =="2") DDOITEM.SetAttr("n_resultado"  , MyITEM.Value1==null?"":MyITEM.Value1);
+			if (this.Evaluado  =="2") DDOITEM.SetAttr("n_resultado2" , MyITEM.Value2==null?"":MyITEM.Value2); 
+			if (this.Supervisor=="2") DDOITEM.SetAttr("n_resultado3" , MyITEM.Value3==null?"":MyITEM.Value3);  
+			DDOITEM.AddTailElement("oi_competencia");
+			DDOITEM.AddTailElement("oi_escala");
+ 		} else             
+ 		if (MyITEM.Delete)
+ 		{
+			DDOITEM=DDOPLA.FindElement("OBJETIVOS").FindElement2("OBJETIVO","ID",MyITEM.Id);
+			DDOITEM.SetAttr("nmd-status" , "~d,");
+ 		} else
+ 		{
+			DDOITEM=DDOPLA.FindElement("OBJETIVOS").FindElement2("OBJETIVO","ID",MyITEM.Id);
+			DDOITEM.SetAttr("nmd-status" , "~u,");							 
+			DDOITEM.SetAttr("n_ponderacion", MyITEM.Pond);
+			if (document.getElementById("MSG_"+MyITEM.Id))
+			{
+				CheckSize("OBJETIVO",1000,document.getElementById("MSG_"+MyITEM.Id));
+				DDOITEM.SetAttr("d_objetivo"   , document.getElementById("MSG_"+MyITEM.Id).value);
+			}
+			if (this.Evaluador =="2") { DDOITEM.SetAttr("n_resultado"  , MyITEM.Value1==null?"":MyITEM.Value1); }
+			if (this.Evaluado  =="2") { DDOITEM.SetAttr("n_resultado2" , MyITEM.Value2==null?"":MyITEM.Value2); } 
+			if (this.Supervisor=="2") { DDOITEM.SetAttr("n_resultado3" , MyITEM.Value3==null?"":MyITEM.Value3); }  
+ 		}
+		 		
+	}
+}
+				</xsl:text>
+				<xsl:for-each select="ITEM">
+					<xsl:text>
+						//
+var ITEM=new Object();
+					</xsl:text>
+					<xsl:value-of select="concat('ITEM.Id=',@oi_objetivo,';')"/>
+					<xsl:value-of select="concat('ITEM.Escala=',@oi_escala,';')"/>
+					<xsl:value-of select="concat('ITEM.Pond=',@n_ponderacion,';')"/>
+					<xsl:value-of select="concat('ITEM.Value1=',@n_resultado,';')"/>
+					<xsl:value-of select="concat('ITEM.Value2=',@n_resultado2,';')"/>
+					<xsl:value-of select="concat('ITEM.Value3=',@n_resultado3,';')"/>
+					<xsl:text>
+						ITEM.New=false;
+ITEM.Delete=false;
+PLA.AddItem(ITEM);
+					</xsl:text>
+				</xsl:for-each>
+			</script>
+			<xsl:if test="@DEF_Show='1'">
+				<xsl:call-template name="SEPARATOR"/>
+				<table class="PLA" id="TBL_{@oi_plantilla}">
+					<!-- -->
+					<!-- Agrega la Cabecera de la PLANTILLA -->
+					<tr class="PLA_HEAD">
+						<xsl:call-template name="PLANTILLA_HEAD">
+							<xsl:with-param name="PLANTILLA" select="$PLANTILLA"/>
+							<xsl:with-param name="EVALUADORES" select="$EVALUADORES"/>
+							<xsl:with-param name="POND" select="$POND"/>
+						</xsl:call-template>
+					</tr>
+					<!-- -->
+					<!-- Agrega el PROTOTIPO de ITEM -->
+					<xsl:if test="$PLANTILLA/@DEF_Edit='1'">
+						<xsl:variable name="ESCALA" select="$ESCALAS/ESCALA[@oi_escala=$PLANTILLA/@oi_escala_item]"/>
+						<tr style="display:none;" id="TR_OT_{@oi_plantilla}">
+							<xsl:call-template name="TD_ITEM_ACTION_DEL">
+								<xsl:with-param name="PLANTILLA" select="$PLANTILLA"/>
+								<xsl:with-param name="ITEM" select="'STR_REPLACE_NAME'"/>
+							</xsl:call-template>
+							<xsl:call-template name="TD_ITEM_LABEL">
+								<xsl:with-param name="PLANTILLA" select="$PLANTILLA"/>
+								<xsl:with-param name="ID" select="'MSG_REPLACE_NAME'"/>
+							</xsl:call-template>
+							<xsl:if test="$POND">
+								<xsl:call-template name="TD_ITEM_POND">
+									<xsl:with-param name="PLANTILLA" select="$PLANTILLA"/>
+									<xsl:with-param name="ID" select="'POND_REPLACE_NAME'"/>
+									<xsl:with-param name="EDITABLE" select="$REPORT/@editable"/>
+									<xsl:with-param name="VALUE" select="1"/>
+									<xsl:with-param name="DEC" select="$PLANTILLA/@DEF_d_cus3"/>
+								</xsl:call-template>
+							</xsl:if>
+							<xsl:call-template name="TD_ITEM_VALUE_COMBO">
+								<xsl:with-param name="ESCALA" select="$ESCALA"/>
+								<xsl:with-param name="STATUS" select="$PLANTILLA/@DEF_Evaluador"/>
+								<xsl:with-param name="EDITABLE" select="$REPORT/@editable"/>
+								<xsl:with-param name="ID" select="'OE_REPLACE_NAME'"/>
+							</xsl:call-template>
+							<xsl:call-template name="TD_ITEM_VALUE_COMBO">
+								<xsl:with-param name="ESCALA" select="$ESCALA"/>
+								<xsl:with-param name="EDITABLE" select="$REPORT/@editable"/>
+								<xsl:with-param name="STATUS" select="$PLANTILLA/@DEF_Evaluado"/>
+								<xsl:with-param name="ID" select="'OA_REPLACE_NAME'"/>
+							</xsl:call-template>
+							<xsl:call-template name="TD_ITEM_VALUE_COMBO">
+								<xsl:with-param name="ESCALA" select="$ESCALA"/>
+								<xsl:with-param name="STATUS" select="$PLANTILLA/@DEF_Supervisor"/>
+								<xsl:with-param name="ID" select="'OS_REPLACE_NAME'"/>
+								<xsl:with-param name="EDITABLE" select="$REPORT/@editable"/>
+							</xsl:call-template>
+						</tr>
+					</xsl:if>
+					<!-- -->
+					<!-- Recorre los ITEM -->
+					<xsl:for-each select="ITEM">
+						<xsl:variable name="ITEM" select="."/>
+						<xsl:variable name="ESCALA" select="$ESCALAS/ESCALA[@oi_escala=$ITEM/@oi_escala]"/>
+						<tr id="TR_O_{@oi_objetivo}">
+							<xsl:call-template name="TD_ITEM_ACTION_DEL">
+								<xsl:with-param name="PLANTILLA" select="$PLANTILLA"/>
+								<xsl:with-param name="ITEM" select="$ITEM/@oi_objetivo"/>
+							</xsl:call-template>
+							<xsl:call-template name="TD_ITEM_LABEL">
+								<xsl:with-param name="PLANTILLA" select="$PLANTILLA"/>
+								<xsl:with-param name="ID" select="concat('MSG_',$ITEM/@oi_objetivo)"/>
+								<xsl:with-param name="TEXT" select="$ITEM/@d_objetivo"/>
+								<xsl:with-param name="TOOLTIP" select="$ITEM/@o_objetivo"/>
+							</xsl:call-template>
+							<xsl:if test="$POND">
+								<xsl:call-template name="TD_ITEM_POND">
+									<xsl:with-param name="PLANTILLA" select="$PLANTILLA"/>
+									<xsl:with-param name="ID" select="concat('POND_',$ITEM/@oi_objetivo)"/>
+									<xsl:with-param name="EDITABLE" select="$REPORT/@editable"/>
+									<xsl:with-param name="VALUE" select="$ITEM/@n_ponderacion"/>
+									<xsl:with-param name="DEC" select="$PLANTILLA/@DEF_d_cus3"/>
+								</xsl:call-template>
+							</xsl:if>
+							<xsl:call-template name="TD_ITEM_VALUE_COMBO">
+								<xsl:with-param name="ESCALA" select="$ESCALA"/>
+								<xsl:with-param name="STATUS" select="$PLANTILLA/@DEF_Evaluador"/>
+								<xsl:with-param name="ID" select="concat('OE_',$ITEM/@oi_objetivo)"/>
+								<xsl:with-param name="VALUE" select="$ITEM/@n_resultado"/>
+								<xsl:with-param name="EDITABLE" select="$REPORT/@editable"/>
+							</xsl:call-template>
+							<xsl:call-template name="TD_ITEM_VALUE_COMBO">
+								<xsl:with-param name="ESCALA" select="$ESCALA"/>
+								<xsl:with-param name="STATUS" select="$PLANTILLA/@DEF_Evaluado"/>
+								<xsl:with-param name="ID" select="concat('OA_',$ITEM/@oi_objetivo)"/>
+								<xsl:with-param name="VALUE" select="$ITEM/@n_resultado2"/>
+								<xsl:with-param name="EDITABLE" select="$REPORT/@editable"/>
+							</xsl:call-template>
+							<xsl:call-template name="TD_ITEM_VALUE_COMBO">
+								<xsl:with-param name="ESCALA" select="$ESCALA"/>
+								<xsl:with-param name="STATUS" select="$PLANTILLA/@DEF_Supervisor"/>
+								<xsl:with-param name="ID" select="concat('OS_',$ITEM/@oi_objetivo)"/>
+								<xsl:with-param name="VALUE" select="$ITEM/@n_resultado3"/>
+								<xsl:with-param name="EDITABLE" select="$REPORT/@editable"/>
+							</xsl:call-template>
+						</tr>
+					</xsl:for-each>
+					<!-- -->
+					<!-- Agrega la Fila con el BOTON ADD ITEM -->
+					<xsl:if test="$PLANTILLA/@DEF_Edit='1'">
+						<tr class="PLA_ADD">
+							<xsl:call-template name="PLANTILLA_ADD">
+								<xsl:with-param name="PLANTILLA" select="$PLANTILLA"/>
+								<xsl:with-param name="EVALUADORES" select="$EVALUADORES"/>
+								<xsl:with-param name="POND" select="$POND"/>
+							</xsl:call-template>
+						</tr>
+					</xsl:if>
+					<!-- -->
+					<!-- Agrega la Fila con el RESUMEN DE RESULTADO -->
+					<tr class="PLA_FOOT">
+						<xsl:call-template name="PLANTILLA_FOOT">
+							<xsl:with-param name="PLANTILLA" select="$PLANTILLA"/>
+							<xsl:with-param name="EVALUADORES" select="$EVALUADORES"/>
+							<xsl:with-param name="POND" select="$POND"/>
+							<xsl:with-param name="ID" select="$PLANTILLA/@oi_plantilla"/>
+						</xsl:call-template>
+					</tr>
+				</table>
+				<xsl:call-template name="PLANTILLA_COMENT"/>
+			</xsl:if>
+		</xsl:template>
+		<xsl:template match="PLANTILLA[@DEF_d_reporte='ITEM_ESC_NUM_POND' or @DEF_d_reporte='ITEM_ESC_NUM']">
+			<xsl:variable name="PLANTILLA" select="."/>
+			<xsl:variable name="REPORT" select=".."/>
+			<xsl:variable name="EVALUADORES" select="../EVALUADORES"/>
+			<xsl:variable name="ESCALAS" select="../ESCALAS"/>
+			<xsl:variable name="POND" select="@DEF_d_reporte='ITEM_ESC_NUM_POND'"/>
+			<script>
+				<xsl:call-template name="SCRIPT_PLANTILLA_INIT"/>
+				<xsl:text>
+					PLA.RECALC = function()
+{   
+	if (this.Show!='1') return;
+            
+	var key, MyITEM, t, found=false;   
+
+	this.Value1=0.0;
+	this.Value2=0.0;
+	this.Value3=0.0;
+	this.MaxValue1=0.0;
+	this.MaxValue2=0.0;
+	this.MaxValue3=0.0;
+	this.OK=true;
+
+	//Recorro los ITEMS
+	for (key in this.Items)
+	{
+		MyITEM=this.Items[key];
+		if (MyITEM.Delete) continue;
+		found=true;
+
+		CELD=document.getElementById("POND_"+MyITEM.Id);
+		if (CELD)
+		{
+			var pond = GetNumber(CELD.value, this.PondDecimales);
+			if (!isNaN(parseFloat(pond))) MyITEM.Pond=parseFloat(pond);
+			CELD.value=FormatNumber(MyITEM.Pond, this.PondDecimales);
+		}
+
+		if (this.Evaluador =='2') 
+		{
+			CELD=document.getElementById("OE_"+MyITEM.Id); 
+			if (CELD)
+			{
+				MyITEM.Value1=(CELD.value==""?null:GetNumber(CELD.value, this.Decimales));
+				if (MyITEM.Value1==null) 
+				{
+					this.OK=false;
+					CELD.value="";
+				} else
+				{ 
+					//Tamanno y Redondeo          
+					//MyITEM.Value1=Math.round(MyITEM.Value1);
+					
+					if (compare(MyITEM.Value1,ESCALAS.Get(MyITEM.Escala).max)== 1)
+						MyITEM.Value1=ESCALAS.Get(MyITEM.Escala).max;
+					
+					if (compare(MyITEM.Value1,ESCALAS.Get(MyITEM.Escala).min)==-1)
+						MyITEM.Value1=ESCALAS.Get(MyITEM.Escala).min;
+					
+					if (compare(MyITEM.Value1,0)==-1)
+						MyITEM.Value1=-1;
+						
+					CELD.value=FormatNumber(MyITEM.Value1, this.Decimales);
+				}
+			}
+		}
+		if (this.Evaluado  =='2') 
+		{
+			CELD=document.getElementById("OA_"+MyITEM.Id);
+			if (CELD)
+			{
+				MyITEM.Value2=(CELD.value==""?null:GetNumber(CELD.value, this.Decimales));
+				if (MyITEM.Value2==null)    
+				{
+					this.OK=false;
+					CELD.value="";
+				} else
+				{ 
+					//Tamanno y Redondeo          
+					//MyITEM.Value1=Math.round(MyITEM.Value2);
+					
+					if (compare(MyITEM.Value2,ESCALAS.Get(MyITEM.Escala).max)== 1)
+						MyITEM.Value2=ESCALAS.Get(MyITEM.Escala).max;
+					
+					if (compare(MyITEM.Value2,ESCALAS.Get(MyITEM.Escala).min)==-1)
+						MyITEM.Value2=ESCALAS.Get(MyITEM.Escala).min;
+					
+					if (compare(MyITEM.Value2,0)==-1)
+						MyITEM.Value2=-1;
+
+					CELD.value=FormatNumber(MyITEM.Value2, this.Decimales);
+				}
+			}
+		}
+		if (this.Supervisor=='2') 
+		{
+			CELD=document.getElementById("OS_"+MyITEM.Id);
+			if (CELD)
+			{
+				MyITEM.Value3=(CELD.value==""?null:GetNumber(CELD.value, this.Decimales));
+				if (MyITEM.Value3==null) 
+				{
+					this.OK=false;
+					CELD.value="";
+				} else
+				{ 
+					//Tamanno y Redondeo          
+					//MyITEM.Value3=Math.round(MyITEM.Value3);
+
+					if (compare(MyITEM.Value3,ESCALAS.Get(MyITEM.Escala).max)== 1)
+						MyITEM.Value3=ESCALAS.Get(MyITEM.Escala).max;
+					
+					if (compare(MyITEM.Value3,ESCALAS.Get(MyITEM.Escala).min)==-1)
+						MyITEM.Value3=ESCALAS.Get(MyITEM.Escala).min;
+					
+					if (compare(MyITEM.Value3,0)==-1)
+						MyITEM.Value3=-1;
+						
+					CELD.value=FormatNumber(MyITEM.Value3, this.Decimales);
+				}
+			}
+		}                           
+
+		//Totales      
+		if (this.Value1==null || MyITEM.Value1==null) 
+			this.Value1=null; 
+		else 
+		if (compare(MyITEM.Value1,0)!=-1)
+		{
+	    this.MaxValue1+=MyITEM.Pond*ESCALAS.Get(MyITEM.Escala).max;
+			this.Value1   +=MyITEM.Pond*MyITEM.Value1;
+		}
+		
+		if (this.Value2==null || MyITEM.Value2==null) 
+			this.Value2=null; 
+		else 
+		if (compare(MyITEM.Value2,0)!=-1)
+		{
+	    this.MaxValue2+=MyITEM.Pond*ESCALAS.Get(MyITEM.Escala).max;
+			this.Value2   +=MyITEM.Pond*MyITEM.Value2;
+		}
+			
+		if (this.Value3==null || MyITEM.Value3==null) 
+			this.Value3=null; 
+		else 
+		if (compare(MyITEM.Value3,0)!=-1)
+		{
+	    this.MaxValue3+=MyITEM.Pond*ESCALAS.Get(MyITEM.Escala).max;
+			this.Value3   +=MyITEM.Pond*MyITEM.Value3;
+		}
+	}
+
+	if (!found)     
+	{
+		this.Value1=-1;
+		this.Value2=-1;
+		this.Value3=-1;      
+	}
+
+	if (this.Value1!=null) { this.Value1=(this.MaxValue1==0?-1:this.Value1/this.MaxValue1*ESCALAS.Get(this.Escala).max); }
+	if (this.Value2!=null) { this.Value2=(this.MaxValue2==0?-1:this.Value2/this.MaxValue2*ESCALAS.Get(this.Escala).max); }
+	if (this.Value3!=null) { this.Value3=(this.MaxValue3==0?-1:this.Value3/this.MaxValue3*ESCALAS.Get(this.Escala).max); }
+}
+
+PLA.DDOCHANGE_ADIC = function(DDOEVA, DDOPLA)
+{                     
+	var key, MyITEM, DDOITEM, COMENT;
+
+	var MaxID=0;
+	for (DDOITEM=DDOPLA.FindElement("OBJETIVOS").FirstChild(); DDOITEM!=null; DDOITEM=DDOITEM.Next())
+	if	(!isNaN(DDOITEM.GetAttrInt("c_objetivo"))) 
+	if	(compare(DDOITEM.GetAttrInt("c_objetivo"),MaxID)==1) 
+	MaxID=DDOITEM.GetAttrInt("c_objetivo");
+  
+ 	for (key in this.Items)
+ 	{                      
+ 		MyITEM=this.Items[key];
+ 		
+ 		if (MyITEM.New)
+ 		{                              
+ 			if (MyITEM.Delete) continue;
+ 			CheckSize("OBJETIVO",1000,document.getElementById("MSG_"+MyITEM.Id));
+ 			
+ 			MaxID++;
+			DDOITEM=DDOPLA.FindElement("OBJETIVOS").AddTailElement("OBJETIVO");
+			DDOITEM.SetAttr("nmd-status"   , "~i,");							
+			DDOITEM.SetAttr("id"           , "~"+MyITEM.Id);
+			DDOITEM.SetAttr("c_objetivo"   , MaxID);
+			DDOITEM.SetAttr("d_objetivo"   , document.getElementById("MSG_"+MyITEM.Id).value);
+			DDOITEM.SetAttr("n_ponderacion", MyITEM.Pond);
+			if (this.Evaluador =="2") DDOITEM.SetAttr("n_resultado"  , MyITEM.Value1==null?"":MyITEM.Value1);
+			if (this.Evaluado  =="2") DDOITEM.SetAttr("n_resultado2" , MyITEM.Value2==null?"":MyITEM.Value2); 
+			if (this.Supervisor=="2") DDOITEM.SetAttr("n_resultado3" , MyITEM.Value3==null?"":MyITEM.Value3);  
+			DDOITEM.AddTailElement("oi_competencia");
+			DDOITEM.AddTailElement("oi_escala");
+ 		} else             
+ 		if (MyITEM.Delete)
+ 		{
+			DDOITEM=DDOPLA.FindElement("OBJETIVOS").FindElement2("OBJETIVO","ID",MyITEM.Id);
+			DDOITEM.SetAttr("nmd-status" , "~d,");
+ 		} else
+ 		{
+			DDOITEM=DDOPLA.FindElement("OBJETIVOS").FindElement2("OBJETIVO","ID",MyITEM.Id);
+			DDOITEM.SetAttr("nmd-status" , "~u,");							 
+			if (document.getElementById("MSG_"+MyITEM.Id))
+			{
+				CheckSize("OBJETIVO",1000,document.getElementById("MSG_"+MyITEM.Id));
+				DDOITEM.SetAttr("d_objetivo"   , document.getElementById("MSG_"+MyITEM.Id).value);
+			}
+			DDOITEM.SetAttr("n_ponderacion", MyITEM.Pond);
+			if (this.Evaluador =="2") { DDOITEM.SetAttr("n_resultado"  , MyITEM.Value1==null?"":MyITEM.Value1); }
+			if (this.Evaluado  =="2") { DDOITEM.SetAttr("n_resultado2" , MyITEM.Value2==null?"":MyITEM.Value2); } 
+			if (this.Supervisor=="2") { DDOITEM.SetAttr("n_resultado3" , MyITEM.Value3==null?"":MyITEM.Value3); }  
+ 		}
+	}
+}
+				</xsl:text>
+				<xsl:for-each select="ITEM">
+					<xsl:text>
+						//
+var ITEM=new Object();
+					</xsl:text>
+					<xsl:value-of select="concat('ITEM.Id=',@oi_objetivo,';')"/>
+					<xsl:value-of select="concat('ITEM.Escala=',@oi_escala,';')"/>
+					<xsl:value-of select="concat('ITEM.Pond=',@n_ponderacion,';')"/>
+					<xsl:value-of select="concat('ITEM.Value1=',@n_resultado,';')"/>
+					<xsl:value-of select="concat('ITEM.Value2=',@n_resultado2,';')"/>
+					<xsl:value-of select="concat('ITEM.Value3=',@n_resultado3,';')"/>
+					<xsl:text>
+						ITEM.New=false;
+ITEM.Delete=false;
+PLA.AddItem(ITEM);
+					</xsl:text>
+				</xsl:for-each>
+			</script>
+			<xsl:if test="@DEF_Show='1'">
+				<xsl:call-template name="SEPARATOR"/>
+				<table class="PLA" id="TBL_{@oi_plantilla}">
+					<!-- -->
+					<!-- Agrega la Cabecera de la PLANTILLA -->
+					<tr class="PLA_HEAD">
+						<xsl:call-template name="PLANTILLA_HEAD">
+							<xsl:with-param name="PLANTILLA" select="$PLANTILLA"/>
+							<xsl:with-param name="EVALUADORES" select="$EVALUADORES"/>
+							<xsl:with-param name="POND" select="$POND"/>
+						</xsl:call-template>
+					</tr>
+					<!-- -->
+					<!-- Agrega el PROTOTIPO de ITEM -->
+					<xsl:if test="$PLANTILLA/@DEF_Edit='1'">
+						<xsl:variable name="ESCALA" select="$ESCALAS/ESCALA[@oi_escala=$PLANTILLA/@oi_escala_item]"/>
+						<tr style="display:none;" id="TR_OT_{@oi_plantilla}">
+							<xsl:call-template name="TD_ITEM_ACTION_DEL">
+								<xsl:with-param name="PLANTILLA" select="$PLANTILLA"/>
+								<xsl:with-param name="ITEM" select="'STR_REPLACE_NAME'"/>
+							</xsl:call-template>
+							<xsl:call-template name="TD_ITEM_LABEL">
+								<xsl:with-param name="PLANTILLA" select="$PLANTILLA"/>
+								<xsl:with-param name="ID" select="'MSG_REPLACE_NAME'"/>
+							</xsl:call-template>
+							<xsl:if test="$POND">
+								<xsl:call-template name="TD_ITEM_POND">
+									<xsl:with-param name="PLANTILLA" select="$PLANTILLA"/>
+									<xsl:with-param name="ID" select="'POND_REPLACE_NAME'"/>
+									<xsl:with-param name="EDITABLE" select="$REPORT/@editable"/>
+									<xsl:with-param name="VALUE" select="1"/>
+									<xsl:with-param name="DEC" select="$PLANTILLA/@DEF_d_cus3"/>
+								</xsl:call-template>
+							</xsl:if>
+							<xsl:call-template name="TD_ITEM_VALUE_INPUT">
+								<xsl:with-param name="STATUS" select="$PLANTILLA/@DEF_Evaluador"/>
+								<xsl:with-param name="ID" select="'OE_REPLACE_NAME'"/>
+								<xsl:with-param name="DEC" select="$PLANTILLA/@DEF_d_cus2"/>
+								<xsl:with-param name="EDITABLE" select="$REPORT/@editable"/>
+							</xsl:call-template>
+							<xsl:call-template name="TD_ITEM_VALUE_INPUT">
+								<xsl:with-param name="STATUS" select="$PLANTILLA/@DEF_Evaluado"/>
+								<xsl:with-param name="ID" select="'OA_REPLACE_NAME'"/>
+								<xsl:with-param name="DEC" select="$PLANTILLA/@DEF_d_cus2"/>
+								<xsl:with-param name="EDITABLE" select="$REPORT/@editable"/>
+							</xsl:call-template>
+							<xsl:call-template name="TD_ITEM_VALUE_INPUT">
+								<xsl:with-param name="STATUS" select="$PLANTILLA/@DEF_Supervisor"/>
+								<xsl:with-param name="ID" select="'OS_REPLACE_NAME'"/>
+								<xsl:with-param name="DEC" select="$PLANTILLA/@DEF_d_cus2"/>
+								<xsl:with-param name="EDITABLE" select="$REPORT/@editable"/>
+							</xsl:call-template>
+						</tr>
+					</xsl:if>
+					<!-- -->
+					<!-- Recorre los ITEM -->
+					<xsl:for-each select="ITEM">
+						<xsl:variable name="ITEM" select="."/>
+						<xsl:variable name="ESCALA" select="$ESCALAS/ESCALA[@oi_escala=$ITEM/@oi_escala]"/>
+						<tr id="TR_O_{@oi_objetivo}">
+							<xsl:call-template name="TD_ITEM_ACTION_DEL">
+								<xsl:with-param name="PLANTILLA" select="$PLANTILLA"/>
+								<xsl:with-param name="ITEM" select="$ITEM/@oi_objetivo"/>
+							</xsl:call-template>
+							<xsl:call-template name="TD_ITEM_LABEL">
+								<xsl:with-param name="PLANTILLA" select="$PLANTILLA"/>
+								<xsl:with-param name="ID" select="concat('MSG_',$ITEM/@oi_objetivo)"/>
+								<xsl:with-param name="TEXT" select="$ITEM/@d_objetivo"/>
+								<xsl:with-param name="TOOLTIP" select="$ITEM/@o_objetivo"/>
+							</xsl:call-template>
+							<xsl:if test="$POND">
+								<xsl:call-template name="TD_ITEM_POND">
+									<xsl:with-param name="PLANTILLA" select="$PLANTILLA"/>
+									<xsl:with-param name="ID" select="concat('POND_',$ITEM/@oi_objetivo)"/>
+									<xsl:with-param name="VALUE" select="$ITEM/@n_ponderacion"/>
+									<xsl:with-param name="DEC" select="$PLANTILLA/@DEF_d_cus3"/>
+									<xsl:with-param name="EDITABLE" select="$REPORT/@editable"/>
+								</xsl:call-template>
+							</xsl:if>
+							<xsl:call-template name="TD_ITEM_VALUE_INPUT">
+								<xsl:with-param name="STATUS" select="$PLANTILLA/@DEF_Evaluador"/>
+								<xsl:with-param name="ID" select="concat('OE_',$ITEM/@oi_objetivo)"/>
+								<xsl:with-param name="VALUE" select="$ITEM/@n_resultado"/>
+								<xsl:with-param name="EDITABLE" select="$REPORT/@editable"/>
+								<xsl:with-param name="DEC" select="$PLANTILLA/@DEF_d_cus2"/>
+							</xsl:call-template>
+							<xsl:call-template name="TD_ITEM_VALUE_INPUT">
+								<xsl:with-param name="STATUS" select="$PLANTILLA/@DEF_Evaluado"/>
+								<xsl:with-param name="ID" select="concat('OA_',$ITEM/@oi_objetivo)"/>
+								<xsl:with-param name="VALUE" select="$ITEM/@n_resultado2"/>
+								<xsl:with-param name="DEC" select="$PLANTILLA/@DEF_d_cus2"/>
+								<xsl:with-param name="EDITABLE" select="$REPORT/@editable"/>
+							</xsl:call-template>
+							<xsl:call-template name="TD_ITEM_VALUE_INPUT">
+								<xsl:with-param name="STATUS" select="$PLANTILLA/@DEF_Supervisor"/>
+								<xsl:with-param name="ID" select="concat('OS_',$ITEM/@oi_objetivo)"/>
+								<xsl:with-param name="VALUE" select="$ITEM/@n_resultado3"/>
+								<xsl:with-param name="DEC" select="$PLANTILLA/@DEF_d_cus2"/>
+								<xsl:with-param name="EDITABLE" select="$REPORT/@editable"/>
+							</xsl:call-template>
+						</tr>
+					</xsl:for-each>
+					<!-- -->
+					<!-- Agrega la Fila con el BOTON ADD ITEM -->
+					<xsl:if test="$PLANTILLA/@DEF_Edit='1'">
+						<tr class="PLA_ADD">
+							<xsl:call-template name="PLANTILLA_ADD">
+								<xsl:with-param name="PLANTILLA" select="$PLANTILLA"/>
+								<xsl:with-param name="EVALUADORES" select="$EVALUADORES"/>
+								<xsl:with-param name="POND" select="$POND"/>
+							</xsl:call-template>
+						</tr>
+					</xsl:if>
+					<!-- -->
+					<!-- Agrega la Fila con el RESUMEN DE RESULTADO -->
+					<tr class="PLA_FOOT">
+						<xsl:call-template name="PLANTILLA_FOOT">
+							<xsl:with-param name="PLANTILLA" select="$PLANTILLA"/>
+							<xsl:with-param name="EVALUADORES" select="$EVALUADORES"/>
+							<xsl:with-param name="POND" select="$POND"/>
+							<xsl:with-param name="ID" select="$PLANTILLA/@oi_plantilla"/>
+						</xsl:call-template>
+					</tr>
+				</table>
+				<xsl:call-template name="PLANTILLA_COMENT"/>
+			</xsl:if>
+		</xsl:template>
+		<xsl:template match="PLANTILLA[@DEF_d_reporte='ITEM_ESC_FOR_POND' or @DEF_d_reporte='ITEM_ESC_FOR']">
+			<xsl:variable name="PLANTILLA" select="."/>
+			<xsl:variable name="REPORT" select=".."/>
+			<xsl:variable name="EVALUADORES" select="../EVALUADORES"/>
+			<xsl:variable name="ESCALAS" select="../ESCALAS"/>
+			<xsl:variable name="POND" select="@DEF_d_reporte='ITEM_ESC_FOR_POND'"/>
+			<script>
+				<xsl:call-template name="SCRIPT_PLANTILLA_INIT"/>
+				<xsl:value-of select="concat('PLA.Columnas=&quot;',@DEF_d_cus4,'&quot;;')"/>
+				<xsl:value-of select="concat('PLA.Formula=&quot;',@DEF_d_cus5,'&quot;;')"/>
+				<xsl:text>
+					//Cargo las Columnas Adicionales
+PLA.EdtCols=new Array();
+PLA.EvaCols=new Array();
+var aux=PLA.Columnas.split(";");
+for (t=0; t!=aux.length; t++)
+{
+	if (aux[t].substr(0,1)=="@")
+	{
+		PLA.EdtCols.push(aux[t].substr(1).split(":")[0]);
+	} else                      
+	if (aux[t].substr(0,1)=="$")
+	{
+		PLA.EvaCols.push(aux[t].substr(1).split(":")[0]);
+	}
+}    
+
+var str="";
+str ="function FormulaGenerica(arr){ try { var Pond=arr['Pond']; ";
+for (t=0; t!=aux.length; t++)
+{
+	if ((aux[t].substr(0,1)=="@") || (aux[t].substr(0,1)=="$"))
+	{
+		str+="var "+aux[t].substr(1).split(":")[0]+"=arr['"+aux[t].substr(1).split(":")[0]+"'];";
+	}
+}    
+str+="return "+PLA.Formula+";";
+str+="} catch(e) { return null; } }";
+eval(str);                           
+                           
+PLA.Formula=FormulaGenerica;
+
+
+function Extract(strIn, suf, arr)
+{          
+	if (strIn=="") return;
+
+	var arrIn=strIn.split(";");
+	var arrDt;
+	var t;
+
+	for (t=0; t!=arrIn.length; t++)
+	if (arrIn[t]!="")
+	{
+		arrDt=arrIn[t].split("=");
+		
+		if (arrDt[1]=="N/A")
+		{
+			arr[suf+"_"+arrDt[0]]=-1;
+		} else
+		{
+			arrDt[1]=parseFloat(arrDt[1]);
+			if (isNaN(arrDt[1])) continue;
+	
+			arr[suf+"_"+arrDt[0]]=arrDt[1];
+		}
+	}
+}                    
+
+function Generate(Cols, Values, suf)
+{
+	var t,retval="";
+	
+	for(t=0; t!=Cols.length; t++)
+	if (Values[suf+"_"+Cols[t]]!=null)
+	retval+=Cols[t]+"="+FormatNumber(Values[suf+"_"+Cols[t]],3)+";";
+	
+	return retval;				
+}
+
+
+PLA.AddItem = function(MyItem)
+{          
+	var t;
+	
+	//Calculo Columnas Adicionales
+	MyItem.Values=new Array();
+
+	//Valores en 0 
+	for (t=0; t!=this.EdtCols.length; t++) MyItem.Values["X_"+this.EdtCols[t]]=null;
+	for (t=0; t!=this.EvaCols.length; t++) MyItem.Values["E_"+this.EvaCols[t]]=null;
+	for (t=0; t!=this.EvaCols.length; t++) MyItem.Values["A_"+this.EvaCols[t]]=null;
+	for (t=0; t!=this.EvaCols.length; t++) MyItem.Values["S_"+this.EvaCols[t]]=null;
+
+	//Extraer Valores de CUS
+	Extract(MyItem.Cus1, "X", MyItem.Values);
+	Extract(MyItem.Cus2, "E", MyItem.Values);
+	Extract(MyItem.Cus3, "A", MyItem.Values);
+	Extract(MyItem.Cus4, "S", MyItem.Values);
+
+	//Agrego el ITEM
+	this.Items["K_"+MyItem.Id]=MyItem;
+}       
+PLA.RECALC = function()
+{   
+	if (this.Show!='1') return;
+            
+	var key, MyITEM, t, found=false, value, arrEval=new Array();
+
+	this.Value1=0.0;
+	this.Value2=0.0;
+	this.Value3=0.0;
+	this.MaxValue1=0.0;     
+	this.MaxValue2=0.0;     
+	this.MaxValue3=0.0;     
+	this.OK=true;
+
+	//Recorro los ITEMS
+	for (key in this.Items)
+	{
+		MyITEM=this.Items[key];
+		if (MyITEM.Delete) continue;
+		found=true;
+	
+		CELD=document.getElementById("POND_"+MyITEM.Id);
+		if (CELD)
+		{
+			var pond = GetNumber(CELD.value, this.PondDecimales);
+			if (!isNaN(parseFloat(pond))) MyITEM.Pond=parseFloat(pond);
+			CELD.value=FormatNumber(MyITEM.Pond, this.PondDecimales);
+		}
+		arrEval["Pond"]=MyITEM.Pond;
+
+		//Generales
+		for (t=0; t!=this.EdtCols.length; t++)
+		{
+			CELD=document.getElementById("OX_EDT_"+this.EdtCols[t]+"_"+MyITEM.Id);
+			if (CELD)
+			{
+				if (CELD.value=="") 
+					MyITEM.Values["X_"+this.EdtCols[t]]=null;
+				else                                 
+				{                              
+					value=GetNumber(CELD.value, this.Decimales);
+					if (CELD.value!="@") if (!isNaN(parseFloat(value))) MyITEM.Values["X_"+this.EdtCols[t]]=parseFloat(value);
+					CELD.value=FormatNumber(MyITEM.Values["X_"+this.EdtCols[t]], this.Decimales); 
+				}                                                                             
+			} else
+			{
+				CELD=document.getElementById("DIV_OX_EDT_"+this.EdtCols[t]+"_"+MyITEM.Id);
+				CELD.innerHTML=FormatNumber(MyITEM.Values["X_"+this.EdtCols[t]], this.Decimales); 
+			}
+		
+			//Valores Comunes
+			arrEval[this.EdtCols[t]]=MyITEM.Values["X_"+this.EdtCols[t]];
+		}
+
+
+		if (this.Evaluador !='0') 
+		{
+			for (t=0; t!=this.EvaCols.length; t++)
+			{
+				CELD=document.getElementById("OX_EVA_"+this.EvaCols[t]+"_"+MyITEM.Id);
+				if (CELD)
+				{
+					if (CELD.value=="") 
+						MyITEM.Values["E_"+this.EvaCols[t]]=null;
+					else                                 
+					{                              
+						value=GetNumber(CELD.value, this.Decimales);
+						if (CELD.value!="@") MyITEM.Values["E_"+this.EvaCols[t]]=value;
+						CELD.value=FormatNumber(MyITEM.Values["E_"+this.EvaCols[t]], this.Decimales); 
+					}
+				} else
+				{ 
+					CELD=document.getElementById("DIV_OX_EVA_"+this.EvaCols[t]+"_"+MyITEM.Id);     
+					CELD.innerHTML=FormatNumber(MyITEM.Values["E_"+this.EvaCols[t]], this.Decimales); 
+				}
+				//Valores Comunes
+				arrEval[this.EvaCols[t]]=MyITEM.Values["E_"+this.EvaCols[t]];
+			}
+			
+			value=this.Formula(arrEval);
+			if (isNaN(value)) value=null;
+			MyITEM.Value1=value;
+
+			CELD=document.getElementById("DIV_OE_"+MyITEM.Id); 
+			if (MyITEM.Value1==null)
+			{
+				CELD.innerHTML="";
+			} else
+			{
+				if (compare(MyITEM.Value1,ESCALAS.Get(MyITEM.Escala).max)== 1)
+				MyITEM.Value1=ESCALAS.Get(MyITEM.Escala).max;
+				
+				if (compare(MyITEM.Value1,ESCALAS.Get(MyITEM.Escala).min)==-1)
+				MyITEM.Value1=ESCALAS.Get(MyITEM.Escala).min;
+				
+				if (compare(MyITEM.Value1,0)==-1)
+					MyITEM.Value1=-1;
+					
+				CELD.innerHTML=FormatTotal(MyITEM.Escala, MyITEM.Value1, this.Decimales);
+			}
+		}        
+
+		if (this.Evaluado !='0') 
+		{
+			for (t=0; t!=this.EvaCols.length; t++)
+			{
+				CELD=document.getElementById("OX_AUT_"+this.EvaCols[t]+"_"+MyITEM.Id);
+				if (CELD)
+				{
+					if (CELD.value=="") 
+						MyITEM.Values["A_"+this.EvaCols[t]]=null;
+					else                                 
+					{                              
+						value=GetNumber(CELD.value, this.Decimales);
+						if (CELD.value!="@") MyITEM.Values["A_"+this.EvaCols[t]]=value;
+						CELD.value=FormatNumber(MyITEM.Values["A_"+this.EvaCols[t]], this.Decimales); 
+					}
+				} else
+				{
+					CELD=document.getElementById("DIV_OX_AUT_"+this.EvaCols[t]+"_"+MyITEM.Id);
+					CELD.innerHTML=FormatNumber(MyITEM.Values["A_"+this.EvaCols[t]], this.Decimales); 
+				}
+				//Valores Comunes
+				arrEval[this.EvaCols[t]]=MyITEM.Values["A_"+this.EvaCols[t]];
+			}
+			value=this.Formula(arrEval);
+			if (isNaN(value)) value=null;
+			MyITEM.Value2=value;
+		
+			CELD=document.getElementById("DIV_OA_"+MyITEM.Id); 
+			if (MyITEM.Value2==null)
+			{
+				CELD.innerHTML="";
+			} else
+			{
+				if (compare(MyITEM.Value2,ESCALAS.Get(MyITEM.Escala).max)== 1)
+				MyITEM.Value2=ESCALAS.Get(MyITEM.Escala).max;
+				
+				if (compare(MyITEM.Value2,ESCALAS.Get(MyITEM.Escala).min)==-1)
+				MyITEM.Value2=ESCALAS.Get(MyITEM.Escala).min;
+				
+				if (compare(MyITEM.Value2,0)==-1)
+					MyITEM.Value2=-1;
+					
+				CELD.innerHTML=FormatTotal(MyITEM.Escala, MyITEM.Value2, this.Decimales);
+			}
+		}
+
+		if (this.Supervisor !='0') 
+		{
+			for (t=0; t!=this.EvaCols.length; t++)
+			{
+				CELD=document.getElementById("OX_SUP_"+this.EvaCols[t]+"_"+MyITEM.Id);
+				if (CELD)
+				{
+					if (CELD.value=="") 
+						MyITEM.Values["S_"+this.EvaCols[t]]=null;
+					else                                 
+					{                              
+						value=GetNumber(CELD.value, this.Decimales);
+						if (CELD.value!="@") MyITEM.Values["S_"+this.EvaCols[t]]=value;
+						CELD.value=FormatNumber(MyITEM.Values["S_"+this.EvaCols[t]], this.Decimales); 
+					}
+				} else
+				{
+					CELD=document.getElementById("DIV_OX_SUP_"+this.EvaCols[t]+"_"+MyITEM.Id);
+					CELD.innerHTML=FormatNumber(MyITEM.Values["S_"+this.EvaCols[t]], this.Decimales); 
+				}
+				//Valores Comunes
+				arrEval[this.EvaCols[t]]=MyITEM.Values["S_"+this.EvaCols[t]];
+			}
+			value=this.Formula(arrEval);
+			if (isNaN(value)) value=null;
+			MyITEM.Value3=value;
+		
+			CELD=document.getElementById("DIV_OS_"+MyITEM.Id); 
+			if (MyITEM.Value3==null)
+			{
+				CELD.innerHTML="";
+			} else
+			{
+				if (compare(MyITEM.Value3,ESCALAS.Get(MyITEM.Escala).max)== 1)
+				MyITEM.Value3=ESCALAS.Get(MyITEM.Escala).max;
+				
+				if (compare(MyITEM.Value3,ESCALAS.Get(MyITEM.Escala).min)==-1)
+				MyITEM.Value3=ESCALAS.Get(MyITEM.Escala).min;
+				
+				if (compare(MyITEM.Value3,0)==-1)
+					MyITEM.Value3=-1;
+					
+				CELD.innerHTML=FormatTotal(MyITEM.Escala, MyITEM.Value3, this.Decimales);
+			}
+		}                           
+
+		//Totales      
+		if (this.Value1==null || MyITEM.Value1==null) 
+			this.Value1=null; 
+		else 
+		if (compare(MyITEM.Value1,0)!=-1)
+		{
+	    this.MaxValue1+=MyITEM.Pond*ESCALAS.Get(MyITEM.Escala).max;
+			this.Value1   +=MyITEM.Pond*MyITEM.Value1;
+		}
+		
+		if (this.Value2==null || MyITEM.Value2==null) 
+			this.Value2=null; 
+		else 
+		if (compare(MyITEM.Value2,0)!=-1)
+		{
+	    this.MaxValue2+=MyITEM.Pond*ESCALAS.Get(MyITEM.Escala).max;
+			this.Value2   +=MyITEM.Pond*MyITEM.Value2;
+		}
+			
+		if (this.Value3==null || MyITEM.Value3==null) 
+			this.Value3=null; 
+		else 
+		if (compare(MyITEM.Value3,0)!=-1)
+		{
+	    this.MaxValue3+=MyITEM.Pond*ESCALAS.Get(MyITEM.Escala).max;
+			this.Value3   +=MyITEM.Pond*MyITEM.Value3;
+		}
+
+	}
+
+	if (!found)     
+	{
+		this.Value1=-1;
+		this.Value2=-1;
+		this.Value3=-1;      
+	}
+
+	if (this.Value1!=null) { this.Value1=(this.MaxValue1==0?-1:this.Value1/this.MaxValue1*ESCALAS.Get(this.Escala).max); }
+	if (this.Value2!=null) { this.Value2=(this.MaxValue2==0?-1:this.Value2/this.MaxValue2*ESCALAS.Get(this.Escala).max); }
+	if (this.Value3!=null) { this.Value3=(this.MaxValue3==0?-1:this.Value3/this.MaxValue3*ESCALAS.Get(this.Escala).max); }
+}
+
+PLA.DDOCHANGE_ADIC = function(DDOEVA, DDOPLA)
+{
+	var key, MyITEM, DDOITEM, COMENT;
+
+	var MaxID=0;
+	for (DDOITEM=DDOPLA.FindElement("OBJETIVOS").FirstChild(); DDOITEM!=null; DDOITEM=DDOITEM.Next())
+	if	(!isNaN(DDOITEM.GetAttrInt("c_objetivo"))) 
+	if	(compare(DDOITEM.GetAttrInt("c_objetivo"),MaxID)==1) 
+	MaxID=DDOITEM.GetAttrInt("c_objetivo");
+  
+	for (key in this.Items)
+	{                      
+		MyITEM=this.Items[key];          
+		
+		//Calculo de CUS
+		MyITEM.Cus1=Generate(this.EdtCols,MyITEM.Values,"X");
+		MyITEM.Cus2=Generate(this.EvaCols,MyITEM.Values,"E");
+		MyITEM.Cus3=Generate(this.EvaCols,MyITEM.Values,"A");
+		MyITEM.Cus4=Generate(this.EvaCols,MyITEM.Values,"S");
+ 		
+ 		if (MyITEM.New)
+ 		{                              
+ 			if (MyITEM.Delete) continue;
+ 			CheckSize("OBJETIVO",1000,document.getElementById("MSG_"+MyITEM.Id));
+ 			
+ 			MaxID++;
+			DDOITEM=DDOPLA.FindElement("OBJETIVOS").AddTailElement("OBJETIVO");
+			DDOITEM.SetAttr("nmd-status"   , "~i,");							
+			DDOITEM.SetAttr("id"           , "~"+MyITEM.Id);
+			DDOITEM.SetAttr("c_objetivo"   , MaxID);
+			DDOITEM.SetAttr("d_objetivo"   , document.getElementById("MSG_"+MyITEM.Id).value);
+			DDOITEM.SetAttr("n_ponderacion", MyITEM.Pond);
+			DDOITEM.SetAttr("d_cus1", MyITEM.Cus1);
+			DDOITEM.SetAttr("d_cus2", MyITEM.Cus2);
+			DDOITEM.SetAttr("d_cus3", MyITEM.Cus3);
+			DDOITEM.SetAttr("d_cus4", MyITEM.Cus4);
+			if (this.Evaluador =="2") DDOITEM.SetAttr("n_resultado"  , MyITEM.Value1==null?"":MyITEM.Value1);
+			if (this.Evaluado  =="2") DDOITEM.SetAttr("n_resultado2" , MyITEM.Value2==null?"":MyITEM.Value2); 
+			if (this.Supervisor=="2") DDOITEM.SetAttr("n_resultado3" , MyITEM.Value3==null?"":MyITEM.Value3);  
+			DDOITEM.AddTailElement("oi_competencia");
+			DDOITEM.AddTailElement("oi_escala");
+ 		} else             
+ 		if (MyITEM.Delete)
+ 		{
+			DDOITEM=DDOPLA.FindElement("OBJETIVOS").FindElement2("OBJETIVO","ID",MyITEM.Id);
+			DDOITEM.SetAttr("nmd-status" , "~d,");
+ 		} else
+ 		{
+			DDOITEM=DDOPLA.FindElement("OBJETIVOS").FindElement2("OBJETIVO","ID",MyITEM.Id);
+			DDOITEM.SetAttr("nmd-status" , "~u,");							 
+			if (document.getElementById("MSG_"+MyITEM.Id))
+			{
+				CheckSize("OBJETIVO",1000,document.getElementById("MSG_"+MyITEM.Id));
+				DDOITEM.SetAttr("d_objetivo"   , document.getElementById("MSG_"+MyITEM.Id).value);
+			}
+			DDOITEM.SetAttr("n_ponderacion", MyITEM.Pond);
+			DDOITEM.SetAttr("d_cus1", MyITEM.Cus1);
+			DDOITEM.SetAttr("d_cus2", MyITEM.Cus2);
+			DDOITEM.SetAttr("d_cus3", MyITEM.Cus3);
+			DDOITEM.SetAttr("d_cus4", MyITEM.Cus4);
+			if (this.Evaluador =="2") { DDOITEM.SetAttr("n_resultado"  , MyITEM.Value1==null?"":MyITEM.Value1); }
+			if (this.Evaluado  =="2") { DDOITEM.SetAttr("n_resultado2" , MyITEM.Value2==null?"":MyITEM.Value2); } 
+			if (this.Supervisor=="2") { DDOITEM.SetAttr("n_resultado3" , MyITEM.Value3==null?"":MyITEM.Value3); }  
+ 		}
+	}
+}
+				</xsl:text>
+				<xsl:for-each select="ITEM">
+					<xsl:text>
+						//
+var ITEM=new Object();
+					</xsl:text>
+					<xsl:value-of select="concat('ITEM.Id=',@oi_objetivo,';')"/>
+					<xsl:value-of select="concat('ITEM.Escala=',@oi_escala,';')"/>
+					<xsl:value-of select="concat('ITEM.Pond=',@n_ponderacion,';')"/>
+					<xsl:value-of select="concat('ITEM.Value1=',@n_resultado,';')"/>
+					<xsl:value-of select="concat('ITEM.Value2=',@n_resultado2,';')"/>
+					<xsl:value-of select="concat('ITEM.Value3=',@n_resultado3,';')"/>
+					<xsl:value-of select="concat('ITEM.Cus1=&quot;',@d_cus1,'&quot;;')"/>
+					<xsl:value-of select="concat('ITEM.Cus2=&quot;',@d_cus2,'&quot;;')"/>
+					<xsl:value-of select="concat('ITEM.Cus3=&quot;',@d_cus3,'&quot;;')"/>
+					<xsl:value-of select="concat('ITEM.Cus4=&quot;',@d_cus4,'&quot;;')"/>
+					<xsl:text>
+						ITEM.New=false;
+ITEM.Delete=false;
+PLA.AddItem(ITEM);
+					</xsl:text>
+				</xsl:for-each>
+			</script>
+			<xsl:if test="@DEF_Show='1'">
+				<xsl:call-template name="SEPARATOR"/>
+				<table class="PLA" id="TBL_{@oi_plantilla}">
+					<!-- -->
+					<!-- Agrega la Cabecera de la PLANTILLA -->
+					<tr class="PLA_HEAD">
+						<xsl:call-template name="PLANTILLA_HEAD">
+							<xsl:with-param name="PLANTILLA" select="$PLANTILLA"/>
+							<xsl:with-param name="EVALUADORES" select="$EVALUADORES"/>
+							<xsl:with-param name="POND" select="$POND"/>
+							<xsl:with-param name="COLS" select="concat(@DEF_d_cus4,';')"/>
+						</xsl:call-template>
+					</tr>
+					<!-- -->
+					<!-- Agrega el PROTOTIPO de ITEM -->
+					<xsl:if test="$PLANTILLA/@DEF_Edit='1'">
+						<xsl:variable name="ESCALA" select="$ESCALAS/ESCALA[@oi_escala=$PLANTILLA/@oi_escala_item]"/>
+						<tr style="display:none;" id="TR_OT_{@oi_plantilla}">
+							<xsl:call-template name="TD_ITEM_ACTION_DEL">
+								<xsl:with-param name="PLANTILLA" select="$PLANTILLA"/>
+								<xsl:with-param name="ITEM" select="'STR_REPLACE_NAME'"/>
+							</xsl:call-template>
+							<xsl:call-template name="TD_ITEM_LABEL">
+								<xsl:with-param name="PLANTILLA" select="$PLANTILLA"/>
+								<xsl:with-param name="ID" select="'MSG_REPLACE_NAME'"/>
+							</xsl:call-template>
+							<xsl:if test="$POND">
+								<xsl:call-template name="TD_ITEM_POND">
+									<xsl:with-param name="PLANTILLA" select="$PLANTILLA"/>
+									<xsl:with-param name="ID" select="'POND_REPLACE_NAME'"/>
+									<xsl:with-param name="VALUE" select="1"/>
+									<xsl:with-param name="DEC" select="$PLANTILLA/@DEF_d_cus3"/>
+									<xsl:with-param name="EDITABLE" select="$REPORT/@editable"/>
+								</xsl:call-template>
+							</xsl:if>
+							<xsl:call-template name="ADICIONALES_TD">
+								<xsl:with-param name="cols" select="concat(@DEF_d_cus4,';')"/>
+								<xsl:with-param name="edit" select="@DEF_Edit"/>
+								<xsl:with-param name="eva" select="0"/>
+								<xsl:with-param name="suf" select="'EDT'"/>
+								<xsl:with-param name="oi" select="'REPLACE_NAME'"/>
+								<xsl:with-param name="editable" select="../@editable"/>
+							</xsl:call-template>
+							<xsl:call-template name="ADICIONALES_TD">
+								<xsl:with-param name="cols" select="concat(@DEF_d_cus4,';')"/>
+								<xsl:with-param name="edit" select="2"/>
+								<xsl:with-param name="eva" select="@DEF_Evaluador"/>
+								<xsl:with-param name="suf" select="'EVA'"/>
+								<xsl:with-param name="oi" select="'REPLACE_NAME'"/>
+								<xsl:with-param name="editable" select="../@editable"/>
+							</xsl:call-template>
+							<xsl:call-template name="TD_ITEM_VALUE_LABEL">
+								<xsl:with-param name="STATUS" select="$PLANTILLA/@DEF_Evaluador"/>
+								<xsl:with-param name="ID" select="'OE_REPLACE_NAME'"/>
+								<xsl:with-param name="DEC" select="$PLANTILLA/@DEF_d_cus2"/>
+							</xsl:call-template>
+							<xsl:call-template name="ADICIONALES_TD">
+								<xsl:with-param name="cols" select="concat(@DEF_d_cus4,';')"/>
+								<xsl:with-param name="edit" select="2"/>
+								<xsl:with-param name="eva" select="@DEF_Evaluado"/>
+								<xsl:with-param name="suf" select="'AUT'"/>
+								<xsl:with-param name="oi" select="'REPLACE_NAME'"/>
+								<xsl:with-param name="editable" select="../@editable"/>
+							</xsl:call-template>
+							<xsl:call-template name="TD_ITEM_VALUE_LABEL">
+								<xsl:with-param name="STATUS" select="$PLANTILLA/@DEF_Evaluado"/>
+								<xsl:with-param name="ID" select="'OA_REPLACE_NAME'"/>
+								<xsl:with-param name="DEC" select="$PLANTILLA/@DEF_d_cus2"/>
+							</xsl:call-template>
+							<xsl:call-template name="ADICIONALES_TD">
+								<xsl:with-param name="cols" select="concat(@DEF_d_cus4,';')"/>
+								<xsl:with-param name="edit" select="2"/>
+								<xsl:with-param name="eva" select="@DEF_Supervisor"/>
+								<xsl:with-param name="suf" select="'SUP'"/>
+								<xsl:with-param name="oi" select="'REPLACE_NAME'"/>
+								<xsl:with-param name="editable" select="../@editable"/>
+							</xsl:call-template>
+							<xsl:call-template name="TD_ITEM_VALUE_LABEL">
+								<xsl:with-param name="STATUS" select="$PLANTILLA/@DEF_Supervisor"/>
+								<xsl:with-param name="ID" select="'OS_REPLACE_NAME'"/>
+								<xsl:with-param name="DEC" select="$PLANTILLA/@DEF_d_cus2"/>
+							</xsl:call-template>
+						</tr>
+					</xsl:if>
+					<!-- -->
+					<!-- Recorre los ITEM -->
+					<xsl:for-each select="ITEM">
+						<xsl:variable name="ITEM" select="."/>
+						<xsl:variable name="ESCALA" select="$ESCALAS/ESCALA[@oi_escala=$ITEM/@oi_escala]"/>
+						<tr id="TR_O_{@oi_objetivo}">
+							<xsl:call-template name="TD_ITEM_ACTION_DEL">
+								<xsl:with-param name="PLANTILLA" select="$PLANTILLA"/>
+								<xsl:with-param name="ITEM" select="$ITEM/@oi_objetivo"/>
+							</xsl:call-template>
+							<xsl:call-template name="TD_ITEM_LABEL">
+								<xsl:with-param name="PLANTILLA" select="$PLANTILLA"/>
+								<xsl:with-param name="ID" select="concat('MSG_',$ITEM/@oi_objetivo)"/>
+								<xsl:with-param name="TEXT" select="$ITEM/@d_objetivo"/>
+								<xsl:with-param name="TOOLTIP" select="$ITEM/@o_objetivo"/>
+							</xsl:call-template>
+							<xsl:if test="$POND">
+								<xsl:call-template name="TD_ITEM_POND">
+									<xsl:with-param name="PLANTILLA" select="$PLANTILLA"/>
+									<xsl:with-param name="ID" select="concat('POND_',$ITEM/@oi_objetivo)"/>
+									<xsl:with-param name="VALUE" select="$ITEM/@n_ponderacion"/>
+									<xsl:with-param name="DEC" select="$PLANTILLA/@DEF_d_cus3"/>
+									<xsl:with-param name="EDITABLE" select="$REPORT/@editable"/>
+								</xsl:call-template>
+							</xsl:if>
+							<xsl:call-template name="ADICIONALES_TD">
+								<xsl:with-param name="cols" select="concat(../@DEF_d_cus4,';')"/>
+								<xsl:with-param name="edit" select="../@DEF_Edit"/>
+								<xsl:with-param name="eva" select="0"/>
+								<xsl:with-param name="suf" select="'EDT'"/>
+								<xsl:with-param name="oi" select="$ITEM/@oi_objetivo"/>
+								<xsl:with-param name="editable" select="../../@editable"/>
+							</xsl:call-template>
+							<xsl:call-template name="ADICIONALES_TD">
+								<xsl:with-param name="cols" select="concat(../@DEF_d_cus4,';')"/>
+								<xsl:with-param name="edit" select="2"/>
+								<xsl:with-param name="eva" select="../@DEF_Evaluador"/>
+								<xsl:with-param name="suf" select="'EVA'"/>
+								<xsl:with-param name="oi" select="$ITEM/@oi_objetivo"/>
+								<xsl:with-param name="editable" select="../../@editable"/>
+							</xsl:call-template>
+							<xsl:call-template name="TD_ITEM_VALUE_LABEL">
+								<xsl:with-param name="STATUS" select="$PLANTILLA/@DEF_Evaluador"/>
+								<xsl:with-param name="ID" select="concat('OE_',$ITEM/@oi_objetivo)"/>
+								<xsl:with-param name="VALUE" select="$ITEM/@n_resultado"/>
+								<xsl:with-param name="DEC" select="$PLANTILLA/@DEF_d_cus2"/>
+								<xsl:with-param name="EDITABLE" select="$REPORT/@editable"/>
+							</xsl:call-template>
+							<xsl:call-template name="ADICIONALES_TD">
+								<xsl:with-param name="cols" select="concat(../@DEF_d_cus4,';')"/>
+								<xsl:with-param name="edit" select="2"/>
+								<xsl:with-param name="eva" select="../@DEF_Evaluado"/>
+								<xsl:with-param name="suf" select="'AUT'"/>
+								<xsl:with-param name="oi" select="$ITEM/@oi_objetivo"/>
+								<xsl:with-param name="editable" select="../../@editable"/>
+							</xsl:call-template>
+							<xsl:call-template name="TD_ITEM_VALUE_LABEL">
+								<xsl:with-param name="STATUS" select="$PLANTILLA/@DEF_Evaluado"/>
+								<xsl:with-param name="ID" select="concat('OA_',$ITEM/@oi_objetivo)"/>
+								<xsl:with-param name="VALUE" select="$ITEM/@n_resultado2"/>
+								<xsl:with-param name="DEC" select="$PLANTILLA/@DEF_d_cus2"/>
+							</xsl:call-template>
+							<xsl:call-template name="ADICIONALES_TD">
+								<xsl:with-param name="cols" select="concat(../@DEF_d_cus4,';')"/>
+								<xsl:with-param name="edit" select="2"/>
+								<xsl:with-param name="eva" select="../@DEF_Supervisor"/>
+								<xsl:with-param name="suf" select="'SUP'"/>
+								<xsl:with-param name="oi" select="$ITEM/@oi_objetivo"/>
+								<xsl:with-param name="editable" select="../../@editable"/>
+							</xsl:call-template>
+							<xsl:call-template name="TD_ITEM_VALUE_LABEL">
+								<xsl:with-param name="STATUS" select="$PLANTILLA/@DEF_Supervisor"/>
+								<xsl:with-param name="ID" select="concat('OS_',$ITEM/@oi_objetivo)"/>
+								<xsl:with-param name="VALUE" select="$ITEM/@n_resultado3"/>
+								<xsl:with-param name="DEC" select="$PLANTILLA/@DEF_d_cus2"/>
+							</xsl:call-template>
+						</tr>
+					</xsl:for-each>
+					<!-- -->
+					<!-- Agrega la Fila con el BOTON ADD ITEM -->
+					<xsl:if test="$PLANTILLA/@DEF_Edit='1'">
+						<tr class="PLA_ADD">
+							<xsl:call-template name="PLANTILLA_ADD">
+								<xsl:with-param name="PLANTILLA" select="$PLANTILLA"/>
+								<xsl:with-param name="EVALUADORES" select="$EVALUADORES"/>
+								<xsl:with-param name="POND" select="$POND"/>
+								<xsl:with-param name="COLS" select="concat(@DEF_d_cus4,';')"/>
+							</xsl:call-template>
+						</tr>
+					</xsl:if>
+					<!-- -->
+					<!-- Agrega la Fila con el RESUMEN DE RESULTADO -->
+					<tr class="PLA_FOOT">
+						<xsl:call-template name="PLANTILLA_FOOT">
+							<xsl:with-param name="PLANTILLA" select="$PLANTILLA"/>
+							<xsl:with-param name="EVALUADORES" select="$EVALUADORES"/>
+							<xsl:with-param name="POND" select="$POND"/>
+							<xsl:with-param name="COLS" select="concat(@DEF_d_cus4,';')"/>
+							<xsl:with-param name="ID" select="$PLANTILLA/@oi_plantilla"/>
+						</xsl:call-template>
+					</tr>
+				</table>
+				<xsl:call-template name="PLANTILLA_COMENT"/>
+			</xsl:if>
+		</xsl:template>
+		<xsl:template match="PLANTILLA[@DEF_d_reporte='ITEM_NOESCALA']">
+			<xsl:variable name="PLANTILLA" select="."/>
+			<xsl:variable name="REPORT" select=".."/>
+			<script>
+				<xsl:call-template name="SCRIPT_PLANTILLA_NORES_INIT"/>
+				<xsl:text>
+					PLA.DDOCHANGE_ADIC = function(DDOEVA, DDOPLA)
+{  
+	var key, MyITEM, DDOITEM;   
+
+	if (this.Edit=='1')
+	{
+		var MaxID=0;
+		for (DDOITEM=DDOPLA.FindElement("OBJETIVOS").FirstChild(); DDOITEM!=null; DDOITEM=DDOITEM.Next())
+		if	(compare(DDOITEM.GetAttrInt("c_objetivo"),MaxID)==1) 
+		if (!isNaN(DDOITEM.GetAttrInt("c_objetivo"))) 
+		MaxID=DDOITEM.GetAttrInt("c_objetivo");
+	  
+	 	for (key in this.Items)
+	 	{                      
+	 		MyITEM=this.Items[key];
+	 		
+	 		if (MyITEM.New)
+	 		{                              
+	 			if (MyITEM.Delete) continue; 
+	 			
+	 			MaxID++;
+				DDOITEM=DDOPLA.FindElement("OBJETIVOS").AddTailElement("OBJETIVO");
+				DDOITEM.SetAttr("nmd-status"   , "~i,");							
+				DDOITEM.SetAttr("id"           , "~"+MyITEM.Id);
+				DDOITEM.SetAttr("c_objetivo"   , MaxID);
+				DDOITEM.SetAttr("d_objetivo"   , "");
+				DDOITEM.SetAttr("n_ponderacion", "1");
+				CELD=document.getElementById("MSG_"+MyITEM.Id+"_1"); if (CELD) { CheckSize("CUS",1000,CELD); DDOITEM.SetAttr("d_cus1", CELD.value); }
+				CELD=document.getElementById("MSG_"+MyITEM.Id+"_2"); if (CELD) { CheckSize("CUS",1000,CELD); DDOITEM.SetAttr("d_cus2", CELD.value); }
+				CELD=document.getElementById("MSG_"+MyITEM.Id+"_3"); if (CELD) { CheckSize("CUS",1000,CELD); DDOITEM.SetAttr("d_cus3", CELD.value); }
+				CELD=document.getElementById("MSG_"+MyITEM.Id+"_4"); if (CELD) { CheckSize("CUS",1000,CELD); DDOITEM.SetAttr("d_cus4", CELD.value); }
+				CELD=document.getElementById("MSG_"+MyITEM.Id+"_5"); if (CELD) { CheckSize("CUS",1000,CELD); DDOITEM.SetAttr("d_cus5", CELD.value); }
+				DDOITEM.SetAttr("n_resultado"  , "");
+				DDOITEM.SetAttr("n_resultado2" , ""); 
+				DDOITEM.SetAttr("n_resultado3" , "");  
+	
+				DDOITEM.AddTailElement("oi_competencia");
+				DDOITEM.AddTailElement("oi_escala");
+	 		} else                          
+	 		if (MyITEM.Delete)
+	 		{
+	 			DDOITEM=DDOPLA.FindElement("OBJETIVOS").FindElement2("OBJETIVO","ID",MyITEM.Id);
+	 			DDOITEM.SetAttr("nmd-status"  , "~d,");
+	 		} else
+	 		{
+				DDOITEM=DDOPLA.FindElement("OBJETIVOS").FindElement2("OBJETIVO","ID",MyITEM.Id);
+				DDOITEM.SetAttr("nmd-status"  , "~u,");							
+				CELD=document.getElementById("MSG_"+MyITEM.Id+"_1"); if (CELD) { CheckSize("CUS",1000,CELD); DDOITEM.SetAttr("d_cus1", CELD.value); }
+				CELD=document.getElementById("MSG_"+MyITEM.Id+"_2"); if (CELD) { CheckSize("CUS",1000,CELD); DDOITEM.SetAttr("d_cus2", CELD.value); }
+				CELD=document.getElementById("MSG_"+MyITEM.Id+"_3"); if (CELD) { CheckSize("CUS",1000,CELD); DDOITEM.SetAttr("d_cus3", CELD.value); }
+				CELD=document.getElementById("MSG_"+MyITEM.Id+"_4"); if (CELD) { CheckSize("CUS",1000,CELD); DDOITEM.SetAttr("d_cus4", CELD.value); }
+				CELD=document.getElementById("MSG_"+MyITEM.Id+"_5"); if (CELD) { CheckSize("CUS",1000,CELD); DDOITEM.SetAttr("d_cus5", CELD.value); }
+				DDOITEM.SetAttr("n_resultado" , "");
+				DDOITEM.SetAttr("n_resultado2", ""); 
+				DDOITEM.SetAttr("n_resultado3", "");  
+	 		}
+ 		}
+	}
+}
+				</xsl:text>
+				<xsl:for-each select="ITEM">
+					<xsl:text>
+						//
+var ITEM=new Object();
+					</xsl:text>
+					<xsl:value-of select="concat('ITEM.Id=',@oi_objetivo,';')"/>
+					<xsl:value-of select="concat('ITEM.Pond=',@n_ponderacion,';')"/>
+					<xsl:text>
+						ITEM.CtrlList=null;
+ITEM.CtrlList2=null;
+ITEM.CtrlList3=null;
+ITEM.Value=null;
+ITEM.Value2=null;
+ITEM.Value3=null;
+ITEM.New=false;
+ITEM.Delete=false;
+PLA.AddItem(ITEM);
+					</xsl:text>
+				</xsl:for-each>
+			</script>
+			<xsl:if test="@DEF_Show='1'">
+				<xsl:call-template name="SEPARATOR"/>
+				<xsl:call-template name="PLANTILLA_TITLE"/>
+				<table class="PLA_BODY" id="TBL_{@oi_plantilla}" style="table-layout: fixed;">
+					<!-- -->
+					<!-- Agrega la Cabecera de la PLANTILLA -->
+					<tr class="PLA_HEAD">
+						<xsl:if test="@DEF_Edit='1'">
+							<th class="col_action">
+								&#160;
+							</th>
+						</xsl:if>
+						<xsl:if test="@DEF_d_cus1">
+							<th class="col_label">
+								<xsl:value-of select="@DEF_d_cus1"/>
+							</th>
+						</xsl:if>
+						<xsl:if test="@DEF_d_cus2">
+							<th class="col_label">
+								<xsl:value-of select="@DEF_d_cus2"/>
+							</th>
+						</xsl:if>
+						<xsl:if test="@DEF_d_cus3">
+							<th class="col_label">
+								<xsl:value-of select="@DEF_d_cus3"/>
+							</th>
+						</xsl:if>
+						<xsl:if test="@DEF_d_cus4">
+							<th class="col_label">
+								<xsl:value-of select="@DEF_d_cus4"/>
+							</th>
+						</xsl:if>
+						<xsl:if test="@DEF_d_cus5">
+							<th class="col_label">
+								<xsl:value-of select="@DEF_d_cus5"/>
+							</th>
+						</xsl:if>
+					</tr>
+					<!-- -->
+					<!-- Agrega el PROTOTIPO de ITEM -->
+					<tr style="display:none;" id="TR_OT_{@oi_plantilla}">
+						<xsl:call-template name="TD_ITEM_ACTION_DEL">
+							<xsl:with-param name="PLANTILLA" select="$PLANTILLA"/>
+							<xsl:with-param name="ITEM" select="'STR_REPLACE_NAME'"/>
+						</xsl:call-template>
+						<xsl:if test="$PLANTILLA/@DEF_d_cus1">
+							<xsl:call-template name="TD_ITEM_COMMENT">
+								<xsl:with-param name="PLANTILLA" select="$PLANTILLA"/>
+								<xsl:with-param name="ID" select="'MSG_REPLACE_NAME_1'"/>
+								<xsl:with-param name="EDIT" select="2"/>
+								<xsl:with-param name="EDITABLE" select="$REPORT/@editable"/>
+							</xsl:call-template>
+						</xsl:if>
+						<xsl:if test="$PLANTILLA/@DEF_d_cus2">
+							<xsl:call-template name="TD_ITEM_COMMENT">
+								<xsl:with-param name="PLANTILLA" select="$PLANTILLA"/>
+								<xsl:with-param name="ID" select="'MSG_REPLACE_NAME_2'"/>
+								<xsl:with-param name="EDIT" select="2"/>
+								<xsl:with-param name="EDITABLE" select="$REPORT/@editable"/>
+							</xsl:call-template>
+						</xsl:if>
+						<xsl:if test="$PLANTILLA/@DEF_d_cus3">
+							<xsl:call-template name="TD_ITEM_COMMENT">
+								<xsl:with-param name="PLANTILLA" select="$PLANTILLA"/>
+								<xsl:with-param name="ID" select="'MSG_REPLACE_NAME_3'"/>
+								<xsl:with-param name="EDIT" select="2"/>
+								<xsl:with-param name="EDITABLE" select="$REPORT/@editable"/>
+							</xsl:call-template>
+						</xsl:if>
+						<xsl:if test="$PLANTILLA/@DEF_d_cus4">
+							<xsl:call-template name="TD_ITEM_COMMENT">
+								<xsl:with-param name="PLANTILLA" select="$PLANTILLA"/>
+								<xsl:with-param name="ID" select="'MSG_REPLACE_NAME_4'"/>
+								<xsl:with-param name="EDIT" select="2"/>
+								<xsl:with-param name="EDITABLE" select="$REPORT/@editable"/>
+							</xsl:call-template>
+						</xsl:if>
+						<xsl:if test="$PLANTILLA/@DEF_d_cus5">
+							<xsl:call-template name="TD_ITEM_LABEL">
+								<xsl:with-param name="PLANTILLA" select="$PLANTILLA"/>
+								<xsl:with-param name="ID" select="'MSG_REPLACE_NAME_5'"/>
+								<xsl:with-param name="EDIT" select="2"/>
+								<xsl:with-param name="EDITABLE" select="$REPORT/@editable"/>
+							</xsl:call-template>
+						</xsl:if>
+					</tr>
+					<!-- -->
+					<!-- Recorre los ITEM -->
+					<xsl:for-each select="ITEM">
+						<xsl:variable name="ITEM" select="."/>
+						<tr id="TR_O_{@oi_objetivo}">
+							<xsl:call-template name="TD_ITEM_ACTION_DEL">
+								<xsl:with-param name="PLANTILLA" select="$PLANTILLA"/>
+								<xsl:with-param name="ITEM" select="$ITEM/@oi_objetivo"/>
+							</xsl:call-template>
+							<xsl:if test="$PLANTILLA/@DEF_d_cus1">
+								<xsl:call-template name="TD_ITEM_COMMENT">
+									<xsl:with-param name="PLANTILLA" select="$PLANTILLA"/>
+									<xsl:with-param name="ID" select="concat('MSG_',$ITEM/@oi_objetivo,'_1')"/>
+									<xsl:with-param name="TEXT" select="$ITEM/@d_cus1"/>
+									<xsl:with-param name="EDIT" select="2 * $PLANTILLA/@DEF_Edit"/>
+									<xsl:with-param name="EDITABLE" select="$REPORT/@editable"/>
+								</xsl:call-template>
+							</xsl:if>
+							<xsl:if test="$PLANTILLA/@DEF_d_cus2">
+								<xsl:call-template name="TD_ITEM_COMMENT">
+									<xsl:with-param name="PLANTILLA" select="$PLANTILLA"/>
+									<xsl:with-param name="ID" select="concat('MSG_',$ITEM/@oi_objetivo,'_2')"/>
+									<xsl:with-param name="TEXT" select="$ITEM/@d_cus2"/>
+									<xsl:with-param name="EDIT" select="2 * $PLANTILLA/@DEF_Edit"/>
+									<xsl:with-param name="EDITABLE" select="$REPORT/@editable"/>
+								</xsl:call-template>
+							</xsl:if>
+							<xsl:if test="$PLANTILLA/@DEF_d_cus3">
+								<xsl:call-template name="TD_ITEM_COMMENT">
+									<xsl:with-param name="PLANTILLA" select="$PLANTILLA"/>
+									<xsl:with-param name="ID" select="concat('MSG_',$ITEM/@oi_objetivo,'_3')"/>
+									<xsl:with-param name="TEXT" select="$ITEM/@d_cus3"/>
+									<xsl:with-param name="EDIT" select="2 * $PLANTILLA/@DEF_Edit"/>
+									<xsl:with-param name="EDITABLE" select="$REPORT/@editable"/>
+								</xsl:call-template>
+							</xsl:if>
+							<xsl:if test="$PLANTILLA/@DEF_d_cus4">
+								<xsl:call-template name="TD_ITEM_COMMENT">
+									<xsl:with-param name="PLANTILLA" select="$PLANTILLA"/>
+									<xsl:with-param name="ID" select="concat('MSG_',$ITEM/@oi_objetivo,'_4')"/>
+									<xsl:with-param name="TEXT" select="$ITEM/@d_cus4"/>
+									<xsl:with-param name="EDIT" select="2 * $PLANTILLA/@DEF_Edit"/>
+									<xsl:with-param name="EDITABLE" select="$REPORT/@editable"/>
+								</xsl:call-template>
+							</xsl:if>
+							<xsl:if test="$PLANTILLA/@DEF_d_cus5">
+								<xsl:call-template name="TD_ITEM_COMMENT">
+									<xsl:with-param name="PLANTILLA" select="$PLANTILLA"/>
+									<xsl:with-param name="ID" select="concat('MSG_',$ITEM/@oi_objetivo,'_5')"/>
+									<xsl:with-param name="TEXT" select="$ITEM/@d_cus5"/>
+									<xsl:with-param name="EDIT" select="2 * $PLANTILLA/@DEF_Edit"/>
+									<xsl:with-param name="EDITABLE" select="$REPORT/@editable"/>
+								</xsl:call-template>
+							</xsl:if>
+						</tr>
+					</xsl:for-each>
+					<!-- -->
+					<!-- Agrega la Fila con el BOTON ADD ITEM -->
+					<xsl:if test="$PLANTILLA/@DEF_Edit='1'">
+						<tr class="PLA_ADD">
+							<td class="col_action">
+								<img src="./Skins/_Default/Images/Buttons/table_add_n.gif" style="cursor:pointer;" title="Agregar un nuevo Item" width="16px" onclick="EVA.GetPlantilla({$PLANTILLA/@oi_plantilla}).NewItem();"/>
+							</td>
+							<xsl:if test="$PLANTILLA/@DEF_d_cus1">
+								<td>
+									&#160;
+								</td>
+							</xsl:if>
+							<xsl:if test="$PLANTILLA/@DEF_d_cus2">
+								<td>
+									&#160;
+								</td>
+							</xsl:if>
+							<xsl:if test="$PLANTILLA/@DEF_d_cus3">
+								<td>
+									&#160;
+								</td>
+							</xsl:if>
+							<xsl:if test="$PLANTILLA/@DEF_d_cus4">
+								<td>
+									&#160;
+								</td>
+							</xsl:if>
+							<xsl:if test="$PLANTILLA/@DEF_d_cus5">
+								<td>
+									&#160;
+								</td>
+							</xsl:if>
+						</tr>
+					</xsl:if>
+				</table>
+				<xsl:call-template name="PLANTILLA_COMENT"/>
+			</xsl:if>
+		</xsl:template>
+		<xsl:template match="PLANTILLA[@DEF_d_reporte='COMENT']">
+			<script>
+				<xsl:call-template name="SCRIPT_PLANTILLA_NORES_INIT"/>
+			</script>
+			<xsl:if test="@DEF_Show='1' and @DEF_Comentarios!='0'">
+				<xsl:call-template name="SEPARATOR"/>
+				<xsl:call-template name="PLANTILLA_TITLE"/>
+				<xsl:call-template name="PLANTILLA_COMENT"/>
+			</xsl:if>
+		</xsl:template>
+		<xsl:template match="PLANTILLA[@DEF_d_reporte='COMENT_360']">
+			<xsl:variable name="EVALUACION" select=".."/>
+			<xsl:variable name="PLANTILLA" select="."/>
+			<xsl:variable name="REPORT" select=".."/>
+			<xsl:variable name="EVALUADORES" select="../EVALUADORES"/>
+			<script>
+				<xsl:call-template name="SCRIPT_PLANTILLA_NORES_INIT"/>
+				<xsl:text>
+					PLA.DDOCHANGE_ADIC = function(DDOEVA, DDOPLA)
+{    
+	var COMENT;
+	
+	//Comentarios de la Plantilla
+	if (this.Evaluador360=='3')
+	{
+		COMENT=document.getElementById("COMENT_"+this.Id+"_"+EVALUADORES.oi_evaluador_360);
+		if (COMENT)
+		{              
+			CheckSize("COMENT",4000,COMENT);                  
+			
+			
+			//Busco evaluador
+			DDO360=null;
+			for (CUR=DDOPLA.FindElement("EVALUADORES").FirstChild(); CUR!=null; CUR=CUR.Next())
+				if (CUR.FindElement("oi_personal_emp").GetAttr("value")==EVALUADORES.oi_evaluador_360)
+				{
+					DDO360=CUR;
+					break;
+				}
+					
+			if (DDO360==null)
+			{
+				DDO360=DDOPLA.FindElement("EVALUADORES").AddTailElement("PLA_EVALUADOR");
+				DDO360.SetAttr("nmd-status"   , "~i,");
+				DDO360.SetAttr("id"           , "~C_XXX");
+				DDO360.AddTailElement("oi_personal_emp").SetAttr("value", EVALUADORES.oi_evaluador_360);
+			} else
+			{                                       
+				DDO360.SetAttr("nmd-status"   , "~u,");
+			}
+			DDO360.SetAttr("o_comentario", COMENT.value);
+		}
+	}
+}
+				</xsl:text>
+			</script>
+			<xsl:if test="@DEF_Show='1'">
+				<xsl:call-template name="SEPARATOR"/>
+				<xsl:call-template name="PLANTILLA_TITLE"/>
+				<xsl:choose>
+					<xsl:when test="$PLANTILLA/@DEF_Evaluador360='1'">
+						<table class="PLA_COMENT">
+							<tr>
+								<xsl:call-template name="TD_ITEM_COMMENT">
+									<xsl:with-param name="ID" select="concat('COMENT_',$PLANTILLA/@oi_plantilla,'_',$EVALUADORES/@oi_evaluador_360)"/>
+									<xsl:with-param name="TEXT" select="@EVA_o_plantilla"/>
+									<xsl:with-param name="EDIT" select="1"/>
+									<xsl:with-param name="EDITABLE" select="$REPORT/@editable"/>
+								</xsl:call-template>
+							</tr>
+						</table>
+					</xsl:when>
+					<xsl:when test="$PLANTILLA/@DEF_Evaluador360='2'">
+						<table class="PLA_COMENT">
+							<xsl:for-each select="$PLANTILLA/attribute::*[starts-with(name(),'EVA_o_com_')]">
+								<xsl:variable name="COMENT" select="."/>
+								<xsl:variable name="OI" select="substring(name(),11)"/>
+								<tr>
+									<xsl:choose>
+										<xsl:when test="$OI=$EVALUACION/@J_oi_personal_emp">
+											<xsl:if test="$PLANTILLA/@DEF_d_cus1">
+												<xsl:call-template name="TD_ITEM_COMMENT">
+													<xsl:with-param name="ID" select="concat('COMMENT_',$PLANTILLA/@oi_plantilla,'_',$OI)"/>
+													<xsl:with-param name="LABEL" select="'SUPERVISOR'"/>
+													<xsl:with-param name="TEXT" select="$PLANTILLA/@DEF_d_cus1"/>
+													<xsl:with-param name="EDIT" select="1"/>
+													<xsl:with-param name="EDITABLE" select="$REPORT/@editable"/>
+												</xsl:call-template>
+											</xsl:if>
+											<xsl:if test="not($PLANTILLA/@DEF_d_cus1)">
+												<xsl:call-template name="TD_ITEM_COMMENT">
+													<xsl:with-param name="ID" select="concat('COMMENT_',$PLANTILLA/@oi_plantilla,'_',$OI)"/>
+													<xsl:with-param name="LABEL" select="'EVALUADOR'"/>
+													<xsl:with-param name="TEXT" select="$COMENT"/>
+													<xsl:with-param name="EDIT" select="1"/>
+													<xsl:with-param name="EDITABLE" select="$REPORT/@editable"/>
+												</xsl:call-template>
+											</xsl:if>
+										</xsl:when>
+										<xsl:when test="$OI=$EVALUACION/@E_oi_personal_emp">
+											<xsl:if test="$PLANTILLA/@DEF_d_cus3">
+												<xsl:call-template name="TD_ITEM_COMMENT">
+													<xsl:with-param name="ID" select="concat('COMMENT_',$PLANTILLA/@oi_plantilla,'_',$OI)"/>
+													<xsl:with-param name="LABEL" select="'SUPERVISOR'"/>
+													<xsl:with-param name="TEXT" select="$PLANTILLA/@DEF_d_cus3"/>
+													<xsl:with-param name="EDIT" select="1"/>
+													<xsl:with-param name="EDITABLE" select="$REPORT/@editable"/>
+												</xsl:call-template>
+											</xsl:if>
+											<xsl:if test="not($PLANTILLA/@DEF_d_cus3)">
+												<xsl:call-template name="TD_ITEM_COMMENT">
+													<xsl:with-param name="ID" select="concat('COMMENT_',$PLANTILLA/@oi_plantilla,'_',$OI)"/>
+													<xsl:with-param name="LABEL" select="'AUTOEVALUACION'"/>
+													<xsl:with-param name="TEXT" select="$COMENT"/>
+													<xsl:with-param name="EDIT" select="1"/>
+													<xsl:with-param name="EDITABLE" select="$REPORT/@editable"/>
+												</xsl:call-template>
+											</xsl:if>
+										</xsl:when>
+										<xsl:when test="$OI=$EVALUACION/@S_oi_personal_emp">
+											<xsl:if test="$PLANTILLA/@DEF_d_cus2">
+												<xsl:call-template name="TD_ITEM_COMMENT">
+													<xsl:with-param name="ID" select="concat('COMMENT_',$PLANTILLA/@oi_plantilla,'_',$OI)"/>
+													<xsl:with-param name="LABEL" select="'SUPERVISOR'"/>
+													<xsl:with-param name="TEXT" select="$PLANTILLA/@DEF_d_cus2"/>
+													<xsl:with-param name="EDIT" select="1"/>
+													<xsl:with-param name="EDITABLE" select="$REPORT/@editable"/>
+												</xsl:call-template>
+											</xsl:if>
+											<xsl:if test="not($PLANTILLA/@DEF_d_cus2)">
+												<xsl:call-template name="TD_ITEM_COMMENT">
+													<xsl:with-param name="ID" select="concat('COMMENT_',$PLANTILLA/@oi_plantilla,'_',$OI)"/>
+													<xsl:with-param name="LABEL" select="'SUPERVISOR'"/>
+													<xsl:with-param name="TEXT" select="$COMENT"/>
+													<xsl:with-param name="EDIT" select="1"/>
+													<xsl:with-param name="EDITABLE" select="$REPORT/@editable"/>
+												</xsl:call-template>
+											</xsl:if>
+										</xsl:when>
+										<xsl:otherwise>
+											<xsl:call-template name="TD_ITEM_COMMENT">
+												<xsl:with-param name="ID" select="concat('COMMENT_',$PLANTILLA/@oi_plantilla,'_',$OI)"/>
+												<xsl:with-param name="LABEL" select="$EVALUADORES/EVALUADOR[@oi_personal_emp=$OI]/@d_ape_y_nom"/>
+												<xsl:with-param name="TEXT" select="$COMENT"/>
+												<xsl:with-param name="EDIT" select="1"/>
+												<xsl:with-param name="EDITABLE" select="$REPORT/@editable"/>
+											</xsl:call-template>
+										</xsl:otherwise>
+									</xsl:choose>
+								</tr>
+							</xsl:for-each>
+						</table>
+					</xsl:when>
+					<xsl:when test="$PLANTILLA/@DEF_Evaluador360='3'">
+						<table class="PLA_COMENT">
+							<tr>
+								<xsl:call-template name="TD_ITEM_COMMENT">
+									<xsl:with-param name="ID" select="concat('COMENT_',$PLANTILLA/@oi_plantilla,'_',$EVALUADORES/@oi_evaluador_360)"/>
+									<xsl:with-param name="TEXT" select="$PLANTILLA/attribute::*[name() = concat('EVA_o_com_',$EVALUADORES/@oi_evaluador_360)]"/>
+									<xsl:with-param name="EDIT" select="2"/>
+									<xsl:with-param name="EDITABLE" select="$REPORT/@editable"/>
+								</xsl:call-template>
+							</tr>
+						</table>
+					</xsl:when>
+				</xsl:choose>
+			</xsl:if>
+		</xsl:template>
+		<xsl:template match="PLANTILLA[@DEF_d_reporte='RESUMEN']">
+			<xsl:variable name="PLANTILLA" select="."/>
+			<xsl:variable name="REPORT" select=".."/>
+			<xsl:variable name="EVALUADORES" select="../EVALUADORES"/>
+			<script>
+				<xsl:call-template name="SCRIPT_PLANTILLA_NORES_INIT"/>
+				<xsl:if test="@DEF_d_cus1">
+					<xsl:value-of select="concat('&#13;&#10;PLA.Decimales=',@DEF_d_cus1,';')"/>
+				</xsl:if>
+				<xsl:text>
+					PLA.REFRESH = function()
+{ 
+	var key, key2, MyPLA, MaxValue1, MaxValue2, MaxValue3, MyOBJ1, MyOBJ2;
+
+	//Inicializo los Contadores                         
+  MaxValue1=0.0; Value1=0.0;
+  MaxValue2=0.0; Value2=0.0;
+  MaxValue3=0.0; Value3=0.0;
+  MaxValues=new Array(); Values=new Array();
+  for (key2 in EVALUADORES.items) { MaxValues[key2]=0.0; Values[key2]=0.0; }
+	escEvaMax=ESCALAS.Get(EVA.Escala).max;
+  
+
+	//Recorro las Plantillas y Actualizo la Columna
+	for(key in EVA.Plantillas)
+	{                 
+		MyPLA=EVA.Plantillas[key];
+		if (!MyPLA.MostrarResumen) continue;
+
+		escMax=ESCALAS.Get(MyPLA.Escala).max;
+		
+		MyPLA.ProValue1=null;
+		MyPLA.ProValue2=null;
+		MyPLA.ProValue3=null; 
+		
+		if (MyPLA.Sum360==1)             
+		{
+			MyPLA.ProValues=new Array();
+		  for (key2 in EVALUADORES.items) 
+		  	MyPLA.ProValues[key2]=null;
+	  }
+	  
+
+		if (MyPLA.SumEva==1)
+		{
+			if (isNaN(MyPLA.Value1) || MyPLA.Value1==null)    
+			{
+				Value1=null;
+				MyPLA.ProValue1=null;
+			} else
+			if (compare(MyPLA.Value1,0)!=-1)
+			{
+				MyPLA.ProValue1 =MyPLA.Pond * MyPLA.Value1 / escMax;
+				MaxValue1      +=MyPLA.Pond;
+				if (Value1!=null) Value1+=MyPLA.ProValue1;
+			} else
+				MyPLA.ProValue1=-1;
+
+		}
+
+		if (MyPLA.SumAut==1)
+		{
+			if (isNaN(MyPLA.Value2) || MyPLA.Value2==null)    
+			{
+				Value2=null;
+				MyPLA.ProValue2=null;
+			} else
+			if (compare(MyPLA.Value2,0)!=-1)
+			{
+				MyPLA.ProValue2 =MyPLA.Pond * MyPLA.Value2 / escMax;
+				MaxValue2      +=MyPLA.Pond;
+				if (Value2!=null) Value2+=MyPLA.ProValue2;
+			} else
+				MyPLA.ProValue2=-1;
+		}
+		
+		if (MyPLA.SumSup==1)
+		{
+			if (isNaN(MyPLA.Value3) || MyPLA.Value3==null)    
+			{
+				Value3=null;
+				MyPLA.ProValue3=null;
+			} else
+			if (compare(MyPLA.Value3,0)!=-1)
+			{
+				MyPLA.ProValue3 =MyPLA.Pond *  MyPLA.Value3 / escMax;
+				MaxValue3      +=MyPLA.Pond;
+				if (Value3!=null) Value3+=MyPLA.ProValue3;
+			} else
+				MyPLA.ProValue3=-1;
+		}
+
+		if (MyPLA.Sum360==1)
+		{                   
+			for (key2 in EVALUADORES.items) 
+			{ 
+				if (isNaN(MyPLA.Values[key2]) || MyPLA.Values[key2]==null)    
+				{
+					Values[key2]=null;
+					MyPLA.ProValues[key2]=null;
+				} else
+				if (compare(MyPLA.Values[key2],0)!=-1)
+				{
+					MyPLA.ProValues[key2] =MyPLA.Pond * MyPLA.Values[key2] / escMax;
+					MaxValues[key2]      +=MyPLA.Pond;
+					if (Values[key2]!=null) Values[key2]+=MyPLA.ProValues[key2];
+				} else
+					MyPLA.ProValues[key2]=-1;
+			}
+		}
+		
+	}
+	
+
+	//Recorro las Plantillas y Actualizo la Columna
+	for(key in EVA.Plantillas)
+	{                 
+		MyPLA=EVA.Plantillas[key];
+		if (!MyPLA.MostrarResumen) continue;
+    
+		escMax=ESCALAS.Get(MyPLA.Escala).max;
+
+		MyOBJ1=document.getElementById("PE_"+this.Id+"_"+MyPLA.Id); 
+		MyOBJ2=document.getElementById("PES_"+this.Id+"_"+MyPLA.Id);
+	
+		if (MyOBJ1) 
+		if (MyOBJ2)
+		{
+			if (MyPLA.SumEva==1)
+			{
+				MyOBJ1.innerHTML=FormatTotal(MyPLA.Escala, MyPLA.Value1, MyPLA.Decimales?MyPLA.Decimales:0);
+				MyOBJ2.innerHTML=FormatNumber(MyPLA.ProValue1 / MaxValue1 * escEvaMax, this.Decimales?this.Decimales:0);
+			} else
+			{
+				MyOBJ1.innerHTML="-";
+				MyOBJ2.innerHTML="-";
+			}
+		}               
+		
+		
+		MyOBJ1=document.getElementById("PA_"+this.Id+"_"+MyPLA.Id); 
+		MyOBJ2=document.getElementById("PAS_"+this.Id+"_"+MyPLA.Id);
+	
+		if (MyOBJ1) 
+		if (MyOBJ2)
+		{
+			if (MyPLA.SumAut==1)
+			{
+				MyOBJ1.innerHTML=FormatTotal(MyPLA.Escala, MyPLA.Value2, MyPLA.Decimales?MyPLA.Decimales:0);
+				MyOBJ2.innerHTML=FormatNumber(MyPLA.ProValue2 / MaxValue2 * escEvaMax, this.Decimales?this.Decimales:0);
+			} else
+			{
+				MyOBJ1.innerHTML="-";
+				MyOBJ2.innerHTML="-";
+			}
+		}       
+		
+		
+		MyOBJ1=document.getElementById("PS_"+this.Id+"_"+MyPLA.Id); 
+		MyOBJ2=document.getElementById("PSS_"+this.Id+"_"+MyPLA.Id);
+		if (MyOBJ1) 
+		if (MyOBJ2)
+		{
+			if (MyPLA.SumSup==1)
+			{
+				MyOBJ1.innerHTML=FormatTotal(MyPLA.Escala, MyPLA.Value3, MyPLA.Decimales?MyPLA.Decimales:0);
+				MyOBJ2.innerHTML=FormatNumber(MyPLA.ProValue3 / MaxValue3 * escEvaMax, this.Decimales?this.Decimales:0);
+			} else
+			{
+				MyOBJ1.innerHTML="-";
+				MyOBJ2.innerHTML="-";
+			}
+		}   
+		
+		for (key2 in EVALUADORES.items) 
+		{ 
+			MyOBJ1=document.getElementById("P3_"+this.Id+"_"+MyPLA.Id+"_"+key2.substr(1)); 
+			MyOBJ2=document.getElementById("P3S_"+this.Id+"_"+MyPLA.Id+"_"+key2.substr(1));
+			if (MyOBJ1) 
+			if (MyOBJ2)
+			{                
+				if (MyPLA.Sum360==1)
+				{                   
+					MyOBJ1.innerHTML=FormatTotal(MyPLA.Escala, MyPLA.Values[key2], MyPLA.Decimales?MyPLA.Decimales:0);
+					MyOBJ2.innerHTML=FormatNumber(MyPLA.ProValues[key2] / MaxValues[key2] * escEvaMax , this.Decimales?this.Decimales:0);
+				} else
+				{
+					MyOBJ1.innerHTML="-";
+					MyOBJ2.innerHTML="-";
+				} 
+			}   
+		}
+		
+		
+	} 
+
+
+	//Verifico Totales
+  if (MaxValue1==0.0) Value1=-1;
+  if (MaxValue2==0.0) Value2=-1;
+  if (MaxValue3==0.0) Value3=-1;
+  for (key2 in EVALUADORES.items) if (MaxValues[key2]==0.0) { Values[key2]=-1; }
+ 
+ 	//Calculo Totales
+	if (Value1!=null) if (compare(Value1,0)!=-1) Value1 = Value1 / MaxValue1 * escEvaMax;
+	if (Value2!=null) if (compare(Value2,0)!=-1) Value2 = Value2 / MaxValue2 * escEvaMax;
+	if (Value3!=null) if (compare(Value3,0)!=-1) Value3 = Value3 / MaxValue3 * escEvaMax;
+	for (key2 in EVALUADORES.items) 
+	{
+		if (Values[key2]!=null) if (compare(Values[key2],0)!=-1) Values[key2] = Values[key2] / MaxValues[key2] * escEvaMax;
+	}
+                      
+	//Totales
+	MyOBJ1=document.getElementById("TRE_"+this.Id); if (MyOBJ1) MyOBJ1.innerHTML=FormatTotal(EVA.Escala, Value1, this.Decimales?this.Decimales:0);
+	MyOBJ1=document.getElementById("TRA_"+this.Id); if (MyOBJ1) MyOBJ1.innerHTML=FormatTotal(EVA.Escala, Value2, this.Decimales?this.Decimales:0);
+	MyOBJ1=document.getElementById("TRS_"+this.Id); if (MyOBJ1) MyOBJ1.innerHTML=FormatTotal(EVA.Escala, Value3, this.Decimales?this.Decimales:0);
+	for (key2 in EVALUADORES.items) 
+	{                                              
+		MyOBJ1=document.getElementById("TR3_"+this.Id+"_"+key2.substr(1));
+		if (MyOBJ1) MyOBJ1.innerHTML=FormatTotal(EVA.Escala, Values[key2], this.Decimales?this.Decimales:0);
+	}
+}
+				</xsl:text>
+			</script>
+			<xsl:if test="@DEF_Show='1'">
+				<xsl:call-template name="SEPARATOR"/>
+				<table class="PLA">
+					<tr class="PLA_HEAD">
+						<th class="col_label">
+							<xsl:value-of select="$PLANTILLA/@DEF_d_plantilla"/>
+						</th>
+						<xsl:if test="$PLANTILLA/@DEF_Evaluador!='0'">
+							<th class="col_value">
+								<xsl:text>
+									Resultado
+								</xsl:text>
+								<br/>
+								<xsl:text>
+									Evaluador
+								</xsl:text>
+							</th>
+						</xsl:if>
+						<xsl:choose>
+							<xsl:when test="@DEF_Evaluador360='1'">
+								<th class="col_value">
+									<xsl:text>
+										Resultado
+									</xsl:text>
+									<br/>
+									<xsl:text>
+										Evaluador
+									</xsl:text>
+								</th>
+							</xsl:when>
+							<xsl:when test="@DEF_Evaluador360='2'">
+								<xsl:for-each select="$EVALUADORES/EVALUADOR">
+									<th class="col_value">
+										<xsl:text>
+											Resultado
+										</xsl:text>
+										<br/>
+										<xsl:value-of select="@d_ape_y_nom"/>
+									</th>
+								</xsl:for-each>
+							</xsl:when>
+							<xsl:when test="@DEF_Evaluador360='3'">
+								<th class="col_value">
+									<xsl:text>
+										Resultado
+									</xsl:text>
+									<br/>
+									<xsl:text>
+										Evaluador
+									</xsl:text>
+								</th>
+							</xsl:when>
+						</xsl:choose>
+						<xsl:if test="$PLANTILLA/@DEF_Evaluado!='0'">
+							<th class="col_value">
+								<xsl:text>
+									Resultado
+								</xsl:text>
+								<br/>
+								<xsl:text>
+									Autoevaluaci&#243;n
+								</xsl:text>
+							</th>
+						</xsl:if>
+						<xsl:if test="$PLANTILLA/@DEF_Supervisor!='0'">
+							<th class="col_value">
+								<xsl:text>
+									Resultado
+								</xsl:text>
+								<br/>
+								<xsl:text>
+									Supervisor
+								</xsl:text>
+							</th>
+						</xsl:if>
+						<th class="col_pond">
+							Ponderaci&#243;n
+						</th>
+						<xsl:if test="$PLANTILLA/@DEF_Evaluador!='0'">
+							<th class="col_value">
+								<xsl:text>
+									Subtotal
+								</xsl:text>
+								<br/>
+								<xsl:text>
+									Evaluador
+								</xsl:text>
+							</th>
+						</xsl:if>
+						<xsl:choose>
+							<xsl:when test="@DEF_Evaluador360='1'">
+								<th class="col_value">
+									<xsl:text>
+										Subtotal
+									</xsl:text>
+									<br/>
+									<xsl:text>
+										Evaluador
+									</xsl:text>
+								</th>
+							</xsl:when>
+							<xsl:when test="@DEF_Evaluador360='2'">
+								<xsl:for-each select="$EVALUADORES/EVALUADOR">
+									<th class="col_value">
+										<xsl:text>
+											Subtotal
+										</xsl:text>
+										<br/>
+										<xsl:value-of select="@d_ape_y_nom"/>
+									</th>
+								</xsl:for-each>
+							</xsl:when>
+							<xsl:when test="@DEF_Evaluador360='3'">
+								<th class="col_value">
+									<xsl:text>
+										Subtotal
+									</xsl:text>
+									<br/>
+									<xsl:text>
+										Evaluador
+									</xsl:text>
+								</th>
+							</xsl:when>
+						</xsl:choose>
+						<xsl:if test="$PLANTILLA/@DEF_Evaluado!='0'">
+							<th class="col_value">
+								<xsl:text>
+									Subtotal
+								</xsl:text>
+								<br/>
+								<xsl:text>
+									Autoevaluaci&#243;n
+								</xsl:text>
+							</th>
+						</xsl:if>
+						<xsl:if test="$PLANTILLA/@DEF_Supervisor!='0'">
+							<th class="col_value">
+								<xsl:text>
+									Subtotal
+								</xsl:text>
+								<br/>
+								<xsl:text>
+									Supervisor
+								</xsl:text>
+							</th>
+						</xsl:if>
+					</tr>
+					<xsl:variable name="THIS" select="."/>
+					<xsl:for-each select="../PLANTILLA[@DEF_l_mostrar_res='1']">
+						<xsl:variable name="SUB" select="."/>
+						<tr>
+							<td class="col_label">
+								<xsl:value-of select="@DEF_d_plantilla"/>
+							</td>
+							<xsl:if test="$THIS/@DEF_Evaluador!='0'">
+								<td class="col_value" id="PE_{$THIS/@oi_plantilla}_{@oi_plantilla}">
+									&#160;
+								</td>
+							</xsl:if>
+							<xsl:choose>
+								<xsl:when test="$THIS/@DEF_Evaluador360='1'">
+									<td class="col_value" id="P3_{$THIS/@oi_plantilla}_{@oi_plantilla}_{$EVALUADORES/@oi_evaluador_360}">
+										&#160;
+									</td>
+								</xsl:when>
+								<xsl:when test="$THIS/@DEF_Evaluador360='2'">
+									<xsl:for-each select="$EVALUADORES/EVALUADOR">
+										<td class="col_value" id="P3_{$THIS/@oi_plantilla}_{$SUB/@oi_plantilla}_{@oi_personal_emp}">
+											&#160;
+										</td>
+									</xsl:for-each>
+								</xsl:when>
+								<xsl:when test="$THIS/@DEF_Evaluador360='3'">
+									<td class="col_value" id="P3_{$THIS/@oi_plantilla}_{@oi_plantilla}_{$EVALUADORES/@oi_evaluador_360}">
+										&#160;
+									</td>
+								</xsl:when>
+							</xsl:choose>
+							<xsl:if test="$THIS/@DEF_Evaluado!='0'">
+								<td class="col_value" id="PA_{$THIS/@oi_plantilla}_{@oi_plantilla}">
+									&#160;
+								</td>
+							</xsl:if>
+							<xsl:if test="$THIS/@DEF_Supervisor!='0'">
+								<td class="col_value" id="PS_{$THIS/@oi_plantilla}_{@oi_plantilla}">
+									&#160;
+								</td>
+							</xsl:if>
+							<td class="col_pond">
+								<xsl:value-of select="concat(round(100*(@EVA_n_ponderacion div ../@MAXVALUE)),'%')"/>
+							</td>
+							<xsl:if test="$THIS/@DEF_Evaluador!='0'">
+								<td class="col_value" id="PES_{$THIS/@oi_plantilla}_{@oi_plantilla}">
+									&#160;
+								</td>
+							</xsl:if>
+							<xsl:choose>
+								<xsl:when test="$THIS/@DEF_Evaluador360='1'">
+									<td class="col_value" id="P3S_{$THIS/@oi_plantilla}_{@oi_plantilla}_{$EVALUADORES/@oi_evaluador_360}">
+										&#160;
+									</td>
+								</xsl:when>
+								<xsl:when test="$THIS/@DEF_Evaluador360='2'">
+									<xsl:for-each select="$EVALUADORES/EVALUADOR">
+										<td class="col_value" id="P3S_{$THIS/@oi_plantilla}_{$SUB/@oi_plantilla}_{@oi_personal_emp}">
+											&#160;
+										</td>
+									</xsl:for-each>
+								</xsl:when>
+								<xsl:when test="$THIS/@DEF_Evaluador360='3'">
+									<td class="col_value" id="P3S_{$THIS/@oi_plantilla}_{@oi_plantilla}_{$EVALUADORES/@oi_evaluador_360}">
+										&#160;
+									</td>
+								</xsl:when>
+							</xsl:choose>
+							<xsl:if test="$THIS/@DEF_Evaluado!='0'">
+								<td class="col_value" id="PAS_{$THIS/@oi_plantilla}_{@oi_plantilla}">
+									&#160;
+								</td>
+							</xsl:if>
+							<xsl:if test="$THIS/@DEF_Supervisor!='0'">
+								<td class="col_value" id="PSS_{$THIS/@oi_plantilla}_{@oi_plantilla}">
+									&#160;
+								</td>
+							</xsl:if>
+						</tr>
+					</xsl:for-each>
+					<tr class="PLA_FOOT">
+						<th class="col_label">
+							Total
+						</th>
+						<xsl:if test="@DEF_Evaluador!='0'">
+							<th class="col_value">
+								&#160;
+							</th>
+						</xsl:if>
+						<xsl:choose>
+							<xsl:when test="$THIS/@DEF_Evaluador360='1'">
+								<th class="col_value">
+									&#160;
+								</th>
+							</xsl:when>
+							<xsl:when test="$THIS/@DEF_Evaluador360='2'">
+								<xsl:for-each select="$EVALUADORES/EVALUADOR">
+									<th class="col_value">
+										&#160;
+									</th>
+								</xsl:for-each>
+							</xsl:when>
+							<xsl:when test="$THIS/@DEF_Evaluador360='3'">
+								<th class="col_value">
+									&#160;
+								</th>
+							</xsl:when>
+						</xsl:choose>
+						<xsl:if test="@DEF_Evaluado!='0'">
+							<th class="col_value">
+								&#160;
+							</th>
+						</xsl:if>
+						<xsl:if test="@DEF_Supervisor!='0'">
+							<th class="col_value">
+								&#160;
+							</th>
+						</xsl:if>
+						<th class="col_pond">
+							&#160;
+						</th>
+						<xsl:if test="@DEF_Evaluador!='0'">
+							<th class="col_value" id="TRE_{@oi_plantilla}">
+								&#160;
+							</th>
+						</xsl:if>
+						<xsl:choose>
+							<xsl:when test="$THIS/@DEF_Evaluador360='1'">
+								<th class="col_value" id="TR3_{$THIS/@oi_plantilla}_{$EVALUADORES/@oi_evaluador_360}">
+									&#160;
+								</th>
+							</xsl:when>
+							<xsl:when test="$THIS/@DEF_Evaluador360='2'">
+								<xsl:for-each select="$EVALUADORES/EVALUADOR">
+									<th class="col_value" id="TR3_{$THIS/@oi_plantilla}_{@oi_personal_emp}">
+										&#160;
+									</th>
+								</xsl:for-each>
+							</xsl:when>
+							<xsl:when test="$THIS/@DEF_Evaluador360='3'">
+								<th class="col_value" id="TR3_{$THIS/@oi_plantilla}_{$EVALUADORES/@oi_evaluador_360}">
+									&#160;
+								</th>
+							</xsl:when>
+						</xsl:choose>
+						<xsl:if test="@DEF_Evaluado!='0'">
+							<th class="col_value" id="TRA_{@oi_plantilla}">
+								&#160;
+							</th>
+						</xsl:if>
+						<xsl:if test="@DEF_Supervisor!='0'">
+							<th class="col_value" id="TRS_{@oi_plantilla}">
+								&#160;
+							</th>
+						</xsl:if>
+					</tr>
+				</table>
+				<xsl:call-template name="PLANTILLA_COMENT"/>
+			</xsl:if>
+		</xsl:template>
+		<xsl:template match="PLANTILLA[@DEF_d_reporte='FIRMA']">
+			<script>
+				<xsl:call-template name="SCRIPT_PLANTILLA_NORES_INIT"/>
+			</script>
+			<xsl:if test="@DEF_Show='1'">
+				<xsl:call-template name="SEPARATOR"/>
+				<xsl:call-template name="PLANTILLA_TITLE"/>
+				<table class="PLA_BODY" CELLPADDING="0" CELLSPACING="0">
+					<tr class="PLA_HEAD">
+						<th>
+							<xsl:if test="@DEF_d_cus1">
+								<xsl:value-of select="@DEF_d_cus1"/>
+							</xsl:if>
+							<xsl:if test="not(@DEF_d_cus1)">
+								EVALUADOR
+							</xsl:if>
+						</th>
+						<th>
+							<xsl:if test="@DEF_d_cus2">
+								<xsl:value-of select="@DEF_d_cus2"/>
+							</xsl:if>
+							<xsl:if test="not(@DEF_d_cus2)">
+								SUPERVISOR
+							</xsl:if>
+						</th>
+						<th>
+							<xsl:if test="@DEF_d_cus3">
+								<xsl:value-of select="@DEF_d_cus3"/>
+							</xsl:if>
+							<xsl:if test="not(@DEF_d_cus3)">
+								EVALUADO
+							</xsl:if>
+						</th>
+					</tr>
+					<tr class="FIRMA">
+						<td>
+							&#160;
+						</td>
+						<td>
+							&#160;
+						</td>
+						<td>
+							&#160;
+						</td>
+					</tr>
+					<tr>
+						<td>
+							<xsl:value-of select="concat('Aclaraci&#243;n: ',../@J_nombre)"/>
+						</td>
+						<td>
+							<xsl:value-of select="concat('Aclaraci&#243;n: ',../@S_nombre)"/>
+						</td>
+						<td>
+							<xsl:value-of select="concat('Aclaraci&#243;n: ',../@E_nombre)"/>
+						</td>
+					</tr>
+					<tr>
+						<td>
+							Fecha:
+						</td>
+						<td>
+							Fecha:
+						</td>
+						<td>
+							Fecha:
+						</td>
+					</tr>
+				</table>
+				<xsl:call-template name="PLANTILLA_COMENT"/>
+			</xsl:if>
+		</xsl:template>
+		<xsl:template match="PLANTILLA[@DEF_d_reporte='SUBITEM_ESC_COMBO']">
+			<xsl:variable name="PLANTILLA" select="."/>
+			<xsl:variable name="REPORT" select=".."/>
+			<xsl:variable name="EVALUADORES" select="../EVALUADORES"/>
+			<xsl:variable name="ESCALAS" select="../ESCALAS"/>
+			<xsl:variable name="POND" select="0"/>
+			<script>
+				<xsl:call-template name="SCRIPT_PLANTILLA_INIT"/>
+				<xsl:text>
+					PLA.RECALC = function()
+{    
+	if (this.Show!='1') return;
+	            
+	var key, MyITEM, MySUBITEM, t, found=false, subfound;   
+	
+	this.Value1=0.0;
+	this.Value2=0.0;
+	this.Value3=0.0;
+	this.Values["K"+EVALUADORES.oi_evaluador_360]=0.0;
+	
+	this.MaxValue1=0.0;
+	this.MaxValue2=0.0;
+	this.MaxValue3=0.0;
+	this.MaxValueX=0.0;
+	this.OK=true;
+	
+	//Recorro los ITEMS
+	for (key in this.Items)
+	{
+		MyITEM=this.Items[key];
+		if (MyITEM.Delete) continue;
+		found=true; subfound=false;
+		                 
+		//	                 
+		MyITEM.Value1=0.0;
+		MyITEM.Value2=0.0;
+		MyITEM.Value3=0.0;      
+		MyITEM.Values["K"+EVALUADORES.oi_evaluador_360]=0.0;
+		
+		MyITEM.MaxValue1=0;
+		MyITEM.MaxValue2=0;
+		MyITEM.MaxValue3=0;
+		MyITEM.MaxValueX=0;
+		
+		for (key2 in MyITEM.Subitems)
+		{                         
+			MySUBITEM=MyITEM.Subitems[key2];
+			if (MySUBITEM.Delete) continue;
+			subfound=true;
+		 	
+			if (this.Evaluador =='2') 
+			{
+				CELD=document.getElementById("OE_"+MyITEM.Id+"_"+MySUBITEM.Id);
+				if (CELD)
+				{
+					MySUBITEM.Value1=(CELD.value==""?null:parseFloat(CELD.value));
+					if (MySUBITEM.Value1==null) this.OK=false;
+				}
+			}              
+			
+			if (this.Evaluado  =='2') 
+			{
+				CELD=document.getElementById("OA_"+MyITEM.Id+"_"+MySUBITEM.Id);
+				if (CELD)
+				{
+					MySUBITEM.Value2=(CELD.value==""?null:parseFloat(CELD.value));
+					if (MySUBITEM.Value2==null) this.OK=false;
+				}
+			}
+			
+			if (this.Supervisor=='2') 
+			{
+				CELD=document.getElementById("OS_"+MyITEM.Id+"_"+MySUBITEM.Id);
+				if (CELD)
+				{
+					MySUBITEM.Value3=(CELD.value==""?null:parseFloat(CELD.value));
+					if (MySUBITEM.Value3==null) this.OK=false;
+				}                           
+			}                           
+			
+			if (this.Evaluador360=='3')
+			{                      
+				CELD=document.getElementById("O3_"+MyITEM.Id+"_"+MySUBITEM.Id+"_"+EVALUADORES.oi_evaluador_360);
+				if (CELD)
+				{
+					MySUBITEM.Values["K"+EVALUADORES.oi_evaluador_360]=(CELD.value==""?null:parseFloat(CELD.value));
+					if (MySUBITEM.Values["K"+EVALUADORES.oi_evaluador_360]==null) this.OK=false;
+				} 
+			}                    
+			
+			//Totales      
+			if (MyITEM.Value1==null || MySUBITEM.Value1==null) 
+				MyITEM.Value1=null; 
+			else 
+			if (compare(MySUBITEM.Value1,0)!=-1)
+			{
+		    MyITEM.MaxValue1+=MySUBITEM.Pond*ESCALAS.Get(MySUBITEM.Escala).max;
+				MyITEM.Value1   +=MySUBITEM.Pond*MySUBITEM.Value1;
+			}
+
+			if (MyITEM.Value2==null || MySUBITEM.Value2==null) 
+				MyITEM.Value2=null; 
+			else 
+			if (compare(MySUBITEM.Value2,0)!=-1)
+			{
+		    MyITEM.MaxValue2+=MySUBITEM.Pond*ESCALAS.Get(MySUBITEM.Escala).max;
+				MyITEM.Value2   +=MySUBITEM.Pond*MySUBITEM.Value2;
+			}
+
+			if (MyITEM.Value3==null || MySUBITEM.Value3==null) 
+				MyITEM.Value3=null; 
+			else 
+			if (compare(MySUBITEM.Value3,0)!=-1)
+			{
+		    MyITEM.MaxValue3+=MySUBITEM.Pond*ESCALAS.Get(MySUBITEM.Escala).max;
+				MyITEM.Value3   +=MySUBITEM.Pond*MySUBITEM.Value3;
+			}
+
+			if (MyITEM.Values["K"+EVALUADORES.oi_evaluador_360]==null || MySUBITEM.Values["K"+EVALUADORES.oi_evaluador_360]==null) 
+				MyITEM.Values["K"+EVALUADORES.oi_evaluador_360]=null; 
+			else 
+			if (compare(MySUBITEM.Values["K"+EVALUADORES.oi_evaluador_360],0)!=-1)
+			{
+		    MyITEM.MaxValueX+=MySUBITEM.Pond*ESCALAS.Get(MySUBITEM.Escala).max;
+				MyITEM.Values["K"+EVALUADORES.oi_evaluador_360]+=MySUBITEM.Pond*MySUBITEM.Values["K"+EVALUADORES.oi_evaluador_360];
+			}
+		}
+
+		if (!subfound)     
+		{
+			MyITEM.Value1=-1;
+			MyITEM.Value2=-1;
+			MyITEM.Value3=-1;
+			MyITEM.Values["K"+EVALUADORES.oi_evaluador_360]=-1;      
+		}
+       
+		if (MyITEM.Value1!=null) { MyITEM.Value1=(MyITEM.MaxValue1==0?-1:MyITEM.Value1/MyITEM.MaxValue1*ESCALAS.Get(MyITEM.Escala).max); }
+		if (MyITEM.Value2!=null) { MyITEM.Value2=(MyITEM.MaxValue2==0?-1:MyITEM.Value2/MyITEM.MaxValue2*ESCALAS.Get(MyITEM.Escala).max); }
+		if (MyITEM.Value3!=null) { MyITEM.Value3=(MyITEM.MaxValue3==0?-1:MyITEM.Value3/MyITEM.MaxValue3*ESCALAS.Get(MyITEM.Escala).max); }
+		if (MyITEM.Values["K"+EVALUADORES.oi_evaluador_360]!=null) { MyITEM.Values["K"+EVALUADORES.oi_evaluador_360]=(MyITEM.MaxValueX==0?-1:MyITEM.Values["K"+EVALUADORES.oi_evaluador_360]/MyITEM.MaxValueX*ESCALAS.Get(MyITEM.Escala).max); }
+		
+		
+		//Totales      
+		if (this.Value1==null || MyITEM.Value1==null) 
+			this.Value1=null; 
+		else 
+		if (compare(MyITEM.Value1,0)!=-1)
+		{
+	    this.MaxValue1+=MyITEM.Pond*ESCALAS.Get(MyITEM.Escala).max;
+			this.Value1   +=MyITEM.Pond*MyITEM.Value1;
+		}
+		
+		if (this.Value2==null || MyITEM.Value2==null) 
+			this.Value2=null; 
+		else 
+		if (compare(MyITEM.Value2,0)!=-1)
+		{
+	    this.MaxValue2+=MyITEM.Pond*ESCALAS.Get(MyITEM.Escala).max;
+			this.Value2   +=MyITEM.Pond*MyITEM.Value2;
+		}
+			
+		if (this.Value3==null || MyITEM.Value3==null) 
+			this.Value3=null; 
+		else 
+		if (compare(MyITEM.Value3,0)!=-1)
+		{
+	    this.MaxValue3+=MyITEM.Pond*ESCALAS.Get(MyITEM.Escala).max;
+			this.Value3   +=MyITEM.Pond*MyITEM.Value3;
+		}
+       
+		if (this.Values["K"+EVALUADORES.oi_evaluador_360]==null || MyITEM.Values["K"+EVALUADORES.oi_evaluador_360]==null) 
+			this.Values["K"+EVALUADORES.oi_evaluador_360]=null; 
+		else 
+		if (compare(MyITEM.Values["K"+EVALUADORES.oi_evaluador_360],0)!=-1)
+		{
+	    this.MaxValueX+=MyITEM.Pond*ESCALAS.Get(MyITEM.Escala).max;
+			this.Values["K"+EVALUADORES.oi_evaluador_360]+=MyITEM.Pond*MyITEM.Values["K"+EVALUADORES.oi_evaluador_360];
+		}
+	}
+
+	if (!found)     
+	{
+		this.Value1=-1;
+		this.Value2=-1;
+		this.Value3=-1;
+		this.Values["K"+EVALUADORES.oi_evaluador_360]=-1;
+	}
+
+	if (this.Value1!=null) { this.Value1=(this.MaxValue1==0?-1:this.Value1/this.MaxValue1*ESCALAS.Get(this.Escala).max); }
+	if (this.Value2!=null) { this.Value2=(this.MaxValue2==0?-1:this.Value2/this.MaxValue2*ESCALAS.Get(this.Escala).max); }
+	if (this.Value3!=null) { this.Value3=(this.MaxValue3==0?-1:this.Value3/this.MaxValue3*ESCALAS.Get(this.Escala).max); }
+	if (this.Values["K"+EVALUADORES.oi_evaluador_360]!=null) { this.Values["K"+EVALUADORES.oi_evaluador_360]=(this.MaxValueX==0?-1:this.Values["K"+EVALUADORES.oi_evaluador_360]/this.MaxValueX*ESCALAS.Get(this.Escala).max); }
+}
+
+
+PLA.DDOCHANGE_ADIC = function(DDOEVA, DDOPLA)
+{
+	var key, key2, MyITEM, MySUBITEM, DDOITEM, DDOSUBITEM, DDO360, COMENT;
+	
+	if (this.Evaluador360=='3')
+	{ //Evaluacion 360
+	
+		//Busco evaluador
+		DDO360=null;
+		for (CUR=DDOPLA.FindElement("EVALUADORES").FirstChild(); CUR!=null; CUR=CUR.Next())
+			if (CUR.FindElement("oi_personal_emp").GetAttr("value")==EVALUADORES.oi_evaluador_360)
+			{
+				DDO360=CUR;
+				break;
+			}
+				
+		if (DDO360==null)
+		{
+			DDO360=DDOPLA.FindElement("EVALUADORES").AddTailElement("PLA_EVALUADOR");
+			DDO360.SetAttr("nmd-status"   , "~i,");
+			DDO360.SetAttr("id"           , "~C_XXX");
+			DDO360.AddTailElement("oi_personal_emp").SetAttr("value", EVALUADORES.oi_evaluador_360);
+		} else
+		{                                       
+			DDO360.SetAttr("nmd-status"   , "~u,");
+		}
+		DDO360.SetAttr("n_resultado"  , this.Values["K"+EVALUADORES.oi_evaluador_360]==null?"":this.Values["K"+EVALUADORES.oi_evaluador_360]);
+		
+		
+		//Busco el Resultado FINAL
+		DDO360=null;
+		for (CUR=DDOEVA.FindElement("EVALUADORES").FirstChild(); CUR!=null; CUR=CUR.Next())
+			if (CUR.FindElement("oi_personal_emp").GetAttr("value")==EVALUADORES.oi_evaluador_360)
+			{
+				DDO360=CUR;
+				break;
+			}      
+			
+		//Actualizo los DATOS
+		if (DDO360!=null)
+			if (DDO360.GetAttr("c_estado")=="?")
+				 if (this.Values["K"+EVALUADORES.oi_evaluador_360]==null)
+				 	DDO360.SetAttr("c_estado","I");
+	}
+	
+
+	var MaxID=0;
+	for (DDOITEM=DDOPLA.FindElement("OBJETIVOS").FirstChild(); DDOITEM!=null; DDOITEM=DDOITEM.Next())
+	if	(!isNaN(DDOITEM.GetAttrInt("c_objetivo"))) 
+	if	(compare(DDOITEM.GetAttrInt("c_objetivo"),MaxID)==1) 
+	MaxID=DDOITEM.GetAttrInt("c_objetivo");
+  
+ 	for (key in this.Items)
+ 	{                      
+ 		MyITEM=this.Items[key];
+ 		
+ 		if (MyITEM.New)
+ 		{                              
+ 			if (MyITEM.Delete) continue;
+ 			CheckSize("OBJETIVO",1000,document.getElementById("MSG_"+MyITEM.Id));
+ 			
+ 			MaxID++;
+			DDOITEM=DDOPLA.FindElement("OBJETIVOS").AddTailElement("OBJETIVO");
+			DDOITEM.SetAttr("nmd-status"   , "~i,");							
+			DDOITEM.SetAttr("id"           , "~"+MyITEM.Id);
+			DDOITEM.SetAttr("c_objetivo"   , MaxID);
+			DDOITEM.SetAttr("d_objetivo"   , document.getElementById("MSG_"+MyITEM.Id).value);
+			DDOITEM.SetAttr("n_ponderacion", "1");
+			if (this.Evaluador =="2") DDOITEM.SetAttr("n_resultado"  , MyITEM.Value1==null?"":MyITEM.Value1);
+			if (this.Evaluado  =="2") DDOITEM.SetAttr("n_resultado2" , MyITEM.Value2==null?"":MyITEM.Value2); 
+			if (this.Supervisor=="2") DDOITEM.SetAttr("n_resultado3" , MyITEM.Value3==null?"":MyITEM.Value3);  
+			DDOITEM.AddTailElement("oi_competencia");
+			DDOITEM.AddTailElement("oi_escala");
+			DDOITEM.AddTailElement("SUBOBJETIVOS");  
+			DDOITEM.AddTailElement("EVALUADORES");
+			
+			if (this.Evaluador360=='3')
+			{ //Evaluacion 360
+				DDO360=DDOITEM.FindElement("EVALUADORES").AddTailElement("OBJ_EVALUADOR");
+				DDO360.SetAttr("nmd-status"   , "~i,");							
+				DDO360.SetAttr("id"           , "~C_"+DDOITEM.Id);
+				DDO360.SetAttr("n_resultado"  , DDOITEM.Values["K"+EVALUADORES.oi_evaluador_360]==null?"":DDOITEM.Values["K"+EVALUADORES.oi_evaluador_360]);  
+				DDO360.AddTailElement("oi_personal_emp").SetAttr("value", EVALUADORES.oi_evaluador_360);
+			}
+			
+			for (key2 in MyITEM.Subitems)
+			{                      
+				MySUBITEM=MyITEM.Subitems[key2];
+				if (MySUBITEM.Delete) continue;
+				
+				MaxID++;
+				DDOSUBITEM=DDOITEM.FindElement("SUBOBJETIVOS").AddTailElement("SUBOBJETIVO");
+				DDOSUBITEM.SetAttr("nmd-status"   , "~i,");							
+				DDOSUBITEM.SetAttr("id"           , "~C_"+MySUBITEM.Id);
+				DDOSUBITEM.SetAttr("c_subobjetivo"   , MaxID);
+				DDOSUBITEM.SetAttr("d_subobjetivo"   , document.getElementById("MSG_"+MyITEM.Id+"_"+MySUBITEM.Id).value);
+				DDOSUBITEM.SetAttr("n_ponderacion", "1");
+				DDOSUBITEM.AddTailElement("EVALUADORES");
+				if (this.Evaluador =="2") DDOSUBITEM.SetAttr("n_resultado"  , MySUBITEM.Value1==null?"":MySUBITEM.Value1);
+				if (this.Evaluado  =="2") DDOSUBITEM.SetAttr("n_resultado2" , MySUBITEM.Value2==null?"":MySUBITEM.Value2); 
+				if (this.Supervisor=="2") DDOSUBITEM.SetAttr("n_resultado3" , MySUBITEM.Value3==null?"":MySUBITEM.Value3);  
+				
+				if (this.Evaluador360=='3')
+				{ //Evaluacion 360
+					DDO360=DDOSUBITEM.FindElement("EVALUADORES").AddTailElement("SUB_EVALUADOR");
+					DDO360.SetAttr("nmd-status"   , "~i,");							
+					DDO360.SetAttr("id"           , "~"+MySUBITEM.Id);
+					DDO360.SetAttr("n_resultado"  , MySUBITEM.Values["K"+EVALUADORES.oi_evaluador_360]==null?"":MySUBITEM.Values["K"+EVALUADORES.oi_evaluador_360]);  
+					DDO360.AddTailElement("oi_personal_emp").SetAttr("value", EVALUADORES.oi_evaluador_360);
+				}
+			}
+ 		} else             
+ 		if (MyITEM.Delete)
+ 		{
+			DDOITEM=DDOPLA.FindElement("OBJETIVOS").FindElement2("OBJETIVO","ID",MyITEM.Id);
+			DDOITEM.SetAttr("nmd-status" , "~d,");
+ 		} else
+ 		{
+			DDOITEM=DDOPLA.FindElement("OBJETIVOS").FindElement2("OBJETIVO","ID",MyITEM.Id);
+			DDOITEM.SetAttr("nmd-status" , "~u,");							
+			if (document.getElementById("MSG_"+MyITEM.Id))
+			{
+				CheckSize("OBJETIVO",1000,document.getElementById("MSG_"+MyITEM.Id));
+				DDOITEM.SetAttr("d_objetivo"   , document.getElementById("MSG_"+MyITEM.Id).value);
+			}
+			if (this.Evaluador =="2") { DDOITEM.SetAttr("n_resultado"  , MyITEM.Value1==null?"":MyITEM.Value1); }
+			if (this.Evaluado  =="2") { DDOITEM.SetAttr("n_resultado2" , MyITEM.Value2==null?"":MyITEM.Value2); } 
+			if (this.Supervisor=="2") { DDOITEM.SetAttr("n_resultado3" , MyITEM.Value3==null?"":MyITEM.Value3); }  
+
+			if (this.Evaluador360=='3')
+			{ //Evaluacion 360         
+			
+				//Busco evaluador
+				DDO360=null;
+				for (CUR=DDOITEM.FindElement("EVALUADORES").FirstChild(); CUR!=null; CUR=CUR.Next())
+					if (CUR.FindElement("oi_personal_emp").GetAttr("value")==EVALUADORES.oi_evaluador_360)
+					{
+						DDO360=CUR;
+						break;
+					}
+						
+				if (DDO360==null)
+				{
+					DDO360=DDOITEM.FindElement("EVALUADORES").AddTailElement("OBJ_EVALUADOR");
+					DDO360.SetAttr("nmd-status"   , "~i,");
+					DDO360.SetAttr("id"           , "~C_"+MyITEM.Id);
+					DDO360.AddTailElement("oi_personal_emp").SetAttr("value", EVALUADORES.oi_evaluador_360);
+				} else
+				{                                       
+					DDO360.SetAttr("nmd-status"   , "~u,");
+				}
+				DDO360.SetAttr("n_resultado"  , MyITEM.Values["K"+EVALUADORES.oi_evaluador_360]==null?"":MyITEM.Values["K"+EVALUADORES.oi_evaluador_360]);  
+			}
+
+			
+			for (key2 in MyITEM.Subitems)
+			{                      
+				MySUBITEM=MyITEM.Subitems[key2];
+				
+		 		if (MySUBITEM.New)
+		 		{                              
+					MaxID++;
+					DDOSUBITEM=DDOITEM.FindElement("SUBOBJETIVOS").AddTailElement("SUBOBJETIVO");
+					DDOSUBITEM.SetAttr("nmd-status"   , "~i,");							
+					DDOSUBITEM.SetAttr("id"           , "~"+MySUBITEM.Id);
+					DDOSUBITEM.SetAttr("c_subobjetivo"   , MaxID);
+					DDOSUBITEM.SetAttr("d_subobjetivo"   , document.getElementById("MSG_"+MyITEM.Id+"_"+MySUBITEM.Id).value);
+					DDOSUBITEM.SetAttr("n_ponderacion", "1");                                   
+					DDOSUBITEM.AddTailElement("EVALUADORES");
+					if (this.Evaluador =="2") DDOSUBITEM.SetAttr("n_resultado"  , MySUBITEM.Value1==null?"":MySUBITEM.Value1);
+					if (this.Evaluado  =="2") DDOSUBITEM.SetAttr("n_resultado2" , MySUBITEM.Value2==null?"":MySUBITEM.Value2); 
+					if (this.Supervisor=="2") DDOSUBITEM.SetAttr("n_resultado3" , MySUBITEM.Value3==null?"":MySUBITEM.Value3);  
+					
+					if (this.Evaluador360=='3')
+					{ //Evaluacion 360
+						DDO360=DDOSUBITEM.FindElement("EVALUADORES").AddTailElement("SUB_EVALUADOR");
+						DDO360.SetAttr("nmd-status"   , "~i,");							
+						DDO360.SetAttr("id"           , "~C_"+MySUBITEM.Id);
+						DDO360.SetAttr("n_resultado"  , MySUBITEM.Values["K"+EVALUADORES.oi_evaluador_360]==null?"":MySUBITEM.Values["K"+EVALUADORES.oi_evaluador_360]);  
+						DDO360.AddTailElement("oi_personal_emp").SetAttr("value", EVALUADORES.oi_evaluador_360);
+					}
+		 		} else         
+		 		if (MySUBITEM.Delete)
+		 		{
+					DDOSUBITEM=DDOITEM.FindElement("SUBOBJETIVOS").FindElement2("SUBOBJETIVO","ID",MySUBITEM.Id);
+					DDOSUBITEM.SetAttr("nmd-status" , "~d,");
+		 		} else
+		 		{
+					DDOSUBITEM=DDOITEM.FindElement("SUBOBJETIVOS").FindElement2("SUBOBJETIVO","ID",MySUBITEM.Id);
+					DDOSUBITEM.SetAttr("nmd-status" , "~u,");							
+					if (document.getElementById("MSG_"+MyITEM.Id+"_"+MySUBITEM.Id))
+					{
+						CheckSize("SUBOBJETIVO",1000,document.getElementById("MSG_"+MyITEM.Id+"_"+MySUBITEM.Id));
+						DDOSUBITEM.SetAttr("d_subobjetivo", document.getElementById("MSG_"+MyITEM.Id+"_"+MySUBITEM.Id).value);
+					}
+					if (this.Evaluador =="2") { DDOSUBITEM.SetAttr("n_resultado"  , MySUBITEM.Value1==null?"":MySUBITEM.Value1); }
+					if (this.Evaluado  =="2") { DDOSUBITEM.SetAttr("n_resultado2" , MySUBITEM.Value2==null?"":MySUBITEM.Value2); } 
+					if (this.Supervisor=="2") { DDOSUBITEM.SetAttr("n_resultado3" , MySUBITEM.Value3==null?"":MySUBITEM.Value3); }  
+					
+					if (this.Evaluador360=='3')
+					{ //Evaluacion 360
+					
+						//Busco evaluador
+						DDO360=null;
+						for (CUR=DDOSUBITEM.FindElement("EVALUADORES").FirstChild(); CUR!=null; CUR=CUR.Next())
+							if (CUR.FindElement("oi_personal_emp").GetAttr("value")==EVALUADORES.oi_evaluador_360)
+							{
+								DDO360=CUR;
+								break;
+							}
+								
+						if (DDO360==null)
+						{
+							DDO360=DDOSUBITEM.FindElement("EVALUADORES").AddTailElement("SUB_EVALUADOR");
+							DDO360.SetAttr("nmd-status"   , "~i,");
+							DDO360.SetAttr("id"           , "~C_"+MySUBITEM.Id);
+							DDO360.AddTailElement("oi_personal_emp").SetAttr("value", EVALUADORES.oi_evaluador_360);
+						} else
+						{                                       
+							DDO360.SetAttr("nmd-status"   , "~u,");
+						}
+						DDO360.SetAttr("n_resultado"  , MySUBITEM.Values["K"+EVALUADORES.oi_evaluador_360]==null?"":MySUBITEM.Values["K"+EVALUADORES.oi_evaluador_360]);  
+					}
+		 		}
+			}
+		}
+	}
+};
+				</xsl:text>
+				<xsl:for-each select="$EVALUADORES/EVALUADOR">
+					<xsl:variable name="EVALUADOR" select="."/>
+					<xsl:value-of select="concat('PLA.Values[&quot;K',$EVALUADOR/@oi_personal_emp,'&quot;]=',$PLANTILLA/attribute::*[name() = concat('EVA_n_res_',$EVALUADOR/@oi_personal_emp)],';')"/>
+				</xsl:for-each>
+				<xsl:for-each select="ITEM">
+					<xsl:variable name="ITEM" select="."/>
+					<xsl:text>
+						//
+var ITEM=new Object();
+ITEM.Values=new Array();
+					</xsl:text>
+					<xsl:value-of select="concat('ITEM.Id=',@oi_objetivo,';')"/>
+					<xsl:value-of select="concat('ITEM.Escala=',@oi_escala,';')"/>
+					<xsl:value-of select="concat('ITEM.Pond=',@n_ponderacion,';')"/>
+					<xsl:value-of select="concat('ITEM.Value1=',@n_resultado,';')"/>
+					<xsl:value-of select="concat('ITEM.Value2=',@n_resultado2,';')"/>
+					<xsl:value-of select="concat('ITEM.Value3=',@n_resultado3,';')"/>
+					<xsl:for-each select="$EVALUADORES/EVALUADOR">
+						<xsl:variable name="EVALUADOR" select="."/>
+						<xsl:value-of select="concat('ITEM.Values[&quot;K',$EVALUADOR/@oi_personal_emp,'&quot;]=',$ITEM/attribute::*[name() = concat('EVA_n_res_',$EVALUADOR/@oi_personal_emp)],';')"/>
+					</xsl:for-each>
+					<xsl:text>
+						ITEM.New=false;
+ITEM.Delete=false;     
+ITEM.Subitems=new Array();
+PLA.AddItem(ITEM);
+					</xsl:text>
+					<xsl:for-each select="SUBITEM">
+						<xsl:variable name="SUBITEM" select="."/>
+						<xsl:text>
+							//
+var SUBITEM=new Object();
+SUBITEM.Values=new Array();
+						</xsl:text>
+						<xsl:value-of select="concat('SUBITEM.Id=',@oi_subobjetivo,';')"/>
+						<xsl:value-of select="concat('SUBITEM.Escala=',@oi_escala,';')"/>
+						<xsl:value-of select="concat('SUBITEM.Pond=',@n_ponderacion,';')"/>
+						<xsl:value-of select="concat('SUBITEM.Value1=',@n_resultado,';')"/>
+						<xsl:value-of select="concat('SUBITEM.Value2=',@n_resultado2,';')"/>
+						<xsl:value-of select="concat('SUBITEM.Value3=',@n_resultado3,';')"/>
+						<xsl:for-each select="$EVALUADORES/EVALUADOR">
+							<xsl:variable name="EVALUADOR" select="."/>
+							<xsl:value-of select="concat('SUBITEM.Values[&quot;K',$EVALUADOR/@oi_personal_emp,'&quot;]=',$SUBITEM/attribute::*[name() = concat('EVA_n_res_',$EVALUADOR/@oi_personal_emp)],';')"/>
+						</xsl:for-each>
+						<xsl:text>
+							SUBITEM.New=false;
+SUBITEM.Delete=false;     
+PLA.AddSubitem(ITEM.Id, SUBITEM);
+						</xsl:text>
+					</xsl:for-each>
+				</xsl:for-each>
+			</script>
+			<xsl:if test="@DEF_Show='1'">
+				<xsl:call-template name="SEPARATOR"/>
+				<xsl:call-template name="PLANTILLA_TITLE"/>
+				<table class="PLA" id="TBL_{@oi_plantilla}">
+					<!-- -->
+					<!-- Recorre los ITEMS -->
+					<xsl:for-each select="ITEM">
+						<xsl:variable name="ITEM" select="."/>
+						<!-- -->
+						<!-- Agrega la CABECERA -->
+						<tr id="TR_O_{@oi_objetivo}" class="PLA_HEAD">
+							<xsl:call-template name="PLANTILLA_HEAD">
+								<xsl:with-param name="PLANTILLA" select="$PLANTILLA"/>
+								<xsl:with-param name="EVALUADORES" select="$EVALUADORES"/>
+								<xsl:with-param name="POND" select="$POND"/>
+								<xsl:with-param name="LABEL" select="$ITEM/@d_objetivo"/>
+								<xsl:with-param name="ITEM" select="$ITEM/@oi_objetivo"/>
+							</xsl:call-template>
+						</tr>
+						<!-- -->
+						<!-- Recorre los SUBITEMS -->
+						<xsl:for-each select="SUBITEM">
+							<xsl:variable name="SUBITEM" select="."/>
+							<xsl:variable name="ESCALA" select="$ESCALAS/ESCALA[@oi_escala=$SUBITEM/@oi_escala]"/>
+							<!-- -->
+							<!-- TR de SUBITEM COMUN y VISIBLE-->
+							<tr id="TR_S_{$ITEM/@oi_objetivo}_{$SUBITEM/@oi_subobjetivo}">
+								<xsl:call-template name="TD_ITEM_ACTION_DEL">
+									<xsl:with-param name="PLANTILLA" select="$PLANTILLA"/>
+									<xsl:with-param name="ITEM" select="$ITEM/@oi_objetivo"/>
+									<xsl:with-param name="SUBITEM" select="$SUBITEM/@oi_subobjetivo"/>
+								</xsl:call-template>
+								<xsl:call-template name="TD_ITEM_LABEL">
+									<xsl:with-param name="PLANTILLA" select="$PLANTILLA"/>
+									<xsl:with-param name="ID" select="concat('MSG_',$ITEM/@oi_objetivo,'_',$SUBITEM/@oi_subobjetivo)"/>
+									<xsl:with-param name="TEXT" select="$SUBITEM/@d_subobjetivo"/>
+									<xsl:with-param name="TOOLTIP" select="$SUBITEM/@o_subobjetivo"/>
+								</xsl:call-template>
+								<xsl:call-template name="TD_ITEM_VALUE_COMBO">
+									<xsl:with-param name="ESCALA" select="$ESCALA"/>
+									<xsl:with-param name="STATUS" select="$PLANTILLA/@DEF_Evaluador"/>
+									<xsl:with-param name="ID" select="concat('OE_',$ITEM/@oi_objetivo,'_',$SUBITEM/@oi_subobjetivo)"/>
+									<xsl:with-param name="VALUE" select="$SUBITEM/@n_resultado"/>
+									<xsl:with-param name="EDITABLE" select="$REPORT/@editable"/>
+								</xsl:call-template>
+								<xsl:choose>
+									<xsl:when test="$PLANTILLA/@DEF_Evaluador360='1'">
+										<xsl:variable name="n_resultado" select="$SUBITEM/attribute::*[name() = concat('EVA_n_res_',$EVALUADORES/@oi_evaluador_360)]"/>
+										<xsl:call-template name="TD_ITEM_VALUE_COMBO">
+											<xsl:with-param name="ESCALA" select="$ESCALA"/>
+											<xsl:with-param name="STATUS" select="1"/>
+											<xsl:with-param name="ID" select="concat('O3_',$ITEM/@oi_objetivo,'_',$SUBITEM/@oi_subobjetivo,'_',$EVALUADORES/@oi_evaluador_360)"/>
+											<xsl:with-param name="VALUE" select="$n_resultado"/>
+											<xsl:with-param name="EDITABLE" select="$REPORT/@editable"/>
+										</xsl:call-template>
+									</xsl:when>
+									<xsl:when test="$PLANTILLA/@DEF_Evaluador360='2'">
+										<xsl:for-each select="$EVALUADORES/EVALUADOR">
+											<xsl:variable name="EVALUADOR" select="."/>
+											<xsl:variable name="n_resultado" select="$SUBITEM/attribute::*[name() = concat('EVA_n_res_',$EVALUADOR/@oi_personal_emp)]"/>
+											<xsl:call-template name="TD_ITEM_VALUE_COMBO">
+												<xsl:with-param name="ESCALA" select="$ESCALA"/>
+												<xsl:with-param name="STATUS" select="1"/>
+												<xsl:with-param name="ID" select="concat('O3_',$ITEM/@oi_objetivo,'_',$SUBITEM/@oi_subobjetivo,'_',@oi_personal_emp)"/>
+												<xsl:with-param name="VALUE" select="$n_resultado"/>
+												<xsl:with-param name="EDITABLE" select="$REPORT/@editable"/>
+											</xsl:call-template>
+										</xsl:for-each>
+									</xsl:when>
+									<xsl:when test="$PLANTILLA/@DEF_Evaluador360='3'">
+										<xsl:variable name="n_resultado" select="$SUBITEM/attribute::*[name() = concat('EVA_n_res_',$EVALUADORES/@oi_evaluador_360)]"/>
+										<xsl:call-template name="TD_ITEM_VALUE_COMBO">
+											<xsl:with-param name="ESCALA" select="$ESCALA"/>
+											<xsl:with-param name="STATUS" select="2"/>
+											<xsl:with-param name="ID" select="concat('O3_',$ITEM/@oi_objetivo,'_',$SUBITEM/@oi_subobjetivo,'_',$EVALUADORES/@oi_evaluador_360)"/>
+											<xsl:with-param name="VALUE" select="$n_resultado"/>
+											<xsl:with-param name="EDITABLE" select="$REPORT/@editable"/>
+										</xsl:call-template>
+									</xsl:when>
+								</xsl:choose>
+								<xsl:call-template name="TD_ITEM_VALUE_COMBO">
+									<xsl:with-param name="ESCALA" select="$ESCALA"/>
+									<xsl:with-param name="STATUS" select="$PLANTILLA/@DEF_Evaluado"/>
+									<xsl:with-param name="ID" select="concat('OA_',$ITEM/@oi_objetivo,'_',$SUBITEM/@oi_subobjetivo)"/>
+									<xsl:with-param name="VALUE" select="$SUBITEM/@n_resultado2"/>
+									<xsl:with-param name="EDITABLE" select="$REPORT/@editable"/>
+								</xsl:call-template>
+								<xsl:call-template name="TD_ITEM_VALUE_COMBO">
+									<xsl:with-param name="ESCALA" select="$ESCALA"/>
+									<xsl:with-param name="STATUS" select="$PLANTILLA/@DEF_Supervisor"/>
+									<xsl:with-param name="ID" select="concat('OS_',$ITEM/@oi_objetivo,'_',$SUBITEM/@oi_subobjetivo)"/>
+									<xsl:with-param name="VALUE" select="$SUBITEM/@n_resultado3"/>
+									<xsl:with-param name="EDITABLE" select="$REPORT/@editable"/>
+								</xsl:call-template>
+							</tr>
+						</xsl:for-each>
+						<!-- -->
+						<!-- Agrega el TR con el BOTON DE AGREGAR SUBITEM en el item ACTUAL -->
+						<xsl:if test="$PLANTILLA/@DEF_Edit='1'">
+							<tr class="PLA_ADD" id="TR_OA_{@oi_objetivo}">
+								<xsl:call-template name="PLANTILLA_ADD">
+									<xsl:with-param name="PLANTILLA" select="$PLANTILLA"/>
+									<xsl:with-param name="EVALUADORES" select="$EVALUADORES"/>
+									<xsl:with-param name="POND" select="$POND"/>
+									<xsl:with-param name="ITEM" select="$ITEM/@oi_objetivo"/>
+								</xsl:call-template>
+							</tr>
+						</xsl:if>
+						<!-- Agrega el TR con el RESULTADO del ITEM (promedio de subitems) -->
+						<tr class="PLA_FOOT" id="TR_OR_{@oi_objetivo}">
+							<xsl:call-template name="PLANTILLA_FOOT">
+								<xsl:with-param name="PLANTILLA" select="$PLANTILLA"/>
+								<xsl:with-param name="EVALUADORES" select="$EVALUADORES"/>
+								<xsl:with-param name="POND" select="$POND"/>
+								<xsl:with-param name="ID" select="concat($PLANTILLA/@oi_plantilla,'_',$ITEM/@oi_objetivo)"/>
+								<xsl:with-param name="LABEL" select="'&#160;'"/>
+							</xsl:call-template>
+						</tr>
+						<!-- -->
+						<!-- PROTOTIPO de NUEVO SUBITEM -->
+						<xsl:variable name="ESCALA" select="$ESCALAS/ESCALA[@oi_escala=$ITEM/@oi_escala_subitem]"/>
+						<tr style="display:none;" id="TR_ST_{$ITEM/@oi_objetivo}">
+							<xsl:call-template name="TD_ITEM_ACTION_DEL">
+								<xsl:with-param name="PLANTILLA" select="$PLANTILLA"/>
+								<xsl:with-param name="ITEM" select="$ITEM/@oi_objetivo"/>
+								<xsl:with-param name="SUBITEM" select="'STR_REPLACE_NAME'"/>
+							</xsl:call-template>
+							<xsl:call-template name="TD_ITEM_LABEL">
+								<xsl:with-param name="PLANTILLA" select="$PLANTILLA"/>
+								<xsl:with-param name="ID" select="concat('MSG_',$ITEM/@oi_objetivo,'_REPLACE_NAME')"/>
+							</xsl:call-template>
+							<xsl:call-template name="TD_ITEM_VALUE_COMBO">
+								<xsl:with-param name="ESCALA" select="$ESCALA"/>
+								<xsl:with-param name="STATUS" select="$PLANTILLA/@DEF_Evaluador"/>
+								<xsl:with-param name="ID" select="concat('OE_',$ITEM/@oi_objetivo,'_REPLACE_NAME')"/>
+								<xsl:with-param name="EDITABLE" select="$REPORT/@editable"/>
+							</xsl:call-template>
+							<xsl:choose>
+								<xsl:when test="$PLANTILLA/@DEF_Evaluador360='1'">
+									<xsl:call-template name="TD_ITEM_VALUE_COMBO">
+										<xsl:with-param name="ESCALA" select="$ESCALA"/>
+										<xsl:with-param name="STATUS" select="1"/>
+										<xsl:with-param name="ID" select="concat('O3_',$ITEM/@oi_objetivo,'_REPLACE_NAME_',$EVALUADORES/@oi_evaluador_360)"/>
+										<xsl:with-param name="EDITABLE" select="$REPORT/@editable"/>
+									</xsl:call-template>
+								</xsl:when>
+								<xsl:when test="$PLANTILLA/@DEF_Evaluador360='2'">
+									<xsl:for-each select="$EVALUADORES/EVALUADOR">
+										<xsl:variable name="EVALUADOR" select="."/>
+										<xsl:call-template name="TD_ITEM_VALUE_COMBO">
+											<xsl:with-param name="ESCALA" select="$ESCALA"/>
+											<xsl:with-param name="STATUS" select="1"/>
+											<xsl:with-param name="ID" select="concat('O3_',$ITEM/@oi_objetivo,'_REPLACE_NAME_',@oi_personal_emp)"/>
+											<xsl:with-param name="EDITABLE" select="$REPORT/@editable"/>
+										</xsl:call-template>
+									</xsl:for-each>
+								</xsl:when>
+								<xsl:when test="$PLANTILLA/@DEF_Evaluador360='3'">
+									<xsl:call-template name="TD_ITEM_VALUE_COMBO">
+										<xsl:with-param name="ESCALA" select="$ESCALA"/>
+										<xsl:with-param name="STATUS" select="2"/>
+										<xsl:with-param name="ID" select="concat('O3_',$ITEM/@oi_objetivo,'_REPLACE_NAME_',$EVALUADORES/@oi_evaluador_360)"/>
+										<xsl:with-param name="EDITABLE" select="$REPORT/@editable"/>
+									</xsl:call-template>
+								</xsl:when>
+							</xsl:choose>
+							<xsl:call-template name="TD_ITEM_VALUE_COMBO">
+								<xsl:with-param name="ESCALA" select="$ESCALA"/>
+								<xsl:with-param name="STATUS" select="$PLANTILLA/@DEF_Evaluado"/>
+								<xsl:with-param name="ID" select="concat('OA_',$ITEM/@oi_objetivo,'_REPLACE_NAME')"/>
+								<xsl:with-param name="EDITABLE" select="$REPORT/@editable"/>
+							</xsl:call-template>
+							<xsl:call-template name="TD_ITEM_VALUE_COMBO">
+								<xsl:with-param name="ESCALA" select="$ESCALA"/>
+								<xsl:with-param name="STATUS" select="$PLANTILLA/@DEF_Supervisor"/>
+								<xsl:with-param name="ID" select="concat('OS_',$ITEM/@oi_objetivo,'_REPLACE_NAME')"/>
+								<xsl:with-param name="EDITABLE" select="$REPORT/@editable"/>
+							</xsl:call-template>
+						</tr>
+					</xsl:for-each>
+					<!-- -->
+					<!-- PROTOTIPO de NUEVO ITEM, tiene 4 partes prototipo cabezera, cuerto, add y pie-->
+					<xsl:if test="$PLANTILLA/@DEF_Edit='1'">
+						<!-- -->
+						<!-- Agrega la CABECERA -->
+						<tr style="display:none;" id="TR_OT_{$PLANTILLA/@oi_plantilla}" class="PLA_HEAD">
+							<xsl:call-template name="PLANTILLA_HEAD">
+								<xsl:with-param name="PLANTILLA" select="$PLANTILLA"/>
+								<xsl:with-param name="EVALUADORES" select="$EVALUADORES"/>
+								<xsl:with-param name="POND" select="$POND"/>
+								<xsl:with-param name="LABEL" select="' '"/>
+								<xsl:with-param name="ITEM" select="'REPLACE_NAME'"/>
+							</xsl:call-template>
+						</tr>
+						<!-- -->
+						<!-- Agrega el TR con el BOTON DE AGREGAR SUBITEM en el item ACTUAL -->
+						<tr style="display:none;" class="PLA_ADD" id="TR_OTA_{$PLANTILLA/@oi_plantilla}">
+							<xsl:call-template name="PLANTILLA_ADD">
+								<xsl:with-param name="PLANTILLA" select="$PLANTILLA"/>
+								<xsl:with-param name="EVALUADORES" select="$EVALUADORES"/>
+								<xsl:with-param name="POND" select="$POND"/>
+								<xsl:with-param name="ITEM" select="'STR_REPLACE_NAME'"/>
+							</xsl:call-template>
+						</tr>
+						<!-- Agrega el TR con el RESULTADO del ITEM (promedio de subitems) -->
+						<tr style="display:none;" class="PLA_FOOT" id="TR_OTR_{$PLANTILLA/@oi_plantilla}">
+							<xsl:call-template name="PLANTILLA_FOOT">
+								<xsl:with-param name="PLANTILLA" select="$PLANTILLA"/>
+								<xsl:with-param name="EVALUADORES" select="$EVALUADORES"/>
+								<xsl:with-param name="POND" select="$POND"/>
+								<xsl:with-param name="ID" select="concat($PLANTILLA/@oi_plantilla,'_REPLACE_NAME')"/>
+								<xsl:with-param name="LABEL" select="'&#160;'"/>
+							</xsl:call-template>
+						</tr>
+						<!-- -->
+						<!-- PROTOTIPO de NUEVO SUBITEM -->
+						<xsl:variable name="ESCALA" select="$ESCALAS/ESCALA[@oi_escala=$PLANTILLA/@oi_escala_subitem]"/>
+						<tr style="display:none;" id="TR_STT_{$PLANTILLA/@oi_plantilla}">
+							<xsl:call-template name="TD_ITEM_ACTION_DEL">
+								<xsl:with-param name="PLANTILLA" select="$PLANTILLA"/>
+								<xsl:with-param name="ITEM" select="'STR_REPLACE_NAME'"/>
+								<xsl:with-param name="SUBITEM" select="'STR_REPLACE_X_NAME'"/>
+							</xsl:call-template>
+							<xsl:call-template name="TD_ITEM_LABEL">
+								<xsl:with-param name="PLANTILLA" select="$PLANTILLA"/>
+								<xsl:with-param name="ID" select="'MSG_REPLACE_NAME_REPLACE_X_NAME'"/>
+							</xsl:call-template>
+							<xsl:call-template name="TD_ITEM_VALUE_COMBO">
+								<xsl:with-param name="ESCALA" select="$ESCALA"/>
+								<xsl:with-param name="STATUS" select="$PLANTILLA/@DEF_Evaluador"/>
+								<xsl:with-param name="ID" select="'OE_REPLACE_NAME_REPLACE_X_NAME'"/>
+								<xsl:with-param name="EDITABLE" select="$REPORT/@editable"/>
+							</xsl:call-template>
+							<xsl:choose>
+								<xsl:when test="$PLANTILLA/@DEF_Evaluador360='1'">
+									<xsl:call-template name="TD_ITEM_VALUE_COMBO">
+										<xsl:with-param name="ESCALA" select="$ESCALA"/>
+										<xsl:with-param name="STATUS" select="1"/>
+										<xsl:with-param name="ID" select="concat('O3_REPLACE_NAME_REPLACE_X_NAME_',$EVALUADORES/@oi_evaluador_360)"/>
+										<xsl:with-param name="EDITABLE" select="$REPORT/@editable"/>
+									</xsl:call-template>
+								</xsl:when>
+								<xsl:when test="$PLANTILLA/@DEF_Evaluador360='2'">
+									<xsl:for-each select="$EVALUADORES/EVALUADOR">
+										<xsl:variable name="EVALUADOR" select="."/>
+										<xsl:call-template name="TD_ITEM_VALUE_COMBO">
+											<xsl:with-param name="ESCALA" select="$ESCALA"/>
+											<xsl:with-param name="STATUS" select="1"/>
+											<xsl:with-param name="ID" select="concat('O3_REPLACE_NAME_REPLACE_X_NAME_',@oi_personal_emp)"/>
+											<xsl:with-param name="EDITABLE" select="$REPORT/@editable"/>
+										</xsl:call-template>
+									</xsl:for-each>
+								</xsl:when>
+								<xsl:when test="$PLANTILLA/@DEF_Evaluador360='3'">
+									<xsl:call-template name="TD_ITEM_VALUE_COMBO">
+										<xsl:with-param name="ESCALA" select="$ESCALA"/>
+										<xsl:with-param name="STATUS" select="2"/>
+										<xsl:with-param name="ID" select="concat('O3_REPLACE_NAME_REPLACE_X_NAME_',$EVALUADORES/@oi_evaluador_360)"/>
+										<xsl:with-param name="EDITABLE" select="$REPORT/@editable"/>
+									</xsl:call-template>
+								</xsl:when>
+							</xsl:choose>
+							<xsl:call-template name="TD_ITEM_VALUE_COMBO">
+								<xsl:with-param name="ESCALA" select="$ESCALA"/>
+								<xsl:with-param name="STATUS" select="$PLANTILLA/@DEF_Evaluado"/>
+								<xsl:with-param name="ID" select="'OA_REPLACE_NAME_REPLACE_X_NAME'"/>
+								<xsl:with-param name="EDITABLE" select="$REPORT/@editable"/>
+							</xsl:call-template>
+							<xsl:call-template name="TD_ITEM_VALUE_COMBO">
+								<xsl:with-param name="ESCALA" select="$ESCALA"/>
+								<xsl:with-param name="STATUS" select="$PLANTILLA/@DEF_Supervisor"/>
+								<xsl:with-param name="ID" select="'OS_REPLACE_NAME_REPLACE_X_NAME'"/>
+								<xsl:with-param name="EDITABLE" select="$REPORT/@editable"/>
+							</xsl:call-template>
+						</tr>
+					</xsl:if>
+					<!-- -->
+					<!-- Agrega el TR con el BOTON DE AGREGAR ITEM -->
+					<xsl:if test="$PLANTILLA/@DEF_Edit='1'">
+						<tr class="PLA_ADD">
+							<xsl:call-template name="PLANTILLA_ADD">
+								<xsl:with-param name="PLANTILLA" select="$PLANTILLA"/>
+								<xsl:with-param name="EVALUADORES" select="$EVALUADORES"/>
+								<xsl:with-param name="POND" select="$POND"/>
+							</xsl:call-template>
+						</tr>
+					</xsl:if>
+					<!-- -->
+					<!-- Agrega el TR con el RESULTADO de la PLANTILLA (promedio de items) -->
+					<tr class="PLA_FOOT">
+						<xsl:call-template name="PLANTILLA_FOOT">
+							<xsl:with-param name="PLANTILLA" select="$PLANTILLA"/>
+							<xsl:with-param name="EVALUADORES" select="$EVALUADORES"/>
+							<xsl:with-param name="POND" select="$POND"/>
+							<xsl:with-param name="ID" select="$PLANTILLA/@oi_plantilla"/>
+						</xsl:call-template>
+					</tr>
+				</table>
+				<xsl:call-template name="PLANTILLA_COMENT"/>
+			</xsl:if>
+		</xsl:template>
+		<xsl:template name="SCRIPT_PLANTILLA_INIT">
+			<xsl:value-of select="concat('&#13;&#10;var PLA=new PlantillaBase(',@oi_plantilla,');')"/>
+			<xsl:value-of select="concat('&#13;&#10;PLA.Escala=',@oi_escala,';')"/>
+			<xsl:value-of select="concat('&#13;&#10;PLA.Pond=',@EVA_n_ponderacion,';')"/>
+			<xsl:value-of select="concat('&#13;&#10;PLA.Value1=',@EVA_n_resultado,';')"/>
+			<xsl:value-of select="concat('&#13;&#10;PLA.Value2=',@EVA_n_resultado2,';')"/>
+			<xsl:value-of select="concat('&#13;&#10;PLA.Value3=',@EVA_n_resultado3,';')"/>
+			<xsl:value-of select="concat('&#13;&#10;PLA.MostrarResumen=','1',';')"/>
+			<xsl:value-of select="concat('&#13;&#10;PLA.Show=',@DEF_Show,';')"/>
+			<xsl:value-of select="concat('&#13;&#10;PLA.Edit=',@DEF_Edit,';')"/>
+			<xsl:value-of select="concat('&#13;&#10;PLA.Evaluador=',@DEF_Evaluador,';')"/>
+			<xsl:value-of select="concat('&#13;&#10;PLA.Evaluador360=',@DEF_Evaluador360,';')"/>
+			<xsl:value-of select="concat('&#13;&#10;PLA.Evaluado=',@DEF_Evaluado,';')"/>
+			<xsl:value-of select="concat('&#13;&#10;PLA.Supervisor=',@DEF_Supervisor,';')"/>
+			<xsl:value-of select="concat('&#13;&#10;PLA.Comentarios=',@DEF_Comentarios,';')"/>
+			<xsl:value-of select="concat('&#13;&#10;PLA.SumEva=',@PLA_EVA,';')"/>
+			<xsl:value-of select="concat('&#13;&#10;PLA.SumAut=',@PLA_AUT,';')"/>
+			<xsl:value-of select="concat('&#13;&#10;PLA.SumSup=',@PLA_SUP,';')"/>
+			<xsl:value-of select="concat('&#13;&#10;PLA.Sum360=',@PLA_360,';')"/>
+			<xsl:if test="@DEF_d_cus2">
+				<xsl:value-of select="concat('&#13;&#10;PLA.Decimales=',@DEF_d_cus2,';')"/>
+			</xsl:if>
+			<xsl:if test="@DEF_d_cus3">
+				<xsl:value-of select="concat('&#13;&#10;PLA.PondDecimales=',@DEF_d_cus3,';')"/>
+			</xsl:if>
+		</xsl:template>
+		<xsl:template name="SCRIPT_PLANTILLA_NORES_INIT">
+			<xsl:value-of select="concat('&#13;&#10;var PLA=new PlantillaBase(',@oi_plantilla,');')"/>
+			<xsl:value-of select="concat('&#13;&#10;PLA.Escala=',@oi_escala,';')"/>
+			<xsl:value-of select="concat('&#13;&#10;PLA.MostrarResumen=','0',';')"/>
+			<xsl:value-of select="concat('&#13;&#10;PLA.Show=',@DEF_Show,';')"/>
+			<xsl:value-of select="concat('&#13;&#10;PLA.Edit=',@DEF_Edit,';')"/>
+			<xsl:value-of select="concat('&#13;&#10;PLA.Evaluador=',@DEF_Evaluador,';')"/>
+			<xsl:value-of select="concat('&#13;&#10;PLA.Evaluador360=',@DEF_Evaluador360,';')"/>
+			<xsl:value-of select="concat('&#13;&#10;PLA.Evaluado=',@DEF_Evaluado,';')"/>
+			<xsl:value-of select="concat('&#13;&#10;PLA.Supervisor=',@DEF_Supervisor,';')"/>
+			<xsl:value-of select="concat('&#13;&#10;PLA.Comentarios=',@DEF_Comentarios,';')"/>
+			<xsl:value-of select="concat('&#13;&#10;PLA.SumEva=',@PLA_EVA,';')"/>
+			<xsl:value-of select="concat('&#13;&#10;PLA.SumAut=',@PLA_AUT,';')"/>
+			<xsl:value-of select="concat('&#13;&#10;PLA.SumSup=',@PLA_SUP,';')"/>
+			<xsl:value-of select="concat('&#13;&#10;PLA.Sum360=',@PLA_360,';')"/>
+		</xsl:template>
+	</html:xslt>
+</html:html>

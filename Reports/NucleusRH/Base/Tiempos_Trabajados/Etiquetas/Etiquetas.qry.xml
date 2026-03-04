@@ -1,0 +1,165 @@
+<qry:define declare="&lt;FILTRO oi_clase_org=&quot;1&quot; oi_empresa=&quot;1&quot; oi_estructura=&quot;2&quot;&gt;&#13;&#10;&#9;&lt;PERSONAS&gt;                                                                                                          &#13;&#10;    &#9;&#9;&lt;PERSONA id=&quot;&quot;/&gt;&#13;&#10;&#9;&#9;&lt;PERSONA id=&quot;&quot;/&gt;&#13;&#10;&#9;&#9;&lt;PERSONA id=&quot;&quot;/&gt;&#13;&#10;&#9;&#9;&lt;PERSONA id=&quot;&quot;/&gt;&#13;&#10;&#9;&#9;&lt;PERSONA id=&quot;&quot;/&gt;&#13;&#10;&#9;&lt;/PERSONAS&gt;&#13;&#10;&lt;/FILTRO&gt;" xmlns:qry="XXX" name="FORMS">
+	<qry:main doc="PARAM">
+		<qry:append-doc name="FILTRO" doc-path="#PARAM:FILTRO"/>
+		<qry:element name="ETIQUETAS">
+			<qry:element name="PERSONAS">
+				<qry:attribute value="'pp' " name="pp" type="Nomad.NSystem.String"/>
+				<qry:insert-select doc-path="#FILTRO:" name="QRY_CLASE"/>
+			</qry:element>
+		</qry:element>
+	</qry:main>
+	<qry:select doc="PARAM" name="QRY_CLASE">
+		<qry:xquery>
+			for $r in table('
+				SELECT ORG02_CLASES_ORG.oi_estructura_org 
+				FROM ORG02_CLASES_ORG				
+				WHERE ORG02_CLASES_ORG.oi_clase_org= {#FILTRO:@oi_clase_org}				
+					')/ROWS/ROW
+		</qry:xquery>
+		<qry:out>
+			<qry:insert-select doc-path="$r" name="QRY_ESTRUCTURA_PADRE"/>
+			<qry:insert-select doc-path="$r" name="QRY_ESTRUCTURAS"/>
+		</qry:out>
+	</qry:select>
+	<qry:select xmlns:qry="XXX" doc="PARAM" name="QRY_ESTRUCTURA_PADRE">
+		<qry:xquery>
+			for $r in table('		
+				SELECT ORG02_ESTRUCTURAS.oi_estructura, *
+				FROM ORG02_ESTRUCTURAS, ORG01_UNI_ORG, ORG01_TIPOS_UNI
+				WHERE ORG02_ESTRUCTURAS.oi_estructura = {#PARAM:@oi_estructura_org}				                 								
+				AND ORG02_ESTRUCTURAS.oi_unidad_org = ORG01_UNI_ORG.oi_unidad_org 				
+				AND ORG01_UNI_ORG.oi_tipo_uni_org = ORG01_TIPOS_UNI.oi_tipo_uni_org 								
+					')/ROWS/ROW
+		</qry:xquery>
+		<qry:out>
+			<qry:insert-select doc-path="$r" name="QRY_PERSONAS"/>
+		</qry:out>
+	</qry:select>
+	<qry:select xmlns:qry="XXX" doc="PARAM" name="QRY_ESTRUCTURAS">
+		<qry:xquery>
+			for $r in table('		
+				SELECT ORG02_ESTRUCTURAS.oi_estructura, *
+				FROM ORG02_ESTRUCTURAS, ORG01_UNI_ORG, org01_tipos_uni
+				WHERE oi_estr_padre = {#PARAM:@oi_estructura_org}								
+				AND ORG02_ESTRUCTURAS.oi_unidad_org = ORG01_UNI_ORG.oi_unidad_org 
+				AND ORG01_UNI_ORG.oi_tipo_uni_org = org01_tipos_uni.oi_tipo_uni_org 				
+				{%? (#FILTRO:@oi_estructura!='') {% AND ORG02_ESTRUCTURAS.oi_estructura={%=#FILTRO:@oi_estructura %} %} {% AND 1=1%} %}
+					')/ROWS/ROW
+		</qry:xquery>
+		<qry:out>
+			<qry:insert-select doc-path="$r" name="QRY_PERSONAS"/>
+			<qry:insert-select doc-path="$r" name="QRY_ESTR_SIG_NIVEL"/>
+		</qry:out>
+	</qry:select>
+	<qry:select doc="PARAM" name="QRY_PERSONAS">
+		<qry:xquery>
+			for $r in table('
+				SELECT PER01_PERSONAL.oi_personal, PER01_PERSONAL.d_ape_y_nom, 
+				ORG03_EMPRESAS.d_empresa, PER01_PERSONAL.c_nro_cuil, 
+				PER10_GRUPOS_SANG.c_grupo_sanguineo, PER01_DOMIC_PER.te_1,
+				PER33_ART.d_art, PER33_ART.te_art, 
+				PER01_PERSONAL.oi_foto, ORG02_ESTRUC_PERS.oi_estructura 
+				FROM PER01_PERSONAL, ORG03_EMPRESAS, PER10_GRUPOS_SANG, PER33_ART, 
+				PER02_PERSONAL_EMP, PER01_DOMIC_PER, ORG02_ESTRUC_PERS
+				WHERE PER01_PERSONAL.oi_personal = PER02_PERSONAL_EMP.oi_personal
+				AND ORG03_EMPRESAS.oi_empresa = PER02_PERSONAL_EMP.oi_empresa
+				AND PER10_GRUPOS_SANG.oi_grupo_sanguineo =* PER01_PERSONAL.oi_grupo_sanguineo
+				AND PER33_ART.oi_art =* PER02_PERSONAL_EMP.oi_art
+				AND PER01_DOMIC_PER.oi_personal =* PER01_PERSONAL.oi_personal
+				AND ORG02_ESTRUC_PERS.oi_personal_emp = PER02_PERSONAL_EMP.oi_personal_emp				
+				AND PER01_DOMIC_PER.oi_tipo_domicilio = 2
+				AND PER02_PERSONAL_EMP.oi_empresa = {#FILTRO:@oi_empresa}
+				{%? (#FILTRO:@oi_estructura!='') {% AND org02_estruc_pers.oi_estructura={%=#FILTRO:@oi_estructura %} %} {% AND 1=1%} %}
+				AND ORG02_ESTRUC_PERS.oi_estructura = {#PARAM:@oi_estructura}				
+				{%? (string(#FILTRO:PERSONAS/PERSONA/@id)!='') {% AND PER02_PERSONAL_EMP.oi_personal_emp in ({%=string(#FILTRO:PERSONAS/PERSONA/@id) %}) %} {%  %} %}	
+				
+					')/ROWS/ROW
+		</qry:xquery>
+		<qry:out>
+			<qry:element name="PERSONA">
+				<qry:attribute value="$r/@oi_estructura " name="oi_estructura" type="Nomad.NSystem.String"/>
+				<qry:attribute value="$r/@oi_personal " name="oi_personal" type="Nomad.NSystem.String"/>
+				<qry:attribute value="$r/@d_ape_y_nom " name="d_ape_y_nom" type="Nomad.NSystem.String"/>
+				<qry:attribute value="$r/@d_empresa " name="d_empresa" type="Nomad.NSystem.String"/>
+				<qry:attribute value="$r/@c_nro_cuil " name="c_nro_cuil" type="Nomad.NSystem.String"/>
+				<qry:attribute value="$r/@c_grupo_sanguineo " name="c_grupo_sanguineo" type="Nomad.NSystem.String"/>
+				<qry:attribute value="$r/@te_1 " name="te_1" type="Nomad.NSystem.String"/>
+				<qry:attribute value="$r/@d_art " name="d_art" type="Nomad.NSystem.String"/>
+				<qry:attribute value="$r/@te_art " name="te_art" type="Nomad.NSystem.String"/>
+				<qry:attribute value="'No'" name="img" type="Nomad.NSystem.String"/>
+				<qry:insert-select doc-path="$r/.[$r/@oi_foto!='']" name="QRY_IMAGEN"/>
+				<qry:insert-select doc-path="$r" name="SECURITY"/>
+			</qry:element>
+		</qry:out>
+	</qry:select>
+	<qry:select doc="PARAM" name="QRY_ESTR_SIG_NIVEL">
+		<qry:xquery>
+			for $r in table('		
+					SELECT ORG02_ESTRUCTURAS.oi_estructura, ORG01_UNI_ORG.oi_unidad_org oi_uni_org
+					FROM ORG02_ESTRUCTURAS, ORG01_UNI_ORG
+					WHERE oi_estr_padre = {%=#PARAM:@oi_estructura%}
+					AND ORG02_ESTRUCTURAS.oi_unidad_org *= ORG01_UNI_ORG.oi_unidad_org 
+					')/ROWS/ROW
+		</qry:xquery>
+		<qry:out>
+			<qry:insert-select doc-path="$r" name="QRY_PERSONAS_SIG"/>
+			<qry:insert-select doc-path="$r" name="QRY_ESTR_SIG_NIVEL"/>
+		</qry:out>
+	</qry:select>
+	<qry:select doc="PARAM" name="QRY_PERSONAS_SIG">
+		<qry:xquery>
+			for $r in table('
+				SELECT PER01_PERSONAL.oi_personal, PER01_PERSONAL.d_ape_y_nom, 
+				ORG03_EMPRESAS.d_empresa, PER01_PERSONAL.c_nro_cuil, 
+				PER10_GRUPOS_SANG.c_grupo_sanguineo, PER01_DOMIC_PER.te_1,
+				PER33_ART.d_art, PER33_ART.te_art, 
+				PER01_PERSONAL.oi_foto, ORG02_ESTRUC_PERS.oi_estructura 
+				FROM PER01_PERSONAL, ORG03_EMPRESAS, PER10_GRUPOS_SANG, PER33_ART, 
+				PER02_PERSONAL_EMP, PER01_DOMIC_PER, ORG02_ESTRUC_PERS
+				WHERE PER01_PERSONAL.oi_personal = PER02_PERSONAL_EMP.oi_personal
+				AND ORG03_EMPRESAS.oi_empresa = PER02_PERSONAL_EMP.oi_empresa
+				AND PER10_GRUPOS_SANG.oi_grupo_sanguineo =* PER01_PERSONAL.oi_grupo_sanguineo
+				AND PER33_ART.oi_art =* PER02_PERSONAL_EMP.oi_art
+				AND PER01_DOMIC_PER.oi_personal =* PER01_PERSONAL.oi_personal
+				AND ORG02_ESTRUC_PERS.oi_personal_emp = PER02_PERSONAL_EMP.oi_personal_emp				
+				AND PER01_DOMIC_PER.oi_tipo_domicilio = 2
+				AND PER02_PERSONAL_EMP.oi_empresa = {#FILTRO:@oi_empresa}
+				AND ORG02_ESTRUC_PERS.oi_estructura = {#PARAM:@oi_estructura}				
+				{%? (string(#FILTRO:PERSONAS/PERSONA/@id)!='') {% AND PER02_PERSONAL_EMP.oi_personal_emp in ({%=string(#FILTRO:PERSONAS/PERSONA/@id) %}) %} {%  %} %}	
+				
+					')/ROWS/ROW
+		</qry:xquery>
+		<qry:out>
+			<qry:element name="PERSONA">
+				<qry:attribute value="$r/@oi_estructura " name="oi_estructura" type="Nomad.NSystem.String"/>
+				<qry:attribute value="$r/@oi_personal " name="oi_personal" type="Nomad.NSystem.String"/>
+				<qry:attribute value="$r/@d_ape_y_nom " name="d_ape_y_nom" type="Nomad.NSystem.String"/>
+				<qry:attribute value="$r/@d_empresa " name="d_empresa" type="Nomad.NSystem.String"/>
+				<qry:attribute value="$r/@c_nro_cuil " name="c_nro_cuil" type="Nomad.NSystem.String"/>
+				<qry:attribute value="$r/@c_grupo_sanguineo " name="c_grupo_sanguineo" type="Nomad.NSystem.String"/>
+				<qry:attribute value="$r/@te_1 " name="te_1" type="Nomad.NSystem.String"/>
+				<qry:attribute value="$r/@d_art " name="d_art" type="Nomad.NSystem.String"/>
+				<qry:attribute value="$r/@te_art " name="te_art" type="Nomad.NSystem.String"/>
+				<qry:attribute value="'No'" name="img" type="Nomad.NSystem.String"/>
+				<qry:insert-select doc-path="$r/.[$r/@oi_foto!='']" name="QRY_IMAGEN"/>
+				<qry:insert-select doc-path="$r" name="SECURITY"/>
+			</qry:element>
+		</qry:out>
+	</qry:select>
+	<qry:select doc="PARAM" name="QRY_IMAGEN">
+		<qry:xquery>
+			for $r in #PARAM:
+		</qry:xquery>
+		<qry:out>
+			<qry:attribute value="'${TempFolderName}\\..\\NucleusRH.Base.Personal.Imagenes.HEAD.' + $r/@oi_foto + '.jpg'" name="img" type="Nomad.NSystem.String"/>
+		</qry:out>
+	</qry:select>
+	<qry:select doc="PARAM" name="SECURITY">
+		<qry:xquery>
+			for $r in table('select policy from NMD_SECURITY where class=\'NucleusRH.Base.Personal.Legajo.PERSONAL\' and id={#PARAM:@oi_personal}')/ROWS/ROW
+		</qry:xquery>
+		<qry:out>
+			<qry:attribute value="$r/@policy" name="policy"/>
+		</qry:out>
+	</qry:select>
+</qry:define>

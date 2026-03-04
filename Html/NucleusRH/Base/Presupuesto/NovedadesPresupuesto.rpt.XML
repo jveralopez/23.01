@@ -1,0 +1,176 @@
+<html:html xmlns:html="nomad_engine.html" xmlns:qry="nomad_engine.qry" extends="Nomad.Base.BaseReport.rpt" doc="source" name="NucleusRH.Base.Presupuesto.NovedadesPresupuesto">
+	<html:query declare="&lt;DATOS salida=&quot;HTML&quot; report=&quot;&quot; oi_presupuesto=&quot;1&quot; oi_escenario=&quot;9&quot; l_incluir=&quot;&quot;&gt;&#13;&#10;&#9;&lt;ROWS/&gt;&#13;&#10;&lt;/DATOS&gt;">
+		<qry:main doc="SOURCE">
+			<qry:append-doc name="PARAMIN" doc-path="#SOURCE:DATOS"/>
+			<REPORT label="NOVEDADES POR ESCENARIO">
+				<qry:attribute name="date" value="format_date(Now(),'dd/mm/yyyy HH:MM')"/>
+				<GROUPS>
+					<GROUP tag="NOV" type="title">
+						<COLS>
+							<COL name="d_presupuesto" label="Presupuesto"/>
+							<COL name="e_numero" label="Escenario"/>
+						</COLS>
+						<GROUP tag="VAR" style="padding-left:50px;" type="table" noreg="No se encontraron registros para los filtros seleccionados.">
+							<COLS>
+								<COL name="d_variable" label="Variable"/>
+								<qry:insert-select name="QRY_COL"/>
+								<COL label="Total" name="total_valor" style="text-align:right; font-weight: bold;" type="num"/>
+							</COLS>
+						</GROUP>
+					</GROUP>
+				</GROUPS>
+				<qry:element name="DATA">
+					<qry:element name="N">
+						<qry:append-doc name="NOVEDADES" doc-path="."/>
+						<qry:insert-select name="qry_SQL1" doc-path="#SOURCE:DATOS"/>
+					</qry:element>
+					<qry:element name="NOV">
+						<qry:insert-select name="qry_cabecera" doc-path="#SOURCE:DATOS"/>
+						<qry:insert-select name="qry_NOVEDADES"/>
+					</qry:element>
+				</qry:element>
+			</REPORT>
+		</qry:main>
+		<qry:select name="QRY_COL" doc="SOURCE">
+			<qry:xquery>
+				for $r in SQL('
+			SELECT  
+				MAX(PRE01_PER_FISCAL.e_periodo) AS e_periodo,
+				MAX(PRE01_PER_FISCAL.d_periodo_fiscal) AS d_periodo_fiscal,
+				MAX(PRE01_PER_FISCAL.e_periodo_fiscal) AS e_periodo_fiscal
+			FROM 
+				PRE05_NOV_LEGAJO,
+				PRE05_LEGAJOS,
+				PRE03_DETALLES,				
+				PRE01_PER_FISCAL
+			JOIN 
+				PRE05_NOV_LEGAJO.oi_legajo INNER PRE05_LEGAJOS.oi_legajo,				
+				PRE05_NOV_LEGAJO.oi_detalle_pres INNER PRE03_DETALLES.oi_detalle_pres,				
+				PRE03_DETALLES.oi_periodo_fiscal INNER PRE01_PER_FISCAL.oi_periodo_fiscal
+			WHERE 
+				PRE03_DETALLES.oi_escenario = {#PARAMIN:@oi_escenario}				
+				{%? (string(#PARAMIN:ROWS/ROW/@id)!='') {% AND PRE05_NOV_LEGAJO.oi_novedad in ({%=string(#PARAMIN:ROWS/ROW/@id) %}) %} {%  %} %}				
+			GROUP BY 
+				PRE03_DETALLES.oi_periodo_fiscal
+			 ORDER BY 
+			 	e_periodo ASC
+		')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:insert-select name="qry_pegar_columnas" doc-path="$r"/>
+			</qry:out>
+		</qry:select>
+		<qry:select name="qry_pegar_columnas" doc="SOURCE">
+			<qry:out>
+				<qry:element name="COL">
+					<qry:attribute name="name" value="'Periodo_' + #SOURCE:@e_periodo"/>
+					<qry:attribute name="label" value="#SOURCE:@e_periodo_fiscal + ' - ' + #SOURCE:@d_periodo_fiscal"/>
+					<qry:attribute name="type" value="'num'"/>
+				</qry:element>
+			</qry:out>
+		</qry:select>
+		<qry:select name="qry_cabecera" doc="SOURCE">
+			<qry:xquery>
+				for $r in sql('	
+			SELECT 
+				PRE12_PRESUPUESTO.d_presupuesto,
+				PRE03_ESCENARIOS.e_numero
+			FROM 
+				PRE12_PRESUPUESTO,
+				PRE03_ESCENARIOS			
+			JOIN 
+				PRE12_PRESUPUESTO.oi_presupuesto INNER PRE03_ESCENARIOS.oi_presupuesto
+			WHERE 
+				PRE12_PRESUPUESTO.oi_presupuesto = {#PARAMIN:@oi_presupuesto}
+				AND PRE03_ESCENARIOS.oi_escenario = {#PARAMIN:@oi_escenario}	
+			')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:attribute name="d_presupuesto" value="$r/@d_presupuesto" type="Nomad.NSystem.Int"/>
+				<qry:attribute name="e_numero" value="$r/@e_numero" type="Nomad.NSystem.String"/>
+			</qry:out>
+		</qry:select>
+		<qry:select name="qry_SQL1" doc="SOURCE">
+			<qry:xquery>
+				for $r in sql('     
+			SELECT
+				PRE05_NOV_LEGAJO.oi_novedad, 
+				PRE03_DETALLES.oi_periodo_fiscal,			
+				MAX(PRE01_PER_FISCAL.e_periodo) AS e_periodo, 
+				MAX(PRE17_NOVEDADES.c_novedad) AS c_novedad, 				
+				SUM(PRE05_NOV_LEGAJO.n_valor) AS n_valor
+			FROM 
+				PRE05_NOV_LEGAJO,
+				PRE05_LEGAJOS,
+				PRE03_DETALLES,
+				PRE17_NOVEDADES,
+				PRE01_PER_FISCAL			
+			JOIN 
+				PRE05_NOV_LEGAJO.oi_legajo INNER PRE05_LEGAJOS.oi_legajo,				
+				PRE05_NOV_LEGAJO.oi_detalle_pres INNER PRE03_DETALLES.oi_detalle_pres,
+				PRE05_NOV_LEGAJO.oi_novedad INNER PRE17_NOVEDADES.oi_novedad,
+				PRE03_DETALLES.oi_periodo_fiscal INNER PRE01_PER_FISCAL.oi_periodo_fiscal
+			WHERE 
+				PRE03_DETALLES.oi_escenario = {%=#PARAMIN:@oi_escenario%}
+				{%? (string(#PARAMIN:ROWS/ROW/@id)!='') {% AND PRE05_NOV_LEGAJO.oi_novedad in ({%=string(#PARAMIN:ROWS/ROW/@id) %}) %} {%  %} %}
+			GROUP BY 
+				PRE05_NOV_LEGAJO.oi_novedad, PRE03_DETALLES.oi_periodo_fiscal		
+			 ORDER BY 
+			 	c_novedad ASC
+			')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:element name="VAR">
+					<qry:attribute name="oi_novedad" value="$r/@oi_novedad"/>
+					<qry:attribute name="e_periodo" value="$r/@e_periodo"/>
+					<qry:attribute name="n_valor" value="$r/@n_valor"/>
+				</qry:element>
+			</qry:out>
+		</qry:select>
+		<qry:select name="qry_NOVEDADES">
+			<qry:xquery>
+				for $r in sql('
+		    SELECT
+				PRE05_NOV_LEGAJO.oi_novedad, 
+				MAX(PRE17_NOVEDADES.c_novedad) AS c_novedad, 
+				MAX(PRE17_NOVEDADES.d_novedad) AS d_novedad
+			FROM 
+				PRE05_NOV_LEGAJO,
+				PRE05_LEGAJOS,
+				PRE03_DETALLES,
+				PRE17_NOVEDADES,
+				PRE01_PER_FISCAL
+			JOIN 
+				PRE05_NOV_LEGAJO.oi_legajo INNER PRE05_LEGAJOS.oi_legajo,
+				PRE05_NOV_LEGAJO.oi_detalle_pres INNER PRE03_DETALLES.oi_detalle_pres,
+				PRE05_NOV_LEGAJO.oi_novedad INNER PRE17_NOVEDADES.oi_novedad,
+				PRE03_DETALLES.oi_periodo_fiscal INNER PRE01_PER_FISCAL.oi_periodo_fiscal
+			WHERE 
+				PRE03_DETALLES.oi_escenario =  {%=#PARAMIN:@oi_escenario%}
+				{%? (string(#PARAMIN:ROWS/ROW/@id)!='') {% AND PRE05_NOV_LEGAJO.oi_novedad in ({%=string(#PARAMIN:ROWS/ROW/@id) %}) %} {%  %} %}
+			GROUP BY 
+				PRE05_NOV_LEGAJO.oi_novedad			
+			 ORDER BY 
+			 	c_novedad ASC
+			')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:element name="VAR">
+					<qry:attribute-doc doc="PARAMIN" name="oi_novedad" value="$r/@oi_novedad"/>
+					<qry:attribute name="oi_novedad" value="$r/@oi_novedad"/>
+					<qry:attribute name="d_variable" value="$r/@c_novedad + ' - ' + $r/@d_novedad"/>
+					<qry:insert-select name="qry_DETALES" doc-path="$r"/>
+					<qry:attribute name="total_valor" value="SUM(#NOVEDADES:VAR[@oi_novedad = #PARAMIN:@oi_novedad]/@n_valor)"/>
+				</qry:element>
+			</qry:out>
+		</qry:select>
+		<qry:select name="qry_DETALES" doc="SOURCE">
+			<qry:xquery>
+				for $r in #NOVEDADES:VAR[@oi_novedad=#SOURCE:@oi_novedad]
+			</qry:xquery>
+			<qry:out>
+				<qry:attribute name-calc="'Periodo_' + $r/@e_periodo" value="$r/@n_valor"/>
+			</qry:out>
+		</qry:select>
+	</html:query>
+</html:html>

@@ -1,0 +1,542 @@
+<flow:flow xmlns:flow="nomad_engine.flow" xmlns:doc="nomad_engine.doc" xmlns:qry="nomad_engine.qry" extends="Nomad.base.HTML_XLS.flow" name="NucleusRH.Base.Sanciones.Registro.flow">
+	<flow:info label="Registro de Sancion"/>
+	<flow:declare>
+		<doc:define name="NEWDDOSAN">
+			<DATOS/>
+		</doc:define>
+		<doc:define name="DDO"/>
+		<doc:define name="SANCION">
+			<FILTRO oi_personal_emp="" f_fechahora_sanc=""/>
+		</doc:define>
+		<doc:define name="NOTIF">
+			<DATO oi_sancion_per=""/>
+		</doc:define>
+		<qry:define declare="&lt;FILTRO oi_personal_emp=&quot;11565&quot; f_fechahora_sanc=&quot;20100317115900&quot;/&gt;" name="QRY_SANCION">
+			<qry:main doc="SOURCE">
+				<qry:element name="DATO">
+					<qry:insert-select name="sql1" doc-path="#SOURCE:FILTRO"/>
+				</qry:element>
+			</qry:main>
+			<qry:select name="sql1" doc="SOURCE">
+				<qry:xquery>
+					for $r in sql('
+				SELECT 
+					SAN03_SANCION_PER.oi_sancion_per
+				FROM 
+					SAN03_SANCION_PER
+				WHERE 
+					SAN03_SANCION_PER.oi_personal_emp = {#SOURCE:@oi_personal_emp}
+					AND SAN03_SANCION_PER.f_fechahora_sanc = {Datetime(#SOURCE:@f_fechahora_sanc)}
+			')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:attribute name="oi_sancion_per" value="$r/@oi_sancion_per"/>
+				</qry:out>
+			</qry:select>
+		</qry:define>
+		<qry:define name="LIST:NucleusRH.Base.Sanciones.LegajoSanciones.DOC_DIG_SANP">
+			<qry:main doc="PARAM" maxdeep="2">
+				<qry:element name="ROWS">
+					<qry:insert-select doc-path="#PARAM:./DOC_DIG_SANP[substring_before(@nmd-status,',')!='~d' and substring_before(@nmd-status,',')!='~x']" name="sql1"/>
+				</qry:element>
+			</qry:main>
+			<qry:select doc="PARAM" name="sql1">
+				<qry:xquery>
+					for $r in #PARAM:
+				</qry:xquery>
+				<qry:out>
+					<qry:element name="ROW">
+						<qry:attribute name="id" value="$r/@id"/>
+						<qry:attribute name="d_doc_dig_sanp" value="$r/@d_doc_dig_sanp"/>
+						<qry:attribute name="CODE" value="$r/@CODE"/>
+						<qry:attribute name="TEXT" value="$r/@TEXT"/>
+					</qry:element>
+				</qry:out>
+			</qry:select>
+		</qry:define>
+		<doc:define name="NEWDDOROOT"/>
+		<doc:define name="QRY"/>
+		<doc:define name="QRY_LIST"/>
+		<doc:define name="QRY_ID">
+			<SEL id=""/>
+		</doc:define>
+		<qry:define resource="FLOW.NucleusRH.Base.Sanciones.LegajoSanciones.flow.001" name="LIST">
+			<qry:include name="NucleusRH.Base.Organizacion.Empresas.EMPRESA.INFO"/>
+			<qry:include name="NucleusRH.Base.Personal.Legajo.PERSONAL.INFO"/>
+			<qry:main maxdeep="2" doc="SOURCE">
+				<qry:element name="ROWS">
+					<qry:insert-select name="sql1" doc-path="#SOURCE:"/>
+				</qry:element>
+			</qry:main>
+			<qry:select name="sql1" doc="SOURCE">
+				<qry:xquery>
+					for $r in sql('
+				SELECT 
+					t0.oi_personal_emp as oi_personal_emp, 
+					t1.oi_personal_emp as B_oi_personal_emp, 
+					t1.e_numero_legajo as B_e_numero_legajo, 
+					SEC.policy, 
+					t1.e_numero_legajo as CODE, 
+					PER01_PERSONAL.d_ape_y_nom as TEXT, 
+					t1.oi_empresa as oi_empresa, 
+					t1.oi_personal as oi_personal 
+				FROM 
+					SAN03_SANCION_PER as t0,
+					PER02_PERSONAL_EMP as t1,
+					NMD_SECURITY(class=\'NucleusRH.Base.Personal.LegajoEmpresa.PERSONAL_EMP\') as SEC, 
+					PER01_PERSONAL
+				JOIN 
+					t0.oi_personal_emp RIGHT OUTER t1.oi_personal_emp,
+					t1.oi_personal_emp LEFT OUTER SEC.id ,
+					PER01_PERSONAL.oi_personal INNER t1.oi_personal					
+				WHERE 
+					{%? (string(#SOURCE:ROWS/ROW/@id)!='') {% t1.oi_personal_emp in ({%=string(#SOURCE:ROWS/ROW/@id) %}) %} {% 1=2 %} %}
+                
+                GROUP BY
+                	t0.oi_personal_emp, 
+					t1.oi_personal_emp, 
+					t1.e_numero_legajo, 
+					SEC.policy, 
+					t1.e_numero_legajo, 
+					PER01_PERSONAL.d_ape_y_nom, 
+					t1.oi_empresa, 
+					t1.oi_personal  
+				ORDER BY 
+					CODE asc
+				')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:element name="ROW">
+						<qry:attribute name="policy" value="$r/@policy"/>
+						<qry:attribute name="ID-SAN03_PERSONAL" value="$r/@oi_personal_emp"/>
+						<qry:attribute name="id" value="$r/@B_oi_personal_emp"/>
+						<qry:attribute name="e_numero_legajo" value="$r/@B_e_numero_legajo"/>
+						<qry:attribute name="CODE" value="$r/@CODE"/>
+						<qry:attribute name="TEXT" value="$r/@TEXT"/>
+						<qry:if test="$r/@oi_empresa!=''">
+							<qry:then>
+								<qry:element name="oi_empresa">
+									<qry:attribute name="OI_FIND" value="$r/@oi_empresa"/>
+									<qry:insert-select name="NucleusRH.Base.Organizacion.Empresas.EMPRESA.QUERY" doc-path="."/>
+								</qry:element>
+								<qry:attribute name="oi_empresa" value="'['+oi_empresa/ROW/@COD+'] '+oi_empresa/ROW/@DES"/>
+							</qry:then>
+						</qry:if>
+						<qry:if test="$r/@oi_personal!=''">
+							<qry:then>
+								<qry:element name="oi_personal">
+									<qry:attribute name="OI_FIND" value="$r/@oi_personal"/>
+									<qry:insert-select name="NucleusRH.Base.Personal.Legajo.PERSONAL.QUERY" doc-path="."/>
+								</qry:element>
+								<qry:attribute name="oi_personal" value="'['+oi_personal/ROW/@COD+'] '+oi_personal/ROW/@DES"/>
+							</qry:then>
+						</qry:if>
+						<qry:insert-select doc-path="." name="FIND-PER-DESCR"/>
+					</qry:element>
+				</qry:out>
+			</qry:select>
+			<qry:select doc="PARAM" name="FIND-PER-DESCR">
+				<qry:xquery>
+					for $r in sql('
+				SELECT PER02_PERSONAL_EMP.e_numero_legajo AS COD, 
+				PER01_PERSONAL.d_ape_y_nom AS DES 
+				FROM 
+				PER02_PERSONAL_EMP, PER01_PERSONAL			
+				JOIN PER02_PERSONAL_EMP.oi_personal INNER PER01_PERSONAL.oi_personal
+				WHERE PER02_PERSONAL_EMP.oi_personal_emp ={#PARAM:@id}
+			')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:attribute value="'[' + $r/@COD + '] ' + $r/@DES" name="descr"/>
+					<qry:attribute value="$r/@DES" name="text"/>
+				</qry:out>
+			</qry:select>
+		</qry:define>
+		<qry:define resource="FLOW.NucleusRH.Base.Sanciones.LegajoSanciones.flow.002" name="LIST:NucleusRH.Base.Sanciones.LegajoSanciones.SANCION_PER">
+			<qry:include name="NucleusRH.Base.Sanciones.Motivos_Sanciones.MOTIVO_SANCION.INFO"/>
+			<qry:include name="NucleusRH.Base.Sanciones.Sanciones.SANCION.INFO"/>
+			<qry:include name="NucleusRH.Base.Sanciones.LegajoSanciones.SUSPENSION_PER.INFO"/>
+			<qry:main doc="PARAM" maxdeep="2">
+				<qry:element name="ROWS">
+					<qry:insert-select doc-path="#PARAM:./SANCION_PER[substring_before(@nmd-status,',')!='~d' and substring_before(@nmd-status,',')!='~x']" name="sql1"/>
+				</qry:element>
+			</qry:main>
+			<qry:select doc="PARAM" name="sql1">
+				<qry:xquery>
+					for $r in #PARAM:
+				</qry:xquery>
+				<qry:out>
+					<qry:element name="ROW">
+						<qry:attribute name="id" value="$r/@id"/>
+						<qry:attribute name="f_fechahora_sanc" value="$r/@f_fechahora_sanc"/>
+						<qry:attribute name="e_dias_susp_prop" value="$r/@e_dias_susp_prop"/>
+						<qry:attribute name="e_dias_susp_real" value="$r/@e_dias_susp_real"/>
+						<qry:attribute name="c_estado" value="$r/@c_estado"/>
+						<qry:attribute name="CODE" value="$r/@CODE"/>
+						<qry:attribute name="TEXT" value="$r/@TEXT"/>
+						<qry:if test="$r/oi_motivo_sancion/@value!=''">
+							<qry:then>
+								<qry:element name="oi_motivo_sancion">
+									<qry:attribute name="OI_FIND" value="$r/oi_motivo_sancion/@value"/>
+									<qry:insert-select name="NucleusRH.Base.Sanciones.Motivos_Sanciones.MOTIVO_SANCION.QUERY" doc-path="."/>
+								</qry:element>
+								<qry:attribute name="oi_motivo_sancion" value="'['+oi_motivo_sancion/ROW/@COD+'] '+oi_motivo_sancion/ROW/@DES"/>
+							</qry:then>
+						</qry:if>
+						<qry:attribute name="id_sancion" value="$r/oi_sancion/@value"/>
+						<qry:if test="$r/oi_sancion/@value!=''">
+							<qry:then>
+								<qry:element name="oi_sancion">
+									<qry:attribute name="OI_FIND" value="$r/oi_sancion/@value"/>
+									<qry:insert-select name="NucleusRH.Base.Sanciones.Sanciones.SANCION.QUERY" doc-path="."/>
+								</qry:element>
+								<qry:attribute name="oi_sancion" value="'['+oi_sancion/ROW/@COD+'] '+oi_sancion/ROW/@DES"/>
+							</qry:then>
+						</qry:if>
+					</qry:element>
+				</qry:out>
+			</qry:select>
+		</qry:define>
+		<doc:define name="NEWDDO"/>
+	</flow:declare>
+	<flow:main doc="SOURCE">
+		<flow:action name="initialize">
+			<doc:new-object class="NucleusRH.Base.Sanciones.LegajoSanciones.PERSONAL_EMP" doc="DDO"/>
+			<doc:new-object doc="NEWDDOSAN" class="NucleusRH.Base.Sanciones.LegajoSanciones.SANCION_PER"/>
+			<flow:open-form doc-path="#NEWDDOSAN:" parent-doc-path="#DDO:" form-class="NucleusRH.Base.Sanciones.Registro.REGISTRO.form" mode="NEW"/>
+		</flow:action>
+	</flow:main>
+	<flow:form doc="SOURCE" parent-doc="PARENTSOURCE" name="NucleusRH.Base.Sanciones.Registro.REGISTRO.form:NEW" form-class="NucleusRH.Base.Sanciones.Registro.REGISTRO.form" mode="NEW">
+		<flow:action name="SAVE">
+			<flow:log text="log_sanciones_dianela" text-path="#NEWDDOSAN:"/>
+			<flow:log text="log_documentos_dianela" text-path="#NEWDDO:"/>
+			<doc:load-object id-path="#FORM:ctrl[@id='oi_personal_emp']/@xval" class="NucleusRH.Base.Sanciones.LegajoSanciones.PERSONAL_EMP" doc="DDO"/>
+			<flow:log text="log_ddo_personas_dianela" text-path="#DDO:"/>
+			<flow:exec-method class="NucleusRH.Base.Sanciones.LegajoSanciones.PERSONAL_EMP" method="RegistrarSancion">
+				<flow:param doc="DDO" type="Nomad.NSystem.Object" mode="in" name="ddoper"/>
+				<flow:param doc="NEWDDOSAN" type="Nomad.NSystem.Object" mode="in" name="ddosan"/>
+				<flow:param attr-path="#FORM:ctrl[@id='licvalue']/@xval" type="Nomad.NSystem.Boolean" mode="in" name="genlic"/>
+			</flow:exec-method>
+			<flow:call-action action="NOTIFICACION" else="CANCEL" eq="1" if="#FORM:ctrl[@id='notifica']/@xval"/>
+		</flow:action>
+		<flow:action name="CANCEL">
+			<flow:close-form/>
+		</flow:action>
+		<flow:action name="NOTIFICAR">
+			<doc:set-attribute from-attr-path="#NEWDDOSAN:@f_fechahora_sanc" to-attr-path="#SANCION:@f_fechahora_sanc"/>
+			<doc:set-attribute from-attr-path="#FORM:ctrl[@id='oi_personal_emp']/@xval" to-attr-path="#SANCION:@oi_personal_emp"/>
+			<doc:load-qry input-doc-path="#SANCION:" output-doc="NOTIF" qry="QRY_SANCION"/>
+			<flow:exec-method method="ExecReportHTML" out-attr-path="#BATCHDOC:@batch-id" priority="9" class="Nomad.Base.Report.GeneralReport.REPORT">
+				<flow:param value="NucleusRH.Base.Sanciones.Notificacion.rpt" type="Nomad.NSystem.String" mode="in" name="ReportName"/>
+				<flow:param doc-path="#NOTIF:" name="paramIN" type="Nomad.NSystem.Proxy.NomadXML" mode="in"/>
+			</flow:exec-method>
+			<flow:open-form form-class="Nomad.base.HTML_XLS.form" parent-doc-path="#SOURCE:" mode="SHOW" doc-path="#BATCHDOC:"/>
+		</flow:action>
+		<flow:action name="NOTIFICACION">
+			<flow:log text-path="#FORM:" text="ppform"/>
+			<flow:call-action eq="A" else="CANCEL" if="#FORM:ctrl[@id='c_estado']/@xval" action="NOTIFICAR"/>
+		</flow:action>
+		<flow:action name="CALL:DOC_DIG_SANP">
+			<flow:open-form iter-index="#SOURCE:DOC_DIG_SAN_PER/DOC_DIG_SANP/@id" parent-doc-path="#SOURCE:DOC_DIG_SAN_PER" doc-path="#SOURCE:DOC_DIG_SAN_PER" mode="EDIT" form-class="NucleusRH.Base.Sanciones.LegajoSanciones.DOC_DIG_SANP.noreg.autoform"/>
+		</flow:action>
+		<flow:action name="After-Change"/>
+		<flow:action name="After-Back"/>
+	</flow:form>
+	<flow:form extends="Nomad.base.HTML_XLS.form:SHOW" form-class="Nomad.base.HTML_XLS.form" name="Nomad.base.HTML_XLS:SHOW" mode="SHOW" doc="SOURCE">
+		<flow:action name="BACK">
+			<flow:exit-flow return-path="#SOURCE:"/>
+		</flow:action>
+	</flow:form>
+	<flow:group Name="DOC_DIG_SANP">
+		<flow:form parent-doc="PARENTSOURCE" doc="SOURCE" name="NucleusRH.Base.Sanciones.LegajoSanciones.DOC_DIG_SANP.noreg.autoform:SHOW" form-class="NucleusRH.Base.Sanciones.LegajoSanciones.DOC_DIG_SANP.noreg.autoform" mode="SHOW">
+			<flow:action name="open-flow-SHOW">
+				<flow:open-form iter-index="#PARENTSOURCE:DOC_DIG_SANP/@id" parent-doc-path="#PARENTSOURCE:" doc-path="#PARENTSOURCE:" mode="SHOW" form-class="NucleusRH.Base.Sanciones.LegajoSanciones.DOC_DIG_SANP.autoform"/>
+			</flow:action>
+			<flow:action name="open-flow-LIST">
+				<flow:open-form iter-index="#PARENTSOURCE:DOC_DIG_SANP/@id" parent-doc-path="#PARENTSOURCE:" doc-path="#PARENTSOURCE:" mode="LIST" form-class="NucleusRH.Base.Sanciones.LegajoSanciones.DOC_DIG_SANP.autoform"/>
+			</flow:action>
+			<flow:action name="load-child-LIST">
+				<doc:load-qry output-doc="QRY_LIST" input-doc-path="#PARENTSOURCE:" qry="LIST:NucleusRH.Base.Sanciones.LegajoSanciones.DOC_DIG_SANP"/>
+			</flow:action>
+			<flow:action name="--------------------------------------------"/>
+			<flow:action name="on-show"/>
+			<flow:action name="on-move-iterator">
+				<doc:set-attribute from-attr-path="#iter-cursor:@value" to-attr-path="#QRY_ID:@id"/>
+				<flow:call-action action="goto-list"/>
+			</flow:action>
+			<flow:action name="empty"/>
+			<flow:action name="After-Back">
+				<flow:close-form next-action="After-Back"/>
+			</flow:action>
+			<flow:action name="BACK">
+				<flow:close-form next-action="After-Back"/>
+			</flow:action>
+			<flow:action name="PARENT">
+				<flow:close-form next-action="PARENT"/>
+			</flow:action>
+			<flow:action name="goto-list">
+				<flow:call-action action="load-child-LIST"/>
+				<flow:call-action action="open-flow-LIST"/>
+			</flow:action>
+			<flow:action name="goto-show">
+				<flow:call-action action="open-flow-SHOW"/>
+			</flow:action>
+		</flow:form>
+		<flow:form doc-path="/DOC_DIG_SANP[@id='{#iter-cursor:@value}']" parent-doc="PARENTSOURCE" doc="SOURCE" name="NucleusRH.Base.Sanciones.LegajoSanciones.DOC_DIG_SANP.autoform:SHOW" form-class="NucleusRH.Base.Sanciones.LegajoSanciones.DOC_DIG_SANP.autoform" mode="SHOW">
+			<flow:action name="--------------------------------------------"/>
+			<flow:action name="on-open">
+				<doc:iter-move value-path="#QRY_ID:@id" invalid-msg=""/>
+			</flow:action>
+			<flow:action name="on-show"/>
+			<flow:action name="on-empty-iterator">
+				<flow:close-form next-action="empty"/>
+			</flow:action>
+			<flow:action name="After-Back"/>
+			<flow:action name="ITER:FIRST">
+				<doc:iter-first/>
+			</flow:action>
+			<flow:action name="ITER:PREV">
+				<doc:iter-prev/>
+			</flow:action>
+			<flow:action name="ITER:NEXT">
+				<doc:iter-next/>
+			</flow:action>
+			<flow:action name="ITER:LAST">
+				<doc:iter-last/>
+			</flow:action>
+			<flow:action name="ITER:MOVETO">
+				<doc:iter-move position-path="#FORM:ctrl[@id='iter_position']/@xval"/>
+			</flow:action>
+			<flow:action name="BACK">
+				<flow:close-form next-action="After-Back"/>
+			</flow:action>
+			<flow:action name="PARENT">
+				<flow:close-form next-action="PARENT"/>
+			</flow:action>
+			<flow:action name="LIST">
+				<doc:set-attribute to-attr-path="#QRY_ID:@id" from-attr-path="#SOURCE:@id"/>
+				<flow:close-form next-action="goto-list"/>
+			</flow:action>
+		</flow:form>
+		<flow:form doc-path="/DOC_DIG_SANP[@id='{#iter-cursor:@value}']" parent-doc="PARENTSOURCE" doc="SOURCE" name="NucleusRH.Base.Sanciones.LegajoSanciones.DOC_DIG_SANP.autoform:LIST" form-class="NucleusRH.Base.Sanciones.LegajoSanciones.DOC_DIG_SANP.autoform" mode="LIST">
+			<flow:action name="load-child-LIST">
+				<doc:load-qry output-doc="QRY_LIST" input-doc-path="#PARENTSOURCE:" qry="LIST:NucleusRH.Base.Sanciones.LegajoSanciones.DOC_DIG_SANP"/>
+			</flow:action>
+			<flow:action name="--------------------------------------------"/>
+			<flow:action name="on-open">
+				<doc:set-attribute to-attr-path="#FORM:ctrl[@id='LIST']/@xval" from-attr-path="#QRY_ID:@id"/>
+			</flow:action>
+			<flow:action name="on-show">
+				<flow:attach-doc attach-id="RS" doc-path="#QRY_LIST:"/>
+			</flow:action>
+			<flow:action name="on-empty-iterator">
+				<flow:close-form next-action="empty"/>
+			</flow:action>
+			<flow:action name="After-Back">
+				<flow:call-action action="load-child-LIST"/>
+			</flow:action>
+			<flow:action name="BACK">
+				<flow:close-form next-action="After-Back"/>
+			</flow:action>
+			<flow:action name="PARENT">
+				<flow:close-form next-action="PARENT"/>
+			</flow:action>
+			<flow:action name="SHOW">
+				<doc:set-attribute to-attr-path="#QRY_ID:@id" from-attr-path="#FORM:ctrl[@id='LIST']/@xval"/>
+				<flow:close-form next-action="goto-show"/>
+			</flow:action>
+		</flow:form>
+		<flow:form doc-path="/DOC_DIG_SANP[@id='{#iter-cursor:@value}']" parent-doc="PARENTSOURCE" doc="SOURCE" name="NucleusRH.Base.Sanciones.LegajoSanciones.DOC_DIG_SANP.autoform:LIST_EDIT" form-class="NucleusRH.Base.Sanciones.LegajoSanciones.DOC_DIG_SANP.autoform" mode="LIST_EDIT">
+			<flow:action name="new-DDO">
+				<doc:new-object doc="NEWDDO" class="NucleusRH.Base.Sanciones.LegajoSanciones.DOC_DIG_SANP"/>
+			</flow:action>
+			<flow:action name="delete-DDO">
+				<doc:delete-object doc-path="#PARENTSOURCE:DOC_DIG_SANP[@id='{#FORM:ctrl[@id='LIST']/@xval}']" class="NucleusRH.Base.Sanciones.LegajoSanciones.DOC_DIG_SANP"/>
+			</flow:action>
+			<flow:action name="open-flow-ADD">
+				<flow:open-form parent-doc-path="#PARENTSOURCE:" doc-path="#NEWDDO:" mode="NEW" form-class="NucleusRH.Base.Sanciones.LegajoSanciones.DOC_DIG_SANP.autoform"/>
+			</flow:action>
+			<flow:action name="open-flow-LIST">
+				<flow:open-form iter-index="#PARENTSOURCE:DOC_DIG_SANP/@id" parent-doc-path="#PARENTSOURCE:" doc-path="#PARENTSOURCE:" mode="LIST_EDIT" form-class="NucleusRH.Base.Sanciones.LegajoSanciones.DOC_DIG_SANP.autoform"/>
+			</flow:action>
+			<flow:action name="load-child-LIST">
+				<doc:load-qry output-doc="QRY_LIST" input-doc-path="#PARENTSOURCE:" qry="LIST:NucleusRH.Base.Sanciones.LegajoSanciones.DOC_DIG_SANP"/>
+			</flow:action>
+			<flow:action name="--------------------------------------------"/>
+			<flow:action name="on-open">
+				<doc:set-attribute to-attr-path="#FORM:ctrl[@id='LIST']/@xval" from-attr-path="#QRY_ID:@id"/>
+			</flow:action>
+			<flow:action name="on-show">
+				<flow:attach-doc attach-id="RS" doc-path="#QRY_LIST:"/>
+			</flow:action>
+			<flow:action name="After-Change">
+				<doc:set-attribute to-attr-path="#FORM:ctrl[@id='LIST']/@xval" from-attr-path="#QRY_ID:@id"/>
+				<flow:call-action action="load-child-LIST"/>
+			</flow:action>
+			<flow:action name="After-Cancel">
+				<flow:call-action action="load-child-LIST"/>
+			</flow:action>
+			<flow:action name="After-Back">
+				<flow:call-action action="load-child-LIST"/>
+			</flow:action>
+			<flow:action name="on-empty-iterator">
+				<flow:close-form next-action="empty"/>
+			</flow:action>
+			<flow:action name="ADD">
+				<flow:call-action action="new-DDO"/>
+				<flow:call-action action="open-flow-ADD"/>
+			</flow:action>
+			<flow:action name="DELETE">
+				<flow:call-action action="delete-DDO"/>
+				<flow:call-action action="load-child-LIST"/>
+				<flow:attach-doc attach-id="RS" doc-path="#QRY_LIST:"/>
+				<doc:iter-refresh/>
+			</flow:action>
+			<flow:action name="BACK">
+				<doc:check-ak action-fail="BACK-FAILED" out-attr="#FORM:ctrl[@id='LIST']/@xval" show-msg="1" parent-doc-path="#PARENTSOURCE:"/>
+				<flow:close-form next-action="After-Back"/>
+			</flow:action>
+			<flow:action name="PARENT">
+				<doc:check-ak action-fail="BACK-FAILED" out-attr="#FORM:ctrl[@id='LIST']/@xval" show-msg="1" parent-doc-path="#PARENTSOURCE:"/>
+				<flow:close-form next-action="PARENT"/>
+			</flow:action>
+			<flow:action name="SHOW">
+				<doc:set-attribute to-attr-path="#QRY_ID:@id" from-attr-path="#FORM:ctrl[@id='LIST']/@xval"/>
+				<flow:close-form next-action="goto-edit"/>
+			</flow:action>
+			<flow:action name="BACK-FAILED">
+				<flow:attach-doc attach-id="RS" doc-path="#QRY_LIST:"/>
+			</flow:action>
+		</flow:form>
+		<flow:form parent-doc="PARENTSOURCE" doc="SOURCE" name="NucleusRH.Base.Sanciones.LegajoSanciones.DOC_DIG_SANP.noreg.autoform:EDIT" form-class="NucleusRH.Base.Sanciones.LegajoSanciones.DOC_DIG_SANP.noreg.autoform" mode="EDIT">
+			<flow:action name="new-DDO">
+				<doc:new-object doc="NEWDDO" class="NucleusRH.Base.Sanciones.LegajoSanciones.DOC_DIG_SANP"/>
+			</flow:action>
+			<flow:action name="delete-DDO">
+				<doc:delete-object doc-path="#PARENTSOURCE:DOC_DIG_SANP[@id='{#FORM:ctrl[@id='LIST']/@xval}']" class="NucleusRH.Base.Sanciones.LegajoSanciones.DOC_DIG_SANP"/>
+			</flow:action>
+			<flow:action name="open-flow-EDIT">
+				<flow:open-form iter-index="#PARENTSOURCE:DOC_DIG_SANP/@id" parent-doc-path="#PARENTSOURCE:" doc-path="#PARENTSOURCE:" mode="EDIT" form-class="NucleusRH.Base.Sanciones.LegajoSanciones.DOC_DIG_SANP.autoform"/>
+			</flow:action>
+			<flow:action name="open-flow-ADD">
+				<flow:open-form parent-doc-path="#PARENTSOURCE:" doc-path="#NEWDDO:" mode="NEW" form-class="NucleusRH.Base.Sanciones.LegajoSanciones.DOC_DIG_SANP.autoform"/>
+			</flow:action>
+			<flow:action name="open-flow-LIST">
+				<flow:open-form iter-index="#PARENTSOURCE:DOC_DIG_SANP/@id" parent-doc-path="#PARENTSOURCE:" doc-path="#PARENTSOURCE:" mode="LIST_EDIT" form-class="NucleusRH.Base.Sanciones.LegajoSanciones.DOC_DIG_SANP.autoform"/>
+			</flow:action>
+			<flow:action name="load-child-LIST">
+				<doc:load-qry output-doc="QRY_LIST" input-doc-path="#PARENTSOURCE:" qry="LIST:NucleusRH.Base.Sanciones.LegajoSanciones.DOC_DIG_SANP"/>
+			</flow:action>
+			<flow:action name="--------------------------------------------"/>
+			<flow:action name="on-show"/>
+			<flow:action name="on-move-iterator">
+				<doc:set-attribute from-attr-path="#iter-cursor:@value" to-attr-path="#QRY_ID:@id"/>
+				<flow:call-action action="goto-list"/>
+			</flow:action>
+			<flow:action name="on-empty-iterator">
+				<flow:call-action action="new-DDO"/>
+				<flow:call-action action="open-flow-ADD"/>
+			</flow:action>
+			<flow:action name="ADD">
+				<flow:call-action action="new-DDO"/>
+				<flow:call-action action="open-flow-ADD"/>
+			</flow:action>
+			<flow:action name="empty"/>
+			<flow:action name="After-Change">
+				<doc:iter-refresh/>
+			</flow:action>
+			<flow:action name="After-Back">
+				<flow:close-form next-action="After-Back"/>
+			</flow:action>
+			<flow:action name="BACK">
+				<flow:close-form next-action="After-Back"/>
+			</flow:action>
+			<flow:action name="PARENT">
+				<flow:close-form next-action="PARENT"/>
+			</flow:action>
+			<flow:action name="goto-list">
+				<flow:call-action action="load-child-LIST"/>
+				<flow:call-action action="open-flow-LIST"/>
+			</flow:action>
+			<flow:action name="goto-edit">
+				<flow:call-action action="open-flow-EDIT"/>
+			</flow:action>
+		</flow:form>
+		<flow:form doc-path="/DOC_DIG_SANP[@id='{#iter-cursor:@value}']" parent-doc="PARENTSOURCE" doc="SOURCE" name="NucleusRH.Base.Sanciones.LegajoSanciones.DOC_DIG_SANP.autoform:EDIT" form-class="NucleusRH.Base.Sanciones.LegajoSanciones.DOC_DIG_SANP.autoform" mode="EDIT">
+			<flow:action name="new-DDO">
+				<doc:new-object doc="NEWDDO" class="NucleusRH.Base.Sanciones.LegajoSanciones.DOC_DIG_SANP"/>
+			</flow:action>
+			<flow:action name="delete-DDO">
+				<doc:delete-object doc-path="#SOURCE:" class="NucleusRH.Base.Sanciones.LegajoSanciones.DOC_DIG_SANP" doc="SOURCE"/>
+			</flow:action>
+			<flow:action name="open-flow-ADD">
+				<flow:open-form parent-doc-path="#PARENTSOURCE:" doc-path="#NEWDDO:" mode="NEW" form-class="NucleusRH.Base.Sanciones.LegajoSanciones.DOC_DIG_SANP.autoform"/>
+			</flow:action>
+			<flow:action name="--------------------------------------------"/>
+			<flow:action name="on-open">
+				<doc:iter-move value-path="#QRY_ID:@id" invalid-msg=""/>
+			</flow:action>
+			<flow:action name="on-show"/>
+			<flow:action name="After-Change">
+				<doc:iter-refresh/>
+				<doc:iter-last/>
+			</flow:action>
+			<flow:action name="After-Cancel"/>
+			<flow:action name="After-Back"/>
+			<flow:action name="on-empty-iterator">
+				<flow:close-form next-action="empty"/>
+			</flow:action>
+			<flow:action name="ITER:FIRST">
+				<doc:iter-first/>
+			</flow:action>
+			<flow:action name="ITER:PREV">
+				<doc:iter-prev/>
+			</flow:action>
+			<flow:action name="ITER:NEXT">
+				<doc:iter-next/>
+			</flow:action>
+			<flow:action name="ITER:LAST">
+				<doc:iter-last/>
+			</flow:action>
+			<flow:action name="ITER:MOVETO">
+				<doc:iter-move position-path="#FORM:ctrl[@id='iter_position']/@xval"/>
+			</flow:action>
+			<flow:action name="ADD">
+				<flow:call-action action="new-DDO"/>
+				<flow:call-action action="open-flow-ADD"/>
+			</flow:action>
+			<flow:action name="DELETE">
+				<flow:call-action action="delete-DDO"/>
+				<doc:iter-refresh/>
+			</flow:action>
+			<flow:action name="BACK">
+				<doc:check-ak action-fail="BACK-FAILED" show-msg="1" out-attr="#QRY_ID:@id" parent-doc-path="#PARENTSOURCE:"/>
+				<flow:close-form next-action="After-Back"/>
+			</flow:action>
+			<flow:action name="PARENT">
+				<doc:check-ak action-fail="BACK-FAILED" show-msg="1" out-attr="#QRY_ID:@id" parent-doc-path="#PARENTSOURCE:"/>
+				<flow:close-form next-action="PARENT"/>
+			</flow:action>
+			<flow:action name="LIST">
+				<doc:set-attribute to-attr-path="#QRY_ID:@id" from-attr-path="#SOURCE:@id"/>
+				<flow:close-form next-action="goto-list"/>
+			</flow:action>
+			<flow:action name="BACK-FAILED">
+				<doc:iter-move value-path="#QRY_ID:@id" invalid-msg=""/>
+			</flow:action>
+		</flow:form>
+		<flow:form parent-doc="PARENTSOURCE" doc="SOURCE" name="NucleusRH.Base.Sanciones.LegajoSanciones.DOC_DIG_SANP.autoform:NEW" form-class="NucleusRH.Base.Sanciones.LegajoSanciones.DOC_DIG_SANP.autoform" mode="NEW">
+			<flow:action name="--------------------------------------------"/>
+			<flow:action name="on-show"/>
+			<flow:action name="ACCEPT">
+				<doc:check-ak show-msg="1" parent-doc-path="#PARENTSOURCE:" doc-path="#SOURCE:"/>
+				<doc:add-object doc-path="#SOURCE:" parent-doc-path="#PARENTSOURCE:"/>
+				<doc:set-attribute to-attr-path="#QRY_ID:@id" from-attr-path="#SOURCE:@id"/>
+				<flow:close-form next-action="After-Change"/>
+			</flow:action>
+			<flow:action name="CANCEL">
+				<flow:close-form next-action="After-Back"/>
+			</flow:action>
+		</flow:form>
+	</flow:group>
+</flow:flow>

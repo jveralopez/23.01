@@ -1,0 +1,95 @@
+<INTERFACE-DEF xmlns:qry="nomad_engine.qry" code="" desc="" entermode="DOS" finalenter="1">
+	<QUERY declare="&lt;!--&lt;DATA oi_empresa=&quot;1&quot; oi_banco=&quot;113&quot; oi_sucursal=&quot;&quot; interface=&quot;MACRO_TRANSA&quot; f_acreditacion=&quot;20220325&quot;&gt;&#13;&#10;&#9;&lt;LIQS&gt;&#13;&#10;&#9;&#9;&lt;LIQ oi_liquidacion=&quot;1033&quot; /&gt;&#13;&#10;&#9;&lt;/LIQS&gt;&#13;&#10;&lt;/DATA&gt;--&gt;&#13;&#10;&#13;&#10;&lt;!--&lt;DATA oi_empresa=&quot;1&quot; oi_banco=&quot;113&quot; oi_sucursal=&quot;&quot; f_acreditacion=&quot;20220310&quot; f_vencimiento=&quot;&quot; nro_envio=&quot;&quot; interface=&quot;MACRO_SUELDO&quot;&gt;&#13;&#10;&#9;&lt;LIQS&gt;&#13;&#10;&#9;&#9;&lt;LIQ oi_liquidacion=&quot;4337&quot; /&gt;&#13;&#10;&#9;&lt;/LIQS&gt;&#13;&#10;&lt;/DATA&gt;  --&gt;      &#13;&#10;&#13;&#10;&lt;!--&lt;DATA oi_empresa=&quot;1&quot; oi_banco=&quot;113&quot; oi_sucursal=&quot;&quot; interface=&quot;MACRO_SUELDO&quot; f_acreditacion=&quot;20220310&quot;&gt;&#13;&#10;&#9;&lt;ODS nmd-col=&quot;1&quot;&gt;&#13;&#10;&#9;&#9;&lt;OD oi_orden_pago=&quot;302&quot; /&gt;&#13;&#10;&#9;&#9;&lt;OD oi_orden_pago=&quot;801&quot; /&gt;&#13;&#10;&#9;&lt;/ODS&gt;&#13;&#10;&lt;/DATA&gt;  --&gt; &#13;&#10;&#13;&#10;&lt;DATA oi_empresa=&quot;5&quot; oi_banco=&quot;113&quot; oi_sucursal=&quot;&quot; interface=&quot;MACRO_TODOS&quot; f_acreditacion=&quot;20220310&quot;&gt;&#13;&#10;&#9;&lt;ODS nmd-col=&quot;1&quot;&gt;&#13;&#10;&#9;&#9;&lt;OD oi_orden_pago=&quot;901&quot; /&gt;&#13;&#10;&#9;&lt;/ODS&gt;&#13;&#10;&lt;/DATA&gt;">
+		<qry:main doc="SOURCE">
+			<qry:element name="DATA">
+				<qry:element name="DETAILS">
+					<qry:insert-select name="qryDetail" doc-path="#SOURCE:/DATA"/>
+				</qry:element>
+			</qry:element>
+		</qry:main>
+		<qry:select name="qryDetail" doc="SOURCE">
+			<qry:xquery>
+				for $r in SQL('
+SELECT
+	LIQ97_PERSONAL_EMP.e_numero_legajo,   
+	MAX(LIQ97_PERSONAL_EMP.c_cta_bancaria) as c_cta_bancaria,    
+	MAX(LIQ97_PERSONAL_EMP.c_nro_documento) as c_nro_documento,
+	SUM(LIQ20_TOT_LIQ_PER.n_totpag) as n_totpag,
+	MAX(LIQ97_PERSONAL_EMP.d_ape_y_nom) as d_ape_y_nom,
+	MAX(LIQ97_PERSONAL_EMP.c_cbu) as c_cbu,
+	MAX(LIQ97_PERSONAL_EMP.c_nro_cuil) as c_cuil
+FROM         
+	LIQ15_EMPRESA_BCOS ,
+	LIQ15_EMPRESAS ,
+	ORG03_EMPRESAS, 
+	LIQ22_BANCOS ,
+	LIQ22_BANCOS_SUCUR ,
+	LIQ99_RECIBOS ,
+	LIQ20_TOT_LIQ_PER ,
+	LIQ97_PERSONAL_EMP ,
+	LIQ93_EMPRESAS ,
+	LIQ99_LIQUIDACION,
+	LIQ19_EJECUCIONES ,
+	LIQ19_LIQUIDACION , 
+	PER31_FORMAS_PAGO
+	{%? (string(#SOURCE:ODS/OD/@oi_orden_pago) != '')
+		{% ,TES01_ORD_PAGO  
+		   ,TES01_DET_PAGO%} 
+		{%  %}   
+	%}
+JOIN
+	LIQ15_EMPRESA_BCOS.oi_empresa 				INNER LIQ15_EMPRESAS.oi_empresa  ,
+	LIQ15_EMPRESAS.oi_empresa 						INNER ORG03_EMPRESAS.oi_empresa  ,
+	LIQ15_EMPRESA_BCOS.oi_banco			 			INNER LIQ22_BANCOS.oi_banco  ,
+	LIQ22_BANCOS.oi_banco 								INNER LIQ22_BANCOS_SUCUR.oi_banco  ,
+	LIQ20_TOT_LIQ_PER.oi_per_emp_ddo		 	INNER LIQ97_PERSONAL_EMP.oi_per_emp_ddo  ,
+	LIQ99_RECIBOS.oi_tot_liq_per 					INNER LIQ20_TOT_LIQ_PER.oi_tot_liq_per  ,
+	LIQ93_EMPRESAS.oi_empresa_ddo 				INNER LIQ99_LIQUIDACION.oi_empresa_ddo ,
+	LIQ99_RECIBOS.oi_liquidacion_ddo 			INNER LIQ99_LIQUIDACION.oi_liquidacion_ddo ,
+	ORG03_EMPRESAS.c_empresa 							INNER LIQ93_EMPRESAS.c_empresa  ,
+	LIQ99_LIQUIDACION.oi_liquidacion_ddo 	INNER LIQ19_EJECUCIONES.oi_liquidacion_ddo  ,
+	LIQ19_EJECUCIONES.oi_liquidacion 			INNER LIQ19_LIQUIDACION.oi_liquidacion ,	
+	PER31_FORMAS_PAGO.c_forma_pago	 			INNER LIQ20_TOT_LIQ_PER.c_forma_pago
+	{%? (string(#SOURCE:ODS/OD/@oi_orden_pago) != '')
+		{% ,LIQ99_LIQUIDACION.oi_liquidacion_ddo INNER TES01_ORD_PAGO.oi_liquidacion_ddo  
+		   ,LIQ97_PERSONAL_EMP.oi_per_emp_ddo INNER TES01_DET_PAGO.oi_per_emp_ddo%} 
+		{%  %}   
+	%}
+WHERE
+	LIQ99_LIQUIDACION.c_estado = \'F\' and
+	LIQ22_BANCOS.oi_banco = {#SOURCE:@oi_banco}
+	{%? (#SOURCE:@oi_sucursal != '') {% AND LIQ22_BANCOS_SUCUR.oi_sucursal = {#SOURCE:@oi_sucursal} %} {% %} %}
+
+	{%? (string(#SOURCE:LIQS/LIQ/@oi_liquidacion) != '')
+		{% AND LIQ19_LIQUIDACION.oi_liquidacion in ( {%=string(#SOURCE:LIQS/LIQ/@oi_liquidacion)%})  %} 
+		{%  %}   
+	%}
+	{%? (string(#SOURCE:ODS/OD/@oi_orden_pago) != '')
+		{% and TES01_ORD_PAGO.oi_orden_pago in ( {%=string(#SOURCE:ODS/OD/@oi_orden_pago)%}) %} 
+		{%  %}
+	%}   
+	and	PER31_FORMAS_PAGO.l_banco = 1
+	and LIQ20_TOT_LIQ_PER.n_totpag &gt; 0
+GROUP BY
+	LIQ97_PERSONAL_EMP.c_empresa, LIQ97_PERSONAL_EMP.e_numero_legajo
+				')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:element name="DETAIL">
+					<qry:attribute name="Cuenta" value="substring(TRANSLATE($r/@c_cta_bancaria, '-', ''), 0, 15)"/>
+					<qry:attribute name="Legajo" value="substring($r/@e_numero_legajo,0,7)"/>
+					<qry:attribute name="CUIL" value="substring($r/@c_cuil,0,11)"/>
+					<qry:attribute name="Apellido" value="substring(substring-before($r/@d_ape_y_nom,','),0,64)"/>
+					<qry:attribute name="Importe" value="FORMAT_NUMBER($r/@n_totpag, 11, 2, '.', '', '')"/>
+					<qry:attribute name="CBU" value="substring($r/@c_cbu, 0, 22)"/>
+				</qry:element>
+			</qry:out>
+		</qry:select>
+	</QUERY>
+	<DETAIL>
+		{Legajo}	{CUIL}	{Apellido}	{Cuenta}	{CBU}	{Importe}	{Comprobante}
+	</DETAIL>
+	<MESS>
+		<EMPTY mess="No se encontraron registros. Por favor verifique que los legajos est&#233;n asociados al banco correcto."/>
+	</MESS>
+</INTERFACE-DEF>

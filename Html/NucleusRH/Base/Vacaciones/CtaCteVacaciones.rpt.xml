@@ -1,0 +1,226 @@
+<html:html xmlns:html="nomad_engine.html" xmlns:qry="nomad_engine.qry" extends="Nomad.Base.BaseReport.rpt" name="NucleusRH.Base.Vacaciones.CtaCteVacaciones" doc="source">
+	<html:for-each declare="&lt;FILTRO oi_clase_org=&quot;&quot; oi_periodo=&quot;1101&quot; gcustom=&quot;&quot; empresa=&quot;2&quot; activos=&quot;&quot; nombre=&quot;&quot; documento=&quot;&quot; sexo=&quot;&quot; grupo_sanguineo=&quot;&quot;&#13;&#10;listlegajos=&quot;1792-1862&quot; oi_indic_activo=&quot;&quot; egresado=&quot;&quot; oi_forma_pago=&quot;&quot; oi_tipo_personal=&quot;&quot; fecha_desde=&quot;&quot; fecha_hasta=&quot;&quot;&#13;&#10;oi_centro_costo=&quot;&quot; oi_convenio=&quot;&quot; soloconvenio=&quot;&quot; oi_categoria=&quot;&quot; oi_ubicacion_desde=&quot;&quot; oi_ubicacion_hasta=&quot;&quot; oi_estructura=&quot;&quot;&#13;&#10;escructura_childs=&quot;&quot; oi_contrato=&quot;&quot; oi_afjp=&quot;&quot; oi_obra_social=&quot;&quot; oi_sindicato=&quot;&quot; legID=&quot;&quot;&#13;&#10;leg_where=&quot;(LEG.e_numero_legajo &amp;gt;= 1792 AND LEG.e_numero_legajo &amp;lt;= 1862)&quot;&#13;&#10;anio_desde=&quot;2013&quot; anio_hasta=&quot;2014&quot;&gt;&#13;&#10;&lt;PERSONAS&gt;&lt;ROW VALUES=&quot;1,2,3,4,5&quot; /&gt;&#13;&#10;&lt;ROW VALUES=&quot;6,7,8,9,10&quot; /&gt;&#13;&#10;&lt;/PERSONAS&gt;&lt;/FILTRO&gt;">
+		<qry:main doc="PARAM">
+			<qry:append-doc name="FILTRO" doc-path="#PARAM:/FILTRO"/>
+			<REPORT label="Cuenta Corriente de Vacaciones">
+				<qry:attribute value="format_date(now(),'dd/mm/yyyy HH:MM')" name="date"/>
+				<GROUPS>
+					<GROUP style="width:100%" tag="DATOS" type="title">
+						<COLS>
+							<COL name="empresa" label="Empresa"/>
+						</COLS>
+						<GROUP style="width:100%" tag="PERIODO" type="title">
+							<COLS>
+								<COL name="periodo" label="Per&#237;odo"/>
+							</COLS>
+							<GROUP tag="PERSONA" type="table">
+								<COLS>
+									<COL name="legajo" label="Legajo" style="width:10%"/>
+									<COL name="nomyapell" label="Nombre y Apellido" style="width:40%"/>
+									<COL name="calculo" label="Antig./D&#237;as Vac." style="width:150px;text-align:center;"/>
+									<COL name="generadas" label="Generadas" style="text-align:right"/>
+									<COL name="otorgadas" label="Otorgadas" style="text-align:right"/>
+									<COL name="pendientes" label="Pendientes" style="text-align:right"/>
+								</COLS>
+							</GROUP>
+						</GROUP>
+					</GROUP>
+				</GROUPS>
+				<qry:element name="DATA">
+					<DATOS>
+						<qry:insert-select doc-path="#PARAM:FILTRO" name="SQL_EMPRESA"/>
+						<qry:insert-select doc-path="#PARAM:FILTRO" name="SQL_PERIODO"/>
+					</DATOS>
+				</qry:element>
+			</REPORT>
+		</qry:main>
+		<qry:select doc="PARAM" name="QRY_PERSONAS">
+			<qry:out>
+				<qry:call>
+					<FILTRO>
+						<qry:attribute value="$PARAM/@values" name="values"/>
+						<qry:attribute name="periodo" value="../../@periodo"/>
+						<!--qry:attribute name="oi_periodo" value="$FILTRO/@oi_periodo"/-->
+						<!--qry:attribute name="oi_empresa" value="$FILTRO/@empresa"/-->
+					</FILTRO>
+				</qry:call>
+			</qry:out>
+		</qry:select>
+		<qry:select doc="PARAM" name="SQL_PERIODO">
+			<qry:xquery>
+				for $r in SECUENCE('INT,{%=$FILTRO/@anio_desde%},{%=$FILTRO/@anio_hasta%},1')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<PERIODO qry-delete-child="1">
+					<qry:attribute name="periodo" value="$r/@value"/>
+					<qry:insert-select doc-path="#PARAM:PERSONAS/ROW" name="QRY_PERSONAS"/>
+				</PERIODO>
+			</qry:out>
+		</qry:select>
+		<qry:select doc="PARAM" name="SQL_EMPRESA">
+			<qry:xquery>
+				for $r in sql('
+					SELECT 
+						ORG03_EMPRESAS.d_empresa,
+						ORG03_EMPRESAS.c_empresa
+					FROM 
+						ORG03_EMPRESAS
+					WHERE
+						ORG03_EMPRESAS.oi_empresa = {#PARAM:@empresa} 						
+				')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:attribute name="empresa" value="($r/@c_empresa+' - '+$r/@d_empresa)"/>
+			</qry:out>
+		</qry:select>
+	</html:for-each>
+	<html:query declare="&lt;FILTRO oi_empresa=&quot;2&quot; oi_periodo=&quot;1101&quot; values=&quot;1,2,3,4,5&quot;/&gt;">
+		<qry:main doc="PARAM">
+			<qry:no-show>
+				<qry:append-doc name="FILTRO" doc-path="$PARAM/FILTRO"/>
+				<!--qry:insert-select doc-path="#PARAM:/FILTRO" name="sql1"/-->
+				<qry:insert-select name="qryPeriodo" doc-path=""/>
+			</qry:no-show>
+		</qry:main>
+		<qry:select name="qryPeriodo" doc="">
+			<qry:xquery>
+				for $r in SQL('
+			
+			SELECT
+				VAC04_PERIODOS.oi_periodo,
+				VAC04_PERIODOS.c_periodo
+			
+			FROM					
+				VAC04_PERIODOS
+			
+			WHERE
+				VAC04_PERIODOS.e_ano = {$FILTRO/@periodo}
+			
+			')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:insert-select name="qryVacaciones" doc-path="$r"/>
+			</qry:out>
+		</qry:select>
+		<qry:select doc="PARAM" name="qryVacaciones">
+			<qry:xquery>
+				for $r in sql('
+			
+			SELECT 
+					VAC01_CTA_CTE_VAC.e_dias_gen,
+					VAC01_CTA_CTE_VAC.e_dias_otorg,
+					VAC01_CTA_CTE_VAC.e_dias_pend,
+					VAC01_CTA_CTE_VAC.oi_personal_emp										
+			FROM 
+					VAC01_CTA_CTE_VAC
+										
+			WHERE
+					VAC01_CTA_CTE_VAC.oi_periodo = {$PARAM/@oi_periodo}
+					AND VAC01_CTA_CTE_VAC.oi_personal_emp IN ({%=$FILTRO/@values%})
+                    
+		')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<PERSONA>
+					<qry:attribute name="generadas" value="$r/@e_dias_gen"/>
+					<qry:attribute name="otorgadas" value="$r/@e_dias_otorg"/>
+					<qry:attribute name="pendientes" value="$r/@e_dias_pend"/>
+					<qry:insert-select name="qryDatosPersona" doc-path="$r"/>
+				</PERSONA>
+			</qry:out>
+		</qry:select>
+		<qry:select doc="PARAM" name="qryDatosPersona">
+			<qry:xquery>
+				for $r in sql('
+			SELECT 
+			 	PER02_PERSONAL_EMP.oi_personal_emp,
+				PER01_PERSONAL.d_ape_y_nom, 
+				PER02_PERSONAL_EMP.e_numero_legajo as e_numero_legajo,
+				VAC01_PERSONAL.f_ant_rec_vac,
+				PER02_PERSONAL_EMP.f_antiguedad_rec,
+				PER02_PERSONAL_EMP.e_cant_dias_vac,
+				PER02_PERSONAL_EMP.f_ingreso
+			FROM 
+				PER02_PERSONAL_EMP, 
+				PER01_PERSONAL, 
+				VAC01_PERSONAL
+			JOIN				
+				PER02_PERSONAL_EMP.oi_personal INNER PER01_PERSONAL.oi_personal,
+				PER02_PERSONAL_EMP.oi_personal_emp LEFT OUTER VAC01_PERSONAL.oi_personal_emp
+			WHERE 				
+				PER02_PERSONAL_EMP.oi_personal_emp = {$PARAM/@oi_personal_emp}
+			')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<!--qry:attribute name="orderby" value="nmd_fillleft($r/@e_numero_legajo,'0',10)+'_'+$r/@d_ape_y_nom"/-->
+				<qry:attribute name="legajo" value="$r/@e_numero_legajo"/>
+				<qry:attribute name="nomyapell" value="$r/@d_ape_y_nom"/>
+				<qry:attribute name="calculo" value="iif($r/@f_ingreso!='', format_date($r/@f_ingreso, 'dd/mm/yyyy'), @calculo)"/>
+				<qry:attribute name="calculo" value="iif($r/@f_ant_rec_vac!='', format_date($r/@f_ant_rec_vac, 'dd/mm/yyyy'), @calculo)"/>
+				<qry:attribute name="calculo" value="iif($r/@f_antiguedad_rec!='', format_date($r/@f_antiguedad_rec, 'dd/mm/yyyy'), @calculo)"/>
+				<qry:attribute name="calculo" value="iif($r/@e_cant_dias_vac!='' AND $r/@e_cant_dias_vac!='0'  ,$r/@e_cant_dias_vac, @calculo)"/>
+			</qry:out>
+		</qry:select>
+		<qry:select doc="PARAM" name="sql1">
+			<qry:xquery>
+				for $r in sql('
+			SELECT 
+			 	PER02_PERSONAL_EMP.oi_personal_emp,
+				PER01_PERSONAL.d_ape_y_nom, 
+				PER02_PERSONAL_EMP.e_numero_legajo as e_numero_legajo,
+				VAC01_PERSONAL.f_ant_rec_vac,
+				PER02_PERSONAL_EMP.f_antiguedad_rec,
+				PER02_PERSONAL_EMP.e_cant_dias_vac,
+				PER02_PERSONAL_EMP.f_ingreso
+			FROM 
+				PER02_PERSONAL_EMP, 
+				PER01_PERSONAL, 
+				VAC01_PERSONAL
+			JOIN				
+				PER02_PERSONAL_EMP.oi_personal INNER PER01_PERSONAL.oi_personal,
+				PER02_PERSONAL_EMP.oi_personal_emp LEFT OUTER VAC01_PERSONAL.oi_personal_emp
+			WHERE 				
+				PER02_PERSONAL_EMP.oi_personal_emp in ({%=#PARAM:@values%})
+			')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:element name="PERSONA">
+					<qry:attribute name="orderby" value="nmd_fillleft($r/@e_numero_legajo,'0',10)+'_'+$r/@d_ape_y_nom"/>
+					<qry:attribute name="legajo" value="$r/@e_numero_legajo"/>
+					<qry:attribute name="nomyapell" value="$r/@d_ape_y_nom"/>
+					<qry:attribute name="oi_personal_emp" value="$r/@oi_personal_emp"/>
+					<qry:attribute name="calculo" value="iif($r/@f_ingreso!='', format_date($r/@f_ingreso, 'dd/mm/yyyy'), @calculo)"/>
+					<qry:attribute name="calculo" value="iif($r/@f_ant_rec_vac!='', format_date($r/@f_ant_rec_vac, 'dd/mm/yyyy'), @calculo)"/>
+					<qry:attribute name="calculo" value="iif($r/@f_antiguedad_rec!='', format_date($r/@f_antiguedad_rec, 'dd/mm/yyyy'), @calculo)"/>
+					<qry:attribute name="calculo" value="iif($r/@e_cant_dias_vac!='' AND $r/@e_cant_dias_vac!='0'  ,$r/@e_cant_dias_vac, @calculo)"/>
+					<qry:insert-select doc-path="." name="SQL_VACACIONES"/>
+				</qry:element>
+			</qry:out>
+		</qry:select>
+		<qry:select doc="PARAM" name="SQL_VACACIONES">
+			<qry:xquery>
+				for $r in sql('
+			SELECT 
+					VAC01_CTA_CTE_VAC.e_dias_gen,
+					VAC01_CTA_CTE_VAC.e_dias_otorg,
+					VAC01_CTA_CTE_VAC.e_dias_pend,
+					VAC01_CTA_CTE_VAC.oi_periodo,
+					VAC04_PERIODOS.d_periodo
+			FROM 
+					VAC01_CTA_CTE_VAC,
+					VAC04_PERIODOS
+			JOIN
+					VAC01_CTA_CTE_VAC.oi_periodo INNER VAC04_PERIODOS.oi_periodo
+			WHERE
+					VAC01_CTA_CTE_VAC.oi_periodo = {#FILTRO:@oi_periodo} AND
+					VAC01_CTA_CTE_VAC.oi_personal_emp = {#PARAM:@oi_personal_emp} 	
+		')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:attribute name="generadas" value="$r/@e_dias_gen"/>
+				<qry:attribute name="otorgadas" value="$r/@e_dias_otorg"/>
+				<qry:attribute name="pendientes" value="$r/@e_dias_pend"/>
+			</qry:out>
+		</qry:select>
+	</html:query>
+</html:html>

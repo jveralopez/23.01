@@ -1,0 +1,424 @@
+<INTERFACE-DEF xmlns:qry="nomad_engine.qry" desc="" entermode="DOS" finalenter="1">
+	<QUERY declare="&lt;DATA interface=&quot;SICOSS&quot; c_empresa=&quot;TadeoCZ&quot; p_periodo=&quot;200904&quot; /&gt;">
+		<qry:main doc="SOURCE">
+			<qry:element name="DATA">
+				<qry:element name="DETAILS">
+					<!--------------------------------------->
+					<qry:insert-select name="qryPersonas" doc-path="#SOURCE:/DATA"/>
+					<!-- Inserta el registro FINAL solo si existe el registro ----------->
+					<qry:insert-select name="qryDetail-ADDreg" doc-path=".[@ultpersona !='']"/>
+				</qry:element>
+			</qry:element>
+		</qry:main>
+		<qry:select name="qryPersonas" doc="SOURCE">
+			<qry:xquery>
+				for $r in SQL(' 
+						SELECT
+							PE.c_personal							
+						FROM
+							LIQ20_TOT_LIQ_PER as TLP,
+							LIQ97_PERSONAL_EMP as PE,   
+							PER01_PERSONAL as PER, 
+							LIQ99_LIQUIDACION as LIQ,
+							LIQ93_EMPRESAS as EMP,
+							LIQ96_CONCEPTOS as LCON, 
+							LIQ20_CONC_LIQ_PER as CON,
+							LIQ20_VAR_LIQ_CONC as VAR,
+							LIQ99_RECIBOS as REC
+						
+						JOIN
+							TLP.oi_per_emp_ddo 			INNER PE.oi_per_emp_ddo,
+							PER.c_personal 					INNER PE.c_personal,
+							LIQ.oi_liquidacion_ddo 	INNER REC.oi_liquidacion_ddo,
+							TLP.oi_tot_liq_per 			INNER REC.oi_tot_liq_per,
+							LIQ.oi_empresa_ddo 			INNER EMP.oi_empresa_ddo,							
+							LCON.oi_concepto_ddo 		INNER CON.oi_concepto_ddo,							
+							TLP.oi_tot_liq_per 			INNER CON.oi_tot_liq_per,
+							CON.oi_conc_liq_per 		INNER VAR.oi_conc_liq_per
+													
+						WHERE 
+							
+							LCON.c_concepto = \'99999997\'
+							AND LIQ.c_estado = \'F\' 
+							AND EMP.c_empresa = { #SOURCE:@c_empresa }
+							AND LIQ.e_periodo = { #SOURCE:@p_periodo }                                       
+                        GROUP BY 
+                        	PE.c_personal
+						ORDER BY 
+							c_personal ASC													
+						')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:attribute name="c_personal" value="$r/@c_personal"/>
+				<qry:attribute name="c_empresa" value="#SOURCE:@c_empresa"/>
+				<qry:attribute name="p_periodo" value="#SOURCE:@p_periodo"/>
+				<qry:insert-select name="qryDetail" doc-path="."/>
+			</qry:out>
+		</qry:select>
+		<qry:select name="qryDetail" doc="SOURCE">
+			<qry:xquery>
+				for $r in SQL('
+						SELECT
+							TLP.oi_per_emp_ddo,
+
+						    PE.c_personal,
+							TLP.oi_tot_liq_per,
+						    
+							PE.c_nro_cuil,
+							PE.d_ape_y_nom,
+							EMP.c_actividad,
+							PE.c_obra_social,
+							TLP.n_totasig,
+							
+							TLP.n_totsret,
+
+							LCASE(VAR.c_variable) as c_variable,
+							VAR.n_valor_s
+							
+						FROM
+							LIQ20_TOT_LIQ_PER as TLP,
+							LIQ97_PERSONAL_EMP as PE,   
+							PER01_PERSONAL as PER, 
+							LIQ99_LIQUIDACION as LIQ,
+							LIQ93_EMPRESAS as EMP,
+							LIQ96_CONCEPTOS as LCON, 
+							LIQ20_CONC_LIQ_PER as CON,
+							LIQ20_VAR_LIQ_CONC as VAR,
+							LIQ99_RECIBOS as REC
+						
+						JOIN
+							TLP.oi_per_emp_ddo 			INNER PE.oi_per_emp_ddo,
+							PER.c_personal 					INNER PE.c_personal,
+							LIQ.oi_liquidacion_ddo 	INNER REC.oi_liquidacion_ddo,
+							TLP.oi_tot_liq_per 			INNER REC.oi_tot_liq_per,
+							LIQ.oi_empresa_ddo 			INNER EMP.oi_empresa_ddo,							
+							LCON.oi_concepto_ddo 		INNER CON.oi_concepto_ddo,							
+							TLP.oi_tot_liq_per 			INNER CON.oi_tot_liq_per,
+							CON.oi_conc_liq_per 		INNER VAR.oi_conc_liq_per
+													
+						WHERE 
+							
+							LCON.c_concepto = \'99999997\'
+							AND LIQ.c_estado = \'F\'
+							and PE.c_personal = {#SOURCE:@c_personal}
+							AND EMP.c_empresa = { #SOURCE:@c_empresa }
+							AND LIQ.e_periodo = { #SOURCE:@p_periodo }
+                                        
+						ORDER BY 
+							c_personal ASC,
+							oi_tot_liq_per ASC
+														
+						')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:insert-select name="qryDetail-ADDreg" doc-path=".[@ultpersona != $r/@c_personal AND @ultpersona !='']"/>
+				<!-- Actualiza Campos del Proceso ------->
+				<qry:attribute name="c_personal" value="$r/@c_personal"/>
+				<qry:attribute name="oi_per_emp_ddo" value="$r/@oi_per_emp_ddo"/>
+				<!-- Actualiza Campos ------------------->
+				<qry:attribute name="c_nro_cuil" value="$r/@c_nro_cuil"/>
+				<qry:attribute name="d_ape_y_nom" value="$r/@d_ape_y_nom"/>
+				<qry:switch test="$r/@c_variable">
+					<qry:case value="vs_afipconyuge">
+						<qry:attribute value="$r/@n_valor_s" name="conyuge"/>
+					</qry:case>
+					<qry:case value="vs_afipcantidadhijos">
+						<qry:attribute value="$r/@n_valor_s" name="q_hijos"/>
+					</qry:case>
+					<qry:case value="vs_afipcondicion">
+						<qry:attribute value="$r/@n_valor_s" name="condicion"/>
+					</qry:case>
+					<qry:case value="vs_afipactividad">
+						<qry:attribute value="$r/@n_valor_s" name="actividad"/>
+					</qry:case>
+					<qry:case value="vs_afipzona">
+						<qry:attribute value="$r/@n_valor_s" name="zona"/>
+					</qry:case>
+					<qry:case value="vs_afippapadicss">
+						<qry:attribute value="$r/@n_valor_s" name="papadicss"/>
+					</qry:case>
+					<qry:case value="vs_afipmodcontratacion">
+						<qry:attribute value="$r/@n_valor_s" name="modcont"/>
+					</qry:case>
+					<qry:case value="vs_afipobrasocial">
+						<qry:attribute value="$r/@n_valor_s" name="c_obra_social"/>
+					</qry:case>
+					<qry:case value="vs_afipcantadherentes">
+						<qry:attribute value="$r/@n_valor_s" name="adherentes"/>
+					</qry:case>
+					<qry:case value="vs_afipremuntot">
+						<qry:attribute value="NUMBER(@remuntot) + IIF(@oi_tot_liq_per = $r/@oi_tot_liq_per, NUMBER($r/@n_valor_s), 0)" name="remuntot"/>
+					</qry:case>
+					<qry:case value="vs_afipremunimpo1">
+						<qry:attribute value="NUMBER(@remunimp1) + IIF(@oi_tot_liq_per = $r/@oi_tot_liq_per, NUMBER($r/@n_valor_s), 0)" name="remunimp1"/>
+					</qry:case>
+					<qry:case value="vs_totasig">
+						<qry:attribute value="NUMBER(@asig_fam_pag) + IIF(@oi_tot_liq_per = $r/@oi_tot_liq_per, NUMBER($r/@n_valor_s), 0)" name="asig_fam_pag"/>
+					</qry:case>
+					<qry:case value="vs_afipimpapvolss">
+						<qry:attribute value="NUMBER(@impapvol) + IIF(@oi_tot_liq_per = $r/@oi_tot_liq_per, NUMBER($r/@n_valor_s), 0)" name="impapvol"/>
+					</qry:case>
+					<qry:case value="vs_afipimpadicos">
+						<qry:attribute value="NUMBER(@impadicos) + IIF(@oi_tot_liq_per = $r/@oi_tot_liq_per, NUMBER($r/@n_valor_s), 0)" name="impadicos"/>
+					</qry:case>
+					<qry:case value="vs_afipimpexcapss">
+						<qry:attribute value="NUMBER(@impexcapss) + IIF(@oi_tot_liq_per = $r/@oi_tot_liq_per, NUMBER($r/@n_valor_s), 0)" name="impexcapss"/>
+					</qry:case>
+					<qry:case value="vs_afipimpexcapos">
+						<qry:attribute value="NUMBER(@impexcapos) + IIF(@oi_tot_liq_per = $r/@oi_tot_liq_per, NUMBER($r/@n_valor_s), 0)" name="impexcapos"/>
+					</qry:case>
+					<qry:case value="vs_afiplocalidad">
+						<qry:attribute value="$r/@n_valor_s" name="prov_loc"/>
+					</qry:case>
+					<qry:case value="vs_afipremunimpo2">
+						<qry:attribute value="NUMBER(@remunimp2) + IIF(@oi_tot_liq_per = $r/@oi_tot_liq_per, NUMBER($r/@n_valor_s), 0)" name="remunimp2"/>
+					</qry:case>
+					<qry:case value="vs_afipremunimpo3">
+						<qry:attribute value="NUMBER(@remunimp3) + IIF(@oi_tot_liq_per = $r/@oi_tot_liq_per, NUMBER($r/@n_valor_s), 0)" name="remunimp3"/>
+					</qry:case>
+					<qry:case value="vs_afipremunimpo4">
+						<qry:attribute value="NUMBER(@remunimp4) + IIF(@oi_tot_liq_per = $r/@oi_tot_liq_per, NUMBER($r/@n_valor_s), 0)" name="remunimp4"/>
+					</qry:case>
+					<qry:case value="vs_afipsiniestro">
+						<qry:attribute value="$r/@n_valor_s" name="siniestro"/>
+					</qry:case>
+					<qry:case value="vs_afipreduc">
+						<qry:attribute value="$r/@n_valor_s" name="reduc"/>
+					</qry:case>
+					<qry:case value="vs_afipcapreclrt">
+						<qry:attribute value="$r/@n_valor_s" name="capreclrt"/>
+					</qry:case>
+					<qry:case value="vs_afiptipoempresa">
+						<qry:attribute value="$r/@n_valor_s" name="tipo_emp_sijp"/>
+					</qry:case>
+					<qry:case value="vs_afipadicionalesos">
+						<qry:attribute value="NUMBER(@aporteadicos) + IIF(@oi_tot_liq_per = $r/@oi_tot_liq_per, NUMBER($r/@n_valor_s), 0)" name="aporteadicos"/>
+					</qry:case>
+					<qry:case value="vs_afipregimen">
+						<qry:attribute value="$r/@n_valor_s" name="regimen"/>
+					</qry:case>
+					<qry:case value="vs_afipsiturev">
+						<qry:attribute value="$r/@n_valor_s" name="situacion"/>
+					</qry:case>
+					<qry:case value="vs_afipsiturev1">
+						<qry:attribute value="$r/@n_valor_s" name="sitrevista1"/>
+					</qry:case>
+					<qry:case value="vs_afipdiasiturev1">
+						<qry:attribute value="$r/@n_valor_s" name="dsitrevista1"/>
+					</qry:case>
+					<qry:case value="vs_afipsiturev2">
+						<qry:attribute value="$r/@n_valor_s" name="sitrevista2"/>
+					</qry:case>
+					<qry:case value="vs_afipdiasiturev2">
+						<qry:attribute value="$r/@n_valor_s" name="dsitrevista2"/>
+					</qry:case>
+					<qry:case value="vs_afipsiturev3">
+						<qry:attribute value="$r/@n_valor_s" name="sitrevista3"/>
+					</qry:case>
+					<qry:case value="vs_afipdiasiturev3">
+						<qry:attribute value="$r/@n_valor_s" name="dsitrevista3"/>
+					</qry:case>
+					<qry:case value="vs_afipsueldomasadic">
+						<qry:attribute value="NUMBER(@sueldoadic) + IIF(@oi_tot_liq_per = $r/@oi_tot_liq_per, NUMBER($r/@n_valor_s), 0)" name="sueldoadic"/>
+					</qry:case>
+					<qry:case value="vs_afipsac">
+						<qry:attribute value="NUMBER(@sac) + IIF(@oi_tot_liq_per = $r/@oi_tot_liq_per, NUMBER($r/@n_valor_s), 0)" name="sac"/>
+					</qry:case>
+					<qry:case value="vs_afiphextras">
+						<qry:attribute value="NUMBER(@hextras) + IIF(@oi_tot_liq_per = $r/@oi_tot_liq_per, NUMBER($r/@n_valor_s), 0)" name="hextras"/>
+					</qry:case>
+					<qry:case value="vs_afipzonadesfavorable">
+						<qry:attribute value="NUMBER(@imp_zona_des) + IIF(@oi_tot_liq_per = $r/@oi_tot_liq_per, NUMBER($r/@n_valor_s), 0)" name="imp_zona_des"/>
+					</qry:case>
+					<qry:case value="vs_afipvacaciones">
+						<qry:attribute value="NUMBER(@vacaciones) + IIF(@oi_tot_liq_per = $r/@oi_tot_liq_per, NUMBER($r/@n_valor_s), 0)" name="vacaciones"/>
+					</qry:case>
+					<qry:case value="vs_afipqdiastrab">
+						<qry:attribute value="NUMBER(@qdiastrab) + IIF(@oi_tot_liq_per = $r/@oi_tot_liq_per, NUMBER($r/@n_valor_s), 0)" name="qdiastrab"/>
+					</qry:case>
+					<qry:case value="vs_afipremunimpo5">
+						<qry:attribute value="NUMBER(@remunimp5) + IIF(@oi_tot_liq_per = $r/@oi_tot_liq_per, NUMBER($r/@n_valor_s), 0)" name="remunimp5"/>
+					</qry:case>
+					<qry:case value="vs_afipconvencionado">
+						<qry:attribute value="$r/@n_valor_s" name="convencionado"/>
+					</qry:case>
+					<qry:case value="vs_afipremunimpo6">
+						<qry:attribute value="NUMBER(@remunimp6) + IIF(@oi_tot_liq_per = $r/@oi_tot_liq_per, NUMBER($r/@n_valor_s), 0)" name="remunimp6"/>
+					</qry:case>
+					<qry:case value="vs_afiptipopera">
+						<qry:attribute value="$r/@n_valor_s" name="tipopera"/>
+					</qry:case>
+					<qry:case value="vs_afipsueldoadic">
+						<qry:attribute value="NUMBER(@adicionales) + IIF(@oi_tot_liq_per = $r/@oi_tot_liq_per, NUMBER($r/@n_valor_s), 0)" name="adicionales"/>
+					</qry:case>
+					<qry:case value="vs_afippremios">
+						<qry:attribute value="NUMBER(@premios) + IIF(@oi_tot_liq_per = $r/@oi_tot_liq_per, NUMBER($r/@n_valor_s), 0)" name="premios"/>
+					</qry:case>
+					<qry:case value="vs_afipremundec78805">
+						<qry:attribute value="NUMBER(@remdec788_05) + IIF(@oi_tot_liq_per = $r/@oi_tot_liq_per, NUMBER($r/@n_valor_s), 0)" name="remdec788_05"/>
+					</qry:case>
+					<qry:case value="vs_afipremunimpo7">
+						<qry:attribute value="NUMBER(@remunimp7) + IIF(@oi_tot_liq_per = $r/@oi_tot_liq_per, NUMBER($r/@n_valor_s), 0)" name="remunimp7"/>
+					</qry:case>
+					<qry:case value="vs_afipqhextras">
+						<qry:attribute value="NUMBER(@qhextras) + IIF(@oi_tot_liq_per = $r/@oi_tot_liq_per, NUMBER($r/@n_valor_s), 0)" name="qhextras"/>
+					</qry:case>
+					<qry:case value="vs_afipconnorem">
+						<qry:attribute value="NUMBER(@afipconnorem) + IIF(@oi_tot_liq_per = $r/@oi_tot_liq_per, NUMBER($r/@n_valor_s), 0)" name="afipconnorem"/>
+					</qry:case>
+					<qry:case value="vs_afipmaternidad">
+						<qry:attribute value="NUMBER(@afipmaternidad) + IIF(@oi_tot_liq_per = $r/@oi_tot_liq_per, NUMBER($r/@n_valor_s), 0)" name="afipmaternidad"/>
+					</qry:case>
+					<qry:case value="vs_afiprectificacion">
+						<qry:attribute value="NUMBER(@afiprectificacion) + IIF(@oi_tot_liq_per = $r/@oi_tot_liq_per, NUMBER($r/@n_valor_s), 0)" name="afiprectificacion"/>
+					</qry:case>
+					<qry:case value="vs_afipremunimpo9">
+						<qry:attribute value="NUMBER(@remunimp9) + IIF(@oi_tot_liq_per = $r/@oi_tot_liq_per, NUMBER($r/@n_valor_s), 0)" name="remunimp9"/>
+					</qry:case>
+					<qry:case value="vs_afiptareadif">
+						<qry:attribute value="NUMBER(@tareadif) + IIF(@oi_tot_liq_per = $r/@oi_tot_liq_per, NUMBER($r/@n_valor_s), 0)" name="tareadif"/>
+					</qry:case>
+					<qry:case value="vs_afipcanthoras">
+						<qry:attribute value="NUMBER(@canthoras) + IIF(@oi_tot_liq_per = $r/@oi_tot_liq_per, NUMBER($r/@n_valor_s), 0)" name="canthoras"/>
+					</qry:case>
+				</qry:switch>
+				<!-- -->
+				<!-- BANDERAS --------------------------->
+				<qry:attribute name="ultpersona" value="$r/@c_personal"/>
+				<qry:attribute name="oi_tot_liq_per" value="$r/@oi_tot_liq_per"/>
+			</qry:out>
+		</qry:select>
+		<!--------------------------------------------->
+		<!-- qryDetail-ADDreg ------------------------->
+		<qry:select name="qryDetail-ADDreg" doc="SOURCE">
+			<qry:out>
+				<qry:element name="DETAIL">
+					<!--------------------------------------------->
+					<qry:attribute name="rowdesc" value="#SOURCE:/@d_ape_y_nom"/>
+					<!--       -->
+					<qry:attribute name="c_nro_cuil" value="NMD_REPLACE(#SOURCE:/@c_nro_cuil, '-', '')"/>
+					<qry:attribute name="d_ape_y_nom" value="NMD_FILLRIGHT(#SOURCE:/@d_ape_y_nom, ' ', 30, 'R')"/>
+					<qry:attribute name="conyuge" value="IIF(#SOURCE:@conyuge = '1', 'T', 'F')"/>
+					<qry:attribute name="q_hijos" value="FORMAT_NUMBER(#SOURCE:@q_hijos, 2, 0, '', '', '0')"/>
+					<qry:attribute name="situacion" value="FORMAT_NUMBER(#SOURCE:@situacion, 2, 0, '', '', '0')"/>
+					<qry:attribute name="condicion" value="FORMAT_NUMBER(#SOURCE:/@condicion, 2, 0, '', '', '0')"/>
+					<qry:attribute name="actividad" value="FORMAT_NUMBER(#SOURCE:@actividad, 2, 0, '', '', '0')"/>
+					<qry:attribute name="zona" value="FORMAT_NUMBER(#SOURCE:@zona, 2, 0, '', '', '0')"/>
+					<qry:attribute name="papadicss" value="FORMAT_NUMBER(#SOURCE:@papadicss, 5, 0, '', '', '0')"/>
+					<qry:attribute name="modcont" value="FORMAT_NUMBER(#SOURCE:@modcont, 3, 0, '', '', '0')"/>
+					<qry:attribute name="c_obra_social" value="FORMAT_NUMBER(#SOURCE:@c_obra_social, 6, 0, '', '', '0')"/>
+					<qry:attribute name="adherentes" value="FORMAT_NUMBER(#SOURCE:@adherentes, 2, 0, '', '', '0')"/>
+					<qry:attribute name="remuntot" value="FORMAT_NUMBER(#SOURCE:@remuntot, 6, 2, '.', '', '0')"/>
+					<qry:attribute name="remunimp1" value="FORMAT_NUMBER(#SOURCE:@remunimp1, 6, 2, '.', '', '0')"/>
+					<qry:attribute name="asig_fam_pag" value="FORMAT_NUMBER(#SOURCE:@asig_fam_pag, 6, 2, '.', '', '0')"/>
+					<qry:attribute name="impapvol" value="FORMAT_NUMBER(#SOURCE:@impapvol, 6, 2, '.', '', '0')"/>
+					<qry:attribute name="impadicos" value="FORMAT_NUMBER(#SOURCE:@impadicos, 6, 2, '.', '', '0')"/>
+					<qry:attribute name="impexcapss" value="FORMAT_NUMBER(#SOURCE:@impexcapss, 6, 2, '.', '', '0')"/>
+					<qry:attribute name="impexcapos" value="FORMAT_NUMBER(#SOURCE:@impexcapos, 6, 2, '.', '', '0')"/>
+					<qry:attribute name="prov_loc" value="NMD_FILLRIGHT(#SOURCE:/@prov_loc, ' ', 50, 'R')"/>
+					<qry:attribute name="remunimp2" value="FORMAT_NUMBER(#SOURCE:@remunimp2, 6, 2, '.', '', '0')"/>
+					<qry:attribute name="remunimp3" value="FORMAT_NUMBER(#SOURCE:@remunimp3, 6, 2, '.', '', '0')"/>
+					<qry:attribute name="remunimp4" value="FORMAT_NUMBER(#SOURCE:@remunimp4, 6, 2, '.', '', '0')"/>
+					<qry:attribute name="siniestro" value="FORMAT_NUMBER(#SOURCE:@siniestro, 2, 0, '', '', '0')"/>
+					<qry:attribute name="reduc" value="FORMAT_NUMBER(#SOURCE:@reduc, 1, 0, '', '', '0')"/>
+					<qry:attribute name="capreclrt" value="FORMAT_NUMBER(#SOURCE:@capreclrt, 6, 2, '.', '', '0')"/>
+					<qry:attribute name="tipo_emp_sijp" value="NMD_FILLLEFT(#SOURCE:/@tipo_emp_sijp, ' ', 1, 'R')"/>
+					<qry:attribute name="aporteadicos" value="FORMAT_NUMBER(#SOURCE:@aporteadicos, 6, 2, '.', '', '0')"/>
+					<qry:attribute name="regimen" value="FORMAT_NUMBER(#SOURCE:@regimen, 1, 0, '', '', '0')"/>
+					<qry:attribute name="sitrevista1" value="FORMAT_NUMBER(#SOURCE:@sitrevista1, 2, 0, '', '', '0')"/>
+					<qry:attribute name="dsitrevista1" value="FORMAT_NUMBER(#SOURCE:@dsitrevista1, 2, 0, '', '', '0')"/>
+					<qry:attribute name="sitrevista2" value="FORMAT_NUMBER(#SOURCE:@sitrevista2, 2, 0, '', '', '0')"/>
+					<qry:attribute name="dsitrevista2" value="FORMAT_NUMBER(#SOURCE:@dsitrevista2, 2, 0, '', '', '0')"/>
+					<qry:attribute name="sitrevista3" value="FORMAT_NUMBER(#SOURCE:@sitrevista3, 2, 0, '', '', '0')"/>
+					<qry:attribute name="dsitrevista3" value="FORMAT_NUMBER(#SOURCE:@dsitrevista3, 2, 0, '', '', '0')"/>
+					<qry:attribute name="sueldoadic" value="FORMAT_NUMBER(#SOURCE:@sueldoadic, 6, 2, '.', '', '0')"/>
+					<qry:attribute name="sac" value="FORMAT_NUMBER(#SOURCE:@sac, 6, 2, '.', '', '0')"/>
+					<qry:attribute name="hextras" value="FORMAT_NUMBER(#SOURCE:@hextras, 6, 2, '.', '', '0')"/>
+					<qry:attribute name="imp_zona_des" value="FORMAT_NUMBER(#SOURCE:@imp_zona_des, 6, 2, '.', '', '0')"/>
+					<qry:attribute name="vacaciones" value="FORMAT_NUMBER(#SOURCE:@vacaciones, 6, 2, '.', '', '0')"/>
+					<qry:attribute name="qdiastrab" value="FORMAT_NUMBER(#SOURCE:@qdiastrab, 6, 2, '.', '', '0')"/>
+					<qry:attribute name="remunimp5" value="FORMAT_NUMBER(#SOURCE:@remunimp5, 6, 2, '.', '', '0')"/>
+					<qry:attribute name="convencionado" value="FORMAT_NUMBER(#SOURCE:@convencionado, 1, 0, '', '', '0')"/>
+					<qry:attribute name="remunimp6" value="FORMAT_NUMBER(#SOURCE:@remunimp6, 6, 2, '.', '', '0')"/>
+					<qry:attribute name="tipopera" value="FORMAT_NUMBER(#SOURCE:@tipopera, 1, 0, '', '', '0')"/>
+					<qry:attribute name="c_obra_social" value="FORMAT_NUMBER(#SOURCE:@c_obra_social, 6, 0, '', '', '0')"/>
+					<qry:attribute name="adicionales" value="FORMAT_NUMBER(#SOURCE:@adicionales, 6, 2, '.', '', '0')"/>
+					<qry:attribute name="premios" value="FORMAT_NUMBER(#SOURCE:@premios, 6, 2, '.', '', '0')"/>
+					<qry:attribute name="remdec788_05" value="FORMAT_NUMBER(#SOURCE:@remdec788_05, 6, 2, '.', '', '0')"/>
+					<qry:attribute name="remunimp7" value="FORMAT_NUMBER(#SOURCE:@remunimp7, 6, 2, '.', '', '0')"/>
+					<qry:attribute name="qhextras" value="FORMAT_NUMBER(#SOURCE:@qhextras, 3, 0, '', '', '0')"/>
+					<qry:attribute name="afipconnorem" value="FORMAT_NUMBER(#SOURCE:@afipconnorem, 6, 2, '.', '', '0')"/>
+					<qry:attribute name="afipmaternidad" value="FORMAT_NUMBER(#SOURCE:@afipmaternidad, 6, 2, '.', '', '0')"/>
+					<qry:attribute name="afiprectificacion" value="FORMAT_NUMBER(#SOURCE:@afiprectificacion, 6, 2, '.', '', '0')"/>
+					<qry:attribute name="remunimp9" value="FORMAT_NUMBER(#SOURCE:@remunimp9, 6, 2, '.', '', '0')"/>
+					<qry:attribute name="tareadif" value="FORMAT_NUMBER(#SOURCE:@tareadif, 6, 2, '.', '', '0')"/>
+					<qry:attribute name="canthoras" value="FORMAT_NUMBER(#SOURCE:@canthoras, 3, 0, '', '', '0')"/>
+					<!-- -->
+				</qry:element>
+				<!-- Pone las VARIABLES en Blanco -------->
+				<qry:attribute name="c_nro_cuil" value="''"/>
+				<qry:attribute name="d_ape_y_nom" value="''"/>
+				<qry:attribute name="conyuge" value="''"/>
+				<qry:attribute name="q_hijos" doc-path="''"/>
+				<qry:attribute name="situacion" value="''"/>
+				<qry:attribute name="condicion" value="''"/>
+				<qry:attribute name="actividad" value="''"/>
+				<qry:attribute name="zona" value="''"/>
+				<qry:attribute name="papadicss" value="''"/>
+				<qry:attribute name="modcont" value="''"/>
+				<qry:attribute name="c_obra_social" value="''"/>
+				<qry:attribute name="adherentes" value="''"/>
+				<qry:attribute name="remuntot" value="''"/>
+				<qry:attribute name="remunimp1" value="''"/>
+				<qry:attribute name="asig_fam_pag" value="''"/>
+				<qry:attribute name="impapvol" value="''"/>
+				<qry:attribute name="impadicos" value="''"/>
+				<qry:attribute name="impexcapss" value="''"/>
+				<qry:attribute name="impexcapos" value="''"/>
+				<qry:attribute name="prov_loc" value="''"/>
+				<qry:attribute name="remunimp2" value="''"/>
+				<qry:attribute name="remunimp3" value="''"/>
+				<qry:attribute name="remunimp4" value="''"/>
+				<qry:attribute name="siniestro" value="''"/>
+				<qry:attribute name="reduc" value="''"/>
+				<qry:attribute name="capreclrt" value="''"/>
+				<qry:attribute name="tipo_emp_sijp" value="''"/>
+				<qry:attribute name="aporteadicos" value="''"/>
+				<qry:attribute name="regimen" value="''"/>
+				<qry:attribute name="sitrevista1" value="''"/>
+				<qry:attribute name="dsitrevista1" value="''"/>
+				<qry:attribute name="sitrevista2" value="''"/>
+				<qry:attribute name="dsitrevista2" value="''"/>
+				<qry:attribute name="sitrevista3" value="''"/>
+				<qry:attribute name="dsitrevista3" value="''"/>
+				<qry:attribute name="sueldoadic" value="''"/>
+				<qry:attribute name="sac" value="''"/>
+				<qry:attribute name="hextras" value="''"/>
+				<qry:attribute name="imp_zona_des" value="''"/>
+				<qry:attribute name="vacaciones" value="''"/>
+				<qry:attribute name="qdiastrab" value="''"/>
+				<qry:attribute name="remunimp5" value="''"/>
+				<qry:attribute name="convencionado" value="''"/>
+				<qry:attribute name="remunimp6" value="''"/>
+				<qry:attribute name="tipopera" value="''"/>
+				<qry:attribute name="adicionales" value="''"/>
+				<qry:attribute name="premios" value="''"/>
+				<qry:attribute name="remdec788_05" value="''"/>
+				<qry:attribute name="remunimp7" value="''"/>
+				<qry:attribute name="qhextras" value="''"/>
+				<qry:attribute name="afipconnorem" value="''"/>
+				<qry:attribute name="afipmaternidad" value="''"/>
+				<qry:attribute name="afiprectificacion" value="''"/>
+				<qry:attribute name="remunimp9" value="''"/>
+				<qry:attribute name="tareadif" value="''"/>
+				<qry:attribute name="canthoras" value="''"/>
+			</qry:out>
+		</qry:select>
+	</QUERY>
+	<DETAIL>
+		{c_nro_cuil:11}{d_ape_y_nom}{conyuge:1}{q_hijos:2}{situacion:2}{condicion:2}{actividad:2}{zona:2}{papadicss:5}{modcont:3}{c_obra_social:6}{adherentes:2}{remuntot:9}{remunimp1:9}{asig_fam_pag:9}{impapvol:9}{impadicos:9}{impexcapss:9}{impexcapos:9}{space(50)}{remunimp2:9}{remunimp3:9}{remunimp4:9}{siniestro:2}{reduc:1}{capreclrt:9}{tipo_emp_sijp:1}{aporteadicos:9}{regimen:1}{sitrevista1:2}{dsitrevista1:2}{sitrevista2:2}{dsitrevista2:2}{sitrevista3:2}{dsitrevista3:2}{sueldoadic:9}{sac:9}{hextras:9}{imp_zona_des:9}{vacaciones:9}{qdiastrab:9}{remunimp5:9}{convencionado:1}{remunimp6:9}{tipopera:1}{adicionales:9}{premios:9}{remdec788_05:9}{remunimp7:9}{qhextras:3}{afipconnorem:9}{afipmaternidad:9}{afiprectificacion:9}{remunimp9:9}{tareadif:9}{canthoras:3}
+	</DETAIL>
+	<MESS>
+		<EMPTY mess="No se encontraron registros. Por favor valide que los legajos est&#233;n asociados al sindicato correcto."/>
+	</MESS>
+</INTERFACE-DEF>

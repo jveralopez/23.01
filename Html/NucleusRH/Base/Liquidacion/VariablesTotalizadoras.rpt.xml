@@ -1,0 +1,83 @@
+<html:html xmlns:html="nomad_engine.html" xmlns:qry="nomad_engine.qry" name="NucleusRH.Base.Liquidacion.VariablesTotalizadoras" extends="Nomad.Base.BaseReport.rpt" doc="SOURCE">
+	<html:query declare="&lt;FILTRO selected=&quot;&quot;&gt;&#13;&#10;  &lt;ROWS /&gt;&#13;&#10;  &lt;TOT nmd-col=&quot;1&quot;&gt;&#13;&#10;    &lt;C id=&quot;1&quot; /&gt; &#13;&#10;    &lt;C id=&quot;2&quot; /&gt;&#13;&#10;    &lt;C id=&quot;3&quot; /&gt;&#13;&#10;    &lt;C id=&quot;4&quot; /&gt;&#13;&#10;    &lt;C id=&quot;5&quot; /&gt;&#13;&#10;    &lt;C id=&quot;6&quot; /&gt;&#13;&#10;    &lt;C id=&quot;7&quot; /&gt;&#13;&#10;    &lt;C id=&quot;8&quot; /&gt;&#13;&#10;  &lt;/TOT&gt;&#13;&#10;&lt;/FILTRO&gt;">
+		<qry:main doc="PARAM">
+			<qry:append-doc name="FILTRO" doc-path="#PARAM:/FILTRO"/>
+			<REPORT label="Listado de Variables Totalizadoras">
+				<qry:attribute value="format_date(now(),'dd/mm/yyyy HH:MM')" name="date"/>
+				<GROUPS>
+					<GROUP tag="TOTAL" type="title">
+						<COLS>
+							<COL name="total" label="Total"/>
+							<COL name="variable" label="Variable"/>
+						</COLS>
+						<GROUP tag="CONCEPTO" label="Conceptos" type="table" noreg="No se encontraron conceptos para la Variable totalizadora.">
+							<COLS>
+								<COL name="c_concepto" label="C&#243;digo" style="width:20%" nowrap="1"/>
+								<COL name="d_concepto" label="Descripci&#243;n" style="width:60%" nowrap="1"/>
+								<COL name="c_suma" label="Acumula" style="width:20%" nowrap="1"/>
+							</COLS>
+						</GROUP>
+					</GROUP>
+				</GROUPS>
+				<qry:element name="DATA">
+					<qry:insert-select doc-path="#PARAM:FILTRO" name="QRY_TOTALES"/>
+				</qry:element>
+			</REPORT>
+		</qry:main>
+		<qry:select doc="PARAM" name="QRY_TOTALES">
+			<qry:xquery>
+				for $r in sql('
+				SELECT 
+				  LIQ30.oi_total,
+				  LIQ30.c_total AS c_total,
+					LIQ30.d_total,
+					LIQ09.d_variable
+				FROM 
+					LIQ30_TOTALES AS LIQ30,
+					LIQ09_VARIABLES AS LIQ09
+				JOIN 
+					LIQ30.oi_variable left outer LIQ09.oi_variable 
+				WHERE 
+					LIQ30.oi_total in ({%=string(#PARAM:TOT/C/@id) %}) 
+					
+				ORDER BY c_total ASC
+			')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:element name="TOTAL">
+					<qry:attribute name="total" value="$r/@c_total + ' - ' + $r/@d_total"/>
+					<qry:attribute name="variable" value="$r/@d_variable"/>
+					<qry:insert-select doc-path="$r" name="QRY_CONCEPTOS"/>
+				</qry:element>
+			</qry:out>
+		</qry:select>
+		<qry:select doc="PARAM" name="QRY_CONCEPTOS">
+			<qry:xquery>
+				for $r in sql('		
+			SELECT 
+			  LIQ14.oi_concepto,
+				LIQ14.c_concepto as c_concepto,
+				LIQ14.d_concepto,
+				LIQ30.c_suma,
+				LIQ30.oi_total
+			FROM 
+				LIQ14_CONCEPTOS AS LIQ14,
+				LIQ30_CONC_SUM AS LIQ30			
+			WHERE 
+			  LIQ14.oi_concepto = LIQ30.oi_concepto AND                                             
+			 	LIQ30.oi_total ={#PARAM:@oi_total} 
+			ORDER BY
+       	c_concepto ASC
+			')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:element name="CONCEPTO">
+					<qry:attribute name="c_concepto" value="$r/@c_concepto"/>
+					<qry:attribute name="d_concepto" value="$r/@d_concepto"/>
+					<qry:attribute name="c_suma" value="iif($r/@c_suma='V','Valor','Cantidad')"/>
+					<qry:attribute name="o_categoria" value="$r/@o_categoria"/>
+				</qry:element>
+			</qry:out>
+		</qry:select>
+	</html:query>
+</html:html>

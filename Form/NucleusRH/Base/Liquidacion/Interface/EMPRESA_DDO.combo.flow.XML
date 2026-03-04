@@ -1,0 +1,54 @@
+<flow:flow xmlns:flow="nomad_engine.flow" xmlns:qry="nomad_engine.qry" extends="Nomad.combo.flow" name="NucleusRH.Base.Organizacion.Empresas.EMPRESA.guia">
+	<flow:info label="Flow guia para NucleusRH.Base.Organizacion.Empresas.EMPRESA"/>
+	<flow:declare>
+		<qry:define name="COMBO">
+			<qry:main doc="SOURCE">
+				<qry:element name="ROWS">
+					<qry:insert-select name="RS1"/>
+				</qry:element>
+			</qry:main>
+			<qry:select doc="SOURCE" name="RS1">
+				<qry:xquery>
+					for $r in sql('
+select 
+	max(emp.oi_empresa_ddo) as oi_empresa_ddo,
+	emp.c_empresa 
+from 
+	LIQ93_EMPRESAS as emp
+group by emp.c_empresa
+					')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:element name="OPT">
+						<qry:attribute value="$r/@c_empresa" name="id"/>
+						<qry:attribute value="$r/@c_empresa" name="value"/>
+						<qry:attribute value="$r/@c_empresa" name="code"/>
+						<qry:attribute value="'1'" name="hts:delete"/>
+						<qry:insert-select name="RS2" doc-path="$r"/>
+					</qry:element>
+				</qry:out>
+			</qry:select>
+			<qry:select doc="SOURCE" name="RS2">
+				<qry:xquery>
+					for $r in sql('
+select 
+	SEC.policy as policy,
+	emp.d_empresa 
+from 
+	LIQ93_EMPRESAS as emp,
+	NMD_SECURITY(NMD_SECURITY.class=\'NucleusRH.Base.Organizacion.Empresas.EMPRESA\') as SEC,
+	ORG03_EMPRESAS
+JOIN
+	emp.c_empresa inner ORG03_EMPRESAS.c_empresa,
+	ORG03_EMPRESAS.oi_empresa left outer SEC.Id
+where emp.oi_empresa_ddo={#SOURCE:/@oi_empresa_ddo}
+					')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:attribute value="''" name="hts:delete"/>
+					<qry:attribute value="#SOURCE:@c_empresa+'-'+$r/@d_empresa" name="text"/>
+				</qry:out>
+			</qry:select>
+		</qry:define>
+	</flow:declare>
+</flow:flow>

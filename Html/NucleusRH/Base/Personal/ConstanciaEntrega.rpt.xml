@@ -1,0 +1,499 @@
+<html:html xmlns:html="nomad_engine.html" xmlns:qry="nomad_engine.qry" xmlns:xsl="http://www.w3.org/1999/XSL/Transform" name="NucleusRH.Base.Personal.ConstanciaEntrega" doc="source">
+	<html:for-each declare="&lt;FILTRO oi_clase_org=&quot;&quot; gcustom=&quot;&quot; oi_empresa=&quot;164&quot; fecha_desde1=&quot;20001116&quot; fecha_hasta1=&quot;20131116&quot; l_uniforme=&quot;1&quot; l_elemento=&quot;1&quot; gpers=&quot;&quot; activos=&quot;1&quot; nombre=&quot;&quot; documento=&quot;&quot; sexo=&quot;&quot; grupo_sanguineo=&quot;&quot; listlegajos=&quot;&quot; oi_indic_activo=&quot;&quot; egresado=&quot;&quot; oi_forma_pago=&quot;&quot; oi_tipo_personal=&quot;&quot; fecha_desde=&quot;&quot; fecha_hasta=&quot;&quot; oi_centro_costo=&quot;&quot; oi_convenio=&quot;&quot; soloconvenio=&quot;&quot; oi_categoria=&quot;&quot; oi_ubicacion_desde=&quot;&quot; oi_ubicacion_hasta=&quot;&quot; oi_estructura=&quot;&quot; escructura_childs=&quot;&quot; oi_contrato=&quot;&quot; oi_afjp=&quot;&quot; oi_obra_social=&quot;&quot; oi_sindicato=&quot;&quot; legID=&quot;&quot; leg_where=&quot;&quot;&gt;&#13;&#10;&#9;&lt;PERSONAS&gt;&#13;&#10;&#9;&#9;&lt;ROW VALUES=&quot;11471,11497,11498,11499,11500,11501,11503,11505,11506,11509,11464,11511,11513,11514,11554,11470,11510&quot;/&gt;&#13;&#10;&#9;&lt;/PERSONAS&gt;&#13;&#10;&lt;/FILTRO&gt;">
+		<qry:main doc="PARAM">
+			<REP>
+				<qry:append-doc name="FILTRO" doc-path="#PARAM:/FILTRO"/>
+				<qry:insert-select name="QRY_PERSONAS" doc-path="#PARAM:/FILTRO/PERSONAS"/>
+			</REP>
+		</qry:main>
+		<qry:select doc="PARAM" name="QRY_PERSONAS">
+			<qry:xquery>
+				for $r in #PARAM:ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:call>
+					<FILTRO>
+						<qry:attribute value="$r/@VALUES" name="VALUES"/>
+						<qry:attribute value="#FILTRO:@fecha_desde1" name="fecha_desde1"/>
+						<qry:attribute value="#FILTRO:@fecha_hasta1" name="fecha_hasta1"/>
+						<qry:attribute value="#FILTRO:@l_uniforme" name="l_uniforme"/>
+						<qry:attribute value="#FILTRO:@l_elemento" name="l_elemento"/>
+					</FILTRO>
+				</qry:call>
+			</qry:out>
+		</qry:select>
+	</html:for-each>
+	<html:query declare="&lt;FILTRO l_elemento=&quot;0&quot; l_uniforme=&quot;0&quot; VALUES=&quot;413&quot;/&gt;">
+		<qry:main doc="PARAM">
+			<qry:no-show>
+				<qry:append-doc name="F" doc-path="#PARAM:/FILTRO"/>
+				<qry:append-doc name="LEG" doc-path="."/>
+				<qry:insert-select doc-path="#PARAM:/FILTRO" name="QRY_EMPRESA"/>
+				<qry:insert-select doc-path="#PARAM:/FILTRO" name="QRY_DATOS"/>
+			</qry:no-show>
+		</qry:main>
+		<qry:select name="QRY_EMPRESA" doc="PARAM">
+			<qry:xquery>
+				for $r in sql('
+				SELECT
+					PER02.e_numero_legajo as leg,
+					PER02.oi_personal_emp,
+				  EMP.c_empresa, 
+				  EMP.d_empresa,
+					PER01.d_ape_y_nom
+				FROM 
+					ORG03_EMPRESAS AS EMP,
+					PER02_PERSONAL_EMP AS PER02,
+					PER01_PERSONAL AS PER01
+				JOIN
+					EMP.oi_empresa INNER PER02.oi_empresa,  
+					PER02.oi_personal INNER PER01.oi_personal
+				WHERE
+					PER02.oi_personal_emp in ({%=#PARAM:@VALUES%})
+				ORDER BY 
+					c_empresa ASC, 
+					leg asc
+			')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:element name="EMP">
+					<qry:attribute name="empresa" value="$r/@d_empresa"/>
+					<qry:attribute name="legajo" value="$r/@leg"/>
+					<qry:attribute name="ape_y_nom" value="$r/@d_ape_y_nom"/>
+					<qry:attribute name="oi_personal_emp" value="$r/@oi_personal_emp"/>
+					<qry:attribute name="hts:delete" value="1"/>
+				</qry:element>
+			</qry:out>
+		</qry:select>
+		<qry:select name="QRY_DATOS" doc="PARAM">
+			<qry:xquery>
+				for $r in sql('
+			{%? (string(#PARAM:@l_uniforme)='1' AND string(#PARAM:@l_elemento)!='1') 
+	 			{%
+				SELECT
+					PER02.e_numero_legajo as leg,
+					PER02.oi_personal_emp,
+				  EMP1.c_empresa, 
+				  EMP1.d_empresa,
+					PER01.d_ape_y_nom,
+					UNIF_PER.f_desde as f_entrega,
+					UNIF.d_uniforme as uni_ele,
+					ME.d_mot_entrega as mot_ent,
+					UNIF_PER.e_cantidad as cant
+				FROM 
+					ORG03_EMPRESAS AS EMP1,
+					PER02_PERSONAL_EMP AS PER02,
+					PER02_UNIF_PER AS UNIF_PER,
+					ORG16_UNIFORMES AS UNIF,
+					PER01_PERSONAL AS PER01,
+					PER37_MOT_ENTREGA as ME
+				JOIN
+					EMP1.oi_empresa INNER PER02.oi_empresa,  
+					PER02.oi_personal INNER PER01.oi_personal,
+					PER02.oi_personal_emp INNER UNIF_PER.oi_personal_emp,
+					UNIF_PER.oi_uniforme INNER UNIF.oi_uniforme,
+					UNIF_PER.oi_mot_entrega LEFT OUTER ME.oi_mot_entrega 
+				WHERE
+					PER02.oi_personal_emp in ({%=#PARAM:@VALUES%})
+					{%?($PARAM/@fecha_desde1 !=''){% and UNIF_PER.f_desde &gt;= {$PARAM/@fecha_desde1} %}{% %}%}                         
+				  {%?($PARAM/@fecha_hasta1 !=''){% and UNIF_PER.f_desde &lt;= {$PARAM/@fecha_hasta1} %}{% %}%}   
+				ORDER BY 
+					uni_ele ASC,
+					f_entrega ASC
+	 			%} 
+				{%  %} 
+			%}
+		 	{%? (string(#PARAM:@l_elemento)='1' AND string(#PARAM:@l_uniforme)!='1') 
+		 		{% 
+	 			SELECT
+					PEM.e_numero_legajo as leg,
+					PEM.oi_personal_emp,
+					EMP2.c_empresa,
+					EMP2.d_empresa,
+					PER.d_ape_y_nom,
+					EPP.f_entrega as f_entrega,
+					ELE.d_elemento_pp as uni_ele,
+					EPP.c_motivo_entrega as mot_ent,
+					EPP.e_cantidad as cant
+				FROM 
+					ORG03_EMPRESAS AS EMP2,
+					PER02_PERSONAL_EMP AS PEM,
+				  PER01_PERSONAL AS PER,
+					PER02_EPP_PER AS EPP,
+					ORG07_ELEMENTOS_PP AS ELE
+				JOIN
+					EMP2.oi_empresa INNER PEM.oi_empresa,
+					PEM.oi_personal INNER PER.oi_personal,
+					PEM.oi_personal_emp INNER EPP.oi_personal_emp,
+					EPP.oi_elemento_pp INNER ELE.oi_elemento_pp 
+				WHERE
+					PEM.oi_personal_emp in ({%=#PARAM:@values%})
+					{%?($PARAM/@fecha_desde1 !=''){% and  EPP.f_entrega &gt;= {$PARAM/@fecha_desde1} %}{% %}%}                         
+				  {%?($PARAM/@fecha_hasta1 !=''){% and  EPP.f_entrega &lt;= {$PARAM/@fecha_hasta1} %}{% %}%}
+				ORDER BY 
+					uni_ele ASC,
+					f_entrega ASC
+		    %} 
+					{%  %} 
+				%}	
+				{%? ((string(#PARAM:@l_elemento)!='1' and string(#PARAM:@l_uniforme)!='1') OR (string(#PARAM:@l_elemento)='1' and string(#PARAM:@l_uniforme)='1')) 
+					{% 
+					SELECT
+						PER02.e_numero_legajo as leg,
+						PER02.oi_personal_emp,
+					  EMP1.c_empresa, 
+					  EMP1.d_empresa,
+						PER01.d_ape_y_nom,
+						UNIF_PER.f_desde as f_entrega,
+						UNIF.d_uniforme as uni_ele,
+						ME.d_mot_entrega as mot_ent,
+						UNIF_PER.e_cantidad as cant
+					FROM 
+						ORG03_EMPRESAS AS EMP1,
+						PER02_PERSONAL_EMP AS PER02,
+						PER02_UNIF_PER AS UNIF_PER,
+						ORG16_UNIFORMES AS UNIF,
+						PER01_PERSONAL AS PER01,
+						PER37_MOT_ENTREGA as ME
+					JOIN
+						EMP1.oi_empresa INNER PER02.oi_empresa,  
+						PER02.oi_personal INNER PER01.oi_personal,
+						PER02.oi_personal_emp INNER UNIF_PER.oi_personal_emp,
+						UNIF_PER.oi_uniforme INNER UNIF.oi_uniforme,
+						UNIF_PER.oi_mot_entrega LEFT OUTER ME.oi_mot_entrega 
+					WHERE
+						PER02.oi_personal_emp in ({%=#PARAM:@VALUES%})
+					  {%?($PARAM/@fecha_desde1 !=''){% and UNIF_PER.f_desde &gt;= {$PARAM/@fecha_desde1} %}{% %}%}                         
+					  {%?($PARAM/@fecha_hasta1 !=''){% and UNIF_PER.f_desde &lt;= {$PARAM/@fecha_hasta1} %}{% %}%}   
+					UNION
+					SELECT
+						PEM.e_numero_legajo as leg,
+						PEM.oi_personal_emp,
+						EMP2.c_empresa,
+						EMP2.d_empresa,
+						PER.d_ape_y_nom,
+						EPP.f_entrega as f_entrega,
+						ELE.d_elemento_pp as uni_ele,
+						EPP.c_motivo_entrega as mot_ent,
+						EPP.e_cantidad as cant
+					FROM 
+						ORG03_EMPRESAS AS EMP2,
+						PER02_PERSONAL_EMP AS PEM,
+					  PER01_PERSONAL AS PER,
+						PER02_EPP_PER AS EPP,
+						ORG07_ELEMENTOS_PP AS ELE
+					JOIN
+						EMP2.oi_empresa INNER PEM.oi_empresa,
+						PEM.oi_personal INNER PER.oi_personal,
+						PEM.oi_personal_emp INNER EPP.oi_personal_emp,
+						EPP.oi_elemento_pp INNER ELE.oi_elemento_pp 
+					WHERE
+						PEM.oi_personal_emp in ({%=#PARAM:@values%})
+						{%?($PARAM/@fecha_desde1 !=''){% and  EPP.f_entrega &gt;= {$PARAM/@fecha_desde1} %}{% %}%}                         
+					  {%?($PARAM/@fecha_hasta1 !=''){% and  EPP.f_entrega &lt;= {$PARAM/@fecha_hasta1} %}{% %}%}
+					ORDER BY 
+						uni_ele ASC,
+						f_entrega ASC
+			    %} 
+					{%  %} 
+					%}
+			')/ROWS/ROW,
+			$s in $LEG/EMP
+			join $r/@oi_personal_emp inner $s/@oi_personal_emp
+			</qry:xquery>
+			<qry:out>
+				<qry:insert-select name="pegar_fks_leg" doc-path="$r" to-element="$s"/>
+			</qry:out>
+		</qry:select>
+		<qry:select name="pegar_fks_leg" doc="PARAM">
+			<qry:out>
+				<qry:element name="DATOS">
+					<qry:attribute name="f_entrega" value="format_date($PARAM/@f_entrega,'dd/mm/yyyy')"/>
+					<qry:attribute name="uni_ele" value="$PARAM/@uni_ele"/>
+					<qry:attribute name="mot_ent" value="$PARAM/@mot_ent"/>
+					<qry:switch test="$PARAM/@mot_ent">
+						<qry:case value="EA">
+							<qry:attribute name="mot_ent" value="'Entrega Anual'"/>
+						</qry:case>
+						<qry:case value="RO">
+							<qry:attribute name="mot_ent" value="'Rotura'"/>
+						</qry:case>
+						<qry:case value="PE">
+							<qry:attribute name="mot_ent" value="'P&#233;rdida'"/>
+						</qry:case>
+						<qry:case value="RB">
+							<qry:attribute name="mot_ent" value="'Robo'"/>
+						</qry:case>
+					</qry:switch>
+					<qry:attribute name="cant" value="$PARAM/@cant"/>
+				</qry:element>
+				<qry:attribute name="hts:delete" value="''"/>
+			</qry:out>
+		</qry:select>
+	</html:query>
+	<html:xslt>
+		<xsl:template match="REP">
+			<html>
+				<head>
+					<meta http-equiv="Content-Type" content="text/html; charset=utf-8"/>
+					<style media="screen">
+						body {
+          font-family:verdana;
+          font-weight:normal;
+          background-color:#B0B0B0;
+          font-size:12px;
+          width:100%;
+          margin:30px;}
+
+          .title {
+          font-size:15px;
+          font-weight:bold;}
+
+          .table_table_style {
+          border: none;
+          border-collapse: collapse;
+          background-color:#FFFFFF;
+          font-size: 11px;
+          font-family: verdana;
+          width:100%;}
+
+          .table_title_style {
+          border:none;
+          font-family:verdana;
+          background-color:#FFFFFF;
+          font-size:12px;
+          font-weight:normal;
+          width:100%;}
+
+          .group_td {
+          padding-left:30px; }
+
+          .coll_img {
+          padding:0px; margin:0px;
+          font-weight:bold;
+          text-align:center;
+          cursor:pointer;
+          border:1px solid black;
+          font-size:8px;
+          width:12px;
+          height:12px;}
+
+          .table_span_style {
+          font-weight:bold;
+
+          }
+
+          tfoot {
+          font-weight:bold;
+          }
+
+          .stitle {
+          width:100%;
+          background-color:#FFFFFF;
+          }
+          
+          .divmarco {
+          border:solid 1px #555555;
+          border-top:solid 2px #555555;
+          border-right:solid 8px #555555;
+          background-color:white;
+          margin:0px; 
+          padding:20px;
+          width:100%;
+          height:100%}
+ 
+          .scontent {
+          width:100%;
+          aheight:100%;
+          background-color:#FFFFFF; }
+					</style>
+					<style media="print">
+						body {
+					font-family:verdana;
+					font-weight:normal; 
+					background-color:white; 
+					font-size:8pt;
+					width:20cm;}
+					
+					.titulo {
+					font-size:11pt;
+					font-weight:bold;}
+					
+					.table_table_style {
+					border: none; 
+					border-collapse: collapse; 
+					font-size: 8pt; 
+					font-family: verdana;
+					width:100%;}
+					
+					.table_title_style {
+					border:none; 
+					font-family:verdana;
+					font-size:9pt;
+					font-weight:normal;
+					width:100%;}
+					
+					.table_span_style {
+					font-weight:bold;
+					}
+					
+					.group_td {
+					padding-left:30px; }
+					
+					.coll_img {
+					display:none;}
+					
+					.stitle {
+					background-color:#FFFFFF; 
+					border:none;}
+					
+					.scontent {
+					background-color:#FFFFFF; 
+					border:none;}
+					</style>
+					<style media="all">
+						.table_table_style td {
+					border: solid 1px black; 
+					padding-left: 3px; 
+					padding-right: 3px;
+					text-align: left;}
+					
+					.table_table_style td#num{
+					mso-number-format:0.00;
+					text-align:right;}
+					
+					.table_table_style th {
+					border:solid 1px black;
+					background-color:#BBBBBB; 
+					border-bottom:solid 2px black;
+					padding-left: 3px; 
+					padding-right: 3px;
+					text-align: center;}
+					
+					.table_title_style span#label {
+					font-weight: bold; }
+					</style>
+				</head>
+				<body bgcolor="#F6F6F1">
+					<div class="divmarco">
+						<xsl:apply-templates select="EMP"/>
+					</div>
+				</body>
+			</html>
+		</xsl:template>
+		<xsl:template match="EMP">
+			<table border="0">
+				<xsl:if test="position() != last()">
+					<xsl:attribute name="style">
+						<xsl:value-of select="'page-break-after: always;'"/>
+					</xsl:attribute>
+				</xsl:if>
+				<tr>
+					<td>
+						<table width="90%" class="stitle" border="0">
+							<tr>
+								<th>
+									<span style="font-weight:bold;">
+										<a>
+											CONSTANCIA DE ENTREGA DE ROPA DE TRABAJO Y ELEMENTOS DE PROTECCI&#211;N PERSONAL
+										</a>
+									</span>
+								</th>
+							</tr>
+							<tr>
+								<th>
+									<br/>
+								</th>
+							</tr>
+						</table>
+						<table class="table_title_style" border="0">
+							<thead style="display: table-header-group;">
+								<tr valign="top">
+									<td>
+										<b>
+											Empresa:&#160;
+										</b>
+										<xsl:value-of select="@empresa"/>
+										<br/>
+									</td>
+								</tr>
+								<tr valign="top">
+									<td>
+										<b>
+											Legajo:&#160;
+										</b>
+										<xsl:value-of select="@legajo"/>
+										<br/>
+									</td>
+								</tr>
+								<tr valign="top">
+									<td>
+										<b>
+											Apellido y Nombre:&#160;
+										</b>
+										<xsl:value-of select="@ape_y_nom"/>
+										<br/>
+									</td>
+								</tr>
+							</thead>
+						</table>
+						<br/>
+						<br/>
+						<table VALIGN="top" class="table_table_style" cellspacing="0" cellpadding="0" border="0" style="width:80%">
+							<thead style="display: table-header-group;">
+								<span class="table_span_style"/>
+								<tr>
+									<th style="width:30%;text-align:center">
+										Elemento / Uniforme
+									</th>
+									<th style="width:10%;text-align:center">
+										Fecha de Entrega
+									</th>
+									<th style="width:10%;text-align:center">
+										Cantidad
+									</th>
+									<th style="width:20%;text-align:center">
+										Motivo de Entrega
+									</th>
+								</tr>
+							</thead>
+							<tbody>
+								<xsl:apply-templates select="DATOS"/>
+							</tbody>
+						</table>
+						<table class="table_title_style" border="0" cellspacing="120">
+							<thead style="display: table-header-group;">
+								<tr>
+									<td/>
+									<td style="text-align:center;"/>
+								</tr>
+								<tr>
+									<td/>
+									<td style="text-align:center;border-top:1px dotted black;">
+										Firma Empleado
+									</td>
+								</tr>
+							</thead>
+						</table>
+					</td>
+				</tr>
+			</table>
+		</xsl:template>
+		<xsl:template match="DATOS">
+			<tr>
+				<td style="width:20%;text-align:left">
+					<xsl:value-of select="@uni_ele"/>
+				</td>
+				<td style="width:10%;text-align:center">
+					<xsl:value-of select="@f_entrega"/>
+				</td>
+				<td style="width:10%;text-align:center">
+					<xsl:value-of select="@cant"/>
+				</td>
+				<td style="width:20%;text-align:left">
+					<xsl:value-of select="@mot_ent"/>
+				</td>
+			</tr>
+		</xsl:template>
+	</html:xslt>
+</html:html>

@@ -1,0 +1,86 @@
+<INTERFACE-DEF xmlns:qry="nomad_engine.qry" desc="" entermode="DOS" finalenter="1">
+	<QUERY declare="&lt;DATA empresa=&quot;164&quot; e_periodo=&quot;200903&quot; interface=&quot;CON&quot;&gt;&lt;ROWS nmd-col=&quot;1&quot; /&gt;&lt;/DATA&gt;">
+		<qry:main doc="SOURCE">
+			<qry:element name="DATA">
+				<qry:element name="DETAILS">
+					<qry:insert-select name="qry1" doc-path="#SOURCE:/DATA"/>
+				</qry:element>
+			</qry:element>
+		</qry:main>
+		<qry:select name="qry1" doc="SOURCE">
+			<qry:xquery>
+				for $r in SQL(' 
+SELECT
+	LIQ97_PERSONAL_EMP.e_numero_legajo,
+	LIQ96_CONCEPTOS.c_concepto,
+	LIQ20_CONC_LIQ_PER.n_cantidad,
+	LIQ20_CONC_LIQ_PER.n_valor
+FROM
+	LIQ19_LIQUIDACION, ORG03_EMPRESAS, LIQ99_LIQUIDACION, 
+	LIQ99_RECIBOS, LIQ20_TOT_LIQ_PER, LIQ97_PERSONAL_EMP, 
+	LIQ20_CONC_LIQ_PER, LIQ96_CONCEPTOS
+JOIN
+	LIQ19_LIQUIDACION.c_liquidacion INNER LIQ99_LIQUIDACION.c_liquidacion,
+	LIQ19_LIQUIDACION.oi_empresa INNER ORG03_EMPRESAS.oi_empresa,
+	ORG03_EMPRESAS.c_empresa INNER LIQ99_LIQUIDACION.c_empresa,
+	LIQ99_LIQUIDACION.oi_liquidacion_ddo INNER LIQ99_RECIBOS.oi_liquidacion_ddo,
+	LIQ99_RECIBOS.oi_tot_liq_per INNER LIQ20_TOT_LIQ_PER.oi_tot_liq_per,
+	LIQ20_TOT_LIQ_PER.oi_per_emp_ddo INNER LIQ97_PERSONAL_EMP.oi_per_emp_ddo,
+	LIQ20_TOT_LIQ_PER.oi_tot_liq_per INNER LIQ20_CONC_LIQ_PER.oi_tot_liq_per,
+	LIQ20_CONC_LIQ_PER.oi_concepto_ddo INNER LIQ96_CONCEPTOS.oi_concepto_ddo
+WHERE	
+	LIQ96_CONCEPTOS.c_tipo_concepto IN (0,1,2,3,7,8) AND
+	LIQ99_LIQUIDACION.c_estado = \'F\' AND
+	LIQ20_CONC_LIQ_PER.n_valor != 0 AND	
+	ORG03_EMPRESAS.oi_empresa = {#SOURCE:@empresa} AND
+	LIQ99_LIQUIDACION.e_periodo = {#SOURCE:@e_periodo}
+	{%?(string(#SOURCE:ROWS/ROW/@id)!='') {% AND LIQ19_LIQUIDACION.oi_liquidacion IN ({%=string(#SOURCE:ROWS/ROW/@id)%}) %}{% %} %}
+
+UNION
+
+SELECT
+	LIQ97_PERSONAL_EMP.e_numero_legajo,
+	\'0\' as c_concepto,
+	\'0\' as n_cantidad,
+	LIQ20_TOT_LIQ_PER.n_totpag as n_valor
+FROM
+	LIQ19_LIQUIDACION, 
+	ORG03_EMPRESAS, 
+	LIQ99_LIQUIDACION, 
+	LIQ99_RECIBOS, 
+	LIQ20_TOT_LIQ_PER, 
+	LIQ97_PERSONAL_EMP
+JOIN
+	LIQ19_LIQUIDACION.c_liquidacion INNER LIQ99_LIQUIDACION.c_liquidacion,
+	LIQ19_LIQUIDACION.oi_empresa INNER ORG03_EMPRESAS.oi_empresa,
+	ORG03_EMPRESAS.c_empresa INNER LIQ99_LIQUIDACION.c_empresa,
+	LIQ99_LIQUIDACION.oi_liquidacion_ddo INNER LIQ99_RECIBOS.oi_liquidacion_ddo,
+	LIQ99_RECIBOS.oi_tot_liq_per INNER LIQ20_TOT_LIQ_PER.oi_tot_liq_per,
+	LIQ20_TOT_LIQ_PER.oi_per_emp_ddo INNER LIQ97_PERSONAL_EMP.oi_per_emp_ddo
+WHERE		
+	LIQ99_LIQUIDACION.c_estado = \'F\' AND
+	ORG03_EMPRESAS.oi_empresa = {#SOURCE:@empresa} AND
+	LIQ99_LIQUIDACION.e_periodo = {#SOURCE:@e_periodo}
+	{%?(string(#SOURCE:ROWS/ROW/@id)!='') {% AND LIQ19_LIQUIDACION.oi_liquidacion IN ({%=string(#SOURCE:ROWS/ROW/@id)%}) %}{% %} %}
+
+ORDER BY
+	e_numero_legajo ASC, c_concepto ASC		 													
+						')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:element name="DETAIL">
+					<qry:attribute name="e_numero_legajo" value="$r/@e_numero_legajo"/>
+					<qry:attribute name="c_concepto" value="$r/@c_concepto"/>
+					<qry:attribute name="n_cantidad" value="FORMAT_NUMBER($r/@n_cantidad, 1, 2, '.', '', '0')"/>
+					<qry:attribute name="n_valor" value="FORMAT_NUMBER($r/@n_valor, 10, 2, '.', '', '0')"/>
+				</qry:element>
+			</qry:out>
+		</qry:select>
+	</QUERY>
+	<DETAIL>
+		{e_numero_legajo},{c_concepto},{n_cantidad},{n_valor}
+	</DETAIL>
+	<MESS>
+		<EMPTY mess="No se encontraron registros. Verifique que haya recibos liquidados para los filtros ingresados."/>
+	</MESS>
+</INTERFACE-DEF>

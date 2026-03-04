@@ -1,0 +1,440 @@
+<qry:define declare="&lt;FILTRO c_estado=&quot;&quot; f_desde=&quot;&quot; f_hasta=&quot;&quot; oi_empresa=&quot;&quot; oi_clase_org=&quot;5&quot; oi_localidad=&quot;&quot; oi_convenio=&quot;&quot; oi_categoria=&quot;&quot;&gt;&#13;&#10;&#9;&lt;PERSONAS /&gt;&#13;&#10;&#9;&lt;ESTRUCTURAS /&gt;&#13;&#10;&#9;&lt;TIPOHORAS/&gt;&#13;&#10;&lt;/FILTRO&gt;" xmlns:qry="XXX" name="FORMS">
+	<qry:main doc="PARAM" xmlns:qry="XXX">
+		<qry:append-doc name="FILTRO" doc-path="#PARAM:/FILTRO"/>
+		<qry:element name="NOVEDADESLICENCIAS">
+			<qry:element name="CLASES">
+				<qry:insert-select name="QRY_CLASE_PADRE" doc-path="#FILTRO:"/>
+			</qry:element>
+			<qry:append-doc name="ORGANIGRAMAS" doc-path="."/>
+			<qry:attribute value="'No'" name="personas" type="Nomad.NSystem.String"/>
+			<qry:attribute value="'No'" name="estructuras" type="Nomad.NSystem.String"/>
+			<qry:attribute value="'No'" name="tipohoras" type="Nomad.NSystem.String"/>
+			<qry:attribute value="'-'" name="empresa" type="Nomad.NSystem.String"/>
+			<qry:attribute value="'-'" name="localidad" type="Nomad.NSystem.String"/>
+			<qry:attribute value="'-'" name="convenio" type="Nomad.NSystem.String"/>
+			<qry:attribute value="'-'" name="categoria" type="Nomad.NSystem.String"/>
+			<qry:attribute value="'-'" name="estado" type="Nomad.NSystem.String"/>
+			<qry:attribute value="iif(#FILTRO:@f_desde='', '-', format_date(#FILTRO:@f_desde,'dd/mm/yyyy'))" name="f_desde"/>
+			<qry:attribute value="iif(#FILTRO:@f_hasta='', '-', format_date(#FILTRO:@f_hasta,'dd/mm/yyyy'))" name="f_hasta"/>
+			<qry:attribute value="./@f_desde + ' - ' + ./@f_hasta" name="f_desde_hasta"/>
+			<qry:attribute value="format_date(now(),'dd/mm/yyyy HH:MM:SS')" name="f_informe"/>
+			<qry:insert-select doc-path="#FILTRO:" name="QRY_PARAM_CLASE"/>
+			<qry:insert-select doc-path="#FILTRO:" name="QRY_PARAM_PERSONAS"/>
+			<qry:insert-select doc-path="#FILTRO:" name="QRY_PARAM_TIPOHORAS"/>
+			<qry:insert-select doc-path="#FILTRO:" name="QRY_PARAM_ESTR"/>
+			<qry:insert-select doc-path="#FILTRO:/.[#FILTRO:@oi_empresa!='']" name="QRY_PARAM_EMPRESA"/>
+			<qry:insert-select doc-path="#FILTRO:/.[#FILTRO:@oi_localidad!='']" name="QRY_PARAM_LOCALIDAD"/>
+			<qry:insert-select doc-path="#FILTRO:/.[#FILTRO:@oi_convenio!='']" name="QRY_PARAM_CONVENIO"/>
+			<qry:insert-select doc-path="#FILTRO:/.[#FILTRO:@oi_categoria!='']" name="QRY_PARAM_CATEGORIA"/>
+			<qry:insert-select doc-path="#FILTRO:/.[#FILTRO:@c_estado = 'A']" name="QRY_ACEPTADA"/>
+			<qry:insert-select doc-path="#FILTRO:/.[#FILTRO:@c_estado = 'R']" name="QRY_RECHAZADA"/>
+			<qry:insert-select doc-path="#FILTRO:/.[#FILTRO:@c_estado = 'P']" name="QRY_PENDIENTE"/>
+			<qry:element name="LEGAJOS">
+				<qry:attribute value="'0'" name="cant"/>
+				<qry:insert-select doc-path="#FILTRO:" name="QRY_NOVEDADES"/>
+				<qry:insert-select doc-path="#FILTRO:" name="QRY_LICENCIAS"/>
+				<qry:insert-select doc-path=".[./@cant='0']" name="QRY_VACIO"/>
+			</qry:element>
+		</qry:element>
+	</qry:main>
+	<qry:select xmlns:qry="XXX" doc="PARAM" name="QRY_PARAM_CLASE">
+		<qry:xquery>
+			for $r in sql('
+				SELECT ORG02_CLASES_ORG.c_clase_org, ORG02_CLASES_ORG.d_clase_org
+				FROM ORG02_CLASES_ORG
+				WHERE ORG02_CLASES_ORG.oi_clase_org = {#PARAM:@oi_clase_org}
+			')/ROWS/ROW
+		</qry:xquery>
+		<qry:out>
+			<qry:attribute value="$r/@c_clase_org + ' - ' + $r/@d_clase_org" name="clase_org" type="Nomad.NSystem.String"/>
+		</qry:out>
+	</qry:select>
+	<qry:select xmlns:qry="XXX" doc="PARAM" name="QRY_PARAM_PERSONAS">
+		<qry:xquery>
+			for $r in #FILTRO:PERSONAS/PERSONA
+		</qry:xquery>
+		<qry:out>
+			<qry:attribute value="'Si'" name="personas" type="Nomad.NSystem.String"/>
+		</qry:out>
+	</qry:select>
+	<qry:select xmlns:qry="XXX" doc="PARAM" name="QRY_PARAM_TIPOHORAS">
+		<qry:xquery>
+			for $r in #FILTRO:TIPOHORAS/TIPOHORA
+		</qry:xquery>
+		<qry:out>
+			<qry:attribute value="'Si'" name="tipohoras" type="Nomad.NSystem.String"/>
+		</qry:out>
+	</qry:select>
+	<qry:select xmlns:qry="XXX" doc="PARAM" name="QRY_PARAM_ESTR">
+		<qry:xquery>
+			for $r in #FILTRO:ESTRUCTURAS/ESTRUCTURA
+		</qry:xquery>
+		<qry:out>
+			<qry:attribute value="'Si'" name="estructuras" type="Nomad.NSystem.String"/>
+		</qry:out>
+	</qry:select>
+	<qry:select doc="PARAM" name="QRY_PARAM_EMPRESA">
+		<qry:xquery>
+			for $r in sql('
+						SELECT ORG03_EMPRESAS.c_empresa, ORG03_EMPRESAS.d_empresa
+						FROM ORG03_EMPRESAS
+						WHERE ORG03_EMPRESAS.oi_empresa = {#PARAM:@oi_empresa}					
+					')/ROWS/ROW
+		</qry:xquery>
+		<qry:out>
+			<qry:attribute type="Nomad.NSystem.String" value="$r/@c_empresa + ' - ' + $r/@d_empresa" name="empresa"/>
+		</qry:out>
+	</qry:select>
+	<qry:select doc="PARAM" name="QRY_PARAM_LOCALIDAD">
+		<qry:xquery>
+			for $r in sql('
+					SELECT ORG19_LOCALIDADES.c_localidad, 
+					ORG19_LOCALIDADES.d_localidad
+					FROM ORG19_LOCALIDADES
+					WHERE ORG19_LOCALIDADES.oi_localidad = {#FILTRO:@oi_localidad}					
+			')/ROWS/ROW
+		</qry:xquery>
+		<qry:out>
+			<qry:attribute type="Nomad.NSystem.String" value="$r/@c_localidad + ' - ' + $r/@d_localidad" name="localidad"/>
+		</qry:out>
+	</qry:select>
+	<qry:select doc="PARAM" name="QRY_PARAM_CATEGORIA">
+		<qry:xquery>
+			for $r in sql('
+				SELECT ORG18_CATEGORIAS.c_categoria, 
+				ORG18_CATEGORIAS.d_categoria
+				FROM ORG18_CATEGORIAS
+				WHERE ORG18_CATEGORIAS.oi_categoria = {#FILTRO:@oi_categoria}					
+		')/ROWS/ROW
+		</qry:xquery>
+		<qry:out>
+			<qry:attribute type="Nomad.NSystem.String" value="$r/@c_categoria + ' - ' + $r/@d_categoria" name="categoria"/>
+		</qry:out>
+	</qry:select>
+	<qry:select doc="PARAM" name="QRY_PARAM_CONVENIO">
+		<qry:xquery>
+			for $r in sql('
+				SELECT ORG18_CONVENIOS.c_convenio, 
+				ORG18_CONVENIOS.d_convenio
+				FROM ORG18_CONVENIOS
+				WHERE ORG18_CONVENIOS.oi_convenio ={#FILTRO:@oi_convenio}					
+		')/ROWS/ROW
+		</qry:xquery>
+		<qry:out>
+			<qry:attribute type="Nomad.NSystem.String" value="$r/@c_convenio + ' - ' + $r/@d_convenio" name="convenio"/>
+		</qry:out>
+	</qry:select>
+	<qry:select xmlns:qry="XXX" doc="PARAM" name="QRY_NOVEDADES">
+		<qry:xquery>
+			for $r in sql('
+			SELECT TTA04_NOVEDADES.oi_novedad,			
+			TTA04_NOVEDADES.d_novedad,			
+			TTA04_NOVEDADES.oi_personal_emp,
+			TTA04_NOVEDADES.oi_tipohora,
+			TTA04_NOVEDADES.f_fecinicio,
+			TTA04_NOVEDADES.f_fecfin,
+			TTA04_NOVEDADES.c_estado,
+			ORG02_ESTRUC_PERS.oi_estructura,
+			PER02_PERSONAL_EMP.e_numero_legajo,
+			PER01_PERSONAL.d_ape_y_nom
+			FROM ORG02_ESTRUC_PERS, PER02_PERSONAL_EMP, PER01_PERSONAL,
+			TTA04_NOVEDADES
+			JOIN ORG02_ESTRUC_PERS.oi_personal_emp INNER PER02_PERSONAL_EMP.oi_personal_emp,
+			PER01_PERSONAL.oi_personal INNER PER02_PERSONAL_EMP.oi_personal,
+			TTA04_NOVEDADES.oi_personal_emp INNER PER02_PERSONAL_EMP.oi_personal_emp
+			WHERE ORG02_ESTRUC_PERS.oi_clase_org in ({%=string(#ORGANIGRAMAS:CLASES/CLASE/@oi_clase_org)%})
+			{%? (#FILTRO:@f_desde != '') 
+				{% AND (TTA04_NOVEDADES.f_fecinicio &gt;= {DateTime(#FILTRO:@f_desde)} 
+					 OR TTA04_NOVEDADES.f_fecfin &gt;= {DateTime(#FILTRO:@f_desde)})
+				%} 
+				{%  %}   
+			%}
+			{%? (#FILTRO:@f_hasta != '') 
+				{% AND (TTA04_NOVEDADES.f_fecinicio &lt;= {DateTime(#FILTRO:@f_hasta)} 
+					 OR TTA04_NOVEDADES.f_fecfin &lt;= {DateTime(#FILTRO:@f_hasta)})
+				%} 
+				{%  %}   
+			%}
+		  {%? (#FILTRO:@oi_empresa!='') 
+				{% AND PER02_PERSONAL_EMP.oi_empresa={#FILTRO:@oi_empresa} %} 
+				{% %} 
+			%}
+			{%? (#FILTRO:@c_estado!='') 
+				{% AND TTA04_NOVEDADES.c_estado={#FILTRO:@c_estado} %} 
+				{% %} 
+			%}
+		  {%? (#FILTRO:@oi_localidad!='') 
+				{% AND PER01_PERSONAL.oi_localidad={#FILTRO:@oi_localidad} %} 
+				{% %} 
+			%}
+			{%? (#FILTRO:@oi_categoria!='') 
+				{% AND PER02_PERSONAL_EMP.oi_categoria_ult={#FILTRO:@oi_categoria} %} 
+				{% %} 
+			%}
+		  {%? (string(#FILTRO:ESTRUCTURAS/ESTRUCTURA/@id)!='') 
+				{% AND ORG02_ESTRUC_PERS.oi_estructura in ({%=string(#FILTRO:ESTRUCTURAS/ESTRUCTURA/@id)%}) %} 
+				{%  %} 
+			%}
+			{%? (string(#FILTRO:PERSONAS/PERSONA/@id)!='') 
+				{% AND PER02_PERSONAL_EMP.oi_personal_emp in ({%=string(#FILTRO:PERSONAS/PERSONA/@id)%}) %} 
+				{%  %} 
+			%}
+			{%? (string(#FILTRO:TIPOHORAS/TIPOHORA/@id)!='') 
+				{% AND TTA04_NOVEDADES.oi_tipohora in ({%=string(#FILTRO:TIPOHORAS/TIPOHORA/@id)%}) %} 
+				{%  %} 
+			%}
+			{%? (#FILTRO:@oi_convenio!='') 
+				{% AND PER02_PERSONAL_EMP.oi_categoria_ult in
+					(SELECT ORG18_CATEGORIAS.oi_categoria
+					FROM ORG18_CATEGORIAS
+					WHERE ORG18_CATEGORIAS.oi_convenio = {%=#FILTRO:@oi_convenio%}) 
+				%} 
+				{% %} 
+			%}  
+			ORDER BY oi_estructura ASC, e_numero_legajo ASC 
+		')/ROWS/ROW
+		</qry:xquery>
+		<qry:out>
+			<qry:element name="LEGAJO">
+				<qry:attribute value="'Novedades:'" name="tipo"/>
+				<qry:attribute value="$r/@oi_novedad" name="oi_novedad"/>
+				<qry:attribute value="$r/@d_novedad" name="descripcion"/>
+				<qry:attribute value="$r/@oi_personal_emp" name="oi_personal_emp"/>
+				<qry:attribute value="$r/@oi_tipohora" name="oi_tipohora"/>
+				<qry:attribute value="$r/@oi_estructura" name="oi_estructura"/>
+				<qry:attribute value="$r/@e_numero_legajo + ' - ' + $r/@d_ape_y_nom" name="personal"/>
+				<qry:attribute value="format_date($r/@f_fecinicio,'dd/mm/yyyy HH:MM')" name="f_inicio"/>
+				<qry:attribute value="format_date($r/@f_fecfin,'dd/mm/yyyy HH:MM')" name="f_fin"/>
+				<qry:insert-select doc-path="$r" name="QRY_TIPO_HORA"/>
+				<qry:insert-select doc-path="$r" name="QRY_ESTRUCTURA"/>
+				<qry:insert-select doc-path="$r" name="SECURITY"/>
+				<qry:insert-select doc-path="$r/.[$r/@c_estado = 'A']" name="QRY_ACEPTADA"/>
+				<qry:insert-select doc-path="$r/.[$r/@c_estado = 'R']" name="QRY_RECHAZADA"/>
+				<qry:insert-select doc-path="$r/.[$r/@c_estado = 'P']" name="QRY_PENDIENTE"/>
+			</qry:element>
+			<qry:attribute value="'1'" name="cant"/>
+		</qry:out>
+	</qry:select>
+	<qry:select xmlns:qry="XXX" doc="PARAM" name="QRY_LICENCIAS">
+		<qry:xquery>
+			for $r in sql('
+			SELECT TTA04_LICEN_PER.oi_licencia_per,
+			TTA04_LICEN_PER.oi_personal_emp, 
+			TTA04_LICEN_PER.c_estado,
+			PER02_LICEN_PER.f_inicio,
+			PER02_LICEN_PER.f_fin,
+			PER16_LICENCIAS.oi_licencia,
+			PER16_LICENCIAS.c_licencia,
+			PER16_LICENCIAS.d_licencia,
+			TTA01_TIPOHORAS.oi_tipohora,
+			ORG02_ESTRUC_PERS.oi_estructura,
+			PER02_PERSONAL_EMP.e_numero_legajo,
+			PER01_PERSONAL.d_ape_y_nom			
+			FROM ORG02_ESTRUC_PERS, PER02_PERSONAL_EMP, PER01_PERSONAL,
+			TTA04_LICEN_PER, PER02_LICEN_PER,
+			PER16_LICENCIAS, TTA01_TIPOHORAS
+			JOIN TTA04_LICEN_PER.oi_licencia_per INNER  PER02_LICEN_PER.oi_licencia_per,
+			PER02_LICEN_PER.oi_licencia INNER PER16_LICENCIAS.oi_licencia,
+			PER16_LICENCIAS.oi_licencia INNER TTA01_TIPOHORAS.oi_licencia,			
+			ORG02_ESTRUC_PERS.oi_personal_emp INNER PER02_PERSONAL_EMP.oi_personal_emp,
+			PER01_PERSONAL.oi_personal INNER PER02_PERSONAL_EMP.oi_personal,
+			TTA04_LICEN_PER.oi_personal_emp INNER PER02_PERSONAL_EMP.oi_personal_emp
+			WHERE ORG02_ESTRUC_PERS.oi_clase_org in ({%=string(#ORGANIGRAMAS:CLASES/CLASE/@oi_clase_org)%})
+			{%? (#FILTRO:@f_desde != '') 
+				{% AND (PER02_LICEN_PER.f_inicio &gt;= {DateTime(#FILTRO:@f_desde)} 
+					 OR PER02_LICEN_PER.f_fin &gt;= {DateTime(#FILTRO:@f_desde)})
+				%} 
+				{%  %}   
+			%}
+			{%? (#FILTRO:@f_hasta != '') 
+				{% AND (PER02_LICEN_PER.f_inicio &lt;= {DateTime(#FILTRO:@f_hasta)} 
+					 OR PER02_LICEN_PER.f_fin &lt;= {DateTime(#FILTRO:@f_hasta)})
+				%} 
+				{%  %}   
+			%}
+		  {%? (#FILTRO:@oi_empresa!='') 
+				{% AND PER02_PERSONAL_EMP.oi_empresa={#FILTRO:@oi_empresa} %} 
+				{% %} 
+			%}
+			{%? (#FILTRO:@c_estado!='') 
+				{% AND TTA04_LICEN_PER.c_estado={#FILTRO:@c_estado} %} 
+				{% %} 
+			%}
+		  {%? (#FILTRO:@oi_localidad!='') 
+				{% AND PER01_PERSONAL.oi_localidad={#FILTRO:@oi_localidad} %} 
+				{% %} 
+			%}
+			{%? (#FILTRO:@oi_categoria!='') 
+				{% AND PER02_PERSONAL_EMP.oi_categoria_ult={#FILTRO:@oi_categoria} %} 
+				{% %} 
+			%}
+		  {%? (string(#FILTRO:ESTRUCTURAS/ESTRUCTURA/@id)!='') 
+				{% AND ORG02_ESTRUC_PERS.oi_estructura in ({%=string(#FILTRO:ESTRUCTURAS/ESTRUCTURA/@id)%}) %} 
+				{%  %} 
+			%}
+			{%? (string(#FILTRO:PERSONAS/PERSONA/@id)!='') 
+				{% AND PER02_PERSONAL_EMP.oi_personal_emp in ({%=string(#FILTRO:PERSONAS/PERSONA/@id)%}) %} 
+				{%  %} 
+			%}
+			{%? (string(#FILTRO:TIPOHORAS/TIPOHORA/@id)!='') 
+				{% AND TTA01_TIPOHORAS.oi_tipohora in ({%=string(#FILTRO:TIPOHORAS/TIPOHORA/@id)%}) %} 
+				{%  %} 
+			%}
+			{%? (#FILTRO:@oi_convenio!='') 
+				{% AND PER02_PERSONAL_EMP.oi_categoria_ult in
+					(SELECT ORG18_CATEGORIAS.oi_categoria
+					FROM ORG18_CATEGORIAS
+					WHERE ORG18_CATEGORIAS.oi_convenio = {%=#FILTRO:@oi_convenio%}) 
+				%} 
+				{% %} 
+			%}  
+			ORDER BY oi_estructura ASC, e_numero_legajo ASC 
+		')/ROWS/ROW
+		</qry:xquery>
+		<qry:out>
+			<qry:element name="LEGAJO">
+				<qry:attribute value="'Licencias:'" name="tipo"/>
+				<qry:attribute value="$r/@oi_licencia_per" name="oi_licencia_per"/>
+				<qry:attribute value="$r/@oi_licencia" name="oi_licencia"/>
+				<qry:attribute value="$r/@oi_personal_emp" name="oi_personal_emp"/>
+				<qry:attribute value="$r/@oi_tipohora" name="oi_tipohora"/>
+				<qry:attribute value="$r/@oi_estructura" name="oi_estructura"/>
+				<qry:attribute value="$r/@e_numero_legajo + ' - ' + $r/@d_ape_y_nom" name="personal"/>
+				<qry:attribute value="$r/@c_licencia + ' - ' + $r/@d_licencia" name="descripcion"/>
+				<qry:attribute value="format_date($r/@f_inicio,'dd/mm/yyyy')" name="f_inicio"/>
+				<qry:attribute value="format_date($r/@f_fin,'dd/mm/yyyy')" name="f_fin"/>
+				<qry:insert-select doc-path="$r" name="QRY_TIPO_HORA"/>
+				<qry:insert-select doc-path="$r" name="QRY_ESTRUCTURA"/>
+				<qry:insert-select doc-path="$r" name="SECURITY"/>
+				<qry:insert-select doc-path="$r/.[$r/@c_estado = 'A']" name="QRY_ACEPTADA"/>
+				<qry:insert-select doc-path="$r/.[$r/@c_estado = 'R']" name="QRY_RECHAZADA"/>
+				<qry:insert-select doc-path="$r/.[$r/@c_estado = 'P']" name="QRY_PENDIENTE"/>
+			</qry:element>
+			<qry:attribute value="'1'" name="cant"/>
+		</qry:out>
+	</qry:select>
+	<qry:select xmlns:qry="XXX" doc="PARAM" name="QRY_TIPO_HORA">
+		<qry:xquery>
+			for $r in sql('
+					SELECT TTA01_TIPOHORAS.c_tipohora, TTA01_TIPOHORAS.d_tipohora
+					FROM TTA01_TIPOHORAS
+					WHERE TTA01_TIPOHORAS.oi_tipohora = {#PARAM:@oi_tipohora}					
+		')/ROWS/ROW
+		</qry:xquery>
+		<qry:out>
+			<qry:attribute type="Nomad.NSystem.String" value="$r/@c_tipohora" name="c_tipohora"/>
+			<qry:attribute type="Nomad.NSystem.String" value="$r/@c_tipohora + ' - ' + $r/@d_tipohora" name="tipohora"/>
+		</qry:out>
+	</qry:select>
+	<qry:select xmlns:qry="XXX" doc="PARAM" name="QRY_ESTRUCTURA">
+		<qry:xquery>
+			for $r in sql('
+			SELECT ORG01_TIPOS_UNI.c_tipo_uni_org, ORG01_TIPOS_UNI.d_tipo_uni_org,
+			ORG01_UNI_ORG.c_unidad_org, ORG01_UNI_ORG.d_unidad_org
+			FROM ORG01_UNI_ORG, ORG01_TIPOS_UNI
+			JOIN ORG01_UNI_ORG.oi_tipo_uni_org INNER ORG01_TIPOS_UNI.oi_tipo_uni_org
+			WHERE ORG01_UNI_ORG.oi_unidad_org in 
+				(SELECT ORG02_ESTRUCTURAS.oi_unidad_org
+				FROM ORG02_ESTRUCTURAS 
+				WHERE ORG02_ESTRUCTURAS.oi_estructura = {%=#PARAM:@oi_estructura%})					
+		')/ROWS/ROW
+		</qry:xquery>
+		<qry:out>
+			<qry:attribute type="Nomad.NSystem.String" value="$r/@d_tipo_uni_org + ': ' + $r/@c_unidad_org + ' - ' + $r/@d_unidad_org" name="unidad_org"/>
+		</qry:out>
+	</qry:select>
+	<qry:select xmlns:qry="XXX" doc="PARAM" name="QRY_PENDIENTE">
+		<qry:out>
+			<qry:attribute value="'Pendiente'" name="estado" type="Nomad.NSystem.String"/>
+		</qry:out>
+	</qry:select>
+	<qry:select xmlns:qry="XXX" doc="PARAM" name="QRY_ACEPTADA">
+		<qry:out>
+			<qry:attribute value="'Aceptada'" name="estado" type="Nomad.NSystem.String"/>
+		</qry:out>
+	</qry:select>
+	<qry:select xmlns:qry="XXX" doc="PARAM" name="QRY_RECHAZADA">
+		<qry:out>
+			<qry:attribute value="'Rechazada'" name="estado" type="Nomad.NSystem.String"/>
+		</qry:out>
+	</qry:select>
+	<qry:select doc="PARAM" name="SECURITY">
+		<qry:xquery>
+			for $r in sql('
+			SELECT NMD_SECURITY.policy 
+			FROM NMD_SECURITY 
+			WHERE NMD_SECURITY.class=\'NucleusRH.Base.Personal.LegajoEmpresa.PERSONAL_EMP\' 
+			AND NMD_SECURITY.id={#PARAM:@oi_personal_emp}
+		')/ROWS/ROW
+		</qry:xquery>
+		<qry:out>
+			<qry:attribute value="$r/@policy" name="policy"/>
+		</qry:out>
+	</qry:select>
+	<qry:select doc="PARAM" name="QRY_VACIO">
+		<qry:out>
+			<qry:element name="LEGAJO">
+				<qry:attribute value="'0'" name="tipo"/>
+				<qry:attribute value="'0'" name="oi_licencia_per"/>
+				<qry:attribute value="'0'" name="oi_licencia"/>
+				<qry:attribute value="'0'" name="oi_personal_emp"/>
+				<qry:attribute value="'0'" name="oi_tipohora"/>
+				<qry:attribute value="'0'" name="oi_estructura"/>
+				<qry:attribute value="'0'" name="personal"/>
+				<qry:attribute value="'0'" name="descripcion"/>
+				<qry:attribute value="'0'" name="f_inicio"/>
+				<qry:attribute value="'0'" name="f_fin"/>
+				<qry:attribute value="'0'" name="oi_novedad"/>
+				<qry:attribute value="'0'" name="descripcion"/>
+				<qry:attribute value="'0'" name="estado"/>
+				<qry:attribute value="'0'" name="tipohora"/>
+				<qry:attribute value="'0'" name="unidad_org"/>
+			</qry:element>
+		</qry:out>
+	</qry:select>
+	<qry:select name="QRY_CLASE_PADRE" doc="PARAM">
+		<qry:xquery>
+			for $r in sql('
+			SELECT ORG02_CLASES_ORG.oi_clase_org,
+			ORG02_CLASES_ORG.oi_estructura_org AS oi_estructura
+			FROM ORG02_CLASES_ORG
+			WHERE ORG02_CLASES_ORG.oi_clase_org = {#PARAM:@oi_clase_org}
+		')ROWS/ROW
+		</qry:xquery>
+		<qry:out>
+			<qry:element name="CLASE">
+				<qry:attribute name="oi_clase_org" value="#PARAM:@oi_clase_org"/>
+			</qry:element>
+			<qry:insert-select name="QRY_CLASES_HIJAS" doc-path="$r"/>
+			<qry:insert-select name="QRY_ESTR" doc-path="$r"/>
+		</qry:out>
+	</qry:select>
+	<qry:select name="QRY_ESTR" doc="PARAM">
+		<qry:xquery>
+			for $r in sql('
+			SELECT ORG02_ESTRUCTURAS.oi_estructura			
+			FROM ORG02_ESTRUCTURAS
+			WHERE ORG02_ESTRUCTURAS.oi_estr_padre = {#PARAM:@oi_estructura}
+		')ROWS/ROW
+		</qry:xquery>
+		<qry:out>
+			<qry:insert-select name="QRY_CLASES_HIJAS" doc-path="$r"/>
+			<qry:insert-select name="QRY_ESTR" doc-path="$r"/>
+		</qry:out>
+	</qry:select>
+	<qry:select name="QRY_CLASES_HIJAS" doc="PARAM">
+		<qry:xquery>
+			for $r in sql('
+			SELECT ORG02_CLASES_HIJAS.oi_estructura, 
+			ORG02_CLASES_HIJAS.oi_clase_org
+			FROM ORG02_CLASES_HIJAS
+			WHERE ORG02_CLASES_HIJAS.oi_estructura = {#PARAM:@oi_estructura}
+		')ROWS/ROW
+		</qry:xquery>
+		<qry:out>
+			<qry:element name="CLASE">
+				<qry:attribute name="oi_clase_org" value="$r/@oi_clase_org"/>
+			</qry:element>
+		</qry:out>
+	</qry:select>
+</qry:define>

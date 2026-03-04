@@ -1,0 +1,69 @@
+<flow:flow xmlns:flow="nomad_engine.flow" xmlns:doc="nomad_engine.doc" xmlns:qry="nomad_engine.qry" extends="Nomad.base.HTML_XLS.flow" name="CtaCteVac">
+	<flow:declare>
+		<doc:define name="FILTERDATA">
+			<FILTRO oi_clase_org="">
+				<PERSONAS/>
+			</FILTRO>
+		</doc:define>
+		<qry:define name="UltimoPeriodo">
+			<qry:main doc="SOURCE">
+				<qry:element name="ROW">
+					<qry:insert-select name="qry_periodo" doc-path="#SOURCE:"/>
+				</qry:element>
+			</qry:main>
+			<qry:select name="qry_periodo" doc="PARAM">
+				<qry:xquery>
+					for $r in sql(' 		   
+			   maxsize 1
+			   SELECT
+					VAC04_PERIODOS.oi_periodo,  
+					VAC04_PERIODOS.f_desde_periodo
+				 FROM
+					VAC04_PERIODOS 
+				 WHERE                      
+				 	VAC04_PERIODOS.oi_periodo != 1000	
+				 ORDER BY 
+			   	f_desde_periodo DESC
+			')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:attribute name="oi_periodo" value="$r/@oi_periodo"/>
+				</qry:out>
+			</qry:select>
+		</qry:define>
+		<doc:define name="QRY_RESULT">
+			<ROW oi_periodo=""/>
+		</doc:define>
+	</flow:declare>
+	<flow:main doc="SOURCE">
+		<flow:action name="initialize">
+			<flow:open-form form-class="NucleusRH.Base.Vacaciones.Reportes.CtaCteVacaciones.CtaCteVac.filter.form" doc-path="#FILTERDATA:" mode="FILTER"/>
+		</flow:action>
+	</flow:main>
+	<flow:form form-class="NucleusRH.Base.Vacaciones.Reportes.CtaCteVacaciones.CtaCteVac.filter.form" name="NucleusRH.Base.Vacaciones.Reportes.CtaCteVacaciones.CtaCteVac.filter.form:FILTER" parent-doc="PARENTSOURCE" doc="SOURCE" mode="FILTER">
+		<flow:action name="on-show">
+			<flow:call-action action="Load-FILTER"/>
+			<doc:load-qry output-doc="QRY_RESULT" qry="UltimoPeriodo"/>
+			<doc:set-attribute from-attr-path="#QRY_RESULT:@oi_periodo" to-attr-path="#FILTERDATA:@oi_periodo"/>
+		</flow:action>
+		<flow:action name="BACK">
+			<flow:close-form/>
+		</flow:action>
+		<flow:action name="Save-FILTER">
+			<flow:save-user-data name="FILTER-NucleusRH.Base.Vacaciones.Reportes.CtaCteVacaciones.CtaCteVac" doc-path="#FILTERDATA:"/>
+		</flow:action>
+		<flow:action name="Load-FILTER">
+			<flow:load-user-data name="FILTER-NucleusRH.Base.Vacaciones.Reportes.CtaCteVacaciones.CtaCteVac" doc="FILTERDATA"/>
+		</flow:action>
+		<flow:action name="ACCEPT">
+			<flow:log text-path="#FILTERDATA:" text="emig"/>
+			<flow:call-action action="Save-FILTER"/>
+			<flow:exec-method method="ExecReportHTML" out-attr-path="#BATCHDOC:@batch-id" priority="9" class="Nomad.Base.Report.GeneralReport.REPORT">
+				<flow:param value="NucleusRH.Base.Vacaciones.CtaCteVacaciones.rpt" type="Nomad.NSystem.String" mode="in" name="ReportName"/>
+				<flow:param doc-path="#FILTERDATA:" name="paramIN" type="Nomad.NSystem.Proxy.NomadXML" mode="in"/>
+			</flow:exec-method>
+			<doc:set-attribute from-value="Consulta de Cuenta Corriente" to-attr-path="#BATCHDOC:@title"/>
+			<flow:open-form form-class="Nomad.base.HTML_XLS.form" parent-doc-path="#SOURCE:" mode="SHOW" doc-path="#BATCHDOC:"/>
+		</flow:action>
+	</flow:form>
+</flow:flow>

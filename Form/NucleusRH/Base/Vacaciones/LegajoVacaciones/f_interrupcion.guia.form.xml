@@ -1,0 +1,137 @@
+<form:Form xmlns:form="nomad_engine.form" default_mode="SHOW" name="Validacion.guia.form" doc="SOURCE">
+	<form:Scripts>
+		function SetControls()
+{
+	Ctrl("l_automatica").SetXValue("1");
+	EnableButtons();
+}
+
+function EnableButtons()
+{       
+	if (Ctrl("lblERROR").GetXValue()!="" || Ctrl('f_desde_solicitud').GetXValue() == "" || Ctrl('f_int').GetXValue() == ""  || Ctrl('e_dias_solicitud').GetXValue() == "")
+	{
+		CtrlEnabled("ACCEPT",false);
+	} else
+	{
+		CtrlEnabled("ACCEPT",true);
+	}
+	
+	if (Ctrl("l_automatica").GetXValue() == "1")
+		CtrlEnabled("e_dias_solicitud",false);
+	else
+		CtrlEnabled("e_dias_solicitud",true);
+}
+
+function CALCULAR_DIAS()
+{
+	if (Ctrl('f_hasta_solicitud').GetXValue() &lt; Ctrl('f_int').GetXValue())
+	{
+		alert("La Fecha de Interrupci&#243;n tiene que se menor a la Fecha de Fin de las Vacaciones");
+		Ctrl('f_int').SetXValue("");
+		return false;
+	}
+	if (Ctrl('f_desde_solicitud').GetXValue() &gt; Ctrl('f_int').GetXValue())
+	{
+		alert("La Fecha de Interrupci&#243;n tiene que se mayor a la Fecha de Inicio de las Vacaciones");
+		Ctrl('f_int').SetXValue("");
+		return false;
+	}
+	
+	if (Ctrl('l_automatica').GetXValue() == '1')
+	{	
+		if (Ctrl('f_desde_solicitud').GetXValue() == "" || Ctrl('f_int').GetXValue() == "")
+		{
+			Ctrl('e_dias_solicitud').SetXValue("");
+			EnableButtons();
+		} 
+		else
+			Ctrl('main').DoEvent('RECALCULAR_DIAS')
+	}
+}
+
+/*
+function CALCULAR_F_HASTA(){
+	if (Ctrl('l_automatica').GetXValue() == '1')
+	{
+		if (Ctrl('f_desde_solicitud').GetXValue() == "")
+		{
+			EnableButtons();
+		} else
+			Ctrl('main').DoEvent('RECALCULAR_FECHA');
+	}
+}
+*/
+
+function val_fechas(MeCtrl)
+{
+	if (Ctrl('f_desde_solicitud').GetXValue()&gt;Ctrl('f_int').GetXValue())
+	{
+		MeCtrl.SetError("La fecha de Interrupcion tiene que ser Mayor o Igual a la Fecha Desde.");
+		return false;
+	}
+	if (Ctrl('f_hasta_solicitud').GetXValue()&lt;=Ctrl('f_int').GetXValue())
+	{
+		MeCtrl.SetError("La fecha de Interrupcion tiene que ser Menor a la Fecha Hasta.");
+		return false;
+	}
+	return true;
+}
+
+function ChgAuto()
+{           
+	Ctrl('f_int').SetXValue("");
+	Ctrl('e_dias_solicitud').SetXValue("");
+	
+	EnableButtons();
+}
+	</form:Scripts>
+	<form:Title>
+		<form:RowAligner name="title">
+			<form:Row name="row1">
+				<form:Label label="Ingrese la fecha de Interrupci&#243;n" nowrap="1" style="S3 LCol_w" name="GEN"/>
+			</form:Row>
+		</form:RowAligner>
+	</form:Title>
+	<form:Center>
+		<form:Blank name="blnk001"/>
+		<form:Columns width="100%" name="COLS">
+			<form:Column width="100%" name="COL1">
+				<form:DateTime enabled="0" nvalue="#SOURCE:@f_desde_solicitud" pattern="YYYYMMDD" required="0" mask="dd/mm/yyyy" label="Fecha Desde Solicitud" name="f_desde_solicitud"/>
+				<form:DateTime enabled="0" nvalue="#SOURCE:@f_hasta_solicitud" pattern="YYYYMMDD" required="0" mask="dd/mm/yyyy" label="Fecha Hasta Solicitud" name="f_hasta_solicitud"/>
+				<form:Blank name="blank001"/>
+				<form:DateTime nvalue="#SOURCE:@f_int" pattern="YYYYMMDD" required="1" descr="Indica la fecha de inicio de vacaciones, se toma para emitir la notificaci&#243;n de vacaciones requerida por ley." mask="dd/mm/yyyy" label="Fecha de Interrupci&#243;n" name="f_int">
+					<form:SButtons>
+						<form:SButton img="Calendar" label="Calendar" name="Calendar">
+							<form:Event action="SHOW_HELPER" name="onclick" runat="client"/>
+						</form:SButton>
+					</form:SButtons>
+					<form:Event action="CALCULAR_DIAS" name="onchange" runat="client"/>
+				</form:DateTime>
+				<form:NumberBox xsize="12" name="e_dias_solicitud" label="Cantidad D&#237;as" required="1" nvalue="#SOURCE:@e_dias_solicitud">
+					<form:Event action="EnableButtons" runat="client" name="onchange"/>
+				</form:NumberBox>
+				<form:CheckBox required="1" label="Calcular valores autom&#225;ticamente?" nvalue="#source:@l_automatica" name="l_automatica">
+					<form:Event action="ChgAuto" name="onclick" runat="client"/>
+				</form:CheckBox>
+				<form:Hidden enabled="0" nvalue="#SOURCE:@oi_personal_emp" name="oi_personal_emp" required="0"/>
+				<form:Label style="M1 LCol_t" nvalue="#outDOC:@ERR" dynamic="1" align="center" name="lblERROR"/>
+			</form:Column>
+		</form:Columns>
+	</form:Center>
+	<form:Bottom>
+		<form:RowAligner name="bottom">
+			<form:Row name="rowbottom">
+				<form:Button startvalidate="1" label="Aceptar" note="Aceptar" descrip="Aceptar" img="ok" name="ACCEPT">
+					<form:Event action="val_fechas" name="onvalidate" runat="client"/>
+					<form:Event action="ACCEPT" name="onclick" runat="server"/>
+				</form:Button>
+				<form:Button label="Cancelar" note="Cancelar" descrip="Cancelar" img="cancel" name="CANCEL">
+					<form:Event action="CANCEL" name="onclick" runat="server"/>
+				</form:Button>
+			</form:Row>
+		</form:RowAligner>
+	</form:Bottom>
+	<form:Event action="RECALCULAR_DIAS" name="RECALCULAR_DIAS" runat="server"/>
+	<form:Event action="RECALCULAR_FECHA" name="RECALCULAR_FECHA" runat="server"/>
+	<form:Event action="SetControls" name="OnLoad" runat="client"/>
+</form:Form>

@@ -1,0 +1,601 @@
+<form:Form xmlns:form="nomad_engine.form" name="Interfaz de Entrada" default_mode="SHOW" doc="source">
+	<form:Title>
+		<form:Label label="Carga Masiva de Variables" style="S3 LCol_w" align="center" visible="" name="lbl"/>
+	</form:Title>
+	<form:Center height="100%" width="100%">
+		<form:Blank height="10px" visible="" width="100%" name="b1"/>
+		<form:RowAligner name="RR">
+			<form:Row name="R1">
+				<form:ComboBox xsize="40" mode="QRY" queryname1="NucleusRH.Base.Organizacion.Empresas.EMPRESA.INFO" required="1" nvalue="#PAGE:@oi_empresa" label="Empresa" name="Empresa">
+					<options/>
+				</form:ComboBox>
+			</form:Row>
+			<form:Row name="R2">
+				<form:ComboBox where1="isNull(LIQ19_LIQUIDACION.f_cierre)" xsize="40" mode="QRY" prev="Empresa" queryname1="NucleusRH.Base.Liquidacion.Liquidacion.LIQUIDACION.INFO" nvalue="#PAGE:@oi_liquidacion" label="Liquidaci&#243;n" name="Liquidacion" required="0">
+					<options/>
+				</form:ComboBox>
+			</form:Row>
+		</form:RowAligner>
+		<form:Blank width="100%" height="10px" name="b2"/>
+		<form:UrlControl border="0" height="100%" width="100%" name="PAGINA_INTERFAZ"/>
+		<form:Hidden name="topage"/>
+		<form:Hidden nvalue="#PAGE:@num" name="numpage"/>
+		<form:Hidden nvalue="#PAGE:@max" name="maxpage"/>
+		<form:HiddenArr proto="&lt;ROW /&gt;" nvalue="#PAGE:ROWS" name="rows">
+			<form:Attr name="id"/>
+			<form:Attr name="LEG"/>
+			<form:Attr name="LEG_DESC"/>
+			<form:Attr name="VAR"/>
+			<form:Attr name="VAR_DESC"/>
+			<form:Attr name="VAL"/>
+			<form:Attr name="VAN"/>
+			<form:Attr name="PER"/>
+			<form:Attr name="VMD"/>
+			<form:Attr name="VTY"/>
+			<form:Attr name="ERR"/>
+			<form:Attr name="EST"/>
+		</form:HiddenArr>
+	</form:Center>
+	<form:Bottom width="95%">
+		<form:RowAligner columns="4" name="botonera">
+			<form:Row name="fila6">
+				<form:Button label="Primera" img="first" descrip="Primer P&#225;gina" visible="" enabled="" name="btnFirst" startvalidate="0">
+					<form:Event action="First" name="onclick" runat="client"/>
+				</form:Button>
+				<form:Button img="prev" descrip="P&#225;gina previa" visible="" enabled="" name="btnPrev" label="Anterior" startvalidate="0">
+					<form:Event action="Prev" name="onclick" runat="client"/>
+				</form:Button>
+				<form:Button img="next" descrip="P&#225;gina siguiente" visible="" enabled="" name="btnNext" label="Siguiente" startvalidate="0">
+					<form:Event action="Next" name="onclick" runat="client"/>
+				</form:Button>
+				<form:Button img="last" descrip="Ultima P&#225;gina" visible="" enabled="" name="btnLast" label="Ultima" startvalidate="0">
+					<form:Event action="Last" name="onclick" runat="client"/>
+				</form:Button>
+				<form:Blank visible="" width="20px" name="bb1"/>
+				<form:Button img="table_add" descrip="Subir Informacion" visible="" enabled="" name="btnUpload" label="Cargar" startvalidate="0">
+					<form:Event name="OnClick" action="Upload" runat="client"/>
+				</form:Button>
+				<form:Button name="btnDownload" img="table_go" descrip="Descargar Informacion" visible="" enabled="" label="Descargar" startvalidate="0">
+					<form:Event name="OnClick" action="Download" runat="client"/>
+				</form:Button>
+				<form:Button mess="Se perderan los datos cargados. &#191;Esta seguro que desea continuar" img="table_delete" descrip="Limpiar Pantalla" visible="" enabled="" name="btnClean" label="Limpiar" startvalidate="0">
+					<form:Event name="OnClick" action="Clean" runat="server"/>
+				</form:Button>
+				<form:Button img="table_check" descrip="Verificar Pantalla" visible="" enabled="" name="btnCheck" label="Verificar" startvalidate="0">
+					<form:Event action="Refresh" name="onclick" runat="client"/>
+				</form:Button>
+				<form:Blank visible="" width="20px" name="bb2"/>
+				<form:Button mess="&#191;Esta seguro que desea Modificar el Valor de las Variables?" img="execute" descrip="" visible="" enabled="" name="btnExecute" label="Ejecutar" startvalidate="1">
+					<form:Event action="EXECUTE" name="OnClick" runat="server"/>
+				</form:Button>
+				<form:Button mess="Se perderan los datos cargados. &#191;Esta seguro que desea continuar?" descrip="" note="" img="back" label="Volver" name="btnBack" visible="" enabled="">
+					<form:Event action="BACK" name="OnClick" runat="server"/>
+				</form:Button>
+			</form:Row>
+		</form:RowAligner>
+	</form:Bottom>
+	<form:Scripts>
+		var numPage, maxPage, isSync;
+
+function EnableBottons()
+{
+	 if (numPage==0)
+	 {
+			CtrlEnabled("btnFirst", false);
+			CtrlEnabled("btnPrev" , false);
+	 } else
+	 {
+			CtrlEnabled("btnFirst", true );
+			CtrlEnabled("btnPrev" , true );
+	 } 
+	 if (numPage==maxPage)
+	 {
+			CtrlEnabled("btnNext", GetRow("19").GetAttr("EST")==""?false:true);
+			CtrlEnabled("btnLast", false);
+	 } else
+	 {                            
+			CtrlEnabled("btnNext", true);
+			CtrlEnabled("btnLast", true );
+	 }    
+	 
+	 if (isSync)
+	 {
+			CtrlEnabled("btnDownload", true );
+	 } else
+	 {
+			CtrlEnabled("btnDownload", false);
+	 }
+}
+
+function OnLoad()
+{ 
+  Page=Ctrl("main").GetLastDocXML("PAGE");
+  numPage=parseInt(Ctrl("numpage").GetXValue(),10);
+  maxPage=parseInt(Ctrl("maxpage").GetXValue(),10)-1;
+    
+  isSync=true;
+  EnableBottons();
+	Ctrl("PAGINA_INTERFAZ").SetURL("../../../ReportViewer.aspx?ut="+GetProxy().UserToken()+"&amp;file=NucleusRH.Base.Liquidacion.InterfazGenerica.rpt&amp;now="+(new Date()).toString());
+}      
+
+function GetRow(id)
+{                 
+	return Ctrl("rows").GetRow(parseInt(id,10));
+}                           
+
+function OnLostFocusLegajo(id, value)
+{                  
+	myROW=GetRow(id);
+	if (myROW==null) return;
+	
+	//Obtengo el Viejo y Nuevo Valor
+	var oldVal=myROW.GetAttr("LEG");
+	var newVal=parseInt(value,10); if (isNaN(newVal)) newVal=""; 
+	                                             else newVal=newVal.toString();
+	//Actualize el VALOR           
+	myROW.SetAttr("LEG",newVal);
+	if (newVal!=oldVal)
+	{
+		myROW.SetAttr("EST"     ,"1"  ); //Modificado
+		myROW.SetAttr("LEG_DESC","..."); //Descriptcion Desconocida
+		isSync=false; 
+		EnableBottons();
+	}
+}
+
+function OnLostFocusVariable(id, value)
+{	
+	myROW=GetRow(id);
+	if (myROW==null) return;
+	
+	//Obtengo el Viejo y Nuevo Valor
+	var oldVal=myROW.GetAttr("VAR");
+	var newVal=Trim(value); 
+	              
+	//Actualize el VALOR           
+	myROW.SetAttr("VAR",newVal);
+	if (newVal!=oldVal)
+	{
+		myROW.SetAttr("EST"     ,"1"  ); //Modificado
+		myROW.SetAttr("VAR_DESC","..."); //Descriptcion Desconocida
+		myROW.SetAttr("VAN"     ,"..."); //Valor Anterior Descoocido
+		myROW.SetAttr("VMD"     ,""   ); //Modo
+		myROW.SetAttr("VTY"     ,""   ); //Typo
+		isSync=false; 
+		EnableBottons();
+	}
+}
+
+function OnLostFocusValor(id, value)
+{
+	myROW=GetRow(id);
+	if (myROW==null) return;
+	
+	//Obtengo el Viejo y Nuevo Valor
+	var oldVal=myROW.GetAttr("VAL");
+	var newVal=Trim(value); 
+
+	if (newVal!="")
+	{  
+		switch(myROW.GetAttr("VTY").toUpperCase())
+		{                
+			case "DATETIME":
+				{ 
+					var year=0, month=0, day=0;
+					
+					if (newVal.toUpperCase()=="HOY")
+					{       
+						year =Now().getFullYear();
+						month=Now().getMonth()+1;
+						day  =Now().getDate();
+					} else
+					if ((newVal.indexOf("-")&gt;=0) || (newVal.indexOf("/")&gt;=0))
+					{
+						var aValue;      
+						
+						if (newVal.IndexOf("-")&gt;=0) aValue=newVal.split('-');
+						                       else aValue=newVal.split('/');
+						
+						if (aValue.length==3)
+						{
+							year =parseInt(aValue[2],10);
+							month=parseInt(aValue[1],10);
+							day  =parseInt(aValue[0],10);
+						} else
+						if (aValue.length==2)
+						{         
+							year =Now().getFullYear();
+							month=parseInt(aValue[1],10);
+							day  =parseInt(aValue[0],10);
+						} else
+							year=0;
+							
+						if (month==0 &amp;&amp; aValue.length&gt;=2)
+						{         
+							month="|ENE|FEB|MAR|ABR|MAY|JUN|JUL|AGO|SEP|OCT|NOV|DIC|".indexOf("|"+aValue[1].toUpperCase()+"|");
+							if (month==-1)
+								year=0;
+							else     
+								month=month/4+1;
+						}
+					} else
+					{
+						ivalue=MyVAR.GetAttrInt("VAL");
+						
+						if (ivalue&gt;=010100 &amp;&amp; ivalue&lt;=311299)
+						{
+							year =ivalue%100; ivalue=ivalue/100;
+							month=ivalue%100; ivalue=ivalue/100;
+							day  =ivalue%100; ivalue=ivalue/100;
+						} else
+						if (ivalue&gt;=01011000 &amp;&amp; ivalue&lt;=31129999)
+						{
+							year =ivalue%10000; ivalue=ivalue/10000;
+							month=ivalue%100; ivalue=ivalue/100;
+							day  =ivalue%100; ivalue=ivalue/100;
+						} else
+						if (ivalue&gt;=101 &amp;&amp; ivalue&lt;=3112)
+						{                                  
+							year =Now().getFullYear();
+							month=ivalue%100; ivalue=ivalue/100;
+							day  =ivalue%100; ivalue=ivalue/100;
+						} else
+						if (ivalue&gt;=1 &amp;&amp; ivalue&lt;=31)
+						{
+							year =Now().getFullYear();
+							month=Now().getMonth()+1;
+							day  =ivalue%100; ivalue=ivalue/100;
+						} else   
+							year=0;
+					}     
+					
+					if (year==0)
+						value="";
+					else
+					{
+						if (year&lt;50)
+						{       
+							year+=2000;
+						} else
+						if (year&lt;100)
+						{           
+							year+=1900;
+						}
+					}
+					
+					if (year!=0)
+					{
+						if (month&lt;1 ) year=0;
+						if (month&gt;12) year=0;
+					}
+					
+					value=(day+month*100+year*10000).toString();
+					value=value.substr(6,2)+"/"+value.substr(4,2)+"/"+value.substr(0,4);
+				} break; 
+			 
+			case "DOUBLE":
+				//Paso 1 - Reemplazo las Comas
+				newVal=parseFloat(Replace(newVal,",","."));
+				if (isNaN(newVal))
+					newVal="";
+				else
+				{  
+					//Paso 2 - Signo
+					newVal=Math.round(newVal*100).toString();
+					if (newVal.substr(0,1)=="-") { sgn="-"; newVal=newVal.substr(1); } else sgn="";
+					
+					///Paso 3 - Agrego '0'
+					while(newVal.length&lt;3) newVal="0"+newVal;
+	    
+	    		///Paso 4 - Numero Final
+					newVal=sgn+newVal.substr(0,newVal.length-2)+"."+newVal.substr(newVal.length-2);
+				}
+				break;
+				
+			case "INT":
+				newVal=parseInt(newVal,10);
+				if (isNaN(newVal)) newVal="";
+				              else newVal=newVal.toString();
+				break;
+				
+			case "BOOL":
+				newVal=parseInt(newVal,10);
+				if (isNaN(newVal)) newVal="";
+				              else newVal=newVal?"1":"0";
+				break;
+		}
+
+  }
+  
+  
+	//Actualize el VALOR           
+	myROW.SetAttr("VAL",newVal);
+	if (newVal!=oldVal)
+	{
+		myROW.SetAttr("EST"     ,"1"  ); //Modificado
+		isSync=false; 
+		EnableBottons();
+	}      
+
+
+/*
+	myROW=GetRow(id);
+	if (myROW==null) return;
+
+	//Paso 1 Reemplazo los Valores	
+	value=Replace(value,",",".");
+	
+	//Obtengo el Viejo y Nuevo Valor
+	var oldVal=myROW.GetAttr("VAL");
+	var newVal=parseFloat(value); 
+	
+	if (isNaN(newVal)) 
+		newVal=""; 
+	else 
+	{
+	}
+	                                            
+	//Actualize el VALOR
+	myROW.SetAttr("VAL",newVal);
+	if (newVal!=oldVal)            
+	{
+		myROW.SetAttr("EST","1"); //Modificado
+		isSync=false; 
+		EnableBottons();
+	}
+*/	
+}
+
+function OnLostFocusPeriodo(id, value)
+{
+	var month, year;
+                          
+	myROW=GetRow(id);
+	if (myROW==null) return;
+
+	//Paso 1 Reemplazo los Valores	
+	if (value.toUpperCase()=="HOY")
+	{      
+	 	month=Now().getMonth()+1;
+		year =Now().getFullYear();
+	} else
+	if (value.indexOf("-")&gt;=0)
+	{ //mm-yyyy mmm-yyyy
+		year =parseInt(value.split("-")[1],10); 
+		if (isNaN(year)) 
+		{     
+			year=0;
+		} else
+		{
+			if (value.split("-")[0].length==3)
+			{
+				month="|ENE|FEB|MAR|ABR|MAY|JUN|JUL|AGO|SEP|OCT|NOV|DIC|".indexOf("|"+value.split("-")[0].toUpperCase()+"|");
+				if (month==-1) year=0;
+				          else month=1+(month/4);
+			} else
+			 	month=parseInt(value.split("/")[0],10); if (isNaN(year)) year=0;
+		}
+	} else
+	if (value.indexOf("/")&gt;=0)
+	{ //mm/yyyy mmm/yyyy
+		year =parseInt(value.split("/")[1],10); 
+		if (isNaN(year)) 
+		{
+			year=0;
+		} else
+		{
+			if (value.split("/")[0].length==3)
+			{
+				month="|ENE|FEB|MAR|ABR|MAY|JUN|JUL|AGO|SEP|OCT|NOV|DIC|".indexOf("|"+value.split("/")[0].toUpperCase()+"|");
+				if (month==-1) year=0;
+				          else month=1+(month/4);
+			} else
+			 	month=parseInt(value.split("/")[0],10); if (isNaN(year)) year=0;
+		}
+	} else
+	{    
+		newVal=parseInt(value,10);
+		if (isNaN(newVal)) 
+		{  
+				year=Now().getFullYear();
+				month="|ENE|FEB|MAR|ABR|MAY|JUN|JUL|AGO|SEP|OCT|NOV|DIC|".indexOf("|"+value.toUpperCase()+"|");
+				if (month==-1) year=0;
+				          else month=1+(month/4);
+		} else
+		{
+			if (newVal&gt;=1 &amp;&amp; newVal&lt;=12)
+			{       
+				month=newVal;
+				year =Now().getFullYear();
+			} else
+			if (newVal&gt;=100 &amp;&amp; newVal&lt;=1299)
+			{
+				month=newVal/100;
+				year =newVal%100;
+			} else
+			if (newVal&gt;=011000 &amp;&amp; newVal&lt;=129999)
+			{
+				month=newVal/10000;
+				year =newVal%10000;
+			} else
+			{
+				year=0;
+			}
+		}
+	}
+
+
+	var oldVal=myROW.GetAttr("PER");
+	if (year==0)
+	{
+		newVal="";
+	} else
+	if (year&gt;=0 &amp;&amp; year&lt;50)
+	{
+		newVal=((year+2000)*100+month).toString();
+	} else
+	if (year&gt;=50 &amp;&amp; year&lt;=99)
+	{
+		newVal=((year+1900)*100+month).toString();
+	} else
+	{
+		newVal=(year*100+month).toString();
+	}      
+	
+	if (newVal!="") newVal=newVal.substr(4,2)+"/"+newVal.substr(0,4);
+	                                            
+	//Actualize el VALOR           
+	myROW.SetAttr("PER",newVal);
+	if (newVal!=oldVal)
+	{
+		myROW.SetAttr("EST", "1"); //Modificado
+		isSync=false; 
+		EnableBottons();
+	}
+}
+
+function CleanRow(id)
+{
+	myROW=GetRow(id);
+	if (myROW==null) return;
+	if (myROW.GetAttr("EST")=="") return;
+
+	//Cambio el Estado
+	myROW.SetAttr("EST","1");
+	isSync=false; 
+	EnableBottons();  
+	
+	//Limpio los Registros
+	myROW.SetAttr("LEG","");
+	myROW.SetAttr("LEG_DESC","");
+	myROW.SetAttr("VAR","");
+	myROW.SetAttr("VAR_DESC","");
+	myROW.SetAttr("VAL","");
+	myROW.SetAttr("PER","");
+	myROW.SetAttr("VMD","");
+	myROW.SetAttr("VTY","");
+	myROW.SetAttr("ERR","");
+}
+
+function Refresh()
+{                                
+	Ctrl("main").DoEvent("Refresh");
+}
+
+function First()
+{                                
+	if (numPage&lt;=0) return;            
+
+	Ctrl("topage").SetXValue("0");
+	Ctrl("main").DoEvent("ToPage");
+}
+
+function Prev()
+{                                
+	if (numPage&lt;=0) return;            
+
+	Ctrl("topage").SetXValue((numPage-1).toString());
+	Ctrl("main").DoEvent("ToPage");
+}
+
+function Next()
+{                                
+	Ctrl("topage").SetXValue((numPage+1).toString());
+	Ctrl("main").DoEvent("ToPage");
+}
+
+function Last()
+{    
+	if (numPage&gt;=maxPage) return;            
+	
+	Ctrl("topage").SetXValue(maxPage.toString());
+	Ctrl("main").DoEvent("ToPage");
+}
+
+function Download()
+{
+	DownloadFile("INTERFACES\\"+GetProxy().UserName()+".intvar.xml", "intvar.xml");
+}
+
+function ObjectUpload(MyOBJ, fileName)
+{
+	var retval=MyOBJ;                   
+	retval.FileName=fileName;
+	
+	retval.processResult= function(xmlin)
+	{  
+		var proxy=GetProxy(); //as NomadProxy
+
+		//Eliminar el Archivo
+		if (proxy.FileSystem().FileExist(".\\Nomad\\INTERFACES\\"+GetProxy().UserName()+".intvar.xml"))
+			proxy.FileSystem().Delete(".\\Nomad\\INTERFACES\\"+GetProxy().UserName()+".intvar.xml");
+		
+		//Mover el ARCHIVO
+		proxy.FileSystem().Move(".\\Nomad\\Temp\\"+fileName,".\\Nomad\\INTERFACES\\"+GetProxy().UserName()+".intvar.xml");
+		
+		//Reset
+		Ctrl("main").DoEvent("Reset");
+	}     
+	return retval;
+}  
+
+function Upload(MyOBJ)
+{
+	var arrParams = new Array();
+	arrParams[0] = "FOLDER";
+	arrParams[1] = "TEMP";
+	arrParams[2] = datetime2str(new Date()) + ".intvar.xml";
+	
+	showBrowse(ObjectUpload(MyOBJ, datetime2str(new Date()) + ".intvar.xml"), arrParams);
+}
+
+function CheckLiq(obj)
+{
+	if (Ctrl("Liquidacion").GetXValue()=="")
+	{            
+		obj.SetError("La liquidacion es Requerida.");	
+		return false;
+	} 
+	return true;
+}
+	</form:Scripts>
+	<form:Event action="OnLoad" name="OnLoad" runat="client"/>
+	<form:Event action="Refresh" name="Refresh" runat="server"/>
+	<form:Event action="ToPage" name="ToPage" runat="server"/>
+	<form:Event action="Reset" name="Reset" runat="server"/>
+	<form:Right collapse="1" width="250px">
+		<form:VGroup width="100%" collapse="0" label="Variables de la Empresa" name="V_EMPRESA">
+			<form:Link mess="Esta operaci&#243;n ELIMINARA los datos cargados. &#191;Desea continuar?" allowimg="1" img="link" startvalidate="1" descrip="Fijas" label="Fijas" name="loadFE">
+				<form:Event action="LOAD_FE" name="OnClick" runat="server"/>
+			</form:Link>
+			<form:Link mess="Esta operaci&#243;n ELIMINARA los datos cargados. &#191;Desea continuar?" name="loadNE" allowimg="1" img="link" startvalidate="1" descrip="Novedad" label="Novedad">
+				<form:Event action="LOAD_NE" name="OnClick" runat="server"/>
+				<form:Event action="CheckLiq" name="OnValidate" runat="client"/>
+			</form:Link>
+		</form:VGroup>
+		<form:VGroup width="100%" name="V_LEGAJO" label="Variables del Empleado">
+			<form:Link mess="Esta operaci&#243;n ELIMINARA los datos cargados. &#191;Desea continuar?" allowimg="1" img="link" startvalidate="1" descrip="Fijas" label="Fijas" name="loadFL">
+				<form:Event action="LOAD_FL" name="OnClick" runat="server"/>
+			</form:Link>
+			<form:Link mess="Esta operaci&#243;n ELIMINARA los datos cargados. &#191;Desea continuar?" descrip="Acumuladores" label="Acumuladores" name="loadAL" allowimg="1" img="link" startvalidate="1">
+				<form:Event action="LOAD_AL" name="OnClick" runat="server"/>
+			</form:Link>
+			<form:Link mess="Esta operaci&#243;n ELIMINARA los datos cargados. &#191;Desea continuar?" descrip="Acumuladores por Periodo" label="Acumuladores por Periodo" name="loadAPL" allowimg="1" img="link" startvalidate="1">
+				<form:Event action="LOAD_APL" name="OnClick" runat="server"/>
+			</form:Link>
+			<form:Link mess="Esta operaci&#243;n ELIMINARA los datos cargados. &#191;Desea continuar?" name="loadNL" allowimg="1" img="link" startvalidate="1" descrip="Novedad" label="Novedad">
+				<form:Event action="LOAD_NL" name="OnClick" runat="server"/>
+				<form:Event action="CheckLiq" name="OnValidate" runat="client"/>
+			</form:Link>
+			<form:Link mess="Esta operaci&#243;n ELIMINARA los datos cargados. &#191;Desea continuar?" descrip="Novedad Retroactiva" label="Novedad Retroactiva" name="loadNLR" allowimg="1" img="link" startvalidate="1">
+				<form:Event action="LOAD_NLR" name="OnClick" runat="server"/>
+				<form:Event action="CheckLiq" name="OnValidate" runat="client"/>
+			</form:Link>
+		</form:VGroup>
+		<form:VGroup width="100%" name="V_IMPORT" label="Importar">
+			<form:Link mess="Esta operaci&#243;n ELIMINARA los datos cargados. &#191;Desea continuar?" descrip="desde Archivo" label="desde Archivo" name="importVAR" allowimg="1" img="link" startvalidate="1">
+				<form:Event action="IMPORT_FILE" name="OnClick" runat="server"/>
+			</form:Link>
+		</form:VGroup>
+	</form:Right>
+</form:Form>

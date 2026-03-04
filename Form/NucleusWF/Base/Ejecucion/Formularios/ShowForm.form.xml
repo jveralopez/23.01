@@ -1,0 +1,294 @@
+<form:Form xmlns:form="nomad_engine.form" doc="source" default_mode="SHOW" name="NucleusWF.Base.Ejecucion.Formularios.ShowForm.form">
+	<form:Help/>
+	<form:Scripts>
+		var xmlValues;
+
+function Page_OnLoad() {
+	setTimeout("GetFormData()", 10);
+}
+
+function GetFormData() {
+  var OIThread;
+  var OINode;
+	var objProxy = new NomadProxy();
+	var objRPC = objProxy.RPCService();
+
+	OIThread = Ctrl("hidOIThread").GetXValue();
+	OINode = Ctrl("hidOINode").GetXValue();
+	objRPC.AddParam(new NomadRPCParam("pOIThread" , "IN", parseInt(OIThread, 10)));
+	objRPC.AddParam(new NomadRPCParam("personal"  , "IN", parseInt(OINode,10)));
+	objRPC.AddParam(new NomadRPCParam("etty"      , "IN", Ctrl("hidDebugEtty").GetXValue()));
+	objRPC.AddParam(new NomadRPCParamOut("retval" , "Nomad.NSystem.Object", "Nomad.NSystem.Proxy.NomadXML"));
+
+	try {
+		objRPC.Execute("NucleusWF.Base.Ejecucion.Instancias.INSTANCE", "ResolveForm");
+
+		xmlValues = new NomadXML(objRPC.GetParam("retval").Data); 
+	  
+		if (xmlValues.GetAttr("result") == "OK") {
+			//El resultado es correcto
+			var url = "../../../GenFiles/WFForms/" + xmlValues.GetAttr("d_file_html");
+			Ctrl("urlMain").SetURL(url);
+		}
+
+  } catch (e) {
+  	var objErr = GetError();
+  	ClearError();
+  	ClientThrowErrorArrMute(objErr.Code, objErr.Params, "CloseForm();");
+  }
+
+}
+
+
+function GenerateReportText(c_text, pxmlValues) {
+	var objProxy = new NomadProxy();
+	var objRPC = objProxy.RPCService();
+	var wikiResult;
+
+	objRPC.AddParam(new NomadRPCParam("oi_instance", "IN", ""));
+	objRPC.AddParam(new NomadRPCParam("oi_thread", "IN", Ctrl("hidOIThread").GetXValue()));
+	objRPC.AddParam(new NomadRPCParam("c_text", "IN", c_text));
+	objRPC.AddParam(new NomadRPCParam("Data" ,  "IN", pxmlValues, "Nomad.NSystem.Proxy.NomadXML"));
+	objRPC.AddParam(new NomadRPCParamOut("retval", "Nomad.NSystem.String", ""));
+
+	objRPC.Execute("NucleusWF.Base.Ejecucion.Instancias.INSTANCE", "GenerateReportText");
+	
+	wikiResult = objRPC.GetParam("retval").Data;
+	
+	return wikiResult;
+}
+
+
+//Cierra la pantalla
+function CloseForm() {
+	Ctrl("main").DoEvent("CLOSE-FORM");
+}
+
+//Se llama cuando el reporte HTML se termino de cargar
+function FormReady(pobjWindow, pstrTitle) {
+	//Seta el titulo
+	SetTitle(pstrTitle);
+
+	//Se indica al formHTML que bindee los conotrles con las variables
+	pobjWindow.BindControls(xmlValues.ToString());
+	
+}
+
+//Se llama desde el reporte HTML termina la edicion de la pantalla del WF
+function CompleteEdit(pxmlValues, pType) {
+	var intPaso;
+	
+	switch (pType) {
+		case "CA": //Cancelar  --------------------------------------------------------------
+			//Cierra el formulario
+			Ctrl("main").DoEvent("CLOSE-FORM");
+			break;
+			
+		case "AC": //Aceptar  ---------------------------------------------------------------
+			//Guarda las variables
+			intPaso = SaveVars(pxmlValues);
+
+			//Guarda el paso en el hidden
+			Ctrl("hidOIPaso").SetXValue(intPaso);
+			
+			//Pasa el WF al siguiente nodo
+			Ctrl("main").DoEvent("PASS");
+			break;
+			
+		case "GU": //Guardar  ---------------------------------------------------------------
+			//Guarda las variables
+			intPaso = SaveVars(pxmlValues);
+
+			//Cierra el formulario
+			Ctrl("main").DoEvent("CLOSE-FORM");
+			break;
+			
+		case "DL": //Delegar  ---------------------------------------------------------------
+			//Abre el formulario de Delegacion
+			Ctrl("main").DoEvent("DELEGATE");
+			break;
+			
+		case "GD": //Guardar y Delegar  -----------------------------------------------------
+			//Guarda las variables
+			intPaso = SaveVars(pxmlValues);
+
+			//Abre el formulario de Delegacion
+			Ctrl("main").DoEvent("DELEGATE");
+			break;
+			
+		case "AE": //Aceptar y Esperar  -----------------------------------------------------
+			//Guarda las variables
+			intPaso = SaveVars(pxmlValues);
+
+			//Guarda el paso en el hidden
+			Ctrl("hidOIPaso").SetXValue(intPaso);
+
+			//Pasa el WF al siguiente nodo. Abre el formulario de Espera (muestra logs)
+			Ctrl("main").DoEvent("PASS-AND-WAIT");
+			break;
+	}
+
+}
+
+//Guarda las variables
+function SaveVars(pxmlValues) {
+  var OIThread;
+	var objProxy = new NomadProxy();
+	var objRPC = objProxy.RPCService();
+	var stepResult;
+
+	OIThread = Ctrl("hidOIThread").GetXValue();
+	objRPC.AddParam(new NomadRPCParam("pintThread", "IN", parseInt(OIThread, 10)));
+	objRPC.AddParam(new NomadRPCParam("pxmlData" ,  "IN", pxmlValues, "Nomad.NSystem.Proxy.NomadXML"));
+	objRPC.AddParam(new NomadRPCParamOut("retval", "Nomad.NSystem.Int", ""));
+
+	objRPC.Execute("NucleusWF.Base.Ejecucion.Instancias.INSTANCE", "Save");
+	
+	stepResult = objRPC.GetParam("retval").Data;
+	
+	return stepResult;
+}
+
+
+//Levanta una lista guia
+function OpenFKHelp(pstrParenValue, pstrClass, pIndex, pVarName, pDebug, pobjWindow) {
+	var xmlValues;
+	var xmlParams;
+	var objResult;
+	
+	xmlParams = new NomadXML("DATA");	
+	xmlParams.SetAttr("im", pstrClass);
+	xmlParams.SetAttr("par", pstrParenValue);
+	xmlParams.SetAttr("debug", pDebug);
+
+	objResult = new objRefreshList(pIndex, pVarName, pobjWindow);
+	openNewFlowWait("NucleusWF.Base.Ejecucion.Formularios.ShowGuia.flow", "SHOW", xmlParams.ToString(), objResult, "M");
+}
+
+//Levanta el buscador de archivos
+function OpenFileHelp(pobjWindow) {
+	var arrParams = new Array();
+	var objHelper = new objForHelp(null, null, pobjWindow);
+
+	arrParams[0] = "DB";
+	arrParams[1] = "NucleusWF.Base.Ejecucion.Archivos.HEAD"; //FileClass
+	arrParams[2] = ""; //FileName
+
+	objHelper.HelpType = "FILE";
+	
+	showBrowse(objHelper, arrParams);
+}
+
+//Levanta el buscador de archivos
+function OpenDateHelp(pValue, pIndex, pvarName, pobjWindow) {
+	var arrParams = new Array();
+	var objHelper = new objForHelp(pIndex, pvarName, pobjWindow);
+
+	arrParams[0] = "YYYYMMDD";
+	
+	objHelper.Format = "YYYYMMDD";
+	objHelper.m_XMLObject = new Object();
+	objHelper.m_XMLObject.attributes = new objHelperXMLDOM(pValue);
+	
+	objHelper.HelpType = "CALENDAR";
+	
+	showCalendar(objHelper, arrParams);
+}
+
+// ---------------------------------------------------------
+// OBJETOS
+// ---------------------------------------------------------
+
+//Objeto utilizado para levantar las listas guias
+function objRefreshList(pIndex, pVarName, pobjWindow) {
+	this.Index     = pIndex;
+	this.VarName   = pVarName;
+	this.objWindow = pobjWindow;
+	 
+	this.processResult = function(pstrResult) {
+		var Val, Des, Row;
+		var xmlResult;
+		
+		//Obtiene los valores desde el resultado de la guia
+		xmlResult = new NomadXML(pstrResult);
+		
+		this.objWindow.SetFormEnable(true);
+		
+		if (xmlResult.GetAttr("act") == "A") {
+			
+			Val = xmlResult.GetAttr("val");
+			Des = xmlResult.GetAttr("des");
+			
+			this.objWindow.nmdSetFK(this.VarName, Val, Des, this.Index, xmlResult.FirstChild());
+		}
+				
+	}
+}
+
+//Objeto utilizado para levantar los helpers
+function objForHelp(pIndex, pVarName, pobjWindow) {
+	this.HelpType;
+	this.Index     = pIndex;
+	this.VarName   = pVarName;
+	this.objWindow = pobjWindow;
+	this.m_Parent  = new objHelperParent(pobjWindow);
+	this.m_Value;
+		 
+	this.processResult = function(pstrResult) {
+		switch (this.HelpType) {
+			
+			case "CALENDAR":
+				var xmlResult;
+				
+				xmlResult = new NomadXML(pstrResult);
+				
+				this.objWindow.nmdSetDate(this.VarName, str2date(xmlResult.GetAttr("data")), this.Index);
+				break;
+
+			case "FILE":
+				this.objWindow.nmdSetFile(pstrResult);
+				break;
+		}
+		
+	}
+	
+	this.SetFocus = function () {
+	}
+	
+}
+
+function objHelperParent(pobjWindow) {
+	this.objWindow = pobjWindow;
+
+	this.SetActive = function (pValue) {
+		this.objWindow.SetFormEnable(pValue);
+	}
+}
+
+function objHelperXMLDOM(pXValue) {
+	this.m_Value = pXValue;
+
+	this.getNamedItem = function() {
+		var objResult = new Object();
+		
+		objResult.value = this.m_Value;
+		
+		return objResult;
+	}
+
+}
+	</form:Scripts>
+	<form:Center height="100%" width="100%" name="SecCenter">
+		<form:UrlControl height="100%" width="100%" name="urlMain"/>
+		<form:Hidden nvalue="#source:@oi_thread" name="hidOIThread"/>
+		<form:Hidden name="hidOINode" nvalue="#source:@oi_node"/>
+		<form:Hidden nvalue="#source:@paso" name="hidOIPaso"/>
+		<form:Hidden nvalue="#source:@DEBUG" name="hidDebug"/>
+		<form:Hidden nvalue="#source:@ETTY" name="hidDebugEtty"/>
+	</form:Center>
+	<form:Event action="Page_OnLoad" name="OnLoad" runat="client"/>
+	<form:Event name="CLOSE-FORM" action="CLOSE-FORM" runat="server"/>
+	<form:Event name="DELEGATE" action="DELEGATE" runat="server"/>
+	<form:Event name="PASS" action="PASS" runat="server"/>
+	<form:Event name="PASS-AND-WAIT" action="PASS-AND-WAIT" runat="server"/>
+</form:Form>

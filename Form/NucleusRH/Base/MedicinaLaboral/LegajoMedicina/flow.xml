@@ -1,0 +1,379 @@
+<flow:flow xmlns:flow="nomad_engine.flow" xmlns:qry="nomad_engine.qry" xmlns:doc="nomad_engine.doc" default_action="initialize" name="NucleusRH.Base.MedicinaLaboral.LegajoMedicina" extends="NucleusRH.Base.MedicinaLaboral.LegajoMedicina.autoflow" mess="&#191;Est&#225; seguro que desa cancelar la operaci&#243;n?">
+	<flow:info label="Flow para NucleusRH.Base.Personal.LegajoEmpresa"/>
+	<flow:declare>
+		<qry:define declare="&lt;ROWS nmd-col=&quot;1&quot;&gt;&lt;ROW id=&quot;11565&quot; /&gt;&lt;ROW id=&quot;11566&quot; /&gt;&lt;ROW id=&quot;11567&quot; /&gt;&lt;/ROWS&gt;" name="LIST">
+			<qry:include name="NucleusRH.Base.Organizacion.Empresas.EMPRESA.INFO"/>
+			<qry:include name="NucleusRH.Base.Personal.Legajo.PERSONAL.INFO"/>
+			<qry:main maxdeep="2" doc="SOURCE">
+				<qry:element name="ROWS">
+					<qry:insert-select name="sql1" doc-path="#SOURCE:"/>
+				</qry:element>
+			</qry:main>
+			<qry:select name="sql1" doc="SOURCE">
+				<qry:xquery>
+					for $r in sql('
+				SELECT 
+					t0.oi_personal_emp as oi_personal_emp, 
+					t1.oi_personal_emp as B_oi_personal_emp, 
+					t1.e_numero_legajo as B_e_numero_legajo, 
+					SEC.policy, 
+					t1.e_numero_legajo as CODE, 
+					PER01_PERSONAL.d_ape_y_nom as TEXT, 
+					t1.oi_empresa as oi_empresa, 
+					t1.oi_personal as oi_personal 
+				FROM 
+					MED04_PERSONAL as t0,
+					PER02_PERSONAL_EMP as t1,
+					NMD_SECURITY(class=\'NucleusRH.Base.Personal.LegajoEmpresa.PERSONAL_EMP\') as SEC, 
+					PER01_PERSONAL 
+				JOIN 
+					t0.oi_personal_emp RIGHT OUTER t1.oi_personal_emp,
+					t1.oi_personal_emp LEFT OUTER SEC.id,
+					t1.oi_personal LEFT OUTER PER01_PERSONAL.oi_personal 
+				WHERE                                                                            
+					t1.oi_personal_emp in ({%=string(#SOURCE:ROWS/ROW/@id) %})
+				ORDER BY 
+					oi_personal_emp asc
+			')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:element name="ROW">
+						<qry:attribute name="policy" value="$r/@policy"/>
+						<qry:attribute name="ID-MED04_PERSONAL" value="$r/@oi_personal_emp"/>
+						<qry:attribute name="id" value="$r/@B_oi_personal_emp"/>
+						<qry:attribute name="e_numero_legajo" value="$r/@B_e_numero_legajo"/>
+						<qry:attribute name="CODE" value="$r/@CODE"/>
+						<qry:attribute name="TEXT" value="$r/@TEXT"/>
+						<qry:if test="$r/@oi_empresa!=''">
+							<qry:then>
+								<qry:element name="oi_empresa">
+									<qry:attribute name="OI_FIND" value="$r/@oi_empresa"/>
+									<qry:insert-select name="NucleusRH.Base.Organizacion.Empresas.EMPRESA.QUERY" doc-path="."/>
+								</qry:element>
+								<qry:attribute name="oi_empresa" value="'['+oi_empresa/ROW/@COD+'] '+oi_empresa/ROW/@DES"/>
+							</qry:then>
+						</qry:if>
+						<qry:if test="$r/@oi_personal!=''">
+							<qry:then>
+								<qry:element name="oi_personal">
+									<qry:attribute name="OI_FIND" value="$r/@oi_personal"/>
+									<qry:insert-select name="NucleusRH.Base.Personal.Legajo.PERSONAL.QUERY" doc-path="."/>
+								</qry:element>
+								<qry:attribute name="oi_personal" value="'['+oi_personal/ROW/@COD+'] '+oi_personal/ROW/@DES"/>
+							</qry:then>
+						</qry:if>
+						<qry:insert-select doc-path="." name="FIND-PER-DESCR"/>
+					</qry:element>
+				</qry:out>
+			</qry:select>
+			<qry:select doc="PARAM" name="FIND-PER-DESCR">
+				<qry:xquery>
+					for $r in sql('
+				SELECT PER02_PERSONAL_EMP.e_numero_legajo AS COD, 
+				PER01_PERSONAL.d_ape_y_nom AS DES 
+				FROM 
+				PER02_PERSONAL_EMP, PER01_PERSONAL			
+				JOIN PER02_PERSONAL_EMP.oi_personal INNER PER01_PERSONAL.oi_personal
+				WHERE PER02_PERSONAL_EMP.oi_personal_emp ={#PARAM:@id}
+			')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:attribute value="'[' + $r/@COD + '] ' + $r/@DES" name="descr"/>
+					<qry:attribute value="$r/@DES" name="text"/>
+				</qry:out>
+			</qry:select>
+		</qry:define>
+		<qry:define declare="&lt;HIST_CLINICA nmd-col=&quot;1&quot;&gt;&#13;&#10;  &lt;CONSULTA_PER id=&quot;5&quot; oi_personal_emp=&quot;11565&quot; f_fechahora_cons=&quot;20090224171000&quot; e_dias_perdidos=&quot;0&quot; f_prox_consulta=&quot;20090302&quot; descr=&quot;[1] Alvarez, Emanuel - [20090224171000] 20090224171000&quot;&gt;&#13;&#10;    &lt;oi_motivo_consulta value=&quot;18&quot; nmd-agr=&quot;1&quot; /&gt;&#13;&#10;    &lt;oi_enfermedad nmd-agr=&quot;1&quot; /&gt;&#13;&#10;    &lt;DETALLE_HIST nmd-col=&quot;1&quot; /&gt;&#13;&#10;    &lt;MEDIC_SUMIN nmd-col=&quot;1&quot;&gt;&#13;&#10;      &lt;MEDIC_SUMIN id=&quot;4&quot; oi_consulta_per=&quot;5&quot; e_cant_sumin=&quot;2 capsulas&quot; descr=&quot;[1] Alvarez, Emanuel - [20090224171000] 20090224171000 - [076] sulfato da magnesio 0.5 mg/ml x 2 ml iny&quot;&gt;&#13;&#10;        &lt;oi_medicamento value=&quot;76&quot; nmd-agr=&quot;1&quot; /&gt;&#13;&#10;        &lt;oi_motivo_med value=&quot;3&quot; nmd-agr=&quot;1&quot; /&gt;&#13;&#10;      &lt;/MEDIC_SUMIN&gt;&#13;&#10;    &lt;/MEDIC_SUMIN&gt;&#13;&#10;  &lt;/CONSULTA_PER&gt;&#13;&#10;  &lt;CONSULTA_PER id=&quot;19&quot; oi_personal_emp=&quot;11565&quot; f_fechahora_cons=&quot;20100305180200&quot; f_baja=&quot;20100305&quot; f_prev_alta=&quot;20100324&quot; descr=&quot;[1] Alvarez, Emanuel - [20100305180200] 20100305180200&quot;&gt;&#13;&#10;    &lt;oi_motivo_consulta value=&quot;19&quot; nmd-agr=&quot;1&quot; /&gt;&#13;&#10;    &lt;oi_enfermedad value=&quot;5&quot; nmd-agr=&quot;1&quot; /&gt;&#13;&#10;    &lt;DETALLE_HIST nmd-col=&quot;1&quot;&gt;&#13;&#10;      &lt;DETALLE_CONS id=&quot;18&quot; oi_consulta_per=&quot;19&quot; f_fechahora_visita=&quot;20100305180300&quot; descr=&quot;[1] Alvarez, Emanuel - [20100305180200] 20100305180200 - [20100305180300] 20100305180300&quot;&gt;&#13;&#10;        &lt;oi_medico value=&quot;1&quot; nmd-agr=&quot;1&quot; /&gt;&#13;&#10;        &lt;oi_tipo_domicilio value=&quot;4&quot; nmd-agr=&quot;1&quot; /&gt;&#13;&#10;        &lt;oi_lugar_atencion value=&quot;2&quot; nmd-agr=&quot;1&quot; /&gt;&#13;&#10;      &lt;/DETALLE_CONS&gt;&#13;&#10;    &lt;/DETALLE_HIST&gt;&#13;&#10;    &lt;MEDIC_SUMIN nmd-col=&quot;1&quot; /&gt;&#13;&#10;  &lt;/CONSULTA_PER&gt;&#13;&#10;  &lt;CONSULTA_PER id=&quot;20&quot; oi_personal_emp=&quot;11565&quot; f_fechahora_cons=&quot;20100308112100&quot; f_baja=&quot;20100308&quot; f_prev_alta=&quot;20100310&quot; descr=&quot;[1] Alvarez, Emanuel - [20100308112100] 20100308112100&quot;&gt;&#13;&#10;    &lt;oi_motivo_consulta value=&quot;30&quot; nmd-agr=&quot;1&quot; /&gt;&#13;&#10;    &lt;oi_enfermedad value=&quot;1&quot; nmd-agr=&quot;1&quot; /&gt;&#13;&#10;    &lt;DETALLE_HIST nmd-col=&quot;1&quot;&gt;&#13;&#10;      &lt;DETALLE_CONS id=&quot;19&quot; oi_consulta_per=&quot;20&quot; f_fechahora_visita=&quot;20100308112200&quot; descr=&quot;[1] Alvarez, Emanuel - [20100308112100] 20100308112100 - [20100308112200] 20100308112200&quot;&gt;&#13;&#10;        &lt;oi_medico nmd-agr=&quot;1&quot; /&gt;&#13;&#10;        &lt;oi_tipo_domicilio nmd-agr=&quot;1&quot; /&gt;&#13;&#10;        &lt;oi_lugar_atencion nmd-agr=&quot;1&quot; /&gt;&#13;&#10;      &lt;/DETALLE_CONS&gt;&#13;&#10;    &lt;/DETALLE_HIST&gt;&#13;&#10;    &lt;MEDIC_SUMIN nmd-col=&quot;1&quot; /&gt;&#13;&#10;  &lt;/CONSULTA_PER&gt;&#13;&#10;&lt;/HIST_CLINICA&gt;&#13;&#10;" name="LIST:NucleusRH.Base.MedicinaLaboral.LegajoMedicina.CONSULTA_PER">
+			<qry:include name="NucleusRH.Base.MedicinaLaboral.MotivosConsulta.MOTIVO_CONSULTA.INFO"/>
+			<qry:include name="NucleusRH.Base.MedicinaLaboral.Enfermedades.ENFERMEDAD.INFO"/>
+			<qry:include name="NucleusRH.Base.MedicinaLaboral.LegajoMedicina.DETALLE_CONS.INFO"/>
+			<qry:include name="NucleusRH.Base.MedicinaLaboral.LegajoMedicina.MEDIC_SUMIN.INFO"/>
+			<qry:main doc="PARAM" maxdeep="2">
+				<qry:element name="ROWS">
+					<qry:insert-select doc-path="#PARAM:./CONSULTA_PER[substring_before(@nmd-status,',')!='~d' and substring_before(@nmd-status,',')!='~x']" name="sql1"/>
+				</qry:element>
+			</qry:main>
+			<qry:select doc="PARAM" name="sql1">
+				<qry:xquery>
+					for $r in #PARAM:
+				</qry:xquery>
+				<qry:out>
+					<qry:element name="ROW">
+						<qry:attribute name="id" value="$r/@id"/>
+						<qry:attribute name="f_fechahora_cons" value="$r/@f_fechahora_cons"/>
+						<qry:attribute name="f_baja" value="$r/@f_baja"/>
+						<qry:attribute name="f_prev_alta" value="$r/@f_prev_alta"/>
+						<qry:attribute name="f_alta" value="$r/@f_alta"/>
+						<qry:attribute name="CODE" value="$r/@CODE"/>
+						<qry:attribute name="TEXT" value="$r/@TEXT"/>
+						<qry:attribute name="licencia" value="'0'"/>
+						<qry:if test="$r/oi_motivo_consulta/@value!=''">
+							<qry:then>
+								<qry:element name="oi_motivo_consulta">
+									<qry:attribute name="OI_FIND" value="$r/oi_motivo_consulta/@value"/>
+									<qry:insert-select name="NucleusRH.Base.MedicinaLaboral.MotivosConsulta.MOTIVO_CONSULTA.QUERY" doc-path="."/>
+								</qry:element>
+								<qry:attribute name="oi_motivo_consulta" value="'['+oi_motivo_consulta/ROW/@COD+'] '+oi_motivo_consulta/ROW/@DES"/>
+							</qry:then>
+						</qry:if>
+						<qry:if test="$r/@oi_licencia!=''">
+							<qry:then>
+								<qry:attribute name="licencia" value="'1'"/>
+							</qry:then>
+						</qry:if>
+					</qry:element>
+				</qry:out>
+			</qry:select>
+		</qry:define>
+		<doc:define name="FILTERDATA">
+			<FILTRO oi_empresa="" f_desde="" f_hasta="" TIPO_PER="" ATRIB_ORDEN1="" ORDEN1="" ATRIB_ORDEN2="" ORDEN2="" ATRIB_ORDEN3="" ORDEN3="" ATRIB_ORDEN4="" ORDEN4="" ATRIB_ORDEN5="" ORDEN5="">
+				<PERSONAS/>
+			</FILTRO>
+		</doc:define>
+		<doc:define name="LICDELS"/>
+		<qry:define declare="&lt;PERSONAL_EMP text=&quot;Alvarez, Emanuel&quot; descr=&quot;[1] Alvarez, Emanuel&quot; l_disponib_viajar=&quot;0&quot; f_desde_calendario=&quot;20080401&quot; f_desde_ccosto=&quot;20080401&quot; l_confidencial=&quot;0&quot; l_eventual=&quot;0&quot; e_q_renov_ctrato=&quot;0&quot; e_numero_legajo=&quot;1&quot; f_ingreso=&quot;20080401&quot; id=&quot;13941&quot; ID-TTA04_PERSONAL=&quot;11565&quot;&gt;&#13;&#10;  &lt;oi_mensaje nmd-agr=&quot;1&quot; /&gt;&#13;&#10;  &lt;oi_empresa value=&quot;196&quot; nmd-agr=&quot;1&quot; /&gt;&#13;&#10;  &lt;oi_personal value=&quot;11571&quot; nmd-agr=&quot;1&quot; /&gt;&#13;&#10;  &lt;oi_contrato nmd-agr=&quot;1&quot; /&gt;&#13;&#10;  &lt;oi_posicion_ult nmd-agr=&quot;1&quot; /&gt;&#13;&#10;  &lt;oi_unidad_tiempo nmd-agr=&quot;1&quot; /&gt;&#13;&#10;  &lt;oi_agencia nmd-agr=&quot;1&quot; /&gt;&#13;&#10;  &lt;oi_puesto_ult nmd-agr=&quot;1&quot; /&gt;&#13;&#10;  &lt;oi_ctro_costo_ult value=&quot;288&quot; nmd-agr=&quot;1&quot; /&gt;&#13;&#10;  &lt;oi_categoria_ult nmd-agr=&quot;1&quot; /&gt;&#13;&#10;  &lt;oi_calendario_ult value=&quot;1&quot; nmd-agr=&quot;1&quot; /&gt;&#13;&#10;  &lt;oi_funcion nmd-agr=&quot;1&quot; /&gt;&#13;&#10;  &lt;oi_tipo_personal value=&quot;1&quot; nmd-agr=&quot;1&quot; /&gt;&#13;&#10;  &lt;oi_obra_social nmd-agr=&quot;1&quot; /&gt;&#13;&#10;  &lt;oi_motivo_eg_per nmd-agr=&quot;1&quot; /&gt;&#13;&#10;  &lt;oi_plan_os nmd-agr=&quot;1&quot; /&gt;&#13;&#10;  &lt;oi_sindicato nmd-agr=&quot;1&quot; /&gt;&#13;&#10;  &lt;oi_art nmd-agr=&quot;1&quot; /&gt;&#13;&#10;  &lt;oi_tipo_servicio nmd-agr=&quot;1&quot; /&gt;&#13;&#10;  &lt;oi_seguro_soc nmd-agr=&quot;1&quot; /&gt;&#13;&#10;  &lt;oi_prestadora nmd-agr=&quot;1&quot; /&gt;&#13;&#10;  &lt;oi_plan_presta nmd-agr=&quot;1&quot; /&gt;&#13;&#10;  &lt;oi_indic_activo value=&quot;1&quot; nmd-agr=&quot;1&quot; /&gt;&#13;&#10;  &lt;oi_sit_laboral nmd-agr=&quot;1&quot; /&gt;&#13;&#10;  &lt;oi_forma_pago nmd-agr=&quot;1&quot; /&gt;&#13;&#10;  &lt;oi_ubicacion nmd-agr=&quot;1&quot; /&gt;&#13;&#10;  &lt;oi_equipo_mov_ult nmd-agr=&quot;1&quot; /&gt;&#13;&#10;  &lt;oi_empresa_vinc nmd-agr=&quot;1&quot; /&gt;&#13;&#10;  &lt;NOVEDADES nmd-col=&quot;1&quot;&gt;&#13;&#10;    &lt;NOVEDAD descr=&quot;[1] Alvarez, Emanuel - [20080908] 20080908&quot; e_horafin=&quot;960&quot; e_horainicio=&quot;780&quot; f_fecha=&quot;20080908&quot; d_novedad=&quot;gdfgfd&quot; oi_personal_emp=&quot;11565&quot; id=&quot;4&quot;&gt;&#13;&#10;      &lt;oi_tipohora value=&quot;4&quot; nmd-agr=&quot;1&quot; /&gt;&#13;&#10;      &lt;oi_estructura value=&quot;2&quot; nmd-agr=&quot;1&quot; /&gt;&#13;&#10;    &lt;/NOVEDAD&gt;&#13;&#10;    &lt;NOVEDAD descr=&quot;[1] Alvarez, Emanuel - [20080910] 20080910&quot; e_horafin=&quot;960&quot; e_horainicio=&quot;870&quot; f_fecha=&quot;20080910&quot; d_novedad=&quot;Se retira para ir al medico&quot; oi_personal_emp=&quot;11565&quot; id=&quot;9&quot;&gt;&#13;&#10;      &lt;oi_tipohora value=&quot;1005&quot; nmd-agr=&quot;1&quot; /&gt;&#13;&#10;      &lt;oi_estructura value=&quot;2&quot; nmd-agr=&quot;1&quot; /&gt;&#13;&#10;    &lt;/NOVEDAD&gt;&#13;&#10;    &lt;NOVEDAD descr=&quot;[1] Alvarez, Emanuel - [20080910] 20080910&quot; e_horafin=&quot;1320&quot; e_horainicio=&quot;1020&quot; f_fecha=&quot;20080910&quot; d_novedad=&quot;nofrmal&quot; oi_personal_emp=&quot;11565&quot; id=&quot;5&quot;&gt;&#13;&#10;      &lt;oi_tipohora value=&quot;1000&quot; nmd-agr=&quot;1&quot; /&gt;&#13;&#10;      &lt;oi_estructura value=&quot;2&quot; nmd-agr=&quot;1&quot; /&gt;&#13;&#10;    &lt;/NOVEDAD&gt;&#13;&#10;    &lt;NOVEDAD descr=&quot;[1] Alvarez, Emanuel - [20080912] 20080912&quot; e_horafin=&quot;360&quot; e_horainicio=&quot;120&quot; f_fecha=&quot;20080912&quot; d_novedad=&quot;pg&quot; oi_personal_emp=&quot;11565&quot; id=&quot;6&quot;&gt;&#13;&#10;      &lt;oi_tipohora value=&quot;1011&quot; nmd-agr=&quot;1&quot; /&gt;&#13;&#10;      &lt;oi_estructura value=&quot;2&quot; nmd-agr=&quot;1&quot; /&gt;&#13;&#10;    &lt;/NOVEDAD&gt;&#13;&#10;  &lt;/NOVEDADES&gt;&#13;&#10;  &lt;HORARIOSPERS nmd-col=&quot;1&quot;&gt;&#13;&#10;    &lt;HORARIOPERS descr=&quot;[1] Alvarez, Emanuel - [20080707] Fijo de 08 a 16 Con Horas Extras&quot; f_fechaInicio=&quot;20080707&quot; oi_personal_emp=&quot;11565&quot; id=&quot;1876&quot;&gt;&#13;&#10;      &lt;oi_horario value=&quot;48&quot; nmd-agr=&quot;1&quot; /&gt;&#13;&#10;      &lt;oi_escuadra nmd-agr=&quot;1&quot; /&gt;&#13;&#10;    &lt;/HORARIOPERS&gt;&#13;&#10;  &lt;/HORARIOSPERS&gt;&#13;&#10;  &lt;TIPOSHORAAUT nmd-col=&quot;1&quot;&gt;&#13;&#10;    &lt;TIPOHORAAUT descr=&quot;[1] Alvarez, Emanuel - [20080825] 20080829&quot; c_estado=&quot;P&quot; e_horainicio=&quot;960&quot; e_horafin=&quot;1440&quot; f_hasta=&quot;20080829&quot; f_desde=&quot;20080825&quot; d_tipohoraaut=&quot;HE&quot; oi_personal_emp=&quot;11565&quot; id=&quot;13&quot; /&gt;&#13;&#10;    &lt;TIPOHORAAUT descr=&quot;[1] Alvarez, Emanuel - [20080826] 20080829&quot; c_estado=&quot;P&quot; e_horainicio=&quot;300&quot; e_horafin=&quot;780&quot; f_hasta=&quot;20080829&quot; f_desde=&quot;20080826&quot; d_tipohoraaut=&quot;Extra 100&quot; oi_personal_emp=&quot;11565&quot; id=&quot;12&quot; /&gt;&#13;&#10;  &lt;/TIPOSHORAAUT&gt;&#13;&#10;  &lt;ALQ_PER nmd-col=&quot;1&quot; /&gt;&#13;&#10;  &lt;CATEG_PER nmd-col=&quot;1&quot; /&gt;&#13;&#10;  &lt;CCOSTO_PER nmd-col=&quot;1&quot;&gt;&#13;&#10;    &lt;CCOSTO_PER descr=&quot;[1] Alvarez, Emanuel - [1000] Administraci&amp;#243;n&quot; f_ingreso=&quot;20080401&quot; oi_personal_emp=&quot;11565&quot; id=&quot;632&quot;&gt;&#13;&#10;      &lt;oi_centro_costo value=&quot;288&quot; nmd-agr=&quot;1&quot; /&gt;&#13;&#10;      &lt;oi_motivo_cambio nmd-agr=&quot;1&quot; /&gt;&#13;&#10;    &lt;/CCOSTO_PER&gt;&#13;&#10;  &lt;/CCOSTO_PER&gt;&#13;&#10;  &lt;CONTR_PER nmd-col=&quot;1&quot; /&gt;&#13;&#10;  &lt;DSANG_PER nmd-col=&quot;1&quot; /&gt;&#13;&#10;  &lt;NOT_CTR_TEMP nmd-col=&quot;1&quot; /&gt;&#13;&#10;  &lt;POSIC_PER nmd-col=&quot;1&quot; /&gt;&#13;&#10;  &lt;PUESTO_PER nmd-col=&quot;1&quot; /&gt;&#13;&#10;  &lt;TIPOSP_PER nmd-col=&quot;1&quot;&gt;&#13;&#10;    &lt;TIPOP_PER descr=&quot;[1] Alvarez, Emanuel - [1] Mensualizado &quot; f_ingreso=&quot;20080401&quot; oi_personal_emp=&quot;11565&quot; id=&quot;408&quot;&gt;&#13;&#10;      &lt;oi_tipo_personal value=&quot;1&quot; nmd-agr=&quot;1&quot; /&gt;&#13;&#10;      &lt;oi_motivo_cambio nmd-agr=&quot;1&quot; /&gt;&#13;&#10;    &lt;/TIPOP_PER&gt;&#13;&#10;  &lt;/TIPOSP_PER&gt;&#13;&#10;  &lt;LICEN_PER nmd-col=&quot;1&quot;&gt;&#13;&#10;    &lt;LICENCIA_PER descr=&quot;[1] Alvarez, Emanuel - [20080908] &quot; l_bloqueada=&quot;0&quot; e_anio_corresp=&quot;2008&quot; e_cant_dias=&quot;2&quot; f_fin=&quot;20080909&quot; f_inicio=&quot;20080908&quot; oi_personal_emp=&quot;11565&quot; id=&quot;78&quot;&gt;&#13;&#10;      &lt;oi_licencia value=&quot;1&quot; nmd-agr=&quot;1&quot; /&gt;&#13;&#10;    &lt;/LICENCIA_PER&gt;&#13;&#10;  &lt;/LICEN_PER&gt;&#13;&#10;  &lt;INGRESOS_PER nmd-col=&quot;1&quot;&gt;&#13;&#10;    &lt;INGRESOS_PER descr=&quot;[1] Alvarez, Emanuel - [20080401] &quot; f_ingreso=&quot;20080401&quot; oi_personal_emp=&quot;11565&quot; id=&quot;216&quot;&gt;&#13;&#10;      &lt;oi_motivo_eg_per nmd-agr=&quot;1&quot; /&gt;&#13;&#10;    &lt;/INGRESOS_PER&gt;&#13;&#10;  &lt;/INGRESOS_PER&gt;&#13;&#10;  &lt;BENEF_PER nmd-col=&quot;1&quot; /&gt;&#13;&#10;  &lt;EPP_PER nmd-col=&quot;1&quot; /&gt;&#13;&#10;  &lt;UNIF_PER nmd-col=&quot;1&quot; /&gt;&#13;&#10;  &lt;BS_CARGO_PER nmd-col=&quot;1&quot; /&gt;&#13;&#10;  &lt;TEMP_PER nmd-col=&quot;1&quot; /&gt;&#13;&#10;  &lt;CALENDARIO_PER nmd-col=&quot;1&quot;&gt;&#13;&#10;    &lt;CALENDARIO_PER descr=&quot;[1] Alvarez, Emanuel - [STD] Estandard&quot; f_desde=&quot;20080401&quot; oi_personal_emp=&quot;11565&quot; id=&quot;211&quot;&gt;&#13;&#10;      &lt;oi_calendario value=&quot;1&quot; nmd-agr=&quot;1&quot; /&gt;&#13;&#10;      &lt;oi_motivo_cambio nmd-agr=&quot;1&quot; /&gt;&#13;&#10;    &lt;/CALENDARIO_PER&gt;&#13;&#10;  &lt;/CALENDARIO_PER&gt;&#13;&#10;  &lt;EQUIPO_PER nmd-col=&quot;1&quot; /&gt;&#13;&#10;  &lt;REMUN_PER nmd-col=&quot;1&quot; /&gt;&#13;&#10;&lt;/PERSONAL_EMP&gt;&#13;&#10;" name="QRY_DATOS_PER">
+			<qry:main doc="SOURCE">
+				<qry:element name="DATOS">
+					<qry:insert-select doc-path="#SOURCE:PERSONAL_EMP" name="RS1"/>
+					<qry:attribute value="'0'" name="oi_horario"/>
+					<qry:attribute value="'0'" name="oi_escuadra"/>
+					<qry:insert-select doc-path="#SOURCE:PERSONAL_EMP/HORARIOSPERS" name="RS2"/>
+				</qry:element>
+			</qry:main>
+			<qry:select name="RS1" doc="SOURCE">
+				<qry:xquery>
+					for $r in SQL('
+			SELECT
+				PER01_PERSONAL.d_apellido,
+				PER01_PERSONAL.d_nombres,
+				PER01_PERSONAL.d_ape_y_nom,
+				PER01_PERSONAL.oi_tipo_documento,
+				PER01_PERSONAL.c_nro_documento,
+				PER01_PERSONAL.c_personal,
+				PER01_PERSONAL.c_sexo,
+				PER01_PERSONAL.oi_foto
+			FROM
+				PER01_PERSONAL, PER02_PERSONAL_EMP
+			JOIN
+				PER01_PERSONAL.oi_personal INNER PER02_PERSONAL_EMP.oi_personal
+			WHERE
+				PER02_PERSONAL_EMP.oi_personal_emp = {#SOURCE:@id} 
+		')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:attribute value="$r/@d_apellido" name="d_apellido"/>
+					<qry:attribute value="$r/@d_nombres" name="d_nombres"/>
+					<qry:attribute value="$r/@d_ape_y_nom" name="d_ape_y_nom"/>
+					<qry:attribute value="$r/@oi_tipo_documento" name="oi_tipo_documento"/>
+					<qry:attribute value="$r/@c_nro_documento" name="c_nro_documento"/>
+					<qry:attribute value="$r/@c_personal" name="c_personal"/>
+					<qry:attribute value="$r/@c_sexo" name="c_sexo"/>
+					<qry:attribute value="$r/@oi_foto" name="oi_foto"/>
+				</qry:out>
+			</qry:select>
+			<qry:select name="RS2" doc="SOURCE">
+				<qry:xquery>
+					for $r in #SOURCE:HORARIOPERS[@f_fechaInicio&lt;=String(now()) AND (@f_fechafin&gt;=String(now()) OR @f_fechafin='')]
+				</qry:xquery>
+				<qry:out>
+					<qry:attribute value="iif($r/oi_horario/@value!='',$r/oi_horario/@value,'0')" name="oi_horario"/>
+					<qry:attribute value="iif($r/oi_escuadra/@value!='',$r/oi_escuadra/@value,'0')" name="oi_escuadra"/>
+					<qry:attribute value="iif($r/@f_fechaInicio!='',$r/@f_fechaInicio,'0')" name="f_fechaInicio"/>
+				</qry:out>
+			</qry:select>
+		</qry:define>
+		<doc:define name="PER"/>
+		<doc:define name="SALIDA"/>
+	</flow:declare>
+	<flow:main doc="SOURCE">
+		<flow:action name="initialize">
+			<flow:open-form form-class="NucleusRH.Base.MedicinaLaboral.LegajoMedicina.filter.form" doc-path="#FILTERDATA:" mode="FILTER"/>
+		</flow:action>
+		<flow:action name="validarEdit">
+			<flow:exec-method out-type="Nomad.NSystem.Proxy.NomadXML" out-doc="SALIDA" class="NucleusRH.Base.MedicinaLaboral.LegajoMedicina.CONSULTA_PER" method="ValidarLicencia">
+				<flow:param attr-path="#SOURCE:@oi_personal_emp" type="Nomad.NSystem.Int" mode="in" name="oi_personal_emp"/>
+				<flow:param attr-path="#SOURCE:@oi_licencia" type="Nomad.NSystem.Int" mode="in" name="oi_licencia"/>
+				<flow:param attr-path="#SOURCE:@f_inicio" type="Nomad.NSystem.DateTime" mode="in" name="f_inicio"/>
+				<flow:param attr-path="#SOURCE:@f_fin" type="Nomad.NSystem.DateTime" mode="in" name="f_fin"/>
+				<flow:param attr-path="#SOURCE:@dias" type="Nomad.NSystem.Int" mode="in" name="dias"/>
+			</flow:exec-method>
+			<flow:exit-flow return-path="#SALIDA:"/>
+		</flow:action>
+	</flow:main>
+	<flow:group name="PERSONAL_EMP">
+		<flow:form extends="NucleusRH.Base.MedicinaLaboral.LegajoMedicina.PERSONAL_EMP.filter.autoform:FILTER" name="NucleusRH.Base.MedicinaLaboral.LegajoMedicina.filter.form" form-class="NucleusRH.Base.MedicinaLaboral.LegajoMedicina.filter.form" doc="FILTERDATA" mode="FILTER">
+			<flow:action name="on-show">
+				<flow:call-action action="inits-DDO"/>
+				<flow:load-user-data name="PER_IDsLegajosMed" doc="QRY"/>
+				<flow:attach-doc attach-id="ARRB" doc-path="#QRY:"/>
+			</flow:action>
+			<flow:action name="FILTER">
+				<flow:load-user-data name="PER_IDsLegajosMed" doc="QRY"/>
+				<flow:call-action action="Save-FILTER"/>
+				<flow:call-action action="open-flow-SHOW"/>
+			</flow:action>
+		</flow:form>
+		<flow:form extends="NucleusRH.Base.MedicinaLaboral.LegajoMedicina.PERSONAL_EMP.noreg.autoform:EDIT" parent-doc="PARENTSOURCE" doc="SOURCE" name="NucleusRH.Base.MedicinaLaboral.LegajoMedicina.PERSONAL_EMP.noreg.form:EDIT" form-class="NucleusRH.Base.MedicinaLaboral.LegajoMedicina.PERSONAL_EMP.noreg.autoform" mode="EDIT">
+			<flow:action name="goto-list">
+				<flow:log text-path="#QRY:" text="ppqry"/>
+				<doc:load-qry output-doc="QRY_LIST" qry="LIST" input-doc-path="#QRY:"/>
+				<flow:call-action action="open-flow-LIST"/>
+			</flow:action>
+			<flow:action name="goto-show">
+				<flow:call-action action="open-flow-SHOW"/>
+			</flow:action>
+			<flow:action name="open-flow-SHOW">
+				<flow:open-form iter-index="#QRY:ROW/@id" parent-doc-path="#QRY:" doc-path="#DDO:" mode="SHOW" form-class="NucleusRH.Base.MedicinaLaboral.LegajoMedicina.PERSONAL_EMP.form"/>
+			</flow:action>
+			<flow:action name="open-flow-ADD">
+				<flow:open-form doc-path="#NEWDDOROOT:" mode="NEW" form-class="NucleusRH.Base.MedicinaLaboral.LegajoMedicina.PERSONAL_EMP.form"/>
+			</flow:action>
+			<flow:action name="open-flow-LIST">
+				<flow:open-form iter-index="#QRY_LIST:ROW/@id" parent-doc-path="#QRY_LIST:" doc-path="#DDO:" mode="LIST" form-class="NucleusRH.Base.MedicinaLaboral.LegajoMedicina.PERSONAL_EMP.form"/>
+			</flow:action>
+		</flow:form>
+		<flow:form extends="NucleusRH.Base.MedicinaLaboral.LegajoMedicina.PERSONAL_EMP.autoform:SHOW" parent-doc="PARENTSOURCE" doc="SOURCE" name="NucleusRH.Base.MedicinaLaboral.LegajoMedicina.PERSONAL_EMP.form:SHOW" form-class="NucleusRH.Base.MedicinaLaboral.LegajoMedicina.PERSONAL_EMP.form" mode="SHOW">
+			<flow:action name="open-flow-EDIT">
+				<flow:open-form doc-path="#DDO:" mode="EDIT" form-class="NucleusRH.Base.MedicinaLaboral.LegajoMedicina.PERSONAL_EMP.form"/>
+			</flow:action>
+			<flow:action name="open-flow-ADD">
+				<flow:open-form doc-path="#NEWDDOROOT:" mode="NEW" form-class="NucleusRH.Base.MedicinaLaboral.LegajoMedicina.PERSONAL_EMP.form"/>
+			</flow:action>
+			<flow:action name="After-Change">
+				<doc:iter-refresh/>
+				<doc:iter-move value-path="#DDO:@id"/>
+				<doc:load-qry input-doc-path="#DDO:" output-doc="PER" qry="QRY_DATOS_PER"/>
+			</flow:action>
+			<flow:action name="on-show">
+				<doc:load-qry input-doc-path="#DDO:" output-doc="PER" qry="QRY_DATOS_PER"/>
+			</flow:action>
+			<flow:action name="After-Back">
+				<doc:iter-refresh/>
+				<doc:load-qry input-doc-path="#DDO:" output-doc="PER" qry="QRY_DATOS_PER"/>
+			</flow:action>
+			<flow:action name="on-move-iterator">
+				<flow:call-action action="load-DDO"/>
+				<doc:load-qry input-doc-path="#DDO:" output-doc="PER" qry="QRY_DATOS_PER"/>
+			</flow:action>
+		</flow:form>
+		<flow:form extends="NucleusRH.Base.MedicinaLaboral.LegajoMedicina.PERSONAL_EMP.autoform:LIST" parent-doc="PARENTSOURCE" doc="SOURCE" name="NucleusRH.Base.MedicinaLaboral.LegajoMedicina.PERSONAL_EMP.form:LIST" form-class="NucleusRH.Base.MedicinaLaboral.LegajoMedicina.PERSONAL_EMP.form" mode="LIST">
+			<flow:action name="open-flow-EDIT">
+				<doc:load-qry input-doc-path="#DDO:" output-doc="PER" qry="QRY_DATOS_PER"/>
+				<flow:open-form doc-path="#DDO:" mode="EDIT" form-class="NucleusRH.Base.MedicinaLaboral.LegajoMedicina.PERSONAL_EMP.form"/>
+			</flow:action>
+			<flow:action name="open-flow-ADD">
+				<flow:open-form doc-path="#NEWDDOROOT:" mode="NEW" form-class="NucleusRH.Base.MedicinaLaboral.LegajoMedicina.PERSONAL_EMP.form"/>
+			</flow:action>
+			<flow:action name="After-Change">
+				<doc:load-qry output-doc="QRY_LIST" qry="LIST" input-doc-path="#QRY:"/>
+				<doc:set-attribute to-attr-path="#FORM:ctrl[@id='LIST']/@xval" from-attr-path="#DDO:@id"/>
+			</flow:action>
+			<flow:action name="After-Back">
+				<flow:log text-path="#QRY:" text="ppback"/>
+				<doc:load-qry output-doc="QRY_LIST" qry="LIST" input-doc-path="#QRY:"/>
+			</flow:action>
+		</flow:form>
+		<flow:form extends="NucleusRH.Base.MedicinaLaboral.LegajoMedicina.PERSONAL_EMP.autoform:EDIT" parent-doc="PARENTSOURCE" doc="SOURCE" name="NucleusRH.Base.MedicinaLaboral.LegajoMedicina.PERSONAL_EMP.form:EDIT" form-class="NucleusRH.Base.MedicinaLaboral.LegajoMedicina.PERSONAL_EMP.form" mode="EDIT">
+			<flow:action name="save-DDO">
+				<flow:exec-method method="ActualizarEnfermedad" class="NucleusRH.Base.MedicinaLaboral.LegajoMedicina.PERSONAL_EMP" this-doc="DDO">
+					<flow:param doc="LICDELS" type="Nomad.NSystem.Proxy.NomadXML" mode="in" name="licdels"/>
+				</flow:exec-method>
+			</flow:action>
+		</flow:form>
+		<flow:form extends="NucleusRH.Base.MedicinaLaboral.LegajoMedicina.PERSONAL_EMP.autoform:NEW" parent-doc="PARENTSOURCE" doc="SOURCE" name="NucleusRH.Base.MedicinaLaboral.LegajoMedicina.PERSONAL_EMP.form:NEW" form-class="NucleusRH.Base.MedicinaLaboral.LegajoMedicina.PERSONAL_EMP.form" mode="NEW"/>
+	</flow:group>
+	<flow:group Name="CONSULTA_PER">
+		<flow:form extends="NucleusRH.Base.MedicinaLaboral.LegajoMedicina.CONSULTA_PER.noreg.autoform:SHOW" parent-doc="PARENTSOURCE" doc="SOURCE" name="NucleusRH.Base.MedicinaLaboral.LegajoMedicina.CONSULTA_PER.noreg.form:SHOW" form-class="NucleusRH.Base.MedicinaLaboral.LegajoMedicina.CONSULTA_PER.noreg.autoform" mode="SHOW">
+			<flow:action name="open-flow-SHOW">
+				<flow:open-form iter-index="#PARENTSOURCE:CONSULTA_PER/@id" parent-doc-path="#PARENTSOURCE:" doc-path="#PARENTSOURCE:" mode="SHOW" form-class="NucleusRH.Base.MedicinaLaboral.LegajoMedicina.CONSULTA_PER.form"/>
+			</flow:action>
+			<flow:action name="open-flow-LIST">
+				<flow:open-form iter-index="#PARENTSOURCE:CONSULTA_PER/@id" parent-doc-path="#PARENTSOURCE:" doc-path="#PARENTSOURCE:" mode="LIST" form-class="NucleusRH.Base.MedicinaLaboral.LegajoMedicina.CONSULTA_PER.form"/>
+			</flow:action>
+		</flow:form>
+		<flow:form extends="NucleusRH.Base.MedicinaLaboral.LegajoMedicina.CONSULTA_PER.autoform:SHOW" doc-path="/CONSULTA_PER[@id='{#iter-cursor:@value}']" parent-doc="PARENTSOURCE" doc="SOURCE" name="NucleusRH.Base.MedicinaLaboral.LegajoMedicina.CONSULTA_PER.form:SHOW" form-class="NucleusRH.Base.MedicinaLaboral.LegajoMedicina.CONSULTA_PER.form" mode="SHOW">
+			<flow:action name="ALTA">
+				<flow:open-form form-class="NucleusRH.Base.MedicinaLaboral.LegajoMedicina.CONSULTA_PER.ALTA.form" parent-doc-path="#PARENTSOURCE:" doc-path="#SOURCE:" mode="SHOW"/>
+			</flow:action>
+		</flow:form>
+		<flow:form extends="NucleusRH.Base.MedicinaLaboral.LegajoMedicina.CONSULTA_PER.autoform:LIST" doc-path="/CONSULTA_PER[@id='{#iter-cursor:@value}']" parent-doc="PARENTSOURCE" doc="SOURCE" name="NucleusRH.Base.MedicinaLaboral.LegajoMedicina.CONSULTA_PER.form:LIST" form-class="NucleusRH.Base.MedicinaLaboral.LegajoMedicina.CONSULTA_PER.form" mode="LIST">
+			<flow:action name="ALTA">
+				<flow:open-form form-class="NucleusRH.Base.MedicinaLaboral.LegajoMedicina.CONSULTA_PER.ALTA.form" doc-path="#PARENTSOURCE:CONSULTA_PER[@id='{#FORM:ctrl[@id='LIST']/@xval}']" parent-doc-path="#PARENTSOURCE:" mode="SHOW"/>
+			</flow:action>
+			<flow:action name="VALIDAR">
+				<flow:call-action action="BACK"/>
+			</flow:action>
+		</flow:form>
+		<flow:form extends="NucleusRH.Base.MedicinaLaboral.LegajoMedicina.CONSULTA_PER.autoform:LIST_EDIT" doc-path="/CONSULTA_PER[@id='{#iter-cursor:@value}']" parent-doc="PARENTSOURCE" doc="SOURCE" name="NucleusRH.Base.MedicinaLaboral.LegajoMedicina.CONSULTA_PER.form:LIST_EDIT" form-class="NucleusRH.Base.MedicinaLaboral.LegajoMedicina.CONSULTA_PER.form" mode="LIST_EDIT">
+			<flow:action name="open-flow-ADD">
+				<flow:open-form parent-doc-path="#PARENTSOURCE:" doc-path="#NEWDDO:" mode="NEW" form-class="NucleusRH.Base.MedicinaLaboral.LegajoMedicina.CONSULTA_PER.form"/>
+			</flow:action>
+			<!--<flow:action name="VALIDAR">
+		<flow:call-action action="BACK"/>
+	</flow:action> -->
+		</flow:form>
+		<flow:form extends="NucleusRH.Base.MedicinaLaboral.LegajoMedicina.CONSULTA_PER.noreg.autoform:EDIT" parent-doc="PARENTSOURCE" doc="SOURCE" name="NucleusRH.Base.MedicinaLaboral.LegajoMedicina.CONSULTA_PER.noreg.form:EDIT" form-class="NucleusRH.Base.MedicinaLaboral.LegajoMedicina.CONSULTA_PER.noreg.autoform" mode="EDIT">
+			<flow:action name="open-flow-EDIT">
+				<flow:open-form iter-index="#PARENTSOURCE:CONSULTA_PER/@id" parent-doc-path="#PARENTSOURCE:" doc-path="#PARENTSOURCE:" mode="EDIT" form-class="NucleusRH.Base.MedicinaLaboral.LegajoMedicina.CONSULTA_PER.form"/>
+			</flow:action>
+			<flow:action name="open-flow-LIST">
+				<flow:open-form iter-index="#PARENTSOURCE:CONSULTA_PER/@id" parent-doc-path="#PARENTSOURCE:" doc-path="#PARENTSOURCE:" mode="LIST_EDIT" form-class="NucleusRH.Base.MedicinaLaboral.LegajoMedicina.CONSULTA_PER.form"/>
+			</flow:action>
+			<flow:action name="open-flow-ADD">
+				<flow:open-form parent-doc-path="#PARENTSOURCE:" doc-path="#NEWDDO:" mode="NEW" form-class="NucleusRH.Base.MedicinaLaboral.LegajoMedicina.CONSULTA_PER.form"/>
+			</flow:action>
+		</flow:form>
+		<flow:form extends="NucleusRH.Base.MedicinaLaboral.LegajoMedicina.CONSULTA_PER.autoform:EDIT" doc-path="/CONSULTA_PER[@id='{#iter-cursor:@value}']" parent-doc="PARENTSOURCE" doc="SOURCE" name="NucleusRH.Base.MedicinaLaboral.LegajoMedicina.CONSULTA_PER.form:EDIT" form-class="NucleusRH.Base.MedicinaLaboral.LegajoMedicina.CONSULTA_PER.form" mode="EDIT">
+			<flow:action name="open-flow-ADD">
+				<flow:open-form parent-doc-path="#PARENTSOURCE:" doc-path="#NEWDDO:" mode="NEW" form-class="NucleusRH.Base.MedicinaLaboral.LegajoMedicina.CONSULTA_PER.form"/>
+			</flow:action>
+			<!--<flow:action name="VALIDAR">
+		<flow:log text-path="#SOURCE:" text="SOURCE"/>
+		<flow:exec-method out-type="Nomad.NSystem.Proxy.NomadXML" out-doc="SALIDA" class="NucleusRH.Base.MedicinaLaboral.LegajoMedicina.CONSULTA_PER" method="ValidarLicencia">
+			<flow:param attr-path="#SOURCE:@oi_personal_emp" type="Nomad.NSystem.Int" mode="in" name="oi_personal_emp"/>
+			<flow:param attr-path="#SOURCE:@oi_licencia" type="Nomad.NSystem.Int" mode="in" name="oi_licencia"/>
+			<flow:param attr-path="#SOURCE:@f_baja" type="Nomad.NSystem.DateTime" mode="in" name="f_inicio"/>
+			<flow:param attr-path="#SOURCE:@f_alta" type="Nomad.NSystem.DateTime" mode="in" name="f_fin"/>
+			<flow:param attr-path="#SOURCE:@e_dias_perdidos" type="Nomad.NSystem.Int" mode="in" name="dias"/>
+		</flow:exec-method>
+		<flow:call-action else="BACK" action="MENSAJE" eq="0" if="#SALIDA:@valid"/>
+	</flow:action>
+	<flow:action name="MENSAJE">
+		<flow:message message="#SALIDA:@alert"/>
+	</flow:action>  -->
+		</flow:form>
+		<flow:form name="NucleusRH.Base.MedicinaLaboral.LegajoMedicina.CONSULTA_PER.ALTA.form:SHOW" form-class="NucleusRH.Base.MedicinaLaboral.LegajoMedicina.CONSULTA_PER.ALTA.form" parent-doc="PARENTSOURCE" doc="SOURCE" mode="SHOW">
+			<flow:action name="CANCEL">
+				<flow:close-form/>
+			</flow:action>
+			<flow:action name="ACCEPT">
+				<flow:exec-method this-doc="DDO" class="NucleusRH.Base.MedicinaLaboral.LegajoMedicina.PERSONAL_EMP" out-type="Boolean" method="InformarAlta">
+					<flow:param attr-path="#SOURCE:@id" type="Nomad.NSystem.String" mode="in" name="consultaid"/>
+					<flow:param attr-path="#SOURCE:@oi_licencia" type="Nomad.NSystem.String" mode="in" name="licenciaid"/>
+					<flow:param attr-path="#SOURCE:@f_alta" type="Nomad.NSystem.DateTime" mode="in" name="f_alta"/>
+				</flow:exec-method>
+				<flow:close-form next-action="After-Back"/>
+			</flow:action>
+		</flow:form>
+		<flow:form extends="NucleusRH.Base.MedicinaLaboral.LegajoMedicina.CONSULTA_PER.autoform:NEW" parent-doc="PARENTSOURCE" doc="SOURCE" name="NucleusRH.Base.MedicinaLaboral.LegajoMedicina.CONSULTA_PER.form:NEW" form-class="NucleusRH.Base.MedicinaLaboral.LegajoMedicina.CONSULTA_PER.form" mode="NEW"/>
+	</flow:group>
+	<flow:group Name="FACTOR_EVA">
+		<flow:form extends="NucleusRH.Base.MedicinaLaboral.LegajoMedicina.FACTOR_EVA.noreg.autoform:SHOW" parent-doc="PARENTSOURCE" doc="SOURCE" name="NucleusRH.Base.MedicinaLaboral.LegajoMedicina.FACTOR_EVA.noreg.form:SHOW" form-class="NucleusRH.Base.MedicinaLaboral.LegajoMedicina.FACTOR_EVA.noreg.autoform" mode="SHOW">
+			<flow:action name="on-move-iterator">
+				<flow:open-form iter-index="#PARENTSOURCE:FACTOR_EVA/@id" parent-doc-path="#PARENTSOURCE:" doc-path="#PARENTSOURCE:" mode="SHOW" form-class="NucleusRH.Base.MedicinaLaboral.LegajoMedicina.FACTOR_EVA.form"/>
+			</flow:action>
+		</flow:form>
+		<flow:form extends="NucleusRH.Base.MedicinaLaboral.LegajoMedicina.FACTOR_EVA.autoform:SHOW" parent-doc="PARENTSOURCE" doc="SOURCE" name="NucleusRH.Base.MedicinaLaboral.LegajoMedicina.FACTOR_EVA.form:SHOW" form-class="NucleusRH.Base.MedicinaLaboral.LegajoMedicina.FACTOR_EVA.form" mode="SHOW"/>
+		<flow:form extends="NucleusRH.Base.MedicinaLaboral.LegajoMedicina.FACTOR_EVA.noreg.autoform:EDIT" parent-doc="PARENTSOURCE" doc="SOURCE" name="NucleusRH.Base.MedicinaLaboral.LegajoMedicina.FACTOR_EVA.noreg.form:EDIT" form-class="NucleusRH.Base.MedicinaLaboral.LegajoMedicina.FACTOR_EVA.noreg.autoform" mode="EDIT">
+			<flow:action name="on-move-iterator">
+				<flow:open-form iter-index="#PARENTSOURCE:FACTOR_EVA/@id" parent-doc-path="#PARENTSOURCE:" doc-path="#PARENTSOURCE:" mode="EDIT" form-class="NucleusRH.Base.MedicinaLaboral.LegajoMedicina.FACTOR_EVA.form"/>
+			</flow:action>
+			<flow:action name="ADD">
+				<doc:new-object doc="NEWDDO" class="NucleusRH.Base.MedicinaLaboral.LegajoMedicina.FACTOR_EVA"/>
+				<doc:add-object doc-path="#NEWDDO:" parent-doc-path="#PARENTSOURCE:"/>
+				<flow:open-form iter-index="#PARENTSOURCE:FACTOR_EVA/@id" parent-doc-path="#PARENTSOURCE:" doc-path="#PARENTSOURCE:" mode="EDIT" form-class="NucleusRH.Base.MedicinaLaboral.LegajoMedicina.FACTOR_EVA.form"/>
+			</flow:action>
+		</flow:form>
+		<flow:form extends="NucleusRH.Base.MedicinaLaboral.LegajoMedicina.FACTOR_EVA.autoform:EDIT" parent-doc="PARENTSOURCE" doc="SOURCE" name="NucleusRH.Base.MedicinaLaboral.LegajoMedicina.FACTOR_EVA.form:EDIT" form-class="NucleusRH.Base.MedicinaLaboral.LegajoMedicina.FACTOR_EVA.form" mode="EDIT"/>
+	</flow:group>
+</flow:flow>

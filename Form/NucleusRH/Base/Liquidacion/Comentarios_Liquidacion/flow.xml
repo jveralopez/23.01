@@ -1,0 +1,62 @@
+<flow:flow xmlns:flow="nomad_engine.flow" xmlns:doc="nomad_engine.doc" xmlns:qry="nomad_engine.qry" extends="Nomad.Base.flow" name="NucleusRH.Base.Liquidacion.Comentarios_Liquidacion.flow" default_action="initialize">
+	<flow:info label="Flow para la carga de comentarios POR PERSONA."/>
+	<flow:declare>
+		<doc:define name="FILTERDATA"/>
+		<doc:define name="RS"/>
+		<doc:define name="NADA"/>
+		<qry:define declare="&lt;DATA oi=&quot;11436&quot; oi_liq=&quot;91&quot; /&gt;" name="GetComentarios">
+			<qry:main doc="PARAM">
+				<qry:element name="DATA">
+					<qry:attribute value="'Personal no encontrado'" name="value"/>
+					<qry:insert-select name="TITLE" doc-path="#PARAM:DATA"/>
+				</qry:element>
+			</qry:main>
+			<qry:select doc="PARAM" name="TITLE">
+				<qry:xquery>
+					for $r in sql('
+				SELECT
+					pe.e_numero_legajo,
+					p.d_ape_y_nom,
+					l.oi_personal_liq,
+					l.o_comentarios
+				FROM
+					PER02_PERSONAL_EMP as pe,
+					PER01_PERSONAL as p,
+					LIQ25_PERSONAL_LIQ as l
+				JOIN
+					pe.oi_personal INNER p.oi_personal,
+					pe.oi_personal_emp INNER l.oi_personal_emp
+				WHERE
+					l.oi_personal_emp = {#PARAM:@oi} and 
+					l.oi_liquidacion = {#PARAM:@oi_liq}
+				')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:attribute value="'Carga de comentarios Personal [' + $r/@e_numero_legajo + '] - ' + $r/@d_ape_y_nom" name="value"/>
+					<qry:attribute value="$r/@oi_personal_liq" name="oi"/>
+					<qry:attribute value="$r/@o_comentarios" name="o_comentarios"/>
+				</qry:out>
+			</qry:select>
+		</qry:define>
+		<doc:define class="NucleusRH.Base.Liquidacion.Personal_Liquidacion.PERSONAL_LIQ" name="DDO"/>
+	</flow:declare>
+	<flow:main doc="SOURCE">
+		<flow:action name="initialize">
+			<doc:load-qry qry="GetComentarios" input-doc-path="#SOURCE:" output-doc="RS"/>
+			<flow:open-form doc-path="#RS:" form-class="NucleusRH.Base.Liquidacion.Comentarios_Liquidacion.form" mode="EDIT"/>
+		</flow:action>
+	</flow:main>
+	<flow:form name="NucleusRH.Base.Liquidacion.Comentarios_Liquidacion.form" form-class="NucleusRH.Base.Liquidacion.Comentarios_Liquidacion.form" mode="EDIT" doc="SOURCE">
+		<flow:action name="SAVE">
+			<doc:set-attribute from-attr-path="#SOURCE:@o_comentarios" to-attr-path="#DDO:@o_comentarios"/>
+			<doc:save-object class="NucleusRH.Base.Liquidacion.Personal_Liquidacion.PERSONAL_LIQ" doc="DDO"/>
+			<flow:call-action action="CANCEL"/>
+		</flow:action>
+		<flow:action name="CANCEL">
+			<flow:exit-flow return-path="#NADA:"/>
+		</flow:action>
+		<flow:action name="on-show">
+			<doc:load-object load-all="1" load-child="1" id-path="#SOURCE:@oi" class="NucleusRH.Base.Liquidacion.Personal_Liquidacion.PERSONAL_LIQ" doc="DDO"/>
+		</flow:action>
+	</flow:form>
+</flow:flow>

@@ -1,0 +1,340 @@
+<html:html xmlns:html="nomad_engine.html" xmlns:qry="nomad_engine.qry" name="NucleusProject.Base.Project.TareasResponsable" extends="Nomad.Base.BaseReport.rpt" xtends="Nomad.Base.BaseReport.rpt" doc="source">
+	<html:query declare="&lt;DATA oi_recurso=&quot;22&quot; f_desde=&quot;20110101&quot; f_hasta=&quot;&quot; selected=&quot;I&quot; campo=&quot;Tarea&quot; ORDEN=&quot;Desc&quot;&gt;&lt;EST /&gt;&lt;/DATA&gt;">
+		<qry:main doc="SOURCE">
+			<qry:append-doc name="ESTADOS" doc-path="."/>
+			<REPORT label="Tareas de un Responsable" style="width:90%;">
+				<qry:attribute name="date" value="format_date(Now(),'dd/mm/yyyy HH:MM')"/>
+				<GROUPS>
+					<GROUP tag="TITULO" style="padding-left:1px;width:100%;" type="title" noreg="No se encontraron registros para los filtros seleccionados.">
+						<COLS>
+							<COL name="oi_recurso" label="Recurso" align="left" style="width:100%;"/>
+							<COL name="f_desde" label="Fecha Desde" align="left" style="width:100%;"/>
+							<COL name="f_hasta" label="Fecha Hasta" align="left" style="width:100%;"/>
+							<COL name="hs_jornada" label="Jornada" align="left" style="width:100%;"/>
+							<COL name="d_posicion" label="Posici&#243;n" align="left" style="width:100%;"/>
+						</COLS>
+						<GROUP tag="TAREA" style="padding-left:1px;width:100%;" type="table" noreg="No se encontraron registros para los filtros seleccionados.">
+							<COLS>
+								<COL name="c_tarea" label="Tarea" align="left" nowrap="1"/>
+								<COL name="d_tarea" label="Descripci&#243;n" align="left" nowrap="1"/>
+								<COL name="f_inicio" label="F. Inicio" align="left" nowrap="1"/>
+								<COL name="f_fin" label="F. Fin" align="left" nowrap="1"/>
+								<COL name="f_limite" label="F. L&#237;mite" align="left" nowrap="1"/>
+								<COL name="d_nom_cliente" label="Cliente" align="left" nowrap="1"/>
+								<COL name="d_proyecto" label="Proyecto" align="left" nowrap="1"/>
+								<COL name="c_estado" label="Estado" align="left" nowrap="1"/>
+								<COL name="e_prioridad" label="Prioridad" align="left" nowrap="1"/>
+								<COL name="dias" label="D&#237;as" align="left" nowrap="1"/>
+								<COL name="hs_estimadas" label="Hs. Estimadas" align="left" nowrap="1"/>
+								<COL name="est_dias" label="Hs. Est/D&#237;as" align="left" nowrap="1"/>
+								<COL name="hs_insumidas" label="Hs. Insumidas" align="left" nowrap="1"/>
+								<COL name="hs_insumidas_recurso" label="Hs.Ins.Recurso" align="left" nowrap="1"/>
+							</COLS>
+						</GROUP>
+					</GROUP>
+				</GROUPS>
+				<qry:element name="DATA">
+					<qry:element name="TITULO">
+						<qry:attribute value="format_date(#SOURCE:DATA/@f_desde,'dd/mm/yyyy')" name="f_desde"/>
+						<qry:attribute value="format_date(#SOURCE:DATA/@f_hasta,'dd/mm/yyyy')" name="f_hasta"/>
+						<qry:insert-select name="qry_recurso" doc-path="#SOURCE:DATA"/>
+						<row>
+							<qry:insert-select name="qry_get_estados" doc-path="#SOURCE:DATA/EST"/>
+						</row>
+						<qry:insert-select name="qry_tareas" doc-path="#SOURCE:DATA"/>
+					</qry:element>
+				</qry:element>
+			</REPORT>
+		</qry:main>
+		<qry:select name="qry_tareas" doc="PARAM">
+			<qry:xquery>
+				for $r in SQL('	
+SELECT 
+	pt.oi_tarea,
+	pt.c_tarea AS c_tarea,
+	pt.d_tarea AS d_tarea,
+	pp.c_proyecto AS c_proyecto,
+	pp.d_proyecto AS d_proyecto,
+	pp.oi_proyecto as oi_proyecto, 
+	pp.oi_proyecto_parent,
+	PRY09_TIPOS_PROYECTO.c_tipo_proyecto,
+	pt.c_estado AS c_estado,
+	pt.e_prioridad AS e_prioridad,
+	pt.f_inicio AS f_inicio, 
+	pt.f_fin AS f_fin, 
+	pt.f_fin_est,
+	pt.f_limite as f_limite,
+	pt.e_estimado, 
+	put1.e_minutos,
+	pt.oi_recurso
+FROM 
+	PRY02_TAREAS AS pt
+	, PRY01_PROYECTOS AS pp
+	, PRY03_UND_TIEMPO AS put1
+	, PRY09_TIPOS_PROYECTO
+JOIN
+	pp.oi_proyecto INNER pt.oi_proyecto
+  , pp.oi_tipo_proyecto INNER PRY09_TIPOS_PROYECTO.oi_tipo_proyecto
+	, put1.oi_unidad_tiempo INNER pt.oi_unidad_tiempo
+WHERE
+	pt.oi_recurso = {#PARAM:@oi_recurso}
+	{%? (#PARAM:@f_desde!='')	{% AND pt.f_inicio &gt;= {#PARAM:@f_desde} %} {% %} %}
+	{%? (#PARAM:@f_hasta!='')	{% AND pt.f_inicio &lt;= {#PARAM:@f_hasta} %} {% %} %}
+	{%? (#ESTADOS:@estados!='')	{% AND pt.c_estado in ({%=string(#ESTADOS:@estados)%}) %} {% %} %}	
+ORDER BY
+	{%? (#PARAM:@campo1='')	{% c_tarea ASC %} {% %}  %}
+	
+	{%? (#PARAM:@campo1='c_tarea')	{% 
+	{%? (#PARAM:@ORDEN1!='Desc') 
+	{% c_tarea ASC %} {% c_tarea DESC %} %} %}  {% %}  %}
+	
+	{%? (#PARAM:@campo1='f_inicio')	{% 
+	{%? (#PARAM:@ORDEN1!='Desc') 
+	{% f_inicio ASC %} {% f_inicio DESC %} %} %}  {% %}  %}
+	
+	{%? (#PARAM:@campo1='f_limite')	{% 
+	{%? (#PARAM:@ORDEN1!='Desc') 
+	{% f_limite ASC %} {% f_limite DESC %} %} %}  {% %}  %}
+	
+	{%? (#PARAM:@campo2='c_tarea')	{% 
+	{%? (#PARAM:@ORDEN2!='Desc') 
+	{% ,c_tarea ASC %} {% ,c_tarea DESC %} %} %}  {% %}  %}
+	
+	{%? (#PARAM:@campo2='f_inicio')	{% 
+	{%? (#PARAM:@ORDEN2!='Desc') 
+	{% ,f_inicio ASC %} {% ,f_inicio DESC %} %} %}  {% %}  %}
+	
+	{%? (#PARAM:@campo2='f_limite')	{% 
+	{%? (#PARAM:@ORDEN2!='Desc') 
+	{% ,f_limite ASC %} {% ,f_limite DESC %} %} %}  {% %}  %} 
+	
+	{%? (#PARAM:@campo3='c_tarea')	{% 
+	{%? (#PARAM:@ORDEN3!='Desc') 
+	{% ,c_tarea ASC %} {% ,c_tarea DESC %} %} %}  {% %}  %}
+	
+	{%? (#PARAM:@campo3='f_inicio')	{% 
+	{%? (#PARAM:@ORDEN3!='Desc') 
+	{% ,f_inicio ASC %} {% ,f_inicio DESC %} %} %}  {% %}  %}
+	
+	{%? (#PARAM:@campo3='f_limite')	{% 
+	{%? (#PARAM:@ORDEN3!='Desc') 
+	{% ,f_limite ASC %} {% ,f_limite DESC %} %} %}  {% %}  %}
+')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:element name="TAREA">
+					<qry:if test="$r/@c_tipo_proyecto='PROY'">
+						<qry:then>
+							<qry:attribute value="$r/@c_proyecto + '-' + $r/@d_proyecto" name="d_proyecto"/>
+						</qry:then>
+						<qry:else>
+							<qry:if test="$r/@oi_proyecto_parent!=''">
+								<qry:then>
+									<qry:insert-select name="qry_padre" doc-path="$r"/>
+								</qry:then>
+								<qry:else/>
+							</qry:if>
+						</qry:else>
+					</qry:if>
+					<qry:attribute value="$r/@oi_tarea" name="oi_tarea"/>
+					<qry:attribute value="$r/@oi_recurso" name="oi_recurso"/>
+					<qry:attribute value="$r/@c_tarea" name="c_tarea"/>
+					<qry:attribute value="$r/@d_tarea" name="d_tarea"/>
+					<qry:insert-select name="qry_cliente" doc-path="$r"/>
+					<qry:switch test="$r/@c_estado">
+						<qry:case value="I">
+							<qry:attribute name="c_estado" value="'Inicializada'"/>
+						</qry:case>
+						<qry:case value="AP">
+							<qry:attribute name="c_estado" value="'Asignar Personas'"/>
+						</qry:case>
+						<qry:case value="T">
+							<qry:attribute name="c_estado" value="'Trabajando'"/>
+						</qry:case>
+						<qry:case value="P">
+							<qry:attribute name="c_estado" value="'Pausada'"/>
+						</qry:case>
+						<qry:case value="F">
+							<qry:attribute name="c_estado" value="'Finalizada'"/>
+						</qry:case>
+						<qry:case value="A">
+							<qry:attribute name="c_estado" value="'Anulada'"/>
+						</qry:case>
+						<qry:case value="L">
+							<qry:attribute name="c_estado" value="'Bloqueada'"/>
+						</qry:case>
+						<qry:case value="D">
+							<qry:attribute name="c_estado" value="'Derivada a Testing'"/>
+						</qry:case>
+						<qry:default>
+							<qry:attribute name="c_estado" value="''"/>
+						</qry:default>
+					</qry:switch>
+					<qry:attribute value="$r/@e_prioridad" name="e_prioridad"/>
+					<qry:switch test="$r/@e_prioridad">
+						<qry:case value="1">
+							<qry:attribute name="e_prioridad" value="'Alta'"/>
+						</qry:case>
+						<qry:case value="5">
+							<qry:attribute name="e_prioridad" value="'Media'"/>
+						</qry:case>
+						<qry:case value="9">
+							<qry:attribute name="e_prioridad" value="'Baja'"/>
+						</qry:case>
+						<qry:default>
+							<qry:attribute name="e_prioridad" value="''"/>
+						</qry:default>
+					</qry:switch>
+					<qry:attribute value="format_date($r/@f_inicio,'dd/mm/yyyy')" name="f_inicio"/>
+					<qry:attribute value="format_date($r/@f_fin,'dd/mm/yyyy')" name="f_fin"/>
+					<qry:attribute value="format_date($r/@f_limite,'dd/mm/yyyy')" name="f_limite"/>
+					<qry:attribute value="$r/@e_estimado" name="e_estimado"/>
+					<qry:attribute value="$r/@e_minutos" name="e_minutos"/>
+					<qry:attribute value="iif($r/@f_fin='',$r/@f_limite,$r/@f_fin)" name="fecha"/>
+					<qry:attribute value="iif(@fecha='','Sin Estimaci&#243;n',ceiling(number(datetime(@fecha))-number(datetime($r/@f_inicio))))" name="dias"/>
+					<qry:attribute value="(number($r/@e_estimado) * number($r/@e_minutos)) div 60" name="hs_estimadas"/>
+					<qry:attribute value="iif(@dias='Sin Estimaci&#243;n','',format_number(number(@hs_estimadas) div number(@dias),'###,###,##0.00'))" name="est_dias"/>
+					<qry:insert-select name="qry_trabajos" doc-path="$r"/>
+					<qry:insert-select name="qry_trabajos_recurso" doc-path="$r"/>
+				</qry:element>
+			</qry:out>
+		</qry:select>
+		<qry:select name="qry_padre" doc="PARAM">
+			<qry:xquery>
+				for $r in SQL('	
+SELECT 
+	PRY01_PROYECTOS.c_proyecto
+	, PRY01_PROYECTOS.oi_proyecto_parent
+	, PRY01_PROYECTOS.d_proyecto
+	, PRY09_TIPOS_PROYECTO.c_tipo_proyecto
+FROM 
+	PRY01_PROYECTOS 
+	, PRY09_TIPOS_PROYECTO
+JOIN
+	PRY01_PROYECTOS.oi_tipo_proyecto INNER PRY09_TIPOS_PROYECTO.oi_tipo_proyecto
+WHERE
+	PRY01_PROYECTOS.oi_proyecto = {#PARAM:@oi_proyecto_parent}	
+')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:if test="$r/@c_tipo_proyecto='PROY'">
+					<qry:then>
+						<qry:attribute value="$r/@c_proyecto +'-' + $r/@d_proyecto" name="d_proyecto"/>
+					</qry:then>
+					<qry:else>
+						<qry:if test="$r/@oi_proyecto_parent!=''">
+							<qry:then>
+								<qry:insert-select name="qry_padre" doc-path="$r"/>
+							</qry:then>
+							<qry:else/>
+						</qry:if>
+					</qry:else>
+				</qry:if>
+			</qry:out>
+		</qry:select>
+		<qry:select name="qry_trabajos" doc="PARAM">
+			<qry:xquery>
+				for $r in SQL('	
+SELECT 
+	pt.e_duracion
+	, put.e_minutos
+FROM 
+	PRY04_TRABAJOS AS pt
+	, PRY03_UND_TIEMPO AS put
+JOIN
+	put.oi_unidad_tiempo INNER pt.oi_unidad_tiempo
+WHERE
+	pt.oi_tarea = {#PARAM:@oi_tarea}	
+')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:attribute value="@hs_insumidas + (number($r/@e_duracion) * number($r/@e_minutos)) div 60" name="hs_insumidas"/>
+			</qry:out>
+		</qry:select>
+		<qry:select name="qry_cliente" doc="PARAM">
+			<qry:xquery>
+				for $r in SQL('	
+SELECT 
+	pc.d_nom_cliente AS d_nom_cliente,
+	pp.oi_proyecto_parent AS oi_proyecto
+FROM 
+	PRY01_PROYECTOS AS pp, 
+  PRY08_CLIENTES AS pc
+JOIN
+	pp.c_enlace LEFT OUTER pc.c_cliente
+WHERE
+	pp.oi_proyecto = {#PARAM:@oi_proyecto}
+')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:if test="$r/@d_nom_cliente='' AND $r/@oi_proyecto!=''">
+					<qry:then>
+						<qry:insert-select name="qry_cliente" doc-path="$r"/>
+					</qry:then>
+					<qry:else>
+						<qry:attribute value="$r/@d_nom_cliente" name="d_nom_cliente"/>
+					</qry:else>
+				</qry:if>
+			</qry:out>
+		</qry:select>
+		<qry:select name="qry_trabajos_recurso" doc="PARAM">
+			<qry:xquery>
+				for $r in SQL('	
+SELECT 
+	pt.e_duracion
+	, put.e_minutos
+FROM 
+	PRY04_TRABAJOS AS pt
+	, PRY03_UND_TIEMPO AS put
+JOIN
+	put.oi_unidad_tiempo INNER pt.oi_unidad_tiempo
+WHERE
+	pt.oi_tarea = {#PARAM:@oi_tarea}
+	and pt.oi_recurso={#PARAM:@oi_recurso}	
+')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:attribute value="@hs_insumidas_recurso + (number($r/@e_duracion) * number($r/@e_minutos)) div 60" name="hs_insumidas_recurso"/>
+			</qry:out>
+		</qry:select>
+		<qry:select name="qry_recurso" doc="PARAM">
+			<qry:xquery>
+				for $r in SQL('	
+SELECT 
+	PER01.d_ape_y_nom, 
+	P.e_dia, 
+	put1.e_minutos , 
+	op.d_posicion
+FROM 
+	PRY05_RECURSOS AS P,
+  PER01_PERSONAL AS PER01, 	
+  PER02_PERSONAL_EMP AS ppe, 
+  ORG04_POSICIONES AS op,
+  PRY03_UND_TIEMPO AS put1
+JOIN 
+	P.oi_personal INNER PER01.oi_personal,
+  ppe.oi_personal LEFT OUTER PER01.oi_personal,
+  op.oi_posicion LEFT OUTER ppe.oi_posicion_ult,
+  put1.oi_unidad_tiempo LEFT OUTER p.oi_unidad_tiempo
+WHERE
+	P.oi_recurso = {#PARAM:@oi_recurso}	
+')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:attribute value="$r/@d_ape_y_nom" name="oi_recurso"/>
+				<qry:attribute value="(number($r/@e_dia) * number($r/@e_minutos)) div 60" name="hs_jornada"/>
+				<qry:attribute value="@hs_jornada + ' hs.'" name="hs_jornada"/>
+				<qry:attribute value="$r/@d_posicion" name="d_posicion"/>
+			</qry:out>
+		</qry:select>
+		<qry:select name="qry_get_estados" doc="PARAM">
+			<qry:xquery>
+				for $r in #PARAM:C
+			</qry:xquery>
+			<qry:out>
+				<qry:attribute value="iif(@estados='', '\\\''+$r/@id+'\\\'', @estados +', '+ '\\\''+$r/@id+'\\\'')" name="estados"/>
+				<qry:append-doc name="ESTADOS" doc-path="."/>
+			</qry:out>
+		</qry:select>
+	</html:query>
+</html:html>

@@ -1,0 +1,88 @@
+<flow:flow xmlns:flow="nomad_engine.flow" xmlns:doc="nomad_engine.doc" xmlns:qry="nomad_engine.qry" extends="Nomad.Base.flow" name="NucleusRH.Base.Legales.Reportes">
+	<flow:info label="Flow para NucleusRH.Base.QuejasyReclamos.Reclamos"/>
+	<flow:declare>
+		<doc:define name="REPORTDOM"/>
+		<doc:define name="ENTRADA">
+			<ROW llamado_desde=""/>
+		</doc:define>
+		<doc:define name="CLASE">
+			<ROW clase=""/>
+		</doc:define>
+		<doc:define name="FILTER">
+			<ROW/>
+		</doc:define>
+		<doc:define name="TIPOSCARPETAS"/>
+		<doc:define name="RS_TIPOSCARPETAS">
+			<TIPOSCARPETAS/>
+		</doc:define>
+		<qry:define name="GetTiposCarpetas">
+			<qry:main doc="SOURCE">
+				<qry:element name="ROWS">
+					<qry:insert-select name="qry_tipo_carpeta" doc-path=""/>
+				</qry:element>
+			</qry:main>
+			<qry:select doc="PARAM" name="qry_tipo_carpeta">
+				<qry:xquery>
+					for $r in SQL('          
+				select
+  LEG42_TIPO_CARPETA.oi_tipo_carpeta,
+  LEG42_TIPO_CARPETA.c_tipo_carpeta,
+  LEG42_TIPO_CARPETA.d_tipo_carpeta
+from
+ LEG42_TIPO_CARPETA
+
+			')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:element name="ROW">
+						<qry:attribute name="id" value="$r/@oi_tipo_carpeta"/>
+						<qry:attribute name="des" value="$r/@d_tipo_carpeta"/>
+					</qry:element>
+				</qry:out>
+			</qry:select>
+		</qry:define>
+	</flow:declare>
+	<flow:main doc="SOURCE">
+		<flow:action name="initialize">
+			<flow:open-form doc-path="#SOURCE:" mode="FILTER" form-class="NucleusRH.Base.Legales.Reporte.CARPETAS.filter.form"/>
+		</flow:action>
+	</flow:main>
+	<flow:group name="CARPETAS">
+		<flow:form form-class="NucleusRH.Base.Legales.Reporte.CARPETAS.filter.form" doc="SOURCE" name="NucleusRH.Base.Legales.Reporte.CARPETAS.filter.form:FILTER" mode="FILTER">
+			<flow:action name="on-show">
+				<flow:log text="onshow1_car" text-path="#RS_TIPOSCARPETAS:"/>
+				<doc:load-qry output-doc="TIPOSCARPETAS" qry="GetTiposCarpetas"/>
+				<flow:attach-doc doc-path="#TIPOSCARPETAS:" attach-id="TIPOSCARPETAS"/>
+				<flow:log text="onshow2_car" text-path="#RS_TIPOSCARPETAS:"/>
+			</flow:action>
+			<flow:action name="BACK">
+				<flow:close-form/>
+			</flow:action>
+			<flow:action name="FILTER">
+				<flow:log text="log-filter-car1" text-path="#FILTER:"/>
+				<doc:set-attribute to-attr-path="#FILTER:@TIPOSCARPETAS_IDs" from-value=""/>
+				<flow:exec-method class="NucleusRH.Base.Legales.Carpetas.CARPETA" method="CombinarXmls">
+					<flow:param name="pxmlFILTER" doc="FILTER" type="Nomad.NSystem.Proxy.NomadXML" mode="inout"/>
+					<flow:param name="pxmlTIPOSCARPETAS" doc="RS_TIPOSCARPETAS" type="Nomad.NSystem.Proxy.NomadXML" mode="in"/>
+				</flow:exec-method>
+				<flow:log text="log-filter-car2" text-path="#FILTER:"/>
+				<flow:call-action eq="HTML" if="#FILTER:@salida" action="ACCEPTHTML"/>
+				<flow:call-action eq="EXCEL" if="#FILTER:@salida" action="ACCEPTEXCEL"/>
+			</flow:action>
+			<flow:action name="ACCEPTHTML">
+				<flow:html-gen ext="html" template-file="NucleusRH.Base.Legales.Carpetas.rpt" out-file-path="#REPORTDOM:@report" input-doc-path="#FILTER:"/>
+				<flow:open-form doc-path="#REPORTDOM:" form-class="NucleusRH.Base.Legales.Reporte.CARPETAS.form" mode="REPORT"/>
+			</flow:action>
+			<flow:action name="ACCEPTEXCEL">
+				<flow:html-gen ext="xls" template-file="NucleusRH.Base.Legales.Carpetas.rpt" out-file-path="#REPORTDOM:@report" input-doc-path="#FILTER:"/>
+				<flow:open-form doc-path="#REPORTDOM:" form-class="NucleusRH.Base.Legales.Reporte.CARPETAS.form" mode="REPORT"/>
+			</flow:action>
+		</flow:form>
+		<flow:form form-class="NucleusRH.Base.Legales.Reporte.CARPETAS.form" doc="SOURCE" name="NucleusRH.Base.Legales.Reporte.CARPETAS.form:REPORT" mode="REPORT">
+			<flow:action name="on-show"/>
+			<flow:action name="BACK">
+				<flow:close-form/>
+			</flow:action>
+		</flow:form>
+	</flow:group>
+</flow:flow>

@@ -1,0 +1,164 @@
+<INTERFACE-DEF xmlns:qry="nomad_engine.qry" code="" desc="" entermode="DOS" finalenter="1">
+	<QUERY declare="&lt;DATA interface=&quot;SICORE.SICORE.GENERICO&quot; oi_empresa=&quot;10&quot; e_periodo=&quot;201106&quot; parent=&quot;10_201106&quot;&gt;&lt;LIQS&gt;&lt;LIQ id=&quot;131&quot; /&gt;&lt;/LIQS&gt;&lt;/DATA&gt;">
+		<qry:main doc="SOURCE">
+			<qry:append-doc name="PARAMIN" doc-path="$SOURCE/DATA"/>
+			<qry:element name="DATA">
+				<qry:element name="DETAILS">
+					<qry:create-doc name="AUX"/>
+					<qry:insert-select name="LiqIGDevengado" doc-path="$PARAMIN" to-element="$AUX"/>
+					<qry:insert-select name="noValidarCerradas" to-element="$AUX"/>
+					<qry:insert-select name="qryDetail" doc-path="$SOURCE/DATA"/>
+				</qry:element>
+			</qry:element>
+		</qry:main>
+		<qry:select name="qryDetail" doc="SOURCE">
+			<qry:xquery>
+				for $r in SQL('
+SELECT
+LIQ20_TOT_LIQ_PER.oi_tot_liq_per,
+LIQ97_PERSONAL_EMP.c_nro_cuil, 
+sum(LIQ20_TOT_LIQ_PER.n_totpag) as n_totpag, 
+sum(LIQ20_CONC_LIQ_PER.n_valor) as n_valor,
+max(LIQ99_LIQUIDACION.{%=$AUX/@ig_fecha%}) as f_pago
+
+FROM
+LIQ19_LIQUIDACION, 
+LIQ19_EJECUCIONES,
+LIQ20_TOT_LIQ_PER, 
+LIQ97_PERSONAL_EMP, 
+LIQ99_LIQUIDACION, 
+LIQ99_RECIBOS, 
+LIQ20_CONC_LIQ_PER, 
+LIQ96_CONCEPTOS,
+LIQ30_TOTALES,
+LIQ30_CONC_SUM,
+LIQ14_CONCEPTOS
+
+JOIN
+LIQ19_LIQUIDACION.oi_liquidacion INNER LIQ19_EJECUCIONES.oi_liquidacion,
+LIQ19_EJECUCIONES.oi_liquidacion_ddo INNER LIQ99_LIQUIDACION.oi_liquidacion_ddo,
+LIQ97_PERSONAL_EMP.oi_per_emp_ddo INNER LIQ20_TOT_LIQ_PER.oi_per_emp_ddo,
+LIQ99_LIQUIDACION.oi_liquidacion_ddo INNER LIQ99_RECIBOS.oi_liquidacion_ddo,
+LIQ99_RECIBOS.oi_tot_liq_per INNER LIQ20_TOT_LIQ_PER.oi_tot_liq_per,
+LIQ20_CONC_LIQ_PER.oi_tot_liq_per INNER LIQ20_TOT_LIQ_PER.oi_tot_liq_per,
+LIQ20_CONC_LIQ_PER.oi_concepto_ddo INNER LIQ96_CONCEPTOS.oi_concepto_ddo,
+LIQ30_TOTALES.oi_total INNER LIQ30_CONC_SUM.oi_total,
+LIQ30_CONC_SUM.oi_concepto INNER LIQ14_CONCEPTOS.oi_concepto,
+LIQ14_CONCEPTOS.c_concepto INNER LIQ96_CONCEPTOS.c_concepto
+
+WHERE
+LIQ30_TOTALES.c_total = \'IGRET\' AND
+LIQ19_LIQUIDACION.oi_empresa = {#SOURCE:@oi_empresa} AND
+GETPER(LIQ19_LIQUIDACION.{%=$AUX/@ig_fecha%}) = {#SOURCE:@e_periodo} AND
+LIQ20_CONC_LIQ_PER.n_valor &gt; 0 AND
+LIQ99_LIQUIDACION.c_estado = \'F\'
+{%? (string($SOURCE/LIQS/LIQ/@id)!='') {% AND LIQ19_LIQUIDACION.oi_liquidacion in ({%=string($SOURCE/LIQS/LIQ/@id)%}) %} {%  %} %}
+{%? ($AUX/@noValidarCerradas!='1') {% AND isnotnull(LIQ20_TOT_LIQ_PER.f_cierre) %} {%  %} %}
+
+GROUP BY LIQ20_TOT_LIQ_PER.oi_tot_liq_per, LIQ97_PERSONAL_EMP.c_nro_cuil
+
+UNION
+
+SELECT
+LIQ20_TOT_LIQ_PER.oi_tot_liq_per,
+LIQ97_PERSONAL_EMP.c_nro_cuil, 
+sum(LIQ20_TOT_LIQ_PER.n_totpag) as n_totpag, 
+sum(LIQ20_CONC_LIQ_PER.n_valor) as n_valor,
+max(LIQ99_LIQUIDACION.{%=$AUX/@ig_fecha%}) as f_pago
+
+FROM
+LIQ19_LIQUIDACION, 
+LIQ19_EJECUCIONES,
+LIQ20_TOT_LIQ_PER, 
+LIQ97_PERSONAL_EMP, 
+LIQ99_LIQUIDACION, 
+LIQ99_RECIBOS, 
+LIQ20_CONC_LIQ_PER, 
+LIQ96_CONCEPTOS,
+LIQ30_TOTALES,
+LIQ30_CONC_SUM,
+LIQ14_CONCEPTOS
+
+JOIN
+LIQ19_LIQUIDACION.oi_liquidacion INNER LIQ19_EJECUCIONES.oi_liquidacion,
+LIQ19_EJECUCIONES.oi_liquidacion_ddo INNER LIQ99_LIQUIDACION.oi_liquidacion_ddo,
+LIQ97_PERSONAL_EMP.oi_per_emp_ddo INNER LIQ20_TOT_LIQ_PER.oi_per_emp_ddo,
+LIQ99_LIQUIDACION.oi_liquidacion_ddo INNER LIQ99_RECIBOS.oi_liquidacion_ddo,
+LIQ99_RECIBOS.oi_tot_liq_per INNER LIQ20_TOT_LIQ_PER.oi_tot_liq_per,
+LIQ20_CONC_LIQ_PER.oi_tot_liq_per INNER LIQ20_TOT_LIQ_PER.oi_tot_liq_per,
+LIQ20_CONC_LIQ_PER.oi_concepto_ddo INNER LIQ96_CONCEPTOS.oi_concepto_ddo,
+LIQ30_TOTALES.oi_total INNER LIQ30_CONC_SUM.oi_total,
+LIQ30_CONC_SUM.oi_concepto INNER LIQ14_CONCEPTOS.oi_concepto,
+LIQ14_CONCEPTOS.c_concepto INNER LIQ96_CONCEPTOS.c_concepto
+
+WHERE
+LIQ30_TOTALES.c_total = \'IGRETAA\' AND
+LIQ19_LIQUIDACION.oi_empresa = {#SOURCE:@oi_empresa} AND
+GETPER(LIQ19_LIQUIDACION.{%=$AUX/@ig_fecha%}) = {#SOURCE:@e_periodo} AND
+LIQ20_CONC_LIQ_PER.n_valor &gt; 0 AND
+LIQ99_LIQUIDACION.c_estado = \'F\'
+{%? (string($SOURCE/LIQS/LIQ/@id)!='') {% AND LIQ19_LIQUIDACION.oi_liquidacion in ({%=string($SOURCE/LIQS/LIQ/@id)%}) %} {%  %} %}
+{%? ($AUX/@noValidarCerradas!='1') {% AND isnotnull(LIQ20_TOT_LIQ_PER.f_cierre) %} {%  %} %}
+
+GROUP BY LIQ20_TOT_LIQ_PER.oi_tot_liq_per, LIQ97_PERSONAL_EMP.c_nro_cuil
+
+ORDER BY c_nro_cuil ASC, f_pago ASC
+')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:element name="DETAIL">
+					<qry:attribute name="vs_sicoreComp" value="iif($r/@n_valor &lt; 0, '07', '08')"/>
+					<qry:attribute name="vs_sicoreFechaComp" value="FORMAT_DATE($r/@f_pago, 'dd/mm/yyyy')"/>
+					<qry:attribute name="vs_sicoreNumComp" value="FORMAT_NUMBER('1', 16, 0, '', '', '0')"/>
+					<qry:attribute name="vs_sicoreimporteComp" value="FORMAT_NUMBER($r/@n_totpag, 13, 2, '.', '', '0')"/>
+					<qry:attribute name="vs_sicoreCodImp" value="'217'"/>
+					<qry:attribute name="vs_sicoreCodReg" value="'160'"/>
+					<qry:attribute name="vs_sicoreCodOpe" value="'1'"/>
+					<qry:attribute name="vs_sicoreBaseCalculo" value="iif($r/@n_valor &lt; 0, FORMAT_NUMBER('0', 11, 2, '.', '', '0'), FORMAT_NUMBER($r/@n_valor, 11, 2, '.', '', '0'))"/>
+					<qry:attribute name="vs_sicoreFecEmiRet" value="FORMAT_DATE($r/@f_pago, 'dd/mm/yyyy')"/>
+					<qry:attribute name="vs_sicoreCodCond" value="'01'"/>
+					<qry:attribute name="vs_sicoreRetPracti" value="'0'"/>
+					<qry:attribute name="vs_sicoreImporteRetencion" value="FORMAT_NUMBER(ABS($r/@n_valor), 11, 2, '.', '', '0')"/>
+					<qry:attribute name="vs_sicorePorcExclu" value="'000.00'"/>
+					<qry:attribute name="vs_sicoreFechaEmiBole" value="'          '"/>
+					<qry:attribute name="vs_sicoreTidoDocRete" value="'86'"/>
+					<qry:attribute name="vs_sicoreNumeroDocRete" value="NMD_FILLRIGHT(TRANSLATE($r/@c_nro_cuil,'-',''), ' ', 20, 'R')"/>
+					<qry:attribute name="vs_sicoreNunCertOrg" value="FORMAT_NUMBER('0', 14, 0, '', '', '0')"/>
+				</qry:element>
+			</qry:out>
+		</qry:select>
+		<qry:select doc="PARAM" name="LiqIGDevengado">
+			<qry:xquery>
+				for $r in sql('
+SELECT
+	e.d_valor
+FROM 
+	LIQ15_PARAM_EMP AS e, ORG26_PARAMETROS AS p
+JOIN
+	e.oi_parametro INNER p.oi_parametro
+WHERE 
+	e.oi_empresa = {#PARAM:@oi_empresa} AND
+	p.c_parametro = \'LiqIGDevengado\'
+')/ROWS
+			</qry:xquery>
+			<qry:out>
+				<qry:attribute name="ig_fecha" value="iif($r/ROW[0]/@d_valor='1','f_liquidacion','f_pago')"/>
+			</qry:out>
+		</qry:select>
+		<qry:select name="noValidarCerradas">
+			<qry:xquery>
+				for $r in SQL('SELECT ORG26_PARAMETROS.d_valor FROM ORG26_PARAMETROS 
+			WHERE ORG26_PARAMETROS.c_parametro = \'noValidarCerradas\'')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:attribute name="noValidarCerradas" value="$r/@d_valor"/>
+			</qry:out>
+		</qry:select>
+	</QUERY>
+	<DETAIL>
+		{vs_sicoreComp:2}{vs_sicoreFechaComp:10}{vs_sicoreNumComp:+16}{vs_sicoreimporteComp:16}{vs_sicoreCodImp:3}{vs_sicoreCodReg:3}{vs_sicoreCodOpe:1}{vs_sicoreBaseCalculo:14}{vs_sicoreFecEmiRet:10}{vs_sicoreCodCond:2}{vs_sicoreRetPracti:1}{vs_sicoreImporteRetencion:14}{vs_sicorePorcExclu:6}{vs_sicoreFechaEmiBole:10}{vs_sicoreTidoDocRete:2}{vs_sicoreNumeroDocRete:20}{vs_sicoreNunCertOrg:14}{space(67)}
+	</DETAIL>
+	<MESS>
+		<EMPTY mess="No se encontraron registros"/>
+	</MESS>
+</INTERFACE-DEF>

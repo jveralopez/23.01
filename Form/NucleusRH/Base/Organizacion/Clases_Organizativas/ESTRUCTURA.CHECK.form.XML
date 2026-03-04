@@ -1,0 +1,496 @@
+<form:Form xmlns:form="nomad_engine.form" xmlns:qry="nomad_engine.qry" default_mode="HELP" doc="SOURCE" name="NucleusRH.Base.Organizacion.Clases_Organizativas.ESTRUCTURA.guia">
+	<form:Scripts>
+		var CLASS_TREE=null;
+function sendReqAsync(content, callBack) {
+    var msg;
+    var objDoc;
+
+    if (content == null)
+        content = "";
+        
+    msg = "&lt;http-envelope service='ProxyEngine' request='send' user-token='" + g_strToken + "'&gt;" + content + "&lt;/http-envelope&gt;";
+
+    var hr = getHR();                 
+    hr.open("POST", g_location + "ProxyEngine.aspx", true);
+    hr.onreadystatechange = function() 
+    { 
+      //Resultado
+      if (hr.readyState == 4) 
+      {
+        if (hr.status == 200) 
+        {
+            try 
+            {
+              objDoc = createDoc(hr.responseText);
+            } catch (e) 
+            {
+              alert("sendReqAsync(): " + e.number + "  " + e.description);
+						  enable_buttons();
+					    return;
+            }
+
+            //Envia el resultado
+            if (callBack)
+              callBack(objDoc);
+        } else 
+        {
+          alert("sendReqAsync(): ERROR " + hr.status);
+				  enable_buttons();
+			    return;
+        }
+      }
+    };
+
+    hr.send(msg);
+}
+
+
+function SQLGetAsync(qry, param, callBack) 
+{                              
+	sendReqAsync("&lt;content-send SrvName=\"xquery\" Request=\"get-sql\" &gt;&lt;qry:declare xmlns:qry=\"nomad_engine.form\"&gt;"+param+"&lt;/qry:declare&gt;"+qry+"&lt;/content-send&gt;", function(doc) { 
+	
+    //Switchea las posibles respuestas
+    strService  = doc.documentElement.attributes.getNamedItem("service").value;
+    strResponse = doc.documentElement.attributes.getNamedItem("response").value;
+    
+    switch (strResponse) 
+    {
+        case "send-response":
+          var eleResponse = doc.documentElement.childNodes.item(0);
+          objResult = new NomadProxyResponse(eleResponse.attributes.getNamedItem("service").value, eleResponse.attributes.getNamedItem("response").value, eleResponse.childNodes.item(0));
+                                     
+					//Resultado                                       
+          //Envia el resultado
+          if (callBack)
+            callBack(objResult.Message());
+			    return;
+            
+        default:
+          alert("invalid server reply, "+strResponse);
+				  enable_buttons();
+			    return;
+    }
+	});
+}
+
+
+function LoadChilds(objTree, objGroup)
+{
+	var id=objGroup.FullId.split("/"); id=id[id.length-1];
+		
+	SQLGetAsync(Ctrl("main").getResource("qry_estructura"), "&lt;PARAM id=\""+id+"\" empresa=\"" + Ctrl("empresa").GetXValue() + "\" /&gt;", 
+		function(resultTXT) {
+			objTree.SetXML(objGroup.FullId, resultTXT);
+		}
+	);
+}
+
+function onClick()
+{                                          
+	var fullid=Ctrl("oi_estructura_full").GetXValue();
+	
+	
+	if (CLASS_TREE.GetGroup(fullid) &amp;&amp; fullid!=".") 
+	{
+		var id=fullid.split("/"); 
+		id=id[id.length-1];
+		if (id==".") id="";
+ 
+ 		Ctrl("oi_estructura").SetXValue(id);
+		CtrlEnabled("ACCEPT",true);
+	} else                               
+ 	{
+ 		CtrlEnabled("ACCEPT",false);      
+ 		Ctrl("oi_estructura").SetXValue("");
+ 	}
+}
+
+function onLoad()
+{       
+  //Valor RAIZ!!!
+	Ctrl("oi_estructura_full").SetXValue(".");
+
+ 	//XML RAIZ!!!!
+	var xmlRoot=Ctrl("main").getResource("xml_root");
+	CLASS_TREE=clsClientTree("contESTR","oi_estructura_full","CLOCK.ico","folder-close.ico","folder.ico","item.ico",true,LoadChilds,null,onClick,1000);
+	CLASS_TREE.SetXML(null, xmlRoot);
+	CLASS_TREE.SetSelectedId(".");
+	CLASS_TREE.ClickExpGroup(".");
+ 
+	//Deshabilito el aceptar 
+  CtrlEnabled("ACCEPT",false);      
+	Ctrl("oi_estructura").SetXValue("");
+}    
+
+function SearchText()
+{                   
+	if (Ctrl("buscar").GetXValue()!='')
+	{                             
+		var P=new NomadXML("PARAM");
+		P.SetAttr("empresa", Ctrl("empresa").GetXValue());
+		P.SetAttr("txt_find", Ctrl("buscar").GetXValue());
+		
+		SQLGetAsync(Ctrl("main").getResource("qry_find"), P.ToString(), function(result) {
+			var P=new NomadXML(result);
+			if (P.GetAttr("mode")!='')
+			{     
+				SelectTO(P.GetAttr("fullid"));
+			}
+		});
+	}
+}            
+
+function SelectTO(fullId)
+{
+	var parts = fullId.split('/');
+	var currId = "";
+	var prevGroup = null;
+	
+	for(var t=0; t&lt;parts.length; t++)
+	{
+		if (prevGroup != null &amp;&amp; !prevGroup.isLoadChild)
+		{
+			SQLGetAsync(Ctrl("main").getResource("qry_estructura"), "&lt;PARAM id=\""+parts[t-1]+"\" /&gt;", 
+				function(resultTXT) 
+				{
+					CLASS_TREE.SetXML(currId, resultTXT);
+					CLASS_TREE.ClickExpGroup(currId);
+					SelectTO(fullId);
+				}
+			);
+			return;
+		}
+		
+		currId+=(currId?"/":"")+parts[t];
+		prevGroup = CLASS_TREE.GetGroup(currId);
+		if (prevGroup == null) return;
+	}
+	
+	CLASS_TREE.SetSelectedId(fullId);
+}
+
+function ACCEPT()
+{       
+	if(Ctrl("oi_estructura").GetXValue() == "") return;
+	
+	if (Ctrl("subestr").GetXValue() == "1")
+	{
+			nSQL = GetProxy().SQLService();
+			var MyXML = nSQL.GetXML(Ctrl("main").getResource("qry_load"),"&lt;PARAM id=\"" + Ctrl("oi_estructura").GetXValue() + "\"/&gt;");
+	  	Ctrl("ids").SetXValue(MyXML.GetAttr("ids"));		
+	} else
+	{
+		Ctrl("ids").SetXValue(Ctrl("oi_estructura").GetXValue())		
+	}
+
+	//alert(Ctrl("ids").GetXValue());	
+	Ctrl("main").DoEvent("ACCEPT");
+}
+	</form:Scripts>
+	<form:Title>
+		<form:RowAligner name="title">
+			<form:Row name="row1">
+				<form:Label nowrap="1" style="S3 LCol_w" label="Seleccion de Estructuras Organizativas" name="GEN"/>
+			</form:Row>
+		</form:RowAligner>
+	</form:Title>
+	<form:Center width="100%" height="100%">
+		<form:RowAligner name="buttonlinks">
+			<form:Row name="row_top">
+				<form:TextBox label="Buscar" name="buscar" length="32" xsize="32" ysize="1" descr="Texto a Buscar" required="False">
+					<form:Event runat="client" name="onpressenter" action="SearchText"/>
+					<form:SButtons>
+						<form:SButton descrip="Filtrar los Registros." name="Search" label="Buscar" img="search">
+							<form:Event runat="client" name="onclick" action="SearchText"/>
+						</form:SButton>
+					</form:SButtons>
+				</form:TextBox>
+			</form:Row>
+			<form:Row name="row_med">
+				<form:CheckBox label="Incluir subestructuras" name="subestr"/>
+			</form:Row>
+		</form:RowAligner>
+		<form:Div border="1" height="90%" width="90%" rheight="80" rwidth="80" borderwidth="2" name="contESTR" label="Estructuras"/>
+		<form:Hidden name="oi_estructura" nvalue="#SOURCE:@id"/>
+		<form:Hidden name="empresa" nvalue="#SOURCE:@empresa"/>
+		<form:Hidden name="oi_estructura_full"/>
+		<form:Hidden name="ids" nvalue="#SOURCE:@ids"/>
+	</form:Center>
+	<form:Resources>
+		<form:Resource name="xml_root">
+			<tree>
+				<group id="." label="Organigramas" imgClose="cabinet-close.ico" imgOpen="cabinet.ico"/>
+			</tree>
+		</form:Resource>
+		<form:Resource declare="&lt;PARAM id=&quot;&quot; empresa=&quot;1&quot; /&gt;" name="qry_estructura">
+			<qry:main doc="PARAM">
+				<qry:element name="tree">
+					<qry:if test="#PARAM:/PARAM/@id='' or #PARAM:/PARAM/@id='.'">
+						<qry:then>
+							<qry:insert-select name="sql_root" doc-path="#PARAM:/PARAM"/>
+						</qry:then>
+						<qry:else>
+							<qry:insert-select name="sql1" doc-path="#PARAM:/PARAM"/>
+							<qry:insert-select name="sql2" doc-path="#PARAM:/PARAM"/>
+						</qry:else>
+					</qry:if>
+				</qry:element>
+			</qry:main>
+			<qry:select name="sql_root" doc="PARAM">
+				<qry:xquery>
+					for $r in sql('
+SELECT 
+C.oi_estructura_org, 
+C.d_clase_org,
+C.l_automatica,
+SEC.policy 
+
+FROM 
+ORG02_CLASES_ORG as C,
+{%? ($PARAM/@empresa!='') {% 
+ORG03_EMPRESAS as E,
+ORG01_UNI_ORG as U,
+ORG02_ESTRUCTURAS as S,
+%} {% %} %}	
+NMD_SECURITY(class=\'NucleusRH.Base.Organizacion.Clases_Organizativas.CLASE_ORG\') as SEC 
+
+JOIN 
+{%? ($PARAM/@empresa!='') {% 
+E.oi_unidad_org inner U.oi_unidad_org,
+S.oi_unidad_org inner U.oi_unidad_org,
+C.oi_estructura_org inner S.oi_estructura,
+%} {% %} %}	
+C.oi_clase_org LEFT OUTER SEC.id  
+
+WHERE 
+C.c_estado = \'V\'       
+{%? ($PARAM/@empresa!='') {% and E.oi_empresa={%=$PARAM/@empresa%} %} {% %} %}
+')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:element name="group">
+						<qry:attribute value="$r/@oi_estructura_org" name="id"/>
+						<qry:attribute value="$r/@d_clase_org" name="label"/>
+						<qry:attribute value="'organigrama'+$r/@l_automatica+'.ico'" name="imgClose"/>
+						<qry:attribute value="'organigrama'+$r/@l_automatica+'.ico'" name="imgOpen"/>
+					</qry:element>
+				</qry:out>
+			</qry:select>
+			<qry:select name="sql1" doc="PARAM">
+				<qry:xquery>
+					for $r in sql('
+SELECT ORG02_ESTRUCTURAS.oi_estructura, 
+ORG01_TIPOS_UNI.c_tipo_uni_org, 
+ORG01_UNI_ORG.c_unidad_org, 
+ORG01_UNI_ORG.d_unidad_org, 
+ORG02_ESTRUCTURAS.oi_unidad_org 
+FROM ORG02_ESTRUCTURAS, ORG01_UNI_ORG, ORG01_TIPOS_UNI 
+JOIN ORG02_ESTRUCTURAS.oi_unidad_org INNER ORG01_UNI_ORG.oi_unidad_org,
+ORG01_UNI_ORG.oi_tipo_uni_org INNER ORG01_TIPOS_UNI.oi_tipo_uni_org
+WHERE ORG02_ESTRUCTURAS.oi_estr_padre = {#PARAM:@id} 					
+')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:element name="group">
+						<qry:attribute value="$r/@oi_estructura" name="id"/>
+						<qry:switch test="$r/@c_tipo_uni_org">
+							<qry:case value="FIC">
+								<qry:attribute value="'Ficticia'" name="label"/>
+								<qry:attribute value="'REP-HIDDEN.ico'" name="imgClose"/>
+								<qry:attribute value="'REP-HIDDEN.ico'" name="imgOpen"/>
+							</qry:case>
+							<qry:default>
+								<qry:attribute value="'['+$r/@c_unidad_org+'] '+$r/@d_unidad_org" name="label"/>
+								<qry:attribute value="'estructura.ico'" name="imgClose"/>
+								<qry:attribute value="'estructura.ico'" name="imgOpen"/>
+							</qry:default>
+						</qry:switch>
+					</qry:element>
+				</qry:out>
+			</qry:select>
+			<qry:select name="sql2" doc="PARAM">
+				<qry:xquery>
+					for $r in sql('
+SELECT 
+ORG02_CLASES_ORG.oi_estructura_org, 
+ORG02_CLASES_ORG.d_clase_org,
+ORG02_CLASES_ORG.l_automatica
+FROM
+ORG02_CLASES_HIJAS, ORG02_CLASES_ORG
+JOIN                                 
+ORG02_CLASES_HIJAS.oi_clase_org INNER ORG02_CLASES_ORG.oi_clase_org
+WHERE ORG02_CLASES_ORG.c_estado = \'V\'
+AND	ORG02_CLASES_HIJAS.oi_estructura = {#PARAM:@id}
+')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:element name="group">
+						<qry:attribute value="$r/@oi_estructura_org" name="id"/>
+						<qry:attribute value="$r/@d_clase_org" name="label"/>
+						<qry:attribute value="'organigrama'+$r/@l_automatica+'.ico'" name="imgClose"/>
+						<qry:attribute value="'organigrama'+$r/@l_automatica+'.ico'" name="imgOpen"/>
+					</qry:element>
+				</qry:out>
+			</qry:select>
+		</form:Resource>
+		<form:Resource declare="&lt;PARAM empresa=&quot;1&quot; txt_find=&quot;corr&quot; /&gt;" name="qry_find">
+			<qry:main doc="PARAM">
+				<qry:append-doc name="PARAMIN" doc-path="#PARAM:/PARAM"/>
+				<qry:element name="item">
+					<qry:insert-select name="sql_level_1" doc-path="#PARAMIN:"/>
+					<qry:attribute value="'.'+./@fullId" name="fullId"/>
+					<qry:attribute value="''" name="strOI"/>
+				</qry:element>
+			</qry:main>
+			<qry:select name="sql_level_1" doc="PARAM">
+				<qry:xquery>
+					for $r in sql('
+SELECT 
+C.oi_estructura_org as id, 
+C.c_clase_org as cod,
+C.d_clase_org as des,
+SEC.policy 
+
+FROM 
+ORG02_CLASES_ORG AS C,
+{%? ($PARAM/@empresa!='') {% 
+ORG03_EMPRESAS as E,
+ORG01_UNI_ORG as U,
+ORG02_ESTRUCTURAS as S,
+%} {% %} %}	
+NMD_SECURITY(class=\'NucleusRH.Base.Organizacion.Clases_Organizativas.CLASE_ORG\') as SEC 
+
+JOIN 
+{%? ($PARAM/@empresa!='') {% 
+E.oi_unidad_org inner U.oi_unidad_org,
+S.oi_unidad_org inner U.oi_unidad_org,
+C.oi_estructura_org inner S.oi_estructura,
+%} {% %} %}	
+C.oi_clase_org LEFT OUTER SEC.id  
+
+WHERE 
+C.c_estado = \'V\'
+{%? ($PARAM/@empresa!='') {% and E.oi_empresa={%=$PARAM/@empresa%} %} {% %} %}
+')/ROWS
+				</qry:xquery>
+				<qry:out>
+					<qry:attribute value="$r/ROW/@id" name="strOI"/>
+					<qry:insert-select name="sql_find" doc-path="$r/ROW"/>
+					<qry:if test="@strOI!='' and  @mode=''">
+						<qry:then>
+							<qry:insert-select name="sql_level_x" doc-path="."/>
+						</qry:then>
+					</qry:if>
+				</qry:out>
+			</qry:select>
+			<qry:select name="sql_level_x" doc="PARAM">
+				<qry:xquery>
+					for $r in sql('
+SELECT 
+EST.oi_estructura as id, 
+UNI.c_unidad_org as cod, 
+UNI.d_unidad_org as des
+FROM                    
+ORG02_ESTRUCTURAS as EST, 
+ORG01_UNI_ORG as UNI
+JOIN 
+UNI.oi_unidad_org INNER EST.oi_unidad_org
+WHERE
+EST.oi_estr_padre in ({%=$PARAM/@strOI %})
+')/ROWS
+				</qry:xquery>
+				<qry:out>
+					<qry:attribute value="$r/ROW/@id" name="strOI"/>
+					<qry:insert-select name="sql_find" doc-path="$r/ROW"/>
+					<qry:if test="@strOI!='' and @mode=''">
+						<qry:then>
+							<qry:insert-select name="sql_level_x" doc-path="."/>
+						</qry:then>
+					</qry:if>
+				</qry:out>
+			</qry:select>
+			<qry:select name="sql_find" doc="PARAM">
+				<qry:out>
+					<qry:if test="@mode='' and (contains(upper-case($PARAM/@cod), upper-case($PARAMIN/@txt_find)) or contains(upper-case($PARAM/@des), upper-case($PARAMIN/@txt_find)))">
+						<qry:then>
+							<qry:attribute value="$PARAM/@id" name="id"/>
+							<qry:insert-select name="sqlFID" doc-path="."/>
+							<qry:attribute value="@fullId+$PARAM/@id" name="fullId"/>
+							<qry:attribute value="'E'" name="mode"/>
+						</qry:then>
+					</qry:if>
+				</qry:out>
+			</qry:select>
+			<qry:select name="sqlFID" doc="PARAM">
+				<qry:xquery>
+					for $r in sql('
+SELECT 
+ORG02_ESTRUCTURAS.oi_estr_padre as id
+FROM
+ORG02_ESTRUCTURAS,
+ORG01_UNI_ORG
+JOIN
+ORG01_UNI_ORG.oi_unidad_org INNER ORG02_ESTRUCTURAS.oi_unidad_org
+WHERE 
+ORG02_ESTRUCTURAS.oi_estructura = {#PARAM:@id} 					
+')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:attribute value="$r/@id+'/'+@fullId" name="fullId"/>
+					<qry:insert-select name="sqlFID" doc-path="$r"/>
+				</qry:out>
+			</qry:select>
+		</form:Resource>
+		<form:Resource declare="&lt;PARAM id=&quot;2&quot; /&gt;" name="qry_load">
+			<qry:main doc="PARAM">
+				<qry:append-doc name="PARAMIN" doc-path="#PARAM:/PARAM"/>
+				<qry:element name="item">
+					<qry:attribute value="$PARAMIN/@id" name="strOI"/>
+					<qry:attribute value="$PARAMIN/@id" name="ids"/>
+					<qry:insert-select name="sql_level_x" doc-path="."/>
+					<qry:attribute value="''" name="strOI"/>
+				</qry:element>
+			</qry:main>
+			<qry:select name="sql_level_x" doc="PARAM">
+				<qry:xquery>
+					for $r in sql('
+SELECT 
+EST.oi_estructura as id, 
+UNI.c_unidad_org as cod, 
+UNI.d_unidad_org as des
+FROM                    
+ORG02_ESTRUCTURAS as EST, 
+ORG01_UNI_ORG as UNI
+JOIN 
+UNI.oi_unidad_org INNER EST.oi_unidad_org
+WHERE
+EST.oi_estr_padre in ({%=$PARAM/@strOI %})
+')/ROWS
+				</qry:xquery>
+				<qry:out>
+					<qry:attribute value="$r/ROW/@id" name="strOI"/>
+					<qry:if test="@strOI!=''">
+						<qry:then>
+							<qry:attribute value="@ids+','+@strOI" name="ids"/>
+							<qry:insert-select name="sql_level_x" doc-path="."/>
+						</qry:then>
+					</qry:if>
+				</qry:out>
+			</qry:select>
+		</form:Resource>
+	</form:Resources>
+	<form:Bottom>
+		<form:RowAligner name="bottom">
+			<form:Row name="rowbottom">
+				<form:Button name="ACCEPT" label="Aceptar" img="OK" descrip="Aceptar" note="Aceptar">
+					<form:Event runat="client" name="onclick" action="ACCEPT"/>
+				</form:Button>
+				<form:Button name="CANCEL" label="Cancelar" img="CANCEL" descrip="Cancelar" note="Cancelar">
+					<form:Event runat="server" name="onclick" action="CANCEL"/>
+				</form:Button>
+			</form:Row>
+		</form:RowAligner>
+	</form:Bottom>
+	<form:Event name="onLoad" action="onLoad" runat="client"/>
+	<form:Event action="ACCEPT" name="ACCEPT" runat="server"/>
+</form:Form>

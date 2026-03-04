@@ -1,0 +1,121 @@
+<html:html xmlns:html="nomad_engine.html" xmlns:qry="nomad_engine.qry" extends="Nomad.Base.BaseReport.rpt" doc="source" name="NucleusRH.Base.Liquidacion.ListadoConcepto">
+	<html:query declare="&lt;FILTRO report=&quot;&quot; oi_tipo_concepto=&quot;1&quot; modo=&quot;HTML&quot; infoAdic=&quot;0&quot;&gt;&#13;&#10;&#13;&#10;&lt;/FILTRO&gt;">
+		<qry:main doc="SOURCE">
+			<REPORT label="Como Liquidar Conceptos" style="width:90%;">
+				<qry:attribute name="date" value="format_date(Now(),'dd/mm/yyyy HH:MM')"/>
+				<GROUPS>
+					<GROUP tag="CONCEPTO" style="padding-left:50px" type="table" noreg="No se encontraron registros para los filtros seleccionados.">
+						<COLS>
+							<COL name="concepto" label="Concepto" align="left" style="width:20%;"/>
+							<COL name="d_tipo_concepto" label="Tipo de Concepto" align="left" style="width:10%;"/>
+							<COL name="o_concepto" label="Observaci&#243;n" align="left" style="width:30%;text-align:justify;valign:top;" type="multiline"/>
+							<COL name="variable" label="Datos" align="left" style="width:400px;text-align:justify;valign:top;" type="multiline"/>
+						</COLS>
+					</GROUP>
+				</GROUPS>
+				<qry:element name="DATA">
+					<qry:insert-select doc-path="#SOURCE:FILTRO" name="QRY_CONCEPTOS"/>
+				</qry:element>
+			</REPORT>
+		</qry:main>
+		<qry:select name="info_adic" doc="">
+			<qry:out>
+				<COL name="d_grupo_tliq" label="Grupo de tipo de Liquidaci&#243;n" align="left"/>
+				<COL name="d_clase_concepto" label="Clase de Concepto" align="left"/>
+				<COL name="d_grupo_empresa" label="Grupo de Empresas" align="left"/>
+				<COL name="ca_fig_recibo" label="Figura en Recibo?" align="left"/>
+				<COL name="ca_acum_ganancia" label="Acumula Ganancias?" align="left"/>
+				<COL name="e_secuencia" label="Secuencia" align="left"/>
+			</qry:out>
+		</qry:select>
+		<qry:select name="QRY_CONCEPTOS" doc="SOURCE">
+			<qry:xquery>
+				for $r in sql(' 
+SELECT 
+	LIQ14.oi_concepto, 
+	LIQ14.c_concepto, 
+	LIQ14.d_concepto, 
+	LIQ14.o_concepto,
+	LIQ02.d_grupo_tliq, 
+	LIQ12.d_tipo_concepto, 
+	LIQ13.d_clase_concepto, 
+	LIQ24.d_grupo_empresa, 
+	LIQ14.ca_fig_recibo, 
+	LIQ14.ca_acum_ganancia, 
+	LIQ14.ca_tipo_asiento, 
+	LIQ14.l_activo, 	
+	LIQ14.e_secuencia
+FROM 
+	LIQ14_CONCEPTOS as LIQ14, 
+	LIQ02_GRUPOS_TLIQ as LIQ02,
+	LIQ12_TIPOS_CONC as LIQ12,
+	LIQ13_CLASES_CONC as LIQ13,
+	LIQ24_GRUPOS_EMPRE as LIQ24
+
+JOIN
+	liq14.oi_grupo_tliq left outer liq02.oi_grupo_tliq,
+	LIQ14.oi_tipo_concepto INNER LIQ12.oi_tipo_concepto,
+	LIQ13.oi_clase_concepto right outer LIQ14.oi_clase_concepto,
+	LIQ24.oi_grupo_empresa right outer  LIQ14.oi_grupo_empresa
+WHERE 
+1=1 
+{%? (string(#SOURCE:CONCEPTOS/CONCEPTO/@id)!='') {% AND LIQ14.OI_CONCEPTO in ({%=string(#SOURCE:CONCEPTOS/CONCEPTO/@id) %}) %} {%  %} %}
+{%? (#SOURCE:@oi_tipo_concepto!='') {% AND LIQ14.oi_tipo_concepto = {#SOURCE:@oi_tipo_concepto} %} {%  %} %}
+{%? (#SOURCE:@oi_clase_concepto!='') {% AND LIQ14.oi_clase_concepto = {#SOURCE:@oi_clase_concepto} %} {%  %} %}
+{%? (#SOURCE:@ca_fig_recibo!='') {% AND LIQ14.ca_fig_recibo={#SOURCE:@ca_fig_recibo} %} {% %} %}
+AND LIQ14.l_activo= 1
+AND LIQ12.l_nolistado = 0
+
+ORDER BY        			
+{%? (#SOURCE:@ATRIB_ORDEN1!='')	{% {%=#SOURCE:@ATRIB_ORDEN1%} {%? (#SOURCE:@ORDEN1!='') {% {%=#SOURCE:@ORDEN1%}, %} {% ASC, %}	%} %} {% %} %}
+OI_CONCEPTO ASC
+')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:element name="CONCEPTO">
+					<qry:attribute name="concepto" value="$r/@c_concepto + ' - ' + $r/@d_concepto"/>
+					<qry:attribute name="d_grupo_tliq" value="$r/@d_grupo_tliq"/>
+					<qry:attribute name="d_tipo_concepto" value="$r/@d_tipo_concepto"/>
+					<qry:attribute name="d_clase_concepto" value="$r/@d_clase_concepto"/>
+					<qry:attribute name="d_grupo_empresa" value="$r/@d_grupo_empresa"/>
+					<qry:attribute name="ca_fig_recibo" value="$r/@ca_fig_recibo"/>
+					<qry:attribute name="ca_acum_ganancia" value="$r/@ca_acum_ganancia"/>
+					<qry:attribute name="ca_tipo_asiento" value="$r/@ca_tipo_asiento"/>
+					<qry:attribute name="l_activo" value="$r/@l_activo"/>
+					<qry:attribute name="e_secuencia" value="$r/@e_secuencia"/>
+					<qry:attribute name="o_concepto" value="$r/@o_concepto"/>
+					<qry:attribute name="variable" value="''"/>
+					<qry:insert-select doc-path="$r" name="QRY_VAR"/>
+					<qry:attribute name="variables" value="@variable"/>
+				</qry:element>
+			</qry:out>
+		</qry:select>
+		<qry:select name="QRY_VAR" doc="SOURCE">
+			<qry:xquery>
+				for $r in sql(' 
+				SELECT 
+LIQ09.c_tipo_variable, 
+LIQ09.c_variable, 
+LIQ09.d_variable, 
+LIQ09.c_tipo_dato,
+LIQ14.c_tipo_parametro
+
+FROM LIQ09_VARIABLES as LIQ09,
+LIQ14_CONC_VAR as LIQ14
+JOIN
+LIQ14.oi_variable INNER LIQ09.oi_variable
+WHERE
+LIQ14.oi_concepto = {%= #SOURCE:@oi_concepto %}
+and LIQ09.c_tipo_variable in (\'1\',\'2\',\'3\',\'4\')
+')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:attribute name="variable" value="@variable + $r/@c_variable + ' - '"/>
+				<qry:attribute name="variable" value="@variable + $r/@d_variable + ' ['"/>
+				<qry:attribute name="variable" value="@variable + $r/@c_tipo_variable + ']' + '&#10;'"/>
+				<qry:attribute name="c_tipo_dato" value="$r/@c_tipo_dato"/>
+				<qry:attribute name="c_tipo_parametro" value="$r/@c_tipo_parametro"/>
+			</qry:out>
+		</qry:select>
+	</html:query>
+</html:html>

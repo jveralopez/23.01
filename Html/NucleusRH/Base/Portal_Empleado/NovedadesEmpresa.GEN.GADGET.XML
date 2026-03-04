@@ -1,0 +1,136 @@
+<html:html xmlns:html="nomad_engine.html" xmlns:qry="nomad_engine.qry" xmlns:xsl="http://www.w3.org/1999/XSL/Transform" extends="NucleusRH.Base.Configuracion.GadgetBASE.rpt" name="Novedades de la empresa" doc="source">
+	<html:query declare="&lt;PARAMS _oi_novedad=&quot;2&quot; /&gt;&#13;&#10;">
+		<qry:main doc="SOURCE">
+			<qry:element name="MAIN">
+				<qry:attribute name="timestamp" value="FORMAT_DATE((NUMBER(Now()) + 15 div 1440), 'yyyymmddHHMMSS')"/>
+				<qry:element name="DATA">
+					<qry:attribute name="ut" value="#PROXY:@TOKEN"/>
+					<qry:insert-select doc-path="#SOURCE:PARAMS" name="qryNovedades"/>
+				</qry:element>
+			</qry:element>
+		</qry:main>
+		<qry:select name="qryNovedades" doc="SOURCE">
+			<qry:xquery>
+				for $r in sql(' 
+				SELECT
+					n.oi_novedad,
+					n.d_novedad,
+					n.o_contenido,
+			 	  	n.f_fecha,
+			 	  	n.f_desde,
+			 	  	n.f_hasta,
+					n.oi_imagen_por as oi_img_n,
+					tn.oi_imagen_por as oi_img_tn
+
+				FROM
+			   		POR02_NOVEDADES as n,
+					POR01_TIPOSNOVEDADES as tn
+                
+				JOIN 
+					n.oi_tiponovedad INNER tn.oi_tiponovedad
+                               	
+				WHERE
+					{%? (#SOURCE:@oi_novedad != '') 
+						{% n.oi_novedad = {%= #SOURCE:@oi_novedad%} %}
+						{%
+							n.c_estado = \'A\'
+							AND (
+									(NOW() &gt;= n.f_desde
+									 AND NOW() &lt; ADDDAYS(n.f_hasta, 1))
+								OR
+									(IsNull(n.f_desde)
+									AND NOW() &lt; ADDDAYS(n.f_hasta, 1))
+								OR
+									(IsNull(n.f_hasta)
+									AND NOW() &gt;= n.f_desde)
+								OR
+									(IsNull(n.f_hasta)
+									AND IsNull(n.f_desde))							)
+						%}
+					%}
+
+					
+
+			   	ORDER BY 
+			   		f_fecha ASC
+
+			')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:attribute name="rtipo" value="IIF(number(./@rtipo) = 1, 0, 1)"/>
+				<qry:element name="NOVEDAD">
+					<qry:attribute name="oi_novedad" value="$r/@oi_novedad"/>
+					<qry:attribute name="f_desde" value="$r/@f_desde"/>
+					<qry:attribute name="f_hasta" value="$r/@f_hasta"/>
+					<qry:attribute name="titulo" value="$r/@d_novedad"/>
+					<qry:attribute name="des" value="$r/@o_contenido"/>
+					<qry:attribute name="fecha" value="FORMAT_DATE($r/@f_fecha, 'dd/mm/yyyy')"/>
+					<qry:attribute name="oi_img_tn" value="IIF($r/@oi_img_tn = '', '0', $r/@oi_img_tn)"/>
+					<qry:attribute name="oi_img_n" value="IIF($r/@oi_img_n = '', '0', $r/@oi_img_n)"/>
+					<qry:attribute name="rtipo" value="../@rtipo"/>
+				</qry:element>
+			</qry:out>
+		</qry:select>
+	</html:query>
+	<html:xslt>
+		<xsl:template name="MainReport" match="DATA">
+			<body bgcolor="#F2F2EC" scroll="no">
+				<table class="tabla_detail estilo1" cellspacing="0" cellpadding="0">
+					<tr>
+						<th>
+							Novedades y sociales
+						</th>
+					</tr>
+					<tr>
+						<td>
+							<div>
+								<table style="width:100%;font-size: 11px;" width="100%" aclass="tabla_noticia estilo1">
+									<xsl:for-each select="NOVEDAD">
+										<tr>
+											<td height="30px" class="img_back2 underline">
+												<xsl:if test="@oi_img_tn = '0'">
+													<xsl:attribute name="style">
+														background-image: url(../../../Images/Reports/generico.gif);
+													</xsl:attribute>
+												</xsl:if>
+												<xsl:if test="@oi_img_tn != '0'">
+													<xsl:attribute name="style">
+														<xsl:value-of select="concat('background-image:url(data:image/jpg;base64,(#IMAGE.DB(x16;NucleusRH.Base.Portal_Empleado.Imagenes.HEAD;', @oi_img_tn, ')#))')"/>
+													</xsl:attribute>
+												</xsl:if>
+												<span class="row_estilo_1">
+													<xsl:value-of select="@fecha"/>
+												</span>
+												<span>
+													&#160;|&#160;
+												</span>
+												<a>
+													<xsl:attribute name="href">
+														<xsl:value-of select="concat('javascript:Detail(', @oi_novedad, ')')"/>
+													</xsl:attribute>
+													<xsl:value-of select="@titulo"/>
+												</a>
+											</td>
+										</tr>
+									</xsl:for-each>
+								</table>
+							</div>
+						</td>
+					</tr>
+				</table>
+			</body>
+		</xsl:template>
+		<xsl:template name="ReportSCRIPT">
+			function Detail(poiNov) {
+				var dir;
+				
+				dir = "../../../ReportViewer.aspx?";
+				dir = dir + "report={#PROXY.APP#}.NucleusRH.Base.Portal_Empleado.NovedadesEmpresa_detail.GEN.GADGET";
+				dir = dir + "{#CHAR.AMP#}oi_novedad=" + poiNov;
+        dir = dir + "{#CHAR.AMP#}LANG={#PROXY.LANG#}";
+                
+				window.open(dir, 'Novedades', 'width=800,height=600,resizable=yes');
+			}
+		</xsl:template>
+	</html:xslt>
+</html:html>

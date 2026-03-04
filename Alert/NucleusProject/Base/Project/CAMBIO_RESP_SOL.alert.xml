@@ -1,0 +1,283 @@
+<ALERT xmlns:qry="nomad_engine.qry" label="Cambio de Responsable de la Solicitud" name="CAMBIO_RESP_SOL.alert">
+	<PARAMS>
+		<PARAM event-key="NucleusProject.Base.Project.Solicitudes.SOLICITUD" type="string" req="0" label="PROJECT" name="Project"/>
+	</PARAMS>
+	<QRY declare="&lt;PARAMS&gt;&#13;&#10;&#9;&lt;EVE IDS=&quot;2116&quot; OI_RECURSO_ANT=&quot;1&quot;  OI_RECURSO_NUEVO=&quot;21&quot; MAIL_ANT=&quot;lvalia@nucleussa.com.ar&quot; COD_USR_EMISOR=&quot;lvalia&quot; DES_USR_EMISOR=&quot;Luciano Val&amp;#237;a&quot; MAIL_USR_EMISOR=&quot;lvalia@nucleussa.com.ar&quot;  /&gt;&#13;&#10;&lt;/PARAMS&gt;">
+		<qry:main name="" doc="PARAMS">
+			<qry:append-doc name="PARAMIN" doc-path="$PARAMS/PARAMS"/>
+			<qry:element name="ROWS">
+				<qry:element name="TODOS">
+					<qry:insert-select name="QRY_PROY" doc-path="$PARAMIN/EVE"/>
+				</qry:element>
+			</qry:element>
+		</qry:main>
+		<qry:select name="QRY_PROY" doc="PARAM">
+			<qry:xquery>
+				for $r in SQL('
+		SELECT
+			PRY07_SOLICITUDES.oi_solicitud,
+			PRY07_SOLICITUDES.c_solicitud,
+			PRY07_SOLICITUDES.f_solicitud,
+			PRY08_CONTACTOS.d_nom_y_ape,
+			PRY08_CONTACTOS.d_email as mail_cont,
+			PRY08_CLIENTES.oi_cliente, 
+			PRY08_CLIENTES.c_cliente, 
+			PRY08_CLIENTES.d_nom_cliente,			
+			PRY01_PROYECTOS.c_proyecto,
+			PRY01_PROYECTOS.d_proyecto,
+			PRY11_MODULOS.c_modulo,		
+			PRY11_APLICACIONES.c_aplicacion,
+			PRY11_APLICACIONES.d_aplicacion,
+			PRY11_MODULOS.d_nombre,					
+			PRY07_SOLICITUDES.d_solicitud,
+			PRY13_ERRORES.d_nombre as error,			
+			PRY07_SOLICITUDES.c_estado,	
+			PRY07_SOLICITUDES.o_observaciones	
+				
+		
+		FROM
+			PRY01_PROYECTOS,
+			PRY07_SOLICITUDES,
+			PRY02_TAREAS,	 
+			PRY08_CLIENTES,
+			PRY11_APLICACIONES,
+			PRY11_MODULOS,
+			PRY08_CONTACTOS,
+			PRY13_ERRORES 
+		
+		JOIN
+			PRY01_PROYECTOS.oi_proyecto INNER PRY02_TAREAS.oi_pry_imputa,
+			PRY02_TAREAS.oi_solicitud INNER PRY07_SOLICITUDES.oi_solicitud,			
+			PRY07_SOLICITUDES.oi_modulo INNER PRY11_MODULOS.oi_modulo,			                                                              		
+			PRY11_MODULOS.oi_aplicacion INNER PRY11_APLICACIONES.oi_aplicacion,
+			PRY07_SOLICITUDES.oi_contacto INNER PRY08_CONTACTOS.oi_contacto,
+			PRY08_CONTACTOS.oi_cliente INNER PRY08_CLIENTES.oi_cliente,
+			PRY07_SOLICITUDES.oi_error INNER PRY13_ERRORES.oi_error
+		
+		WHERE 
+			 PRY07_SOLICITUDES.oi_solicitud IN ({%=$PARAM/@IDS%})
+			')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:element name="SOLICITUD">
+					<qry:attribute name="COD_SOL" value="$r/@c_solicitud"/>
+					<qry:attribute name="FECHA_SOL" value="format-date($r/@f_solicitud,'dd/mm/yyyy')"/>
+					<qry:attribute name="COD_USR_EMISOR" value="$PARAMIN/EVE/@COD_USR_EMISOR"/>
+					<qry:attribute name="DES_USR_EMISOR" value="$PARAMIN/EVE/@DES_USR_EMISOR"/>
+					<qry:attribute name="MAIL_USR_EMISOR" value="$PARAMIN/EVE/@MAIL_USR_EMISOR"/>
+					<!--qry:insert-select name="qryUsrLog" doc-path="$proxy"/-->
+					<qry:attribute name="NOM_CONTACTO" value="$r/@d_nom_y_ape"/>
+					<qry:attribute name="MAIL_CONTACTO" value="nmd-replace(string($r/@mail_cont),',',';')"/>
+					<qry:attribute name="COD_CLI" value="$r/@c_cliente"/>
+					<qry:attribute name="DESC_CLI" value="$r/@d_nom_cliente"/>
+					<qry:attribute name="COD_PROYECTO" value="$r/@c_proyecto"/>
+					<qry:attribute name="DES_PROYECTO" value="$r/@d_proyecto"/>
+					<qry:attribute name="MODULO" value="'[' + $r/@c_aplicacion + '] ' + $r/@d_aplicacion + ' \\ ' + $r/@d_nombre"/>
+					<qry:attribute name="DETALLE" value="$r/@d_solicitud"/>
+					<qry:attribute name="CRITICIDAD" value="$r/@error"/>
+					<qry:switch test="$r/@c_estado">
+						<qry:case value="1">
+							<qry:attribute name="ESTADO" value="'PENDIENTE'"/>
+						</qry:case>
+						<qry:case value="2">
+							<qry:attribute name="ESTADO" value="'DERIVADO A PMO'"/>
+						</qry:case>
+						<qry:case value="3">
+							<qry:attribute name="ESTADO" value="'DERIVADO PARA ESTIMACION/DESARROLLO'"/>
+						</qry:case>
+						<qry:case value="4">
+							<qry:attribute name="ESTADO" value="'DERIVADO A CLIENTE'"/>
+						</qry:case>
+						<qry:case value="5">
+							<qry:attribute name="ESTADO" value="'CERRADO'"/>
+						</qry:case>
+						<qry:case value="6">
+							<qry:attribute name="ESTADO" value="'CERRADO POR EL CLIENTE'"/>
+						</qry:case>
+						<qry:case value="7">
+							<qry:attribute name="ESTADO" value="'RECHAZADO'"/>
+						</qry:case>
+						<qry:case value="8">
+							<qry:attribute name="ESTADO" value="'TRABAJANDO'"/>
+						</qry:case>
+						<qry:case value="8">
+							<qry:attribute name="ESTADO" value="'PRESUPUESTADO'"/>
+						</qry:case>
+						<qry:default>
+							<qry:attribute name="ESTADO" value="$r/@c_estado"/>
+						</qry:default>
+					</qry:switch>
+					<qry:insert-select name="qry_horas" doc-path="$r"/>
+					<qry:insert-select name="qryRespAnt" doc-path="$PARAMIN/EVE"/>
+					<qry:insert-select name="qryRespNuevo" doc-path="$PARAMIN/EVE"/>
+					<qry:attribute name="OBSERVACIONES" value="$r/@o_observaciones"/>
+					<qry:attribute name="MAIL" value="$PARAMIN/EVE/@MAIL_ANT"/>
+				</qry:element>
+			</qry:out>
+		</qry:select>
+		<qry:select name="qry_horas" doc="PARAM">
+			<qry:xquery>
+				for $r in sql('
+			
+			SELECT ps.n_cantidad_horas, 
+		   pc.oi_cliente
+
+			FROM
+			PRY08_CLIENTES AS pc,
+      PRY08_SOPORTE AS ps
+	
+			JOIN
+			pc.oi_cliente INNER ps.oi_cliente
+			
+			WHERE
+			 pc.oi_cliente = {#PARAM:@oi_cliente}
+			 AND ps.f_desde &lt;= Now()
+			 AND (ps.f_hasta &gt;= Now() OR ISNULL(ps.f_hasta))			 
+			')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:attribute value="number($r/@n_cantidad_horas)*60" name="minutos_soporte"/>
+				<qry:attribute value="$r/@oi_cliente" name="oi_cliente"/>
+				<qry:insert-select name="qry_horas_soporte" doc-path="$r"/>
+				<qry:attribute name="HS_PEND" value="format-number((number(@minutos_soporte)-number(@minutos_a_restar)) div 60, '0.00')"/>
+			</qry:out>
+		</qry:select>
+		<qry:select name="qry_horas_soporte" doc="PARAM">
+			<qry:xquery>
+				for $r in sql('
+SELECT pt2.e_duracion, 
+			 put1.e_minutos
+FROM   PRY08_PRY_SOPORTE AS pps,
+       PRY01_PROYECTOS AS pp,
+       PRY02_TAREAS AS pt, 
+       PRY04_TRABAJOS AS pt2,
+       PRY08_CLIENTES AS pc,
+       PRY03_UND_TIEMPO AS put1
+JOIN   pc.oi_cliente INNER pps.oi_cliente,
+			 pps.oi_proyecto INNER pp.oi_proyecto,
+			 pp.oi_proyecto INNER pt.oi_pry_imputa,
+			 pt.oi_tarea INNER pt2.oi_tarea,
+			 pt2.oi_unidad_tiempo INNER put1.oi_unidad_tiempo
+WHERE  GETPER(pt2.f_fecha) = {substring(Now(),0,6)}
+			 AND pc.oi_cliente = {#PARAM:@oi_cliente}
+			')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:attribute value="@minutos_a_restar + number($r/@e_minutos)*number($r/@e_duracion)" name="minutos_a_restar"/>
+			</qry:out>
+		</qry:select>
+		<qry:select name="qryRespAnt" doc="PARAM">
+			<qry:xquery>
+				for $r in SQL
+			('
+			   SELECT
+			   R.c_recurso,
+			   P.d_ape_y_nom
+			   
+			   FROM
+			   PRY05_RECURSOS as R,
+			   PER01_PERSONAL as P
+			   
+			   JOIN
+			   R.oi_personal INNER P.oi_personal  
+			   
+			   WHERE
+			   R.oi_recurso = {$PARAM/@OI_RECURSO_ANT}
+			')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:attribute value="'['+$r/@c_recurso+'] '+$r/@d_ape_y_nom" name="RESP_ANT"/>
+			</qry:out>
+		</qry:select>
+		<qry:select name="qryRespNuevo" doc="PARAM">
+			<qry:xquery>
+				for $r in SQL
+			('
+			   SELECT
+			   R.c_recurso,
+			   P.d_ape_y_nom
+			   
+			   FROM
+			   PRY05_RECURSOS as R,
+			   PER01_PERSONAL as P
+			   
+			   JOIN
+			   R.oi_personal INNER P.oi_personal  
+			   
+			   WHERE
+			   R.oi_recurso = {%=$PARAM/@OI_RECURSO_NUEVO%}
+			')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:attribute value="'['+$r/@c_recurso+'] '+$r/@d_ape_y_nom" name="RESP_NUEVO"/>
+			</qry:out>
+		</qry:select>
+		<qry:select doc="PARAM" name="qryUsrLog">
+			<qry:xquery>
+				for $r in file('Nomad\\Base\\Login\\Entidades\\{%=#PARAM:@ETTY%}.ENTIDAD.XML')/ENTIDAD
+			</qry:xquery>
+			<qry:out>
+				<qry:attribute name="COD_USR_EMISOR" value="$r/@cod"/>
+				<qry:attribute name="DES_USR_EMISOR" value="$r/@des"/>
+				<qry:attribute name="MAIL_USR_EMISOR" value="$r/MAILS/MAIL/@EMAIL"/>
+			</qry:out>
+		</qry:select>
+	</QRY>
+	<MAILS>
+		<MAIL suject="Area Soporte - Cliente: {% @SOLICITUD.COD_CLI %} - {% @SOLICITUD.DESC_CLI %} - Sol. {% @SOLICITUD.COD_SOL %} -  {% @SOLICITUD.DETALLE %}" group="SOLICITUD">
+			**C&#243;digo Solicitud:** {% @SOLICITUD.COD_SOL %} 
+
+**Fecha:** {% @SOLICITUD.FECHA_SOL %}
+
+**Usuario Emisor:** [{% @SOLICITUD.COD_USR_EMISOR %}] {% @SOLICITUD.DES_USR_EMISOR %} ({% @SOLICITUD.MAIL_USR_EMISOR %})  
+
+**Contacto Responsable:** {% @SOLICITUD.NOM_CONTACTO %} ({% @SOLICITUD.MAIL_CONTACTO %})
+
+**Cliente:** [{% @SOLICITUD.COD_CLI %}] {% @SOLICITUD.DESC_CLI %}
+
+**Proyecto:** [{% @SOLICITUD.COD_PROYECTO %}]  {% @SOLICITUD.DES_PROYECTO %} 
+
+**M&#243;dulo:** {% @SOLICITUD.MODULO %}
+
+**Detalle:** {% @SOLICITUD.DETALLE %}
+
+**Criticidad:** {% @SOLICITUD.CRITICIDAD %}
+
+**Estado:** {% @SOLICITUD.ESTADO %}
+
+**Horas Pendientes:** {% @SOLICITUD.HS_PEND %} 
+
+**Trazabilidad:** {% @SOLICITUD.RESP_ANT %}, le informamos que la solicitud [{% @SOLICITUD.COD_SOL %}] {% @SOLICITUD.DETALLE %} ha sido asignada ahora a {% @SOLICITUD.RESP_NUEVO %}  
+
+ 
+===== Mail Original =====
+  
+
+{% @SOLICITUD.OBSERVACIONES %}
+		</MAIL>
+	</MAILS>
+	<GROUPS>
+		<GROUP label="Por Solicitud" name="SOLICITUD">
+			<FIELD label="C&#243;digo Solicitud" type="string" name="COD_SOL"/>
+			<FIELD label="Fecha de Solicitud" name="FECHA_SOL" type="string"/>
+			<FIELD name="COD_USR_EMISOR" label="C&#243;digo Usuario Emisor" type="string"/>
+			<FIELD name="DES_USR_EMISOR" label="Nombre de Usuario Emisor" type="string"/>
+			<FIELD name="MAIL_USR_EMISOR" label="Mail Usuario Emisor" type="string"/>
+			<FIELD type="string" label="Nombre Contacto" name="NOM_CONTACTO"/>
+			<FIELD type="string" label="E-mail Contacto" name="MAIL_CONTACTO"/>
+			<FIELD label="C&#243;digo Cliente" type="string" name="COD_CLI"/>
+			<FIELD label="Descripci&#243;n Cliente" name="DESC_CLI" type="string"/>
+			<FIELD name="COD_PROYECTO" type="string" label="Proyecto"/>
+			<FIELD name="DES_PROYECTO" type="string" label="Proyecto"/>
+			<FIELD type="string" label="M&#243;dulo" name="MODULO"/>
+			<FIELD type="string" label="Detalle" name="DETALLE"/>
+			<FIELD label="Criticidad" name="CRITICIDAD" type="string"/>
+			<FIELD type="string" label="Estado" name="ESTADO"/>
+			<FIELD label="Horas Pendientes" type="double" name="HS_PEND"/>
+			<FIELD label="Responsable Anterior" name="RESP_ANT" type="string"/>
+			<FIELD label="Responsable Actual" name="RESP_NUEVO" type="string"/>
+			<FIELD type="string" label="Observaciones" name="OBSERVACIONES"/>
+		</GROUP>
+	</GROUPS>
+	<ENUMS/>
+</ALERT>

@@ -1,0 +1,192 @@
+<form:Form xmlns:form="nomad_engine.form" xmlns:SPA="nomad_engine.SPA" xmlns:qry="nomad_engine.qry" extends="NucleusRH.Base.SeleccionDePostulantes.CVs.CV.filter.form" name="Filtro de postulacion" default_mode="FILTER" doc="source">
+	<form:Title>
+		<form:Label label="Postular CVs en Avisos" help-stop="1" name="lbl_titulo" visible="" align="center" style="S3 LCol_w"/>
+	</form:Title>
+	<form:Center width="100%">
+		<form:Blank name="bl3" width="90%" visible=""/>
+		<form:VGroup visible="" nvalue="#source:@gcustom" border="1" width="90%" label="Criterios de selecci&#243;n particulares" name="vgroupDatosCustom" collapse="1">
+			<form:Columns height="100%" width="100%" name="cols1">
+				<form:Column name="Colaviso" width="100%" separation="2" align="right" valign="top">
+					<form:ComboBox nvalue="#FILTERDATA:@oi_aviso" queryname1="NucleusRH.Base.SeleccionDePostulantes.Avisos.AVISO.INFO" name="aviso1" xsize="60" mode="QRY" required="1" label="Aviso">
+						<form:Event action="SetTipoAviso" name="onchange" runat="client"/>
+					</form:ComboBox>
+					<form:CheckBox nvalue="#FILTERDATA:@l_mail" required="1" label="Informar via mail?" name="l_mail"/>
+					<form:TextBox enabled="0" xsize="15" length="20" nvalue="#FILTERDATA:@tipoAviso" SPA:label="Tipo aviso" name="tipoAviso"/>
+				</form:Column>
+			</form:Columns>
+		</form:VGroup>
+		<form:VGroup nvalue="#source:@gpers" border="1" width="90%" collapse="1" label="Criterios de selecci&#243;n de personas" name="vgroupDatosPers"/>
+	</form:Center>
+	<form:Bottom width="60%">
+		<form:RowAligner name="rowaligner1">
+			<form:Row name="row1">
+				<form:Button visible="0" help-stop="0" name="AGREGAR" descrip="Agregar una persona" label="Agregar" img="add" note="Volver al Menu princial">
+					<form:Event action="ADD" runat="server" name="onclick"/>
+				</form:Button>
+			</form:Row>
+		</form:RowAligner>
+	</form:Bottom>
+	<form:Scripts>
+		function SendToServer()
+{       
+	GetProxy().StoreService().SetUserStore("SDP_IDsCVs", array2stringcustom(arrB, "ROWS", "ROW"));
+	return true;
+}
+
+function internal_load()
+{
+	if(Ctrl('listlegajos'))
+	{
+	  if(Ctrl('listlegajos').GetXValue()!= '')
+	  {
+	  	if(!SetListLegajos())
+	  		return false;
+	  }
+	}
+  var auxArr;
+	auxArr = exec_qry();
+	if (auxArr==null) return;
+	
+	arrB = auxArr; 
+	remove(arrB, arrA);	
+	refreshList("list2", arrB);
+}
+function internal_filter()
+{
+	if(Ctrl('listlegajos'))
+	{
+	  if(Ctrl('listlegajos').GetXValue()!= '')
+	  {
+	  	if(!SetListLegajos())
+	  		return false;  	
+	  }
+	}
+  var auxArr;
+	auxArr = exec_qry();
+	if (auxArr==null) return;  
+	
+	intersect(arrB, auxArr);	
+	refreshList("list2", arrB);
+}
+
+function internal_loadadd()
+{ 
+	if(Ctrl('listlegajos'))
+	{
+	  if(Ctrl('listlegajos').GetXValue()!= '')
+	  {
+	  	if(!SetListLegajos())
+	  		return false;  	
+	  }
+	}
+  var auxArr;
+	auxArr = exec_qry();
+	if (auxArr==null) return;  
+	
+	remove(auxArr, arrA);		
+	union(arrB, auxArr);
+	refreshList("list2", arrB);
+}
+
+function internal_find()
+{
+	if(Ctrl('listlegajos'))
+	{
+	  if(Ctrl('listlegajos').GetXValue()!= '')
+	  {
+	  	if(!SetListLegajos())
+	  		return false;  	
+	  }
+	}
+  var auxArr;
+  var key;
+	auxArr = exec_qry();
+	if (auxArr==null) return;  
+
+	intersect(auxArr, arrB);
+	key="";
+	for (key in auxArr) break;
+	if (key!="") 
+		Ctrl("list2").SetXValue(key.substr(1));
+	else
+		alert("No se encontro ningun registro.");
+}
+
+
+function Filtrar()
+{   
+	if(Ctrl("aviso1").GetXValue() == "")
+	{
+		alert("Debe indicar el Aviso para realizar la Postulaci&#243;n");
+		return false;
+	}
+	
+	if (!confirm('Los CVs seleccionados ser&#225;n postulados en el aviso. Est&#225; seguro que desea continuar?'))
+		return false;
+	
+	if(Ctrl('l_mail'))
+		if(Ctrl('l_mail').GetXValue() == "1") { 
+			if (!confirm('Se va a enviar un correo electr&#243;nico a todos los CVs postulados. Est&#225; seguro que desea continuar?'))
+				return false;
+		}		
+		
+	SendToServer();
+	Ctrl("main").DoEvent("ACCEPT");
+}          
+
+function SetTipoAviso(obj)
+{
+	var oi_aviso, nSQL, objAviso;
+	oi_aviso = obj.GetXValue();
+	if(oi_aviso != '')
+	{
+		nSQL = GetProxy().SQLService();
+  		objAviso = nSQL.GetOBJ(Ctrl("main").getResource("tipo_aviso"), "&lt;PARAM oi_aviso=\""+oi_aviso+"\" /&gt;");
+  		Ctrl('tipoAviso').SetXValue(objAviso.tipo_aviso);
+	}
+	else
+		Ctrl('tipoAviso').SetXValue('');
+	return true;
+}
+	</form:Scripts>
+	<form:Event action="ACCEPT" name="ACCEPT" runat="server"/>
+	<form:Resources>
+		<form:Resource declare="&lt;PARAM oi_aviso=&quot;121&quot; /&gt;" name="tipo_aviso">
+			<qry:main doc="SOURCE">
+				<qry:append-doc name="FILTER" doc-path="#SOURCE:."/>
+				<qry:element name="AVISO">
+					<qry:attribute name="tipo_aviso" value="'No se pudo establecer el tipo'"/>
+					<qry:insert-select name="get_aviso"/>
+				</qry:element>
+			</qry:main>
+			<qry:select name="get_aviso">
+				<qry:xquery>
+					for $r in SQL('
+SELECT
+AVI.c_tipo
+FROM 
+SDP05_AVISOS as AVI
+WHERE
+AVI.oi_aviso = { #FILTER:@oi_aviso }
+')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:switch test="$r/@c_tipo">
+						<qry:case value="I">
+							<qry:attribute name="tipo_aviso" value="'Interno'"/>
+						</qry:case>
+						<qry:case value="E">
+							<qry:attribute name="tipo_aviso" value="'Externo'"/>
+						</qry:case>
+						<qry:case value="I/E">
+							<qry:attribute name="tipo_aviso" value="'Interno/Externo'"/>
+						</qry:case>
+						<qry:default>
+							<qry:attribute name="tipo_aviso" value="'No se pudo establecer el tipo'"/>
+						</qry:default>
+					</qry:switch>
+				</qry:out>
+			</qry:select>
+		</form:Resource>
+	</form:Resources>
+</form:Form>

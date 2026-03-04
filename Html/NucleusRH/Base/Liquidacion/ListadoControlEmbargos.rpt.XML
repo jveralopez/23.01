@@ -1,0 +1,193 @@
+<html:html xmlns:html="nomad_engine.html" xmlns:qry="nomad_engine.qry" name="NucleusRH.Base.Liquidacion.ListadoControlEmbargos" extends="Nomad.Base.BaseReport.rpt" doc="source">
+	<html:query declare="&lt;FILTRO oi_clase_org=&quot;&quot; oi_empresa=&quot;1&quot; n_mes=&quot;201011&quot;&gt;&#13;&#10;  &lt;ROWS /&gt;&#13;&#10;&lt;/FILTRO&gt;&#13;&#10;">
+		<qry:main doc="PARAM">
+			<qry:append-doc name="FILTRO" doc-path="#PARAM:/FILTRO"/>
+			<REPORT label="CONTROL DE CONTINUIDAD Y COBRO DE EMBARGOS COMERCIALES">
+				<qry:attribute value="format_date(now(),'dd/mm/yyyy HH:MM')" name="date"/>
+				<GROUPS>
+					<GROUP tag="REP" type="title">
+						<GROUP tag="TAB" type="title">
+							<COLS>
+								<COL name="empresa" label="Empresa"/>
+								<COL name="tot_pend" label="Total Faltante"/>
+							</COLS>
+							<GROUP tag="P" type="title">
+								<GROUP type="tablestruc">
+									<GROUPROW>
+										<GROUPCOL>
+											<GROUP tag="EMB" type="title">
+												<COLS>
+													<COL name="d_ubicacion" label="Ubicaci&#243;n"/>
+												</COLS>
+											</GROUP>
+										</GROUPCOL>
+										<GROUPCOL>
+											<GROUP tag="EMB" type="title">
+												<COLS>
+													<COL name="e_numero_legajo" label="Legajo"/>
+												</COLS>
+											</GROUP>
+										</GROUPCOL>
+										<GROUPCOL>
+											<GROUP tag="EMB" type="title">
+												<COLS>
+													<COL name="d_ape_y_nom" label="Apellido y Nombre"/>
+												</COLS>
+											</GROUP>
+										</GROUPCOL>
+										<GROUPCOL>
+											<GROUP tag="EMB" type="title">
+												<COLS>
+													<COL name="n_monto_pend" label="Importe Faltante"/>
+												</COLS>
+											</GROUP>
+										</GROUPCOL>
+									</GROUPROW>
+								</GROUP>
+								<GROUP tag="DATOS" type="table" style="width:100%">
+									<COLS>
+										<COL name="f_recepcion" label="Fecha Emb." style="width:10%" type="date"/>
+										<COL name="e_nro_oficio" label="Nro. Oficio" style="width:10%"/>
+										<COL name="o_embargo" label="Car&#225;tula" style="width:50%"/>
+										<COL name="n_monto_pend" label="Importe Pendiente Embargo" style="width:15%;text-align:right"/>
+										<COL name="c_estado" label="Estado" style="width:15%"/>
+									</COLS>
+								</GROUP>
+							</GROUP>
+						</GROUP>
+					</GROUP>
+				</GROUPS>
+				<qry:element name="DATA">
+					<qry:element name="REP">
+						<qry:element name="TAB">
+							<qry:insert-select name="DATOS_EMPRESA" doc-path="#PARAM:FILTRO"/>
+							<qry:insert-select name="QRY_TOT" doc-path="."/>
+						</qry:element>
+					</qry:element>
+				</qry:element>
+			</REPORT>
+		</qry:main>
+		<qry:select doc="PARAM" name="DATOS_EMPRESA">
+			<qry:xquery>
+				for $r in SQL(' 
+			SELECT  
+			 	EMPRE.oi_empresa,
+				EMPRE.c_empresa, 
+				EMPRE.d_empresa 
+			FROM
+				ORG03_EMPRESAS AS EMPRE
+			WHERE
+				EMPRE.oi_empresa = {#PARAM:@oi_empresa}
+		')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:attribute value="$r/@c_empresa + '-' + $r/@d_empresa" name="empresa"/>
+				<qry:insert-select name="DATOS_PERSONAS" doc-path="$r"/>
+			</qry:out>
+		</qry:select>
+		<qry:select doc="PARAM" name="DATOS_PERSONAS">
+			<qry:xquery>
+				for $r in sql(' 
+			SELECT 
+				PER02.e_numero_legajo, 
+				PER01.d_ape_y_nom , 
+				PER02.oi_personal_emp,
+				UBI.c_ubicacion,
+				UBI.d_ubicacion
+			FROM 
+				PER02_PERSONAL_EMP AS PER02,
+				PER01_PERSONAL AS PER01,
+				ORG03_UBICACIONES AS UBI,
+				(
+					SELECT LIQ07.oi_personal_emp
+					FROM LIQ07_EMBARGOS AS LIQ07, PER02_PERSONAL_EMP AS PER02
+					JOIN LIQ07.oi_personal_emp INNER PER02.oi_personal_emp
+					WHERE 
+					PER02.oi_empresa = {%=#PARAM:@oi_empresa%} and
+					LIQ07.c_tipo_embargo = \'OC\' AND
+				 	LIQ07.c_estado != \'N\' AND
+				 	(LIQ07.n_monto_pend &gt; 0 OR LIQ07.oi_embargo in
+				 	(SELECT DES.oi_embargo FROM LIQ07_DESC_EMB AS DES
+					WHERE GETPER(DES.f_descuento) = {%=#FILTRO:@n_mes%}))
+					GROUP BY LIQ07.oi_personal_emp) AS EMB
+			JOIN
+				PER02.oi_personal INNER PER01.oi_personal,
+				PER02.oi_ubicacion LEFT OUTER UBI.oi_ubicacion,
+				PER02.oi_personal_emp INNER EMB.oi_personal_emp
+			ORDER BY c_ubicacion asc, e_numero_legajo asc
+		')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<P>
+					<qry:element name="EMB2">
+						<qry:attribute name="hts:delete" value="'1'"/>
+						<qry:attribute name="d_ubicacion" value="$r/@c_ubicacion + ' - ' + $r/@d_ubicacion"/>
+						<qry:attribute name="e_numero_legajo" value="$r/@e_numero_legajo"/>
+						<qry:attribute name="d_ape_y_nom" value="$r/@d_ape_y_nom"/>
+					</qry:element>
+					<qry:insert-select name="QRY_EMBARGOS" doc-path="$r"/>
+					<qry:attribute name="n_monto_pend" value="format-number(@n_monto_pend,0,2,'.','','')"/>
+					<qry:element name="EMB">
+						<qry:attribute name="d_ubicacion" value="../EMB2/@d_ubicacion"/>
+						<qry:attribute name="e_numero_legajo" value="../EMB2/@e_numero_legajo"/>
+						<qry:attribute name="d_ape_y_nom" value="../EMB2/@d_ape_y_nom"/>
+						<qry:attribute name="n_monto_pend" value="../@n_monto_pend"/>
+					</qry:element>
+				</P>
+			</qry:out>
+		</qry:select>
+		<qry:select doc="PARAM" name="QRY_EMBARGOS">
+			<qry:xquery>
+				for $r in SQL(' 
+			SELECT 
+				LIQ07.f_recepcion,
+				LIQ07.c_estado, 
+				LIQ07.oi_embargo,
+				LIQ07.n_monto_pend,
+				LIQ07.o_caratula,
+				LIQ07.e_nro_oficio
+			FROM
+				LIQ07_EMBARGOS AS LIQ07
+			WHERE
+				LIQ07.oi_personal_emp = {#PARAM:@oi_personal_emp} AND
+			 	LIQ07.c_tipo_embargo = \'OC\' AND
+			 	LIQ07.c_estado != \'N\' AND
+			 	(LIQ07.n_monto_pend &gt; 0 OR LIQ07.oi_embargo in
+			 	(SELECT DES.oi_embargo FROM LIQ07_DESC_EMB AS DES
+				WHERE GETPER(DES.f_descuento) = {%=#FILTRO:@n_mes%}))
+			ORDER BY
+				f_recepcion ASC, e_nro_oficio ASC
+			')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:element name="DATOS">
+					<qry:attribute name="f_recepcion" value="format_date($r/@f_recepcion,'dd/mm/yyyy')"/>
+					<qry:attribute name="e_nro_oficio" value="$r/@e_nro_oficio"/>
+					<qry:attribute name="o_embargo" value="$r/@o_caratula"/>
+					<qry:switch test="$r/@c_estado">
+						<qry:case value="I">
+							<qry:attribute name="c_estado" value="'Iniciado'"/>
+						</qry:case>
+						<qry:case value="A">
+							<qry:attribute name="c_estado" value="'Activo'"/>
+						</qry:case>
+						<qry:default>
+							<qry:attribute name="c_estado" value="'Finalizado'"/>
+						</qry:default>
+					</qry:switch>
+					<qry:attribute name="n_monto_pend" value="format-number($r/@n_monto_pend,0,2,'.','','')"/>
+				</qry:element>
+				<qry:attribute name="n_monto_pend" value="number(@n_monto_pend) + $r/@n_monto_pend"/>
+			</qry:out>
+		</qry:select>
+		<qry:select doc="PARAM" name="QRY_TOT">
+			<qry:xquery>
+				for $r in #PARAM:P
+			</qry:xquery>
+			<qry:out>
+				<qry:attribute name="tot_pend1" value="number(@tot_pend1) + number($r/@n_monto_pend)"/>
+				<qry:attribute name="tot_pend" value="FORMAT_NUMBER(@tot_pend1, 10, 2, '.', '', '')"/>
+			</qry:out>
+		</qry:select>
+	</html:query>
+</html:html>

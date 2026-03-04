@@ -1,0 +1,230 @@
+<INTERFACE-DEF xmlns:qry="nomad_engine.qry" entermode="DOS" finalenter="1">
+	<QUERY declare="&lt;DATA c_empresa=&quot;2&quot; oi_sindicato=&quot;151&quot; interface=&quot;UOM&quot; p_periodo=&quot;201201&quot;&gt;&#13;&#10;  &lt;LIQS /&gt; &#13;&#10;  &lt;/DATA&gt;">
+		<qry:main doc="SOURCE">
+			<qry:element name="DATA">
+				<qry:element name="DETAILS">
+					<qry:insert-select name="qryDetail" doc-path="#SOURCE:/DATA"/>
+				</qry:element>
+			</qry:element>
+		</qry:main>
+		<qry:select name="qryDetail" doc="SOURCE">
+			<qry:xquery>
+				for $r in SQL('
+						SELECT 
+							PER.oi_personal,
+						  PE.f_ingreso,
+							max(PE.c_nro_cuil) as c_nro_cuil,
+							PER.d_apellido,
+							PER.d_nombres,
+							PE.c_estado_civil,
+							PE.c_sexo,
+							max(PE.e_numero_legajo) as e_numero_legajo,
+						    NAC.c_nacionalidad,
+							PER.f_nacim,
+							\'N\' as incapacidad,
+							MAX(PE.c_categoria_ult) AS c_categoria_ult,
+							MAX(PE.c_nro_documento) AS c_nro_documento,
+							S.oi_sindicato,
+							max(EMP.c_empresa) as c_empresa,
+							SUM(TLP.n_totsret) as n_totsret,
+							max(LIQ.e_periodo) as e_periodo
+						FROM 
+							LIQ20_TOT_LIQ_PER as TLP,
+							LIQ97_PERSONAL_EMP as PE,   
+							PER01_PERSONAL as PER, 
+							LIQ99_LIQUIDACION as LIQ,
+							LIQ93_EMPRESAS as EMP,
+							PER30_SINDICATOS as S,
+							ORG12_NACIONALID as NAC
+						JOIN
+							TLP.oi_per_emp_ddo INNER PE.oi_per_emp_ddo,
+							PER.c_personal INNER PE.c_personal,
+							LIQ.oi_liquidacion_ddo INNER TLP.oi_liquidacion_ddo,
+							LIQ.oi_empresa_ddo INNER EMP.oi_empresa_ddo,
+							PE.c_sindicato INNER S.c_sindicato,
+							PER.oi_nacionalidad LEFT OUTER NAC.oi_nacionalidad
+						WHERE 
+							IsNotNULL(TLP.f_cierre)
+							AND LIQ.e_periodo = { #SOURCE:@p_periodo }
+							AND 
+							{%?(#SOURCE:@oi_sindicato=4 OR #SOURCE:@oi_sindicato=151) 
+								{% (S.oi_sindicato = 151 
+									OR S.oi_sindicato = 4) 
+								%} 
+								{% S.oi_sindicato = {#SOURCE:@oi_sindicato}%} 
+							%}          
+							AND EMP.c_empresa = { #SOURCE:@c_empresa }
+						GROUP BY
+							PER.oi_personal,
+							PER.d_apellido,
+							PER.d_nombres,
+							PE.c_estado_civil,
+							PE.c_sexo,
+						  NAC.c_nacionalidad,
+							PER.f_nacim,  
+							PE.f_ingreso,
+							S.oi_sindicato
+						')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:element name="DETAIL">
+					<qry:attribute name="total" value="$r/@n_totsret"/>
+					<qry:insert-select name="QRY_ADICIONALES" doc-path="$r"/>
+					<qry:attribute name="d_calle" value="FILL_LEFT('', ' ', 32)"/>
+					<qry:attribute name="e_numero" value="NMD_FILLLEFT($r/@e_numero,'0',5,'L')"/>
+					<qry:attribute name="d_localidad" value="FILL_LEFT('', ' ', 13)"/>
+					<qry:attribute name="c_postal" value="FILL_LEFT('', ' ', 4)"/>
+					<qry:attribute name="c_tipo_documento" value="$r/@c_tipo_documento"/>
+					<qry:attribute name="c_nro_documento" value="$r/@c_nro_documento"/>
+					<qry:attribute name="c_nro_cuil" value="TRANSLATE($r/@c_nro_cuil, '-', '')"/>
+					<qry:attribute name="d_apellido" value="FILL_RIGHT($r/@d_apellido, ' ', 12)"/>
+					<qry:attribute name="d_nombres" value="FILL_RIGHT($r/@d_nombres, ' ', 18)"/>
+					<qry:attribute name="c_sexo" value="$r/@c_sexo"/>
+					<qry:if test="$r/@f_nacim!=''">
+						<qry:then>
+							<qry:attribute name="f_nacim" value="$r/@f_nacim"/>
+						</qry:then>
+						<qry:else>
+							<qry:attribute name="f_nacim" value="FILL_LEFT('', ' ', 8)"/>
+						</qry:else>
+					</qry:if>
+					<qry:attribute name="incapacidad" value="FILL_RIGHT($r/@incapacidad, ' ', 1)"/>
+					<qry:attribute name="d_grupo_sanguineo" value="$r/@d_grupo_sanguineo"/>
+					<qry:if test="$r/@oi_sindicato=4">
+						<qry:then>
+							<qry:attribute name="sindicato" value="'N'"/>
+						</qry:then>
+					</qry:if>
+					<qry:if test="$r/@oi_sindicato=151">
+						<qry:then>
+							<qry:attribute name="sindicato" value="'S'"/>
+						</qry:then>
+					</qry:if>
+					<!--qry:attribute name="f_ingreso" value="FORMAT_DATE($r/@f_ingreso, 'dd/mm/yyyy')"/>
+		<qry:attribute name="c_obra_social" value="$r/@c_obra_social"/-->
+					<qry:attribute name="c_estado_civil" value="$r/@c_estado_civil"/>
+					<qry:attribute name="sueldo" value="FORMAT_NUMBER(@total, 6, 2, '.', '', ' ')"/>
+					<qry:attribute name="c_nacionalidad" value="'012'"/>
+					<qry:attribute name="c_categoria" value="'08'"/>
+					<qry:insert-select name="qryDetailDir" doc-path="$r"/>
+					<qry:insert-select name="qryEST_CIV" doc-path="$r"/>
+					<!--qry:insert-select name="qryNACIONALIDADES" doc-path="$r"/-->
+					<qry:insert-select name="qryCATEGORIAS" doc-path="$r"/>
+				</qry:element>
+			</qry:out>
+		</qry:select>
+		<qry:select name="QRY_ADICIONALES" doc="SOURCE">
+			<qry:xquery>
+				for $r in SQL('
+					SELECT           
+						sum(VLC.n_valor_s) as n_valor_s,
+						VLC.c_variable as c_variable,
+						max(LIQ.e_periodo) as e_periodo
+					FROM			
+						LIQ20_TOT_LIQ_PER as TLP,
+						LIQ99_RECIBOS as REC,
+						LIQ97_PERSONAL_EMP as PE,   
+						PER01_PERSONAL as PER, 
+						LIQ99_LIQUIDACION as LIQ,
+						ORG03_EMPRESAS AS EMP,
+						LIQ20_CONC_LIQ_PER as CL,
+						LIQ20_VAR_LIQ_CONC as VLC
+					JOIN
+						LIQ.oi_liquidacion_ddo INNER REC.oi_liquidacion_ddo,
+						REC.oi_tot_liq_per INNER TLP.oi_tot_liq_per,
+						TLP.oi_per_emp_ddo INNER PE.oi_per_emp_ddo,
+						PER.c_personal INNER PE.c_personal,
+						EMP.c_empresa INNER PE.c_empresa,
+						TLP.oi_tot_liq_per INNER CL.oi_tot_liq_per,
+						CL.oi_conc_liq_per INNER VLC.oi_conc_liq_per
+					WHERE 
+						LIQ.c_estado = \'F\'
+						AND LIQ.e_periodo = {#SOURCE:@e_periodo}
+						AND EMP.c_empresa = {#SOURCE:@c_empresa}
+						AND PE.e_numero_legajo = {#SOURCE:@e_numero_legajo}  
+						AND (VLC.c_variable = \'aa_nsretsind\')
+					GROUP BY
+						PE.c_empresa,
+						PE.e_numero_legajo,
+						VLC.c_variable 
+				')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:attribute name="total" value="#SOURCE:@n_totsret + $r/@n_valor_s"/>
+			</qry:out>
+		</qry:select>
+		<qry:select name="qryDetailDir" doc="SOURCE">
+			<qry:xquery>
+				for $r in SQL('
+							SELECT
+								DPER.d_calle,
+								DPER.e_numero,
+								DPER.d_piso,
+								DPER.d_departamento,
+								LOC.d_localidad,
+								PRO.c_provincia,
+								LOC.c_postal
+							FROM
+								PER01_DOMIC_PER as DPER,
+								ORG19_LOCALIDADES as LOC,
+								ORG35_PROVINCIAS as PRO
+							JOIN
+								DPER.oi_localidad INNER LOC.oi_localidad,
+								LOC.oi_provincia INNER PRO.oi_provincia
+												
+							WHERE 
+								DPER.l_domic_fiscal = 1 AND
+								DPER.oi_personal = {%= #SOURCE:@oi_personal %}
+						
+						')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:attribute name="d_calle" value="substring(FILL_RIGHT($r/@d_calle, ' ', 32), 0, 32)"/>
+				<qry:attribute name="e_numero" value="NMD_FILLLEFT($r/@e_numero,'0',5,'L')"/>
+				<qry:attribute name="d_piso" value="$r/@d_piso"/>
+				<qry:attribute name="d_departamento" value="$r/@d_departamento"/>
+				<qry:attribute name="d_localidad" value="substring(FILL_RIGHT($r/@d_localidad, ' ', 13), 0, 13)"/>
+				<qry:attribute name="c_postal" value="FILL_RIGHT($r/@c_postal, ' ', 4)"/>
+				<qry:insert-select name="qryPROVINCIA" doc-path="$r"/>
+			</qry:out>
+		</qry:select>
+		<qry:select name="qryEST_CIV" doc="SOURCE">
+			<qry:xquery>
+				for $r in FILEIO('./INTERFACE-DEF/SINDICATOS.UOM.JOIN.Estados_Civil.XML')/JOINS/JOIN[@n_code=#SOURCE:@c_estado_civil]
+			</qry:xquery>
+			<qry:out>
+				<qry:attribute name="c_estado_civil" value="$r/@i_code"/>
+			</qry:out>
+		</qry:select>
+		<qry:select name="qryPROVINCIA" doc="SOURCE">
+			<qry:xquery>
+				for $r in FILEIO('./INTERFACE-DEF/SINDICATOS.UOM.JOIN.Provincias.XML')/JOINS/JOIN[@n_code=#SOURCE:@c_provincia]
+			</qry:xquery>
+			<qry:out>
+				<qry:attribute value="FILL_RIGHT($r/@i_code, ' ', 2)" name="c_provincia"/>
+			</qry:out>
+		</qry:select>
+		<qry:select name="qryNACIONALIDADES" doc="SOURCE">
+			<qry:xquery>
+				for $r in FILEIO('./INTERFACE-DEF/SINDICATOS.UOM.JOIN.Nacionalidades.XML')/JOINS/JOIN[@n_code=#SOURCE:@c_nacionalidad]
+			</qry:xquery>
+			<qry:out>
+				<qry:attribute value="FILL_RIGHT($r/@i_code, ' ', 3)" name="c_nacionalidad"/>
+			</qry:out>
+		</qry:select>
+		<qry:select name="qryCATEGORIAS" doc="SOURCE">
+			<qry:xquery>
+				for $r in FILEIO('./INTERFACE-DEF/SINDICATOS.UOM.JOIN.Nacionalidades.XML')/JOINS/JOIN[@n_code=#SOURCE:@c_categoria_ult]
+			</qry:xquery>
+			<qry:out>
+				<qry:attribute value="FILL_RIGHT($r/@i_code, ' ', 2)" name="c_categoria"/>
+			</qry:out>
+		</qry:select>
+	</QUERY>
+	<DETAIL>
+		{c_nro_cuil:11}{d_apellido:12}{d_nombres:18}{d_calle:32}{e_numero:5}{space(8)}{d_localidad:13}{c_postal:4}{c_provincia:2+}{space(6)}{c_sexo:1}{c_nacionalidad:3}{space(4)}{f_nacim}{space(2)}00{space(3)}{incapacidad:1}{space(4)}{sindicato}{space(1)}{sueldo}
+	</DETAIL>
+	<MESS>
+		<EMPTY mess="No se encontraron registros. Por favor valide que los legajos est&#233;n asociados al sindicato correcto y que las liquidaciones del per&#237;odo est&#233;n cerradas."/>
+	</MESS>
+</INTERFACE-DEF>

@@ -1,0 +1,117 @@
+<flow:flow xmlns:flow="nomad_engine.flow" xmlns:doc="nomad_engine.doc" xmlns:qry="nomad_engine.qry" extends="NucleusRH.Base.Control_Contratistas.Vehiculos.ATRIB_VEHIC.MAIN.STD.autoflow" default_action="LIST" name="NucleusRH.Base.Control_Contratistas.Vehiculos.ATRIB_VEHIC.MAIN.STD.flow">
+	<flow:info label="NucleusRH.Base.Control_Contratistas.Vehiculos.ATRIB_VEHIC.MAIN.STD.autoflow"/>
+	<flow:declare>
+		<doc:define name="ATRIBUTO"/>
+		<qry:define declare="&lt;SOURCE PARENT=&quot;2&quot; /&gt;" name="GetAtributosControl">
+			<qry:main doc="SOURCE">
+				<qry:element name="ATRIBUTOS">
+					<qry:insert-select name="qry_atributos_veh" doc-path="#SOURCE:."/>
+					<qry:insert-select name="qry_atributos" doc-path="#SOURCE:."/>
+				</qry:element>
+			</qry:main>
+			<qry:select doc="PARAM" name="qry_atributos">
+				<qry:xquery>
+					for $r in SQL('          
+select
+  CCO05_ATRIB_CTROL.oi_atributo_ctrol as ID,
+  CCO05_ATRIB_CTROL.c_atributo_ctrol as COD,
+  CCO05_ATRIB_CTROL.d_atributo_ctrol as DES,
+  CCO05_ATRIB_CTROL.c_aplica_veh as c_aplica_veh
+from
+  CCO05_ATRIB_CTROL
+WHERE 
+CCO05_ATRIB_CTROL.c_aplica_veh != \'N\'
+AND 
+   CCO05_ATRIB_CTROL.oi_atributo_ctrol not in
+    (   
+     select
+     CCO05_ATRIB_CTROL.oi_atributo_ctrol
+     from
+     CCO05_ATRIB_CTROL,  CCO04_ATRIB_VEHIC
+     JOIN
+     CCO05_ATRIB_CTROL.oi_atributo_ctrol inner CCO04_ATRIB_VEHIC.oi_atributo_ctrol
+     WHERE 
+     CCO04_ATRIB_VEHIC.oi_vehiculo={%=#PARAM:@PARENT%}
+    )
+ 
+			')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:element name="ATRIBUTO">
+						<qry:attribute name="oi_atrib_vehic" value=""/>
+						<qry:attribute name="id" value="$r/@ID"/>
+						<qry:attribute name="descr" value="'['+$r/@COD+'] '+$r/@DES"/>
+						<qry:attribute name="oi_vehiculo" value="$r/@oi_vehiculo"/>
+						<qry:attribute name="c_aplica_veh" value="iif($r/@c_aplica_veh='S', 'Obligatorio', 'Opcional')"/>
+						<qry:attribute name="check" value="0"/>
+						<qry:if test="$r/@oi_vehiculo=#PARAM:@PARENT">
+							<qry:then>
+								<qry:attribute name="check" value="1"/>
+							</qry:then>
+							<qry:else/>
+						</qry:if>
+					</qry:element>
+				</qry:out>
+			</qry:select>
+			<qry:select doc="PARAM" name="qry_atributos_veh">
+				<qry:xquery>
+					for $r in SQL('          
+select
+  CCO05_ATRIB_CTROL.oi_atributo_ctrol as ID,
+  CCO04_ATRIB_VEHIC.oi_atrib_vehic as oi_atrib_vehic,
+  CCO05_ATRIB_CTROL.c_atributo_ctrol as COD,
+  CCO05_ATRIB_CTROL.d_atributo_ctrol as DES,
+  CCO05_ATRIB_CTROL.c_aplica_veh as c_aplica_veh,
+  CCO04_ATRIB_VEHIC.oi_vehiculo,
+  CCO04_ATRIB_VEHIC.f_vencimiento,
+  CCO04_ATRIB_VEHIC.o_atrib_vehic
+from
+  CCO05_ATRIB_CTROL,
+  CCO04_ATRIB_VEHIC
+JOIN
+  CCO05_ATRIB_CTROL.oi_atributo_ctrol inner CCO04_ATRIB_VEHIC.oi_atributo_ctrol
+WHERE 
+ CCO04_ATRIB_VEHIC.oi_vehiculo={#PARAM:@PARENT}
+			')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:element name="ATRIBUTO">
+						<qry:attribute name="oi_atrib_vehic" value="$r/@oi_atrib_vehic"/>
+						<qry:attribute name="id" value="$r/@ID"/>
+						<qry:attribute name="descr" value="'['+$r/@COD+'] '+$r/@DES"/>
+						<qry:attribute name="oi_vehiculo" value="$r/@oi_vehiculo"/>
+						<qry:attribute name="f_vencimiento" value="$r/@f_vencimiento"/>
+						<qry:attribute name="o_atrib_vehic" value="$r/@o_atrib_vehic"/>
+						<qry:attribute name="check" value="1"/>
+						<qry:attribute name="c_aplica_veh" value="iif($r/@c_aplica_veh='S', 'Obligatorio', 'Opcional')"/>
+					</qry:element>
+				</qry:out>
+			</qry:select>
+		</qry:define>
+	</flow:declare>
+	<flow:main doc="SOURCE">
+		<flow:action name="LIST">
+			<doc:set-attribute from-attr-path="#SOURCE:@PARENT" to-attr-path="#SELECT:@PARENT"/>
+			<flow:open-form mode="LIST" parent-doc-path="#SOURCE:" doc-path="#SELECT:" form-class="NucleusRH.Base.Control_Contratistas.Vehiculos.ATRIB_VEHIC.MAIN.STD_LIST.form"/>
+		</flow:action>
+	</flow:main>
+	<flow:form extends="NucleusRH.Base.Control_Contratistas.Vehiculos.ATRIB_VEHIC.MAIN.STD_LIST.autoform:LIST" mode="LIST" parent-doc="PARENT" doc="SOURCE" form-class="NucleusRH.Base.Control_Contratistas.Vehiculos.ATRIB_VEHIC.MAIN.STD_LIST.form" name="NucleusRH.Base.Control_Contratistas.Vehiculos.ATRIB_VEHIC.MAIN.STD_LIST.form:LIST">
+		<flow:action name="on-show">
+			<doc:load-qry input-doc-path="#SELECT:" output-doc="ATRIBUTO" qry="GetAtributosControl"/>
+			<flow:attach-doc doc-path="#ATRIBUTO:" attach-id="ATRIBUTO"/>
+		</flow:action>
+		<flow:action name="ACCEPT">
+			<flow:call-action action="SAVE-ATRIBUTOS"/>
+			<flow:close-form/>
+		</flow:action>
+		<flow:action name="CANCEL">
+			<flow:close-form/>
+		</flow:action>
+		<flow:action name="SAVE-ATRIBUTOS">
+			<flow:exec-method class="NucleusRH.Base.Control_Contratistas.Vehiculos.VEHICULO" method="GuardarAtributosControl">
+				<flow:param attr-path="#SELECT:@PARENT" name="pstrVehiculo" type="Nomad.NSystem.String" mode="in"/>
+				<flow:param doc="ATRIBUTO" type="Nomad.NSystem.Proxy.NomadXML" name="paramATRIBUTOS" mode="in"/>
+			</flow:exec-method>
+		</flow:action>
+	</flow:form>
+</flow:flow>

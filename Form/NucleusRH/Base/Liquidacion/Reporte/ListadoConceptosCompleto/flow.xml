@@ -1,0 +1,87 @@
+<flow:flow xmlns:flow="nomad_engine.flow" xmlns:doc="nomad_engine.doc" xmlns:qry="nomad_engine.qry" name="NucleusRH.Base.Liquidacion.Conceptos.listado" default_action="initialize" extends="Nomad.Base.report.flow">
+	<flow:info label="Flow para NucleusRH.Base.Liquidacion.Conceptos"/>
+	<flow:declare>
+		<doc:define name="QRY"/>
+		<doc:define name="FILTERDATA">
+			<FILTRO salida="HTML" l_incluir="0" report="" ATRIB_ORDEN1="" ORDEN1="" ATRIB_ORDEN2="" ORDEN2="" ATRIB_ORDEN3="" ORDEN3="" ca_fig_recibo="" l_activo="" oi_tipo_concepto="" oi_clase_concepto="">
+				<CONCEPTOS/>
+			</FILTRO>
+		</doc:define>
+		<qry:define declare="&lt;FILTRO ATRIB_ORDEN1=&quot;c_concepto&quot; ORDEN1=&quot;&quot; L_ACTIVO=&quot;&quot; oi_clase_concepto=&quot;&quot; oi_tipo_concepto=&quot;&quot;/&gt;" name="FILTER">
+			<qry:main doc="SOURCE">
+				<qry:element name="ROWS">
+					<qry:insert-select name="RS1" doc-path="#SOURCE:FILTRO"/>
+				</qry:element>
+			</qry:main>
+			<qry:select doc="SOURCE" name="RS1">
+				<qry:xquery>
+					for $r in sql('
+				SELECT 
+					c.oi_concepto,
+					c.c_concepto,
+					c.d_concepto,
+					c.oi_grupo_tliq,
+					c.oi_tipo_concepto,
+					c.oi_clase_concepto,
+					c.ca_fig_recibo,
+					c.l_activo,
+					c.e_secuencia
+				FROM 
+					LIQ14_CONCEPTOS as c
+				WHERE 
+					1=1 
+	        		{%? (string(#SOURCE:CONCEPTOS/CONCEPTO/@id)!='') {% AND c.OI_CONCEPTO in ({%=string(#SOURCE:CONCEPTOS/CONCEPTO/@id) %}) %} {%  %} %}
+	        		{%? (#SOURCE:@oi_tipo_concepto!='') {% AND c.oi_tipo_concepto = {#SOURCE:@oi_tipo_concepto} %} {%  %} %}
+	        		{%? (#SOURCE:@oi_clase_concepto!='') {% AND c.oi_clase_concepto = {#SOURCE:@oi_clase_concepto} %} {%  %} %}
+	        		{%? (#SOURCE:@ca_fig_recibo!='') {% AND c.ca_fig_recibo={#SOURCE:@ca_fig_recibo} %} {% %} %}
+	        		{%? (#SOURCE:@l_activo!='')	{% AND c.l_activo= {%=#SOURCE:@l_activo %} %} {% %} %}
+	        		
+	        	ORDER BY        			
+        			{%? (#SOURCE:@ATRIB_ORDEN1!='')	{% {%=#SOURCE:@ATRIB_ORDEN1%} {%? (#SOURCE:@ORDEN1!='') {% {%=#SOURCE:@ORDEN1%}, %} {% ASC, %}	%} %} {% %} %}
+        			OI_CONCEPTO ASC	
+
+        			        	
+        	')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:element name="ROW">
+						<qry:attribute type="Nomad.NSystem.String" value="$r/@OI_CONCEPTO" name="value"/>
+						<qry:attribute type="Nomad.NSystem.String" value="$r/@OI_CONCEPTO" name="id"/>
+					</qry:element>
+				</qry:out>
+			</qry:select>
+		</qry:define>
+	</flow:declare>
+	<flow:main doc="SOURCE">
+		<flow:action name="initialize">
+			<flow:open-form form-class="NucleusRH.Base.Liquidacion.Reporte.ListadoConceptosCompleto.filter.form" doc-path="#FILTERDATA:" mode="FILTER"/>
+		</flow:action>
+	</flow:main>
+	<flow:form form-class="NucleusRH.Base.Liquidacion.Reporte.ListadoConceptosCompleto.filter.form" doc="FILTERDATA" name="NucleusRH.Base.Liquidacion.Conceptos.form:FILTER" mode="FILTER" extends="Nomad.Base.Report.filtro.form">
+		<flow:action name="FILTER">
+			<flow:call-action action="Save-FILTER"/>
+			<flow:log text-path="#FILTERDATA:" text="FILTERDATA445"/>
+			<flow:html-gen out-file-path="#FILTERDATA:@report" input-doc-path="#FILTERDATA:" template-file="NucleusRH.Base.Liquidacion.ListadoCompletoConceptos.rpt"/>
+			<flow:open-form doc-path="#FILTERDATA:" form-class="NucleusRH.Base.Liquidacion.Reporte.ListadoConceptosCompleto.form" mode="REPORT"/>
+		</flow:action>
+		<flow:action name="Load-FILTER">
+			<flow:load-user-data name="FILTER-NucleusRH.Base.Liquidacion.ListadoConceptosCompleto" doc="FILTERDATA"/>
+		</flow:action>
+		<flow:action name="Save-FILTER">
+			<flow:save-user-data name="FILTER-NucleusRH.Base.Liquidacion.ListadoConceptosCompleto" doc-path="#FILTERDATA:"/>
+		</flow:action>
+		<flow:action name="on-open">
+			<flow:call-action action="Load-FILTER"/>
+			<flow:log text-path="#FILTERDATA:" text="logform"/>
+		</flow:action>
+		<flow:action name="BACK">
+			<flow:call-action action="Save-FILTER"/>
+			<flow:close-form/>
+		</flow:action>
+	</flow:form>
+	<flow:form form-class="NucleusRH.Base.Liquidacion.Reporte.ListadoConceptosCompleto.form" name="NucleusRH.Base.Liquidacion.Reporte.ListadoConceptosCompleto.form:REPORT" extends="Nomad.report.form:REPORT" mode="REPORT" doc="SOURCE">
+		<flow:action name="CANCEL">
+			<flow:exit-flow return-path="#SOURCE:"/>
+		</flow:action>
+	</flow:form>
+</flow:flow>

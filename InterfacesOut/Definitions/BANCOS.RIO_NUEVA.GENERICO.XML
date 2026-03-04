@@ -1,0 +1,169 @@
+<INTERFACE-DEF xmlns:qry="nomad_engine.qry" code="" desc="" entermode="DOS" finalenter="1">
+	<QUERY declare="&lt;DATA oi_empresa=&quot;9&quot; oi_banco=&quot;14&quot; oi_sucursal=&quot;&quot; f_acreditacion=&quot;20120131&quot; f_vencimiento=&quot;&quot; interface=&quot;RIO_NUEVA&quot;&gt;&#13;&#10;  &lt;LIQS&gt;&#13;&#10;    &lt;LIQ oi_liquidacion=&quot;174&quot;/&gt;&#13;&#10;  &lt;/LIQS&gt;&#13;&#10;&lt;/DATA&gt;&#13;&#10;">
+		<qry:main doc="SOURCE">
+			<qry:element name="DATA">
+				<qry:element name="DETAILS">
+					<qry:insert-select name="qryDetail" doc-path="#SOURCE:/DATA"/>
+				</qry:element>
+				<qry:insert-select name="qryDetailTot" doc-path="#SOURCE:/DATA"/>
+				<qry:insert-select name="qryHead"/>
+			</qry:element>
+		</qry:main>
+		<qry:select name="qryHead" doc="SOURCE">
+			<qry:out>
+				<qry:element name="HEAD">
+					<qry:attribute name="Acuerdo" value="'30518594466001101'"/>
+					<qry:attribute name="CodCanal" value="'007'"/>
+					<qry:attribute name="NroEnvio" value="'00001'"/>
+				</qry:element>
+			</qry:out>
+		</qry:select>
+		<qry:select name="qryDetail" doc="SOURCE">
+			<qry:xquery>
+				for $r in SQL('
+			SELECT 
+				LIQ97_PERSONAL_EMP.e_numero_legajo,
+				LIQ97_PERSONAL_EMP.d_ape_y_nom,
+				LIQ97_PERSONAL_EMP.c_nro_cuil,
+				LIQ97_PERSONAL_EMP.c_cbu,    
+				LIQ99_LIQUIDACION.f_pago,
+				LIQ99_LIQUIDACION.e_periodo,
+				LIQ20_TOT_LIQ_PER.n_totpag
+			FROM         
+				LIQ15_EMPRESA_BCOS ,
+				LIQ15_EMPRESAS ,
+				ORG03_EMPRESAS, 
+				LIQ22_BANCOS ,
+				LIQ22_BANCOS_SUCUR ,
+				LIQ99_RECIBOS ,
+				LIQ20_TOT_LIQ_PER ,
+				LIQ97_PERSONAL_EMP,
+				LIQ93_EMPRESAS ,
+				LIQ99_LIQUIDACION,
+				LIQ19_EJECUCIONES ,
+				LIQ19_LIQUIDACION , 
+				PER31_FORMAS_PAGO
+			JOIN
+				LIQ15_EMPRESA_BCOS.oi_empresa 				INNER LIQ15_EMPRESAS.oi_empresa  ,
+				LIQ15_EMPRESAS.oi_empresa 						INNER ORG03_EMPRESAS.oi_empresa  ,
+				LIQ15_EMPRESA_BCOS.oi_banco			 			INNER LIQ22_BANCOS.oi_banco  ,
+				LIQ22_BANCOS.oi_banco 								INNER LIQ22_BANCOS_SUCUR.oi_banco  ,
+				LIQ20_TOT_LIQ_PER.oi_per_emp_ddo		 	INNER LIQ97_PERSONAL_EMP.oi_per_emp_ddo  ,
+				LIQ99_RECIBOS.oi_tot_liq_per 					INNER LIQ20_TOT_LIQ_PER.oi_tot_liq_per  ,
+				LIQ93_EMPRESAS.oi_empresa_ddo 				INNER LIQ99_LIQUIDACION.oi_empresa_ddo ,
+				LIQ99_RECIBOS.oi_liquidacion_ddo 			INNER LIQ99_LIQUIDACION.oi_liquidacion_ddo ,
+				ORG03_EMPRESAS.c_empresa 							INNER LIQ93_EMPRESAS.c_empresa  ,
+				LIQ99_LIQUIDACION.oi_liquidacion_ddo 	INNER LIQ19_EJECUCIONES.oi_liquidacion_ddo  ,
+				LIQ19_EJECUCIONES.oi_liquidacion 			INNER LIQ19_LIQUIDACION.oi_liquidacion ,
+				LIQ22_BANCOS_SUCUR.c_sucursal 				INNER LIQ97_PERSONAL_EMP.c_sucursal  , 
+				LIQ22_BANCOS.c_banco 									INNER LIQ97_PERSONAL_EMP.c_banco,
+				PER31_FORMAS_PAGO.c_forma_pago	 			INNER LIQ20_TOT_LIQ_PER.c_forma_pago
+			WHERE   
+				LIQ15_EMPRESA_BCOS.oi_empresa = {#SOURCE:@oi_empresa} and
+				LIQ22_BANCOS.oi_banco = {#SOURCE:@oi_banco} and
+				LIQ99_LIQUIDACION.c_estado = \'F\'
+				{%? (string(#SOURCE:LIQS/LIQ/@oi_liquidacion) != '')
+					{% AND LIQ19_LIQUIDACION.oi_liquidacion in ( {%=string(#SOURCE:LIQS/LIQ/@oi_liquidacion)%})  %} 
+					{%  %}   
+				%}
+				and	PER31_FORMAS_PAGO.l_banco = 1
+				and LIQ20_TOT_LIQ_PER.n_totpag &gt; 0
+			
+		')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:element name="DETAIL">
+					<qry:attribute name="Legajo" value="NMD_FILLRIGHT($r/@e_numero_legajo,'0',15,'L')"/>
+					<qry:attribute name="Periodo" value="NMD_FILLLEFT($r/@e_periodo,'0',15,'R')"/>
+					<qry:attribute name="CodSucursal" value="$r/@c_suc_bancaria"/>
+					<qry:attribute name="CodMoneda" value="'0'"/>
+					<qry:attribute name="TipoComprobante" value="'RC'"/>
+					<qry:attribute name="Nombre" value="NMD_FILLRIGHT($r/@d_ape_y_nom, ' ', 30, 'L')"/>
+					<qry:attribute name="c_nro_cuil" value="TRANSLATE($r/@c_nro_cuil, '-', '')"/>
+					<qry:attribute name="CBU" value="$r/@c_cbu"/>
+					<qry:attribute name="AgrupBenef" value="'N'"/>
+					<qry:attribute name="Pais" value="'0054'"/>
+					<qry:attribute name="FechaPago" value="FORMAT_DATE($r/@f_pago, 'yyyymmdd')"/>
+					<qry:attribute name="Importe" value="FORMAT_NUMBER($r/@n_totpag, 13, 2, '', '', '0')"/>
+					<qry:attribute name="FormaPago" value="'50'"/>
+					<qry:insert-select name="qryDetailDir" doc-path="$r"/>
+				</qry:element>
+			</qry:out>
+		</qry:select>
+		<qry:select name="qryDetailDir" doc="SOURCE">
+			<qry:xquery>
+				for $r in SQL('
+			SELECT
+				DPER.d_calle,
+				DPER.e_numero,
+				DPER.d_piso,
+				DPER.d_departamento,
+				LOC.d_localidad
+			FROM
+				PER01_DOMIC_PER as DPER,
+				ORG19_LOCALIDADES as LOC,
+				PER02_PERSONAL_EMP AS PER02,
+				PER01_PERSONAL AS PER01
+			JOIN                   
+				PER02.oi_personal INNER PER01.oi_personal,
+				PER01.oi_personal INNER DPER.oi_personal,
+				DPER.oi_localidad INNER LOC.oi_localidad
+			WHERE 
+				DPER.l_domic_fiscal = 1 AND
+				PER02.e_numero_legajo = {#SOURCE:@e_numero_legajo}
+		')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:attribute name="dir" value="$r/@d_calle + $r/@e_numero + $r/@d_piso + $r/@d_departamento + $r/@d_localidad"/>
+				<qry:attribute name="Direccion" value="NMD_FILLRIGHT(@dir, ' ', 51,'L')"/>
+			</qry:out>
+		</qry:select>
+		<qry:select name="qryDetailTot" doc="SOURCE">
+			<qry:xquery>
+				for $r in SQL('
+					SELECT 
+						SUM(TLP.n_totpag) as totpag,
+						COUNT(TLP.n_totpag) as totreg
+					FROM
+						LIQ20_TOT_LIQ_PER as TLP,
+						LIQ97_PERSONAL_EMP as PE,
+						LIQ22_BANCOS as B,
+						PER02_PERSONAL_EMP as EMP, 
+						LIQ25_PERSONAL_LIQ as L25, 
+						LIQ19_EJECUCIONES as EJE, 
+						PER31_FORMAS_PAGO
+					JOIN
+						PE.c_banco INNER B.c_banco,
+						L25.oi_liquidacion INNER EJE.oi_liquidacion,
+						EMP.e_numero_legajo INNER PE.e_numero_legajo,
+						TLP.oi_per_emp_ddo INNER PE.oi_per_emp_ddo,
+						TLP.oi_liquidacion_ddo INNER EJE.oi_liquidacion_ddo,
+						EMP.oi_personal_emp INNER L25.oi_personal_emp,
+					  PER31_FORMAS_PAGO.c_forma_pago INNER TLP.c_forma_pago
+					WHERE 
+	          B.oi_banco = {%= #SOURCE:@oi_banco %}
+						AND L25.oi_liquidacion IN ({%= STRING(#SOURCE:LIQS/LIQ/@oi_liquidacion) %})
+				    AND	PER31_FORMAS_PAGO.l_banco = 1
+				')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:element name="FOOT">
+					<qry:attribute name="imp_total" value="FORMAT_NUMBER($r/@totpag, 15, 2, '', '', '0')"/>
+					<qry:attribute name="nro_registros" value="FORMAT_NUMBER($r/@totreg, 7, 0, '', '', '0')"/>
+				</qry:element>
+			</qry:out>
+		</qry:select>
+	</QUERY>
+	<HEAD>
+		H{Acuerdo:17}{CodCanal:3}{NroEnvio:5}00000{space(7)}{space(1)}{space(611)}
+	</HEAD>
+	<DETAIL>
+		D{space(1)}{CodMoneda:1}{Legajo:15}{TipoComprobante:2}{Periodo:15}0000{Nombre:30}{Direccion:51}00000{space(4)}0000000000000000000000000000000000000000000000000000000000000000000000000000000000{space(11)}{c_nro_cuil:11}{space(162)}{AgrupBenef:1}{Pais:4}{CBU:22}00000000{FechaPago:8}{Importe:15}{FormaPago:2}{space(3)}00000000000{space(3)}00000000000{space(3)}00000000000{space(3)}0000000000000000000000000{space(1)}00000000000000000{space(102)}
+	</DETAIL>
+	<FOOT>
+		T000000000000000{imp_total}{nro_registros}{space(612)}
+	</FOOT>
+	<MESS>
+		<EMPTY mess="No se encontraron registros. Por favor verifique que los legajos est&#233;n asociados al banco correcto."/>
+	</MESS>
+</INTERFACE-DEF>

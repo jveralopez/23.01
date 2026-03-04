@@ -1,0 +1,439 @@
+<HTML>
+	<HEAD>
+		<META http-equiv="Content-Type" content="text/html; charset=ISO-8859-1">
+		
+		<LINK HREF="./Styles/General.css" REL="stylesheet" TYPE="text/css">
+		
+		<script src="./Scripts/nmdXML.js"   type="text/javascript"></script>
+		
+		<SCRIPT src="./Scripts/controls.js" type="text/javascript"></SCRIPT>
+		
+		<SCRIPT type="text/javascript" language="javascript">
+			var gobjFields;
+			var gobjGrid;
+			var gxmlSource;
+			
+			var garrSec;
+			var gSecNumber;
+			
+			function PageLoad() {
+				LoadSections();
+
+				var xmlColumns = GetColumns();
+				gxmlSource = GetData();
+
+				gobjFields = new clsFields();
+				gobjFields.AddNewField("Idioma",        "oi_idioma", "oi_idioma", "COMBO", true);
+				gobjFields.AddNewField("Otro idioma",   "d_idioma", "d_idioma", "TXT", false);
+				gobjFields.AddNewField("Nivel habla",   "c_nivel_habla", "c_nivel_habla", "COMBO", true);
+				gobjFields.AddNewField("Nivel lee",     "c_nivel_lee", "c_nivel_lee", "COMBO", true);
+				gobjFields.AddNewField("Nivel escribe", "c_nivel_escribe", "c_nivel_escribe", "COMBO", true);
+					
+				gobjGrid = new clsGrid(document.getElementById("tblGrid"), xmlColumns, gxmlSource);
+				gobjGrid.Draw();
+
+			}
+
+		
+			function DelRow(pId) {
+				gobjGrid.DeleteChild(pId);
+				gobjGrid.Draw();
+				
+				btnCancelar_Click();
+			}
+
+			function EditRow(pId) {
+				var objHTML;
+				
+				gobjGrid.SelectRow(pId);
+				gobjFields.SetSource(gobjGrid.GetChild(pId));
+				gobjFields.MapFromSource();
+				oi_idioma_Change();
+				
+				SetButtons(true);
+			}
+
+			//Agrega un registro a la lista
+			function btnAgregar_Click() {
+				if (gobjFields.ValidateMandatories()) {
+				
+					if (ValidateFields()) {
+						var xmlRow = gxmlSource.AddTailElement("row");
+						
+						gobjFields.SetSource(xmlRow);
+						gobjFields.MapToSource();
+						gobjFields.ClearFields();
+						
+						gobjGrid.Draw();
+					}
+				}
+			}
+
+			//Updatea un registro de la lista
+			function btnActualizar_Click() {
+				if (gobjFields.ValidateMandatories()) {
+
+					if (ValidateFields()) {
+						
+						gobjFields.SetXMLValue("nmdmod", "1");
+						gobjFields.MapToSource();
+						gobjFields.ClearFields();
+						
+						gobjGrid.Draw();
+						
+						SetButtons(false);
+					}
+				}
+			}
+
+			//Limpia los campos en el editable
+			function btnLimpiar_Click() {
+				gobjFields.ClearFields();
+			}
+
+			//Cancela una edicion
+			function btnCancelar_Click() {
+				gobjFields.ClearFields();
+				gobjGrid.SelectRow(null);
+				
+				SetButtons(false);
+			}
+
+			//Limpia los campos en el editable
+			function btnLimpiar_Click() {
+				gobjFields.ClearFields();
+			}
+
+			function btnGuardar_Click() {
+				CallTimeOut("Procesando los datos...", "Save();");
+			}
+			
+			function Save() {			
+				var xmlResult;
+				
+				xmlResult = parent.ExecuteNomadMethod("NucleusRH.Base.SeleccionDePostulantes.CVs.CV", "SaveCV", parent.gxmlUData);
+				
+				if (xmlResult == null) {
+					alert("Se produjo un error en el sistema. Por favor reintente nuevamente en unos minutos.")
+					parent.ShowWait(false);
+				} else {
+					if (xmlResult.GetAttr("out") == "OK") {
+						parent.gxmlUData = xmlResult;
+						parent.LogMode("LO");
+						location.href = "ShowCV.htm";
+					} else {
+						alert(xmlResult.GetAttr("out"));
+					}
+				}
+			}
+
+			function btnVolver_Click() {
+				if (confirm("Las modificaciones realizadas se perderán.\nEstás seguro que deseas cancelar la edición?")) {
+					parent.LogMode("LO");
+					location.href = "ShowCV.htm";
+				}
+			}
+						
+			//Realiza las validaciones propias de la pagina
+			function ValidateFields() {
+				if (gobjFields.GetValue("oi_idioma") == "{#QRY:NucleusRH.Idiomas_OTRO.xml#}") {
+					if (gobjFields.GetValue("d_idioma") == "") {
+						alert("El campo Otro idioma es obligatorio cuando se selecciona la opción Otro.");
+						gobjFields.GetHTMLObject("d_idioma").focus();
+						return false;						
+					} 
+				}
+				
+				return true;
+			}
+			
+			//Actualiza los botones segun la accion
+			function SetButtons(pEdit) {
+				var objHTML;
+				
+				objHTML = document.getElementById("btnAgregar"); objHTML.style.display = pEdit ? "none" : "inline";
+				objHTML = document.getElementById("btnActualizar"); objHTML.style.display = pEdit ? "inline" : "none";
+				
+				objHTML = document.getElementById("btnLimpiar"); objHTML.style.display = pEdit ? "none" : "inline";
+				objHTML = document.getElementById("btnCancelar"); objHTML.style.display = pEdit ? "inline" : "none";
+			}
+
+			
+			function GetColumns() {
+				var xmlColumns = new NomadXML("cols");
+				var xmlCol;
+				
+				xmlCol = xmlColumns.AddTailElement("col");
+				xmlCol.SetAttr("name", "oi_idioma_txt");
+				xmlCol.SetAttr("title", "Idioma");
+				xmlCol.SetAttr("formula", 'xmlRow.GetAttr("d_idioma") != "" ? xmlRow.GetAttr("d_idioma") : xmlRow.GetAttr("oi_idioma_txt");');
+				xmlCol.SetAttr("width", "40%");
+				
+				xmlCol = xmlColumns.AddTailElement("col");
+				xmlCol.SetAttr("name", "c_nivel_habla_txt");
+				xmlCol.SetAttr("title", "Nivel habla");
+				xmlCol.SetAttr("width", "20%");
+
+				xmlCol = xmlColumns.AddTailElement("col");
+				xmlCol.SetAttr("name", "c_nivel_lee_txt");
+				xmlCol.SetAttr("title", "Nivel lee");
+				xmlCol.SetAttr("width", "20%");
+				
+				xmlCol = xmlColumns.AddTailElement("col");
+				xmlCol.SetAttr("name", "c_nivel_escribe_txt");
+				xmlCol.SetAttr("title", "Nivel escribe");
+				xmlCol.SetAttr("width", "20%");				
+
+			
+				return xmlColumns;
+			}
+
+			function oi_idioma_Change() {
+				if (gobjFields.GetValue("oi_idioma") == "{#QRY:NucleusRH.Idiomas_OTRO.xml#}") {
+					gobjFields.SetEnabled("d_idioma", true);
+				} else {
+					gobjFields.SetEnabled("d_idioma", false);
+					gobjFields.SetValue("d_idioma", "");					
+				}
+			}
+
+			function GetData() {
+				return parent.gxmlUData.FindElement("IDIOMAS_CV");
+			}
+
+			//----------------------------------------------------------------------------------
+			// Links de secciones
+
+			function LoadSections() {
+				garrSec = new Array();
+				garrSec[garrSec.length] = "CargaCV_DatosPer.htm";
+				garrSec[garrSec.length] = "CargaCV_Formacion.htm";
+				garrSec[garrSec.length] = "CargaCV_Experiencia.htm";
+				garrSec[garrSec.length] = "CargaCV_Idiomas.htm";
+				garrSec[garrSec.length] = "CargaCV_Informatica.htm";
+				garrSec[garrSec.length] = "CargaCV_ALaborales.htm";
+				garrSec[garrSec.length] = "CargaCV_DatosAd.htm";
+				
+				gSecNumber = 3;
+			}
+			
+			function btnNext_Click() {
+				GotoSection(gSecNumber + 1);
+			}
+
+			function btnPrev_Click() {
+				GotoSection(gSecNumber - 1);
+			}
+
+			function GotoSection(pSection) {
+				var bolGoto = true;
+				
+				if (gobjFields.HasValues()) {
+					bolGoto = confirm("Existen datos que no fueron agregados a la lista de idiomas.\n¿Deseas salir y perder los datos no agregados?");
+				}
+				
+				if (bolGoto)
+					location.href = garrSec[pSection];
+			}
+			
+			//----------------------------------------------------------------------------------
+
+		</SCRIPT>
+
+	</HEAD>
+	<BODY onload="PageLoad();" sscroll="no" class="Main">
+		<table style="TABLE-LAYOUT: fixed" cellpadding="0" cellspacing="0" height="100%" width="100%">
+			<col width="220px"/>
+			<col width="100%"/>
+			
+			<tr>
+				<td style="vertical-align:top;" class="LeftColumn">
+					<table class="TableDependencias text_1" cellpadding="0" cellspacing="0" width="100%">
+						<col width="100%" style="TEXT-ALIGN:left;"/>
+						<tr><th class="alignLeft">Secciones</th></tr>
+						<tr><td class="TDep_n" onclick="GotoSection(0);" onmouseover="LinkChangeStyle(this, 'OVER');" onmouseout="LinkChangeStyle(this, 'NORMAL');">Datos personales</td></tr>
+						<tr><td class="TDep_n" onclick="GotoSection(1);" onmouseover="LinkChangeStyle(this, 'OVER');" onmouseout="LinkChangeStyle(this, 'NORMAL');">Formaci&oacute;n</td></tr>
+						<tr><td class="TDep_n" onclick="GotoSection(2);" onmouseover="LinkChangeStyle(this, 'OVER');" onmouseout="LinkChangeStyle(this, 'NORMAL');">Experiencia laboral</td></tr>
+						<tr><td class="TDep_s">Idiomas</td></tr>
+						<tr><td class="TDep_n" onclick="GotoSection(4);" onmouseover="LinkChangeStyle(this, 'OVER');" onmouseout="LinkChangeStyle(this, 'NORMAL');">Conocimientos de inform&aacute;tica</td></tr>
+						<tr><td class="TDep_n" onclick="GotoSection(5);" onmouseover="LinkChangeStyle(this, 'OVER');" onmouseout="LinkChangeStyle(this, 'NORMAL');">&Aacute;reas laborales</td></tr>
+						<tr><td class="TDep_n" onclick="GotoSection(6);" onmouseover="LinkChangeStyle(this, 'OVER');" onmouseout="LinkChangeStyle(this, 'NORMAL');">Datos adicionales</td></tr>
+						<tr><td style="border-bottom:1px solid #949698;">&nbsp;</td></tr>
+						<tr><td style="BACKGROUND-IMAGE:url(./images/Buttons/save_n.gif);" class="TDep_n" onclick="btnGuardar_Click();" onmouseover="LinkChangeStyle(this, 'OVER');" onmouseout="LinkChangeStyle(this, 'NORMAL');">Finalizar edici&oacute;n</td></tr>
+						<tr><td style="BACKGROUND-IMAGE:url(./images/Buttons/back_n.gif);" class="TDep_n" onclick="btnVolver_Click();" onmouseover="LinkChangeStyle(this, 'OVER');" onmouseout="LinkChangeStyle(this, 'NORMAL');">Cancelar edici&oacute;n</td></tr>
+					</table>
+					</br>
+					<table class="Adv" cellpadding="0" cellspacing="0" width="100%">
+						<col width="100%"/>
+						<tr><th class="alignLeft">Consejos</th></tr>
+						<tr><td>Aqu&iacute; podr&aacute;s indicar los idiomas que conoc&eacute;s y el grado en que los domin&aacute;s.
+						</td></tr>
+					</table>
+				</td>			
+				
+				<td style="vertical-align:top; padding-top:5px;" class="alignCenter">
+				
+					<table style="TABLE-LAYOUT: fixed" width="80%">
+						<col width="50%" />
+						<col width="50%" />
+						
+						<!-- Botonera de secciones --------------------------------------------->
+						<tr class="BotoneraSecciones">
+							<td style="TEXT-ALIGN: left;"><span onclick="btnPrev_Click();" class="BotSec_n BotSecL" onmouseover="LinkChangeStyle(this, 'OVER');" onmouseout="LinkChangeStyle(this, 'NORMAL');">secci&oacute;n anterior</span></td>
+							<td style="TEXT-ALIGN: right;"><span onclick="btnNext_Click();" class="BotSec_n BotSecR" onmouseover="LinkChangeStyle(this, 'OVER');" onmouseout="LinkChangeStyle(this, 'NORMAL');">secci&oacute;n siguiente</span></td>
+						</tr>
+						
+						<!-- Idiomas -------------------------------------------------->
+						<tr>
+							<td class="titulo_1" colspan="2">Idiomas</td>
+						</tr>
+						
+						<tr>
+							<td colspan="2">&nbsp;</td>
+						</tr>
+						
+						<!-- Grilla ----------------------------------------------------->
+						<tr>
+							<td colspan="2" id="tblGrid" name="tblGrid">&nbsp;</td>
+						</tr>
+
+						<tr>
+							<td colspan="2">&nbsp;</td>
+						</tr>
+
+						<tr>
+							<td colspan="2">&nbsp;</td>
+						</tr>
+																		
+						<!-- Carga de Datos -------------------------------------------------->
+						<tr>
+							<td colspan="2" class="titulo_2">
+								<span class="titulo_2_span">Carga de datos&nbsp;&nbsp;</span><span class="label_r_ejemplo">Los datos con asteriscos son obligatorios</span>
+							</td>
+						</tr>
+
+						<!--Idioma y otro idioma-->
+						<tr>
+							<td class="label_r">Idioma</td>
+							<td class="label">Otro idioma</td>
+						</tr>
+
+						<tr>
+							<td>
+								<select name="oi_idioma" id="oi_idioma" onchange="oi_idioma_Change();">
+									{#QRY:NucleusRH.Idiomas.xml#}
+								</select>
+							</td>
+							<td>
+								<INPUT name="d_idioma" id="d_idioma" class="BoxD" type="text" VALUE="" style="width:100%" disabled="disabled"/>
+							</td>
+						</tr>
+
+						<!--Nivel habla y nivel lee-->
+						<tr>
+							<td class="label_r">Nivel habla</td>
+							<td class="label_r">Nivel lee</td>
+						</tr>
+
+						<tr>
+							<td>
+								<select name="c_nivel_habla" id="c_nivel_habla">
+									<OPTION value="">-Seleccione nivel-</OPTION>
+									<option value="1">B&aacute;sico</option>
+									<option value="2">Intermedio</option>
+									<option value="3">Avanzado</option>
+								</select>
+							</td>
+							<td>
+								<select name="c_nivel_lee" id="c_nivel_lee">
+									<OPTION value="">-Seleccione nivel-</OPTION>
+									<option value="1">B&aacute;sico</option>
+									<option value="2">Intermedio</option>
+									<option value="3">Avanzado</option>
+								</select>
+							</td>
+						</tr>
+						
+						<!--Nivel escribe-->
+						<tr>
+							<td class="label_r">Nivel escribe</td>
+							<td class="label">&nbsp;</td>
+						</tr>
+
+						<tr>
+							<td>
+								<select name="c_nivel_escribe" id="c_nivel_escribe">
+									<OPTION value="">-Seleccione nivel-</OPTION>
+									<option value="1">B&aacute;sico</option>
+									<option value="2">Intermedio</option>
+									<option value="3">Avanzado</option>
+								</select>
+							</td>
+							<td>&nbsp;</td>
+						</tr>
+											
+						<!--Botonera --->
+						<tr>
+							<td class="text_1" style="height:50px; text-align:right; vertical-align:bottom;">
+								<a name="btnAgregar" id="btnAgregar"
+			   						href="javascript:CallNothing();"
+			   						class="Buttons BImg BC_n"
+			   						style="background-image: url(./Images/Buttons/ok_n.gif);"
+									onclick="btnAgregar_Click();"
+									onkeypress="btnAgregar_Click();"
+									onmouseover="ButtonChangeStyle(this,'OVER');"
+									onmouseout="ButtonChangeStyle(this,'NORMAL');"
+									onfocus="ButtonChangeStyle(this,'OVER');"
+									onblur="ButtonChangeStyle(this,'NORMAL');"
+								>Agregar</a>
+								<a name="btnActualizar" id="btnActualizar"
+			   						href="javascript:CallNothing();"
+			   						class="Buttons BImg BC_n"
+			   						style="background-image: url(./Images/Buttons/ok_n.gif); display:none;"
+									onclick="btnActualizar_Click();"
+									onkeypress="btnActualizar_Click();"
+									onmouseover="ButtonChangeStyle(this,'OVER');"
+									onmouseout="ButtonChangeStyle(this,'NORMAL');"
+									onfocus="ButtonChangeStyle(this,'OVER');"
+									onblur="ButtonChangeStyle(this,'NORMAL');"
+								>Actualizar</a>
+							</td>
+							<td style="vertical-align:bottom;">
+								<a name="btnLimpiar" id="btnLimpiar"
+			   						href="javascript:CallNothing();"
+			   						class="Buttons BImg BC_n"
+			   						style="background-image: url(./Images/Buttons/cancel_n.gif);"
+									onclick="btnLimpiar_Click();"
+									onkeypress="btnLimpiar_Click();"
+									onmouseover="ButtonChangeStyle(this,'OVER');"
+									onmouseout="ButtonChangeStyle(this,'NORMAL');"
+									onfocus="ButtonChangeStyle(this,'OVER');"
+									onblur="ButtonChangeStyle(this,'NORMAL');"
+								>Limpiar</a>
+								<a name="btnCancelar" id="btnCancelar"
+			   						href="javascript:CallNothing();"
+			   						class="Buttons BImg BC_n"
+			   						style="background-image: url(./Images/Buttons/cancel_n.gif); display:none;"
+									onclick="btnCancelar_Click();"
+									onkeypress="btnCancelar_Click();"
+									onmouseover="ButtonChangeStyle(this,'OVER');"
+									onmouseout="ButtonChangeStyle(this,'NORMAL');"
+									onfocus="ButtonChangeStyle(this,'OVER');"
+									onblur="ButtonChangeStyle(this,'NORMAL');"
+								>Cancelar</a>								
+							</td>
+						</tr>
+
+						<!-- Botonera de secciones --------------------------------------------->
+						<tr><td colspan="2" class="TDBottomLine">&nbsp;</td></tr>
+						<tr class="BotoneraSecciones">
+							<td style="TEXT-ALIGN: left;"><span onclick="btnPrev_Click();" class="BotSec_n BotSecL" onmouseover="LinkChangeStyle(this, 'OVER');" onmouseout="LinkChangeStyle(this, 'NORMAL');">secci&oacute;n anterior</span></td>
+							<td style="TEXT-ALIGN: right;"><span onclick="btnNext_Click();" class="BotSec_n BotSecR" onmouseover="LinkChangeStyle(this, 'OVER');" onmouseout="LinkChangeStyle(this, 'NORMAL');">secci&oacute;n siguiente</span></td>
+						</tr>
+												
+					</table>				
+				</td>
+			</tr>
+		</table>
+	</BODY>
+</HTML>

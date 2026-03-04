@@ -1,0 +1,148 @@
+<form:Form xmlns:form="nomad_engine.form" xmlns:qry="nomad_engine.qry" extends="NucleusRH.Base.Organizacion.Uniformes.UNIFORME.autoform" mess="&#191;Est&#225; seguro que desa cancelar la operaci&#243;n?" doc="source" name="NucleusRH.Base.Organizacion.Uniformes.UNIFORME">
+	<form:Center width="95%">
+		<form:Columns visible="SHOW|EDIT|DELETE|NEW" name="main_columnsUNIFORME">
+			<form:Column name="main_columnsUNIFORMEcolumn1">
+				<form:NumberBox required="1" enabled="NEW" mask="###.###.##0" xsize="12" label="&#218;ltimo Recuento de Stock" nvalue="#source:@e_recuento_stock" name="e_recuento_stock"/>
+				<form:DateTime pattern="YYYYMMDD" required="1" enabled="NEW" mask="dd/mm/yyyy" label="Fecha &#218;lt. Recuento de Stock" nvalue="#source:@f_ult_rec_stock" name="f_ult_rec_stock">
+					<form:SButtons>
+						<form:SButton visible="EDIT|NEW" img="Calendar" label="Calendar" name="Calendar">
+							<form:Event action="SHOW_HELPER" name="onclick" runat="client"/>
+						</form:SButton>
+					</form:SButtons>
+				</form:DateTime>
+				<form:NumberBox enabled="0" visible="!NEW" required="0" mask="###.###.##0" xsize="12" label="Existencias Disponibles" name="existencias"/>
+			</form:Column>
+		</form:Columns>
+	</form:Center>
+	<form:Right width="200px">
+		<form:VGroup visible="!NEW" background="1" label="Dependencias" collapse="1" width="100%" name="vgChildsUNIFORME" X-POLICY="./FORM/NucleusRH/Base/Organizacion/Uniformes/UNIFORME/form/vgChildsUNIFORME">
+			<form:Link label="Reposiciones" visible="!NEW" allowimg="1" name="UNIF_REP" X-POLICY="./FORM/NucleusRH/Base/Organizacion/Uniformes/UNIFORME/form/UNIF_REP">
+				<form:Event action="CALL:REP_UNIFORME" name="onclick" runat="server"/>
+				<form:Policies>
+					<form:Updateable X-POLICY="./FORM/NucleusRH/Base/Organizacion/Uniformes/UNIFORME/form/UNIF_REP/HAB"/>
+					<form:Visible X-POLICY="./FORM/NucleusRH/Base/Organizacion/Uniformes/UNIFORME/form/UNIF_REP"/>
+				</form:Policies>
+			</form:Link>
+			<form:Policies>
+				<form:Updateable X-POLICY="./FORM/NucleusRH/Base/Organizacion/Uniformes/UNIFORME/form/vgChildsUNIFORME/HAB"/>
+				<form:Visible X-POLICY="./FORM/NucleusRH/Base/Organizacion/Uniformes/UNIFORME/form/vgChildsUNIFORME"/>
+			</form:Policies>
+			<form:Link descrip="Registra el recuento de stock de los uniformes" label="Recuento de Stock" visible="!NEW" allowimg="1" policy="NucleusRH/Base/Organizacion/Uniformes/REC_UNIFORME/READ" name="UNIF_REC">
+				<form:Event policy="NucleusRH/Base/Organizacion/Uniformes/REC_UNIFORME/EDIT" action="CALL:REC_UNIFORME" name="onclick" runat="server"/>
+			</form:Link>
+		</form:VGroup>
+	</form:Right>
+	<form:Event action="LoadForm" name="onload" runat="client"/>
+	<form:Scripts>
+		function LoadForm()
+{ 
+ if (Ctrl('main').GetMode() !="LIST" &amp;&amp; Ctrl('main').GetMode() !="NEW")
+  	SetDisponible();
+}
+function SetDisponible()
+{
+	var cantDisp;  
+  var nSQL = GetProxy().SQLService();
+  cantDisp = nSQL.GetOBJ(Ctrl("main").getResource("QRY_EXISTENCIAS"), "&lt;PARAM code=\""+Ctrl('c_uniforme').GetXValue()+"\" /&gt;");
+ 	Ctrl("existencias").SetXValue(cantDisp.stock);
+}
+	</form:Scripts>
+	<form:Resources>
+		<form:Resource declare="&lt;PARAM code=&quot;CAM&quot;/&gt;" name="QRY_EXISTENCIAS">
+			<qry:main doc="SOURCE">
+				<qry:element name="DATO">
+					<qry:attribute name="code" value="#SOURCE:PARAM/@code"/>
+					<qry:insert-select name="RS1" doc-path="#SOURCE:PARAM"/>
+					<qry:insert-select name="RS2" doc-path="."/>
+					<qry:insert-select name="RS2_1" doc-path="."/>
+					<qry:insert-select name="RS3" doc-path="."/>
+					<qry:attribute name="stock" value="number(@recuento) + number(@repuesto) + number(@devuelto) - number(@entregado)"/>
+				</qry:element>
+			</qry:main>
+			<qry:select name="RS1" doc="SOURCE">
+				<qry:xquery>
+					for $r in sql('
+   		SELECT 
+   			MAX(ORG16_UNIF_REC.f_recuento) as f_recuento,
+				ORG16_UNIF_REC.e_cantidad as cant
+			FROM 
+				ORG16_UNIF_REC,
+				ORG16_UNIFORMES
+			JOIN 
+				ORG16_UNIFORMES.oi_uniforme INNER ORG16_UNIF_REC.oi_uniforme
+			WHERE 
+				ORG16_UNIFORMES.c_uniforme = {#SOURCE:@code}			
+			GROUP BY 
+				ORG16_UNIF_REC.e_cantidad
+			ORDER BY 
+				f_recuento ASC			
+      ')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:attribute name="recuento" value="$r/@cant"/>
+					<qry:attribute name="f_recuento" value="$r/@f_recuento"/>
+				</qry:out>
+			</qry:select>
+			<qry:select name="RS2" doc="SOURCE">
+				<qry:xquery>
+					for $r in sql('
+    	SELECT 
+      	SUM(PER02_UNIF_PER.e_cantidad) as cant
+			FROM 
+				PER02_UNIF_PER,
+				ORG16_UNIFORMES
+			JOIN 
+				ORG16_UNIFORMES.oi_uniforme INNER PER02_UNIF_PER.oi_uniforme
+			WHERE				
+				ORG16_UNIFORMES.c_uniforme = {#SOURCE:@code} AND  
+				PER02_UNIF_PER.f_desde &gt;= {Datetime(#SOURCE:@f_recuento)}
+      ')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:attribute name="entregado" value="$r/@cant"/>
+				</qry:out>
+			</qry:select>
+			<qry:select name="RS2_1" doc="SOURCE">
+				<qry:xquery>
+					for $r in sql('
+    	SELECT 
+      	SUM(PER02_DEV_UNIF.e_cantidad) as cant
+			FROM 
+				PER02_DEV_UNIF, 
+				PER02_UNIF_PER,
+				ORG16_UNIFORMES
+			JOIN 
+				ORG16_UNIFORMES.oi_uniforme INNER PER02_UNIF_PER.oi_uniforme,			
+				PER02_DEV_UNIF.oi_uniforme_per INNER PER02_UNIF_PER.oi_uniforme_per
+			WHERE 				
+				PER02_DEV_UNIF.l_repone_stock = 1 AND 
+				ORG16_UNIFORMES.c_uniforme = {#SOURCE:@code} AND  
+				PER02_DEV_UNIF.f_dev_unif &gt;= {Datetime(#SOURCE:@f_recuento)}												
+      ')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:attribute name="devuelto" value="$r/@cant"/>
+				</qry:out>
+			</qry:select>
+			<qry:select name="RS3" doc="SOURCE">
+				<qry:xquery>
+					for $r in sql('
+    	SELECT 
+      	SUM(ORG16_UNIF_REP.e_cant_repuesta) as cant
+			FROM 
+				ORG16_UNIF_REP,
+				ORG16_UNIFORMES
+			JOIN 
+				ORG16_UNIFORMES.oi_uniforme INNER ORG16_UNIF_REP.oi_uniforme
+			WHERE 
+				ORG16_UNIFORMES.c_uniforme = {#SOURCE:@code} AND  
+				ORG16_UNIF_REP.f_reposicion &gt;= {Datetime(#SOURCE:@f_recuento)}
+		 ')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:attribute name="repuesto" value="$r/@cant"/>
+				</qry:out>
+			</qry:select>
+		</form:Resource>
+	</form:Resources>
+</form:Form>

@@ -1,0 +1,166 @@
+<html:html name="NucleusRH.Base.Organizacion.ReposicionEPP" extends="Nomad.Base.BaseReport.rpt" doc="source" xmlns:html="nomad:html" xmlns:qry="nomad:query" xmlns:xsl="http://www.w3.org/1999/XSL/Transform">
+	<html:query declare="&lt;FILTRO stock_minimo=&quot;10&quot; salida=&quot;EXCEL&quot;&gt;&#13;&#10; &lt;EPPS&gt;&#13;&#10;  &lt;EPP id=&quot;10&quot; /&gt; &#13;&#10;  &lt;/EPPS&gt;&#13;&#10;  &lt;/FILTRO&gt;">
+		<qry:main doc="SOURCE">
+			<qry:append-doc name="PARAMIN" doc-path="#SOURCE:FILTRO"/>
+			<REPORT label="Reposici&#243;n de Elementos de Protecci&#243;n Personal">
+				<GROUPS>
+					<GROUP tag="EPPS" type="title">
+						<COLS>
+							<COL name="f_informe" label="Fecha de Emisi&#243;n"/>
+							<COL name="stock_minimo" label="Stock M&#237;nimo"/>
+						</COLS>
+						<GROUP tag="EPP" type="table">
+							<COLS>
+								<COL name="c_elemento_pp" label="C&#243;digo" style="width:25%;"/>
+								<COL name="d_elemento_pp" label="Descripci&#243;n" style="width:40%"/>
+								<COL name="duracion" label="Duraci&#243;n" style="width:15%;"/>
+								<COL name="n_valor" label="Valor ($)" style="width:10%;text-align:right"/>
+								<COL name="stock" label="Existencias" style="width:10%;text-align:right"/>
+							</COLS>
+						</GROUP>
+					</GROUP>
+				</GROUPS>
+				<qry:element name="DATA">
+					<qry:element name="EPPS">
+						<qry:attribute value="format_date(now(), 'dd/mm/yyyy HH:MM:SS')" name="f_informe"/>
+						<qry:attribute value="#PARAMIN:@stock_minimo" name="stock_minimo"/>
+						<qry:insert-select name="RS1" doc-path="#PARAMIN:"/>
+						<qry:insert-select name="RS2" doc-path="#PARAMIN:"/>
+					</qry:element>
+				</qry:element>
+			</REPORT>
+		</qry:main>
+		<qry:select name="RS1" doc="SOURCE">
+			<qry:xquery>
+				for $r in sql('
+				SELECT PER02_EPP_PER.oi_elemento_pp, SUM(PER02_EPP_PER.e_cantidad) AS e_cant_entregada,
+				ORG07_ELEMENTOS_PP.e_cant_total
+				FROM PER02_EPP_PER, ORG07_ELEMENTOS_PP
+				JOIN PER02_EPP_PER.oi_elemento_pp INNER ORG07_ELEMENTOS_PP.oi_elemento_pp
+				WHERE PER02_EPP_PER.c_estado = \'E\'				
+				{%? (string(#PARAMIN:EPPS/EPP/@id)!='') {% AND PER02_EPP_PER.oi_elemento_pp in ({%=string(#PARAMIN:EPPS/EPP/@id) %}) %} {%  %} %}	
+				GROUP BY PER02_EPP_PER.oi_elemento_pp, ORG07_ELEMENTOS_PP.e_cant_total
+			')ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:attribute name="oi_elemento_pp" value="$r/@oi_elemento_pp"/>
+				<qry:attribute name="entregado" value="iif($r/@e_cant_entregada!='', $r/@e_cant_entregada,0)"/>
+				<qry:attribute name="stock" value="$r/@e_cant_total - ./@entregado"/>
+				<qry:insert-select name="QRY_EPPS" doc-path=".[number(@stock) &lt;= number(#PARAMIN:@stock_minimo)]"/>
+			</qry:out>
+		</qry:select>
+		<qry:select name="RS2" doc="SOURCE">
+			<qry:xquery>
+				for $r in sql('
+				SELECT ORG07_ELEMENTOS_PP.oi_elemento_pp, ORG07_ELEMENTOS_PP.e_cant_total 
+				FROM ORG07_ELEMENTOS_PP
+				WHERE ORG07_ELEMENTOS_PP.e_cant_total &lt;= {#PARAMIN:@stock_minimo}
+				{%? (string(#PARAMIN:EPPS/EPP/@id)!='') {% AND ORG07_ELEMENTOS_PP.oi_elemento_pp in ({%=string(#PARAMIN:EPPS/EPP/@id) %}) %} {%  %} %}	 
+				AND ORG07_ELEMENTOS_PP.oi_elemento_pp not in
+				(SELECT PER02_EPP_PER.oi_elemento_pp				
+				FROM PER02_EPP_PER, ORG07_ELEMENTOS_PP
+				JOIN PER02_EPP_PER.oi_elemento_pp INNER ORG07_ELEMENTOS_PP.oi_elemento_pp
+				WHERE PER02_EPP_PER.c_estado = \'E\')
+			')ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:attribute name="oi_elemento_pp" value="$r/@oi_elemento_pp"/>
+				<qry:attribute name="entregado" value="'0'"/>
+				<qry:attribute name="stock" value="$r/@e_cant_total"/>
+				<qry:insert-select name="QRY_EPPS" doc-path="."/>
+			</qry:out>
+		</qry:select>
+		<qry:select doc="PARAM" name="QRY_EPPS">
+			<qry:xquery>
+				for $r in sql ('
+					SELECT ORG07_ELEMENTOS_PP.oi_elemento_pp,
+					ORG07_ELEMENTOS_PP.c_elemento_pp, ORG07_ELEMENTOS_PP.d_elemento_pp,
+					ORG07_ELEMENTOS_PP.e_duracion, ORG07_ELEMENTOS_PP.oi_unidad_tiempo,
+					ORG07_ELEMENTOS_PP.n_valor					
+					FROM ORG07_ELEMENTOS_PP										
+					WHERE ORG07_ELEMENTOS_PP.oi_elemento_pp = {#PARAM:@oi_elemento_pp}
+			')ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:element name="EPP">
+					<qry:attribute value="$r/@oi_elemento_pp" name="oi_elemento_pp"/>
+					<qry:attribute value="$r/@c_elemento_pp" name="c_elemento_pp"/>
+					<qry:attribute value="$r/@d_elemento_pp" name="d_elemento_pp"/>
+					<qry:attribute value="$r/@e_duracion" name="e_duracion"/>
+					<qry:attribute value="$r/@oi_unidad_tiempo" name="oi_unidad_tiempo"/>
+					<qry:attribute value="$r/@n_valor" name="n_valor"/>
+					<qry:attribute value="#PARAM:@stock" name="stock"/>
+					<qry:insert-select name="QRY_UTPO" doc-path="."/>
+				</qry:element>
+			</qry:out>
+		</qry:select>
+		<qry:select doc="PARAM" name="QRY_UTPO">
+			<qry:xquery>
+				for $r in sql ('
+				SELECT ORG25_UNIDADES_TPO.d_unidad_tiempo
+				FROM ORG25_UNIDADES_TPO
+				WHERE ORG25_UNIDADES_TPO.oi_unidad_tiempo = {#PARAM:@oi_unidad_tiempo} 				
+			')ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:attribute value="#PARAM:@e_duracion + ' ' + $r/@d_unidad_tiempo" name="duracion"/>
+			</qry:out>
+		</qry:select>
+		<qry:select doc="PARAM" name="QRY_ESPERANZA">
+			<qry:xquery>
+				for $r in sql ('
+				SELECT TTA11_ESPERANZAPER.oi_esperanzaper,
+				TTA11_ESPERANZAPER.f_fechorainicio,
+				TTA11_ESPERANZAPER.f_fechorafin,
+				TTA11_ESPERANZAPER.oi_tipohora,
+				TTA11_ESPERANZAPER.oi_estructura
+				FROM TTA11_ESPERANZAPER
+				WHERE TTA11_ESPERANZAPER.f_fechorainicio &gt;= {Datetime(Number(Datetime(#PARAM:@f_fechahora))-0.5)}
+				AND TTA11_ESPERANZAPER.f_fechorainicio &lt;= {Datetime(Number(Datetime(#PARAM:@f_fechahora))+0.5)}
+				AND TTA11_ESPERANZAPER.oi_personal_emp = {#PARAM:@oi_personal_emp}
+				ORDER BY f_fechorainicio ASC
+			')ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:element name="ESP">
+					<qry:attribute value="$r/@oi_esperanzaper" name="oi_esperanzaper"/>
+					<qry:attribute value="format_date($r/@f_fechorainicio, 'dd/mm/yyyy HH:MM')" name="f_fechorainicio"/>
+					<qry:attribute value="format_date($r/@f_fechorafin, 'dd/mm/yyyy HH:MM')" name="f_fechorafin"/>
+					<qry:attribute value="$r/@oi_tipohora" name="oi_tipohora"/>
+					<qry:attribute value="$r/@oi_estructura" name="oi_estructura"/>
+					<qry:insert-select name="QRY_TIPO_HORA" doc-path="$r"/>
+					<qry:insert-select name="QRY_ESTRUCTURA" doc-path="$r"/>
+				</qry:element>
+			</qry:out>
+		</qry:select>
+		<qry:select xmlns:qry="XXX" doc="PARAM" name="QRY_TIPO_HORA">
+			<qry:xquery>
+				for $r in sql('
+					SELECT TTA01_TIPOHORAS.c_tipohora, TTA01_TIPOHORAS.d_tipohora
+					FROM TTA01_TIPOHORAS
+					WHERE TTA01_TIPOHORAS.oi_tipohora = {#PARAM:@oi_tipohora}					
+		')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:attribute value="$r/@d_tipohora" name="tipohora"/>
+			</qry:out>
+		</qry:select>
+		<qry:select xmlns:qry="XXX" doc="PARAM" name="QRY_ESTRUCTURA">
+			<qry:xquery>
+				for $r in sql('
+			SELECT ORG01_TIPOS_UNI.c_tipo_uni_org, ORG01_TIPOS_UNI.d_tipo_uni_org,
+			ORG01_UNI_ORG.c_unidad_org, ORG01_UNI_ORG.d_unidad_org
+			FROM ORG01_UNI_ORG, ORG01_TIPOS_UNI
+			JOIN ORG01_UNI_ORG.oi_tipo_uni_org INNER ORG01_TIPOS_UNI.oi_tipo_uni_org
+			WHERE ORG01_UNI_ORG.oi_unidad_org in 
+				(SELECT ORG02_ESTRUCTURAS.oi_unidad_org
+				FROM ORG02_ESTRUCTURAS 
+				WHERE ORG02_ESTRUCTURAS.oi_estructura = {%=#PARAM:@oi_estructura%})					
+		')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:attribute value="$r/@d_unidad_org" name="unidad_org"/>
+			</qry:out>
+		</qry:select>
+	</html:query>
+</html:html>

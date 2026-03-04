@@ -1,0 +1,274 @@
+<html:html xmlns:html="nomad_engine.html" xmlns:qry="nomad_engine.qry" name="NucleusRH.Base.Liquidacion.ListadoPorConceptos-GCCosto" extends="Nomad.Base.BaseReport.rpt" doc="source">
+	<html:query declare="&lt;DATOS oi_liquidacion=&quot;543&quot; /&gt;">
+		<qry:main doc="SOURCE">
+			<qry:append-doc name="PARAMIN" doc-path="#SOURCE:DATOS"/>
+			<REPORT label=" Totales por Grupo de Centros de Costo" style="width:20cm">
+				<qry:attribute name="date" value="format_date(Now(),'dd/mm/yyyy HH:MM')"/>
+				<GROUPS>
+					<GROUP tag="EMP" type="title" noreg="No se encontraron registros para los filtros seleccionados.">
+						<COLS>
+							<COL name="d_empresa" label="Empresa"/>
+							<COL name="d_liquidacion" label="Liquidaci&#243;n"/>
+						</COLS>
+						<GROUP tag="TOT" label="Total General" type="table" style="width:60%" noreg="No se encontraron registros para los filtros seleccionados.">
+							<COLS>
+								<COL name="d_clase_concepto" label="Descripci&#243;n" style="width:70%"/>
+								<COL name="n_valor" label="Valor" style="width:30%" type="num"/>
+							</COLS>
+							<FCOLS>
+								<COL label="Total" style="text-align:right;"/>
+								<COL name="n_valor" style="text-align:right;" type="num"/>
+							</FCOLS>
+						</GROUP>
+						<GROUP tag="GCC" type="title_collapse" noreg="No se encontraron registros para los filtros seleccionados.">
+							<COLS>
+								<COL name="d_grupo_ccosto" label="Grupo"/>
+							</COLS>
+							<GROUP tag="TOT" label="Total" type="table" style="width:60%" noreg="No se encontraron registros para los filtros seleccionados.">
+								<COLS>
+									<COL name="d_clase_concepto" label="Descripci&#243;n" style="width:70%"/>
+									<COL name="n_valor" label="Valor" style="width:30%" type="num"/>
+								</COLS>
+								<FCOLS>
+									<COL label="Total" style="text-align:right;"/>
+									<COL name="n_valor" style="text-align:right;" type="num"/>
+								</FCOLS>
+							</GROUP>
+							<GROUP tag="CC" type="title_collapse" noreg="No se encontraron registros para los filtros seleccionados.">
+								<COLS>
+									<COL name="d_centro_costo" label="Centro de Costos"/>
+								</COLS>
+								<GROUP tag="CONC" type="table" style="width:60%">
+									<COLS>
+										<COL name="d_clase_concepto" label="Descripci&#243;n" style="width:70%"/>
+										<COL name="n_valor" label="Valor" style="width:30%" type="num"/>
+									</COLS>
+									<FCOLS>
+										<COL label="Total" style="text-align:right;"/>
+										<COL name="n_valor" style="text-align:right;" type="num"/>
+									</FCOLS>
+								</GROUP>
+							</GROUP>
+						</GROUP>
+					</GROUP>
+				</GROUPS>
+				<qry:element name="DATA">
+					<qry:element name="EMP">
+						<qry:attribute name="hts:delete" value="1"/>
+						<qry:insert-select name="qry_cabecera"/>
+						<qry:insert-select name="qry_gruposccosto" doc-path="#PARAMIN:"/>
+						<qry:insert-select name="qry_totalgral" doc-path="."/>
+						<qry:insert-select name="qry_totalfinal" doc-path="."/>
+					</qry:element>
+				</qry:element>
+			</REPORT>
+		</qry:main>
+		<qry:select doc="SOURCE" name="qry_cabecera">
+			<qry:xquery>
+				for $r in sql('
+				SELECT 
+					LIQ93_EMPRESAS.d_empresa, 
+					LIQ99_LIQUIDACION.c_liquidacion, 
+					LIQ99_LIQUIDACION.d_titulo				
+				FROM 
+					LIQ93_EMPRESAS, 
+					LIQ99_LIQUIDACION,
+					LIQ19_LIQUIDACION,
+					LIQ19_EJECUCIONES
+				JOIN 
+					LIQ93_EMPRESAS.oi_empresa_ddo INNER LIQ99_LIQUIDACION.oi_empresa_ddo,
+					LIQ99_LIQUIDACION.oi_liquidacion_ddo INNER LIQ19_EJECUCIONES.oi_liquidacion_ddo,
+					LIQ19_LIQUIDACION.oi_liquidacion INNER LIQ19_EJECUCIONES.oi_liquidacion
+				WHERE 
+					LIQ99_LIQUIDACION.oi_liquidacion_ddo = {#PARAMIN:@oi_liquidacion}
+					{%? (#PARAMIN:@l_simulacion!='')	{% AND LIQ19_LIQUIDACION.l_simulacion = {%= #PARAMIN:@l_simulacion %} %} {% %} %}	
+			')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:attribute name="d_empresa" value="$r/@d_empresa"/>
+				<qry:attribute name="d_liquidacion" value="$r/@c_liquidacion + ' - ' + $r/@d_titulo"/>
+				<qry:attribute name="hts:delete" value="0"/>
+			</qry:out>
+		</qry:select>
+		<qry:select doc="SOURCE" name="qry_gruposccosto">
+			<qry:xquery>
+				for $r in sql('
+				SELECT 
+					ORG09_GR_CCOSTO.oi_grupo_ccosto, 
+					ORG09_GR_CCOSTO.d_grupo_ccosto
+				FROM 
+					ORG09_GR_CCOSTO, 
+					ORG08_CS_COSTO, 
+					LIQ97_PERSONAL_EMP
+				JOIN 
+					ORG09_GR_CCOSTO.oi_grupo_ccosto INNER ORG08_CS_COSTO.oi_grupo_ccosto,
+					ORG08_CS_COSTO.c_centro_costo INNER LIQ97_PERSONAL_EMP.c_centro_costo_ult				
+				GROUP BY 
+					ORG09_GR_CCOSTO.oi_grupo_ccosto, 
+					ORG09_GR_CCOSTO.d_grupo_ccosto
+				ORDER BY d_grupo_ccosto ASC
+			')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:element name="GCC">
+					<qry:attribute name="oi_grupo_ccosto" value="$r/@oi_grupo_ccosto"/>
+					<qry:attribute name="d_grupo_ccosto" value="$r/@d_grupo_ccosto"/>
+					<qry:insert-select name="qry_ccosto" doc-path="."/>
+					<qry:insert-select name="tot_grupo" doc-path="."/>
+					<qry:insert-select name="tot_gcc" doc-path="."/>
+					<qry:attribute name="hts:delete" value="1"/>
+					<qry:insert-select name="delete" doc-path="./CC/CONC[@n_valor!='0']"/>
+				</qry:element>
+			</qry:out>
+		</qry:select>
+		<qry:select doc="SOURCE" name="delete">
+			<qry:out>
+				<qry:attribute name="hts:delete" value="0"/>
+			</qry:out>
+		</qry:select>
+		<qry:select doc="SOURCE" name="qry_ccosto">
+			<qry:xquery>
+				for $r in sql('
+				SELECT ORG08_CS_COSTO.c_centro_costo, ORG08_CS_COSTO.d_centro_costo
+				FROM ORG08_CS_COSTO, LIQ97_PERSONAL_EMP
+				JOIN ORG08_CS_COSTO.c_centro_costo INNER LIQ97_PERSONAL_EMP.c_centro_costo_ult
+				WHERE ORG08_CS_COSTO.oi_grupo_ccosto = {#SOURCE:@oi_grupo_ccosto}
+								
+				GROUP BY ORG08_CS_COSTO.c_centro_costo, ORG08_CS_COSTO.d_centro_costo
+				ORDER BY d_centro_costo ASC
+			')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:element name="CC">
+					<qry:attribute name="c_centro_costo" value="$r/@c_centro_costo"/>
+					<qry:attribute name="d_centro_costo" value="$r/@d_centro_costo"/>
+					<qry:insert-select name="qry_clases_conc" doc-path="."/>
+					<qry:insert-select name="tot_cc" doc-path="."/>
+					<qry:attribute name="hts:delete" value="1"/>
+					<qry:insert-select name="delete" doc-path="./CONC[@n_valor!='0']"/>
+				</qry:element>
+			</qry:out>
+		</qry:select>
+		<qry:select doc="SOURCE" name="qry_clases_conc">
+			<qry:xquery>
+				for $r in sql('
+				SELECT 
+				LIQ13_CLASES_CONC.c_clase_concepto, LIQ13_CLASES_CONC.d_clase_concepto
+				FROM LIQ13_CLASES_CONC
+			')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:element name="CONC">
+					<qry:attribute name="c_clase_concepto" value="$r/@c_clase_concepto"/>
+					<qry:attribute name="d_clase_concepto" value="$r/@d_clase_concepto"/>
+					<qry:insert-select name="qry_conc" doc-path="."/>
+				</qry:element>
+			</qry:out>
+		</qry:select>
+		<qry:select doc="SOURCE" name="qry_conc">
+			<qry:xquery>
+				for $r in sql('
+				SELECT				
+				SUM(LIQ20_CONC_LIQ_PER.n_valor) as n_valor
+				
+				FROM 
+				LIQ20_TOT_LIQ_PER, LIQ20_CONC_LIQ_PER, LIQ99_RECIBOS,
+				LIQ96_CONCEPTOS, LIQ99_LIQUIDACION, 
+				LIQ19_EJECUCIONES, LIQ19_LIQUIDACION, LIQ97_PERSONAL_EMP
+				
+				JOIN
+				LIQ20_TOT_LIQ_PER.oi_tot_liq_per INNER LIQ20_CONC_LIQ_PER.oi_tot_liq_per,
+				LIQ20_CONC_LIQ_PER.oi_concepto_ddo INNER LIQ96_CONCEPTOS.oi_concepto_ddo,
+				LIQ99_RECIBOS.oi_tot_liq_per INNER LIQ20_TOT_LIQ_PER.oi_tot_liq_per,
+				LIQ99_LIQUIDACION.oi_liquidacion_ddo INNER LIQ99_RECIBOS.oi_liquidacion_ddo,
+				LIQ99_LIQUIDACION.oi_liquidacion_ddo INNER LIQ19_EJECUCIONES.oi_liquidacion_ddo,
+				LIQ19_EJECUCIONES.oi_liquidacion INNER LIQ19_LIQUIDACION.oi_liquidacion,
+				LIQ20_TOT_LIQ_PER.oi_per_emp_ddo INNER LIQ97_PERSONAL_EMP.oi_per_emp_ddo
+				
+				WHERE 
+				LIQ97_PERSONAL_EMP.c_centro_costo_ult = {#SOURCE:../@c_centro_costo} AND
+				LIQ20_CONC_LIQ_PER.n_valor != 0 AND
+				LIQ99_LIQUIDACION.oi_liquidacion_ddo = {#PARAMIN:@oi_liquidacion} AND
+				LIQ96_CONCEPTOS.c_clase_concepto = {#SOURCE:@c_clase_concepto}          
+				{%? (#PARAMIN:@l_simulacion!='')	{% AND LIQ19_LIQUIDACION.l_simulacion = {%= #PARAMIN:@l_simulacion %} %} {% %} %}	
+				
+			')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:attribute name="n_valor" value="number($r/@n_valor)"/>
+			</qry:out>
+		</qry:select>
+		<qry:select doc="SOURCE" name="tot_cc">
+			<qry:xquery>
+				for $r in #SOURCE:CONC
+			</qry:xquery>
+			<qry:out>
+				<qry:attribute name="n_valor" value="number(./@n_valor) + number($r/@n_valor)"/>
+			</qry:out>
+		</qry:select>
+		<qry:select doc="SOURCE" name="tot_grupo">
+			<qry:xquery>
+				for $r in sql('
+				SELECT 
+				LIQ13_CLASES_CONC.c_clase_concepto, LIQ13_CLASES_CONC.d_clase_concepto
+				FROM LIQ13_CLASES_CONC
+			')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:element name="TOT">
+					<qry:attribute name="c_clase_concepto" value="$r/@c_clase_concepto"/>
+					<qry:attribute name="d_clase_concepto" value="$r/@d_clase_concepto"/>
+					<qry:insert-select name="qry_total" doc-path="."/>
+				</qry:element>
+			</qry:out>
+		</qry:select>
+		<qry:select doc="SOURCE" name="qry_total">
+			<qry:xquery>
+				for $r in #SOURCE:../CC/CONC[@c_clase_concepto = #SOURCE:@c_clase_concepto]
+			</qry:xquery>
+			<qry:out>
+				<qry:attribute name="n_valor" value="number(./@n_valor) + number($r/@n_valor)"/>
+			</qry:out>
+		</qry:select>
+		<qry:select doc="SOURCE" name="tot_gcc">
+			<qry:xquery>
+				for $r in #SOURCE:TOT
+			</qry:xquery>
+			<qry:out>
+				<qry:attribute name="n_valor" value="number(./@n_valor) + number($r/@n_valor)"/>
+			</qry:out>
+		</qry:select>
+		<qry:select doc="SOURCE" name="qry_totalgral">
+			<qry:xquery>
+				for $r in sql('
+				SELECT 
+				LIQ13_CLASES_CONC.c_clase_concepto, LIQ13_CLASES_CONC.d_clase_concepto
+				FROM LIQ13_CLASES_CONC
+			')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:element name="TOT">
+					<qry:attribute name="c_clase_concepto" value="$r/@c_clase_concepto"/>
+					<qry:attribute name="d_clase_concepto" value="$r/@d_clase_concepto"/>
+					<qry:insert-select name="tot_gral" doc-path="."/>
+				</qry:element>
+			</qry:out>
+		</qry:select>
+		<qry:select doc="SOURCE" name="tot_gral">
+			<qry:xquery>
+				for $r in #SOURCE:../GCC/TOT[@c_clase_concepto = #SOURCE:@c_clase_concepto]
+			</qry:xquery>
+			<qry:out>
+				<qry:attribute name="n_valor" value="number(./@n_valor) + number($r/@n_valor)"/>
+			</qry:out>
+		</qry:select>
+		<qry:select doc="SOURCE" name="qry_totalfinal">
+			<qry:xquery>
+				for $r in #SOURCE:TOT
+			</qry:xquery>
+			<qry:out>
+				<qry:attribute name="n_valor" value="number(./@n_valor) + number($r/@n_valor)"/>
+			</qry:out>
+		</qry:select>
+	</html:query>
+</html:html>

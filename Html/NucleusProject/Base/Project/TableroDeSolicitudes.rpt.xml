@@ -1,0 +1,236 @@
+<html:html xmlns:html="nomad_engine.html" xmlns:qry="nomad_engine.qry" name="NucleusRH.Base.Project.TableroDeProyectos.rpt" extends="Nomad.Base.BaseReport.rpt" xtends="Nomad.Base.BaseReport.rpt" doc="source">
+	<html:query declare="&lt;DATA f_desde=&quot;&quot; f_hasta=&quot;&quot; c_solicitud=&quot;&quot; d_solicitud=&quot;prueba c&quot; oi_recurso=&quot;&quot; oi_aplicacion=&quot;&quot; oi_modulo=&quot;&quot; oi_cliente=&quot;&quot; oi_contacto=&quot;&quot; c_reclamo=&quot;&quot; c_formulario=&quot;&quot; f_desde_v=&quot;&quot; f_hasta_v=&quot;&quot;  selected=&quot;1&quot; EST_IDs=&quot;&quot; CLASIF_IDs=&quot;&quot;&gt;&#13;&#10;&#9;&lt;ROWS /&gt;&#13;&#10;&#9;&lt;EST nmd-col=&quot;1&quot;/&gt;&#13;&#10;&#9;&lt;TPROYS nmd-col=&quot;1&quot;/&gt;&#13;&#10;&lt;/DATA&gt;&#13;&#10;">
+		<qry:include name="NucleusProject.Base.Project.Recursos.RECURSO.INFO"/>
+		<qry:include name="NucleusRH.Base.Organizacion.Centros_de_Costos.CENTRO_COSTO.INFO"/>
+		<qry:main doc="SOURCE">
+			<REPORT label="Tablero de Solicitudes" style="width:90%;">
+				<qry:attribute name="date" value="format_date(Now(),'dd/mm/yyyy HH:MM')"/>
+				<GROUPS>
+					<GROUP tag="SOLICITUD" style="padding-left:0px;width:3000px" type="table" noreg="No se encontraron registros para los filtros seleccionados.">
+						<COLS>
+							<COL name="c_solicitud" label="C&#243;digo" style="width:100px"/>
+							<COL name="d_solicitud" label="Nombre" style="width:200px"/>
+							<COL name="f_solicitud" label="Fecha" type="date" style="width:100px"/>
+							<COL name="c_reclamo" label="N&#250;mero de Reclamo" style="width:100px"/>
+							<COL name="c_formulario" label="C&#243;digo Formulario Solicitud" style="width:100px"/>
+							<COL name="oi_centro_costo" label="Centro de Costo" style="width:100px"/>
+							<COL name="oi_contacto" label="Contacto" style="width:100px"/>
+							<COL name="d_nom_cliente" label="Cliente" style="width:100px"/>
+							<COL name="d_aplicacion" label="Aplicaci&#243;n" style="width:100px"/>
+							<COL name="oi_modulo" label="M&#243;dulo" style="width:100px"/>
+							<COL name="oi_clasificacion" label="Clasificaci&#243;n" style="width:100px"/>
+							<COL name="o_detalle" label="Detalle" style="width:600px"/>
+							<COL name="o_observaciones" label="Observaciones" style="width:600px"/>
+							<COL name="hs_estimadas" label="Tiempo estimado (en hs)" style="width:100px" align="left"/>
+							<COL name="hs_insumidas" label="Tiempo imputado (en hs)" style="width:100px" align="left"/>
+							<COL name="oi_recurso" label="Responsable" style="width:100px" align="left"/>
+							<COL name="f_estado" label="Fecha Cambio de Estado" type="date" style="width:100px"/>
+							<COL name="c_estado" label="Estado" align="left" style="width:100px">
+								<OPT value="PENDIENTE" id="1"/>
+								<OPT value="DERIVADO A PMO" id="2"/>
+								<OPT value="DERIVADO PARA ESTIMACION/DESARROLLO" id="3"/>
+								<OPT value="DERIVADO A CLIENTE" id="4"/>
+								<OPT value="CERRADO" id="5"/>
+								<OPT value="CERRADO POR EL CLIENTE" id="6"/>
+								<OPT value="RECHAZADO" id="7"/>
+								<OPT value="TRABAJANDO" id="8"/>
+								<OPT value="PRESUPUESTADO" id="9"/>
+							</COL>
+							<COL name="o_motivo" label="Motivo de Cierre" align="left" style="width:100px"/>
+						</COLS>
+						<!--Tareas de la solicitud, las dejo para verificar los calculos de las horas insumidas-->
+						<!--GROUP label="Tareas" tag="TAREA" style="padding-left:0px" type="table" noreg="No se encontraron registros para los filtros seleccionados.">
+						<COLS>
+							<COL name="solicitud" label="Solicitud" align="left" style=""/>
+							<COL name="c_tarea" label="Codigo" align="left" style=""/>
+							<COL name="d_tarea" label="Descripcion" align="left" style=""/>
+							<COL name="hs_estimadas" label="Hs. Estimadas" style="" align="left"/>
+							<COL name="hs_insumidas" label="Hs. Imputadas" style="" align="left"/>
+						</COLS>
+					</GROUP-->
+					</GROUP>
+				</GROUPS>
+				<qry:element name="DATA">
+					<qry:insert-select name="SOLICITUD" doc-path="#SOURCE:DATA"/>
+				</qry:element>
+			</REPORT>
+		</qry:main>
+		<qry:select name="SOLICITUD" doc="SOURCE">
+			<qry:xquery>
+				for $r in SQL(' 
+SELECT
+    sol.oi_solicitud
+  , sol.c_solicitud
+  , sol.f_solicitud 
+  , sol.c_estado 
+  , sol.f_estado
+  , sol.d_solicitud
+  , sol.oi_centro_costo 
+  , sol.c_reclamo
+  , sol.c_formulario
+  , sol.o_detalle
+  , sol.o_observaciones 
+  , sol.o_motivo
+  , cont.c_contacto
+  , cont.d_nom_y_ape
+  , cli.d_nom_cliente
+  , mod.c_modulo
+  , mod.d_nombre
+  , sol.oi_recurso
+  , apli.d_aplicacion 
+  , clasif.c_clasificacion
+  , clasif.d_clasificacion
+
+FROM
+    PRY07_SOLICITUDES AS sol  
+  , PRY05_RECURSOS AS rec
+  , PRY11_MODULOS AS mod
+  , PRY08_CONTACTOS as cont  
+  , PRY08_CLIENTES AS cli
+  , PRY11_APLICACIONES AS apli
+  , PRY16_CLASIF AS clasif
+
+JOIN
+    sol.oi_recurso LEFT OUTER rec.oi_recurso
+  , sol.oi_modulo LEFT OUTER mod.oi_modulo
+  , sol.oi_contacto LEFT OUTER cont.oi_contacto 
+  , cont.oi_cliente LEFT OUTER cli.oi_cliente
+  , mod.oi_aplicacion LEFT OUTER apli.oi_aplicacion
+  , sol.oi_clasificacion LEFT OUTER clasif.oi_clasificacion
+
+WHERE  1=1
+{%? (#SOURCE:@f_desde!='') {% AND sol.f_solicitud &gt;= {#SOURCE:@f_desde} %} {% %} %} 
+{%? (#SOURCE:@f_hasta!='') {% AND sol.f_solicitud &lt;= {#SOURCE:@f_hasta} %} {% %} %}
+{%? (string(#SOURCE:@c_solicitud)!='') {% AND CONTAIN(sol.c_solicitud,{#SOURCE:@c_solicitud}) %} {% %} %}
+{%? (string(#SOURCE:@d_solicitud)!='') {% AND CONTAIN(sol.d_solicitud,{#SOURCE:@d_solicitud}) %} {% %} %} 
+{%? (string(#SOURCE:@oi_recurso)!='') {% AND sol.oi_recurso = {#SOURCE:@oi_recurso} %} {% %} %}
+{%? (string(#SOURCE:@oi_aplicacion)!='') {% AND mod.oi_aplicacion = {#SOURCE:@oi_aplicacion} %} {% %} %}
+{%? (string(#SOURCE:@oi_modulo)!='') {% AND sol.oi_modulo = {#SOURCE:@oi_modulo} %} {% %} %}
+{%? (string(#SOURCE:@oi_cliente)!='') {% AND cont.oi_cliente = {#SOURCE:@oi_cliente} %} {% %} %}
+{%? (string(#SOURCE:@oi_contacto)!='') {% AND sol.oi_contacto = {#SOURCE:@oi_contacto} %} {% %} %}
+{%? (string(#SOURCE:@c_reclamo)!='') {% AND sol.c_reclamo = {#SOURCE:@c_reclamo} %} {% %} %}  
+{%? (string(#SOURCE:@c_formulario)!='') {% AND sol.c_formulario = {#SOURCE:@c_formulario} %} {% %} %}
+{%? (#SOURCE:@f_desde_v!='') {% AND sol.f_estim_implem &gt;= {#SOURCE:@f_desde_v} %} {% %} %}
+{%? (#SOURCE:@f_hasta_v!='') {% AND sol.f_estim_implem &lt;= {#SOURCE:@f_hasta_v} %} {% %} %}
+{%? (#SOURCE:@EST_IDs!='') {% AND sol.c_estado {%=#SOURCE:@EST_IDs%} %} {%  %} %} 
+{%? (#SOURCE:@CLASIF_IDs!='') {% AND sol.oi_clasificacion {%=#SOURCE:@CLASIF_IDs%} %} {%  %} %}
+	
+')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:attribute name="cant" value="number(@cant)+1"/>
+				<SOLICITUD>
+					<qry:insert-select name="ESFUERZO" doc-path="$r"/>
+					<qry:attribute name="c_solicitud" value="$r/@c_solicitud"/>
+					<qry:attribute name="d_solicitud" value="$r/@d_solicitud"/>
+					<qry:attribute name="f_solicitud" value="format_date($r/@f_solicitud, 'dd/mm/yyyy')"/>
+					<qry:attribute name="c_reclamo" value="$r/@c_reclamo"/>
+					<qry:attribute name="c_formulario" value="$r/@c_formulario"/>
+					<qry:if test="$r/@oi_centro_costo!=''">
+						<qry:then>
+							<qry:element name="oi_centro_costo">
+								<qry:attribute name="OI_FIND" value="$r/@oi_centro_costo"/>
+								<qry:insert-select name="NucleusRH.Base.Organizacion.Centros_de_Costos.CENTRO_COSTO.QUERY" doc-path="."/>
+							</qry:element>
+							<qry:attribute name="oi_centro_costo" value="'['+oi_centro_costo/ROW/@COD+'] '+oi_centro_costo/ROW/@DES"/>
+						</qry:then>
+					</qry:if>
+					<qry:attribute name="oi_contacto" value="'[' + $r/@c_contacto + '] ' + $r/@d_nom_y_ape"/>
+					<qry:attribute name="d_nom_cliente" value="$r/@d_nom_cliente"/>
+					<qry:attribute name="d_aplicacion" value="$r/@d_aplicacion"/>
+					<qry:attribute name="oi_modulo" value="'[' + $r/@c_modulo + '] ' + $r/@d_nombre"/>
+					<qry:attribute name="oi_clasificacion" value="'[' + $r/@c_clasificacion + '] ' + $r/@d_clasificacion"/>
+					<qry:attribute name="o_detalle" value="nmd-replace($r/@o_detalle, '(#', '( #')"/>
+					<qry:attribute name="o_detalle" value="nmd-replace(./@o_detalle, '{#', '{ #')"/>
+					<qry:attribute name="o_observaciones" value="$r/@o_observaciones"/>
+					<qry:insert-select name="TAREAS" doc-path="$r"/>
+					<qry:attribute name="hs_insumidas" value="@hs_insumidas"/>
+					<qry:if test="$r/@oi_recurso!=''">
+						<qry:then>
+							<qry:element name="oi_recurso">
+								<qry:attribute name="OI_FIND" value="$r/@oi_recurso"/>
+								<qry:insert-select name="NucleusProject.Base.Project.Recursos.RECURSO.QUERY" doc-path="."/>
+							</qry:element>
+							<qry:attribute name="oi_recurso" value="'['+oi_recurso/ROW/@COD+'] '+oi_recurso/ROW/@DES"/>
+						</qry:then>
+					</qry:if>
+					<qry:attribute name="c_estado" value="$r/@c_estado"/>
+					<qry:attribute name="f_estado" value="format-date($r/@f_estado, 'dd/mm/yyyy')"/>
+					<qry:attribute name="o_motivo" value="$r/@o_motivo"/>
+				</SOLICITUD>
+			</qry:out>
+		</qry:select>
+		<qry:select doc="SOURCE" name="TAREAS">
+			<qry:xquery>
+				for $r in SQL('SELECT 
+PRY02_TAREAS.oi_tarea			
+, PRY02_TAREAS.c_tarea
+, PRY02_TAREAS.d_tarea
+, PRY02_TAREAS.c_estado
+, PRY02_TAREAS.o_tarea
+, PRY02_TAREAS.f_inicio
+, PRY02_TAREAS.f_fin_est 
+, PRY02_TAREAS.e_estimado
+, PRY03_UND_TIEMPO.e_minutos 
+FROM 
+PRY02_TAREAS,
+PRY03_UND_TIEMPO 
+JOIN   
+PRY02_TAREAS.oi_unidad_tiempo INNER PRY03_UND_TIEMPO.oi_unidad_tiempo
+WHERE PRY02_TAREAS.oi_solicitud = {#SOURCE:@oi_solicitud} 
+
+')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<TAREA>
+					<qry:attribute name="c_tarea" value="$r/@c_tarea"/>
+					<qry:attribute name="d_tarea" value="$r/@d_tarea"/>
+					<qry:attribute name="hs_estimadas" value="(number($r/@e_estimado) * number($r/@e_minutos)) div 60"/>
+					<qry:insert-select name="TRABAJO" doc-path="$r"/>
+				</TAREA>
+			</qry:out>
+		</qry:select>
+		<qry:select doc="SOURCE" name="ESFUERZO">
+			<qry:xquery>
+				for $r in SQL('
+SELECT 
+	PRY02_TAREAS.e_estimado,
+	PRY02_TAREAS.oi_tarea,
+	PRY03_UND_TIEMPO.e_minutos
+FROM 
+	PRY07_SOLICITUDES,
+	PRY02_TAREAS,
+	PRY03_UND_TIEMPO  
+JOIN
+	PRY07_SOLICITUDES.oi_solicitud INNER PRY02_TAREAS.oi_solicitud,
+	PRY02_TAREAS.oi_unidad_tiempo INNER PRY03_UND_TIEMPO.oi_unidad_tiempo
+WHERE 
+	PRY07_SOLICITUDES.oi_solicitud = {#SOURCE:@oi_solicitud}  	
+')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:attribute name="hs_estimadas" value="@hs_estimadas + (number($r/@e_estimado) * number($r/@e_minutos)) div 60"/>
+				<qry:insert-select doc-path="$r" name="TRABAJO"/>
+			</qry:out>
+		</qry:select>
+		<qry:select name="TRABAJO" doc="PARAM">
+			<qry:xquery>
+				for $r in SQL('	
+SELECT 
+	PRY04_TRABAJOS.e_duracion,
+	PRY03_UND_TIEMPO.e_minutos
+FROM 
+	PRY04_TRABAJOS,
+	PRY03_UND_TIEMPO
+JOIN
+	PRY04_TRABAJOS.oi_unidad_tiempo INNER PRY03_UND_TIEMPO.oi_unidad_tiempo
+WHERE
+	PRY04_TRABAJOS.oi_tarea = {#PARAM:@oi_tarea}	
+')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:attribute name="hs_insumidas" value="@hs_insumidas + (number($r/@e_duracion) * number($r/@e_minutos)) div 60"/>
+			</qry:out>
+		</qry:select>
+	</html:query>
+</html:html>

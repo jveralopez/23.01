@@ -1,0 +1,91 @@
+<flow:flow extends="NucleusRH.Base.Liquidacion.Bancos.SUCURSAL.guia.autoflow" xmlns:doc="nomad_engine.form" xmlns:qry="nomad_engine.form" xmlns:flow="nomad_engine.form" name="NucleusRH.Base.Liquidacion.Bancos.SUCURSAL.guia">
+	<flow:info label="Flow guia para NucleusRH.Base.Liquidacion.Bancos.SUCURSAL"/>
+	<flow:main doc="SOURCE">
+		<flow:action name="HELP">
+			<doc:assign-value from-path="#SOURCE:" to-doc="PARAMIN"/>
+			<doc:load-qry output-doc="OPTS" input-doc-path="#SOURCE:" qry="qry_bancos"/>
+			<doc:load-qry qry="PRELOAD" output-doc="RS" input-doc-path="#SOURCE:"/>
+			<flow:call-action action="OPEN-GUIA"/>
+		</flow:action>
+		<flow:action name="OPEN-GUIA">
+			<flow:open-form parent-doc-path="#SOURCE:" doc-path="#RS:" mode="SHOW" form-class="NucleusRH.Base.Liquidacion.Bancos.SUCURSAL.guia.form"/>
+		</flow:action>
+	</flow:main>
+	<flow:declare>
+		<qry:define declare="&lt;helper-mess oi_empresa=&quot;1&quot; CODE=&quot;05-0563&quot;/&gt;" name="C2X">
+			<qry:main doc="SOURCE">
+				<qry:append-doc doc-path="#SOURCE:helper-mess" name="INDOC"/>
+				<qry:element name="ROW">
+					<qry:insert-select doc-path="#SOURCE:" name="RS1"/>
+				</qry:element>
+			</qry:main>
+			<qry:select doc="SOURCE" name="RS1">
+				<qry:xquery>
+					for $r in sql('
+			SELECT t.oi_banco as ID, t.c_banco as CODE, t.d_banco as TEXT, SEC.policy  
+			FROM LIQ22_BANCOS as t, NMD_SECURITY(class=\'NucleusRH.Base.Liquidacion.Bancos.BANCO\') as SEC 
+			JOIN t.oi_banco LEFT OUTER SEC.id
+			WHERE t.c_banco={substring_before(#INDOC:@CODE,\'-\')}			
+			AND t.oi_banco IN (
+			SELECT LIQ15_EMPRESA_BCOS.oi_banco 
+			FROM LIQ15_EMPRESA_BCOS 
+			WHERE LIQ15_EMPRESA_BCOS.oi_empresa = {%=#INDOC:@oi_empresa%})			
+			ORDER BY CODE asc')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:attribute value="$r/@policy" name="policy"/>
+					<qry:attribute value="substring_after(#INDOC:@CODE,'-')" name="SUB_SEARCH"/>
+					<qry:attribute value="$r/@ID" name="PARENTID"/>
+					<qry:attribute value="$r/@CODE" name="code"/>
+					<qry:attribute value="$r/@TEXT" name="text"/>
+					<qry:insert-select doc-path="." name="RS2"/>
+				</qry:out>
+			</qry:select>
+			<qry:select doc="SOURCE" name="RS2">
+				<qry:xquery>
+					for $r in sql('SELECT t.oi_sucursal as ID, t.c_sucursal as CODE, t.d_sucursal as TEXT, t.oi_banco as PID FROM LIQ22_BANCOS_SUCUR as t WHERE t.c_sucursal={substring_before(#SOURCE:@SUB_SEARCH,\'-\')}  AND t.oi_banco={#SOURCE:@PARENTID} ORDER BY CODE asc')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:attribute value="$r/@policy" name="policy"/>
+					<qry:attribute value="''" name="SUB_SEARCH"/>
+					<qry:attribute value="''" name="PARENTID"/>
+					<qry:attribute value="$r/@ID" name="id"/>
+					<qry:attribute value="$r/@ID" name="value"/>
+					<qry:attribute value="#SOURCE:@CODE+'-'+$r/@CODE" name="code"/>
+					<qry:attribute value="#SOURCE:@TEXT+'-'+$r/@TEXT" name="text"/>
+				</qry:out>
+			</qry:select>
+		</qry:define>
+		<qry:define declare="&lt;helper-mess text=&quot;&quot; id=&quot;&quot; code=&quot;&quot; oi_empresa=&quot;10&quot; /&gt;" name="qry_bancos">
+			<qry:main doc="SOURCE">
+				<qry:element name="OPTS">
+					<qry:insert-select name="qry_bancos" doc-path="#SOURCE:helper-mess"/>
+				</qry:element>
+			</qry:main>
+			<qry:select name="qry_bancos" doc="SOURCE" xmlns:qry="nomad.xquery">
+				<qry:xquery>
+					for $r in sql('
+			SELECT LIQ22_BANCOS.oi_banco, LIQ22_BANCOS.c_banco, LIQ22_BANCOS.d_banco
+			FROM LIQ22_BANCOS, LIQ15_EMPRESA_BCOS
+			JOIN LIQ22_BANCOS.oi_banco INNER LIQ15_EMPRESA_BCOS.oi_banco
+			WHERE LIQ15_EMPRESA_BCOS.oi_empresa = {#SOURCE:@oi_empresa}
+			')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:element name="OPT">
+						<qry:attribute name="value" value="$r/@oi_banco"/>
+						<qry:attribute name="code" value="$r/@c_banco"/>
+						<qry:attribute name="text" value="$r/@d_banco"/>
+					</qry:element>
+				</qry:out>
+			</qry:select>
+		</qry:define>
+		<doc:define name="OPTS"/>
+	</flow:declare>
+	<flow:form extends="NucleusRH.Base.Liquidacion.Bancos.SUCURSAL.guia.autoform:SHOW" parent-doc="INVAL" doc="SOURCE" mode="SHOW" name="NucleusRH.Base.Liquidacion.Bancos.SUCURSAL.guia.form:SHOW" form-class="NucleusRH.Base.Liquidacion.Bancos.SUCURSAL.guia.form">
+		<flow:action name="on-show">
+			<flow:attach-doc doc-path="#OPTS:" attach-id="OPTS"/>
+			<flow:attach-doc doc-path="#RS:ROWS" attach-id="RS"/>
+		</flow:action>
+	</flow:form>
+</flow:flow>

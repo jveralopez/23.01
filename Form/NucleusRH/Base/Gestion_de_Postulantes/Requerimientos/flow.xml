@@ -1,0 +1,710 @@
+<flow:flow xmlns:flow="nomad_engine.flow" xmlns:qry="nomad_engine.qry" xmlns:doc="nomad_engine.doc" default_action="initialize" name="NucleusRH.Base.Gestion_de_Postulantes.Requerimientos.flow" extends="NucleusRH.Base.Gestion_de_Postulantes.Requerimientos.autoflow">
+	<flow:info label="NucleusRh.Base.Gestion_de_Postulantes.Requerimientos.flow"/>
+	<flow:declare>
+		<qry:define declare="&lt;DATOS oi_req=&quot;551&quot; oi_referencia=&quot;413&quot;&gt;&#13;&#10;&#9;&lt;ROWS nmd-col=&quot;1&quot;&gt;&#13;&#10;&#9;&#9;&lt;ROW n_ranking=&quot;0&quot; elegir=&quot;1&quot; oi_reclutado=&quot;3464&quot; /&gt;&#13;&#10;&#9;&#9;&lt;ROW n_ranking=&quot;0&quot; elegir=&quot;0&quot; oi_reclutado=&quot;3465&quot; /&gt;&#13;&#10;&#9;&lt;/ROWS&gt;&#13;&#10;&lt;/DATOS&gt;" name="RECLUTADOS">
+			<qry:main doc="SOURCE">
+				<qry:element name="DATOS">
+					<qry:attribute name="oi_referencia" value="#SOURCE:DATOS/@oi_referencia" type="Nomad.NSystem.Int"/>
+					<qry:insert-select doc-path="#SOURCE:DATOS/ROWS" name="RS0"/>
+					<qry:element name="ROWS">
+						<qry:insert-select doc-path="#SOURCE:DATOS" name="RS1"/>
+					</qry:element>
+					<qry:insert-select doc-path="#SOURCE:DATOS" name="RS2"/>
+				</qry:element>
+			</qry:main>
+			<qry:select name="RS0" doc="SOURCE">
+				<qry:xquery>
+					for $r in #SOURCE:ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:attribute name="cant" value="iif($r/@elegir='1',number(@cant)+1,@cant)"/>
+				</qry:out>
+			</qry:select>
+			<qry:select name="RS1" doc="SOURCE">
+				<qry:xquery>
+					for $r in sql('
+				SELECT
+					SEL13_RECLUTADOS.oi_reclutado,
+					SEL13_RECLUTADOS.n_ranking
+				FROM
+					SEL13_RECLUTADOS
+				WHERE
+					SEL13_RECLUTADOS.oi_referencia=  {#SOURCE:@oi_referencia} 
+					AND SEL13_RECLUTADOS.c_estado = \'R\' 
+			')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:element name="ROW">
+						<qry:attribute name="oi_reclutado" value="$r/@oi_reclutado"/>
+						<qry:attribute name="elegir" value="'0'"/>
+					</qry:element>
+				</qry:out>
+			</qry:select>
+			<qry:select name="RS2" doc="SOURCE">
+				<qry:xquery>
+					for $r in sql('
+				SELECT COUNT(SEL13_RECLUTADOS.oi_reclutado) as cant					
+				FROM
+					SEL13_RECLUTADOS
+				WHERE
+					SEL13_RECLUTADOS.oi_referencia=  {#SOURCE:@oi_referencia} 
+					AND SEL13_RECLUTADOS.c_estado = \'R\' 
+			')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:attribute name="cant" value="' ' + $r/@cant"/>
+				</qry:out>
+			</qry:select>
+		</qry:define>
+		<qry:define declare="&lt;DATOS oi_personal_emp=&quot;&quot; /&gt;" name="QRY_EMPRESA">
+			<qry:main doc="SOURCE">
+				<qry:element name="EMP">
+					<qry:insert-select name="qry_empresa" doc-path="#SOURCE:DATOS"/>
+				</qry:element>
+			</qry:main>
+			<qry:select name="qry_empresa" doc="SOURCE">
+				<qry:xquery>
+					for $r in sql('
+				SELECT 
+					PER02_PERSONAL_EMP.oi_empresa 
+				FROM 
+					PER02_PERSONAL_EMP
+				WHERE 
+					PER02_PERSONAL_EMP.oi_personal_emp = {#SOURCE:@oi_personal_emp}
+		')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:attribute name="id" value="$r/@oi_empresa"/>
+				</qry:out>
+			</qry:select>
+		</qry:define>
+		<qry:define declare="&lt;datos &#13;&#10;&#9;oi_empresa=&quot;1&quot; &#13;&#10;&#9;ca_estado=&quot;&quot; &#13;&#10;&#9;oi_estructura=&quot;&quot; &#13;&#10;&#9;oi_personal_emp=&quot;&quot; &#13;&#10;&#9;oi_req=&quot;&quot;&#13;&#10;&#9;c_orden=&quot;&quot; &#13;&#10;&#9;c_tipo_orden=&quot;&quot; &#13;&#10;/&gt;" name="FILTER">
+			<qry:main doc="SOURCE" maxdeep="2">
+				<qry:element name="ROWS">
+					<qry:insert-select doc-path="#SOURCE:" name="sql1"/>
+				</qry:element>
+			</qry:main>
+			<qry:select doc="PARAM" name="sql1">
+				<qry:xquery>
+					for $r in sql('
+				SELECT
+					t0.oi_req,
+					t0.oi_empresa,
+					t0.ca_estado,
+					t0.oi_personal_emp,
+					t0.oi_estructura,
+					t0.f_req,
+					t0.c_req,
+					t0.d_req,
+					o03.c_empresa
+				FROM
+					SEL02_REQ as t0, 
+					ORG03_EMPRESAS as o03
+				JOIN 
+					t0.oi_empresa INNER o03.oi_empresa
+				WHERE
+					{%? (#PARAM:datos/@oi_empresa!='') {% t0.oi_empresa = {#PARAM:datos/@oi_empresa} %} {% 1 = 1 %} %}
+					AND {%? (#PARAM:datos/@ca_estado!='') {% t0.ca_estado = {#PARAM:datos/@ca_estado} %} {% 1 = 1 %} %}
+					AND {%? (#PARAM:datos/@oi_personal_emp!='') {%t0.oi_personal_emp = {%=#PARAM:datos/@oi_personal_emp%} %} {% 1 = 1 %} %}
+					AND {%? (#PARAM:datos/@oi_estructura!='') {% t0.oi_estructura = {#PARAM:datos/@oi_estructura} %} {% 1 = 1 %} %}
+					AND {%? (#PARAM:datos/@oi_req!='') {% t0.oi_req = {#PARAM:datos/@oi_req} %} {% 1 = 1 %} %}
+			    
+				ORDER BY 
+					{%? (#PARAM:datos/@c_orden!='') {% {%=#PARAM:datos/@c_orden%} {%? (#PARAM:datos/@c_tipo_orden!='') {% {%=#PARAM:datos/@c_tipo_orden%}, %} {% ASC, %}  %}	%} {% %} %}
+					oi_req	ASC
+			')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:element name="ROW">
+						<qry:attribute name="policy" value="$r/@policy"/>
+						<qry:attribute name="id" value="$r/@oi_req"/>
+						<qry:attribute value="$r/@oi_empresa" name="oi_empresa"/>
+						<qry:attribute value="$r/@ca_estado" name="ca_estado"/>
+					</qry:element>
+				</qry:out>
+			</qry:select>
+		</qry:define>
+		<qry:define declare="&lt;datos &#13;&#10;&#9;oi_empresa=&quot;1&quot; &#13;&#10;&#9;ca_estado=&quot;&quot; &#13;&#10;&#9;oi_estructura=&quot;&quot; &#13;&#10;&#9;oi_personal_emp=&quot;&quot; &#13;&#10;&#9;oi_req=&quot;&quot;&#13;&#10;&#9;c_orden=&quot;&quot; &#13;&#10;&#9;c_tipo_orden=&quot;&quot; &#13;&#10;/&gt;" name="LIST">
+			<qry:main doc="SOURCE" maxdeep="2">
+				<qry:element name="ROWS">
+					<qry:insert-select doc-path="#SOURCE:" name="sql1"/>
+				</qry:element>
+			</qry:main>
+			<qry:select doc="PARAM" name="sql1">
+				<qry:xquery>
+					for $r in sql('
+					SELECT
+						t0.oi_req as oi_req,
+						t0.c_req as c_req,
+						t0.d_req as d_req,
+						t0.ca_estado as ca_estado,
+						t0.f_req as f_req,
+						t0.f_alta as f_alta,
+						t0.f_anulacion as f_anulacion,
+						t0.c_req as CODE,
+						t0.d_req as TEXT,
+						t0.oi_empresa as oi_empresa
+					FROM
+						SEL02_REQ as t0, 
+						ORG03_EMPRESAS as o03
+					JOIN 
+						t0.oi_empresa INNER o03.oi_empresa 
+					WHERE
+						{%? (#PARAM:datos/@oi_empresa!='') {% t0.oi_empresa = {#PARAM:datos/@oi_empresa} %} {% 1 = 1 %} %}
+					AND {%? (#PARAM:datos/@ca_estado!='') {% t0.ca_estado = {#PARAM:datos/@ca_estado} %} {% 1 = 1 %} %}
+					AND {%? (#PARAM:datos/@oi_personal_emp!='') {%t0.oi_personal_emp = {%=#PARAM:datos/@oi_personal_emp%} %} {% 1 = 1 %} %}
+					AND {%? (#PARAM:datos/@oi_estructura!='') {% t0.oi_estructura = {#PARAM:datos/@oi_estructura} %} {% 1 = 1 %} %}
+					AND {%? (#PARAM:datos/@oi_req!='') {% t0.oi_req = {#PARAM:datos/@oi_req} %} {% 1 = 1 %} %}
+					ORDER BY 
+						{%? (#PARAM:datos/@c_orden!='') {% {%=#PARAM:datos/@c_orden%} {%? (#PARAM:datos/@c_tipo_orden!='') {% {%=#PARAM:datos/@c_tipo_orden%}, %} {% ASC, %}  %}	%} {% %} %}
+						oi_req	ASC
+			')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:element name="ROW">
+						<qry:attribute name="policy" value="$r/@policy"/>
+						<qry:attribute name="id" value="$r/@oi_req"/>
+						<qry:attribute name="c_req" value="$r/@c_req"/>
+						<qry:attribute name="d_req" value="$r/@d_req"/>
+						<qry:attribute name="ca_estado" value="$r/@ca_estado"/>
+						<qry:attribute name="f_req" value="$r/@f_req"/>
+						<qry:attribute name="f_alta" value="$r/@f_alta"/>
+						<qry:attribute name="f_anulacion" value="$r/@f_anulacion"/>
+						<qry:attribute name="CODE" value="$r/@CODE"/>
+						<qry:attribute name="TEXT" value="$r/@TEXT"/>
+						<qry:attribute name="oi_empresa" value="$r/@oi_empresa"/>
+					</qry:element>
+				</qry:out>
+			</qry:select>
+		</qry:define>
+		<doc:define name="RECLUTAMIENTO">
+			<DATOS oi_referencia="" pondPostulacion="0" pondInscripcion="0" ignorarCursos="0" ignorarEstudios="0" ignorarIdiomas="0" ignorarExperiencia="0" ignorarReferencia="0">
+				<ROWS/>
+			</DATOS>
+		</doc:define>
+		<doc:define name="RECSOURCE"/>
+		<doc:define name="SELECCION">
+			<DATOS oi_referencia="" mensaje="">
+				<RECLUTADOS/>
+			</DATOS>
+		</doc:define>
+		<doc:define name="ELEGIDOS">
+			<DATOS oi_referencia="" mensaje="">
+				<RECLUTADOS/>
+			</DATOS>
+		</doc:define>
+		<doc:define name="EMP"/>
+		<doc:define name="FILTERDATA">
+			<datos/>
+		</doc:define>
+		<qry:define declare="&lt;DATOS oi_referencia=&quot;1&quot; oi_req=&quot;50&quot; oi_empresa=&quot;1&quot; Mensaje=&quot;&quot;&gt;&#13;&#10; &#13;&#10;&lt;/DATOS&gt;&#13;&#10;" name="POSIBLES">
+			<qry:main doc="SOURCE">
+				<qry:element name="ROWS">
+					<qry:insert-select doc-path="#SOURCE:DATOS" name="RS1"/>
+				</qry:element>
+				<qry:insert-select doc-path="#SOURCE:DATOS" name="RS2"/>
+			</qry:main>
+			<qry:select name="RS1" doc="SOURCE">
+				<qry:xquery>
+					for $r in sql('
+				SELECT
+					SEL13_RECLUTADOS.oi_reclutado,
+					SEL13_RECLUTADOS.c_reclutado,
+					SEL13_RECLUTADOS.d_reclutado,
+					SEL13_RECLUTADOS.f_reclutamiento
+				FROM
+					SEL13_RECLUTADOS
+				WHERE
+					SEL13_RECLUTADOS.oi_referencia=  {#SOURCE:@oi_referencia} 
+					AND SEL13_RECLUTADOS.c_estado = \'R\' 
+			')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:element name="ROW">
+						<qry:attribute name="id" value="$r/@oi_reclutado"/>
+						<qry:attribute name="oi_reclutado" value="$r/@oi_reclutado"/>
+						<qry:attribute name="c_reclutado" value="$r/@c_reclutado"/>
+						<qry:attribute name="d_reclutado" value="$r/@d_reclutado"/>
+						<qry:attribute name="f_reclutamiento" value="format_date($r/@f_reclutamiento, 'dd/mm/yyyy')"/>
+						<qry:attribute name="elegir" value="'0'"/>
+						<qry:insert-select name="qry_count_exa" doc-path="$r"/>
+						<qry:insert-select name="qry_count_entrev" doc-path="$r"/>
+					</qry:element>
+				</qry:out>
+			</qry:select>
+			<qry:select name="RS2" doc="SOURCE">
+				<qry:xquery>
+					for $r in sql('
+				SELECT COUNT(SEL13_RECLUTADOS.oi_reclutado) as cant					
+				FROM
+					SEL13_RECLUTADOS
+				WHERE
+					SEL13_RECLUTADOS.oi_referencia=  {#SOURCE:@oi_referencia} 
+					AND SEL13_RECLUTADOS.c_estado = \'R\' 
+			')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:attribute name="cant" value="$r/@cant"/>
+					<qry:insert-select name="qry_cargado_0" doc-path="$r/.[@cantExa=0]"/>
+					<qry:insert-select name="qry_cargado_1" doc-path="$r/.[@cantExa!=0]"/>
+					<qry:insert-select name="qry_cargado_2" doc-path="$r/.[@cantEntrev=0]"/>
+					<qry:insert-select name="qry_cargado_3" doc-path="$r/.[@cantEntrev!=0]"/>
+				</qry:out>
+			</qry:select>
+			<qry:select name="qry_count_exa" doc="SOURCE">
+				<qry:xquery>
+					for $r in sql('
+			SELECT 
+				COUNT(SEL13_EXA_REC.oi_reclutado) as cantExa					
+			FROM          
+				SEL13_EXA_REC,
+				SEL13_RECLUTADOS
+			JOIN
+				SEL13_RECLUTADOS.oi_reclutado LEFT OUTER SEL13_EXA_REC.oi_reclutado
+			WHERE
+				SEL13_RECLUTADOS.oi_reclutado = {#SOURCE:@oi_reclutado} 
+				AND SEL13_EXA_REC.c_estado = \'RE\'
+				AND SEL13_EXA_REC.oi_reclutado NOT IN
+					(SELECT SEL13_EXA_REC.oi_reclutado
+					FROM SEL13_EXA_REC
+					WHERE SEL13_EXA_REC.c_estado != \'RE\') 
+			')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:attribute name="cumpleExa" value="iif($r/@cantExa=0,'0','1')"/>
+				</qry:out>
+			</qry:select>
+			<qry:select name="qry_count_entrev" doc="SOURCE">
+				<qry:xquery>
+					for $r in sql('
+			SELECT 
+				COUNT(SEL13_ENTREV_REC.oi_reclutado) as cantEntrev					
+			FROM          
+				SEL13_ENTREV_REC,
+				SEL13_RECLUTADOS
+			JOIN
+				SEL13_RECLUTADOS.oi_reclutado LEFT OUTER SEL13_ENTREV_REC.oi_reclutado
+			WHERE
+				SEL13_RECLUTADOS.oi_reclutado = {#SOURCE:@oi_reclutado} 
+				AND SEL13_ENTREV_REC.c_estado = \'RE\'  
+				AND SEL13_ENTREV_REC.oi_reclutado NOT IN
+					(SELECT SEL13_ENTREV_REC.oi_reclutado
+					FROM SEL13_ENTREV_REC
+					WHERE SEL13_ENTREV_REC.c_estado != \'RE\')
+			')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:attribute name="cumpleEntrev" value="iif($r/@cantEntrev=0,'0','1')"/>
+				</qry:out>
+			</qry:select>
+			<qry:select name="qry_cargado_0">
+				<qry:out>
+					<qry:attribute name="title" value="'No Completo Examenes'"/>
+					<qry:attribute name="img" value="'Listas/WF.gif'"/>
+				</qry:out>
+			</qry:select>
+			<qry:select name="qry_cargado_1">
+				<qry:out>
+					<qry:attribute name="title" value="'Completo Examenes'"/>
+					<qry:attribute name="img" value="'Listas/WF_END.gif'"/>
+				</qry:out>
+			</qry:select>
+			<qry:select name="qry_cargado_2">
+				<qry:out>
+					<qry:attribute name="title" value="'Completo Entrevistas'"/>
+					<qry:attribute name="img" value="'Listas/WF_END.gif'"/>
+				</qry:out>
+			</qry:select>
+			<qry:select name="qry_cargado_3">
+				<qry:out>
+					<qry:attribute name="title" value="'Completo Entrevistas'"/>
+					<qry:attribute name="img" value="'Listas/WF_END.gif'"/>
+				</qry:out>
+			</qry:select>
+		</qry:define>
+		<qry:define declare="&lt;DATOS oi_referencia=&quot;412&quot; pondPostulacion=&quot;0&quot; pondInscripcion=&quot;0&quot; ignorarCursos=&quot;1&quot; ignorarEstudios=&quot;1&quot; ignorarIdiomas=&quot;1&quot; ignorarExperiencia=&quot;1&quot; ignorarReferencia=&quot;1&quot; oi_empresa=&quot;10&quot; ignorarAreas=&quot;1&quot; postulados=&quot;&quot; oi_req=&quot;550&quot;&gt;&lt;ROWS /&gt;&lt;/DATOS&gt;" name="RANKEADOS">
+			<qry:main doc="SOURCE">
+				<qry:element name="DATOS">
+					<qry:attribute name="oi_referencia" value="#SOURCE:DATOS/@oi_referencia"/>
+					<qry:attribute name="oi_req" value="#SOURCE:DATOS/@oi_req"/>
+					<qry:element name="ROWS">
+						<qry:insert-select doc-path="#SOURCE:DATOS" name="RS1"/>
+					</qry:element>
+				</qry:element>
+			</qry:main>
+			<qry:select name="RS1" doc="SOURCE">
+				<qry:xquery>
+					for $r in sql('
+				SELECT
+					S.oi_reclutado, 
+					S.n_ranking 
+				FROM
+					SEL13_RECLUTADOS AS S
+				WHERE
+					S.c_estado = \'N\' 
+					{%? (#SOURCE:@oi_referencia!='')	{% AND S.oi_referencia = {#SOURCE:@oi_referencia} %} {% %} %}
+					
+				ORDER BY
+					n_ranking desc 
+			')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:element name="ROW">
+						<qry:attribute name="oi_reclutado" value="$r/@oi_reclutado" type="Nomad.NSystem.Int"/>
+						<qry:attribute name="elegir" value="'0'" type="Nomad.NSystem.Int"/>
+						<qry:attribute name="n_ranking" value="$r/@n_ranking" type="Nomad.NSystem.String"/>
+					</qry:element>
+				</qry:out>
+			</qry:select>
+		</qry:define>
+		<doc:define name="SOLIC">
+			<SOLIC id="1"/>
+		</doc:define>
+	</flow:declare>
+	<flow:main doc="SOURCE">
+		<flow:action name="initialize">
+			<flow:open-form doc-path="#FILTERDATA:" mode="FILTER" form-class="NucleusRH.Base.Gestion_de_Postulantes.Requerimientos.REQ.filter.form"/>
+		</flow:action>
+		<flow:action name="initializeReclutamientoInterno">
+			<flow:open-form form-class="NucleusRH.Base.Gestion_de_Postulantes.Requerimientos.Reclutamiento.Filtro.form" mode="INTERNO" doc-path="#RECLUTAMIENTO:"/>
+		</flow:action>
+		<flow:action name="reclutamiento"/>
+		<flow:action name="reclutamientoIni">
+			<flow:open-form mode="FILTRO" doc-path="#RECLUTAMIENTO:" form-class="NucleusRH.Base.Gestion_de_Postulantes.Requerimientos.Reclutamiento.form"/>
+		</flow:action>
+		<flow:action name="show-report">
+			<flow:open-form doc-path="#RECLUTAMIENTO:" mode="EDIT" form-class="NucleusRH.Base.Gestion_de_Postulantes.Requerimientos.Reclutamiento.form"/>
+		</flow:action>
+		<flow:action name="seleccion">
+			<flow:open-form doc-path="#FILTERDATA:" mode="FILTRO" form-class="NucleusRH.Base.Gestion_de_Postulantes.Requerimientos.Seleccion.form"/>
+		</flow:action>
+		<flow:action name="initializeReclutamientoExterno">
+			<flow:open-form form-class="NucleusRH.Base.Gestion_de_Postulantes.Requerimientos.Reclutamiento.Filtro.form" mode="EXTERNO" doc-path="#RECLUTAMIENTO:"/>
+		</flow:action>
+		<flow:action name="new_req">
+			<doc:new-object class="NucleusRH.Base.Gestion_de_Postulantes.Requerimientos.REQ" doc="NEWDDOROOT"/>
+			<doc:load-qry output-doc="EMP" input-doc-path="#SOURCE:" qry="QRY_EMPRESA"/>
+			<doc:set-attribute from-attr-path="#EMP:@id" to-attr-path="#NEWDDOROOT:oi_empresa/@value"/>
+			<doc:set-attribute from-attr-path="#SOURCE:@c_solicitud" to-attr-path="#NEWDDOROOT:@c_req"/>
+			<doc:set-attribute from-attr-path="#SOURCE:@d_area" to-attr-path="#NEWDDOROOT:@d_req"/>
+			<doc:set-attribute from-attr-path="#SOURCE:@oi_personal_emp" to-attr-path="#NEWDDOROOT:oi_personal_emp/@value"/>
+			<doc:set-attribute from-attr-path="#SOURCE:@f_hoy" to-attr-path="#NEWDDOROOT:@f_req"/>
+			<doc:set-attribute from-value="A" to-attr-path="#NEWDDOROOT:@ca_estado"/>
+			<doc:new-object class="NucleusRH.Base.Gestion_de_Postulantes.Requerimientos.REFERENCIA" doc="NEWDDO"/>
+			<doc:set-attribute from-attr-path="#SOURCE:@c_solicitud" to-attr-path="#NEWDDO:@c_referencia"/>
+			<doc:set-attribute from-attr-path="#SOURCE:@d_area" to-attr-path="#NEWDDO:@d_referencia"/>
+			<doc:set-attribute from-value="E" to-attr-path="#NEWDDO:@ca_estado"/>
+			<doc:set-attribute from-attr-path="#SOURCE:@oi_personal_emp" to-attr-path="#NEWDDO:oi_personal_emp/@value"/>
+			<doc:set-attribute from-attr-path="#SOURCE:@f_incorporacion" to-attr-path="#NEWDDO:@f_incorp_aprox"/>
+			<doc:set-attribute from-attr-path="#SOURCE:@e_edad_desde" to-attr-path="#NEWDDO:@e_edad_minima_req"/>
+			<doc:set-attribute from-attr-path="#SOURCE:@e_edad_hasta" to-attr-path="#NEWDDO:@e_edad_maxima_req"/>
+			<doc:set-attribute from-attr-path="#SOURCE:@oi_estado_civil" to-attr-path="#NEWDDO:oi_estado_civil/@value"/>
+			<doc:set-attribute from-attr-path="#SOURCE:@o_solicitud" to-attr-path="#NEWDDO:@o_referencia"/>
+			<doc:add-object doc-path="#NEWDDO:" parent-doc-path="#NEWDDOROOT:REFERENCIAS"/>
+			<flow:open-form doc-path="#NEWDDOROOT:" mode="NEW" form-class="NucleusRH.Base.Gestion_de_Postulantes.Requerimientos.REQ.form"/>
+			<flow:log text-path="#SOURCE:" text="kkeuey"/>
+		</flow:action>
+	</flow:main>
+	<flow:group name="REQ">
+		<flow:form name="NucleusRH.Base.Gestion_de_Postulantes.Requerimientos.REQ.filter.form:FILTER" mode="FILTER" form-class="NucleusRH.Base.Gestion_de_Postulantes.Requerimientos.REQ.filter.form" doc="SOURCE" parent-doc="PARENTSOURCE">
+			<flow:action name="on-show"/>
+			<flow:action name="open-flow-ADD">
+				<doc:set-attribute to-attr-path="#NEWDDOROOT:@ca_estado" from-value="A"/>
+				<flow:open-form form-class="NucleusRH.Base.Gestion_de_Postulantes.Requerimientos.REQ.form" mode="NEW" doc-path="#NEWDDOROOT:" parent-doc-path="#QRY:"/>
+			</flow:action>
+			<flow:action name="open-flow-LIST">
+				<flow:open-form iter-index="#QRY:ROW/@id" parent-doc-path="#QRY:" doc-path="#DDO:" mode="SHOW" form-class="NucleusRH.Base.Gestion_de_Postulantes.Requerimientos.REQ.form"/>
+			</flow:action>
+		</flow:form>
+		<flow:form mode="EDIT" form-class="NucleusRH.Base.Gestion_de_Postulantes.Requerimientos.REQ.noreg.autoform" doc="SOURCE" parent-doc="PARENTSOURCE" name="NucleusRH.Base.Gestion_de_Postulantes.Requerimientos.REQ.noreg.form:EDIT" extends="NucleusRH.Base.Gestion_de_Postulantes.Requerimientos.REQ.noreg.autoform:EDIT">
+			<flow:action name="on-move-iterator">
+				<doc:load-qry qry="FILTER" input-doc-path="#FILTERDATA:" output-doc="QRY"/>
+				<doc:new-object class="NucleusRH.Base.Gestion_de_Postulantes.Requerimientos.REQ" doc="DDO"/>
+				<flow:open-form form-class="NucleusRH.Base.Gestion_de_Postulantes.Requerimientos.REQ.form" mode="SHOW" doc-path="#DDO:" parent-doc-path="#QRY:" iter-index="#QRY:ROW/@id"/>
+			</flow:action>
+			<flow:action name="ADD">
+				<doc:new-object class="NucleusRH.Base.Gestion_de_Postulantes.Requerimientos.REQ" doc="NEWDDOROOT"/>
+				<doc:set-attribute to-attr-path="#NEWDDOROOT:@ca_estado" from-value="A"/>
+				<flow:open-form form-class="NucleusRH.Base.Gestion_de_Postulantes.Requerimientos.REQ.form" mode="NEW" doc-path="#NEWDDOROOT:"/>
+			</flow:action>
+			<flow:action name="open-flow-SHOW">
+				<flow:open-form iter-index="#QRY:ROW/@id" parent-doc-path="#QRY:" doc-path="#DDO:" mode="SHOW" form-class="NucleusRH.Base.Gestion_de_Postulantes.Requerimientos.REQ.form"/>
+			</flow:action>
+		</flow:form>
+		<flow:form form-class="NucleusRH.Base.Gestion_de_Postulantes.Requerimientos.REQ.form" extends="NucleusRH.Base.Gestion_de_Postulantes.Requerimientos.REQ.autoform:SHOW" doc="SOURCE" name="NucleusRH.Base.Gestion_de_Postulantes.Requerimientos.REQ.form:SHOW" mode="SHOW" parent-doc="PARENTSOURCE">
+			<flow:action name="ADD">
+				<doc:new-object doc="NEWDDOROOT" class="NucleusRH.Base.Gestion_de_Postulantes.Requerimientos.REQ"/>
+				<doc:set-attribute to-attr-path="#NEWDDOROOT:@ca_estado" from-value="A"/>
+				<flow:open-form doc-path="#NEWDDOROOT:" mode="NEW" form-class="NucleusRH.Base.Gestion_de_Postulantes.Requerimientos.REQ.form"/>
+			</flow:action>
+			<flow:action name="EDIT">
+				<flow:open-form doc-path="#DDO:" mode="EDIT" form-class="NucleusRH.Base.Gestion_de_Postulantes.Requerimientos.REQ.form"/>
+			</flow:action>
+			<flow:action name="INICIAR">
+				<flow:exec-method class="NucleusRH.Base.Gestion_de_Postulantes.Requerimientos.REQ" this-doc="DDO" method="IniciarReq"/>
+				<flow:call-action action="load-DDO"/>
+			</flow:action>
+			<flow:action name="ANULAR">
+				<flow:exec-method method="AnularReq" class="NucleusRH.Base.Gestion_de_Postulantes.Requerimientos.REQ" this-doc="DDO"/>
+			</flow:action>
+			<flow:action name="CERRAR">
+				<flow:exec-method class="NucleusRH.Base.Gestion_de_Postulantes.Requerimientos.REQ" this-doc="DDO" method="CerrarReq"/>
+			</flow:action>
+		</flow:form>
+		<flow:form form-class="NucleusRH.Base.Gestion_de_Postulantes.Requerimientos.REQ.form" extends="NucleusRH.Base.Gestion_de_Postulantes.Requerimientos.REQ.autoform:EDIT" doc="SOURCE" name="NucleusRH.Base.Gestion_de_Postulantes.Requerimientos.REQ.form:EDIT" mode="EDIT" parent-doc="PARENTSOURCE">
+			<flow:action name="save-DDO">
+				<flow:exec-method method="Guardar" class="NucleusRH.Base.Gestion_de_Postulantes.Requerimientos.REQ" this-doc="DDO"/>
+			</flow:action>
+		</flow:form>
+		<flow:form form-class="NucleusRH.Base.Gestion_de_Postulantes.Requerimientos.REQ.form" extends="NucleusRH.Base.Gestion_de_Postulantes.Requerimientos.REQ.autoform:NEW" doc="SOURCE" name="NucleusRH.Base.Gestion_de_Postulantes.Requerimientos.REQ.form:NEW" mode="NEW" parent-doc="PARENTSOURCE"/>
+		<flow:form extends="NucleusRH.Base.Gestion_de_Postulantes.Requerimientos.REQ.autoform:LIST" parent-doc="PARENTSOURCE" doc="SOURCE" name="NucleusRH.Base.Gestion_de_Postulantes.Requerimientos.REQ.form:LIST" form-class="NucleusRH.Base.Gestion_de_Postulantes.Requerimientos.REQ.form" mode="LIST">
+			<flow:action name="open-flow-EDIT">
+				<flow:open-form doc-path="#DDO:" mode="EDIT" form-class="NucleusRH.Base.Gestion_de_Postulantes.Requerimientos.REQ.form"/>
+			</flow:action>
+			<flow:action name="open-flow-ADD">
+				<flow:open-form doc-path="#NEWDDOROOT:" mode="NEW" form-class="NucleusRH.Base.Gestion_de_Postulantes.Requerimientos.REQ.form"/>
+			</flow:action>
+		</flow:form>
+	</flow:group>
+	<flow:group name="REFERENCIA">
+		<flow:form parent-doc="PARENTSOURCE" doc="SOURCE" name="NucleusRH.Base.Gestion_de_Postulantes.Requerimientos.REFERENCIA.noreg.form:SHOW" form-class="NucleusRH.Base.Gestion_de_Postulantes.Requerimientos.REFERENCIA.noreg.autoform" mode="SHOW" extends="NucleusRH.Base.Gestion_de_Postulantes.Requerimientos.REFERENCIA.noreg.autoform:SHOW">
+			<flow:action name="open-flow-SHOW">
+				<flow:open-form iter-index="#PARENTSOURCE:REFERENCIA/@id" parent-doc-path="#PARENTSOURCE:" doc-path="#PARENTSOURCE:" mode="SHOW" form-class="NucleusRH.Base.Gestion_de_Postulantes.Requerimientos.REFERENCIA.form"/>
+			</flow:action>
+			<flow:action name="open-flow-LIST">
+				<flow:open-form iter-index="#PARENTSOURCE:REFERENCIA/@id" parent-doc-path="#PARENTSOURCE:" doc-path="#PARENTSOURCE:" mode="LIST" form-class="NucleusRH.Base.Gestion_de_Postulantes.Requerimientos.REFERENCIA.form"/>
+			</flow:action>
+		</flow:form>
+		<flow:form parent-doc="PARENTSOURCE" doc="SOURCE" name="NucleusRH.Base.Gestion_de_Postulantes.Requerimientos.REFERENCIA.noreg.form:EDIT" form-class="NucleusRH.Base.Gestion_de_Postulantes.Requerimientos.REFERENCIA.noreg.autoform" mode="EDIT" extends="NucleusRH.Base.Gestion_de_Postulantes.Requerimientos.REFERENCIA.noreg.autoform:EDIT">
+			<flow:action name="new-DDO">
+				<doc:new-object doc="NEWDDO" class="NucleusRH.Base.Gestion_de_Postulantes.Requerimientos.REFERENCIA"/>
+				<doc:set-attribute to-attr-path="#NEWDDO:@ca_estado" from-value="E"/>
+			</flow:action>
+			<flow:action name="open-flow-EDIT">
+				<flow:open-form iter-index="#PARENTSOURCE:REFERENCIA/@id" parent-doc-path="#PARENTSOURCE:" doc-path="#PARENTSOURCE:" mode="EDIT" form-class="NucleusRH.Base.Gestion_de_Postulantes.Requerimientos.REFERENCIA.form"/>
+			</flow:action>
+			<flow:action name="open-flow-ADD">
+				<flow:open-form parent-doc-path="#PARENTSOURCE:" doc-path="#NEWDDO:" mode="NEW" form-class="NucleusRH.Base.Gestion_de_Postulantes.Requerimientos.REFERENCIA.form"/>
+			</flow:action>
+			<flow:action name="open-flow-LIST">
+				<flow:open-form iter-index="#PARENTSOURCE:REFERENCIA/@id" parent-doc-path="#PARENTSOURCE:" doc-path="#PARENTSOURCE:" mode="LIST_EDIT" form-class="NucleusRH.Base.Gestion_de_Postulantes.Requerimientos.REFERENCIA.form"/>
+			</flow:action>
+		</flow:form>
+		<flow:form doc-path="/REFERENCIA[@id='{#iter-cursor:@value}']" parent-doc="PARENTSOURCE" doc="SOURCE" name="NucleusRH.Base.Gestion_de_Postulantes.Requerimientos.REFERENCIA.form:SHOW" form-class="NucleusRH.Base.Gestion_de_Postulantes.Requerimientos.REFERENCIA.form" mode="SHOW" extends="NucleusRH.Base.Gestion_de_Postulantes.Requerimientos.REFERENCIA.autoform:SHOW">
+			<flow:action name="INICIAR">
+				<flow:exec-method class="NucleusRH.Base.Gestion_de_Postulantes.Requerimientos.REQ" this-doc="DDO" method="IniciarReferencia">
+					<flow:param attr-path="#SOURCE:@id" type="Nomad.NSystem.String" mode="in" name="refid"/>
+				</flow:exec-method>
+				<flow:call-action action="BACK"/>
+			</flow:action>
+			<flow:action name="ABORTAR">
+				<flow:exec-method class="NucleusRH.Base.Gestion_de_Postulantes.Requerimientos.REQ" this-doc="DDO" method="AbortarReferencia">
+					<flow:param attr-path="#SOURCE:@id" type="Nomad.NSystem.String" mode="in" name="refid"/>
+				</flow:exec-method>
+				<flow:call-action action="BACK"/>
+			</flow:action>
+			<flow:action name="CALL:RECLUTADOS">
+				<doc:set-attribute to-attr-path="#RECLUTAMIENTO:@oi_referencia" from-attr-path="#SOURCE:@id"/>
+				<doc:load-qry qry="RECLUTADOS" output-doc="RECSOURCE" input-doc-path="#RECLUTAMIENTO:"/>
+				<flow:open-form form-class="NucleusRH.Base.Gestion_de_Postulantes.Requerimientos.Reclutamiento.form" mode="RECLUTADOS" doc-path="#RECSOURCE:" parent-doc-path="#RECSOURCE:"/>
+			</flow:action>
+			<flow:action name="CALL:RANKEADOS">
+				<doc:set-attribute to-attr-path="#RECLUTAMIENTO:@oi_referencia" from-attr-path="#SOURCE:@id"/>
+				<doc:load-qry qry="RANKEADOS" output-doc="RECSOURCE" input-doc-path="#RECLUTAMIENTO:"/>
+				<flow:open-form form-class="NucleusRH.Base.Gestion_de_Postulantes.Requerimientos.Reclutamiento.form" mode="EDIT" doc-path="#RECSOURCE:" parent-doc-path="#RECSOURCE:"/>
+			</flow:action>
+		</flow:form>
+		<flow:form extends="NucleusRH.Base.Gestion_de_Postulantes.Requerimientos.REFERENCIA.autoform:LIST" doc-path="/REFERENCIA[@id='{#iter-cursor:@value}']" parent-doc="PARENTSOURCE" doc="SOURCE" name="NucleusRH.Base.Gestion_de_Postulantes.Requerimientos.REFERENCIA.form:LIST" form-class="NucleusRH.Base.Gestion_de_Postulantes.Requerimientos.REFERENCIA.form" mode="LIST">
+			<flow:action name="INICIAR">
+				<flow:exec-method class="NucleusRH.Base.Gestion_de_Postulantes.Requerimientos.REQ" this-doc="DDO" method="IniciarReferencia">
+					<flow:param attr-path="#FORM:ctrl[@id='LIST']/@xval" type="Nomad.NSystem.String" mode="in" name="refid"/>
+				</flow:exec-method>
+				<flow:call-action action="BACK"/>
+			</flow:action>
+			<flow:action name="ABORTAR">
+				<flow:exec-method class="NucleusRH.Base.Gestion_de_Postulantes.Requerimientos.REQ" this-doc="DDO" method="AbortarReferencia">
+					<flow:param attr-path="#FORM:ctrl[@id='LIST']/@xval" type="Nomad.NSystem.String" mode="in" name="refid"/>
+				</flow:exec-method>
+				<flow:call-action action="BACK"/>
+			</flow:action>
+		</flow:form>
+		<flow:form doc-path="/REFERENCIA[@id='{#iter-cursor:@value}']" parent-doc="PARENTSOURCE" doc="SOURCE" name="NucleusRH.Base.Gestion_de_Postulantes.Requerimientos.REFERENCIA.form:EDIT" form-class="NucleusRH.Base.Gestion_de_Postulantes.Requerimientos.REFERENCIA.form" mode="EDIT" extends="NucleusRH.Base.Gestion_de_Postulantes.Requerimientos.REFERENCIA.autoform:EDIT">
+			<flow:action name="CALL:RECLUTADOS">
+				<doc:set-attribute to-attr-path="#RECLUTAMIENTO:@oi_referencia" from-attr-path="#SOURCE:@id"/>
+				<doc:load-qry qry="RECLUTADOS" output-doc="RECSOURCE" input-doc-path="#RECLUTAMIENTO:"/>
+				<flow:open-form form-class="NucleusRH.Base.Gestion_de_Postulantes.Requerimientos.Reclutamiento.form" mode="RECLUTADOS" doc-path="#RECSOURCE:" parent-doc-path="#RECSOURCE:"/>
+			</flow:action>
+			<flow:action name="CALL:RANKEADOS">
+				<doc:set-attribute to-attr-path="#RECLUTAMIENTO:@oi_referencia" from-attr-path="#SOURCE:@id"/>
+				<doc:load-qry qry="RANKEADOS" output-doc="RECSOURCE" input-doc-path="#RECLUTAMIENTO:"/>
+				<flow:open-form form-class="NucleusRH.Base.Gestion_de_Postulantes.Requerimientos.Reclutamiento.form" mode="EDIT" doc-path="#RECSOURCE:" parent-doc-path="#RECSOURCE:"/>
+			</flow:action>
+			<flow:action name="new-DDO">
+				<doc:new-object doc="NEWDDO" class="NucleusRH.Base.Gestion_de_Postulantes.Requerimientos.REFERENCIA"/>
+				<doc:set-attribute to-attr-path="#NEWDDO:@ca_estado" from-value="E"/>
+			</flow:action>
+			<flow:action name="open-flow-ADD">
+				<flow:open-form parent-doc-path="#PARENTSOURCE:" doc-path="#NEWDDO:" mode="NEW" form-class="NucleusRH.Base.Gestion_de_Postulantes.Requerimientos.REFERENCIA.form"/>
+			</flow:action>
+		</flow:form>
+		<flow:form extends="NucleusRH.Base.Gestion_de_Postulantes.Requerimientos.REFERENCIA.autoform:LIST_EDIT" doc-path="/REFERENCIA[@id='{#iter-cursor:@value}']" parent-doc="PARENTSOURCE" doc="SOURCE" name="NucleusRH.Base.Gestion_de_Postulantes.Requerimientos.REFERENCIA.form:LIST_EDIT" form-class="NucleusRH.Base.Gestion_de_Postulantes.Requerimientos.REFERENCIA.form" mode="LIST_EDIT">
+			<flow:action name="new-DDO">
+				<doc:new-object doc="NEWDDO" class="NucleusRH.Base.Gestion_de_Postulantes.Requerimientos.REFERENCIA"/>
+				<doc:set-attribute to-attr-path="#NEWDDO:@ca_estado" from-value="E"/>
+			</flow:action>
+			<flow:action name="open-flow-ADD">
+				<flow:open-form parent-doc-path="#PARENTSOURCE:" doc-path="#NEWDDO:" mode="NEW" form-class="NucleusRH.Base.Gestion_de_Postulantes.Requerimientos.REFERENCIA.form"/>
+			</flow:action>
+			<flow:action name="open-flow-LIST">
+				<flow:open-form iter-index="#PARENTSOURCE:REFERENCIA/@id" parent-doc-path="#PARENTSOURCE:" doc-path="#PARENTSOURCE:" mode="LIST_EDIT" form-class="NucleusRH.Base.Gestion_de_Postulantes.Requerimientos.REFERENCIA.form"/>
+			</flow:action>
+		</flow:form>
+		<flow:form parent-doc="PARENTSOURCE" doc="SOURCE" name="NucleusRH.Base.Gestion_de_Postulantes.Requerimientos.REFERENCIA.form:NEW" form-class="NucleusRH.Base.Gestion_de_Postulantes.Requerimientos.REFERENCIA.form" mode="NEW" extends="NucleusRH.Base.Gestion_de_Postulantes.Requerimientos.REFERENCIA.autoform:NEW">
+			<flow:action name="ACCEPT">
+				<flow:exec-method class="NucleusRH.Base.Gestion_de_Postulantes.Requerimientos.REFERENCIA" this-doc="SOURCE" method="Nueva"/>
+				<flow:log text-path="#SOURCE:" text="ppsource"/>
+				<doc:check-ak show-msg="1" parent-doc-path="#PARENTSOURCE:" doc-path="#SOURCE:"/>
+				<doc:add-object doc-path="#SOURCE:" parent-doc-path="#PARENTSOURCE:"/>
+				<doc:set-attribute to-attr-path="#QRY_ID:@id" from-attr-path="#SOURCE:@id"/>
+				<flow:close-form next-action="After-Change"/>
+			</flow:action>
+		</flow:form>
+	</flow:group>
+	<flow:group name="Reclutamiento">
+		<flow:form mode="INTERNO" parent-doc="PARENSOURCE" doc="SOURCE" name="ReclutamientoInterno" form-class="NucleusRH.Base.Gestion_de_Postulantes.Requerimientos.Reclutamiento.Filtro.form">
+			<flow:action name="BACK">
+				<flow:close-form/>
+			</flow:action>
+			<flow:action name="FILTER">
+				<flow:exec-method method="IniciarReclutamientoInterno" class="NucleusRH.Base.Gestion_de_Postulantes.Requerimientos.REFERENCIA" priority="5" out-type="String" out-attr-path="#BATCHDOC:@batch-id">
+					<flow:param type="Nomad.NSystem.Object" doc-path="#SOURCE:" mode="in" name="Filtro"/>
+				</flow:exec-method>
+				<flow:open-form form-class="Nomad.base.batch.report.form" mode="BATCH" doc-path="#BATCHDOC:"/>
+				<flow:log text-path="#SOURCE:" text="emisource"/>
+			</flow:action>
+		</flow:form>
+		<flow:form extends="nomad.base.batchtolist.form:BATCH" mode="BATCH" doc="SOURCE" name="reclutamiento.bach" form-class="NucleusRH.Base.Gestion_de_Postulantes.Requerimientos.Reclutamiento.Bach.form"/>
+		<flow:form name="RECL67" mode="FILTRO" parent-doc="PARENTSOURCE" doc="SOURCE" form-class="NucleusRH.Base.Gestion_de_Postulantes.Requerimientos.Reclutamiento.form">
+			<flow:action name="BACK">
+				<flow:close-form/>
+			</flow:action>
+			<flow:action name="LOADQ">
+				<doc:load-qry output-doc="SOURCE" input-doc-path="#SOURCE:" qry="RANKEADOS"/>
+			</flow:action>
+			<flow:action name="FILTER">
+				<flow:exec-method method="ReclutarRankeados" class="NucleusRH.Base.Gestion_de_Postulantes.Requerimientos.REFERENCIA">
+					<flow:param type="Nomad.NSystem.Object" doc-path="#SOURCE:" mode="in" name="Filtro"/>
+				</flow:exec-method>
+				<flow:close-form/>
+				<flow:log text="ppsource111" text-path="#SOURCE:"/>
+				<doc:load-qry output-doc="SOURCE" input-doc-path="#SOURCE:" qry="RECLUTADOS"/>
+				<flow:log text="ppsource222" text-path="#SOURCE:"/>
+				<flow:open-form form-class="NucleusRH.Base.Gestion_de_Postulantes.Requerimientos.Reclutamiento.form" mode="RECLUTADOS" doc-path="#SOURCE:" parent-doc-path="#SOURCE:"/>
+			</flow:action>
+			<flow:action name="on-open">
+				<flow:call-action action="LOADQ"/>
+			</flow:action>
+		</flow:form>
+		<flow:form parent-doc="PARENTSOURCE" doc="SOURCE" name="RECL" form-class="NucleusRH.Base.Gestion_de_Postulantes.Requerimientos.Reclutamiento.form" mode="EDIT">
+			<flow:action name="BACK">
+				<flow:close-form/>
+			</flow:action>
+			<flow:action name="LOADQ">
+				<flow:log text="ppsource11" text-path="#SOURCE:"/>
+				<doc:load-qry input-doc-path="#RECLUTAMIENTO:" output-doc="SOURCE" qry="RANKEADOS"/>
+				<flow:log text="ppsource22" text-path="#SOURCE:"/>
+				<flow:log text="pprec12" text-path="#RECLUTAMIENTO:"/>
+			</flow:action>
+			<flow:action name="FILTER">
+				<flow:exec-method method="ReclutarRankeados" class="NucleusRH.Base.Gestion_de_Postulantes.Requerimientos.REFERENCIA">
+					<flow:param type="Nomad.NSystem.Object" doc-path="#SOURCE:" mode="in" name="Filtro"/>
+				</flow:exec-method>
+				<flow:log text="ppsource1" text-path="#SOURCE:"/>
+				<doc:load-qry output-doc="SOURCE" input-doc-path="#SOURCE:" qry="RECLUTADOS"/>
+				<flow:log text="ppsource2" text-path="#SOURCE:"/>
+				<flow:open-form form-class="NucleusRH.Base.Gestion_de_Postulantes.Requerimientos.Reclutamiento.Exito.form" mode="EDIT" doc-path="#SOURCE:" parent-doc-path="#SOURCE:"/>
+			</flow:action>
+			<flow:action name="on-open11">
+				<flow:call-action action="LOADQ"/>
+			</flow:action>
+		</flow:form>
+		<flow:form doc="SOURCE" form-class="Nomad.base.batch.report.form" name="Nomad.base.batch.report.form:BATCH" mode="BATCH">
+			<flow:action name="on-show"/>
+			<flow:action name="EXIT">
+				<flow:exit-flow return-path="#SOURCE:"/>
+			</flow:action>
+			<flow:action name="show-report">
+				<flow:close-form/>
+				<flow:log text="pprec1" text-path="#RECLUTAMIENTO:"/>
+				<doc:load-qry output-doc="RECLUTAMIENTO" input-doc-path="#RECLUTAMIENTO:" qry="RANKEADOS"/>
+				<flow:open-form doc-path="#RECLUTAMIENTO:" mode="EDIT" form-class="NucleusRH.Base.Gestion_de_Postulantes.Requerimientos.Reclutamiento.form"/>
+			</flow:action>
+		</flow:form>
+		<flow:form parent-doc="PARENTSOURCE" doc="SOURCE" form-class="NucleusRH.Base.Gestion_de_Postulantes.Requerimientos.Reclutamiento.form" mode="RECLUTADOS" name="RECLUTADOS">
+			<flow:action name="BACK">
+				<flow:close-form/>
+			</flow:action>
+			<flow:action name="LOADQ"/>
+		</flow:form>
+		<flow:form mode="EXTERNO" parent-doc="PARENSOURCE" doc="SOURCE" name="ReclutamientoEXTERNO" form-class="NucleusRH.Base.Gestion_de_Postulantes.Requerimientos.Reclutamiento.Filtro.form">
+			<flow:action name="BACK">
+				<flow:close-form/>
+			</flow:action>
+			<flow:action name="FILTER">
+				<flow:log text="otravez2222222222" text-path="#SOURCE:"/>
+				<flow:exec-method method="IniciarReclutamientoExterno" class="NucleusRH.Base.Gestion_de_Postulantes.Requerimientos.REFERENCIA" priority="5" out-type="String" out-attr-path="#BATCHDOC:@batch-id">
+					<flow:param type="Nomad.NSystem.Object" doc-path="#SOURCE:" mode="in" name="Filtro"/>
+				</flow:exec-method>
+				<flow:open-form form-class="Nomad.base.batch.report.form" mode="BATCH" doc-path="#BATCHDOC:"/>
+			</flow:action>
+		</flow:form>
+		<flow:form name="NucleusRH.Base.Gestion_de_Postulantes.Requerimientos.Reclutamiento.Exito.form" form-class="NucleusRH.Base.Gestion_de_Postulantes.Requerimientos.Reclutamiento.Exito.form" parent-doc="PARENTSOURCE" doc="SOURCE" mode="EDIT">
+			<flow:action name="BACK">
+				<flow:exit-flow return-path="#SOURCE:"/>
+			</flow:action>
+		</flow:form>
+	</flow:group>
+	<flow:group name="Seleccion">
+		<flow:form name="Seleccion.Filtro:FILTRO" mode="FILTRO" doc="SOURCE" form-class="NucleusRH.Base.Gestion_de_Postulantes.Requerimientos.Seleccion.form">
+			<flow:action name="BACK">
+				<flow:close-form/>
+			</flow:action>
+			<flow:action name="FILTER">
+				<!--flow:call-action action="Save-FILTER"/>
+	<flow:exec-method method="PosiblesSeleccionPersonal" out-doc="SELECCION" class="NucleusRH.Base.Gestion_de_Postulantes.Requerimientos.REFERENCIA">
+		<flow:param doc-path="#SELECCION:" type="Nomad.NSystem.Object" mode="in" name="Filtro"/>
+	</flow:exec-method>
+	<flow:log text="SELECCIONSELECCION" text-path="#SELECCION:"/>
+	<flow:close-form/-->
+				<doc:load-qry input-doc-path="#FILTERDATA:" output-doc="SELECCION" qry="POSIBLES"/>
+				<flow:open-form parent-doc-path="#SELECCION:" doc-path="#SELECCION:" form-class="NucleusRH.Base.Gestion_de_Postulantes.Requerimientos.Seleccion.form" mode="POSIBLES"/>
+			</flow:action>
+		</flow:form>
+		<flow:form name="Seleccion.Posibles:POSIBLES" mode="POSIBLES" doc="SOURCE" form-class="NucleusRH.Base.Gestion_de_Postulantes.Requerimientos.Seleccion.form">
+			<flow:action name="BACK">
+				<flow:close-form/>
+			</flow:action>
+			<flow:action name="FILTER">
+				<flow:exec-method method="SeleccionPersonal" out-doc="SELECCION" class="NucleusRH.Base.Gestion_de_Postulantes.Requerimientos.REFERENCIA">
+					<flow:param doc-path="#ELEGIDOS:" type="Nomad.NSystem.Object" mode="in" name="Filtro"/>
+					<flow:param doc-path="#FILTERDATA:" type="Nomad.NSystem.Proxy.NomadXML" mode="in" name="FILTERDATA"/>
+				</flow:exec-method>
+				<flow:close-form/>
+				<flow:open-form parent-doc-path="#FILTERDATA:" doc-path="#SELECCION:" form-class="NucleusRH.Base.Gestion_de_Postulantes.Requerimientos.Seleccion.Exito.form" mode="EDIT"/>
+				<!--flow:open-form doc-path="#SELECCION:" mode="SELECCION" parent-doc-path="#SELECCION:" form-class="NucleusRH.Base.Gestion_de_Postulantes.Requerimientos.Seleccion.form"/-->
+			</flow:action>
+			<flow:action name="on-show">
+				<flow:log text-path="#SELECCION:" text="ppsel"/>
+				<flow:attach-doc doc-path="#SELECCION:" attach-id="RS"/>
+			</flow:action>
+		</flow:form>
+		<flow:form name="NucleusRH.Base.Gestion_de_Postulantes.Requerimientos.Seleccion.Exito.form" form-class="NucleusRH.Base.Gestion_de_Postulantes.Requerimientos.Seleccion.Exito.form" parent-doc="PARENTSOURCE" doc="SOURCE" mode="EDIT">
+			<flow:action name="BACK">
+				<flow:exit-flow return-path="#SOURCE:"/>
+			</flow:action>
+			<flow:action name="on-show">
+				<flow:html-gen input-doc-path="#SOURCE:" out-file-path="#SOURCE:@report" template-file="NucleusRH.Base.Gestion_de_Postulantes.ListadoSeleccionados.rpt"/>
+			</flow:action>
+		</flow:form>
+	</flow:group>
+</flow:flow>

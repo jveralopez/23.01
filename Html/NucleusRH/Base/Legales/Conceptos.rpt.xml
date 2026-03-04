@@ -1,0 +1,329 @@
+<html:html xmlns:html="nomad_engine.html" xmlns:qry="nomad_engine.qry" name="NucleusRH.Base.Legales.Conceptos" extends="Nomad.Base.BaseReport.rpt" doc="source">
+	<html:query declare="&lt;!--ROW oi_empresa=&quot;&quot; oi_carpeta=&quot;&quot; oi_adelanto=&quot;101&quot; f_adel_desde=&quot;&quot; f_adel_hasta=&quot;&quot; oi_estado_ant=&quot;&quot; oi_clasif_sujeto=&quot;&quot; adelantos_anulados=&quot;&quot; salida=&quot;HTML&quot; /--&gt;&#13;&#10;&lt;ROW oi_empresa=&quot;&quot; oi_carpeta=&quot;&quot; oi_adelanto=&quot;&quot; f_adel_desde=&quot;&quot; f_adel_hasta=&quot;&quot; oi_estado_ant=&quot;&quot; oi_clasif_sujeto=&quot;&quot; adelantos_anulados=&quot;1&quot; salida=&quot;HTML&quot; /&gt;">
+		<qry:main doc="SOURCE">
+			<qry:append-doc doc-path="#SOURCE:." name="FILTRO"/>
+			<REPORT label="Conceptos por Adelantos">
+				<qry:attribute value="format_date(now(),'dd/mm/yyyy HH:MM')" name="date"/>
+				<GROUPS>
+					<GROUP tag="ADELANTO" type="title" noreg="No se encontraron registros">
+						<COLS>
+							<COL name="empresa" label="Empresa"/>
+							<COL name="carpeta" label="Carpeta"/>
+							<COL name="oi_adelanto" label="Nro. Adelanto"/>
+							<COL name="f_adelanto" label="Fecha Adelanto"/>
+							<COL name="responsable" label="Responsable"/>
+							<COL name="sucursal" label="Sucursal"/>
+							<COL name="f_aprueba" label="Fecha Aprobado"/>
+							<qry:if test="#FILTRO:@adelantos_anulados!=''">
+								<qry:then>
+									<COL name="f_anula" label="Fecha Anulado"/>
+								</qry:then>
+							</qry:if>
+							<COL name="estado" label="Estado"/>
+						</COLS>
+						<GROUP tag="CONCEPTO">
+							<COLS>
+								<COL name="concepto" label="Concepto"/>
+								<COL name="monto" label="Monto" style="text-align:right;"/>
+								<COL name="rendido" label="Rendido" style="text-align:right;"/>
+								<COL name="transferido" label="Transferido a GP" style="text-align:right;"/>
+								<COL name="pendiente" label="Pendiente" style="text-align:right;"/>
+							</COLS>
+						</GROUP>
+					</GROUP>
+				</GROUPS>
+				<qry:element name="DATA">
+					<qry:insert-select doc-path="" name="GetAdelantos"/>
+				</qry:element>
+			</REPORT>
+		</qry:main>
+		<qry:select doc="SOURCE" name="GetAdelantos">
+			<qry:xquery>
+				for $r in sql('
+			
+				SELECT
+					EMP.c_empresa,
+					EMP.d_empresa,
+					CAR.c_carpeta,
+					CAR.d_carpeta,
+					ADE.oi_adelanto,
+					ADE.f_adelanto,
+					ADE.oi_estado_ant,
+					SUJ.c_sujeto,
+					SUJ.d_sujeto,
+					SUC.c_ubicacion,
+					SUC.d_ubicacion,
+					EST.c_estado_ant,							
+					EST.d_estado_ant,
+					ADE.f_anula,
+					ADE.f_aprueba
+					
+				FROM
+					LEG04_ADELANTOS as ADE,
+					LEG01_CARPETAS as CAR,
+					ORG03_EMPRESAS as EMP,					
+		     	LEG40_CLASIF_SUJ as CS,
+		     	LEG40_SUJETOS as SUJ,
+		     	ORG03_UBICACIONES as SUC,
+		     	LEG54_ESTADOS_ANT as EST				
+				
+				JOIN
+					ADE.oi_carpeta INNER CAR.oi_carpeta,
+					CAR.oi_empresa INNER EMP.oi_empresa,
+					ADE.oi_clasif_sujeto INNER CS.oi_clasif_sujeto,
+					CS.oi_sujeto INNER SUJ.oi_sujeto,
+					ADE.oi_ubicacion INNER SUC.oi_ubicacion,
+					ADE.oi_estado_ant INNER EST.oi_estado_ant																
+					
+				WHERE
+					1=1
+					{%? (#FILTRO:@oi_empresa!='')
+						{% AND CAR.oi_empresa = {#FILTRO:@oi_empresa} %}
+						{% %}
+					%}
+					{%? (#FILTRO:@oi_carpeta!='')
+						{% AND ADE.oi_carpeta = {#FILTRO:@oi_carpeta} %}
+						{% %}
+					%}
+					{%? (#FILTRO:@oi_adelanto!='')
+						{% AND ADE.oi_adelanto = {#FILTRO:@oi_adelanto} %}
+						{% %}
+					%}
+					{%? (#FILTRO:@f_adel_desde!='')
+						{% AND ADE.f_adelanto &gt;= {#FILTRO:@f_adel_desde} %}
+						{% %}
+					%}
+					{%? (#FILTRO:@f_adel_hasta!='')
+						{% AND ADE.f_adelanto &lt;= ADDDAYS({#FILTRO:@f_adel_hasta},1) %}
+						{% %}
+					%}
+					{%? (#FILTRO:@oi_estado_ant!='')
+						{% AND ADE.oi_estado_ant = {#FILTRO:@oi_estado_ant} %}
+						{% %}
+					%}															
+					{%? (#FILTRO:@oi_clasif_sujeto!='')
+						{% AND ADE.oi_clasif_sujeto = {#FILTRO:@oi_clasif_sujeto} %}
+						{% %}
+					%}
+					{%? (#FILTRO:@adelantos_anulados!='1')                  
+						{% AND ISNULL(ADE.f_anula) %}
+						{% %} 
+					%}			
+				
+				ORDER BY
+					c_empresa ASC,
+					c_carpeta ASC,
+					oi_adelanto ASC
+					
+					
+			')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<ADELANTO>
+					<qry:attribute name="empresa" value="'['+$r/@c_empresa+'] '+$r/@d_empresa"/>
+					<qry:attribute name="carpeta" value="'['+$r/@c_carpeta+'] '+$r/@d_carpeta"/>
+					<qry:attribute name="oi_adelanto" value="$r/@oi_adelanto"/>
+					<qry:attribute name="f_adelanto" value="format-date($r/@f_adelanto,'dd/mm/yyyy HH:MM')"/>
+					<qry:attribute name="responsable" value="'['+$r/@c_sujeto+'] '+$r/@d_sujeto"/>
+					<qry:attribute name="sucursal" value="'['+$r/@c_ubicacion+'] '+$r/@d_ubicacion"/>
+					<qry:attribute name="estado" value="'['+$r/@c_estado_ant+'] '+$r/@d_estado_ant"/>
+					<qry:attribute name="f_anula" value="iif($r/@f_anula='','-',format-date($r/@f_anula,'dd/mm/yyyy HH:MM'))"/>
+					<qry:attribute name="f_aprueba" value="iif($r/@f_aprueba='','-',format-date($r/@f_aprueba,'dd/mm/yyyy HH:MM'))"/>
+					<qry:insert-select name="GetConceptos" doc-path="$r"/>
+				</ADELANTO>
+			</qry:out>
+		</qry:select>
+		<qry:select name="GetConceptos" doc="PARAM">
+			<qry:xquery>
+				for $r in SQL('
+			
+			SELECT
+			  LEG04_MODO_PAGO.oi_adelanto,
+			  LEG04_DETALLE.oi_concepto,
+			  SUM(LEG04_DETALLE.n_importe) as monto
+			FROM			  
+			  LEG04_MODO_PAGO,
+			  LEG04_DETALLE
+			  
+		  JOIN  	
+		  	LEG04_MODO_PAGO.oi_modo_de_pago INNER LEG04_DETALLE.oi_modo_de_pago   
+		                                                                        
+			WHERE
+		  	LEG04_MODO_PAGO.oi_adelanto = {$PARAM/@oi_adelanto} 	
+			GROUP BY
+				LEG04_MODO_PAGO.oi_adelanto,
+				LEG04_DETALLE.oi_concepto			
+			
+			')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<CONCEPTO>
+					<qry:insert-select name="GetConcepto" doc-path="$r"/>
+					<qry:attribute name="monto" value="$r/@monto"/>
+					<qry:attribute name="rendido" value="0"/>
+					<qry:insert-select name="GetRendido" doc-path="$r"/>
+					<qry:attribute name="pendiente" value="(number(@monto)-number(@rendido))"/>
+					<qry:attribute name="monto" value="format-number(@monto,0,2,',','.','')"/>
+					<qry:attribute name="rendido" value="format-number(@rendido,0,2,',','.','')"/>
+					<qry:attribute name="pendiente" value="format-number(@pendiente,0,2,',','.','')"/>
+					<qry:insert-select name="GetTransGP" doc-path="$r"/>
+					<qry:attribute name="transferido" value="format-number(@transferido,0,2,',','.','')"/>
+				</CONCEPTO>
+			</qry:out>
+		</qry:select>
+		<qry:select name="GetConcepto" doc="PARAM">
+			<qry:xquery>
+				for $r in SQL('
+			
+			SELECT			  
+			  LEG53_CONCEPTOS.c_concepto,
+			  LEG53_CONCEPTOS.d_concepto			  
+			
+			FROM			  
+			  LEG53_CONCEPTOS
+			  
+			WHERE
+		  	LEG53_CONCEPTOS.oi_concepto = {$PARAM/@oi_concepto}			
+			
+			')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:attribute name="concepto" value="'['+$r/@c_concepto+'] '+$r/@d_concepto"/>
+			</qry:out>
+		</qry:select>
+		<qry:select name="GetRendido" doc="PARAM">
+			<qry:xquery>
+				for $r in SQL('
+				  
+					SELECT						
+						COMP.n_subtotal,
+						COMP.n_iva,
+						COMP.n_otros_impuestos,
+						TC.c_tipo,
+						SUM(CONC.n_total) as total_conc
+										
+					FROM						
+						LEG06_RENDICIONES as REN,
+						LEG06_COMPS_RENDICION as COMP,
+						LEG06_CONCEPTOS_COMP as CONC,
+						LEG63_TIPOS_COMPROB as TC
+					
+					JOIN
+						REN.oi_rendicion INNER COMP.oi_rendicion,
+						CONC.oi_comp_rendicion INNER COMP.oi_comp_rendicion,
+						COMP.oi_tipo_comprob INNER TC.oi_tipo_comprob						
+										
+		  		WHERE
+			  		REN.l_anulado = 0
+			  		AND REN.oi_adelanto = {$PARAM/@oi_adelanto}
+			  		AND CONC.oi_concepto = {$PARAM/@oi_concepto}
+			  	
+			  	GROUP BY
+			  		COMP.oi_comp_rendicion,
+						COMP.n_subtotal,
+						COMP.n_iva,
+						COMP.n_otros_impuestos,
+						TC.c_tipo			  		
+			
+				')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:if test="$r/@total_conc != ''">
+					<qry:then>
+						<qry:if test="$r/@c_tipo = 'NC'">
+							<qry:then>
+								<qry:attribute name="rendido" value="Number(@rendido)-Number($r/@total_conc)-(Number($r/@total_conc) div Number(Number($r/@n_subtotal)+Number($r/@n_iva)))*(Number($r/@n_otros_impuestos))"/>
+							</qry:then>
+							<qry:else>
+								<qry:attribute name="rendido" value="Number(@rendido)+Number($r/@total_conc)+(Number($r/@total_conc) div Number(Number($r/@n_subtotal)+Number($r/@n_iva)))*(Number($r/@n_otros_impuestos))"/>
+							</qry:else>
+						</qry:if>
+					</qry:then>
+				</qry:if>
+			</qry:out>
+		</qry:select>
+		<qry:select name="GetTransferido" doc="PARAM">
+			<qry:xquery>
+				for $r in SQL('
+				  
+					SELECT						
+						COMP.n_subtotal,
+						COMP.n_iva,
+						COMP.n_otros_impuestos,
+						TC.c_tipo,
+						SUM(CONC.n_total) as total_conc
+										
+					FROM						
+						LEG06_RENDICIONES as REN,
+						LEG06_COMPS_RENDICION as COMP,
+						LEG06_CONCEPTOS_COMP as CONC,
+						LEG63_TIPOS_COMPROB as TC
+					
+					JOIN
+						REN.oi_rendicion INNER COMP.oi_rendicion,
+						CONC.oi_comp_rendicion INNER COMP.oi_comp_rendicion,
+						COMP.oi_tipo_comprob INNER TC.oi_tipo_comprob						
+										
+		  		WHERE
+			  		REN.l_anulado = 0
+			  		AND REN.oi_adelanto = {$PARAM/@oi_adelanto}
+			  		AND CONC.oi_concepto = {$PARAM/@oi_concepto}
+			  		AND ISNOTNULL(COMP.f_transferido)
+			  	
+			  	GROUP BY
+			  		COMP.oi_comp_rendicion,
+						COMP.n_subtotal,
+						COMP.n_iva,
+						COMP.n_otros_impuestos,
+						TC.c_tipo			  		
+			
+				')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:if test="$r/@total_conc != ''">
+					<qry:then>
+						<qry:if test="$r/@c_tipo = 'NC'">
+							<qry:then>
+								<qry:attribute name="transferido" value="Number(@transferido)-Number($r/@total_conc)-(Number($r/@total_conc) div Number(Number($r/@n_subtotal)+Number($r/@n_iva)))*(Number($r/@n_otros_impuestos))"/>
+							</qry:then>
+							<qry:else>
+								<qry:attribute name="transferido" value="Number(@transferido)+Number($r/@total_conc)+(Number($r/@total_conc) div Number(Number($r/@n_subtotal)+Number($r/@n_iva)))*(Number($r/@n_otros_impuestos))"/>
+							</qry:else>
+						</qry:if>
+					</qry:then>
+				</qry:if>
+			</qry:out>
+		</qry:select>
+		<qry:select name="GetTransGP" doc="PARAM">
+			<qry:xquery>
+				for $r in SQL('
+			
+
+			SELECT
+			  D.oi_concepto,
+			  SUM(D.n_importe) as monto
+			FROM			  
+			  LEG04_ADELANTOS as A,
+			  leg04_modo_pago as MP,
+			  leg04_detalle as D
+			  
+		  JOIN  	
+		  	A.oi_adelanto INNER MP.oi_adelanto,
+		  	MP.oi_modo_de_pago INNER D.oi_modo_de_pago
+		                                                                        
+			WHERE
+		  	A.oi_adelanto = {$PARAM/@oi_adelanto} 
+		  	AND D.oi_concepto = {$PARAM/@oi_concepto} 
+		  	AND ISNOTNULL(MP.f_transferido)
+ 
+			GROUP BY
+				D.oi_concepto 	
+			
+			')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:attribute name="transferido" value="$r/@monto"/>
+			</qry:out>
+		</qry:select>
+	</html:query>
+</html:html>

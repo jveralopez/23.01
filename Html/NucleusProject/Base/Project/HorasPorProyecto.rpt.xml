@@ -1,0 +1,356 @@
+<html:html xmlns:html="nomad_engine.html" xmlns:qry="nomad_engine.qry" extends="Nomad.Base.BaseReport.rpt" xtends="Nomad.Base.BaseReport.rpt" doc="source" name="NucleusRH.Base.Liquidacion.ListadoConcepto">
+	<html:query declare="&lt;DATA f_desde=&quot;20090101&quot; f_hasta=&quot;20090331&quot; recurso=&quot;&quot; /&gt;">
+		<qry:main doc="SOURCE">
+			<REPORT label="Horas por Recursos por Proyectos y Rol" style="width:90%;">
+				<qry:attribute name="date" value="format_date(Now(),'dd/mm/yyyy HH:MM')"/>
+				<GROUPS>
+					<GROUP tag="REP" style="padding-left:0px" type="title" noreg="No se encontraron registros para los filtros seleccionados.">
+						<COLS>
+							<COL name="f_desde" label="Fecha Desde" align="left" style=""/>
+							<COL name="f_hasta" label="Fecha Hasta" align="left" style=""/>
+						</COLS>
+						<GROUP tag="RECURSO" style="padding-left:0px" type="title" noreg="No se encontraron registros para los filtros seleccionados.">
+							<COLS>
+								<COL name="d_ape_y_nom" label="Apellido y Nombre" align="left" style=""/>
+								<COL name="e_time" label="Horas Cargadas" align="left" style=""/>
+							</COLS>
+							<GROUP tag="PROYECTO" style="padding-left:0px" type="table" noreg="No se encontraron registros para los filtros seleccionados.">
+								<COLS>
+									<COL name="c_proyecto" label="Codigo" align="left" style=""/>
+									<COL name="d_proyecto" label="Proyecto" align="left" style=""/>
+									<COL name="c_perfil" label="Perfil" align="left" style=""/>
+									<COL name="e_time" label="Horas Cargadas" align="right" style="text-align:right;"/>
+								</COLS>
+								<FCOLS>
+									<COL label="" align="left" style=""/>
+									<COL label="" align="left" style=""/>
+									<COL label="Total" align="left" style=""/>
+									<COL name="e_time" label="Horas Cargadas" align="right" style="text-align:right;"/>
+								</FCOLS>
+							</GROUP>
+						</GROUP>
+					</GROUP>
+				</GROUPS>
+				<qry:element name="DATA">
+					<qry:append-doc doc-path="#SOURCE:." name="PARAMIN"/>
+					<qry:element name="REP">
+						<qry:attribute value="format_date(#PARAMIN:@f_desde,'dd/mm/yyyy')" name="f_desde"/>
+						<qry:attribute value="format_date(#PARAMIN:@f_hasta,'dd/mm/yyyy')" name="f_hasta"/>
+						<qry:insert-select name="RECURSOS"/>
+					</qry:element>
+				</qry:element>
+			</REPORT>
+		</qry:main>
+		<qry:select name="RECURSOS" doc="">
+			<qry:xquery>
+				for $r in SQL('select 
+	r.oi_recurso,
+	r.c_recurso,        
+	p.d_ape_y_nom
+	
+from 
+	pry05_recursos as r,
+	per01_personal as p,
+	pry04_trabajos as t,
+	pry02_tareas_rec as tr
+	
+join
+	r.oi_personal inner p.oi_personal,
+	r.oi_recurso inner tr.oi_recurso,
+	t.oi_tarea_rec inner tr.oi_tarea_rec    
+
+where 
+	t.f_fecha &gt;= {DateTime(#PARAMIN:@f_desde)} and t.f_fecha &lt;= {DateTime(#PARAMIN:@f_hasta)}		
+	{%? (#PARAMIN:@recurso!='')	{% AND r.oi_recurso= {%=#PARAMIN:@recurso %} %} {% %} %}
+	
+group by
+	r.oi_recurso, r.c_recurso, p.d_ape_y_nom
+
+order by
+	c_recurso ASC
+')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<RECURSO>
+					<qry:attribute value="$r/@oi_recurso" name="oi_recurso"/>
+					<qry:attribute value="$r/@c_recurso" name="c_recurso"/>
+					<qry:attribute value="$r/@d_ape_y_nom" name="d_ape_y_nom"/>
+					<qry:insert-select doc-path="$r" name="RECURSOS_TOTAL"/>
+					<qry:insert-select doc-path="$r" name="NUEVO"/>
+					<qry:attribute value="number(@e_time) div 60" name="e_time"/>
+					<!--qry:insert-select doc-path="." name="RECURSOS_ROL"/>
+				
+				<qry:insert-select doc-path="." name="AUXILIAR_REPORTE"/-->
+				</RECURSO>
+			</qry:out>
+		</qry:select>
+		<qry:select doc="SOURCE" name="NUEVO">
+			<qry:xquery>
+				for $r in SQL('select 	 
+	p.c_perfil, y.c_proyecto, y.d_proyecto, p.oi_perfil, y.oi_proyecto, tr.oi_recurso
+	 
+from 
+	pry04_trabajos as t, PRY03_UND_TIEMPO AS ut,
+	pry02_tareas_rec as tr, 	
+	PRY06_PERFILES AS p, PRY02_TAREAS AS A, 
+	PRY01_PROYECTOS AS y
+JOIN
+	t.oi_tarea_rec INNER tr.oi_tarea_rec,
+	tr.oi_tarea INNER a.oi_tarea,
+	t.oi_perfil INNER p.oi_perfil,
+	A.oi_pry_imputa INNER y.oi_proyecto,
+	t.oi_unidad_tiempo INNER ut.oi_unidad_tiempo
+WHERE
+	t.f_fecha &gt;= {DateTime(#PARAMIN:@f_desde)} and t.f_fecha &lt;= {DateTime(#PARAMIN:@f_hasta)}		
+	AND tr.oi_recurso= {%=#SOURCE:@oi_recurso %} 
+group by
+	p.c_perfil, y.c_proyecto, y.d_proyecto , p.oi_perfil, y.oi_proyecto, tr.oi_recurso
+order by
+	c_proyecto ASC
+	
+')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<PROYECTO>
+					<qry:attribute name="c_proyecto" value="$r/@c_proyecto"/>
+					<qry:attribute name="d_proyecto" value="$r/@d_proyecto"/>
+					<qry:attribute value="$r/@c_perfil" name="c_perfil"/>
+					<qry:insert-select doc-path="$r" name="NUEVO1"/>
+					<qry:attribute value="number(@e_time) div 60" name="e_time"/>
+				</PROYECTO>
+			</qry:out>
+		</qry:select>
+		<qry:select doc="SOURCE" name="NUEVO1">
+			<qry:xquery>
+				for $r in SQL('select 
+	t.e_duracion, ut.e_minutos	 
+from 
+	pry04_trabajos as t, PRY03_UND_TIEMPO AS ut,
+	pry02_tareas_rec as tr, 	
+	PRY06_PERFILES AS p, PRY02_TAREAS AS A, 
+	PRY01_PROYECTOS AS y
+JOIN
+	t.oi_tarea_rec INNER tr.oi_tarea_rec,
+	tr.oi_tarea INNER a.oi_tarea,
+	t.oi_perfil INNER p.oi_perfil,
+	A.oi_pry_imputa INNER y.oi_proyecto,
+	t.oi_unidad_tiempo INNER ut.oi_unidad_tiempo
+WHERE
+	t.f_fecha &gt;= {DateTime(#PARAMIN:@f_desde)} and t.f_fecha &lt;= {DateTime(#PARAMIN:@f_hasta)}		
+	AND tr.oi_recurso= {%=#SOURCE:@oi_recurso %} 
+	and p.oi_perfil= {%=#SOURCE:@oi_perfil %} 
+	and y.oi_proyecto= {%=#SOURCE:@oi_proyecto %} 
+	
+
+
+	
+')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:attribute value="number(./@e_time)+(number($r/@e_minutos) * number($r/@e_duracion))" name="e_time"/>
+			</qry:out>
+		</qry:select>
+		<qry:select doc="SOURCE" name="AUXILIAR_REPORTE">
+			<qry:xquery>
+				for $r in #SOURCE:ROL/PROY[@e_time!=0]
+				ORDER BY c_proyecto ASC
+			</qry:xquery>
+			<qry:out>
+				<PROYECTO>
+					<qry:attribute name="c_proyecto" value="$r/@c_proyecto"/>
+					<qry:attribute name="d_proyecto" value="$r/@d_proyecto"/>
+					<qry:attribute value="$r/@c_perfil" name="c_perfil"/>
+					<qry:attribute value="$r/@e_time" name="e_time"/>
+				</PROYECTO>
+			</qry:out>
+		</qry:select>
+		<qry:select doc="SOURCE" name="RECURSOS_TOTAL">
+			<qry:xquery>
+				for $r in SQL('select 
+	t.e_duracion,
+	ut.e_minutos
+from 
+	pry04_trabajos as t,          
+	pry02_tareas_rec as tr,         
+	pry03_und_tiempo as ut
+
+join
+	tr.oi_tarea_rec inner t.oi_tarea_rec,
+	t.oi_unidad_tiempo inner ut.oi_unidad_tiempo
+where
+	t.f_fecha &gt;= {DateTime(#PARAMIN:@f_desde)} 
+	and t.f_fecha &lt;= {DateTime(#PARAMIN:@f_hasta)}
+	and tr.oi_recurso={#SOURCE:@oi_recurso}
+	
+')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:attribute value="number(./@e_time)+(number($r/@e_minutos) * number($r/@e_duracion))" name="e_time"/>
+			</qry:out>
+		</qry:select>
+		<qry:select doc="SOURCE" name="RECURSOS_ROL">
+			<qry:xquery>
+				for $r in SQL('select 
+	r.oi_recurso,
+	pe.oi_perfil,
+	pe.d_perfil
+	
+from 
+	pry05_recursos as r,
+	pry04_trabajos as t,
+	pry02_tareas_rec as tr,
+	pry06_perfiles as pe
+	
+join
+	r.oi_recurso inner tr.oi_recurso,
+	t.oi_tarea_rec inner tr.oi_tarea_rec,
+	t.oi_perfil inner pe.oi_perfil        
+
+where 
+	t.f_fecha &gt;= {DateTime(#PARAMIN:@f_desde)} and t.f_fecha &lt;= {DateTime(#PARAMIN:@f_hasta)}
+	and tr.oi_recurso={#SOURCE:@oi_recurso}
+	
+group by
+	r.oi_recurso, pe.oi_perfil, pe.d_perfil
+
+order by
+	d_perfil ASC
+')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<ROL>
+					<qry:attribute value="$r/@oi_perfil" name="oi_perfil"/>
+					<qry:attribute value="#SOURCE:@oi_recurso" name="oi_recurso"/>
+					<qry:attribute value="$r/@d_perfil" name="c_perfil"/>
+					<!--qry:insert-select doc-path="$r" name="RECURSOS_REC_TOTAL"/-->
+					<qry:insert-select doc-path="." name="PROYECTOS"/>
+					<qry:insert-select doc-path="." name="AUXILIAR_REPORTE2"/>
+				</ROL>
+			</qry:out>
+		</qry:select>
+		<qry:select doc="SOURCE" name="AUXILIAR_REPORTE2">
+			<qry:xquery>
+				for $r in #SOURCE:PROY[@e_time!=0]
+			</qry:xquery>
+			<qry:out>
+				<qry:attribute value="number(@e_time) + $r/@e_time" name="e_time"/>
+				b
+			</qry:out>
+		</qry:select>
+		<qry:select name="RECURSOS_REC_TOTAL" doc="SOURCE">
+			<qry:xquery>
+				for $r in SQL('select 
+	t.e_duracion,
+	ut.e_minutos
+from 
+	pry04_trabajos as t,          
+	pry02_tareas_rec as tr,         
+	pry03_und_tiempo as ut
+
+join
+	tr.oi_tarea_rec inner t.oi_tarea_rec,
+	t.oi_unidad_tiempo inner ut.oi_unidad_tiempo
+where
+	t.f_fecha &gt;= {DateTime(#PARAMIN:@f_desde)} and t.f_fecha &lt;= {DateTime(#PARAMIN:@f_hasta)}
+	and tr.oi_recurso={#SOURCE:@oi_recurso}
+	and t.oi_perfil={#SOURCE:@oi_perfil}
+	
+')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:attribute value="number(./@e_time)+(number($r/@e_minutos) * number($r/@e_duracion))" name="e_time"/>
+			</qry:out>
+		</qry:select>
+		<qry:select name="PROYECTOS" doc="SOURCE">
+			<qry:xquery>
+				for $r in SQL('select 
+	p.oi_proyecto,
+	p.c_proyecto,
+	p.d_proyecto
+from 
+	pry01_proyectos as p
+where
+	IsNull(p.oi_proyecto_parent)
+	
+')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<PROY>
+					<qry:attribute name="oi_perfil" value="#SOURCE:@oi_perfil"/>
+					<qry:attribute name="oi_recurso" value="#SOURCE:@oi_recurso"/>
+					<qry:attribute name="oi_proyecto" value="$r/@oi_proyecto"/>
+					<qry:attribute name="c_proyecto" value="$r/@c_proyecto"/>
+					<qry:attribute name="d_proyecto" value="$r/@d_proyecto"/>
+					<qry:attribute value="#SOURCE:@c_perfil" name="c_perfil"/>
+					<qry:insert-select name="TAREAS" doc-path="."/>
+					<qry:insert-select name="PROYECTOS_CHILD" doc-path="."/>
+					<!--qry:attribute value="iif(number(@e_time)=0,'1','')" name="hts:delete"/-->
+					<qry:attribute value="number(@e_time) div 60" name="e_time"/>
+				</PROY>
+			</qry:out>
+		</qry:select>
+		<qry:select name="PROYECTOS_CHILD" doc="SOURCE">
+			<qry:xquery>
+				for $r in SQL('select 
+	p.oi_proyecto
+from 
+	pry01_proyectos as p
+where
+	p.oi_proyecto_parent={#SOURCE:@oi_proyecto}
+	
+')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:attribute name="oi_proyecto" value="$r/@oi_proyecto"/>
+				<qry:insert-select name="TAREAS" doc-path="."/>
+				<qry:insert-select name="PROYECTOS_CHILD" doc-path="."/>
+			</qry:out>
+		</qry:select>
+		<qry:select name="TAREAS" doc="SOURCE">
+			<qry:xquery>
+				for $r in SQL('select 
+	t.e_duracion,
+	ut.e_minutos, 	
+	ta.c_tarea,
+	ta.d_tarea,
+	ta.f_inicio,
+	ta.f_fin,
+	ta.c_estado,
+	ta.l_simul
+
+from 
+	PRY02_TAREAS as ta,
+	PRY02_TAREAS_REC as tr,
+	pry04_trabajos as t,          
+	pry03_und_tiempo as ut
+	
+join
+	ta.oi_tarea inner tr.oi_tarea,
+	t.oi_tarea_rec inner tr.oi_tarea_rec,
+	t.oi_unidad_tiempo inner ut.oi_unidad_tiempo	
+	
+where                        
+	t.f_fecha &gt;= {DateTime(#PARAMIN:@f_desde)} and t.f_fecha &lt;= {DateTime(#PARAMIN:@f_hasta)}
+	and tr.oi_recurso={#SOURCE:@oi_recurso}
+	and ta.oi_pry_imputa={#SOURCE:@oi_proyecto}       
+	and t.oi_perfil={#SOURCE:@oi_perfil}
+	
+	
+')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<TAREA>
+					<qry:attribute value="$r/@c_tarea" name="c_tarea"/>
+					<qry:attribute value="$r/@d_tarea" name="d_tarea"/>
+					<qry:attribute value="$r/@f_inicio" name="f_inicio"/>
+					<qry:attribute value="$r/@f_fin" name="f_fin"/>
+					<qry:attribute value="$r/@c_estado" name="c_estado"/>
+					<qry:attribute value="$r/@l_simul" name="l_simul"/>
+					<qry:attribute value="$r/@e_minutos" name="e_minutos"/>
+					<qry:attribute value="$r/@e_duracion" name="e_duracion"/>
+				</TAREA>
+				<qry:attribute value="number(./@e_time)+(number($r/@e_minutos) * number($r/@e_duracion))" name="e_time"/>
+			</qry:out>
+		</qry:select>
+	</html:query>
+</html:html>

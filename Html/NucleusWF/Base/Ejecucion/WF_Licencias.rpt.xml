@@ -1,0 +1,351 @@
+<html:html xmlns:html="nomad_engine.html" xmlns:qry="nomad_engine.qry" xmlns:xsl="http://www.w3.org/1999/XSL/Transform" extends="NucleusWF.Base.Ejecucion.BaseInicioWF.rpt" doc="source" name="NucleusWF.Base.Ejecucion.WF_Licencias.rpt">
+	<html:query declare="&lt;PARAMS oi_usuario_sistema=&quot;masosa&quot; workflow=&quot;licencia&quot;/&gt;">
+		<qry:include name="NucleusRH.Base.Personal.Legajo.PERSONAL.QRY_INICIO_WFs"/>
+		<qry:main doc="SOURCE">
+			<qry:append-doc name="FILTER" doc-path="#SOURCE:PARAMS"/>
+			<qry:element name="REPORTE">
+				<qry:attribute name="workflow" value="#FILTER:@workflow"/>
+				<qry:element name="PERSONAS">
+					<qry:insert-select name="qry_DatosPersonales" doc-path="#SOURCE:PARAMS"/>
+				</qry:element>
+				<qry:element name="LEGAJOS">
+					<qry:attribute name="cant_leg" value="0"/>
+					<qry:insert-select name="qry_Legajos" doc-path=""/>
+				</qry:element>
+				<qry:element name="LICENCIAS">
+					<qry:insert-select name="qry_Licencias"/>
+				</qry:element>
+			</qry:element>
+		</qry:main>
+		<qry:select name="qry_Legajos" doc="PARAM">
+			<qry:xquery>
+				for $r in SQL('
+	SELECT
+		LEG.e_numero_legajo,
+		EMP.d_empresa,
+		LEG.oi_personal_emp,
+		EMP.oi_empresa
+
+	FROM
+		PER01_PERSONAL as PER,
+		PER02_PERSONAL_EMP as LEG,
+		ORG03_EMPRESAS as EMP
+	JOIN
+		PER.oi_personal INNER LEG.oi_personal,
+		LEG.oi_empresa INNER EMP.oi_empresa
+	WHERE
+		PER.oi_usuario_sistema = {#FILTER:@oi_usuario_sistema}			
+	')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:attribute name="cant_leg" value="@cant_leg + 1"/>
+				<LEGAJO>
+					<qry:attribute name="n_leg" value="../@cant_leg"/>
+					<qry:attribute name="id_legajo" value="$r/@oi_personal_emp"/>
+					<qry:attribute name="nombre_empresa" value="'Empresa ' + $r/@d_empresa"/>
+					<qry:attribute name="num_legajo" value="'Leg. ' + $r/@e_numero_legajo"/>
+					<qry:attribute name="empresa_legajo" value="@nombre_empresa + ' - ' + @num_legajo "/>
+					<qry:attribute name="id_empresa" value="$r/@oi_empresa"/>
+					<qry:attribute name="href" value="'#'+@id_empresa"/>
+					<qry:attribute name="id_input_radio" value="'legajo_'+@id_legajo"/>
+					<qry:attribute name="id_div_collapse" value="'heading_'+@id_legajo"/>
+					<qry:attribute name="select_id" value="'select_'+@id_legajo"/>
+					<qry:element name="LICENCIAS_LEG">
+						<qry:attribute name="limit" value="0"/>
+						<qry:insert-select name="qry_LicenciasPer" doc-path="$r"/>
+					</qry:element>
+				</LEGAJO>
+			</qry:out>
+		</qry:select>
+		<qry:select name="qry_Licencias" doc="">
+			<qry:xquery>
+				for $r in SQL('
+SELECT
+LIC.oi_licencia,
+LIC.d_licencia
+FROM
+PER16_LICENCIAS as LIC
+WHERE
+LIC.l_solicitar_wf = 1
+')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:element name="LICENCIA">
+					<qry:attribute name="d_licencia" value="$r/@d_licencia"/>
+					<qry:attribute name="oi_licencia" value="$r/@oi_licencia"/>
+				</qry:element>
+			</qry:out>
+		</qry:select>
+		<qry:select name="qry_LicenciasPer" doc="PARAM">
+			<qry:xquery>
+				for $r in SQL('
+	SELECT
+		LIC.d_licencia,
+		LIC_PER.f_inicio as f_inicio,
+		LIC_PER.f_fin
+	FROM
+		PER02_LICEN_PER as LIC_PER,
+		PER16_LICENCIAS as LIC
+	JOIN
+		LIC_PER.oi_licencia INNER LIC.oi_licencia
+	WHERE
+		LIC_PER.oi_personal_emp = {#PARAM:@oi_personal_emp}
+	ORDER BY
+		f_inicio DESC		
+	')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:if test="@limit &lt;= 4">
+					<qry:then>
+						<qry:attribute name="limit" value="@limit + 1"/>
+						<qry:element name="LICENCIA_LEG">
+							<qry:attribute name="tipo_licencia" value="$r/@d_licencia"/>
+							<qry:attribute name="f_desde" value="format-date($r/@f_inicio,'dd/mm/yy')"/>
+							<qry:attribute name="f_hasta" value="format-date($r/@f_fin,'dd/mm/yy')"/>
+						</qry:element>
+					</qry:then>
+				</qry:if>
+			</qry:out>
+		</qry:select>
+	</html:query>
+	<html:xslt>
+		<xsl:template match="LICENCIA">
+			<option>
+				<xsl:attribute name="value">
+					<xsl:value-of select="@oi_licencia"/>
+				</xsl:attribute>
+				<xsl:value-of select="@d_licencia"/>
+			</option>
+		</xsl:template>
+		<xsl:template match="LEGAJO">
+			<xsl:if test="@n_leg = 1">
+				<input type="hidden" id="oi_personal_emp">
+					<xsl:attribute name="value">
+						<xsl:value-of select="@id_legajo"/>
+					</xsl:attribute>
+				</input>
+			</xsl:if>
+			<div class="panel panel-default">
+				<div class="panel-heading pointer" role="button" data-toggle="collapse" data-parent="#accordion" aria-expanded="true" aria-controls="collapseOne" onclick="BlanquearParam2(this.id)">
+					<xsl:attribute name="id">
+						<xsl:value-of select="@id_div_collapse"/>
+					</xsl:attribute>
+					<xsl:attribute name="href">
+						<xsl:value-of select="@href"/>
+					</xsl:attribute>
+					<h4 class="panel-title">
+						<a OnClick="BlanquearParam(this.name)">
+							<xsl:attribute name="name">
+								<xsl:value-of select="@id_input_radio"/>
+							</xsl:attribute>
+							<xsl:value-of select="@empresa_legajo"/>
+						</a>
+						<div class="radio-legajo">
+							<input name="legajo" type="radio">
+								<xsl:attribute name="id">
+									<xsl:value-of select="@id_input_radio"/>
+								</xsl:attribute>
+								<xsl:choose>
+									<xsl:when test="@n_leg = 1">
+										<xsl:attribute name="checked">
+											true
+										</xsl:attribute>
+									</xsl:when>
+									<xsl:otherwise>
+										<xsl:attribute name="disabled">
+											true
+										</xsl:attribute>
+									</xsl:otherwise>
+								</xsl:choose>
+							</input>
+						</div>
+					</h4>
+				</div>
+				<div role="tabpanel" aria-expanded="false">
+					<xsl:attribute name="id">
+						<xsl:value-of select="@id_empresa"/>
+					</xsl:attribute>
+					<xsl:attribute name="aria-labelledby">
+						<xsl:value-of select="@id_div_collapse"/>
+					</xsl:attribute>
+					<xsl:choose>
+						<xsl:when test="@n_leg = 1">
+							<xsl:attribute name="class">
+								panel-collapse collapse in
+							</xsl:attribute>
+						</xsl:when>
+						<xsl:otherwise>
+							<xsl:attribute name="class">
+								panel-collapse collapse
+							</xsl:attribute>
+						</xsl:otherwise>
+					</xsl:choose>
+					<div class="panel-body">
+						<label class="col-sm-2 control-label label-licencia-pedir">
+							Licencia a pedir:
+						</label>
+						<select class="form-control select-licencias" name="oi_licencia" onchange="SetParam(this.name,this.value)">
+							<xsl:attribute name="id">
+								<xsl:value-of select="@select_id"/>
+							</xsl:attribute>
+							<option value="undefined">
+								Seleccione Licencia
+							</option>
+							<xsl:apply-templates select="../../LICENCIAS/LICENCIA"/>
+						</select>
+						<div class="panel panel-primary mis-licencias tablas-licencias">
+							<div class="panel-heading">
+								Mis licencias
+							</div>
+							<div class="table-responsive">
+								<table id="table-licencias" class="table table-sm table-hover table-striped">
+									<thead class="thead-mis-lic">
+										<tr>
+											<th style="text-align: left;" class="th-desc">
+												Tipo
+											</th>
+											<th class="th-fechas">
+												Desde
+											</th>
+											<th class="th-fechas">
+												Hasta
+											</th>
+										</tr>
+									</thead>
+									<tbody>
+										<xsl:choose>
+											<xsl:when test="./LICENCIAS_LEG/@limit = 0">
+												<tr>
+													<td colspan="3">
+														No existen licencias pedidas
+													</td>
+												</tr>
+											</xsl:when>
+											<xsl:otherwise>
+												<xsl:apply-templates select="LICENCIAS_LEG/LICENCIA_LEG"/>
+											</xsl:otherwise>
+										</xsl:choose>
+									</tbody>
+								</table>
+							</div>
+						</div>
+					</div>
+				</div>
+			</div>
+		</xsl:template>
+		<xsl:template match="LICENCIA_LEG">
+			<tr>
+				<td style="text-align: left;">
+					<xsl:value-of select="@tipo_licencia"/>
+				</td>
+				<td>
+					<xsl:value-of select="@f_desde"/>
+				</td>
+				<td>
+					<xsl:value-of select="@f_hasta"/>
+				</td>
+			</tr>
+		</xsl:template>
+		<xsl:template name="BODY_CUSTOM">
+			<div class="row wfLicencia">
+				<div class="panel-group" id="accordion" role="tablist" aria-multiselectable="false">
+					<xsl:apply-templates select="LEGAJOS/LEGAJO"/>
+				</div>
+			</div>
+		</xsl:template>
+		<xsl:template name="JAVASCRIPT_CUSTOM">
+			<script type="text/javascript">
+				function SetParam(param,valor){
+	this.parent.SetParam(param,valor);
+}
+
+function BlanquearParam(name){
+	//Desabilito todos los radio y habilito solamente el que tengo seleccioanado
+	$("input[type=radio]").prop("disabled", true);
+	$("#"+name).prop("disabled", false);
+	
+	//Selecciono el radio del legajo.
+	$("#"+name).prop("checked", true); 
+	
+	//Seteo el valor del legajo que iniciara el WF
+	var legajo = name.substr(7);
+	this.SetParam("oi_legajo",legajo);
+	
+	//Seteo el oi_licencia a null
+	this.SetParam("oi_licencia",null);
+	
+	//Muestro la opcion para la licencia por defecto
+	var select = $('.select-licencias');
+	select.val($('option:first', select).val());
+}
+
+function BlanquearParam2(id){
+	var legajo = id.substr(8);
+	
+	//Desabilito todos los radio y habilito solamente el que tengo seleccioanado
+	$("input[type=radio]").prop("disabled", true);
+	$("#legajo_"+legajo).prop("disabled", false);
+	
+	//Selecciono el radio del legajo.
+	$("#legajo_"+legajo).prop("checked", true); 
+	
+	//Seteo el valor del legajo que iniciara el WF
+	this.SetParam("oi_legajo",legajo);
+	
+	//Seteo el oi_licencia a null
+	this.SetParam("oi_licencia",null);
+	
+	//Muestro la opcion para la licencia por defecto
+	var select = $('.select-licencias');
+	select.val($('option:first', select).val());
+}
+
+$(document).ready(function(){
+	var oi_legajo = $("#oi_personal_emp").attr("value");
+	SetParam("oi_legajo",oi_legajo);
+});
+			</script>
+		</xsl:template>
+		<xsl:template name="CSS_CUSTOM">
+			.wfLicencia {
+		margin-top: 10px;
+	}
+	
+	.select-licencias{
+		width:auto;
+		font-weight: bold;
+	}
+	
+	.label-licencia-pedir{
+		font-size: 16px;
+		line-height: 34px;
+		padding-right: 0px;
+		padding-left: 0px;
+		width: 130px;
+		margin-bottom: 0px;
+	}
+	
+	.label-licencia-pedir span{
+		padding: 8px 8px;
+	}
+	
+	.mis-licencias{
+		width:49%;
+		float:left;
+		margin-top:16px!important;
+	}
+	
+	.radio-legajo{
+		float:right!important;
+	}
+	
+	#table-licencias tbody tr td, #table-licencias thead tr th{
+		text-align: center;
+	}
+	
+	.pointer{
+		cursor: pointer;
+	}
+		</xsl:template>
+	</html:xslt>
+</html:html>

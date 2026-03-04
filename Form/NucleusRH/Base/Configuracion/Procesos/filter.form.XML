@@ -1,0 +1,143 @@
+<form:Form xmlns:form="nomad_engine.form" extends="Nomad.Base.Session.Batchs.BATCH.MAIN.STD_LIST.form" default_mode="LIST" doc="source" name="NucleusRH.Base.Configuracion.Procesos.filter.form">
+	<form:Scripts>
+		//Actualiza la Lista
+function LoadList(force)
+{
+  var proxy=GetProxy(); //as NomadProxy
+  var param=new NomadXML("DATA");
+  var lst=Ctrl("LIST");
+
+  var max=CFG.GetAttrInt("maxreg");
+  if (isNaN(max)) max=0;
+
+  if (force || Ctrl("VALUES").GetXValue()=="*" || Ctrl("VALUES").GetXValue()=="" )
+  {   
+  	var np = GetProxy();
+  	param.SetAttr("parent" ,Ctrl("PARENT").GetXValue());
+  	param.SetAttr("order"  ,Ctrl("ORDER").GetXValue().substr(1));
+  	param.SetAttr("asc"    ,Ctrl("ORDER").GetXValue().substr(0,1)=="+"?"1":"0");
+  	param.SetAttr("search" ,np.UserName());     
+	 
+  //if (Ctrl("BUSCAR")) param.SetAttr("search" ,Ctrl("BUSCAR").GetXValue());
+  
+  if (max&gt;0) param.SetAttr("LEN",max);
+
+  //Agrego los Parametros Adicionales
+  for (cur=CFG.FirstChild(); cur!=null; cur=cur.Next())
+  {
+  	if (Ctrl(cur.GetAttr("name")))
+  		param.SetAttr(cur.GetAttr("name"), Ctrl(cur.GetAttr("name")).GetXValue());
+
+	//Faltan algunos Parametros  		
+  	if (cur.GetAttrBool("req") &amp;&amp; Ctrl(cur.GetAttr("name")).GetXValue()=="")
+  	{
+	  Ctrl("VALUES").SetXValue("");
+	  Ctrl("LIST_REG").SetXValue("Especifique alg&#250;n criterio de b&#250;squeda.");
+	  
+		//Limpio todo
+	  lst.IDs=new Array();
+	  lst.SetXValue("");          
+
+		//Mensaje Inicial de la Lista
+		lst.MsgEmply="Especifique alg&#250;n criterio de b&#250;squeda...";
+		lst.ResetSQL();
+  		return;
+  	}
+  }
+
+  //Cargo el RS
+  if(CFG.GetAttr("METHOD")!="")
+  {
+    var ca=proxy.RPCService();
+    ca.AddParam(new NomadRPCParamOut("OUT", "Nomad.NSystem.Object", "Nomad.NSystem.Proxy.NomadXML"));
+
+    //Lista de Parametros
+    var p=0;
+    var mecfg=new NomadXML(Ctrl("main").getResource("QRY_IDS_METHOD"));
+    for (cur=mecfg.FirstChild(); cur!=null; cur=cur.Next())
+    {
+      switch(cur.GetAttr("value").split(":")[0])
+      {
+        case "ctrl":
+          p++;
+          ca.AddParam(new NomadRPCParam("P"+p, "IN", Ctrl(cur.GetAttr("value").substr(5)).GetXValue(), "String"));
+          break;
+        case "const":
+          p++;
+          ca.AddParam(new NomadRPCParam("P"+p, "IN", cur.GetAttr("value").substr(6), "String"));
+          break;
+        default:
+          if (cur.GetAttr("value")!="")
+          {
+            p++;
+            ca.AddParam(new NomadRPCParam("P"+p, "IN", cur.GetAttr("value"), "String"));
+          }
+          break;
+      }
+    }
+
+    ca.Execute(CFG.GetAttr("METHOD").split(":")[0],CFG.GetAttr("METHOD").split(":")[1]);
+    RS=new NomadXML(ca.GetParam("OUT").Data);
+  } else
+  {
+    RS=proxy.SQLService().GetXML(Ctrl("main").getResource("QRY_IDS"), param.ToString());
+  }
+
+  //Actualizo el Label
+  var total=RS.GetAttrInt("total"); if (isNaN(total)) total=0;
+  var count=RS.GetAttrInt("count"); if (isNaN(count)) count=0;
+
+
+//Limpio la Lista
+  lst.IDs=new Array();
+
+  //Genero la Lista de IDS                                
+  var found=false;
+  for (var cur=RS.FirstChild(); cur!=null; cur=cur.Next())
+  	if (max==0 || lst.IDs.length&lt;max)
+  	{
+    	lst.IDs.push(cur.GetAttr("id"));
+    	if (cur.GetAttr("id")==lst.GetXValue()) found=true;
+    }
+
+  Ctrl("VALUES").SetXValue(lst.IDs.length&gt;100 ? "*" : lst.IDs.join("|"))
+  } else
+  {
+//Cargo la Lista
+  lst.IDs=Ctrl("VALUES").GetXValue().split("|");
+  count=lst.IDs.length
+  }
+
+  if (max&gt;0 &amp;&amp; count&gt;=max)
+  {                      
+  	if (count==max)
+  		Ctrl("LIST_REG").SetXValue("Primeros "+max+" registros");
+  	else                                                      
+  		Ctrl("LIST_REG").SetXValue("ERROR AL MOSTRAR LA CANTIDAD DE REGISTROS ("+max+"!="+count+")");
+  } else            
+  if (count==0)
+  {
+  	Ctrl("LIST_REG").SetXValue("No hay registros");
+  } else
+  {
+  	Ctrl("LIST_REG").SetXValue(count + " registros");
+  }
+
+
+  lst.MsgEmply="No hay registros";
+  if (!found) lst.SetXValue("");
+  lst.ResetSQL();
+}
+	</form:Scripts>
+	<form:Center height="100%" width="95%">
+		<form:Label visible="0" name="BUSCAR_LBL" align="left" width="100%" style="S2 LCol_g" dynamic="0" label="Buscar"/>
+		<form:TextBox visible="0" name="BUSCAR" length="64" xsize="64" ysize="1" descr="Texto a Buscar" required="False">
+			<form:Event action="OnSearch" runat="client" name="onpressenter"/>
+			<form:SButtons>
+				<form:SButton descrip="Buscar Registros" name="Search" label="Buscar" img="search">
+					<form:Event action="OnSearch" runat="client" name="onclick"/>
+				</form:SButton>
+			</form:SButtons>
+		</form:TextBox>
+	</form:Center>
+</form:Form>

@@ -1,0 +1,272 @@
+<flow:flow xmlns:flow="nomad_engine.flow" xmlns:qry="nomad_engine.qry" xmlns:doc="nomad_engine.doc" name="NucleusRH.Base.Liquidacion.Variables.VariablesNoPersona.flow" description="Flow para la carga de variables de NOVEDAD POR PERSONA." extends="NucleusRH.Base.Liquidacion.Variables.BaseVariables.flow" default_action="initialize">
+	<flow:info label="Flow para la carga de variables de NOVEDAD POR PERSONA."/>
+	<flow:declare>
+		<qry:define declare="&lt;DATA oi=&quot;1&quot; /&gt;" name="GetVariables">
+			<qry:main doc="PARAM">
+				<qry:element name="DATA">
+					<qry:element name="TITLE">
+						<qry:attribute type="Nomad.NSystem.String" value="#PARAM:DATA/@oi" name="oi"/>
+						<qry:attribute type="Nomad.NSystem.String" value="'Personal no encontrado'" name="value"/>
+						<qry:insert-select name="TITLE" doc-path="#PARAM:DATA"/>
+					</qry:element>
+					<qry:element name="ROWS">
+						<qry:insert-select name="GRID" doc-path="#PARAM:DATA"/>
+					</qry:element>
+				</qry:element>
+			</qry:main>
+			<qry:select doc="PARAM" name="TITLE">
+				<qry:xquery>
+					for $r in sql('
+				SELECT
+					pe.e_numero_legajo,
+					p.d_ape_y_nom
+				 
+				FROM
+					LIQ25_PERSONAL_LIQ as pl,
+					PER02_PERSONAL_EMP as pe,
+					PER01_PERSONAL as p
+				
+				JOIN
+					pe.oi_personal INNER p.oi_personal,
+					pe.oi_personal_emp INNER pl.oi_personal_emp
+					
+				WHERE
+					pl.oi_personal_liq = {#PARAM:@oi}
+
+				')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:attribute type="Nomad.NSystem.String" value="'Carga de valores Personal [' + $r/@e_numero_legajo + '] - ' + $r/@d_ape_y_nom" name="value"/>
+				</qry:out>
+			</qry:select>
+			<qry:select doc="PARAM" name="GRID">
+				<qry:xquery>
+					for $r in sql('
+				SELECT
+					v.oi_variable as id,
+					v.c_variable,
+					v.d_variable,
+					v.c_tipo_dato,
+					vp.n_valor
+				 
+				FROM
+					LIQ25_VAL_VAREN(LIQ25_VAL_VAREN.oi_personal_liq = {%=#PARAM:@oi%}) as vp,
+					LIQ09_VARIABLES as v
+										
+
+				JOIN 
+					v.oi_variable LEFT OUTER vp.oi_variable
+					  
+					
+				WHERE
+					v.c_tipo_variable = \'1\'
+					and v.oi_variable in (select cv.oi_variable from LIQ14_CONC_VAR as cv, LIQ14_CONCEPTOS as c	JOIN 	cv.oi_concepto INNER c.oi_concepto where c.l_activo = 1)
+        
+        ORDER BY
+         	c_variable ASC
+				')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:element name="ROW">
+						<qry:attribute type="Nomad.NSystem.String" value="$r/@id" name="id"/>
+						<qry:attribute type="Nomad.NSystem.String" value="$r/@c_variable" name="n"/>
+						<qry:attribute type="Nomad.NSystem.String" value="$r/@d_variable" name="d"/>
+						<qry:attribute type="Nomad.NSystem.String" value="$r/@c_tipo_dato" name="t"/>
+						<qry:attribute type="Nomad.NSystem.String" value="$r/@n_valor" name="v"/>
+						<qry:attribute type="Nomad.NSystem.String" value="IIF($r/@n_valor = '', '0', '1')" name="x"/>
+					</qry:element>
+				</qry:out>
+			</qry:select>
+		</qry:define>
+		<qry:define declare="&lt;DATA oi=&quot;1&quot; /&gt;" name="GetNovedades">
+			<qry:main doc="PARAM">
+				<qry:element name="DATA">
+					<qry:element name="TITLE">
+						<qry:attribute type="Nomad.NSystem.String" value="#PARAM:DATA/@oi" name="oi"/>
+						<qry:attribute type="Nomad.NSystem.String" value="'Personal no encontrado'" name="value"/>
+						<qry:insert-select name="TITLE" doc-path="#PARAM:DATA"/>
+					</qry:element>
+					<qry:element name="ROWS">
+						<qry:insert-select name="GRID" doc-path="#PARAM:DATA"/>
+					</qry:element>
+				</qry:element>
+			</qry:main>
+			<qry:select doc="PARAM" name="TITLE">
+				<qry:xquery>
+					for $r in sql('
+				SELECT
+					pe.e_numero_legajo,
+					p.d_ape_y_nom
+				 
+				FROM
+					LIQ25_PERSONAL_LIQ as pl,
+					PER02_PERSONAL_EMP as pe,
+					PER01_PERSONAL as p
+				
+				JOIN
+					pe.oi_personal INNER p.oi_personal,
+					pe.oi_personal_emp INNER pl.oi_personal_emp
+					
+				WHERE
+					pl.oi_personal_liq = {#PARAM:@oi}
+
+				')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:attribute type="Nomad.NSystem.String" value="'Carga de valores Personal [' + $r/@e_numero_legajo + '] - ' + $r/@d_ape_y_nom" name="value"/>
+				</qry:out>
+			</qry:select>
+			<qry:select doc="PARAM" name="GRID">
+				<qry:xquery>
+					for $r in sql('
+				SELECT
+					c.oi_concepto as id,
+					c.c_concepto,
+					c.d_concepto,
+					cp.n_valor,
+					cp.n_cantidad
+				FROM
+					LIQ25_CONC_MAN_PER(LIQ25_CONC_MAN_PER.oi_personal_liq = {%=#PARAM:@oi%}) as cp,
+					LIQ14_CONCEPTOS as c
+				JOIN 
+					c.oi_concepto LEFT OUTER cp.oi_concepto
+				WHERE             
+					c.l_activo=1 and (c.ca_fig_recibo = \'S\' or c.ca_fig_recibo = \'I\')
+        ORDER BY
+         	c_concepto ASC
+				')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:element name="ROW">
+						<qry:attribute value="$r/@id" name="id"/>
+						<qry:attribute value="$r/@c_concepto" name="n"/>
+						<qry:attribute value="$r/@d_concepto" name="d"/>
+						<qry:attribute value="$r/@n_valor" name="v"/>
+						<qry:attribute value="$r/@n_cantidad" name="c"/>
+						<qry:attribute value="IIF($r/@n_valor = '', '0', '1')" name="x"/>
+					</qry:element>
+				</qry:out>
+			</qry:select>
+		</qry:define>
+		<qry:define name="GetVariablesValor" declare="&lt;DATA oi=&quot;37081&quot; /&gt;">
+			<qry:main doc="PARAM">
+				<qry:element name="DATA">
+					<qry:element name="TITLE">
+						<qry:attribute type="Nomad.NSystem.String" value="#PARAM:DATA/@oi" name="oi"/>
+						<qry:attribute type="Nomad.NSystem.String" value="'Personal no encontrado'" name="value"/>
+						<qry:insert-select name="TITLE" doc-path="#PARAM:DATA"/>
+					</qry:element>
+					<qry:element name="ROWS">
+						<qry:insert-select name="GRID" doc-path="#PARAM:DATA"/>
+					</qry:element>
+				</qry:element>
+			</qry:main>
+			<qry:select doc="PARAM" name="TITLE">
+				<qry:xquery>
+					for $r in sql('
+SELECT
+pe.e_numero_legajo,
+p.d_ape_y_nom
+ 
+FROM
+LIQ25_PERSONAL_LIQ as pl,
+PER02_PERSONAL_EMP as pe,
+PER01_PERSONAL as p
+
+JOIN
+pe.oi_personal INNER p.oi_personal,
+pe.oi_personal_emp INNER pl.oi_personal_emp
+
+WHERE
+pl.oi_personal_liq = {#PARAM:@oi}
+
+')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:attribute type="Nomad.NSystem.String" value="'Carga de valores Personal [' + $r/@e_numero_legajo + '] - ' + $r/@d_ape_y_nom" name="value"/>
+				</qry:out>
+			</qry:select>
+			<qry:select doc="PARAM" name="GRID">
+				<qry:xquery>
+					for $r in sql('
+SELECT
+v.oi_variable as id,
+v.c_variable,
+v.d_variable,
+v.c_tipo_dato,
+vp.n_valor
+ 
+FROM
+LIQ25_VAL_VAREN(LIQ25_VAL_VAREN.oi_personal_liq = {%=#PARAM:@oi%}) as vp,
+LIQ09_VARIABLES as v
+		
+
+JOIN 
+v.oi_variable INNER vp.oi_variable
+  
+
+WHERE
+v.c_tipo_variable = \'1\'
+and v.oi_variable in (select cv.oi_variable from LIQ14_CONC_VAR as cv, LIQ14_CONCEPTOS as c	JOIN 	cv.oi_concepto INNER c.oi_concepto where c.l_activo = 1)
+        
+        ORDER BY
+         	c_variable ASC
+')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:element name="ROW">
+						<qry:attribute type="Nomad.NSystem.String" value="$r/@id" name="id"/>
+						<qry:attribute type="Nomad.NSystem.String" value="$r/@c_variable" name="n"/>
+						<qry:attribute type="Nomad.NSystem.String" value="$r/@d_variable" name="d"/>
+						<qry:attribute type="Nomad.NSystem.String" value="lower-case($r/@c_tipo_dato)" name="t"/>
+						<qry:if test="$r/@n_valor != ''">
+							<qry:then>
+								<qry:if test="lower-case($r/@c_tipo_dato) = 'datetime'">
+									<qry:then>
+										<qry:attribute type="Nomad.NSystem.String" value="format-date($r/@n_valor,'dd/mm/yyyy')" name="v"/>
+									</qry:then>
+									<qry:else>
+										<qry:attribute type="Nomad.NSystem.String" value="$r/@n_valor" name="v"/>
+									</qry:else>
+								</qry:if>
+							</qry:then>
+						</qry:if>
+						<qry:attribute type="Nomad.NSystem.String" value="IIF($r/@n_valor = '', '0', '1')" name="x"/>
+					</qry:element>
+				</qry:out>
+			</qry:select>
+		</qry:define>
+	</flow:declare>
+	<flow:main doc="SOURCE">
+		<flow:action name="conceptos">
+			<doc:load-qry input-doc-path="#SOURCE:" output-doc="RS" qry="GetNovedades"/>
+			<flow:open-form form-class="NucleusRH.Base.Liquidacion.Variables.GrillaConceptos.form" mode="EDIT" doc-path="#RS:"/>
+		</flow:action>
+		<flow:action name="initialize">
+			<doc:load-qry qry="GetVariables" input-doc-path="#SOURCE:" output-doc="RS"/>
+			<flow:open-form form-class="NucleusRH.Base.Liquidacion.Variables.GrillaVariables.form" mode="EDIT" doc-path="#RS:"/>
+		</flow:action>
+		<flow:action name="VariablesValores">
+			<doc:load-qry qry="GetVariablesValor" input-doc-path="#SOURCE:" output-doc="RS"/>
+			<flow:open-form form-class="NucleusRH.Base.Liquidacion.Variables.GrillaVariables.form" mode="EDIT" doc-path="#RS:"/>
+		</flow:action>
+	</flow:main>
+	<flow:group name="EditVariables">
+		<flow:form extends="NucleusRH.Base.Liquidacion.Variables.GrillaVariables.Base.form" mode="EDIT" name="NucleusRH.Base.Liquidacion.Variables.GrillaVariables.form" form-class="NucleusRH.Base.Liquidacion.Variables.GrillaVariables.form" doc="SOURCE">
+			<flow:action name="SAVE">
+				<flow:exec-method method="CargarVariablesNovedades" class="NucleusRH.Base.Liquidacion.Legajo_Liquidacion.PERSONAL_EMP">
+					<flow:param doc="RS" type="Nomad.NSystem.Object" mode="in" name="pobjParametros"/>
+				</flow:exec-method>
+				<flow:call-action action="CANCEL"/>
+			</flow:action>
+		</flow:form>
+		<flow:form extends="NucleusRH.Base.Liquidacion.Variables.GrillaVariables.Base.form" mode="EDIT" name="NucleusRH.Base.Liquidacion.Variables.GrillaConceptos.form" form-class="NucleusRH.Base.Liquidacion.Variables.GrillaConceptos.form" doc="SOURCE">
+			<flow:action name="SAVE">
+				<flow:exec-method method="CargarConceptosManuales" class="NucleusRH.Base.Liquidacion.Legajo_Liquidacion.PERSONAL_EMP">
+					<flow:param doc="RS" type="Nomad.NSystem.Object" mode="in" name="pobjParametros"/>
+				</flow:exec-method>
+				<flow:call-action action="CANCEL"/>
+			</flow:action>
+		</flow:form>
+	</flow:group>
+</flow:flow>

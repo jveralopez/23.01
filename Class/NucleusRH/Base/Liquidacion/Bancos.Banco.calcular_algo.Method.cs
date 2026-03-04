@@ -1,0 +1,1 @@
+return (double) 10;

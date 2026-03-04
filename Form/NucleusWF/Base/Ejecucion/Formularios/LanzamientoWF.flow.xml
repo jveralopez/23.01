@@ -1,0 +1,229 @@
+<flow:flow xmlns:flow="nomad_engine.flow" xmlns:doc="nomad_engine.doc" xmlns:qry="nomad_engine.qry" name="NucleusWF.Base.Ejecucion.Formularios.LanzamientoWF.flow" default_action="initialize">
+	<flow:info label="Soporte para la inicializacion de los workflow"/>
+	<flow:declare>
+		<doc:define name="listaWF">
+			<options>
+				<option value="LICE_PEDIDO_LICENCIA" text="Pedir Licencia">
+					<PARAMS>
+						<PARAM c_name="oi_licencia" desc="Tipo Licencia"/>
+					</PARAMS>
+				</option>
+				<option value="LICE_PEDIDO_LICENCIA_2" text="Pedir licencia 2">
+					<PARAMS>
+						<PARAM c_name="oi_licencia_2" desc="Tipo Licencia 2"/>
+					</PARAMS>
+				</option>
+				<option value="LICE_PEDIDO_LICENCIA_3" text="Pedir licencia 3">
+					<PARAMS>
+						<PARAM c_name="oi_licencia_3" desc="Tipo Licencia 3"/>
+					</PARAMS>
+				</option>
+			</options>
+		</doc:define>
+		<qry:define declare="&lt;PARAMS g=&quot;LICE_&quot;/&gt;" name="qry_listaWF">
+			<qry:main doc="SOURCE">
+				<qry:element name="options">
+					<qry:insert-select name="qry_Workflows" doc-path="#SOURCE:PARAMS"/>
+				</qry:element>
+			</qry:main>
+			<qry:select name="qry_Workflows" doc="PARAM">
+				<!--select 
+			WP.oi_wf,
+			WP.c_wf,
+			WP.d_wf,
+			PP.oi_process
+		from
+			wrk01_wf as WF,
+			wrk01_wf as WP,
+			wrk01_process as PP,
+			wrk01_roles_pro as RP,
+			wrk05_organigramas as OG,
+			wrk05_organigramas as OP,
+			wrk05_estructura as EP,
+			wrk05_entidad_estr as HP
+		where
+			PP.oi_wf=WP.oi_wf and
+			PP.oi_process=RP.oi_process and
+			RP.l_iniciar=1 and
+			OG.oi_organigrama = WP.oi_organigrama and
+			OG.c_organigrama = OP.c_organigrama and
+			OG.e_version_pub = OP.e_version and
+			OG.l_automatica = 0 and
+			OP.oi_organigrama = EP.oi_organigrama and
+			EP.oi_estructura = HP.oi_estructura and
+			HP.oi_entidad= \'{%= $CONSOLA/@ETTY %}\' and
+			EP.c_role=RP.c_rol and 
+			WF.e_version_pub=WP.e_version and 
+			WF.c_wf=WP.c_wf and 
+			WF.l_automatica=0 and
+			CONTAIN(WP.c_wf, \'{%=#PARAM:@g%}\')  	-->
+				<qry:xquery>
+					for $r in SQL('
+			SELECT
+				WP.oi_wf,
+				WP.c_wf,
+				WP.d_wf,
+				PP.oi_process
+			FROM
+				wrk01_wf as WF,
+				wrk01_wf as WP,
+				wrk01_process as PP,
+				wrk01_roles_pro as RP,
+				wrk05_organigramas as OG,
+				wrk05_organigramas as OP,
+				wrk05_estructura as EP,
+				wrk05_entidad_estr as HP
+			WHERE
+				PP.oi_wf=WP.oi_wf and
+				PP.oi_process=RP.oi_process and
+				RP.l_iniciar=1 and
+				OG.oi_organigrama = WP.oi_organigrama and
+				OG.c_organigrama = OP.c_organigrama and
+				OG.e_version_pub = OP.e_version and
+				OG.l_automatica = 0 and
+				OP.oi_organigrama = EP.oi_organigrama and
+				EP.oi_estructura = HP.oi_estructura and
+				HP.oi_entidad= \'{%= $PROXY/@ETTY %}\' and
+				EP.c_role=RP.c_rol and 
+				WF.e_version_pub=WP.e_version and 
+				WF.c_wf=WP.c_wf and 
+				WF.l_automatica=0 and
+				CONTAIN(WP.c_wf, \'{%=#PARAM:@g%}\')
+			')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:element name="option">
+						<qry:attribute name="id_wf" value="$r/@oi_wf"/>
+						<qry:attribute name="value" value="$r/@c_wf"/>
+						<qry:attribute name="text" value="$r/@d_wf"/>
+						<qry:element name="PARAMS">
+							<qry:insert-select name="qry_ParametrosWF" doc-path="$r"/>
+						</qry:element>
+					</qry:element>
+				</qry:out>
+			</qry:select>
+			<qry:select name="qry_ParametrosWF" doc="PARAM">
+				<qry:xquery>
+					for $r in SQL('
+			select
+				WF_PAR.c_process_param as c_param,
+				WF_PAR.d_process_param as d_param
+		    from
+		    	WRK01_PROCESS_PARAM as WF_PAR 
+		    where 
+		    	WF_PAR.oi_process = {#PARAM:@oi_process}
+			')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:element name="PARAM">
+						<qry:attribute name="c_name" value="$r/@c_param"/>
+						<qry:attribute name="desc" value="$r/@d_param"/>
+					</qry:element>
+				</qry:out>
+			</qry:select>
+		</qry:define>
+		<doc:define name="nombre_grupoWF">
+			<WF name="Licencia"/>
+		</doc:define>
+		<qry:define declare="&lt;PARAMS g=&quot;ANTI_&quot;/&gt;" name="qry_nombreWF">
+			<qry:main doc="SOURCE">
+				<qry:element name="wf">
+					<qry:switch test="#SOURCE:PARAMS/@g">
+						<qry:case value="LICE_">
+							<qry:attribute name="name" value="'Licencias'"/>
+						</qry:case>
+						<qry:case value="DPER_">
+							<qry:attribute name="name" value="'Datos Personales'"/>
+						</qry:case>
+						<qry:case value="DFAM_">
+							<qry:attribute name="name" value="'Familiares'"/>
+						</qry:case>
+						<qry:case value="VACA_">
+							<qry:attribute name="name" value="'Vacaciones'"/>
+						</qry:case>
+						<qry:case value="ANTI_">
+							<qry:attribute name="name" value="'Anticipos'"/>
+						</qry:case>
+						<qry:case value="LEGA_">
+							<qry:attribute name="name" value="'Datos Legajo'"/>
+						</qry:case>
+						<qry:case value="DIRE_">
+							<qry:attribute name="name" value="'Domicilios'"/>
+						</qry:case>
+						<qry:default>
+							<qry:attribute name="name" value="'NOMBRE_REPORTE'"/>
+						</qry:default>
+					</qry:switch>
+				</qry:element>
+			</qry:main>
+		</qry:define>
+		<qry:define name="QRY_LEGAJO">
+			<qry:main doc="SOURCE">
+				<qry:element name="PER">
+					<qry:attribute name="flag" value="'0'"/>
+					<qry:insert-select name="sql1" doc-path="."/>
+				</qry:element>
+			</qry:main>
+			<qry:select doc="SOURCE" name="sql1">
+				<qry:xquery>
+					for $r in SQL(' 
+			SELECT 
+				PER01_PERSONAL.oi_personal
+			FROM
+				PER02_PERSONAL_EMP, 
+				PER01_PERSONAL
+			JOIN
+				PER02_PERSONAL_EMP.oi_personal INNER PER01_PERSONAL.oi_personal
+			WHERE 
+				PER01_PERSONAL.oi_usuario_sistema = {#PROXY:@etty}
+				AND PER02_PERSONAL_EMP.oi_indic_activo=1  
+		')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:attribute name="oi_personal" value="$r/@oi_personal"/>
+					<qry:attribute name="flag" value="'1'"/>
+				</qry:out>
+			</qry:select>
+		</qry:define>
+		<doc:define name="LEGAJO"/>
+		<doc:define name="CRC"/>
+		<qry:define name="QRY_CRC">
+			<qry:main doc="SOURCE">
+				<qry:element name="CRC">
+					<qry:attribute name="crc" value="nmd_crc(concat('PARAMS:file=',#SOURCE:PARAMS/@r,'|oi_usuario_sistema=',#PROXY:@etty))"/>
+				</qry:element>
+			</qry:main>
+		</qry:define>
+	</flow:declare>
+	<flow:main doc="PARAMIN">
+		<flow:action name="initialize">
+			<doc:load-qry output-doc="LEGAJO" input-doc-path="#LEGAJO:" qry="QRY_LEGAJO"/>
+			<doc:load-qry output-doc="listaWF" input-doc-path="#PARAMIN:" qry="qry_listaWF"/>
+			<doc:load-qry output-doc="nombre_grupoWF" input-doc-path="#PARAMIN:" qry="qry_nombreWF"/>
+			<doc:set-attribute from-attr-path="#nombre_grupoWF:@name" to-attr-path="#PARAMIN:@title"/>
+			<flow:attach-doc doc-path="#LEGAJO:" attach-id="LEGAJO"/>
+			<flow:call-action else="DATA" action="NODATA" eq="0" if="#LEGAJO:@flag"/>
+		</flow:action>
+		<flow:action name="NODATA">
+			<flow:open-form form-class="NucleusWF.Base.Ejecucion.Formularios.NOLEGAJO.form" mode="SHOW" doc-path="#LEGAJO:"/>
+		</flow:action>
+		<flow:action name="DATA">
+			<flow:open-form doc-path="#PARAMIN:" form-class="NucleusWF.Base.Ejecucion.Formularios.LanzamientoWF.form" mode="SHOW"/>
+		</flow:action>
+	</flow:main>
+	<flow:form name="NucleusWF.Base.Ejecucion.Formularios.LanzamientoWF.form:SHOW" mode="SHOW" form-class="NucleusWF.Base.Ejecucion.Formularios.LanzamientoWF.form" doc="SOURCE">
+		<flow:action name="on-show">
+			<flow:attach-doc doc-path="#listaWF:" attach-id="listaWF"/>
+			<doc:load-qry output-doc="CRC" input-doc-path="#SOURCE:" qry="QRY_CRC"/>
+		</flow:action>
+		<flow:action name="SALIR">
+			<flow:close-form/>
+		</flow:action>
+		<flow:action name="on-open"/>
+	</flow:form>
+	<flow:form name="NucleusWF.Base.Ejecucion.Formularios.NOLEGAJO.form:SHOW" form-class="NucleusWF.Base.Ejecucion.Formularios.NOLEGAJO.form" mode="SHOW" doc="SOURCE">
+		<flow:action name="BACK">
+			<flow:close-form/>
+		</flow:action>
+	</flow:form>
+</flow:flow>

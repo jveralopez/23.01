@@ -1,0 +1,400 @@
+<HTML>
+	<HEAD>
+		<TITLE>Carga tu currículum</TITLE>
+			
+		<script src="./Scripts/nmdProxy.js" type="text/javascript"></script>
+		<script src="./Scripts/engComm.js"  type="text/javascript"></script>
+		<script src="./Scripts/nmdXML.js"   type="text/javascript"></script>
+		
+		<SCRIPT src="./Scripts/controls.js" type="text/javascript"></SCRIPT>
+		
+		<LINK HREF="./Styles/General.css" REL="stylesheet" TYPE="text/css">
+
+		
+		<SCRIPT type="text/javascript" language="javascript">
+			var gxmlUData = null;
+			var gxmlUDataCopy = null;
+			var arrParams = new Array();
+			var glogMode;
+			var gObject;
+			
+			function PageOnLoad() {
+							
+				//Recupera los parametros desde la URL
+				arrParams["oi_aviso"] = GetUrlVariable("oi_aviso");
+				//Inicializa el frame para Subir Archivos hidden
+				initializeUploadFrame();
+
+			}
+			
+			function GetMainParam(pName) {
+				var result;
+				
+				if (arrParams[pName])
+					result = arrParams[pName];
+				else
+					result = "";
+					
+				return result;
+			}
+
+			function SetMainParam(pName, pValue) {
+				return arrParams[pName] = pValue;
+			}
+
+			//Muestra u oculta el cartelito de procesando...
+			function ShowWait(pShow) {
+				var objHTML = document.getElementById("DivWait");
+				
+				if (pShow == false) {
+					objHTML.style.display = "none";
+				
+				} else {
+					objHTML.style.display = "inline";
+					
+					objHTML = document.getElementById("TDWait");
+					objHTML.innerHTML = pShow; 
+				}
+				
+			}
+			
+			function ExecuteNomadMethod(pClassName, pMethodName, pXMLdataIn) {
+				
+				var objRequest;
+				var objSection;
+				var objResponse;
+				
+				objRequest = new NomadRequest("WebComm", "ExecuteMethod");
+				objSection = objRequest.AddSection("method-data");
+				objSection.SetAttr("class", pClassName);
+				objSection.SetAttr("method-name", pMethodName);
+				
+				objSection.AddXML(pXMLdataIn);
+				objResponse = SendRequest(objRequest, "");
+				
+				var objContentResponse = objResponse.GetXMLSection("content-response");
+
+				if (objContentResponse == null) {
+					return null;
+				} else {
+					return objContentResponse.FirstChild();
+				}
+			}
+			
+			function GetLogData() {
+				var xmlResult;
+				
+				xmlResult = null;
+				
+				if (gxmlUData) {
+					xmlResult = new NomadXML("PARAM");
+					
+					xmlResult.SetAttr("oi_cv", gxmlUData.GetAttr("oi_cv"));
+					xmlResult.SetAttr("c_seguridad", gxmlUData.GetAttr("c_seguridad"));
+				}
+				
+				return xmlResult;
+			}
+
+			//Realiza un BackUp de los datos del usuario por las dudas
+			function MakeUDataBKP() {
+				gxmlUDataCopy = new NomadXML(gxmlUData.ToString());
+			}
+
+			//Realiza un REstore de los datos del usuario desde la copia
+			function RestoreUData() {
+				gxmlUData = new NomadXML(gxmlUDataCopy.ToString());
+			}
+						
+			//Indica si el xml de datos del CV es full o solo lo basico
+			function IsFullData() {
+				return gxmlUData ? gxmlUData.GetAttr("fulldata") == "1" : false;
+			}
+
+			function LogMode(pMode) {
+				var objUsuario;
+				
+				if (gxmlUData == null) {
+					pMode = "UL";
+				}
+				
+				switch (pMode) {
+					case "LO":
+						ToVisible("sep1", false); ToVisible("butReg", false);
+						ToVisible("sep2", false); ToVisible("butIniS", false);
+						ToVisible("sep3", true);  ToVisible("butCerS", true);
+						ToVisible("sep4", true);  ToVisible("butChCo", true);
+						ToVisible("sep5", true);  ToVisible("butCarC", true);
+						
+
+						ToEnabled("butCerS", true);
+						ToEnabled("butCarC", true);
+						ToEnabled("butChCo", true);
+						ToEnabled("butOLab", true);
+						
+						
+						objUsuario = document.getElementById("divUser");
+						objUsuario.style.display = "inline";
+						
+						objUsuario = document.getElementById("TDUser");
+						objUsuario.innerHTML = "Usuario: " + gxmlUData.GetAttr("d_ape_y_nom");
+						break;
+						
+					case "UL":
+						ToVisible("sep1", true);  ToVisible("butReg", true);
+						ToVisible("sep2", true);  ToVisible("butIniS", true);
+						ToVisible("sep3", false); ToVisible("butCerS", false);
+						ToVisible("sep4", false); ToVisible("butChCo", false);
+						ToVisible("sep5", false); ToVisible("butCarC", false);
+						
+						ToEnabled("butReg",  true);
+						ToEnabled("butIniS", true);
+						ToEnabled("butChCo", true);
+						ToEnabled("butOLab", true);
+
+						objUsuario = document.getElementById("divUser");
+						objUsuario.style.display = "none";
+												
+						break;
+
+					case "CV":
+						ToEnabled("butReg", false);
+						ToEnabled("butIniS", false);
+						ToEnabled("butCerS", false);
+						ToEnabled("butChCo", false);
+						ToEnabled("butCarC", false);
+						ToEnabled("butOLab", false);
+						break;
+				}
+				
+				glogMode = pMode;
+			}
+			
+			function ToFocus(pobj) {
+				
+				var cn = pobj.className;
+				cn = cn.charAt(cn.length-1);
+				
+				if (cn == "D") return;
+				
+				if (cn == "O") {
+					pobj.className = pobj.className.substr(0, pobj.className.length-1);
+				} else {
+					pobj.className = pobj.className + "O";
+				}
+			}
+			
+			function ToVisible(pName, pMode) {
+				var objHTML;
+				objHTML = document.getElementById(pName);
+				objHTML.style.display = pMode ? "inline" : "none";
+			}
+			
+		
+			function ToEnabled(pName, pMode) {
+				var objHTML;
+				objHTML = document.getElementById(pName);
+				//objHTML.disabled = !pMode;
+				
+				if (pMode) {
+					objHTML.className = "TopMenuText";
+				} else {
+					objHTML.className = "TopMenuTextD";
+				}
+				
+			}
+			
+			function ButEnabled(pObject) {
+				var cn;
+				
+				cn = pObject.className;
+				cn = cn.charAt(cn.length-1);
+				return (cn != "D");
+			}
+			
+			function btnRegistrar_Click(pObject) {
+				var objHTML;
+				
+				if (!ButEnabled(pObject)) return;
+
+				objHTML = document.getElementById("ifrmain");
+				objHTML.src = "Registro.htm";
+			}
+			
+			function btnIniSession_Click(pObject) {
+				var objHTML;
+				
+				if (!ButEnabled(pObject)) return;
+				if (glogMode == "CV") return;
+
+				objHTML = document.getElementById("ifrmain");
+				objHTML.src = "Login.htm";
+			}
+
+			function butOLab_Click(pObject) {
+				var objHTML;
+				
+				if (!ButEnabled(pObject)) return;
+
+				objHTML = document.getElementById("ifrmain");
+				objHTML.src = "Avisos.htm";			
+			}
+
+			function butCerSession_Click(pObject) {
+				var objHTML;
+				
+				if (!ButEnabled(pObject)) return;
+
+				if (confirm("Está seguro que desea cerrar la sesión ?")) {
+
+					gxmlUData = null;
+					gxmlUDataCopy = null;
+					LogMode("UL");
+
+					objHTML = document.getElementById("ifrmain");
+					objHTML.src = "Login.htm";
+				}
+
+			}			
+
+			function butChangeCount_Click(pObject) {
+				var objHTML;
+				
+				if (!ButEnabled(pObject)) return;
+
+				objHTML = document.getElementById("ifrmain");
+				objHTML.src = "DatosCuenta.htm";
+
+			}			
+			
+			function butCargarCV_Click(pObject) {
+				var objHTML;
+				
+				if (!ButEnabled(pObject)) return;
+
+				objHTML = document.getElementById("ifrmain");
+				objHTML.src = "ShowCV.htm";
+			}
+			
+			//Función para inicializar el DivLock y el Iframe para SubirArchivos
+			function initializeUploadFrame(){
+			
+				//Propiedades del Iframe oculto para Subir Archivos
+				var iframe = document.getElementById("ifrDoc");
+				iframe.style.visibility = "hidden";
+				iframe.style.position = "absolute";
+				iframe.style.border="1px solid gray";
+				iframe.style.zIndex="1000";
+				iframe.style.margin="auto";
+				iframe.style.top="40%";
+				iframe.style.left="40%";
+				
+				//Propiedades para el div que bloquea la pantalla al Subir Archivo
+				var divLock= document.getElementById("divLock");
+				divLock.style.width = "100%";
+				divLock.style.height = "100%";
+				divLock.style.overflowY = "hidden";
+				divLock.style.position = "absolute";
+			
+			}
+			
+			//Muestra el Iframe para Subir Archivo
+			function openUploadFrame(object){
+				//Mostrar DivLock
+				var divLock= document.getElementById("divLock");
+				divLock.style.height =  document.body.scrollHeight.toString()+"px";
+				divLock.style.display = "inline";
+				
+				//Mostrar Iframe para Subir Archivo
+				var iframe = document.getElementById("ifrDoc");  
+				iframe.src="./BrowsePage.htm?class=" + object.Class + "&methodname=" + object.MethodAdd;
+				iframe.style.visibility="visible";
+				iframe.style.display="block";
+			}
+			
+			//Cierra el Iframe para Subir Archivo
+			function closeUploadFrame(){
+				//Cierra el iframe para Subir Archivo
+				var iframe = document.getElementById("ifrDoc"); 
+				iframe.style.visibility="hidden";
+				iframe.style.display="none";
+				
+				//Oculta el DivLock
+				var divLock= document.getElementById("divLock");
+				divLock.style.display = "none";
+			}
+
+		</SCRIPT>
+
+	</HEAD>
+	<BODY class="Main" scroll="no" style="background-image:url(images/background.jpg); background-repeat:repeat-x; overflow-x:hidden; overflow-y:scroll;" onload="PageOnLoad();">	
+		<!--DIV para Bloquear la pantalla al Subir Archivo-->
+		<div id="divLock" name="divLock" style="display:none; background-color: black; opacity:.4; filter: alpha(opacity=50); " >
+			<div class="ConsoleDiv">&nbsp;</div>
+			<div class="ConsoleDivMsg" > 
+				<table cellpadding="0" cellspacing="0" height="100%" width="100%"><tr><td id="consoleMSG" name="consoleMSG" class="ConsoleTable" align="center">&nbsp;</td></tr></table>
+			</div>
+		</div>
+		<!---->
+		<!--IFRAME para Subir Archivos-->
+		<iframe frameborder="0" id="ifrDoc" name="ifrDoc" height="200px" width="400px" src="./BrowsePage.htm" style="display:none;"></iframe>
+		<!---->
+		<table style="TABLE-LAYOUT: fixed" cellpadding="0" cellspacing="0" height="100%" width="100%">
+			<tr class="TopMenu">
+				<td id="top" name="top" >&nbsp;</td>
+			</tr>
+			<tr>
+				<td class="toptitle alignRight" width="100%" nowrap="1">
+					<table class="TopMenuText">
+						<tr>
+							<td id="sep1" name="sep1">|</td>
+							<td id="butReg" name="butReg" class="TopMenuText" onmouseover="ToFocus(this);" onmouseout="ToFocus(this);" onclick="btnRegistrar_Click(this);" width="90px">Registrate</td>
+							<td id="sep2" name="sep2">|</td>
+							<td id="butIniS" name="butIniS" class="TopMenuText" onmouseover="ToFocus(this);" onmouseout="ToFocus(this);" onclick="btnIniSession_Click(this);" width="100px">P&aacute;gina inicial</td>
+							<td id="sep3" name="sep3" style="display: none;">|</td>
+							<td id="butCerS" name="butCerS" style="display: none;" class="TopMenuText" onmouseover="ToFocus(this);" onmouseout="ToFocus(this);" onclick="butCerSession_Click(this);" width="100px">Cerrar sesi&oacute;n</td>
+							<td id="sep4" name="sep4" style="display: none;">|</td>
+							<td id="butChCo" name="butChCo" style="display: none;" class="TopMenuText" onmouseover="ToFocus(this);" onmouseout="ToFocus(this);" onclick="butChangeCount_Click(this);" width="135px">Administrar cuenta</td>
+							<td id="sep5" name="sep5" style="display: none;">|</td>							
+							<td id="butCarC" name="butCarC" style="display:none; width:130px" class="TopMenuText" onmouseover="ToFocus(this);" onmouseout="ToFocus(this);" onclick="butCargarCV_Click(this);">Cargar currículum</td>
+							<td id="sep6" name="sep6">|</td>
+							<td id="butOLab" name="butOLab" class="TopMenuText" onmouseover="ToFocus(this);" onmouseout="ToFocus(this);" width="125px" onclick="butOLab_Click(this);">Ofertas laborales</td>
+							<td>|</td>
+							<td id="butCon" name="butCon" class="TopMenuText" onmouseover="ToFocus(this);" onmouseout="ToFocus(this);" width="90px"><a class="TopMenuText" href="{#QRY:NucleusRH.MailTo.xml#}">Contactanos</a></td>
+							<td>|</td>
+						</tr>
+					</table>
+				</td>
+			</tr>
+			<tr height="100%">
+				<td height="100%" valign="top">
+					<iframe id="ifrmain" name="ifrmain" height="100%" width="100%" src="Login.htm" style="border:none;" ></iframe>
+				</td>
+			</tr>
+		</table>
+
+		<!--Div de LOGO -->
+		<div id="DivLogo" name="DivLogo" class="logo" onclick="btnIniSession_Click(this);">
+			<img src="Images/logo.gif">
+		</div>
+
+		<!--Div de WAIT -->
+		<div id="DivWait" name="DivWait">
+			<table cellpadding="0" cellspacing="0" height="100%" width="100%">
+				<tr height="100%" width="100%">
+					<td id="TDWait" name="TDWait" valign="middle">Cargando...</td>
+				</tr>
+			</table>
+		</div>
+
+		<!--Div datos del usuario -->
+		<div id="divUser" name="divUser" style="display:none;">
+			<table cellpadding="0" cellspacing="0" height="100%" width="300px">
+				<tr>
+					<td id="TDUser" name="TDUser">User Name</td>
+				</tr>
+			</table>
+		</div>
+
+	</BODY>
+</HTML>

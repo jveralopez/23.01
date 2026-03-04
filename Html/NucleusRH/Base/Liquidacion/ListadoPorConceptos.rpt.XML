@@ -1,0 +1,420 @@
+<html:html xmlns:html="nomad_engine.html" xmlns:qry="nomad_engine.qry" extends="Nomad.Base.BaseReport.rpt" doc="source" name="NucleusRH.Base.Liquidacion.ListadoObraSocial">
+	<html:query declare="&lt;DATOS ccosto=&quot;&quot; orga=&quot;&quot; oi_centro_costo=&quot;&quot; &#13;&#10;oi_liquidacion=&quot;368&quot; oi_clase_org=&quot;&quot; oi_tipo_concepto=&quot;&quot;/&gt;">
+		<qry:main doc="SOURCE">
+			<qry:append-doc name="PARAMIN" doc-path="#SOURCE:DATOS"/>
+			<REPORT label="TOTALES POR CONCEPTO" style="font-size:14px;">
+				<qry:attribute name="date" value="format_date(Now(),'dd/mm/yyyy HH:MM')"/>
+				<GROUPS>
+					<GROUP tag="EMP" type="title" noreg="No se encontraron registros para los filtros seleccionados.">
+						<COLS>
+							<COL name="d_empresa" label="Empresa" style="text-align:left; font-size:12px;"/>
+							<COL name="d_liquidacion" label="Liquidaci&#243;n" style="text-align:left; font-size:12px;"/>
+							<qry:insert-select name="organigrama" doc-path="#SOURCE:DATOS[@orga=1]"/>
+						</COLS>
+						<qry:insert-select name="qry_ccosto" doc-path="#SOURCE:DATOS[@ccosto=1]"/>
+						<qry:insert-select name="con_organigrama" doc-path="#SOURCE:DATOS[@orga=1]"/>
+						<qry:insert-select name="qry_sinnada" doc-path="#SOURCE:DATOS[@orga=0 and @ccosto=0]"/>
+					</GROUP>
+				</GROUPS>
+				<qry:element name="DATA">
+					<qry:element name="EMP">
+						<qry:insert-select name="qry_cabecera" doc-path="#SOURCE:DATOS"/>
+						<qry:insert-select name="qry_tipos_conc" doc-path="#SOURCE:DATOS[@ccosto=0 and @orga=0]"/>
+						<qry:insert-select name="qry_cab_ccosto" doc-path="#SOURCE:DATOS[@ccosto=1]"/>
+						<qry:insert-select name="Qry_GrupoEstructura" doc-path="#SOURCE:DATOS[@orga=1]"/>
+					</qry:element>
+				</qry:element>
+			</REPORT>
+		</qry:main>
+		<qry:select doc="SOURCE" name="con_organigrama" noreg="No se encontraron registros para los filtros seleccionados.">
+			<qry:out>
+				<GROUP tag="CLASE" style="padding-left:0px" type="title">
+					<qry:attribute name="page-break" value="'1'"/>
+					<COLS>
+						<COL name="unidad_org" label="Unidad Organizativa" style="text-align:left; font-size:12px;"/>
+					</COLS>
+					<qry:insert-select name="qry_sinnada" doc-path=""/>
+					<qry:element name="CLASES">
+						<qry:insert-select name="QRY_CLASE_PADRE" doc-path="#SOURCE:"/>
+					</qry:element>
+					<qry:append-doc name="ORGANIGRAMAS" doc-path="."/>
+				</GROUP>
+			</qry:out>
+		</qry:select>
+		<qry:select doc="SOURCE" name="qry_ccosto">
+			<qry:out>
+				<GROUP tag="CCOSTO" style="padding-left:0px" type="title" noreg="No se encontraron registros para los filtros seleccionados.">
+					<qry:attribute name="page-break" value="'1'"/>
+					<COLS>
+						<COL name="d_ccosto" label="Centro de Costo" style="text-align:left; font-size:12px;"/>
+					</COLS>
+					<qry:insert-select name="qry_sinnada" doc-path=""/>
+				</GROUP>
+			</qry:out>
+		</qry:select>
+		<qry:select doc="SOURCE" name="qry_sinnada">
+			<qry:out>
+				<GROUP tag="TCONC" style="padding-left:5px;" type="title_collapse" noreg="No se encontraron registros para los filtros seleccionados.">
+					<COLS>
+						<COL name="d_tipo_concepto" label="Tipo de Concepto" style="text-align:left; font-size:12px;"/>
+					</COLS>
+					<GROUP tag="CONC" style="padding-left:20px" type="table">
+						<COLS>
+							<COL name="d_concepto" label="Concepto" align="left" style="width: 450px%"/>
+							<COL name="total_per" label="Liquidados" style="text-align:right; width:150px; mso-number-format:0;" type="num"/>
+							<COL name="total_cant" label="Cantidad" style="text-align:right; width:150px; mso-number-format:0.00;" type="num"/>
+							<COL name="total_valor" label="Valor" style="text-align:right; width:150px; mso-number-format:0.00;" type="num"/>
+						</COLS>
+						<FCOLS>
+							<COL style="text-align:RIGHT; font-weight: bold"/>
+							<COL style="text-align:RIGHT; font-weight: bold"/>
+							<COL label="Total $" style="text-align:RIGHT; font-weight: bold"/>
+							<COL type="num" name="total_valor" style="text-align:right; font-weight: bold"/>
+						</FCOLS>
+					</GROUP>
+				</GROUP>
+			</qry:out>
+		</qry:select>
+		<qry:select doc="SOURCE" name="qry_cabecera">
+			<qry:xquery>
+				for $r in sql('
+				SELECT 
+					LIQ93_EMPRESAS.d_empresa, 
+					LIQ99_LIQUIDACION.c_liquidacion, 
+					LIQ99_LIQUIDACION.d_titulo,
+					LIQ93_EMPRESAS.oi_empresa_ddo
+				FROM 
+					LIQ93_EMPRESAS, 
+					LIQ99_LIQUIDACION,
+					LIQ19_EJECUCIONES, 
+					LIQ19_LIQUIDACION
+					
+				JOIN 
+					LIQ93_EMPRESAS.oi_empresa_ddo INNER LIQ99_LIQUIDACION.oi_empresa_ddo,
+					LIQ19_EJECUCIONES.oi_liquidacion_ddo INNER LIQ99_LIQUIDACION.oi_liquidacion_ddo, 
+					LIQ19_EJECUCIONES.oi_liquidacion INNER LIQ19_LIQUIDACION.oi_liquidacion
+				WHERE 
+					LIQ99_LIQUIDACION.oi_liquidacion_ddo = {#PARAMIN:@oi_liquidacion}
+				  {%? (#PARAMIN:@l_simulacion!='')	{% AND LIQ19_LIQUIDACION.l_simulacion = {%= #PARAMIN:@l_simulacion %} %} {% %} %}
+			')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:attribute name="d_empresa" value="$r/@d_empresa"/>
+				<qry:attribute name="d_liquidacion" value="$r/@c_liquidacion + ' - ' + $r/@d_titulo"/>
+				<qry:insert-select name="QRY_PARAM_CLASE" doc-path="#SOURCE:.[@orga=1]"/>
+			</qry:out>
+		</qry:select>
+		<qry:select doc="SOURCE" name="qry_cab_ccosto">
+			<qry:xquery>
+				for $r in sql('
+				select o.c_centro_costo, o.d_centro_costo 
+				from ORG08_CS_COSTO as o, liq97_personal_emp as l
+				JOIN
+				o.c_centro_costo INNER l.c_centro_costo_ult
+
+				{%? 
+					(#PARAMIN:@oi_centro_costo!='') 
+					{% WHERE o.oi_centro_costo = {%=#PARAMIN:@oi_centro_costo%} %}
+					 {% %} 
+				%}				
+				
+				group by o.c_centro_costo, o.d_centro_costo 
+				order by c_centro_costo ASC
+			')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:element name="CCOSTO">
+					<qry:attribute name="c_centro_costo" value="$r/@c_centro_costo"/>
+					<qry:attribute name="d_ccosto" value="$r/@c_centro_costo + ' - ' + $r/@d_centro_costo"/>
+					<qry:append-doc name="COSTO" doc-path="."/>
+					<qry:attribute name="hts:delete" value="1"/>
+					<qry:insert-select name="qry_tipos_conc"/>
+				</qry:element>
+			</qry:out>
+		</qry:select>
+		<qry:select doc="SOURCE" name="qry_tipos_conc">
+			<qry:xquery>
+				for $r in sql('
+				SELECT 
+					LIQ12_TIPOS_CONC.C_TIPO_CONCEPTO, 
+					LIQ12_TIPOS_CONC.d_tipo_concepto,
+					LIQ12_TIPOS_CONC.E_ORDEN
+				FROM 
+					LIQ12_TIPOS_CONC
+				WHERE 
+					 					      								
+				{%? 
+					(#PARAMIN:@oi_tipo_concepto!='') 
+					{% LIQ12_TIPOS_CONC.oi_tipo_concepto = {%=#PARAMIN:@oi_tipo_concepto%} %}
+					{% LIQ12_TIPOS_CONC.l_nolistado != 1 %} 
+				%}			
+
+				ORDER BY 
+					E_ORDEN ASC, 
+					C_TIPO_CONCEPTO ASC')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:element name="TCONC">
+					<qry:attribute name="c_tipo_concepto" value="$r/@c_tipo_concepto"/>
+					<qry:attribute name="d_tipo_concepto" value="$r/@d_tipo_concepto"/>
+					<qry:attribute name="hts:delete" value="1"/>
+					<qry:insert-select doc-path="." name="qry_coneptos"/>
+					<qry:insert-select doc-path="." name="qry_total"/>
+				</qry:element>
+				<qry:attribute name="hts:delete" value="1"/>
+				<qry:insert-select doc-path="." name="qry_aux_visible"/>
+			</qry:out>
+		</qry:select>
+		<qry:select doc="SOURCE" name="qry_aux_visible">
+			<qry:xquery>
+				for $r in #SOURCE:TCONC[@hts:delete = 0]
+			</qry:xquery>
+			<qry:out>
+				<qry:attribute name="hts:delete" value="0"/>
+			</qry:out>
+		</qry:select>
+		<qry:select doc="SOURCE" name="qry_coneptos">
+			<qry:xquery>
+				for $r in sql('
+				SELECT
+				LIQ96_CONCEPTOS.c_concepto, LIQ96_CONCEPTOS.d_concepto
+
+				FROM 
+				LIQ99_RECIBOS, LIQ20_CONC_LIQ_PER, LIQ96_CONCEPTOS, LIQ19_EJECUCIONES, LIQ19_LIQUIDACION
+
+
+				{%? (#PARAMIN:@ccosto=1 ) {% , LIQ20_TOT_LIQ_PER , LIQ97_PERSONAL_EMP %} {% %} %}
+				{%? (#PARAMIN:@ORGA=1 ) {% 
+					, LIQ20_TOT_LIQ_PER , LIQ97_PERSONAL_EMP, 
+					PER02_PERSONAL_EMP, ORG02_ESTRUC_PERS , ORG03_EMPRESAS
+					%} {% %} %}								
+				
+
+				JOIN
+				LIQ99_RECIBOS.oi_tot_liq_per INNER LIQ20_CONC_LIQ_PER.oi_tot_liq_per,
+				LIQ99_RECIBOS.oi_liquidacion_ddo INNER LIQ19_EJECUCIONES.oi_liquidacion_ddo,
+				LIQ19_LIQUIDACION.oi_liquidacion INNER LIQ19_EJECUCIONES.oi_liquidacion,
+				
+				LIQ20_CONC_LIQ_PER.oi_concepto_ddo INNER LIQ96_CONCEPTOS.oi_concepto_ddo
+
+				{%? (#PARAMIN:@ccosto=1) {% 
+						, LIQ20_TOT_LIQ_PER.oi_tot_liq_per INNER LIQ99_RECIBOS.oi_tot_liq_per,
+						LIQ97_PERSONAL_EMP.oi_per_emp_ddo INNER LIQ20_TOT_LIQ_PER.oi_per_emp_ddo 
+				%}  {% %} %}				
+				{%? (#PARAMIN:@orga=1) {% 
+						, LIQ20_TOT_LIQ_PER.oi_tot_liq_per 	INNER LIQ99_RECIBOS.oi_tot_liq_per,
+						LIQ97_PERSONAL_EMP.oi_per_emp_ddo 	INNER LIQ20_TOT_LIQ_PER.oi_per_emp_ddo,
+						ORG02_ESTRUC_PERS.oi_personal_emp 	INNER PER02_PERSONAL_EMP.oi_personal_emp,
+						LIQ97_PERSONAL_EMP.E_NUMERO_LEGAJO 	INNER PER02_PERSONAL_EMP.E_NUMERO_LEGAJO,
+						ORG03_EMPRESAS.oi_empresa 					INNER PER02_PERSONAL_EMP.oi_empresa,
+						ORG03_EMPRESAS.c_empresa 						INNER LIQ97_PERSONAL_EMP.c_empresa
+				%}  {% %} %}								
+
+				WHERE
+				LIQ20_CONC_LIQ_PER.n_valor != \'0.00\' AND
+				LIQ99_RECIBOS.oi_liquidacion_ddo = {#PARAMIN:@oi_liquidacion} AND
+				LIQ96_CONCEPTOS.c_tipo_concepto = {#SOURCE:@c_tipo_concepto} 
+				     
+
+				{%? (#PARAMIN:@ccosto=1) {% 
+						and LIQ97_PERSONAL_EMP.c_centro_costo_ult = {#COSTO:@c_centro_costo}
+				%} {% %} %}
+				
+				{%? (#PARAMIN:@orga=1) {% 
+					AND ORG02_ESTRUC_PERS.oi_clase_org in ({%=string(#ORGANIGRAMAS:CLASES/CLASE/@oi_clase_org)%})			
+					AND ORG02_ESTRUC_PERS.oi_estructura = {#ESTRUCTURA:@oi_estructura}
+				%} {% %} %}								
+				{%? (#PARAMIN:@l_simulacion!='')	{% AND LIQ19_LIQUIDACION.l_simulacion = {%= #PARAMIN:@l_simulacion %} %} {% %} %}
+				GROUP BY
+				LIQ96_CONCEPTOS.c_concepto, LIQ96_CONCEPTOS.d_concepto
+				
+			')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:element name="CONC">
+					<qry:attribute name="c_concepto" value="$r/@c_concepto"/>
+					<qry:attribute name="d_concepto" value="$r/@c_concepto + ' - ' + $r/@d_concepto"/>
+					<qry:insert-select doc-path="." name="qry_personas"/>
+				</qry:element>
+				<qry:attribute name="hts:delete" value="0"/>
+			</qry:out>
+		</qry:select>
+		<qry:select doc="SOURCE" name="qry_personas">
+			<qry:xquery>
+				for $r in sql('
+				SELECT 
+				LIQ97_PERSONAL_EMP.e_numero_legajo,
+				LIQ20_CONC_LIQ_PER.n_valor, LIQ20_CONC_LIQ_PER.n_cantidad, 
+				LIQ97_PERSONAL_EMP.c_nro_cuil, LIQ97_PERSONAL_EMP.d_ape_y_nom
+				
+				FROM 
+				LIQ20_TOT_LIQ_PER, LIQ99_RECIBOS, LIQ97_PERSONAL_EMP, LIQ20_CONC_LIQ_PER,
+				LIQ96_CONCEPTOS, LIQ19_EJECUCIONES, LIQ19_LIQUIDACION
+
+				{%? (#PARAMIN:@ORGA=1 ) {% 
+					, PER02_PERSONAL_EMP, ORG02_ESTRUC_PERS, ORG03_EMPRESAS
+					%} {% %} %}								
+
+				
+				JOIN
+				LIQ20_TOT_LIQ_PER.oi_tot_liq_per INNER LIQ99_RECIBOS.oi_tot_liq_per,
+				LIQ20_TOT_LIQ_PER.oi_per_emp_ddo INNER LIQ97_PERSONAL_EMP.oi_per_emp_ddo,
+				LIQ99_RECIBOS.oi_tot_liq_per INNER LIQ20_CONC_LIQ_PER.oi_tot_liq_per,
+				LIQ20_CONC_LIQ_PER.oi_concepto_ddo INNER LIQ96_CONCEPTOS.oi_concepto_ddo,
+				LIQ99_RECIBOS.oi_liquidacion_ddo INNER LIQ19_EJECUCIONES.oi_liquidacion_ddo,
+				LIQ19_LIQUIDACION.oi_liquidacion INNER LIQ19_EJECUCIONES.oi_liquidacion
+
+
+				{%? (#PARAMIN:@orga=1) {% 
+						,ORG02_ESTRUC_PERS.oi_personal_emp 	INNER PER02_PERSONAL_EMP.oi_personal_emp,
+						LIQ97_PERSONAL_EMP.E_NUMERO_LEGAJO 	INNER PER02_PERSONAL_EMP.E_NUMERO_LEGAJO,
+						ORG03_EMPRESAS.oi_empresa 					INNER PER02_PERSONAL_EMP.oi_empresa,
+						ORG03_EMPRESAS.c_empresa 						INNER LIQ97_PERSONAL_EMP.c_empresa
+				%}  {% %} %}								
+
+				
+				WHERE
+				LIQ99_RECIBOS.oi_liquidacion_ddo = {#PARAMIN:@oi_liquidacion} AND
+				LIQ96_CONCEPTOS.c_concepto = {#SOURCE:@c_concepto}
+
+				{%? 
+					(#PARAMIN:@ccosto=1) 
+					{% 
+						and LIQ97_PERSONAL_EMP.c_centro_costo_ult = {#COSTO:@c_centro_costo}									
+					%}
+					{% %} 
+				%}				
+				{%? (#PARAMIN:@orga=1) {% 
+					AND ORG02_ESTRUC_PERS.oi_clase_org in ({%=string(#ORGANIGRAMAS:CLASES/CLASE/@oi_clase_org)%})			
+					AND ORG02_ESTRUC_PERS.oi_estructura = {#ESTRUCTURA:@oi_estructura}
+				%} {% %} %}								
+				{%? (#PARAMIN:@l_simulacion!='')	{% AND LIQ19_LIQUIDACION.l_simulacion = {%= #PARAMIN:@l_simulacion %} %} {% %} %}		
+			')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:attribute name="total_per" value="number(./@total_per) + 1"/>
+				<qry:attribute name="total_cant" value="number(./@total_cant) + number($r/@n_cantidad)"/>
+				<qry:attribute name="total_valor" value="number(./@total_valor) + number($r/@n_valor)"/>
+			</qry:out>
+		</qry:select>
+		<qry:select doc="SOURCE" name="qry_total">
+			<qry:xquery>
+				for $r in #SOURCE:CONC
+			</qry:xquery>
+			<qry:out>
+				<qry:attribute name="total_valor" value="number(./@total_valor) + number($r/@total_valor)"/>
+			</qry:out>
+		</qry:select>
+		<qry:select name="QRY_CLASES_HIJAS" doc="PARAM">
+			<qry:xquery>
+				for $r in sql('
+			SELECT ORG02_CLASES_HIJAS.oi_estructura, 
+			ORG02_CLASES_HIJAS.oi_clase_org
+			FROM ORG02_CLASES_HIJAS
+			WHERE ORG02_CLASES_HIJAS.oi_estructura = {#PARAM:@oi_estructura}
+		')ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:element name="CLASE">
+					<qry:attribute name="oi_clase_org" value="$r/@oi_clase_org"/>
+				</qry:element>
+			</qry:out>
+		</qry:select>
+		<qry:select name="QRY_ESTR" doc="PARAM">
+			<qry:xquery>
+				for $r in sql('
+			SELECT ORG02_ESTRUCTURAS.oi_estructura			
+			FROM ORG02_ESTRUCTURAS
+			WHERE ORG02_ESTRUCTURAS.oi_estr_padre = {#PARAM:@oi_estructura}
+		')ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:insert-select name="QRY_CLASES_HIJAS" doc-path="$r"/>
+				<qry:insert-select name="QRY_ESTR" doc-path="$r"/>
+			</qry:out>
+		</qry:select>
+		<qry:select name="QRY_CLASE_PADRE" doc="PARAM">
+			<qry:xquery>
+				for $r in sql('
+			SELECT ORG02_CLASES_ORG.oi_clase_org,
+			ORG02_CLASES_ORG.oi_estructura_org AS oi_estructura
+			FROM ORG02_CLASES_ORG
+			WHERE ORG02_CLASES_ORG.oi_clase_org = {#PARAM:@oi_clase_org}
+		')ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:element name="CLASE">
+					<qry:attribute name="oi_clase_org" value="#PARAM:@oi_clase_org"/>
+				</qry:element>
+				<qry:insert-select name="QRY_CLASES_HIJAS" doc-path="$r"/>
+				<qry:insert-select name="QRY_ESTR" doc-path="$r"/>
+			</qry:out>
+		</qry:select>
+		<qry:select doc="PARAM" name="QRY_PARAM_CLASE">
+			<qry:xquery>
+				for $r in sql('
+				SELECT ORG02_CLASES_ORG.c_clase_org, ORG02_CLASES_ORG.d_clase_org
+				FROM ORG02_CLASES_ORG
+				WHERE ORG02_CLASES_ORG.oi_clase_org = {#PARAM:@oi_clase_org}
+			')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:attribute value="$r/@c_clase_org + ' - ' + $r/@d_clase_org" name="clase_org" type="Nomad.NSystem.String"/>
+			</qry:out>
+		</qry:select>
+		<qry:select doc="PARAM" name="organigrama">
+			<qry:out>
+				<COL name="clase_org" label="Organigrama Funcional" style="text-align:left; font-size:12px;"/>
+			</qry:out>
+		</qry:select>
+		<qry:select doc="PARAM" name="QRY_ESTRUCTURA">
+			<qry:xquery>
+				for $r in sql('
+			SELECT ORG01_TIPOS_UNI.c_tipo_uni_org, ORG01_TIPOS_UNI.d_tipo_uni_org,
+			ORG01_UNI_ORG.c_unidad_org, ORG01_UNI_ORG.d_unidad_org
+			FROM ORG01_UNI_ORG, ORG01_TIPOS_UNI
+			JOIN ORG01_UNI_ORG.oi_tipo_uni_org INNER ORG01_TIPOS_UNI.oi_tipo_uni_org
+			WHERE ORG01_UNI_ORG.oi_unidad_org in 
+				(SELECT ORG02_ESTRUCTURAS.oi_unidad_org
+				FROM ORG02_ESTRUCTURAS 
+				WHERE ORG02_ESTRUCTURAS.oi_estructura = {%=#PARAM:@oi_estructura%})					
+		')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:attribute type="Nomad.NSystem.String" value="$r/@d_tipo_uni_org + ': ' + $r/@c_unidad_org + ' - ' + $r/@d_unidad_org" name="unidad_org"/>
+			</qry:out>
+		</qry:select>
+		<qry:select doc="SOURCE" name="Qry_GrupoEstructura">
+			<qry:xquery>
+				for $r in sql('
+			SELECT 
+				ORG02_ESTRUC_PERS.oi_estructura
+			FROM 
+				PER02_PERSONAL_EMP, 
+				ORG02_ESTRUC_PERS,
+				LIQ99_LIQUIDACION, ORG03_EMPRESAS
+			JOIN 
+				ORG02_ESTRUC_PERS.oi_personal_emp INNER PER02_PERSONAL_EMP.oi_personal_emp,
+				LIQ99_LIQUIDACION.c_empresa INNER ORG03_EMPRESAS.c_empresa ,
+				PER02_PERSONAL_EMP.oi_empresa INNER ORG03_EMPRESAS.oi_empresa
+			WHERE
+				
+				LIQ99_LIQUIDACION.oi_liquidacion_ddo = {#PARAMIN:@oi_liquidacion}
+				
+				
+				
+			GROUP BY ORG02_ESTRUC_PERS.oi_estructura
+		')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:element name="CLASE">
+					<qry:attribute type="Nomad.NSystem.String" value="$r/@oi_estructura" name="oi_estructura"/>
+					<qry:insert-select doc-path="$r" name="QRY_ESTRUCTURA"/>
+					<qry:append-doc name="ESTRUCTURA" doc-path="."/>
+					<qry:attribute name="hts:delete" value="1"/>
+					<qry:insert-select name="qry_tipos_conc"/>
+				</qry:element>
+			</qry:out>
+		</qry:select>
+	</html:query>
+</html:html>

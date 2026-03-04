@@ -1,0 +1,94 @@
+<flow:flow xmlns:flow="nomad_engine.flow" xmlns:doc="nomad_engine.doc" xmlns:qry="nomad_engine.qry" name="NucleusRH.Base.Personal.Uniforme_Per.flow" extends="Nomad.Base.flow">
+	<flow:info label="Flow para NucleusRH.Base.Personal.Uniforme_Per"/>
+	<flow:declare>
+		<doc:define name="UNIF_PER">
+			<UNIFORME oi_uniforme_per=""/>
+		</doc:define>
+		<doc:define name="UNIFORMES"/>
+		<doc:define name="LEGAJOS"/>
+		<qry:define declare="&lt;DATOS oi_dictado=&quot;2&quot; gcustom=&quot;&quot; gpers=&quot;&quot; empresa=&quot;1&quot; activos=&quot;&quot; nombre=&quot;&quot; documento=&quot;&quot; sexo=&quot;&quot; grupo_sanguineo=&quot;&quot; listlegajos=&quot;3&quot; oi_indic_activo=&quot;&quot; egresado=&quot;&quot; oi_forma_pago=&quot;&quot; oi_tipo_personal=&quot;&quot; oi_centro_costo=&quot;&quot; oi_categoria=&quot;&quot; soloconvenio=&quot;&quot; oi_ubicacion_desde=&quot;&quot; oi_ubicacion_hasta=&quot;&quot; oi_estructura=&quot;&quot; escructura_childs=&quot;&quot; oi_afjp=&quot;&quot; oi_obra_social=&quot;&quot; oi_sindicato=&quot;&quot;&gt;&#13;&#10;  &lt;ROWS&gt;&#13;&#10;    &lt;ROW id=&quot;9&quot; /&gt;&#13;&#10;  &lt;/ROWS&gt;&#13;&#10;&lt;/DATOS&gt;&#13;&#10;" name="QRY_DESCR">
+			<qry:main doc="SOURCE">
+				<qry:element name="ROWS">
+					<qry:insert-select doc-path="#SOURCE:DATOS/ROWS" name="QRY_IDS"/>
+				</qry:element>
+			</qry:main>
+			<qry:select name="QRY_IDS" doc="SOURCE">
+				<qry:xquery>
+					for $r in #SOURCE:ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:element name="ROW">
+						<qry:attribute name="id" value="$r/@id"/>
+						<qry:insert-select doc-path="$r" name="QRY_LEGAJOS"/>
+					</qry:element>
+				</qry:out>
+			</qry:select>
+			<qry:select name="QRY_LEGAJOS" doc="SOURCE">
+				<qry:xquery>
+					for $r in sql('
+				SELECT PER02_PERSONAL_EMP.e_numero_legajo,
+				PER01_PERSONAL.d_ape_y_nom
+				FROM PER02_PERSONAL_EMP, PER01_PERSONAL
+				JOIN PER02_PERSONAL_EMP.oi_personal INNER PER01_PERSONAL.oi_personal
+				WHERE PER02_PERSONAL_EMP.oi_personal_emp = {#SOURCE:@id}
+			')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:attribute name="legajo" value="$r/@e_numero_legajo + ' - ' + $r/@d_ape_y_nom"/>
+				</qry:out>
+			</qry:select>
+		</qry:define>
+		<qry:define declare="&lt;UNIFORME oi_uniforme_per=&quot;16&quot; /&gt;" name="QRY_UNIFORME">
+			<qry:main doc="SOURCE">
+				<qry:element name="DATOS">
+					<qry:attribute name="oi_uniforme_per" value="#SOURCE:UNIFORME/@oi_uniforme_per"/>
+					<qry:insert-select name="sql1" doc-path="#SOURCE:UNIFORME"/>
+				</qry:element>
+			</qry:main>
+			<qry:select doc="SOURCE" name="sql1">
+				<qry:xquery>
+					for $r in sql('
+					SELECT 
+						PER02_UNIF_PER.oi_uniforme,
+						PER02_UNIF_PER.f_desde,
+						PER02_UNIF_PER.oi_personal_emp
+					FROM 
+						PER02_UNIF_PER
+					WHERE 
+						PER02_UNIF_PER.oi_uniforme_per = {#SOURCE:@oi_uniforme_per}
+				')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:attribute name="id" value="$r/@oi_uniforme"/>
+					<qry:attribute name="f_desde" value="$r/@f_desde"/>
+					<qry:attribute name="oi_personal_emp" value="$r/@oi_personal_emp"/>
+				</qry:out>
+			</qry:select>
+		</qry:define>
+	</flow:declare>
+	<flow:main doc="SOURCE">
+		<flow:action name="initialize">
+			<flow:log text-path="#SOURCE:" text="EMISOURCE"/>
+			<flow:open-form doc-path="#SOURCE:" form-class="NucleusRH.Base.Personal.Uniforme_Per.form" mode="SHOW"/>
+		</flow:action>
+	</flow:main>
+	<flow:form mode="SHOW" name="NucleusRH.Base.Personal.Uniforme_Per.form" form-class="NucleusRH.Base.Personal.Uniforme_Per.form" doc="SOURCE">
+		<flow:action name="BACK">
+			<flow:close-form/>
+		</flow:action>
+		<flow:action name="SAVE">
+			<flow:log text="ppsource" text-path="#SOURCE:"/>
+			<flow:exec-method method="SaveUniforme" class="NucleusRH.Base.Personal.LegajoEmpresa.PERSONAL_EMP">
+				<flow:param doc="SOURCE" type="Nomad.NSystem.Proxy.NomadXML" mode="in" name="param"/>
+			</flow:exec-method>
+			<flow:close-form/>
+		</flow:action>
+		<flow:action name="on-show">
+			<doc:load-qry input-doc-path="#SOURCE:" output-doc="UNIFORMES" qry="QRY_UNIFORME"/>
+			<flow:log text-path="#UNIFORMES:" text="EMIUNIFORMES"/>
+			<doc:set-attribute to-attr-path="#SOURCE:@oi_uniforme" from-attr-path="#UNIFORMES:@id"/>
+			<doc:set-attribute from-attr-path="#UNIFORMES:@f_desde" to-attr-path="#SOURCE:@f_desde"/>
+			<doc:set-attribute from-attr-path="#UNIFORMES:@oi_personal_emp" to-attr-path="#SOURCE:@oi_personal_emp"/>
+		</flow:action>
+	</flow:form>
+</flow:flow>

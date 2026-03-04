@@ -1,0 +1,136 @@
+<ALERT xmlns:qry="nomad_engine.qry" label="Comienzo de vacaciones" name="VACACIONES.alert">
+	<PARAMS>
+		<PARAM label="Dias previos desde a las vacaciones" type="int" req="0" name="DiasPrevDesde"/>
+		<PARAM type="int" req="1" label="Dias previos hasta las vacaciones" name="DiasPrevHasta"/>
+	</PARAMS>
+	<QRY declare="&lt;PARAMS DiasPrevDesde=&quot;&quot; DiasPrevHasta=&quot;9&quot;/&gt;">
+		<qry:include name="Nomad.Base.Login.Entidades.ENTIDAD.INFO"/>
+		<qry:main doc="PARAMS">
+			<qry:append-doc name="PARAMIN" doc-path="$PARAMS/PARAMS"/>
+			<qry:element name="ROWS">
+				<TODOS>
+					<qry:attribute name="f_hasta" value="now-date() + #PARAMIN:@DiasprevHasta"/>
+					<qry:attribute name="f_desde" value="now-date()"/>
+					<qry:if test="#PARAMIN:@DiasprevDesde!=''">
+						<qry:then>
+							<qry:attribute name="f_desde" value="now-date() + #PARAMIN:@DiasprevDesde"/>
+						</qry:then>
+					</qry:if>
+					<qry:attribute name="DIASDESDE" value="#PARAMIN:@DiasprevDesde"/>
+					<qry:attribute name="DIASHASTA" value="#PARAMIN:@DiasprevHasta"/>
+					<qry:insert-select name="QRY_LIC_PER" doc-path="."/>
+				</TODOS>
+			</qry:element>
+		</qry:main>
+		<qry:select doc="PARAM" name="QRY_LIC_PER">
+			<qry:xquery>
+				for $r in sql('
+			SELECT
+				PER02_PERSONAL_EMP.e_numero_legajo,
+				PER01_PERSONAL.d_ape_y_nom,
+				PER01_PERSONAL.c_nro_documento,
+				PER20_TIPOS_DOC.c_tipo_documento,
+				PER20_TIPOS_DOC.d_tipo_documento,
+				PER02_LICEN_PER.f_inicio,
+				PER02_LICEN_PER.f_fin,
+				PER01_PERSONAL.d_email,
+				PER01_PERSONAL.oi_usuario_sistema,
+				ORG03_EMPRESAS.c_empresa,
+				ORG03_EMPRESAS.d_empresa
+			FROM
+				PER01_PERSONAL,
+				PER02_PERSONAL_EMP,
+				PER20_TIPOS_DOC,
+				PER02_LICEN_PER,
+				PER16_LICENCIAS,
+				ORG03_EMPRESAS	
+			JOIN 
+				ORG03_EMPRESAS.oi_empresa INNER PER02_PERSONAL_EMP.oi_empresa,
+				PER01_PERSONAL.oi_personal INNER PER02_PERSONAL_EMP.oi_personal,
+				PER02_PERSONAL_EMP.oi_personal_emp INNER PER02_LICEN_PER.oi_personal_emp,
+				PER02_LICEN_PER.oi_licencia INNER PER16_LICENCIAS.oi_licencia,
+				PER01_PERSONAL.oi_tipo_documento INNER PER20_TIPOS_DOC.oi_tipo_documento	
+			WHERE                      
+			  PER02_LICEN_PER.f_inicio &lt;= {Datetime(#PARAM:@f_hasta)} AND                             
+				PER02_LICEN_PER.f_inicio &gt; {current-date()} AND
+				PER16_LICENCIAS.c_licencia = \'V\' AND 
+				PER02_PERSONAL_EMP.oi_indic_activo = 1
+				{%? (#PARAM:@f_desde!='')                         
+				{% AND PER02_LICEN_PER.f_inicio &gt;= {Datetime(#PARAM:@f_desde)}  %}  {% %}        
+				%}  
+				
+			ORDER BY 
+				d_empresa ASC,
+				e_numero_legajo ASC,
+				f_inicio ASC
+		')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:element name="EMP">
+					<qry:attribute name="LEGAJO" value="$r/@e_numero_legajo"/>
+					<qry:attribute name="NOMBRE" value="$r/@d_ape_y_nom"/>
+					<qry:attribute name="CODEMPRESA" value="$r/@c_empresa"/>
+					<qry:attribute name="DESCEMPRESA" value="$r/@d_empresa"/>
+					<qry:attribute name="CODDOC" value="$r/@d_tipo_documento"/>
+					<qry:attribute name="NRODOC" value="$r/@c_nro_documento"/>
+					<qry:attribute name="TIPODOC" value="$r/@c_tipo_documento"/>
+					<qry:attribute name="MAIL" value="nmd-replace(string($r/@d_email),',',';')"/>
+					<qry:attribute name="FECHAINI" value="$r/@f_inicio"/>
+					<qry:attribute name="FECHAFIN" value="$r/@f_fin"/>
+					<qry:attribute name="DIAS_COM" value="datetime($r/@f_inicio)-now-date()"/>
+					<qry:attribute name="DIASDESDE" value="#PARAMIN:@DiasprevDesde"/>
+					<qry:attribute name="DIASHASTA" value="#PARAMIN:@DiasprevHasta"/>
+					<qry:insert-select name="sql1" doc-path="$r"/>
+				</qry:element>
+			</qry:out>
+		</qry:select>
+		<qry:select doc="PARAM" name="sql1">
+			<qry:xquery>
+				for $r in file('Nomad\\Base\\Login\\Entidades\\{%=#PARAM:@oi_usuario_sistema%}.ENTIDAD.XML')/ENTIDAD
+			</qry:xquery>
+			<qry:out>
+				<qry:attribute name="MAIL" value="@MAIL + ';' + nmd-replace(string($r/MAILS/MAIL[@PRINCIPAL=1]/@EMAIL),',',';')"/>
+			</qry:out>
+		</qry:select>
+	</QRY>
+	<MAILS>
+		<MAIL suject="[Alertas NucleusRH] Comienzo de vacaciones" group="EMP">
+			RECURSOS HUMANOS le informa que en {% @EMP.DIAS_COM %} d&#237;as comenzar&#225;n sus vacaciones.\\ 
+      
+      
+**Atte.**
+
+**&#193;rea de Recursos Humanos.**
+		</MAIL>
+		<MAIL group="TODOS" suject="[Alertas NucleusRH] Comienzo de vacaciones">
+			**Los siguientes legajos comenzar&#225;n sus vacaciones en los pr&#243;ximos {% @EMP.DIASHASTA %} d&#237;as:**
+
+         
+^Empresa          ^Legajo          ^Documento         ^Comienzo Vacaciones      ^Fin Vacaciones      ^D&#237;as comienzo    ^
+{%FOR-EACH EMP%}|[{% @EMP.CODEMPRESA %}] {% @EMP.DESCEMPRESA %}  |[{% @EMP.LEGAJO %}] {% @EMP.NOMBRE %}  |[{% @EMP.TIPODOC %}] {% @EMP.NRODOC %}  | {% @EMP.FECHAINI %}| {% @EMP.FECHAFIN %}| {% @EMP.DIAS_COM %}|
+{%END EMP%}
+		</MAIL>
+	</MAILS>
+	<GROUPS>
+		<GROUP label="Por Empleado" name="EMP">
+			<FIELD type="int" label="Legajo" name="LEGAJO"/>
+			<FIELD type="string" label="Apellido y Nombre" name="NOMBRE"/>
+			<FIELD type="string" label="C&#243;digo Empresa" name="CODEMPRESA"/>
+			<FIELD type="string" label="Descripci&#243;n Empresa" name="DESCEMPRESA"/>
+			<FIELD type="string" label="Documento" name="CODDOC"/>
+			<FIELD type="string" label="Nro. Documento" name="NRODOC"/>
+			<FIELD type="string" label="Tipo Documento" name="TIPODOC"/>
+			<FIELD label="E-Mail" type="string" name="MAIL"/>
+			<FIELD type="date" label="Inicio Vacaciones" name="FECHAINI"/>
+			<FIELD type="date" label="Fin de Vacaciones" name="FECHAFIN"/>
+			<FIELD label="Cant. de d&#237;as para las vacaciones" type="int" name="DIAS_COM"/>
+			<FIELD type="int" label="D&#237;as desde" name="DIASDESDE"/>
+			<FIELD type="int" label="D&#237;as hasta" name="DIASHASTA"/>
+		</GROUP>
+		<GROUP label="Sin Agrupar" name="TODOS">
+			<FIELD type="int" label="D&#237;as desde" name="DIASDESDE"/>
+			<FIELD type="int" label="D&#237;as hasta" name="DIASHASTA"/>
+		</GROUP>
+	</GROUPS>
+	<ENUMS/>
+</ALERT>

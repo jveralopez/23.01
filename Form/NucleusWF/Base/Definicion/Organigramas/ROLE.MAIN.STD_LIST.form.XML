@@ -1,0 +1,82 @@
+<form:Form xmlns:form="nomad_engine.form" xmlns:qry="nomad_engine.qry" name="NucleusWF.Base.Definicion.Organigramas.ROLE.MAIN.STD_LIST.form" extends="NucleusWF.Base.Definicion.Organigramas.ROLE.MAIN.STD_LIST.autoform" default_mode="LIST" doc="source">
+	<form:Bottom>
+		<form:RowAligner name="buttonlinks">
+			<form:Row name="row1">
+				<form:Button descrip="Eliminar un Registro" img="application_delete.gif" label="Eliminar" name="DELETE" visible="!SELECT">
+					<form:Event action="RegDelete" name="onclick" runat="client"/>
+				</form:Button>
+			</form:Row>
+		</form:RowAligner>
+	</form:Bottom>
+	<form:Resources>
+		<form:Resource declare="&lt;PARAM oi_organigrama=&quot;2&quot; oi_role=&quot;430&quot;/&gt;" name="QRY_ROL_USOWF">
+			<qry:main doc="SOURCE" name="">
+				<qry:element name="DATOS">
+					<qry:attribute name="flag" value="'0'"/>
+					<qry:insert-select name="sql" doc-path="#SOURCE:PARAM"/>
+				</qry:element>
+			</qry:main>
+			<qry:select name="sql" doc="SOURCE">
+				<qry:xquery>
+					for $r in SQL('  
+SELECT  
+WF_ROLES.oi_role,
+ORG.oi_organigrama,
+WF.oi_wf,
+ROLES.c_rol
+
+FROM 
+WRK05_ORGANIGRAMAS AS ORG,
+WRK01_WF AS WF,
+WRK01_PROCESS AS PRO,
+WRK01_NODES AS NODES,
+WRK01_ROLES_NODE AS ROLES,
+WRK05_ROLES as WF_ROLES
+
+JOIN 
+
+ORG.oi_organigrama INNER WF.oi_organigrama,
+WF.oi_wf INNER PRO.oi_wf,
+PRO.oi_process INNER NODES.oi_process,
+NODES.oi_node INNER ROLES.oi_node,
+ROLES.c_rol INNER WF_ROLES.c_role, 
+ORG.oi_organigrama INNER WF_ROLES.oi_organigrama
+
+where 
+ORG.oi_organigrama = {#SOURCE:@oi_organigrama}
+and WF_ROLES.oi_role = {#SOURCE:@oi_role}  
+AND WF.l_automatica = 0
+GROUP BY WF_ROLES.oi_role,ORG.oi_organigrama,WF.oi_wf,ROLES.c_rol			
+			
+			')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:attribute name="flag" value="'1'"/>
+				</qry:out>
+			</qry:select>
+		</form:Resource>
+	</form:Resources>
+	<form:Scripts>
+		&#13;&#10;function RegDelete()
+{
+  if (Ctrl("DELETE")?false:true) return false;
+  if (!Ctrl("DELETE").GetEnabled()) return false;            
+   
+ 	var rolVal;  
+ 	var nSQL = GetProxy().SQLService();
+ 	rolVal = nSQL.GetXML(Ctrl("main").getResource("QRY_ROL_USOWF"), "&lt;PARAM oi_organigrama=\""+Ctrl("PARENT").GetXValue()+"\" oi_role=\""+Ctrl("LIST").GetSelectAttrValue("id")+"\"/&gt;");    
+  		
+ 	if(rolVal.GetAttr("flag") != "1") 
+ 	{	
+		if (!confirm("&#191;Esta seguro que quiere eliminar el Registro?")) return false;	
+  		Ctrl("main").DoEvent("DELETE");
+  		return true;
+	}
+	else
+	{
+		alert("No puede eliminar el Actor, ya que est&#225; siendo utilizado dentro de un nodo de un WF que utiliza &#233;ste ORG");
+		return false;
+	} 
+}
+	</form:Scripts>
+</form:Form>

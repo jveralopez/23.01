@@ -1,0 +1,1503 @@
+<form:Form xmlns:form="nomad_engine.form" xmlns:qry="nomad_engine.qry" default_mode="EDIT" name="NucleusRH.Base.Tiempos_Trabajados.Personal.LICENCIA_PER.form" extends="NucleusRH.Base.Tiempos_Trabajados.Personal.LEVEL1.form" mess="&#191;Est&#225; seguro que desa cancelar la operaci&#243;n?" doc="source">
+	<form:Title width="90%">
+		<form:RowAligner name="ralTitle">
+			<form:Row name="row1">
+				<form:Label label="Crear Licencias" nowrap="1" align="center" visible="NEW" style="S3 LCol_w" name="GEN_NEW"/>
+				<form:Label label="Modificar Licencias" nowrap="1" align="center" visible="EDIT" style="S3 LCol_w" name="GEN_EDIT"/>
+				<form:Label label="Eliminar Licencias" nowrap="1" align="center" visible="DELETE" style="S3 LCol_w" name="GEN_DEL"/>
+				<form:Label label="Consultar Licencias" nowrap="1" align="center" visible="SHOW|LIST|LIST_EDIT" style="S3 LCol_w" name="GEN_SHOW"/>
+				<form:Label dynamic="1" nvalue="#PARENTSOURCE:../@descr" nowrap="1" align="right" style="S3 LCol_w" name="ti_01"/>
+			</form:Row>
+		</form:RowAligner>
+	</form:Title>
+	<form:Scripts>
+		//Este lo va a llamar cuando cambia de seleccionar una licencia con familiar o no
+function datos_tipo(myThis)
+{ 
+	if(myThis.ID()=='oi_familiar_per')
+	{   		  		
+		if(!Ctrl('oi_familiar_per').GetEnabled()) return;						
+	
+		if(Ctrl('oi_familiar_per').GetXValue()!="")
+		{    			
+			var np = new NomadProxy("", ut);
+			var nSQL = np.SQLService();       
+			var param = nSQL.GetOBJ(Ctrl("main").getResource("qry_tipo_fliar"), "&lt;PARAM oi_familiar_per=\""+Ctrl('oi_familiar_per').GetXValue()+"\" /&gt;");			
+			Ctrl('oi_tipo_familiar').SetXValue(param.oi_tipo_familiar.toString()); 					
+						                                        
+			var nombre = Ctrl("oi_familiar_per").GetCValue().split("-");		                                         		                                         			
+			Ctrl('o_licencia_per').SetXValue(Trim(nombre[1])); 
+			calcular_dias(myThis);	
+		}	
+		else
+		{
+			Ctrl('o_licencia_per').SetXValue(""); 
+			Ctrl('oi_tipo_familiar').SetXValue("");
+			Ctrl('e_saldo').SetXValue("");
+			calcular_dias(Ctrl('oi_licencia')); 		
+		}		
+	}
+}
+		
+
+function hab_tipofliar(myThis)
+{ 	                                         
+	var codLicFliar = Ctrl('codLicFliar').GetXValue().toString();     
+	if(codLicFliar!='')
+	{
+		//si el valor que llega es la licencia - valido que sea de tipo familiar enfermo segun el parametro
+		if(myThis.ID()=='oi_licencia')
+		{		
+			if(Ctrl("oi_licencia").GetXValue() != '')
+			{             				
+				//Recupero el codigo de la licencia - asociada al tipo de hora seleccionada en el control de oi_licencia
+				var np = new NomadProxy("", ut);
+				var nSQL = np.SQLService();       
+				var param = nSQL.GetOBJ(Ctrl("main").getResource("qry_CodLic"), "&lt;PARAM oi_licencia=\""+Ctrl('oi_licencia').GetXValue()+"\" /&gt;");	    		    	
+    	
+				var c_lic = param.c_licencia; 			    		    						  		
+    	       	
+    	         
+				if(codLicFliar.toString() == c_lic.toString())
+				{	
+					Ctrl('oi_familiar_per').SetEnabled(true);
+				}        	
+				else
+				{
+					Ctrl('oi_familiar_per').SetXValue("");
+					Ctrl('oi_familiar_per').SetEnabled(false);
+				}	
+			}
+			else
+			{
+				Ctrl('oi_familiar_per').SetXValue(""); 	
+			}		
+		}
+	}       
+	//En onchange del control de licencias tiene que llamar al calcular dias despues de habilitar al combo de tipo de familiar
+	calcular_dias(myThis); 
+}  
+         
+
+function OnLoad()
+{
+	//Inicio el Periodo	
+	if (Ctrl("ESPERANZA_PERIODO").GetXValue()=="") 
+	{
+		if (Ctrl("periodo").GetXValue()!="") 
+			Ctrl("ESPERANZA_PERIODO").SetXValue(Ctrl("periodo").GetXValue()+'01');
+		else
+			Ctrl("ESPERANZA_PERIODO").SetXValue(date2str(NowDate()).substr(0,6));
+	}
+
+	//Obtengo los Parametros
+	var objMONTH=Ctrl("ESPERANZA_PERIODO");
+	var lastDate=new Date(parseInt(objMONTH.GetXValue().substr(0,4),10), parseInt(objMONTH.GetXValue().substr(4,2),10), 1);
+
+	//Creo el CONTROL
+	MyOBJ=HTMLTimeBarSelected("ESPERANZA","",ChangeTime,OnClickHorario);
+	MyOBJ.SetAxisMode("SERIE/DATE");
+	MyOBJ.SetAxisDate(objMONTH.GetXValue()+"01",date2str(lastDate), 1, 1, 12);
+	MyOBJ.ShowMonth=false;
+ 
+ 	//Agrego la Serie
+	MyOBJ.AddSerie("BLQ", "Cerrado"  ,"Liquidaciones Cerradas");
+	MyOBJ.AddSerie("HOR", "Horarios" ,"Horarios Asignados"    );
+	MyOBJ.AddSerie("LIC", "Licencias","Licencias Definidas"   );
+	MyOBJ.AddSerie("TUR", "Turnos"   ,"Turnos Asignados"      );
+	
+	//Dibujo la Lista VACIA
+	MyOBJ.Draw();
+
+
+	LiqCloses=new NomadXML(Ctrl("main").GetLastDoc("LIQ"  ));
+	
+
+	//Cargo las Referencias
+	NomadTimeout("LoadReferences();", 100, "Cargando Referencias..."); 
+	
+	if(Ctrl("main").GetMode()=='EDIT' || Ctrl("main").GetMode()=='NEW')
+	{
+		Ctrl('oi_familiar_per').SetEnabled(false);	
+	}
+
+	var v_param;
+	
+	//Recupero el codigo de la licencia por familiar en el parametro
+	var np = new NomadProxy("", ut);
+	var nSQL = np.SQLService();       
+	var param = nSQL.GetOBJ(Ctrl("main").getResource("QRY_PARAMETRO"), "");	
+        
+	//Si existe el parametro - controla licencia
+	if (typeof (param.d_valor) != "undefined")
+	{
+		v_param = param.d_valor.toString();		
+	}
+	else
+	{
+		v_param = "";
+	} 	
+
+	Ctrl('codLicFliar').SetXValue(v_param);	
+	
+}   
+
+
+var Edit=false;
+var New=false;
+
+function RefreshControls()
+{
+	//Desactivo los Controles de Cambio
+	if (MyLICSel==null)
+	{
+		CtrlEnabled("DATA"  , false);
+		CtrlEnabled("ADD"   , true );
+		CtrlEnabled("EDIT"  , false);
+		CtrlEnabled("DELETE", false);
+		CtrlEnabled("BACK"  , true );
+		CtrlEnabled("ACCEPT", false);
+		CtrlEnabled("CANCEL", false);
+	} else 
+	if (Edit)
+	{
+		CtrlEnabled("DATA"  , true );
+		CtrlEnabled("ADD"   , false);
+		CtrlEnabled("EDIT"  , false);
+		CtrlEnabled("DELETE", false);
+		CtrlEnabled("BACK"  , false);
+		CtrlEnabled("ACCEPT", true );
+		CtrlEnabled("CANCEL", true );
+	} else
+	{
+		CtrlEnabled("DATA"  , false);
+		CtrlEnabled("ADD"   , true );
+		CtrlEnabled("EDIT"  , true );
+		CtrlEnabled("DELETE", true );
+		CtrlEnabled("BACK"  , true );
+		CtrlEnabled("ACCEPT", false);
+		CtrlEnabled("CANCEL", false);
+	}
+}
+
+function RefreshCustomSerie(MyOBJ, myserie)
+{   
+	if (myserie!="LIC") return;
+
+	var objMONTH=Ctrl("ESPERANZA_PERIODO");
+	var ff, fi, now, cur, MyROW, t, oi_licencia;
+	var firstDate=date2int(new Date(parseInt(objMONTH.GetXValue().substr(0,4),10), parseInt(objMONTH.GetXValue().substr(4,2),10)-1, 1));
+	var lastDate =date2int(new Date(parseInt(objMONTH.GetXValue().substr(0,4),10), parseInt(objMONTH.GetXValue().substr(4,2),10), 1));
+
+	//Limpio el DIA
+	MyOBJ.ClearValue("LIC");     
+
+	for (t=0; t&lt;Ctrl("arrLicencias").CountRow(); t++)
+	{
+		MyROW=Ctrl("arrLicencias").GetRow(t);
+		                                         
+		if ((MyLICSel==null) || (MyROW.GetAttr("id")!=MyLICSel.GetAttr("id")))
+		{
+			oi_licencia=MyROW.GetAttr("oi_licencia");
+			fi=date2int(str2date(MyROW.GetAttr("f_inicio")));
+			ff=date2int(str2date(MyROW.GetAttr("f_fin")));
+			if (MyROW.GetAttr("f_interrupcion")!="") ff=date2int(str2date(MyROW.GetAttr("f_interrupcion")));
+		} else
+		{
+			oi_licencia=Ctrl("oi_licencia").GetXValue();
+			fi=date2int(str2date(Ctrl("f_inicio").GetXValue()));
+			ff=date2int(str2date(Ctrl("f_fin"   ).GetXValue()));
+			if (Ctrl("f_interrupcion").GetXValue()!="") ff=date2int(str2date(Ctrl("f_interrupcion").GetXValue()));
+		}
+		if (ff&lt;firstDate) continue;
+		if (fi&gt;lastDate) continue;        
+		
+		//Obtengo el color segun el tipo de hora
+		dd=null;
+		for (key in MyDAT["LIC"].arr)
+			if (MyDAT["LIC"].arr[key].lic==oi_licencia)
+				dd=MyDAT["LIC"].arr[key];
+		
+		//Calculo de Color		
+		color="AA0000";
+		if ((dd!=null) &amp;&amp; (dd.color)) color=dd.color;
+		
+		//Obtengo 
+		newval=MyOBJ.SetValue(
+			"LIC",
+			fi,
+			ff+1,
+			"Licencia",
+			color,
+			color,
+			"Licencia "+(dd==null?"":dd.label)+" desde "+int2date(fi)+(MyROW.GetAttr("f_interrupcion")==""?" hasta ":" interrumpida ")+int2date(ff),
+			"BAR"
+		);              
+		newval.MyID    =MyROW.GetAttr("id");
+		newval.selected=MyLICSel?((MyROW.GetAttr("id")==MyLICSel.GetAttr("id"))?true:false):false;
+	}
+
+}
+
+
+
+function OnClickHorario(obj, dte, value)
+{	              
+	var MyROW;                            
+	if (value.MyID?false:true) return;
+	if (Edit) return;   
+  
+  	MyROW=Ctrl("arrLicencias").GetRowByAttr("id", value.MyID);
+	Ctrl("oi_licencia"   ).SetXValue(MyROW.GetAttr("oi_licencia"   ));
+	Ctrl("f_inicio"      ).SetXValue(MyROW.GetAttr("f_inicio"      ));
+	Ctrl("f_fin"         ).SetXValue(MyROW.GetAttr("f_fin"         ));
+	Ctrl("e_cant_dias"   ).SetXValue(MyROW.GetAttr("e_cant_dias"   ));
+	Ctrl("e_anio_corresp").SetXValue(MyROW.GetAttr("e_anio_corresp"));
+	Ctrl("f_interrupcion").SetXValue(MyROW.GetAttr("f_interrupcion"));
+	Ctrl("o_licencia_per").SetXValue(MyROW.GetAttr("o_licencia_per"));
+	Ctrl("oi_familiar_per").SetXValue(MyROW.GetAttr("oi_familiar_per"));
+                                                                             
+	if(Ctrl("oi_familiar_per").GetXValue()!="")
+	{
+ 		var np = new NomadProxy("", ut);
+		var nSQL = np.SQLService();       
+		var param = nSQL.GetOBJ(Ctrl("main").getResource("qry_tipo_fliar"), "&lt;PARAM oi_familiar_per=\""+Ctrl('oi_familiar_per').GetXValue()+"\" /&gt;");			
+		Ctrl('oi_tipo_familiar').SetXValue(param.oi_tipo_familiar.toString());
+	}
+	else
+	{
+		Ctrl('oi_tipo_familiar').SetXValue("");
+	}                                  
+         
+	calcularSaldo(MyROW.GetAttr("e_cant_dias"));
+ 	 	 
+	MyLICSel=MyROW;
+	
+	New=false;
+	ReDrawWait(MyOBJ,"LIC",true, true);
+}
+
+
+function AddLicencia()
+{    
+	Ctrl('e_saldo').SetXValue('');
+	NomadTimeout("internalAddLicencia();",100,"Generando la Licencia...");
+}
+
+function internalAddLicencia()
+{
+	var newDate=new Date();
+	MyROW=Ctrl("arrLicencias").AddRow();
+	MyROW.SetAttr("id"            ,"#"+datetime2str(newDate));
+	MyROW.SetAttr("oi_licencia"   ,"");
+	MyROW.SetAttr("f_inicio"      ,"");
+	MyROW.SetAttr("f_fin"         ,"");
+	MyROW.SetAttr("e_cant_dias"   ,"");
+	MyROW.SetAttr("e_anio_corresp","");
+	MyROW.SetAttr("f_interrupcion","");
+	MyROW.SetAttr("o_licencia_per","");
+	MyROW.SetAttr("oi_familiar_per","");
+	
+	Ctrl("oi_licencia"   ).SetXValue(MyROW.GetAttr("oi_licencia"   ));
+	Ctrl("f_inicio"      ).SetXValue(MyROW.GetAttr("f_inicio"      ));
+	Ctrl("f_fin"         ).SetXValue(MyROW.GetAttr("f_fin"         ));
+	Ctrl("e_cant_dias"   ).SetXValue(MyROW.GetAttr("e_cant_dias"   ));
+	Ctrl("e_anio_corresp").SetXValue(MyROW.GetAttr("e_anio_corresp"));
+	Ctrl("f_interrupcion").SetXValue(MyROW.GetAttr("f_interrupcion"));
+	Ctrl("o_licencia_per").SetXValue(MyROW.GetAttr("o_licencia_per"));
+	Ctrl("oi_familiar_per").SetXValue(MyROW.GetAttr("oi_familiar_per"));
+		
+	MyLICSel=MyROW;
+	StartEdit();
+	New=true;
+	ReDrawWait(MyOBJ,"LIC",true, true);	
+} 
+
+
+function StartEdit()
+{            
+	var now, cur;	
+	//Si intento modificar una licencia seleccionada - debo revisar si es de tipo familiar enfermo
+	if(Ctrl("oi_licencia").GetXValue() != '')
+	{
+		//Recupero el codigo de la licencia - asociada al tipo de hora seleccionada en el control de oi_licencia
+		var np = new NomadProxy("", ut);
+		var nSQL = np.SQLService();       
+		var param = nSQL.GetOBJ(Ctrl("main").getResource("qry_CodLic"), "&lt;PARAM oi_licencia=\""+Ctrl('oi_licencia').GetXValue()+"\" /&gt;");	    	    
+
+		var c_lic = param.c_licencia; 			    		    						  		
+        var codLicFliar = Ctrl('codLicFliar').GetXValue().toString(); 	                 
+            
+		if(codLicFliar.toString() == c_lic.toString())
+		{	
+			Ctrl('oi_familiar_per').SetEnabled(true);
+		}         	
+		else
+		{
+			Ctrl('oi_familiar_per').SetEnabled(false);
+		}	
+	}	 
+  
+	//Verifico si el rango de dias esta bloqueado
+	if (MyLICSel.GetAttr("f_inicio")!="")
+	{   
+		
+		var dias;
+		if(Ctrl('CantidadDiasModificar') != undefined)
+			dias = Ctrl('CantidadDiasModificar').GetXValue();
+		else
+			dias = 180;
+
+		now=NowDate();
+		if ((NowDate()-str2date(MyLICSel.GetAttr("f_inicio")))/86400000&gt;dias)
+		{
+			alert("No se puede modificar.\r\nLa fecha inicial es anterior a "+dias+" dias.");
+			return false;
+		}
+	
+		for (cur=LiqCloses.FirstChild(); cur!=null; cur=cur.Next())
+		{                                
+			if (MyLICSel.GetAttr("f_inicio")&gt;cur.GetAttr("f_fin")) continue;
+			if (MyLICSel.GetAttr("f_fin"   )&lt;cur.GetAttr("f_ini")) continue;
+			
+			alert("No se puede modificar.\r\nExisten procesamientos cerrados en el rango de fechas.");
+			return false;
+		}
+	}  
+
+	Edit=true;
+	
+	MyOBJ.EditStart();           
+	MyOBJ.SelectStyle("00AA00","BAR");
+
+    RefreshControls();
+}          
+
+
+
+
+
+function EditCancel()
+{        
+	if (New)
+	{
+		Ctrl("arrLicencias").DelRowByAttr("id", MyLICSel.GetAttr("id"));
+		MyLICSel=null;
+	} else
+	{
+		Ctrl("oi_licencia"   ).SetXValue(MyLICSel.GetAttr("oi_licencia"   ));
+		Ctrl("f_inicio"      ).SetXValue(MyLICSel.GetAttr("f_inicio"      ));
+		Ctrl("f_fin"         ).SetXValue(MyLICSel.GetAttr("f_fin"         ));
+		Ctrl("e_cant_dias"   ).SetXValue(MyLICSel.GetAttr("e_cant_dias"   ));
+		Ctrl("e_anio_corresp").SetXValue(MyLICSel.GetAttr("e_anio_corresp"));
+		Ctrl("f_interrupcion").SetXValue(MyLICSel.GetAttr("f_interrupcion"));
+		Ctrl("o_licencia_per").SetXValue(MyLICSel.GetAttr("o_licencia_per"));
+		Ctrl("oi_familiar_per").SetXValue(MyLICSel.GetAttr("oi_familiar_per"));		
+	}
+	Edit=false;
+	New=false;
+	
+	MyOBJ.EditEnd();          
+	ReDrawWait(MyOBJ,"LIC",true, true);
+}       
+
+function ChangeTime(obj, myserie, timestart, timeend)
+{                               
+	if (myserie!="LIC") return;
+	                            
+	aux=str2date("20000102"); aux.setDate(aux.getDate()+timestart); Ctrl("f_inicio").SetXValue(date2str(aux));
+	aux=str2date("20000102"); aux.setDate(aux.getDate()+timeend-1); Ctrl("f_fin"   ).SetXValue(date2str(aux));
+	
+	if (Ctrl("e_anio_corresp").GetXValue()=="") 
+		Ctrl("e_anio_corresp").SetTypedValue(Ctrl("f_inicio").TypedValue().getFullYear());
+	Ctrl("e_cant_dias").SetTypedValue((Ctrl("f_fin").TypedValue()-Ctrl("f_inicio").TypedValue())/86400000+1);
+	       
+	ReDrawWait(MyOBJ,"LIC",true, true);
+}
+
+function EditAccept()
+{    
+	var t, cur; 
+          
+  //valido licencia actual
+  if(!validarDiasPedidos())
+  	return false;
+    
+    	
+	var dias;
+	if(Ctrl('CantidadDiasModificar') != undefined)
+		dias = Ctrl('CantidadDiasModificar').GetXValue();
+	else
+		dias = 180;
+                
+	if ((NowDate()-str2date(Ctrl("f_inicio").GetXValue()))/86400000&gt;dias)
+	{
+		alert("No se puede modificar.\r\nEl inicio del rango es anterior a "+dias+" dias.");       
+		return false;
+	}
+
+	for (cur=LiqCloses.FirstChild(); cur!=null; cur=cur.Next())
+	{                                
+		if (Ctrl("f_inicio").GetXValue()&gt;cur.GetAttr("f_fin")) continue;
+		if (Ctrl("f_fin").GetXValue()&lt;cur.GetAttr("f_ini")) continue;
+		
+		alert("No se puede modificar.\r\nExisten procesamientos cerrados en el rango de fechas.");
+		return false;
+	}
+
+	for (t=0; t&lt;Ctrl("arrLicencias").CountRow(); t++)
+	{
+		MyROW=Ctrl("arrLicencias").GetRow(t);
+		if (MyROW.GetAttr("id")==MyLICSel.GetAttr("id")) continue;
+			
+		if (Ctrl("f_inicio").GetXValue()&gt;MyROW.GetAttr("f_fin")   ) continue;
+		if (Ctrl("f_fin"   ).GetXValue()&lt;MyROW.GetAttr("f_inicio")) continue;
+		
+		//falta verificacion de rango 
+		alert("La Licencia modificada se superpone con otra Licencia.");
+		return false;
+	}
+	
+	NomadTimeout("internalEditAccept()",100,"Actualizando la Vista...");
+}
+
+function internalEditAccept()
+{
+	MyLICSel.SetAttr("oi_licencia"   ,Ctrl("oi_licencia"   ).GetXValue());
+	MyLICSel.SetAttr("f_inicio"      ,Ctrl("f_inicio"      ).GetXValue());
+	MyLICSel.SetAttr("f_fin"         ,Ctrl("f_fin"         ).GetXValue());
+	MyLICSel.SetAttr("e_cant_dias"   ,Ctrl("e_cant_dias"   ).GetXValue());
+	MyLICSel.SetAttr("e_anio_corresp",Ctrl("e_anio_corresp").GetXValue());
+	MyLICSel.SetAttr("f_interrupcion",Ctrl("f_interrupcion").GetXValue());
+	MyLICSel.SetAttr("o_licencia_per",Ctrl("o_licencia_per").GetXValue());
+	MyLICSel.SetAttr("oi_familiar_per",Ctrl("oi_familiar_per").GetXValue());
+
+	Edit=false;
+	New=false;
+	
+	GetLicSel(MyDAT, Ctrl("oi_licencia").GetXValue());
+	            	                 
+	MyOBJ.EditEnd();  
+	OnChangePeriodo();
+	RefreshControls();     
+}
+
+
+function ChangeFInicio()
+{ 
+	if (Ctrl("f_inicio").GetXValue()=="") 
+		return true;
+
+	//Calculo el a&#241;o a partir de la fecha de inicio		
+	if (Ctrl("e_anio_corresp").GetXValue()=="") 
+	{
+		Ctrl("e_anio_corresp").SetTypedValue(Ctrl("f_inicio").TypedValue().getFullYear());
+		calcularSaldo(0);
+	}
+		
+	if (Ctrl("f_fin").GetXValue()!="")
+		Ctrl("e_cant_dias").SetTypedValue((Ctrl("f_fin").TypedValue()-Ctrl("f_inicio").TypedValue())/86400000+1);
+		
+	ReDrawWait(MyOBJ,"LIC",true, false);
+}
+
+function ChangeFFin()
+{
+	if (Ctrl("f_fin").GetXValue()=="") 
+		return true;
+
+	if (Ctrl("f_inicio").GetXValue()!="")
+		Ctrl("e_cant_dias").SetTypedValue((Ctrl("f_fin").TypedValue()-Ctrl("f_inicio").TypedValue())/86400000+1);
+		
+	ReDrawWait(MyOBJ,"LIC",true, false);
+}
+
+function ChangeDias()
+{
+	if (Ctrl("e_cant_dias").GetXValue()=="") 
+		return true;
+
+	if (Ctrl("f_inicio").GetXValue()!="")       
+	{
+		aux=Ctrl("f_inicio").TypedValue();
+		aux.setDate(aux.getDate()+Ctrl("e_cant_dias").TypedValue()-1);
+		Ctrl("f_fin").SetTypedValue(aux);
+	}      	
+	
+	ReDrawWait(MyOBJ,"LIC",true, false);
+}
+
+function validar_f_fin(myThis)
+{	                            
+	if (myThis.GetXValue() &lt; Ctrl('f_inicio').GetXValue())
+	{
+		myThis.SetError("La fecha de Fin debe ser posterior o igual a la fecha de Inicio");
+		return false;
+	}
+	else 
+		return true;
+}
+
+function DelLicencia()
+{  
+	var now, maxfecha;
+			
+	var dias;
+	if(Ctrl('CantidadDiasModificar') != undefined)
+		dias = Ctrl('CantidadDiasModificar').GetXValue();
+	else
+		dias = 180;
+
+	//Verifico si el dia esta bloqueado
+	if ((NowDate()-str2date(MyLICSel.GetAttr("f_fin")))/86400000&gt;dias)
+	{       
+		alert("No se puede Eliminar.\r\nLa fecha final es anterior a "+dias+" dias.");
+		return false;
+	}
+
+	if ((NowDate()-str2date(MyLICSel.GetAttr("f_inicio")))/86400000&gt;dias)
+	{
+		alert("No se puede Eliminar.\r\nExisten procesamientos cerrados en el rango de fechas.");       
+		return false;
+	}
+
+	for (cur=LiqCloses.FirstChild(); cur!=null; cur=cur.Next())
+	{                                
+		if (MyLICSel.GetAttr("f_inicio")&gt;cur.GetAttr("f_fin")) continue;
+		if (MyLICSel.GetAttr("f_fin")&lt;cur.GetAttr("f_ini")) continue;
+		
+		alert("No se puede Eliminar.\r\nExisten procesamientos cerrados en el rango de fechas.");       
+		return false;
+	}
+	
+	Ctrl("arrLicencias").DelRowByAttr("id", MyLICSel.GetAttr("id"));
+	MyLICSel=null;
+	ReDrawWait(MyOBJ,"LIC", true, true);
+}
+
+function SetData(NAME, KEY)
+{
+	if (Ctrl("main").GetMode()!="EDIT") return;
+	
+	MyDAT[NAME].sel=KEY;     
+	if (MyDAT[NAME].cont!="") DrawReference(MyDAT[NAME], MyDAT[NAME].cont);
+
+	if ((NAME=="LIC") &amp;&amp; (Edit))
+		Ctrl("oi_licencia").SetXValue(MyDAT[NAME].arr[KEY].lic);
+}
+//********************************************************************************************
+
+function calcularSaldoTotal(oi_licencia, e_anio_corresp)
+{
+	var saldoTotal=0;
+	for (t=0; t&lt;Ctrl("arrLicencias").CountRow(); t++)
+	{
+		MyROW=Ctrl("arrLicencias").GetRow(t);
+		
+		if (MyROW.GetAttr("oi_licencia")==oi_licencia &amp;&amp; MyROW.GetAttr("e_anio_corresp")==e_anio_corresp)
+		{
+			saldoTotal=saldoTotal+parseInt(MyROW.GetAttr("e_cant_dias"));	
+		}	
+	}
+	
+	return saldoTotal;
+}
+
+function calcularSaldo(cant_licencia)
+{       
+	if ((Ctrl('e_anio_corresp').GetCValue() != "") || (Ctrl('oi_licencia').GetXValue() != ""))
+	{   
+	  var licRes;
+	  var nSQL = GetProxy().SQLService(); 	  
+	  licRes = nSQL.GetOBJ(Ctrl("main").getResource("qry_datosLic"), "&lt;PARAM oi_personal_emp=\""+Ctrl('oi_personal_emp').GetXValue()+"\" oi_licencia=\""+Ctrl('oi_licencia').GetXValue()+"\" oi_tipo_familiar=\""+Ctrl('oi_tipo_familiar').GetXValue()+"\" /&gt;");
+	  
+		licRes = nSQL.GetOBJ(Ctrl("main").getResource("qry_datosLic"), "&lt;PARAM oi_personal_emp=\""+Ctrl('oi_personal_emp').GetXValue()+"\" oi_licencia=\""+Ctrl('oi_licencia').GetXValue()+"\" oi_tipo_familiar=\""+Ctrl('oi_tipo_familiar').GetXValue()+"\" /&gt;");
+	  
+	  if(licRes.e_max_dias_anio!='null')	  	  
+	  	Ctrl('e_max_dias_anio').SetXValue(licRes.e_max_dias_anio);
+	  else
+	  	Ctrl('e_max_dias_anio').SetXValue('');
+	  	
+	  if(licRes.e_max_dias_lic!='null')	  	  
+	  	Ctrl('e_max_dias_lic').SetXValue(licRes.e_max_dias_lic);
+	  else
+	  	Ctrl('e_max_dias_lic').SetXValue('');	
+	  
+	  if(licRes.e_min_meses_antig!='null')	  	  
+	  	Ctrl('e_min_meses_antig').SetXValue(licRes.e_min_meses_antig);
+	  else
+	  	Ctrl('e_min_meses_antig').SetXValue('');	
+	  	  
+	  if(licRes.l_max_dias_anio!='null')	  	  
+	  	Ctrl('l_max_dias_anio').SetXValue(licRes.l_max_dias_anio);
+	  else
+	  	Ctrl('l_max_dias_anio').SetXValue('');	
+	  	  
+	  if(licRes.l_max_dias_lic!='null')	  	  
+	  	Ctrl('l_max_dias_lic').SetXValue(licRes.l_max_dias_lic);
+	  else
+	  	Ctrl('l_max_dias_lic').SetXValue('');	
+	  	  
+	  if(licRes.l_min_meses_antig!='null')	  	  
+	  	Ctrl('l_min_meses_antig').SetXValue(licRes.l_min_meses_antig);
+	  else
+	  	Ctrl('l_min_meses_antig').SetXValue('');	
+	  	  
+	  if(licRes.l_acumulativa!='null')	  	  
+	  	Ctrl('l_acumulativa').SetXValue(licRes.l_acumulativa);
+	  else
+	  	Ctrl('l_acumulativa').SetXValue('');	
+			  
+	  /*if(licRes.flag == "1") //si encontro el tipo de licencia
+	  { 
+
+	    if(licRes.l_max_dias_anio=="1" &amp;&amp; licRes.e_max_dias_anio!='null')  
+	    {   
+	    	//Este saldo se calcula en base al arreglo de licencias dibujado en pantalla
+			var saldoTotalLic=calcularSaldoTotal(Ctrl('oi_licencia').GetXValue(),Ctrl('e_anio_corresp').GetXValue());
+					
+			if(saldoTotalLic!=0)
+	  		{ 
+					var saldo = parseInt(licRes.e_max_dias_anio) - saldoTotalLic + parseInt(cant_licencia);
+                    Ctrl('e_saldo').SetXValue(saldo);  
+       		}
+				else
+				{
+					Ctrl('e_saldo').SetXValue(licRes.e_max_dias_anio);
+				}
+	    	return true;	
+	    }
+	    else
+			{                           
+				Ctrl('e_saldo').SetXValue('');
+				return true;
+			}
+	  }
+		else
+		{   
+			Ctrl('e_saldo').SetXValue('');
+			return true;
+		}		
+	}
+	
+	return true;	*/
+	
+	if(licRes.flag == "1") //si encontro el tipo de licencia
+	{ 	  	
+		if(licRes.l_acumulativa == "0")
+		{  	    				
+			saldoRes = nSQL.GetOBJ(Ctrl("main").getResource("qry_datosLicLeg"), "&lt;PARAM oi_licencia=\""+Ctrl('oi_licencia').GetXValue()+"\" oi_personal_emp=\""+Ctrl('oi_personal_emp').GetXValue()+"\" e_anio_corresp=\""+Ctrl('e_anio_corresp').GetXValue()+"\" oi_familiar_per=\""+Ctrl('oi_familiar_per').GetXValue()+"\" /&gt;");
+			//NO ACUMULATIVA
+			if(saldoRes.flag == "1")
+			{
+				if(licRes.e_max_dias_anio!='null')
+				{
+					var saldo = licRes.e_max_dias_anio-saldoRes.diasTomados;
+					Ctrl('e_saldo').SetXValue(saldo);
+				}
+				else
+					Ctrl('e_saldo').SetXValue(0-saldoRes.diasTomados);
+				
+			}
+			else
+			{
+				if(licRes.e_max_dias_anio!='null')
+					Ctrl('e_saldo').SetXValue(licRes.e_max_dias_anio);
+				else
+					Ctrl('e_saldo').SetXValue('');
+			}
+			return true;			    
+		}
+		else
+  		{  
+			saldoRes = nSQL.GetOBJ(Ctrl("main").getResource("qry_datosLicLeg_acum"), "&lt;PARAM oi_licencia=\""+Ctrl('oi_licencia').GetXValue()+"\" oi_personal_emp=\""+Ctrl('oi_personal_emp').GetXValue()+"\" e_anio_corresp=\""+Ctrl('e_anio_corresp').GetXValue()+"\" /&gt;");
+			//ACUMULATIVA
+			if(saldoRes.flag == "1")
+			{
+					Ctrl('e_saldo').SetXValue(saldoRes.saldo);
+				}
+				else
+				{
+					if(licRes.e_max_dias_anio!='null')				
+						Ctrl('e_saldo').SetXValue(licRes.e_max_dias_anio);	
+					else
+						Ctrl('e_saldo').SetXValue('');	
+				}
+			return true;  			
+  		}
+	  }
+		else
+		{   
+			Ctrl('e_saldo').SetXValue('');
+			return true;
+		}		
+	}
+	
+	return true;
+} 
+
+
+function sugerirAnoCorresp()
+{  
+	var fecha = Ctrl("f_inicio").TypedValue().getFullYear()
+	Ctrl('e_anio_corresp').SetTypedValue(fecha);
+	Ctrl('e_cant_dias').SetXValue("");
+	Ctrl('f_fin').SetXValue("");
+	
+}
+
+//Calcula la antiguedad del legajo en meses
+function calcularAntiguedad()
+{
+	var antiguedad;  
+	var nSQL = GetProxy().SQLService();
+	antiguedad = nSQL.GetOBJ(Ctrl("main").getResource("qry_Antiguedad"), "&lt;PARAM oi_personal_emp=\""+Ctrl('oi_personal_emp').GetXValue()+"\" /&gt;");    
+	           
+	var d1 = new Date(antiguedad.f_ant_calculo.substr(0,4),parseInt(antiguedad.f_ant_calculo.substr(4,2))-1, antiguedad.f_ant_calculo.substr(6,2));
+	var d2 = new Date();     
+	
+	return monthDiff(d1,d2);
+} 
+
+//Calcula Diferencia en Meses entre dos Fechas
+function monthDiff(d1, d2) {
+    var months;
+    months = (d2.getFullYear() - d1.getFullYear()) * 12;
+    var fechaActual= new Date();        
+    //Si la fecha corresponde al corriente a&#241;o
+    if(fechaActual.getFullYear()==d1.getFullYear())
+    	{
+    	//Si d1 arranca en el primer d&#237;a no descuenta el primer mes      
+    	if(d1.getDay()==1)
+    		months -= (d1.getMonth()-1);
+    	else
+    		months -= d1.getMonth();
+    	}
+    else
+    	{
+    	//Si d1 arranca en el primer d&#237;a no descuenta el primer mes      
+    	if(d1.getDay()==0)
+    		months -= (d1.getMonth()-1);
+    	else
+    		months -= d1.getMonth();
+    	}	                             
+    	
+    //Obtiene el &#250;ltimo d&#237;a del mes  
+   	var ultimoDia = new Date(2016,d2.getMonth()+1,0); 
+   	//Si el &#250;ltimo mes se trabajo completo, suma tambi&#233;n el &#250;ltimo mes 
+   	if(d2.getDay()!=ultimoDia.getDay())
+    	months += d2.getMonth();
+    else
+    	months += d2.getMonth()+1;
+    	  
+    return months &lt;= 0 ? 0 : months;
+}  	
+
+function validarDiasPedidos()     
+{   
+	/*//Valida si supera el maximo permitido de la licencia
+	if(Ctrl('e_max_dias_lic').GetXValue()!='NULL')
+	{           
+		if(Ctrl('l_max_dias_lic').GetXValue()=="1" &amp;&amp; Ctrl('e_cant_dias').TypedValue() &gt; str2number(Ctrl('e_max_dias_lic').GetXValue()))
+		{         
+			//preguntar si quiere aprobar de todos modos
+			alert("La cantidad de d&#237;as indicados supera el l&#237;mite permitido por licencia");
+			 return false;
+		}
+	} 
+	   	
+	//Si tiene tope anual y tiene licencias
+	if((Ctrl('e_max_dias_anio').GetXValue()!='NULL') &amp;&amp; (Ctrl('e_saldo').GetXValue() !=''))
+	{
+		if(Ctrl('l_max_dias_anio').GetXValue()=="1" &amp;&amp; Ctrl('e_cant_dias').TypedValue() &gt; Ctrl('e_saldo').TypedValue())
+		{        
+			//El saldo es insuficiente
+			//preguntar si quiere aprobar de todos modos
+			alert("La cantidad de d&#237;as de licencia indicados supera el tope anual establecido");
+			return false;
+		} 
+		
+	}  
+	
+	//Controla que el legajo supere el m&#237;nimo de meses de antiguedad para la licencia
+	if((Ctrl('e_min_meses_antig').GetXValue()!='NULL') &amp;&amp; (Ctrl('l_min_meses_antig').GetXValue()==1) &amp;&amp; (Ctrl('e_min_meses_antig').GetXValue()&gt;calcularAntiguedad()))  
+	{               
+		//Cantidad de meses de antiguedad insuficientes, vuelve a generar licencia
+		alert("El Legajo no alcanza el m&#237;nimo de meses de antig&#252;edad para tomar una licencia de este tipo.");
+		return false;
+	}
+	
+	return true; */
+	
+	 
+	//Valida si supera el maximo permitido de la licencia
+	if(Ctrl('e_max_dias_lic').GetXValue()!='')
+	{
+		if(Ctrl('e_cant_dias').TypedValue() &gt; str2number(Ctrl('e_max_dias_lic').GetXValue()))
+		{
+			if(Ctrl('l_max_dias_lic').GetXValue()=="1")
+			{
+				return confirm("La cantidad de d&#237;as indicados supera el l&#237;mite permitido por licencia.\n&#191;Confirma licencia?");				
+			}
+			else
+			{
+				alert("La cantidad de d&#237;as indicados supera el l&#237;mite permitido por licencia");
+			 	return false;
+			}
+		}
+	} 
+	   	
+	//Si tiene tope anual y tiene licencias
+	if((Ctrl('e_max_dias_anio').GetXValue()!='') &amp;&amp; (Ctrl('e_saldo').GetXValue() !=''))
+	{
+		
+		
+		if(Ctrl('e_cant_dias').TypedValue() &gt; Ctrl('e_saldo').TypedValue())
+		{
+			if(Ctrl('l_max_dias_anio').GetXValue()=="1" )
+			{
+				return confirm("La cantidad de d&#237;as de licencia indicados supera el tope anual establecido.\n&#191;Confirma licencia?");				
+			}
+			else
+			{
+				alert("La cantidad de d&#237;as de licencia indicados supera el tope anual establecido.");
+				return false;
+			}
+		}		
+	}  
+	
+	
+	if((Ctrl('e_min_meses_antig').GetXValue()!='') &amp;&amp; (Ctrl('e_min_meses_antig').GetXValue()&gt;calcularAntiguedad()))
+	{
+		if(Ctrl('l_min_meses_antig').GetXValue()==1)
+		{
+			return confirm("El Legajo no alcanza el m&#237;nimo de meses de antig&#252;edad para tomar una licencia de este tipo.\n&#191;Confirma licencia?");				
+		}
+		else
+		{
+			alert("El Legajo no alcanza el m&#237;nimo de meses de antig&#252;edad para tomar una licencia de este tipo.");
+			return false;
+		}
+	}
+
+	return true; 
+	
+}
+
+function GetLicSel(MyDAT, oi_licencia)
+{	
+	var PARAM = "&lt;DATO oi_licencia=\""+oi_licencia+"\"/&gt;";
+	proxy=new NomadProxy();	
+	var sellic=proxy.SQLService().GetOBJ(Ctrl("main").getResource("SELLIC"),PARAM);
+	RESULT=sellic["TIPOS_DE_HORA"];	
+					
+	for (t=0; t&lt;RESULT.Child.length; t++)
+	{
+		MyDAT["LIC"].arr[RESULT.Child[t].id.toString()]=RESULT.Child[t];
+		if (MyDAT["LIC"].def==null) MyDAT["LIC"].def=RESULT.Child[t];
+	}
+	DrawReference(MyDAT["LIC"], MyDAT["LIC"].cont);
+}
+
+function calcular_dias(myThis)
+{       
+	//sugiero a&#241;o corresp. si lo llamo desde f_inicio	
+	if(((myThis.ID()=='f_inicio') || (myThis.ID()=='oi_personal_emp') || (myThis.ID()=='oi_licencia') || (myThis.ID()=='oi_familiar_per')) &amp;&amp; (Ctrl('f_inicio').GetCValue()!=""))
+	{		
+		sugerirAnoCorresp();
+		calcularSaldo();
+	} 
+	
+	if (CtrlExists("l_bloqueada") &amp;&amp; (Ctrl("l_bloqueada").GetXValue()=="1")) return true;
+
+ 	if (Ctrl('f_fin').GetXValue() != "" &amp;&amp; Ctrl('f_inicio').GetXValue() != "")
+ 	{ 		
+ 		if (Ctrl('f_fin').GetXValue() &gt;= Ctrl('f_inicio').GetXValue())
+ 		{
+ 			Ctrl('e_cant_dias').SetTypedValue(DiffDays(Ctrl('f_fin').TypedValue(), Ctrl('f_inicio').TypedValue()) + 1);
+ 		} 
+ 		else Ctrl('e_cant_dias').SetXValue("");
+ 	}
+ 	else Ctrl('e_cant_dias').SetXValue("");     	
+ 	
+	ReDrawWait(MyOBJ,"LIC",true, false);
+	
+ 	return true;
+	
+}
+	</form:Scripts>
+	<form:Center height="100%" width="100%">
+		<form:Columns height="600px" width="90%" name="ColsDatos">
+			<form:Column width="50%" valign="top" align="right" name="ColDato">
+				<form:Container height="300px" width="600px" border="2" enabled="NEW|EDIT" rheight="200px" rwidth="600px" label="Datos" name="DATA" borderwidth="2">
+					<form:Blank name="datBlank2"/>
+					<form:Hidden nvalue="#PARENTSOURCE:../@id" name="oi_personal_emp"/>
+					<form:FKInput required="1" enabled="NEW|EDIT" xsize="13" length="25" label="Licencia" name="oi_licencia">
+						<form:STexts>
+							<form:SText xsize="40" name="txt1"/>
+						</form:STexts>
+						<form:Helper name="NucleusRH.Base.Tiempos_Trabajados.Personal.LICENCIA_PER.guia.flow" help="HELP" x2c="X2C" c2x="C2X">
+							<helper-mess text="{this.Text.1}" id="{this.XVal}" code="{this.CVal}"/>
+						</form:Helper>
+						<form:SButtons>
+							<form:SButton visible="EDIT|NEW" img="SEARCH" label="Search" name="SEARCH">
+								<form:Event action="SHOW_HELPER" name="onclick" runat="client"/>
+							</form:SButton>
+						</form:SButtons>
+						<form:Event action="hab_tipofliar" name="onchange" runat="client"/>
+					</form:FKInput>
+					<form:ComboBox enabled="NEW|EDIT" queryname1="NucleusRH.Base.Personal.Legajo.FAMILIAR_PER.INFO_LEG" prev="oi_personal_emp" xsize="30" mode="QRY" required="0" label="Familiar " nvalue="#source:@oi_familiar_per" name="oi_familiar_per">
+						<form:Event action="datos_tipo" name="onchange" runat="client"/>
+					</form:ComboBox>
+					<form:DateTime pattern="YYYYMMDD" required="1" enabled="NEW|EDIT" descr="Fecha de Inicio de Licencia." mask="dd/mm/yyyy" label="Fecha Inicio" name="f_inicio">
+						<form:SButtons>
+							<form:SButton visible="EDIT|NEW" descrip="Fecha de Inicio de Licencia." img="Calendar" label="Calendar" name="Calendar">
+								<form:Event action="SHOW_HELPER" name="onclick" runat="client"/>
+							</form:SButton>
+						</form:SButtons>
+						<!--<form:Event action="ChangeFInicio" name="OnChange" runat="client"/>-->
+						<form:Event action="calcular_dias" name="OnChange" runat="client"/>
+					</form:DateTime>
+					<form:DateTime pattern="YYYYMMDD" required="1" enabled="NEW|EDIT" descr="Fecha de Finalizaci&#243;n de la Licencia." mask="dd/mm/yyyy" label="Fecha Fin" name="f_fin">
+						<form:SButtons>
+							<form:SButton visible="EDIT|NEW" descrip="Fecha de Finalizaci&#243;n de la Licencia." img="Calendar" label="Calendar" name="Calendar">
+								<form:Event action="SHOW_HELPER" name="onclick" runat="client"/>
+							</form:SButton>
+						</form:SButtons>
+						<form:Event action="ChangeFFin" name="OnChange" runat="client"/>
+						<form:Event name="onvalidate" action="validar_f_fin" runat="client"/>
+					</form:DateTime>
+					<form:NumberBox max="365" min="1" required="1" enabled="NEW|EDIT" descr="Cantidad de D&#237;as de Licencia." mask="###.###.##0" xsize="12" label="Cantidad D&#237;as" name="e_cant_dias">
+						<form:Event action="ChangeDias" name="OnChange" runat="client"/>
+					</form:NumberBox>
+					<form:NumberBox required="1" enabled="NEW|EDIT" descr="Per&#237;odo al que corresponden los d&#237;as de Licencia." mask="###.###.##0" xsize="12" max="2500" min="1900" label="A&#241;o Correspondiente" name="e_anio_corresp"/>
+					<form:TextBox label="Saldo" name="e_saldo" enabled="0"/>
+					<form:DateTime pattern="YYYYMMDD" required="0" enabled="0" mask="dd/mm/yyyy" label="Fecha de Interrupci&#243;n" name="f_interrupcion">
+						<form:SButtons>
+							<form:SButton visible="EDIT|NEW" img="Calendar" label="Calendar" name="Calendar">
+								<form:Event action="SHOW_HELPER" name="onclick" runat="client"/>
+							</form:SButton>
+						</form:SButtons>
+					</form:DateTime>
+					<form:TextBox required="0" enabled="NEW|EDIT" ysize="4" xsize="45" length="1000" label="Observaciones" name="o_licencia_per"/>
+					<form:Hidden name="id"/>
+					<form:Hidden name="e_max_dias_anio"/>
+					<form:Hidden name="e_max_dias_lic"/>
+					<form:Hidden name="e_min_meses_antig"/>
+					<form:Hidden name="l_max_dias_anio"/>
+					<form:Hidden name="l_max_dias_lic"/>
+					<form:Hidden name="l_min_meses_antig"/>
+					<form:Hidden name="l_acumulativa"/>
+					<form:Hidden name="codLicFliar"/>
+					<form:Hidden name="oi_tipo_familiar"/>
+				</form:Container>
+				<form:RowAligner name="rowbuts">
+					<form:Row name="rowbut1">
+						<form:Button startvalidate="1" policy="NucleusRH/Base/Tiempos_Trabajados/Personal/HORARIOPERS/EDIT" descrip="Aceptar los Cambios" name="ACCEPT" visible="EDIT" img="ok" label="Aceptar">
+							<form:Event action="EditAccept" name="onclick" runat="client"/>
+						</form:Button>
+						<form:Button startvalidate="0" img="cancel" label="Cancelar" name="CANCEL" policy="NucleusRH/Base/Tiempos_Trabajados/Personal/HORARIOPERS/EDIT" descrip="Ignorar los Cambios" visible="EDIT">
+							<form:Event action="EditCancel" name="onclick" runat="client"/>
+						</form:Button>
+					</form:Row>
+				</form:RowAligner>
+			</form:Column>
+		</form:Columns>
+		<form:Hidden nvalue="#PAR:@CantidadDiasModificar" name="CantidadDiasModificar"/>
+	</form:Center>
+	<form:Bottom>
+		<form:RowAligner name="buttonlinks">
+			<form:Row name="row2">
+				<form:Button visible="EDIT" policy="NucleusRH/Base/Tiempos_Trabajados/Personal/HORARIOPERS/NEW" descrip="Agregar la Novedad" img="new" label="Agregar" name="ADD">
+					<form:Event action="AddLicencia" name="onclick" runat="client"/>
+				</form:Button>
+				<form:Button img="edit" policy="NucleusRH/Base/Tiempos_Trabajados/Personal/HORARIOPERS/EDIT" descrip="Modificar la Novedad" label="Modificar" name="EDIT" visible="EDIT">
+					<form:Event action="StartEdit" name="onclick" runat="client"/>
+				</form:Button>
+				<form:Button mess="&#191;Est&#225; seguro que desea eliminar la Licencia?" policy="NucleusRH/Base/Tiempos_Trabajados/Personal/HORARIOPERS/DELETE" visible="EDIT" descrip="Eliminar un Registro" img="del" label="Eliminar" name="DELETE">
+					<form:Event action="DelLicencia" name="onclick" runat="client"/>
+				</form:Button>
+				<form:Button visible="!NEW" name="BACK" label="Volver" img="back" descrip="Volver a la pantalla anterior" note="Vuelve a la pantalla anterior del formulario" startvalidate="0">
+					<form:Event runat="server" name="onclick" action="BACK"/>
+				</form:Button>
+			</form:Row>
+		</form:RowAligner>
+	</form:Bottom>
+	<form:Resources>
+		<form:Resource name="SELLIC" declare="&lt;DATO oi_licencia=&quot;123&quot;/&gt;">
+			<qry:main doc="PARAM">
+				<qry:element name="GUIAS">
+					<qry:element name="TIPOS_DE_HORA">
+						<qry:insert-select name="TIPOS_DE_HORA" doc-path="#PARAM:DATO"/>
+					</qry:element>
+				</qry:element>
+			</qry:main>
+			<qry:select name="TIPOS_DE_HORA" doc="PARAM">
+				<qry:xquery>
+					for $r in SQL('
+						SELECT
+							t.l_requiereaut, 
+							t.c_color, 
+							t.oi_tipohora, 
+							t.d_tipohora, 
+							t.oi_licencia, 
+							t.e_sumariza_aus 
+						FROM 
+							TTA01_TIPOHORAS as t
+						WHERE 
+							t.oi_licencia = {#PARAM:@oi_licencia}													
+					')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:element name="ROW">
+						<qry:attribute name="id" value="$r/@oi_tipohora"/>
+						<qry:attribute name="label" value="$r/@d_tipohora"/>
+						<qry:attribute name="lic" value="$r/@oi_licencia"/>
+						<qry:attribute name="color" value="iif($r/@c_color='',iif($r/@e_sumariza_aus=0,'C0C000',iif($r/@e_sumariza_aus=1,'C00000','0000C0')),$r/@c_color)"/>
+						<qry:attribute name="auth" value="$r/@l_requiereaut"/>
+					</qry:element>
+				</qry:out>
+			</qry:select>
+		</form:Resource>
+		<form:Resource declare="&lt;PARAM oi_licencia=&quot;114&quot; oi_personal_emp=&quot;2143&quot; e_anio_corresp=&quot;2019&quot; oi_familiar_per=&quot;&quot;/&gt;" name="qry_datosLicLeg">
+			<qry:main doc="SOURCE" name="">
+				<qry:element name="DATOS">
+					<qry:attribute name="flag" value="'0'"/>
+					<qry:insert-select name="sql_dias_tomados" doc-path="#SOURCE:PARAM"/>
+				</qry:element>
+			</qry:main>
+			<qry:select doc="SOURCE" name="sql_dias_tomados">
+				<qry:xquery>
+					for $r in SQL('
+SELECT 
+	SUM(PER02_LICEN_PER.e_cant_dias) as diasTomados
+FROM
+	PER02_LICEN_PER
+WHERE
+	PER02_LICEN_PER.oi_licencia = {#SOURCE:@oi_licencia}
+AND
+	PER02_LICEN_PER.e_anio_corresp = {#SOURCE:@e_anio_corresp}	
+AND
+	PER02_LICEN_PER.oi_personal_emp = {#SOURCE:@oi_personal_emp}
+		 
+{%? (#SOURCE:@oi_familiar_per='') {% AND isnull(PER02_LICEN_PER.oi_familiar_per) %} {% AND PER02_LICEN_PER.oi_familiar_per ={#SOURCE:@oi_familiar_per} %} %}	
+
+			')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:if test="$r/@diasTomados!=''">
+						<qry:then>
+							<qry:attribute name="flag" value="'1'"/>
+							<qry:attribute name="diasTomados" value="$r/@diasTomados"/>
+						</qry:then>
+						<qry:else>
+							<qry:attribute name="diasTomados" value="0"/>
+						</qry:else>
+					</qry:if>
+				</qry:out>
+			</qry:select>
+		</form:Resource>
+		<form:Resource declare="&lt;PARAM oi_licencia=&quot;114&quot; oi_personal_emp=&quot;2143&quot; oi_tipo_familiar=&quot;&quot;/&gt;" name="qry_datosLic">
+			<qry:main doc="SOURCE" name="">
+				<qry:element name="DATOS">
+					<qry:attribute name="flag" value="'0'"/>
+					<!--qry:insert-select name="sql" doc-path="#SOURCE:PARAM"/-->
+					<qry:insert-select name="sql_lic" doc-path="#SOURCE:PARAM"/>
+					<qry:insert-select name="sql_lic_conv_leg" doc-path="#SOURCE:PARAM"/>
+					<qry:insert-select name="sql_lic_conv_leg_fliar" doc-path="#SOURCE:PARAM"/>
+				</qry:element>
+			</qry:main>
+			<qry:select name="sql" doc="SOURCE">
+				<qry:xquery>
+					for $r in SQL('
+SELECT 
+	PER16_LICENCIAS.e_max_dias_lic
+	, PER16_LICENCIAS.e_max_dias_anio
+	, PER16_LIC_CONV.e_max_dias_lic as dias_lic_conv
+	, PER16_LIC_CONV.e_max_dias_anio as dias_anio_conv 
+FROM
+	PER16_LICENCIAS,
+	PER16_LIC_CONV
+JOIN
+	PER16_LICENCIAS.oi_licencia LEFT OUTER PER16_LIC_CONV.oi_licencia
+WHERE
+	PER16_LICENCIAS.oi_licencia = {#SOURCE:@oi_licencia}		
+			')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:attribute name="flag" value="'1'"/>
+					<qry:if test="$r/@dias_lic_conv=''">
+						<qry:then>
+							<qry:attribute name="e_max_dias_lic" value="iif($r/@e_max_dias_lic='', 'null', $r/@e_max_dias_lic)"/>
+						</qry:then>
+						<qry:else>
+							<qry:attribute name="e_max_dias_lic" value="$r/@dias_lic_conv"/>
+						</qry:else>
+					</qry:if>
+					<qry:if test="$r/@dias_anio_conv=''">
+						<qry:then>
+							<qry:attribute name="e_max_dias_anio" value="iif($r/@e_max_dias_anio='', 'null', $r/@e_max_dias_anio)"/>
+						</qry:then>
+						<qry:else>
+							<qry:attribute name="e_max_dias_anio" value="$r/@dias_anio_conv"/>
+						</qry:else>
+					</qry:if>
+				</qry:out>
+			</qry:select>
+			<qry:select name="sql_lic" doc="SOURCE">
+				<qry:xquery>
+					for $r in SQL('
+SELECT 
+	PER16_LICENCIAS.e_max_dias_lic
+	, PER16_LICENCIAS.e_max_dias_anio
+	, PER16_LICENCIAS.e_min_meses_antig
+	, PER16_LICENCIAS.l_max_dias_lic
+	, PER16_LICENCIAS.l_max_dias_anio
+	, PER16_LICENCIAS.l_min_meses_antig
+	, PER16_LICENCIAS.l_acumulativa
+FROM
+	PER16_LICENCIAS
+WHERE
+	PER16_LICENCIAS.oi_licencia = {#SOURCE:@oi_licencia}		
+			')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:attribute name="flag" value="'1'"/>
+					<qry:attribute name="e_max_dias_lic" value="iif($r/@e_max_dias_lic='', 'null', $r/@e_max_dias_lic)"/>
+					<qry:attribute name="e_max_dias_anio" value="iif($r/@e_max_dias_anio='', 'null', $r/@e_max_dias_anio)"/>
+					<qry:attribute name="e_min_meses_antig" value="iif($r/@e_min_meses_antig='', 'null', $r/@e_min_meses_antig)"/>
+					<qry:attribute name="l_max_dias_lic" value="$r/@l_max_dias_lic"/>
+					<qry:attribute name="l_max_dias_anio" value="$r/@l_max_dias_anio"/>
+					<qry:attribute name="l_min_meses_antig" value="$r/@l_min_meses_antig"/>
+					<qry:attribute name="l_acumulativa" value="$r/@l_acumulativa"/>
+				</qry:out>
+			</qry:select>
+			<qry:select name="sql_lic_conv" doc="SOURCE">
+				<qry:xquery>
+					for $r in SQL('
+SELECT 
+	PER16_LIC_CONV.e_max_dias_lic
+	, PER16_LIC_CONV.e_max_dias_anio
+FROM
+	PER16_LICENCIAS,
+	PER16_LIC_CONV
+JOIN
+	PER16_LICENCIAS.oi_licencia INNER PER16_LIC_CONV.oi_licencia
+WHERE
+	PER16_LICENCIAS.oi_licencia = {#SOURCE:@oi_licencia}
+	AND PER16_LIC_CONV.oi_convenio = {#SOURCE:@oi_convenio}			
+			')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:attribute name="flag" value="'1'"/>
+					<qry:attribute name="e_max_dias_lic" value="iif($r/@e_max_dias_lic='', 'null', $r/@e_max_dias_lic)"/>
+					<qry:attribute name="e_max_dias_anio" value="iif($r/@e_max_dias_anio='', 'null', $r/@e_max_dias_anio)"/>
+				</qry:out>
+			</qry:select>
+			<qry:select name="sql_lic_conv_leg" doc="SOURCE">
+				<qry:xquery>
+					for $r in SQL('
+SELECT 
+	PER16_LIC_CONV.e_max_dias_lic
+	, PER16_LIC_CONV.e_max_dias_anio
+	, PER16_LIC_CONV.e_min_meses_antig
+	, PER16_LIC_CONV.l_acumulativa
+FROM
+	PER16_LICENCIAS,
+	PER16_LIC_CONV,
+	PER02_PERSONAL_EMP,
+	ORG18_CATEGORIAS
+JOIN
+	PER16_LICENCIAS.oi_licencia INNER PER16_LIC_CONV.oi_licencia,
+	PER16_LIC_CONV.oi_convenio INNER ORG18_CATEGORIAS.oi_convenio,
+	ORG18_CATEGORIAS.oi_categoria INNER PER02_PERSONAL_EMP.oi_categoria_ult
+WHERE
+	PER16_LICENCIAS.oi_licencia = {#SOURCE:@oi_licencia}
+	AND PER02_PERSONAL_EMP.oi_personal_emp = {#SOURCE:@oi_personal_emp}			
+			')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:attribute name="flag" value="'1'"/>
+					<qry:attribute name="e_max_dias_lic" value="iif($r/@e_max_dias_lic='', 'null', $r/@e_max_dias_lic)"/>
+					<qry:attribute name="e_max_dias_anio" value="iif($r/@e_max_dias_anio='', 'null', $r/@e_max_dias_anio)"/>
+					<qry:attribute name="e_min_meses_antig" value="iif($r/@e_min_meses_antig='', 'null', $r/@e_min_meses_antig)"/>
+					<qry:attribute name="l_acumulativa" value="$r/@l_acumulativa"/>
+				</qry:out>
+			</qry:select>
+			<qry:select name="sql_lic_conv_leg_fliar" doc="SOURCE">
+				<qry:xquery>
+					for $r in SQL('
+		SELECT 
+			PER16_LC_TFLIAR.e_max_dias_lic,
+			PER16_LC_TFLIAR.e_max_dias_anio
+		FROM
+			PER16_LICENCIAS,
+			PER16_LIC_CONV,
+			PER16_LC_TFLIAR,
+			PER02_PERSONAL_EMP,
+			ORG18_CATEGORIAS
+		JOIN
+			PER16_LICENCIAS.oi_licencia INNER PER16_LIC_CONV.oi_licencia,
+			PER16_LIC_CONV.oi_convenio INNER ORG18_CATEGORIAS.oi_convenio,
+			PER16_LIC_CONV.oi_licencias_conv INNER PER16_LC_TFLIAR.oi_licencias_conv,
+			ORG18_CATEGORIAS.oi_categoria INNER PER02_PERSONAL_EMP.oi_categoria_ult
+		WHERE
+			PER16_LICENCIAS.oi_licencia = {#SOURCE:@oi_licencia}
+			AND PER02_PERSONAL_EMP.oi_personal_emp = {#SOURCE:@oi_personal_emp}
+			AND PER16_LC_TFLIAR.oi_tipo_familiar = {#SOURCE:@oi_tipo_familiar}				
+			')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:attribute name="flag" value="'1'"/>
+					<qry:attribute name="e_max_dias_lic" value="iif($r/@e_max_dias_lic='', 'null', $r/@e_max_dias_lic)"/>
+					<qry:attribute name="e_max_dias_anio" value="iif($r/@e_max_dias_anio='', 'null', $r/@e_max_dias_anio)"/>
+					<qry:attribute name="e_min_meses_antig" value="'null'"/>
+					<qry:attribute name="l_acumulativa" value="'0'"/>
+				</qry:out>
+			</qry:select>
+		</form:Resource>
+		<form:Resource declare="&lt;PARAM oi_personal_emp=&quot;1&quot; f_inicio=&quot;20120712&quot; f_fin=&quot;20120718&quot;/&gt;" name="qry_ValLic">
+			<qry:main doc="SOURCE" name="">
+				<qry:element name="DATOS">
+					<qry:attribute name="flag" value="'0'"/>
+					<qry:insert-select name="sql" doc-path="#SOURCE:PARAM"/>
+				</qry:element>
+			</qry:main>
+			<qry:select name="sql" doc="SOURCE">
+				<qry:xquery>
+					for $r in SQL('
+		SELECT 
+			PER02_LICEN_PER.oi_licencia_per
+			, PER02_LICEN_PER.f_inicio
+			, PER02_LICEN_PER.f_fin
+			, PER16_LICENCIAS.d_licencia
+		FROM
+			PER02_LICEN_PER
+			, PER16_LICENCIAS
+		JOIN
+			PER16_LICENCIAS.oi_licencia INNER PER02_LICEN_PER.oi_licencia
+		WHERE                                  
+			PER02_LICEN_PER.oi_personal_emp = {#SOURCE:@oi_personal_emp} AND
+			PER02_LICEN_PER.f_inicio &lt;= {Datetime(#SOURCE:@f_fin)} AND
+			PER02_LICEN_PER.f_fin &gt;= {Datetime(#SOURCE:@f_inicio)}  
+			')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:attribute name="flag" value="'1'"/>
+					<ROW>
+						<qry:attribute name="flag" value="'1'"/>
+						<qry:attribute name="oi_licencia_per" value="$r/@oi_licencia_per"/>
+						<qry:attribute name="d_licencia" value="$r/@d_licencia"/>
+						<qry:attribute name="f_fin" value="format_date($r/@f_fin,'dd/mm/yyyy')"/>
+						<qry:attribute name="f_inicio" value="format_date($r/@f_inicio,'dd/mm/yyyy')"/>
+						<qry:attribute name="desc" value="@d_licencia + ': del ' + @f_inicio + ' al ' + @f_fin"/>
+					</ROW>
+				</qry:out>
+			</qry:select>
+		</form:Resource>
+		<form:Resource name="qry_Antiguedad" declare="&lt;PARAM oi_personal_emp=&quot;11566&quot;/&gt;">
+			<qry:main doc="SOURCE" name="">
+				<qry:element name="DATOS">
+					<qry:insert-select name="sql" doc-path="#SOURCE:PARAM"/>
+				</qry:element>
+			</qry:main>
+			<qry:select name="sql" doc="SOURCE">
+				<qry:xquery>
+					for $r in SQL('
+		SELECT 
+			PER02_PERSONAL_EMP.f_ingreso
+			, PER02_PERSONAL_EMP.f_antiguedad_rec			
+		FROM
+			PER02_PERSONAL_EMP			
+		WHERE
+			PER02_PERSONAL_EMP.oi_personal_emp = {#SOURCE:@oi_personal_emp} 
+			')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:attribute name="f_ant_calculo" value="$r/@f_ingreso"/>
+					<qry:if test="$r/@f_antiguedad_rec!='' AND @f_ant_calculo&gt;$r/@f_antiguedad_rec">
+						<qry:then>
+							<qry:attribute name="f_ant_calculo" value="$r/@f_antiguedad_rec"/>
+						</qry:then>
+					</qry:if>
+				</qry:out>
+			</qry:select>
+		</form:Resource>
+		<form:Resource name="qry_datosLicLeg_acum" declare="&lt;PARAM oi_licencia=&quot;100&quot; oi_personal_emp=&quot;4&quot; e_anio_corresp=&quot;2020&quot; /&gt;">
+			<qry:main doc="SOURCE" name="">
+				<qry:element name="DATOS">
+					<qry:attribute name="cantidad" value="0"/>
+					<qry:insert-select name="sql_cant_periodos" doc-path="#SOURCE:PARAM"/>
+					<qry:insert-select name="sql_dias_tomados" doc-path="#SOURCE:PARAM"/>
+					<qry:insert-select name="sql_lic" doc-path="#SOURCE:PARAM"/>
+					<qry:insert-select name="sql_lic_conv_leg" doc-path="#SOURCE:PARAM"/>
+					<qry:attribute name="saldo" value="(number(@cantidad)+1)*number(@e_max_dias_anio)-number(@diasTomados)"/>
+				</qry:element>
+			</qry:main>
+			<qry:select doc="SOURCE" name="sql_cant_periodos">
+				<qry:xquery>
+					for $r in SQL('
+SELECT 
+	PER02_LICEN_PER.e_anio_corresp
+FROM
+	PER02_LICEN_PER
+WHERE
+	PER02_LICEN_PER.oi_licencia = {#SOURCE:@oi_licencia}
+AND
+	PER02_LICEN_PER.e_anio_corresp &lt; {#SOURCE:@e_anio_corresp}	
+AND
+	PER02_LICEN_PER.oi_personal_emp = {#SOURCE:@oi_personal_emp}
+	GROUP BY
+	PER02_LICEN_PER.e_anio_corresp		
+			')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:attribute name="cantidad" value="number(@cantidad)+number(1)"/>
+				</qry:out>
+			</qry:select>
+			<qry:select doc="SOURCE" name="sql_dias_tomados">
+				<qry:xquery>
+					for $r in SQL('
+SELECT 
+	SUM(PER02_LICEN_PER.e_cant_dias) as diasTomados
+FROM
+	PER02_LICEN_PER
+WHERE
+	PER02_LICEN_PER.oi_licencia = {#SOURCE:@oi_licencia}
+AND
+	PER02_LICEN_PER.e_anio_corresp &lt;= {#SOURCE:@e_anio_corresp}	
+AND
+	PER02_LICEN_PER.oi_personal_emp = {#SOURCE:@oi_personal_emp}		
+			')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:if test="$r/@diasTomados!=''">
+						<qry:then>
+							<qry:attribute name="flag" value="'1'"/>
+							<qry:attribute name="diasTomados" value="$r/@diasTomados"/>
+						</qry:then>
+						<qry:else>
+							<qry:attribute name="diasTomados" value="0"/>
+						</qry:else>
+					</qry:if>
+				</qry:out>
+			</qry:select>
+			<qry:select name="sql_lic" doc="SOURCE">
+				<qry:xquery>
+					for $r in SQL('
+SELECT 
+	PER16_LICENCIAS.e_max_dias_anio
+FROM
+	PER16_LICENCIAS
+WHERE
+	PER16_LICENCIAS.oi_licencia = {#SOURCE:@oi_licencia}		
+			')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:attribute name="e_max_dias_anio" value="iif($r/@e_max_dias_anio='', 0, $r/@e_max_dias_anio)"/>
+				</qry:out>
+			</qry:select>
+			<qry:select name="sql_lic_conv_leg" doc="SOURCE">
+				<qry:xquery>
+					for $r in SQL('
+SELECT 
+	PER16_LIC_CONV.e_max_dias_anio	
+FROM
+	PER16_LICENCIAS,
+	PER16_LIC_CONV,
+	PER02_PERSONAL_EMP,
+	ORG18_CATEGORIAS
+JOIN
+	PER16_LICENCIAS.oi_licencia INNER PER16_LIC_CONV.oi_licencia,
+	PER16_LIC_CONV.oi_convenio INNER ORG18_CATEGORIAS.oi_convenio,
+	ORG18_CATEGORIAS.oi_categoria INNER PER02_PERSONAL_EMP.oi_categoria_ult
+WHERE
+	PER16_LICENCIAS.oi_licencia = {#SOURCE:@oi_licencia}
+	AND PER02_PERSONAL_EMP.oi_personal_emp = {#SOURCE:@oi_personal_emp}			
+			')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:attribute name="e_max_dias_anio" value="iif($r/@e_max_dias_anio='', 0, $r/@e_max_dias_anio)"/>
+				</qry:out>
+			</qry:select>
+		</form:Resource>
+		<form:Resource declare="&lt;PARAM oi_familiar_per=&quot;802&quot;/&gt;" name="qry_tipo_fliar">
+			<qry:main doc="SOURCE">
+				<qry:element name="DATO">
+					<qry:insert-select name="RS1" doc-path="#SOURCE:PARAM"/>
+				</qry:element>
+			</qry:main>
+			<qry:select name="RS1" doc="SOURCE">
+				<qry:xquery>
+					for $r in sql('					
+		SELECT 
+			PER15_TIPOS_FAM.oi_tipo_familiar,
+			PER15_TIPOS_FAM.c_tipo_familiar,
+			PER15_TIPOS_FAM.d_tipo_familiar
+		FROM 
+			PER01_FLIARES_PER,
+			PER15_TIPOS_FAM
+		JOIN
+			PER01_FLIARES_PER.oi_tipo_familiar INNER PER15_TIPOS_FAM.oi_tipo_familiar
+		WHERE 
+			PER01_FLIARES_PER.oi_familiar_per = {#SOURCE:@oi_familiar_per}			 				
+      ')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:attribute name="oi_tipo_familiar" value="$r/@oi_tipo_familiar"/>
+					<qry:attribute name="c_tipo_familiar" value="$r/@c_tipo_familiar"/>
+					<qry:attribute name="d_tipo_familiar" value="$r/@d_tipo_familiar"/>
+				</qry:out>
+			</qry:select>
+		</form:Resource>
+		<form:Resource name="QRY_PARAMETRO" declare="&lt;PARAM /&gt;">
+			<qry:main doc="SOURCE">
+				<qry:element name="DATO">
+					<qry:insert-select name="RS1" doc-path=""/>
+				</qry:element>
+			</qry:main>
+			<qry:select name="RS1" doc="SOURCE">
+				<qry:xquery>
+					for $r in sql('					
+			SELECT 
+    			ORG26.c_parametro,
+				ORG26.d_valor                    
+			FROM
+				ORG26_PARAMETROS AS ORG26
+            WHERE
+				ORG26.c_modulo = \'PER\'
+				AND ORG26.c_parametro in (\'LicEnfFliar\')						 				
+      ')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:attribute name="c_parametro" value="$r/@c_parametro"/>
+					<qry:attribute name="d_valor" value="$r/@d_valor"/>
+				</qry:out>
+			</qry:select>
+		</form:Resource>
+		<form:Resource declare="&lt;PARAM oi_licencia=&quot;114&quot;/&gt;" name="qry_CodLic">
+			<qry:main doc="SOURCE" name="">
+				<qry:element name="DATOS">
+					<qry:insert-select name="sql" doc-path="#SOURCE:PARAM"/>
+				</qry:element>
+			</qry:main>
+			<qry:select name="sql" doc="SOURCE">
+				<qry:xquery>
+					for $r in SQL('
+		SELECT 
+			PER16_LICENCIAS.c_licencia,
+			PER16_LICENCIAS.d_licencia
+		FROM
+			PER16_LICENCIAS
+		WHERE                                  
+			PER16_LICENCIAS.oi_licencia = {#SOURCE:@oi_licencia}
+			')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:attribute name="c_licencia" value="$r/@c_licencia"/>
+					<qry:attribute name="d_licencia" value="$r/@d_licencia"/>
+				</qry:out>
+			</qry:select>
+		</form:Resource>
+	</form:Resources>
+</form:Form>

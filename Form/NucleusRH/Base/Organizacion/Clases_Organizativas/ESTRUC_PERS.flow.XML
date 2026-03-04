@@ -1,0 +1,394 @@
+<flow:flow xmlns:flow="nomad_engine.flow" xmlns:doc="nomad_engine.doc" xmlns:qry="nomad_engine.qry" name="NucluesRH.Base.Organizacion.Clases_Organizativas.ESTRUC_PERS.flow">
+	<flow:info label="flow para NucluesRH.Base.Organizacion.Clases_Organizativas.ESTRUC_PERS.flow"/>
+	<flow:declare>
+		<doc:define name="LEGAJOS">
+			<FILTRO>
+				<ROWS/>
+			</FILTRO>
+		</doc:define>
+		<doc:define name="EMPRESA">
+			<EMPRESA oi_empresa="" oi_estructura=""/>
+		</doc:define>
+		<doc:define name="ESTRUCTURA">
+			<ESTRUCTURA id=""/>
+		</doc:define>
+		<doc:define name="RS">
+			<ROW PARENTID="" CODE="" TEXT="">
+				<ROWS/>
+			</ROW>
+		</doc:define>
+		<doc:define name="PARAMIN"/>
+		<qry:define declare="&lt;EMPRESA oi_empresa=&quot;9&quot; oi_estructura=&quot;110&quot; /&gt;" name="HELPPER">
+			<qry:main doc="SOURCE">
+				<qry:append-doc name="FILTRO" doc-path="#SOURCE:"/>
+				<qry:element name="rows">
+					<qry:insert-select name="RS1" doc-path="#SOURCE:EMPRESA"/>
+				</qry:element>
+			</qry:main>
+			<qry:select doc="SOURCE" name="RS1">
+				<qry:xquery>
+					for $r in sql('
+				SELECT PER02_PERSONAL_EMP.oi_personal_emp, PER02_PERSONAL_EMP.e_numero_legajo,
+				PER01_PERSONAL.d_ape_y_nom
+				FROM PER02_PERSONAL_EMP, PER01_PERSONAL
+				JOIN PER02_PERSONAL_EMP.oi_personal INNER PER01_PERSONAL.oi_personal
+				WHERE PER02_PERSONAL_EMP.oi_empresa = {#SOURCE:@oi_empresa} 													
+				AND PER02_PERSONAL_EMP.oi_personal_emp NOT IN 
+				(SELECT ORG02_ESTRUC_PERS.oi_personal_emp FROM 
+				ORG02_ESTRUC_PERS WHERE ORG02_ESTRUC_PERS.oi_estructura = {%=#SOURCE:@oi_estructura%})
+				ORDER BY e_numero_legajo ASC
+			')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:element name="row">
+						<qry:attribute type="Nomad.NSystem.Int" value="$r/@oi_personal_emp" name="id"/>
+						<qry:attribute type="Nomad.NSystem.Int" value="$r/@oi_personal_emp" name="value"/>
+						<qry:attribute type="Nomad.NSystem.String" value="$r/@e_numero_legajo" name="code"/>
+						<qry:attribute type="Nomad.NSystem.String" value="$r/@d_ape_y_nom" name="text"/>
+						<qry:attribute type="Nomad.NSystem.Boolean" value="0" name="check"/>
+						<qry:insert-select doc-path="." name="SECURITY"/>
+					</qry:element>
+				</qry:out>
+			</qry:select>
+			<qry:select doc="PARAM" name="SECURITY">
+				<qry:xquery>
+					for $r in sql('
+					SELECT NMD_SECURITY.policy 
+					FROM NMD_SECURITY 
+					WHERE NMD_SECURITY.class=\'NucleusRH.Base.Personal.LegajoEmpresa.PERSONAL_EMP\' 
+					AND NMD_SECURITY.id={#PARAM:@id}
+				')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:attribute value="$r/@policy" name="policy"/>
+				</qry:out>
+			</qry:select>
+		</qry:define>
+		<qry:define name="HELPUO">
+			<qry:main doc="SOURCE">
+				<qry:element name="ROW">
+					<qry:attribute value="#SOURCE:ROW/@PARENTID" name="PARENTID"/>
+					<qry:attribute value="#SOURCE:ROW/@CODE" name="CODE"/>
+					<qry:attribute value="#SOURCE:ROW/@TEXT" name="TEXT"/>
+					<qry:attribute value="#SOURCE:ROW/@FILTER" name="FILTER"/>
+					<qry:attribute value="#SOURCE:ROW/@STAFF" name="STAFF"/>
+					<qry:insert-select doc-path="." name="RS2"/>
+					<qry:element name="ROWS">
+						<qry:insert-select doc-path=".." name="RS1"/>
+					</qry:element>
+				</qry:element>
+			</qry:main>
+			<qry:select doc="SOURCE" name="RS2">
+				<qry:xquery>
+					for $r in sql('SELECT t.oi_tipo_uni_org as ID, t.c_tipo_uni_org as CODE, t.d_tipo_uni_org as TEXT, SEC.policy  FROM ORG01_TIPOS_UNI as t, NMD_SECURITY(class=\'NucleusRH.Base.Organizacion.Unidades_Organizativas.TIPO_UNI_ORG\') as SEC JOIN t.oi_tipo_uni_org LEFT OUTER SEC.id  WHERE t.oi_tipo_uni_org={#SOURCE:@PARENTID} ORDER BY CODE asc')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:attribute value="$r/@CODE" name="code"/>
+					<qry:attribute value="$r/@TEXT" name="text"/>
+				</qry:out>
+			</qry:select>
+			<qry:select doc="SOURCE" name="RS1">
+				<qry:xquery>
+					for $r in sql('SELECT t.oi_unidad_org as ID, t.c_unidad_org as CODE, t.d_unidad_org as TEXT, t.oi_tipo_uni_org as PID FROM ORG01_UNI_ORG as t WHERE  t.oi_tipo_uni_org={#SOURCE:@PARENTID} ORDER BY CODE asc')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:element name="ROW">
+						<qry:attribute value="$r/@ID" name="id"/>
+						<qry:attribute value="$r/@ID" name="value"/>
+						<qry:attribute value="$r/@CODE" name="code1"/>
+						<qry:attribute value="$r/@STAFF" name="staff"/>
+						<qry:attribute value="$r/@TEXT" name="text1"/>
+						<qry:attribute value="#SOURCE:@CODE+'-'+$r/@CODE" name="code"/>
+						<qry:attribute value="#SOURCE:@TEXT+'-'+$r/@TEXT" name="text"/>
+					</qry:element>
+				</qry:out>
+			</qry:select>
+		</qry:define>
+		<qry:define name="PRELOADUO">
+			<qry:main doc="SOURCE">
+				<qry:append-doc doc-path="#SOURCE:" name="HM"/>
+				<qry:element name="ROW">
+					<qry:insert-select doc-path="#SOURCE:" name="RS2"/>
+					<qry:insert-select doc-path="." name="RS3"/>
+					<qry:element name="ROWS">
+						<qry:insert-select doc-path=".." name="RS1"/>
+					</qry:element>
+					<qry:attribute value="substring(#HM:@TEXT,1+string_length(./@TEXT))" name="FILTER"/>
+				</qry:element>
+			</qry:main>
+			<qry:select doc="SOURCE" name="RS3">
+				<qry:xquery>
+					for $r in sql('SELECT t.oi_tipo_uni_org as ID, t.c_tipo_uni_org as CODE, t.d_tipo_uni_org as TEXT, SEC.policy  FROM ORG01_TIPOS_UNI as t, NMD_SECURITY(class=\'NucleusRH.Base.Organizacion.Unidades_Organizativas.TIPO_UNI_ORG\') as SEC JOIN t.oi_tipo_uni_org LEFT OUTER SEC.id  WHERE t.oi_tipo_uni_org={#SOURCE:@PARENTID} ORDER BY CODE asc')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:attribute value="$r/@CODE" name="code"/>
+					<qry:attribute value="$r/@TEXT" name="text"/>
+				</qry:out>
+			</qry:select>
+			<qry:select doc="SOURCE" name="RS2">
+				<qry:xquery>
+					for $r in sql('select t.oi_tipo_uni_org from ORG01_UNI_ORG as t where t.oi_unidad_org={#SOURCE:@ID}')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:attribute value="$r/@oi_tipo_uni_org" name="PARENTID"/>
+				</qry:out>
+			</qry:select>
+			<qry:select doc="SOURCE" name="RS1">
+				<qry:xquery>
+					for $r in sql('SELECT t.oi_unidad_org as ID, t.c_unidad_org as CODE, t.d_unidad_org as TEXT, t.oi_tipo_uni_org as PID FROM ORG01_UNI_ORG as t WHERE  t.oi_tipo_uni_org={#SOURCE:@PARENTID} ORDER BY CODE asc')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:element name="ROW">
+						<qry:attribute value="$r/@ID" name="id"/>
+						<qry:attribute value="$r/@ID" name="value"/>
+						<qry:attribute value="$r/@CODE" name="code1"/>
+						<qry:attribute value="$r/@TEXT" name="text1"/>
+						<qry:attribute value="#SOURCE:@CODE+'-'+$r/@CODE" name="code"/>
+						<qry:attribute value="#SOURCE:@TEXT+'-'+$r/@TEXT" name="text"/>
+					</qry:element>
+				</qry:out>
+			</qry:select>
+		</qry:define>
+		<qry:define name="HELPORG">
+			<qry:main doc="SOURCE">
+				<qry:element name="ROWS">
+					<qry:insert-select doc-path="#SOURCE:" name="RS1"/>
+				</qry:element>
+			</qry:main>
+			<qry:select doc="SOURCE" name="RS1">
+				<qry:xquery>
+					for $r in sql('SELECT t.oi_clase_org as ID, t.c_clase_org as CODE, t.d_clase_org as TEXT, SEC.policy  FROM ORG02_CLASES_ORG as t, NMD_SECURITY(class=\'NucleusRH.Base.Organizacion.Clases_Organizativas.CLASE_ORG\') as SEC JOIN t.oi_clase_org LEFT OUTER SEC.id  ORDER BY CODE asc')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:element name="ROW">
+						<qry:attribute value="$r/@ID" name="id"/>
+						<qry:attribute value="$r/@ID" name="value"/>
+						<qry:attribute value="$r/@CODE" name="code"/>
+						<qry:attribute value="$r/@TEXT" name="text"/>
+						<qry:attribute value="$r/@policy" name="policy"/>
+					</qry:element>
+				</qry:out>
+			</qry:select>
+		</qry:define>
+		<qry:define declare="&lt;rows nmd-col=&quot;1&quot;&gt;&#13;&#10;  &lt;row check=&quot;1&quot; text=&quot;Sarmiento, Domingo Faustino&quot; code=&quot;1&quot; value=&quot;11423&quot; id=&quot;11423&quot; /&gt;&#13;&#10;  &lt;row check=&quot;1&quot; text=&quot;RIZZO, JUAN PABLO&quot; code=&quot;2&quot; value=&quot;232&quot; id=&quot;232&quot; /&gt;&#13;&#10;  &lt;row check=&quot;0&quot; text=&quot;CRAPACHER, ATILIO PEDRO&quot; code=&quot;3&quot; value=&quot;233&quot; id=&quot;233&quot; /&gt;&#13;&#10;  &lt;row check=&quot;1&quot; text=&quot;BLAJOS, MARIO CONSTANTINO&quot; code=&quot;4&quot; value=&quot;234&quot; id=&quot;234&quot; /&gt;&#13;&#10;  &lt;row check=&quot;0&quot; text=&quot;AVILA, JUSTO LORENZO&quot; code=&quot;5&quot; value=&quot;235&quot; id=&quot;235&quot; /&gt;&#13;&#10;  &lt;row check=&quot;0&quot; text=&quot;ORTIZ, ANALIA CINTHIA&quot; code=&quot;6&quot; value=&quot;237&quot; id=&quot;237&quot; /&gt;&#13;&#10;  &lt;row check=&quot;1&quot; text=&quot;MAESTRO, LUIS RAUL&quot; code=&quot;7&quot; value=&quot;238&quot; id=&quot;238&quot; /&gt;&#13;&#10;  &lt;row check=&quot;0&quot; text=&quot;CEREDA, CARLOS MARTIN&quot; code=&quot;8&quot; value=&quot;239&quot; id=&quot;239&quot; /&gt;&#13;&#10;  &lt;row check=&quot;0&quot; text=&quot;LUCANGELI, JUAN IGNACIO&quot; code=&quot;9&quot; value=&quot;240&quot; id=&quot;240&quot; /&gt;&#13;&#10;  &lt;row check=&quot;0&quot; text=&quot;MAKAUSKAS, CLAUDIA GABRIELA&quot; code=&quot;25&quot; value=&quot;11457&quot; id=&quot;11457&quot; /&gt;&#13;&#10;  &lt;row check=&quot;0&quot; text=&quot;Gabrich, Ivan&quot; code=&quot;102&quot; value=&quot;11433&quot; id=&quot;11433&quot; /&gt;&#13;&#10;  &lt;row check=&quot;0&quot; text=&quot;Olmos, Federico&quot; code=&quot;106&quot; value=&quot;11449&quot; id=&quot;11449&quot; /&gt;&#13;&#10;  &lt;row check=&quot;0&quot; text=&quot;Ruiz, Miguel&quot; code=&quot;123&quot; value=&quot;11450&quot; id=&quot;11450&quot; /&gt;&#13;&#10;  &lt;row check=&quot;0&quot; text=&quot;Allegrini, Ricardo Daniel&quot; code=&quot;1111&quot; value=&quot;11539&quot; id=&quot;11539&quot; /&gt;&#13;&#10;  &lt;row check=&quot;0&quot; text=&quot;Dolcemascolo, Cesar&quot; code=&quot;29724&quot; value=&quot;11428&quot; id=&quot;11428&quot; /&gt;&#13;&#10;  &lt;row check=&quot;0&quot; text=&quot;Colusso, Daniel&quot; code=&quot;45344&quot; value=&quot;11427&quot; id=&quot;11427&quot; /&gt;&#13;&#10;  &lt;row check=&quot;0&quot; text=&quot;S&#225;nchez, Damian&quot; code=&quot;78963&quot; value=&quot;229&quot; id=&quot;229&quot; /&gt;&#13;&#10;  &lt;row check=&quot;0&quot; text=&quot;EZCARAY, IGNACIO FRANCISCO&quot; code=&quot;111222&quot; value=&quot;11458&quot; id=&quot;11458&quot; /&gt;&#13;&#10;  &lt;row check=&quot;0&quot; text=&quot;Camarasa, Daniel&quot; code=&quot;15001228&quot; value=&quot;221&quot; id=&quot;221&quot; /&gt;&#13;&#10;  &lt;row check=&quot;0&quot; text=&quot;Sanchez, Pablo Andres&quot; code=&quot;21369258&quot; value=&quot;11432&quot; id=&quot;11432&quot; /&gt;&#13;&#10;  &lt;row check=&quot;0&quot; text=&quot;Delgado, Marcelo Alejandro&quot; code=&quot;23147258&quot; value=&quot;11434&quot; id=&quot;11434&quot; /&gt;&#13;&#10;  &lt;row check=&quot;0&quot; text=&quot;Romero, Ana Cecilia&quot; code=&quot;23147259&quot; value=&quot;11516&quot; id=&quot;11516&quot; /&gt;&#13;&#10;  &lt;row check=&quot;0&quot; text=&quot;Rossi, Juan Pablo&quot; code=&quot;23147260&quot; value=&quot;11517&quot; id=&quot;11517&quot; /&gt;&#13;&#10;  &lt;row check=&quot;0&quot; text=&quot;Urretabizcaya, Brenda Magali&quot; code=&quot;23147262&quot; value=&quot;11520&quot; id=&quot;11520&quot; /&gt;&#13;&#10;  &lt;row check=&quot;0&quot; text=&quot;Leoni, leandro&quot; code=&quot;23147263&quot; value=&quot;11518&quot; id=&quot;11518&quot; /&gt;&#13;&#10;  &lt;row check=&quot;0&quot; text=&quot;Moreno, Carla Ines&quot; code=&quot;23147264&quot; value=&quot;11534&quot; id=&quot;11534&quot; /&gt;&#13;&#10;  &lt;row check=&quot;0&quot; text=&quot;Maidana, Clarisa&quot; code=&quot;23147265&quot; value=&quot;11535&quot; id=&quot;11535&quot; /&gt;&#13;&#10;  &lt;row check=&quot;0&quot; text=&quot;PALACIOS , FABIO&quot; code=&quot;23147266&quot; value=&quot;11538&quot; id=&quot;11538&quot; /&gt;&#13;&#10;  &lt;row check=&quot;0&quot; text=&quot;Canseco, Mariano Andres&quot; code=&quot;23147267&quot; value=&quot;11551&quot; id=&quot;11551&quot; /&gt;&#13;&#10;&lt;/rows&gt;&#13;&#10;" name="LEGAJOSADD">
+			<qry:main doc="SOURCE">
+				<qry:element name="ROWS">
+					<qry:insert-select doc-path="#SOURCE:rows" name="RS1"/>
+				</qry:element>
+			</qry:main>
+			<qry:select doc="SOURCE" name="RS1">
+				<qry:xquery>
+					for $r in #SOURCE:row[@check='1']
+				</qry:xquery>
+				<qry:out>
+					<qry:element name="ROW">
+						<qry:attribute value="$r/@id" name="id"/>
+					</qry:element>
+				</qry:out>
+			</qry:select>
+		</qry:define>
+		<doc:define class="NucleusRH.Base.Organizacion.Vistas.VISTA" name="DDO_VISTA"/>
+		<qry:define name="FICTICIO">
+			<qry:main doc="SOURCE">
+				<qry:element name="ROW">
+					<qry:insert-select name="SQL1"/>
+				</qry:element>
+			</qry:main>
+			<qry:select name="SQL1">
+				<qry:xquery>
+					for $r in SQL('
+				select 
+					U.oi_unidad_org
+				from
+					ORG01_UNI_ORG as U, ORG01_TIPOS_UNI as T
+				join
+					U.oi_tipo_uni_org INNER T.oi_tipo_uni_org
+				where
+					U.c_unidad_org=\'FIC\'
+			')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:attribute name="oi_unidad_org" value="$r/@oi_unidad_org"/>
+				</qry:out>
+			</qry:select>
+		</qry:define>
+	</flow:declare>
+	<flow:main doc="SOURCE">
+		<flow:action name="DELLEGAJO">
+			<flow:exec-method class="NucleusRH.Base.Organizacion.Clases_Organizativas.CLASE_ORG" method="QuitarLegajo">
+				<flow:param attr-path="#SOURCE:@OI_ESTRUCTURA" type="Nomad.NSystem.String" mode="in" name="estructura_id"/>
+				<flow:param attr-path="#SOURCE:@VALUE" type="Nomad.NSystem.String" mode="in" name="personal_emp_id"/>
+			</flow:exec-method>
+			<flow:exit-flow return-path="#SOURCE:"/>
+		</flow:action>
+		<flow:action name="DELESTR">
+			<flow:exec-method method="EliminarEstructura" class="NucleusRH.Base.Organizacion.Clases_Organizativas.CLASE_ORG">
+				<flow:param attr-path="#SOURCE:@OI_ESTRUCTURA" type="Nomad.NSystem.String" mode="in" name="estructura_id"/>
+				<flow:param attr-path="#SOURCE:@VALUE" type="Nomad.NSystem.String" mode="in" name="personal_emp_id"/>
+			</flow:exec-method>
+			<flow:exit-flow return-path="#SOURCE:"/>
+		</flow:action>
+		<flow:action name="MOVEESTR">
+			<doc:set-attribute to-attr-path="#ESTRUCTURA:@id" from-attr-path="#SOURCE:@OI_ESTRUCTURA"/>
+			<flow:open-form form-class="NucleusRH.Base.Organizacion.Clases_Organizativas.ESTRUCTURA.MOVER.guia.form" mode="SHOW_CLASS" parent-doc-path="#SOURCE:" doc-path="#SOURCE:"/>
+		</flow:action>
+		<flow:action name="SETRESP">
+			<flow:exec-method method="SetResponsable" class="NucleusRH.Base.Organizacion.Clases_Organizativas.CLASE_ORG">
+				<flow:param attr-path="#SOURCE:@OI_ESTRUCTURA" type="Nomad.NSystem.String" mode="in" name="estructura_id"/>
+				<flow:param attr-path="#SOURCE:@VALUE" type="Nomad.NSystem.String" mode="in" name="personal_emp_id"/>
+			</flow:exec-method>
+			<flow:exit-flow return-path="#SOURCE:"/>
+		</flow:action>
+		<flow:action name="UNSETRESP">
+			<flow:exec-method method="UnSetResponsable" class="NucleusRH.Base.Organizacion.Clases_Organizativas.CLASE_ORG">
+				<flow:param attr-path="#SOURCE:@OI_ESTRUCTURA" type="Nomad.NSystem.String" mode="in" name="estructura_id"/>
+				<flow:param attr-path="#SOURCE:@VALUE" type="Nomad.NSystem.String" mode="in" name="personal_emp_id"/>
+			</flow:exec-method>
+			<flow:exit-flow return-path="#SOURCE:"/>
+		</flow:action>
+		<flow:action name="ADDLEGAJO">
+			<doc:set-attribute to-attr-path="#LEGAJOS:@oi_estructura" from-attr-path="#SOURCE:@OI_ESTRUCTURA"/>
+			<flow:open-form doc-path="#LEGAJOS:" form-class="NucleusRH.Base.Organizacion.Clases_Organizativas.PERSONAL_EMP.guia.form" parent-doc-path="#SOURCE:" mode="SHOW"/>
+		</flow:action>
+		<flow:action name="ADDHIJO">
+			<doc:set-attribute to-attr-path="#ESTRUCTURA:@id" from-attr-path="#SOURCE:@OI_ESTRUCTURA"/>
+			<doc:load-qry qry="PRELOADUO" output-doc="RS" input-doc-path="#SOURCE:"/>
+			<flow:open-form parent-doc-path="#SOURCE:" doc-path="#RS:" mode="SHOW" form-class="NucleusRH.Base.Organizacion.Unidades_Organizativas.UNIDAD_ORG.guia.autoform"/>
+		</flow:action>
+		<flow:action name="ADDHIJOFIC">
+			<doc:load-qry output-doc="RS" qry="FICTICIO"/>
+			<flow:exec-method method="AddHijo" class="NucleusRH.Base.Organizacion.Clases_Organizativas.CLASE_ORG">
+				<flow:param attr-path="#SOURCE:@OI_ESTRUCTURA" type="Nomad.NSystem.String" mode="in" name="estructura_id"/>
+				<flow:param attr-path="#RS:@oi_unidad_org" type="Nomad.NSystem.String" mode="in" name="unidad_org_id"/>
+				<flow:param value="0" type="Nomad.NSystem.Boolean" mode="in" name="staff"/>
+			</flow:exec-method>
+			<flow:exit-flow return-path="#SOURCE:"/>
+		</flow:action>
+		<flow:action name="ADDORG">
+			<doc:set-attribute to-attr-path="#ESTRUCTURA:@id" from-attr-path="#SOURCE:@OI_ESTRUCTURA"/>
+			<doc:load-qry qry="HELPORG" output-doc="RS" input-doc-path="#SOURCE:"/>
+			<flow:open-form parent-doc-path="#SOURCE:" doc-path="#SOURCE:" mode="SHOW" form-class="NucleusRH.Base.Organizacion.Clases_Organizativas.CLASE_ORG.guia.autoform"/>
+		</flow:action>
+		<flow:action name="DELORG">
+			<flow:exec-method method="DelOrganigrama" class="NucleusRH.Base.Organizacion.Clases_Organizativas.CLASE_ORG">
+				<flow:param attr-path="#SOURCE:@OI_CLASE_ORG" type="Nomad.NSystem.String" mode="in" name="clase_org_id"/>
+				<flow:param name="estr_padre_id" attr-path="#SOURCE:@OI_ESTR_PADRE" type="Nomad.NSystem.String" mode="in"/>
+			</flow:exec-method>
+			<flow:exit-flow return-path="#SOURCE:"/>
+		</flow:action>
+		<flow:action name="SETSTAFF">
+			<flow:exec-method method="SetStaff" class="NucleusRH.Base.Organizacion.Clases_Organizativas.CLASE_ORG">
+				<flow:param attr-path="#SOURCE:@OI_ESTRUCTURA" type="Nomad.NSystem.String" mode="in" name="estructura_id"/>
+			</flow:exec-method>
+			<flow:exit-flow return-path="#SOURCE:"/>
+		</flow:action>
+		<flow:action name="DELSTAFF">
+			<flow:exec-method method="DelStaff" class="NucleusRH.Base.Organizacion.Clases_Organizativas.CLASE_ORG">
+				<flow:param attr-path="#SOURCE:@OI_ESTRUCTURA" type="Nomad.NSystem.String" mode="in" name="estructura_id"/>
+			</flow:exec-method>
+			<flow:exit-flow return-path="#SOURCE:"/>
+		</flow:action>
+		<flow:action name="DELVISTA">
+			<doc:load-object doc="DDO_VISTA" id-path="#SOURCE:@VALUE" class="NucleusRH.Base.Organizacion.Vistas.VISTA"/>
+			<doc:delete-object doc-path="#DDO_VISTA:"/>
+			<doc:save-object class="NucleusRH.Base.Organizacion.Vistas.VISTA" doc="DDO_VISTA"/>
+			<flow:exit-flow return-path="#SOURCE:"/>
+		</flow:action>
+		<flow:action name="ADDVISTA">
+			<doc:new-object class="NucleusRH.Base.Organizacion.Vistas.VISTA" doc="DDO_VISTA"/>
+			<doc:set-attribute to-attr-path="#DDO_VISTA:oi_estructura/@value" from-attr-path="#SOURCE:@OI_ESTRUCTURA"/>
+			<doc:set-attribute to-attr-path="#DDO_VISTA:oi_clase_org/@value" from-attr-path="#SOURCE:@oi_clase_org"/>
+			<flow:open-form parent-doc-path="#DDO_VISTA:" doc-path="#DDO_VISTA:" mode="NEW" form-class="NucleusRH.Base.Organizacion.Vistas.VISTA_NEW.form"/>
+		</flow:action>
+	</flow:main>
+	<flow:form form-class="NucleusRH.Base.Organizacion.Clases_Organizativas.PERSONAL_EMP.guia.form" name="NucleusRH.Base.Organizacion.Clases_Organizativas.PERSONAL_EMP.guia.form:SHOW" parent-doc="PARENTSOURCE" doc="SOURCE" mode="SHOW">
+		<flow:action name="on-show">
+			<doc:set-attribute from-value="0" to-attr-path="#SOURCE:@l_validate"/>
+			<flow:attach-doc doc-path="#SOURCE:ROWS" attach-id="ARRB"/>
+		</flow:action>
+		<flow:action name="ACCEPT">
+			<flow:exec-method method="AddLegajo" class="NucleusRH.Base.Organizacion.Clases_Organizativas.CLASE_ORG">
+				<flow:param attr-path="#PARENTSOURCE:@oi_clase_org" type="Nomad.NSystem.String" mode="in" name="clase_id"/>
+				<flow:param attr-path="#LEGAJOS:@oi_estructura" type="Nomad.NSystem.String" mode="in" name="estructura_id"/>
+				<flow:param doc-path="#SOURCE:ROWS" type="Nomad.NSystem.Proxy.NomadXML" mode="in" name="legajos_ids"/>
+				<flow:param attr-path="#SOURCE:@l_validate" mode="in" name="l_validate" type="Nomad.NSystem.Boolean"/>
+			</flow:exec-method>
+			<flow:exit-flow return-path="#SOURCE:"/>
+		</flow:action>
+		<flow:action name="CANCEL">
+			<flow:exit-flow return-path="#PARAMIN:"/>
+		</flow:action>
+	</flow:form>
+	<flow:form parent-doc="INVAL" doc="SOURCE" mode="SHOW" name="NucleusRH.Base.Organizacion.Unidades_Organizativas.UNIDAD_ORG.guia.autoform:SHOW" form-class="NucleusRH.Base.Organizacion.Unidades_Organizativas.UNIDAD_ORG.guia.autoform">
+		<flow:action name="on-show">
+			<flow:attach-doc doc-path="#RS:ROWS" attach-id="RS"/>
+		</flow:action>
+		<flow:action name="RELOAD_QUERY">
+			<doc:load-qry qry="HELPUO" output-doc="RS" input-doc-path="#SOURCE:"/>
+			<flow:attach-doc doc-path="#RS:ROWS" attach-id="RS"/>
+		</flow:action>
+		<flow:action name="ACCEPT">
+			<flow:exec-method method="AddHijo" class="NucleusRH.Base.Organizacion.Clases_Organizativas.CLASE_ORG">
+				<flow:param attr-path="#ESTRUCTURA:@id" type="Nomad.NSystem.String" mode="in" name="estructura_id"/>
+				<flow:param attr-path="#FORM:ctrl[@id='GRID']/@xval" type="Nomad.NSystem.String" mode="in" name="unidad_org_id"/>
+				<flow:param value="0" type="Nomad.NSystem.Boolean" mode="in" name="staff"/>
+			</flow:exec-method>
+			<flow:exit-flow return-path="#SOURCE:"/>
+		</flow:action>
+		<flow:action name="CANCEL">
+			<flow:exit-flow return-path="#PARAMIN:"/>
+		</flow:action>
+	</flow:form>
+	<flow:form parent-doc="INVAL" doc="SOURCE" mode="SHOW" name="NucleusRH.Base.Organizacion.Clases_Organizativas.CLASE_ORG.guia.autoform:SHOW" form-class="NucleusRH.Base.Organizacion.Clases_Organizativas.CLASE_ORG.guia.autoform">
+		<flow:action name="on-show">
+			<flow:attach-doc doc-path="#RS:" attach-id="RS"/>
+		</flow:action>
+		<flow:action name="ACCEPT">
+			<flow:exec-method method="AddOrganigrama" class="NucleusRH.Base.Organizacion.Clases_Organizativas.CLASE_ORG">
+				<flow:param attr-path="#ESTRUCTURA:@id" type="Nomad.NSystem.String" mode="in" name="estructura_id"/>
+				<flow:param attr-path="#FORM:ctrl[@id='GRID']/@xval" name="organigrama_id" type="Nomad.NSystem.String" mode="in"/>
+			</flow:exec-method>
+			<flow:exit-flow return-path="#SOURCE:"/>
+		</flow:action>
+		<flow:action name="CANCEL">
+			<flow:exit-flow return-path="#PARAMIN:"/>
+		</flow:action>
+		<flow:action name="RELOAD">
+			<doc:load-qry qry="HELPORG" output-doc="RS" input-doc-path="#SOURCE:"/>
+			<flow:attach-doc doc-path="#RS:" attach-id="RS"/>
+		</flow:action>
+	</flow:form>
+	<flow:form name="NucleusRH.Base.Organizacion.Clases_Organizativas.ESTRUCTURA.MOVER.guia.form:SHOW" form-class="NucleusRH.Base.Organizacion.Clases_Organizativas.ESTRUCTURA.MOVER.guia.form" mode="SHOW_CLASS" parent-doc="INVAL" doc="SOURCE">
+		<flow:action name="on-show">
+			<flow:log text-path="#SOURCE:" text="ppsource"/>
+		</flow:action>
+		<flow:action name="ACCEPT">
+			<flow:exec-method class="NucleusRH.Base.Organizacion.Clases_Organizativas.CLASE_ORG" method="Mover_Estructura">
+				<flow:param name="estructura_change_id" attr-path="#ESTRUCTURA:@id" type="Nomad.NSystem.String" mode="in"/>
+				<flow:param name="estructura_to_id" attr-path="#SOURCE:@estructura_to_id" type="Nomad.NSystem.String" mode="in"/>
+			</flow:exec-method>
+			<doc:set-attribute to-attr-path="#ESTRUCTURA:@id" from-attr-path="#SOURCE:@estructura_to_id"/>
+			<flow:exit-flow return-path="#ESTRUCTURA:"/>
+		</flow:action>
+		<flow:action name="CANCEL">
+			<flow:exit-flow return-path="#PARAMIN:"/>
+		</flow:action>
+	</flow:form>
+	<flow:form name="NucleusRH.Base.Organizacion.Vistas.VISTA_NEW.form:NEW" form-class="NucleusRH.Base.Organizacion.Vistas.VISTA_NEW.form" parent-doc="PARENTSOURCE" doc="SOURCE" mode="NEW">
+		<flow:action name="save-DDO">
+			<doc:save-object class="NucleusRH.Base.Organizacion.Vistas.VISTA" doc="DDO_VISTA"/>
+		</flow:action>
+		<flow:action name="--------------------------------------------"/>
+		<flow:action name="on-show"/>
+		<flow:action name="After-Back"/>
+		<flow:action name="After-Change"/>
+		<flow:action name="SAVE">
+			<flow:call-action action="save-DDO"/>
+			<flow:close-form next-action="After-Change"/>
+		</flow:action>
+		<flow:action name="CANCEL">
+			<flow:close-form next-action="After-Back"/>
+		</flow:action>
+		<flow:action name="PARENT"/>
+	</flow:form>
+</flow:flow>

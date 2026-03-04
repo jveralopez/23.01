@@ -1,0 +1,267 @@
+<form:Form xmlns:form="nomad_engine.form" xmlns:qry="nomad_engine.qry" extends="NucleusRH.Base.Organizacion.Clases_Organizativas.ESTRUCTURA.guia.form" name="NucleusRH.Base.Organizacion.Clases_Organizativas.ESTRUCTURA.MOVER.guia.form" doc="SOURCE">
+	<!--form:Scripts>
+		function onChangeClase()
+{     
+	if (Ctrl("oi_clase_org").GetXValue()=="")
+	{
+		Ctrl('treeESTR').loadFromString("&lt;tree/&gt;");
+		Ctrl('treeESTR').SetXValue("");
+	}
+	
+	var mp, nSQL, txtTree;
+
+	np = new NomadProxy("", ut);
+	nSQL = np.SQLService();
+    
+  
+  txtTree = nSQL.Get(Ctrl("main").getResource("qry:ESTRUCTURA"), "&lt;PARAM oi_clase_org=\""+Ctrl("oi_clase_org").GetXValue()+"\" estructura=\""+Ctrl("estructura").GetXValue()+ "\" id=\""+Ctrl("treeESTR").GetXValue()+"\" /&gt;");
+	Ctrl('treeESTR').loadFromString(txtTree);
+	Ctrl('treeESTR').SetXValue("");
+}
+	</form:Scripts>
+	<form:Title>
+		<form:RowAligner name="title">
+			<form:Row name="row1">
+				<form:Label label="Selecci&#243;n de Estructura" nowrap="1" style="S3 LCol_w" name="GEN"/>
+			</form:Row>
+		</form:RowAligner>
+	</form:Title>
+	<form:Center>
+		<form:Columns name="cols1">
+			<form:Column name="col1">
+				<form:Combo enabled="SHOW" action="COMBO" label="Organigrama" nvalue="#SOURCE:@oi_clase_org" required="1" flow="NucleusRH.Base.Organizacion.Clases_Organizativas.CLASE_ORG.combo.autoflow" name="oi_clase_org">
+					<form:Event runat="client" name="onchange" action="onChangeClase"/>
+				</form:Combo>
+				<form:Hidden nvalue="#SOURCE:@OI_ESTRUCTURA" name="estructura"/>
+			</form:Column>
+		</form:Columns>
+		<form:Container label="Estructuras" rwidth="80" align="left" rheight="60" borderwidth="2" name="contESTR">
+			<form:Tree runat="server" allowplus="1" init="client" name="treeESTR" nvalue="#SOURCE:@id"/>
+		</form:Container>
+	</form:Center>
+	<form:Resources>
+		<form:Resource declare="&lt;PARAM oi_clase_org=&quot;42&quot; estructura=&quot;236&quot;/&gt;" name="qry:ESTRUCTURA">
+			<qry:main doc="PARAM">
+				<qry:append-doc name="INVAL" doc-path="#PARAM:/PARAM"/>
+				<qry:element name="tree">
+					<qry:element name="groups">
+						<qry:insert-select name="qry_clase_organizativa" doc-path="#PARAM:/PARAM"/>
+					</qry:element>
+				</qry:element>
+			</qry:main>
+			<qry:select name="qry_clase_organizativa" doc="PARAM">
+				<qry:xquery>
+					for $r in sql('
+					SELECT ORG02_CLASES_ORG.oi_estructura_org, 
+					ORG02_CLASES_ORG.d_clase_org 
+					FROM ORG02_CLASES_ORG 
+					WHERE ORG02_CLASES_ORG.oi_clase_org = {#PARAM:@oi_clase_org}
+				')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:element name="group">
+						<qry:attribute value="$r/@oi_estructura_org" name="id"/>
+						<qry:attribute value="#PARAM:@oi_clase_org" name="pid"/>
+						<qry:insert-select name="qry_padre" doc-path="."/>
+					</qry:element>
+				</qry:out>
+			</qry:select>
+			<qry:select name="qry_padre" doc="PARAM">
+				<qry:xquery>
+					for $r in sql('
+					SELECT ORG01_TIPOS_UNI.c_tipo_uni_org, 
+					ORG01_UNI_ORG.c_unidad_org, 
+					ORG01_UNI_ORG.d_unidad_org, 
+					ORG02_ESTRUCTURAS.oi_unidad_org 
+					FROM ORG02_ESTRUCTURAS, ORG01_UNI_ORG, ORG01_TIPOS_UNI 
+					JOIN ORG02_ESTRUCTURAS.oi_unidad_org INNER ORG01_UNI_ORG.oi_unidad_org, 
+					ORG01_UNI_ORG.oi_tipo_uni_org INNER ORG01_TIPOS_UNI.oi_tipo_uni_org
+					WHERE ORG02_ESTRUCTURAS.oi_estructura = {#PARAM:@id} 					
+				')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:attribute type="Nomad.NSystem.String" value="'('+$r/@c_tipo_uni_org+') '+$r/@c_unidad_org+' - '+$r/@d_unidad_org" name="name"/>
+					<qry:attribute value="#PARAM:@id" name="id"/>
+					<qry:attribute value="#PARAM:@pid" name="pid"/>
+					<qry:attribute value="'1'" name="expanded"/>
+					<qry:element name="groups">
+						<qry:insert-select name="qry_unidad_organizativa" doc-path=".."/>
+					</qry:element>
+				</qry:out>
+			</qry:select>
+			<qry:select name="qry_unidad_organizativa" doc="PARAM">
+				<qry:xquery>
+					for $r in sql('
+						SELECT ORG02_ESTRUCTURAS.oi_estructura, 
+						ORG01_TIPOS_UNI.c_tipo_uni_org, 
+						ORG01_UNI_ORG.c_unidad_org, 
+						ORG01_UNI_ORG.d_unidad_org, 
+						ORG02_ESTRUCTURAS.oi_unidad_org 
+						FROM ORG02_ESTRUCTURAS, ORG01_UNI_ORG, ORG01_TIPOS_UNI 
+						JOIN ORG02_ESTRUCTURAS.oi_unidad_org INNER ORG01_UNI_ORG.oi_unidad_org,
+						ORG01_UNI_ORG.oi_tipo_uni_org INNER ORG01_TIPOS_UNI.oi_tipo_uni_org
+						WHERE ORG02_ESTRUCTURAS.oi_estr_padre = {#PARAM:@id} 						
+						AND ORG02_ESTRUCTURAS.oi_estructura != {#INVAL:@estructura} 
+					')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:element name="group">
+						<qry:attribute type="Nomad.NSystem.String" value="'('+$r/@c_tipo_uni_org+') '+$r/@c_unidad_org+' - '+$r/@d_unidad_org" name="name"/>
+						<qry:attribute value="$r/@oi_estructura" name="id"/>
+						<qry:attribute value="#PARAM:@pid" name="pid"/>
+						<qry:attribute value="iif(#INVAL:@id=$r/@oi_estructura,'1','0')" name="showitem"/>
+						<qry:attribute value="iif(#INVAL:@id=$r/@oi_estructura,'1','0')" name="bold"/>
+						<qry:element name="groups">
+							<qry:insert-select name="qry_unidad_organizativa" doc-path=".."/>
+						</qry:element>
+						<qry:insert-select name="expanded" doc-path="./groups/group[@showitem=1]"/>
+					</qry:element>
+				</qry:out>
+			</qry:select>
+			<qry:select name="expanded" doc="PARAM">
+				<qry:out>
+					<qry:attribute value="1" name="showitem"/>
+					<qry:attribute value="1" name="expanded"/>
+				</qry:out>
+			</qry:select>
+		</form:Resource>
+	</form:Resources>
+	<form:Bottom>
+		<form:RowAligner name="bottom">
+			<form:Row name="rowbottom">
+				<form:Button startvalidate="1" name="ACCEPT" label="Aceptar" img="OK" descrip="Aceptar" note="Aceptar">
+					<form:Event runat="server" name="onclick" action="ACCEPT"/>
+				</form:Button>
+				<form:Button name="CANCEL" label="Cancelar" img="CANCEL" descrip="Cancelar" note="Cancelar">
+					<form:Event runat="server" name="onclick" action="CANCEL"/>
+				</form:Button>
+			</form:Row>
+		</form:RowAligner>
+	</form:Bottom>
+	<form:Event name="onLoad" action="onChangeClase" runat="client"/-->
+	<form:Resources>
+		<form:Resource declare="&lt;PARAM id=&quot;539&quot; /&gt;" name="qry_estructura">
+			<qry:main doc="PARAM">
+				<qry:element name="tree">
+					<qry:append-doc name="PARAMIN" doc-path="#PARAM:/PARAM"/>
+					<qry:insert-select name="sql1" doc-path="#PARAM:/PARAM"/>
+					<qry:insert-select name="sql3" doc-path="#PARAM:/PARAM"/>
+				</qry:element>
+			</qry:main>
+			<qry:select name="sql1" doc="PARAM">
+				<qry:xquery>
+					for $r in sql('
+						SELECT ORG02_ESTRUCTURAS.oi_estructura, 
+						ORG01_TIPOS_UNI.c_tipo_uni_org, 
+						ORG01_UNI_ORG.c_unidad_org, 
+						ORG01_UNI_ORG.d_unidad_org, 
+						ORG02_ESTRUCTURAS.oi_unidad_org 
+						FROM ORG02_ESTRUCTURAS, ORG01_UNI_ORG, ORG01_TIPOS_UNI 
+						JOIN ORG02_ESTRUCTURAS.oi_unidad_org INNER ORG01_UNI_ORG.oi_unidad_org,
+						ORG01_UNI_ORG.oi_tipo_uni_org INNER ORG01_TIPOS_UNI.oi_tipo_uni_org
+						WHERE ORG02_ESTRUCTURAS.oi_estr_padre = {#PARAM:@id} 					
+					')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:if test="$PARAMIN/@oi_estructura!=$r/@oi_estructura">
+						<qry:then>
+							<qry:element name="group">
+								<qry:attribute value="$r/@oi_estructura" name="id"/>
+								<qry:if test="$r/@c_tipo_uni_org='FIC'">
+									<qry:then>
+										<qry:attribute value="'Ficticia'" name="label"/>
+										<qry:attribute value="'REP-HIDDEN.ico'" name="imgClose"/>
+										<qry:attribute value="'REP-HIDDEN.ico'" name="imgOpen"/>
+									</qry:then>
+									<qry:else>
+										<qry:attribute value="'['+$r/@c_unidad_org+'] '+$r/@d_unidad_org" name="label"/>
+										<qry:attribute value="'estructura.ico'" name="imgClose"/>
+										<qry:attribute value="'estructura.ico'" name="imgOpen"/>
+									</qry:else>
+								</qry:if>
+							</qry:element>
+						</qry:then>
+					</qry:if>
+				</qry:out>
+			</qry:select>
+			<qry:select name="sql3" doc="PARAM">
+				<qry:xquery>
+					for $r in sql('
+						SELECT 
+							ORG02_ESTRUC_PERS.oi_estruc_pers,
+							ORG02_ESTRUC_PERS.l_responsable,
+							PER02_PERSONAL_EMP.e_numero_legajo,
+							PER01_PERSONAL.d_ape_y_nom,
+							ORG03_EMPRESAS.c_empresa
+						FROM 
+							ORG02_ESTRUC_PERS, PER02_PERSONAL_EMP, PER01_PERSONAL, ORG03_EMPRESAS  
+						JOIN 
+							ORG02_ESTRUC_PERS.oi_personal_emp INNER PER02_PERSONAL_EMP.oi_personal_emp,
+							PER02_PERSONAL_EMP.oi_personal INNER PER01_PERSONAL.oi_personal,
+							PER02_PERSONAL_EMP.oi_empresa INNER ORG03_EMPRESAS.oi_empresa
+						WHERE 
+							ORG02_ESTRUC_PERS.oi_estructura = {#PARAM:@id} 					
+						ORDER BY
+							l_responsable DESC, d_ape_y_nom ASC
+					')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:element name="item">
+						<qry:attribute value="$r/@oi_estruc_pers" name="id"/>
+						<qry:attribute value="'['+$r/@c_empresa+'-'+$r/@e_numero_legajo+'] '+$r/@d_ape_y_nom" name="label"/>
+						<qry:attribute value="iif ($r/@l_responsable=1,'user-si.ico','user.ico')" name="img"/>
+					</qry:element>
+				</qry:out>
+			</qry:select>
+		</form:Resource>
+	</form:Resources>
+	<form:Scripts>
+		function LoadChilds(objTree, objGroup)
+{
+	nSQL = GetProxy().SQLService();
+	         
+	var id=objGroup.FullId.split("/"); id=id[id.length-1];
+	if(id==".") id = "";
+	
+	var resultxt=nSQL.Get(Ctrl("main").getResource("qry_estructura"), "&lt;PARAM id=\""+id+"\" oi_estructura=\""+Ctrl("oi_estructura_orig").GetXValue()+"\"/&gt;");	
+  objTree.SetXML(objGroup.FullId, resultxt);
+}
+
+function onLoad()
+{ 
+	nSQL = GetProxy().SQLService();
+	
+	var resultxt=nSQL.Get(Ctrl("main").getResource("qry_clases"), "&lt;PARAM oi_clase_org=\""+Ctrl("oi_clase_org").GetXValue()+"\" /&gt;");
+	CLASS_TREE=clsClientTree("contESTR","oi_estructura_full","CLOCK.ico","folder-close.ico","folder.ico","item.ico",true,LoadChilds,null,onClick,1000);
+	CLASS_TREE.SetXML(null, resultxt);
+	
+	CLASS_TREE.SetSelectedId(".");
+	CLASS_TREE.ClickExpGroup(".");
+}            
+
+function ACCEPT()
+{       
+	var ids=Ctrl("oi_estructura_full").GetXValue().split("/");
+	ids=ids[ids.length-1];             
+	Ctrl("estructura_to_id").SetXValue(ids);
+	return true;	
+}
+	</form:Scripts>
+	<form:Center width="100%" height="100%">
+		<form:Hidden nvalue="#SOURCE:@OI_ESTRUCTURA" name="oi_estructura"/>
+		<form:Hidden name="oi_clase_org" nvalue="#SOURCE:@oi_clase_org"/>
+		<form:Hidden name="oi_estructura_full"/>
+		<form:Hidden nvalue="#SOURCE:@estructura_to_id" name="estructura_to_id"/>
+		<form:Hidden nvalue="#SOURCE:@OI_ESTRUCTURA" name="oi_estructura_orig"/>
+	</form:Center>
+	<form:Bottom>
+		<form:RowAligner name="bottom">
+			<form:Row name="rowbottom">
+				<form:Button name="ACCEPT" label="Aceptar" img="OK" descrip="Aceptar" note="Aceptar">
+					<form:Event name="onclick" action="ACCEPT" runat="client"/>
+					<form:Event runat="server" name="onclick" action="ACCEPT"/>
+				</form:Button>
+			</form:Row>
+		</form:RowAligner>
+	</form:Bottom>
+</form:Form>

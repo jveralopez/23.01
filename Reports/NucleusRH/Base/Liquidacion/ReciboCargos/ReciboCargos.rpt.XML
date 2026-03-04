@@ -1,0 +1,1018 @@
+<report:report xmlns:report="nomad_engine.report" xmlns:qry="nomad_engine.qry" xmlns:fo="http://www.w3.org/1999/XSL/Format" xmlns:xsl="http://www.w3.org/1999/XSL/Transform" name="NucleusRH.Base.Legales.AnticipoFondos" doc="source" forender="fonet">
+	<report:for-each declare="&lt;FILTRO excluir=&quot;&quot; oi_liquidacion=&quot;1&quot; gcustom=&quot;&quot; empresa=&quot;1&quot; chkOcultarLeyenda=&quot;&quot; chkInvertir=&quot;&quot; orden1=&quot;ORG03_UBICACIONES.c_ubicacion&quot; orden2=&quot;&quot; gpers=&quot;&quot; activos=&quot;&quot; nombre=&quot;&quot; documento=&quot;&quot; sexo=&quot;&quot; grupo_sanguineo=&quot;&quot; listlegajos=&quot;&quot; oi_indic_activo=&quot;&quot; egresado=&quot;&quot; oi_forma_pago=&quot;&quot; oi_tipo_personal=&quot;&quot; fecha_desde=&quot;&quot; fecha_hasta=&quot;&quot; oi_centro_costo=&quot;&quot; oi_convenio=&quot;&quot; soloconvenio=&quot;&quot; oi_categoria=&quot;&quot; oi_ubicacion_desde=&quot;&quot; oi_ubicacion_hasta=&quot;&quot; oi_estructura=&quot;&quot; escructura_childs=&quot;&quot; oi_contrato=&quot;&quot; oi_afjp=&quot;&quot; oi_obra_social=&quot;&quot; oi_sindicato=&quot;&quot; l_afiliado_sind=&quot;0&quot; oi_banco=&quot;&quot; oi_sucursal=&quot;&quot; legID=&quot;&quot; leg_where=&quot;&quot; batch-id=&quot;&quot;&gt;&#13;&#10;&#9;&lt;PERSONAS nmd-col=&quot;1&quot;&gt;&#13;&#10;&#9;&#9;&lt;ROW VALUES=&quot;1,2,3,4,5,6,8,10,11,12,14,15,16,18,19,21,23,24,27,28,30,31,33,34,35,36,37,38,39,41,42,43,44,47,48,50,51,52,53,55,59,60,61,63,64,66,67,68,69,70,72,73,75,77,78,79,80,81,82,83,84,86&quot; /&gt;&#13;&#10;&#9;&lt;/PERSONAS&gt;&#13;&#10;&lt;/FILTRO&gt;">
+		<qry:main doc="PARAM">
+			<RECIBOS qry-orderby="order">
+				<qry:append-doc name="PARAMIN" doc-path="#PARAM:FILTRO"/>
+				<qry:append-doc name="RECIBOS" doc-path="."/>
+				<qry:attribute name="chkInvertir" value="#PARAM:FILTRO/@chkInvertir"/>
+				<qry:insert-select doc-path="#PARAM:FILTRO" name="QRY_DATOS_EMP"/>
+				<qry:insert-select doc-path="#PARAM:FILTRO" name="QRY_PARAMETRO"/>
+				<qry:insert-select doc-path="#PARAM:FILTRO/PERSONAS/ROW" name="QRY_CALLS"/>
+			</RECIBOS>
+		</qry:main>
+		<qry:select name="QRY_DATOS_EMP" doc="PARAM">
+			<qry:xquery>
+				for $r in sql('
+SELECT
+	E.oi_logotipo, E.oi_firma_emp, EL.d_empresa, EL.d_domicilio, 
+	EL.c_cuit, LOC.d_localidad, LOC.d_provincia, E.oi_empresa
+FROM
+	LIQ19_LIQUIDACION AS L, LIQ19_EJECUCIONES AS EJ, LIQ99_LIQUIDACION AS LL,
+	ORG03_EMPRESAS AS E, LIQ93_EMPRESAS AS EL,
+    (SELECT ORG19_LOCALIDADES.c_localidad, ORG19_LOCALIDADES.d_localidad, ORG35_PROVINCIAS.d_provincia
+    FROM ORG19_LOCALIDADES, ORG35_PROVINCIAS
+    JOIN ORG19_LOCALIDADES.oi_provincia LEFT OUTER ORG35_PROVINCIAS.oi_provincia) AS LOC
+JOIN
+	L.oi_liquidacion INNER EJ.oi_liquidacion,
+	EJ.oi_liquidacion_ddo INNER LL.oi_liquidacion_ddo,
+	LL.oi_empresa_ddo INNER EL.oi_empresa_ddo,
+	L.oi_empresa INNER E.oi_empresa,
+	EL.c_localidad LEFT OUTER LOC.c_localidad
+WHERE
+	LL.c_estado = \'F\' and
+	L.oi_liquidacion = {$PARAM/@oi_liquidacion}
+			')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:attribute name="oi_logotipo" value="$r/@oi_logotipo"/>
+				<qry:attribute name="oi_firma_emp" value="$r/@oi_firma_emp"/>
+				<qry:attribute name="oi_empresa" value="$r/@oi_empresa"/>
+				<qry:attribute name="d_empresa" value="$r/@d_empresa"/>
+				<qry:attribute name="d_cuit" value="$r/@c_cuit"/>
+				<qry:attribute name="d_domicilio" value="$r/@d_domicilio"/>
+				<qry:attribute name="d_domicilio" value="iif($r/@d_localidad!='',@d_domicilio + '-' + $r/@d_localidad + '-' + $r/@d_provincia, @d_domicilio)"/>
+			</qry:out>
+		</qry:select>
+		<qry:select name="QRY_PARAMETRO" doc="PARAM">
+			<qry:xquery>
+				for $r in sql('
+			SELECT ORG26_PARAMETROS.d_valor 
+			FROM ORG26_PARAMETROS
+			WHERE ORG26_PARAMETROS.c_parametro = \'AdmNumRec\'
+		')/ROWS
+			</qry:xquery>
+			<qry:out>
+				<qry:attribute name="AdmNumRec" value="iif($r/ROW/@d_valor!='',$r/ROW/@d_valor,'0')"/>
+			</qry:out>
+		</qry:select>
+		<qry:select doc="PARAM" name="QRY_CALLS">
+			<qry:out>
+				<qry:call>
+					<FILTRO>
+						<qry:attribute name="orden1" value="$PARAMIN/@orden1"/>
+						<qry:attribute name="orden2" value="$PARAMIN/@orden2"/>
+						<qry:attribute name="chkOcultarLeyenda" value="$PARAMIN/@chkOcultarLeyenda"/>
+						<qry:attribute name="oi_liquidacion" value="$PARAMIN/@oi_liquidacion"/>
+						<qry:attribute name="oi_empresa" value="../../@oi_empresa"/>
+						<qry:insert-element doc-path="$PARAM"/>
+					</FILTRO>
+				</qry:call>
+			</qry:out>
+		</qry:select>
+	</report:for-each>
+	<report:query declare="&lt;FILTRO oi_empresa=&quot;1&quot; oi_liquidacion=&quot;1&quot; orden1=&quot;ORG03_UBICACIONES.c_ubicacion&quot;&gt;&#13;&#10;&#9;&lt;ROW VALUES=&quot;1,2,3,4,5,6,8,10,11,12,14,15,16,18,19,21,23,24,27,28,30,31,33,34,35,36,37,38,39,41,42,43,44,47,48,50,51,52,53,55,59,60,61,63,64,66,67,68,69,70,72,73,75,77,78,79,80,81,82,83,84,86,87,89,90,91,92,93,94,95,97,98,99,100,101,105,106,107,108,110,111,112,113,114,115,116,117,118,119,120,121,122,123,125,126,127,128,129,131,132&quot;/&gt;&#13;&#10;&lt;/FILTRO&gt;&#13;&#10;">
+		<qry:main doc="PARAM">
+			<qry:no-show>
+				<qry:append-doc name="PARAMIN" doc-path="$PARAM/FILTRO"/>
+				<qry:append-doc name="RECIBOS" doc-path="."/>
+				<qry:insert-select doc-path="#PARAM:FILTRO/ROW" name="QRY_LEGAJOS"/>
+				<qry:insert-select doc-path="#PARAM:FILTRO/ROW" name="QRY_RECIBOS"/>
+				<qry:insert-select doc-path="#PARAM:FILTRO/ROW" name="QRY_CARGOS"/>
+				<qry:insert-select doc-path="#PARAM:FILTRO/ROW" name="QRY_DETALLE"/>
+				<qry:insert-select doc-path="#PARAM:FILTRO/ROW" name="QRY_DETALLE_CARGO"/>
+				<qry:insert-select doc-path="#PARAM:FILTRO/ROW" name="QRY_CATEGORIA"/>
+			</qry:no-show>
+		</qry:main>
+		<qry:select name="QRY_LEGAJOS" doc="SOURCE">
+			<qry:xquery>
+				for $r in sql('			
+SELECT
+	LIQ20_TOT_LIQ_PER.oi_tot_liq_per 
+FROM
+	ORG03_EMPRESAS,
+	LIQ19_LIQUIDACION,
+	LIQ99_LIQUIDACION,
+	LIQ99_RECIBOS, 
+	LIQ20_TOT_LIQ_PER,
+	LIQ25_PERSONAL_LIQ,
+	PER02_PERSONAL_EMP,
+	LIQ97_PERSONAL_EMP
+JOIN	
+	ORG03_EMPRESAS.oi_empresa INNER LIQ19_LIQUIDACION.oi_empresa,
+	ORG03_EMPRESAS.oi_empresa INNER PER02_PERSONAL_EMP.oi_empresa,
+	LIQ19_LIQUIDACION.c_liquidacion INNER LIQ99_LIQUIDACION.c_liquidacion,
+	ORG03_EMPRESAS.c_empresa INNER LIQ99_LIQUIDACION.c_empresa,
+	LIQ99_LIQUIDACION.oi_liquidacion_ddo INNER LIQ99_RECIBOS.oi_liquidacion_ddo,
+	LIQ99_RECIBOS.e_numero_legajo INNER PER02_PERSONAL_EMP.e_numero_legajo,
+	LIQ99_RECIBOS.oi_tot_liq_per INNER LIQ20_TOT_LIQ_PER.oi_tot_liq_per,
+	LIQ19_LIQUIDACION.oi_liquidacion INNER LIQ25_PERSONAL_LIQ.oi_liquidacion,
+	PER02_PERSONAL_EMP.oi_personal_emp INNER LIQ25_PERSONAL_LIQ.oi_personal_emp,
+	LIQ20_TOT_LIQ_PER.oi_per_emp_ddo INNER LIQ97_PERSONAL_EMP.oi_per_emp_ddo
+WHERE 	
+	LIQ99_LIQUIDACION.c_estado = \'F\'
+	AND LIQ19_LIQUIDACION.oi_liquidacion = {$PARAMIN/@oi_liquidacion}
+	AND LIQ25_PERSONAL_LIQ.oi_personal_emp in ({%=$SOURCE/@VALUES %})
+			')ROWS
+			</qry:xquery>
+			<qry:out>
+				<qry:attribute name="recibos" value="string($r/ROW/@oi_tot_liq_per)"/>
+			</qry:out>
+		</qry:select>
+		<qry:select doc="PARAM" name="QRY_RECIBOS">
+			<qry:xquery>
+				for $r in sql('
+				SELECT TLP.oi_tot_liq_per,
+{%? (#PARAMIN:@orden1!=''){% {%=#PARAMIN:@orden1 %} as orden1,%}{% %} %}
+{%? (#PARAMIN:@orden2!=''){% {%=#PARAMIN:@orden2 %} as orden2,%}{% %} %}
+TLP.c_numero,  
+LIQ97_PERSONAL_EMP.oi_per_emp_ddo, 
+LIQ97_PERSONAL_EMP.e_numero_legajo, 
+LIQ97_PERSONAL_EMP.d_ape_y_nom, 
+LIQ.oi_liquidacion_ddo,
+LIQ.f_pago, 
+LIQ.f_liquidacion,
+LIQ.e_quincena,
+LIQ.e_periodo,
+LIQ.f_deposito, 
+LIQ.c_mes_deposito, 
+LIQ.d_banco, 
+CC.c_centro_costo  AS cCentroCosto, 
+CC.d_centro_costo  AS dCentroCosto,
+LIQ.c_liquidacion, 
+LIQ.d_titulo, 
+LIQ97_PERSONAL_EMP.f_ingreso, 
+LIQ97_PERSONAL_EMP.f_egreso, 
+LIQ97_PERSONAL_EMP.f_antiguedad_rec, 
+LIQ97_PERSONAL_EMP.c_nro_cuil  AS nro_cuil,
+LIQ97_PERSONAL_EMP.c_cta_bancaria,
+LIQ97_PERSONAL_EMP.d_sucursal,
+LIQ97_PERSONAL_EMP.d_banco as d_banco_sucursal,
+LIQ97_PERSONAL_EMP.c_convenio,
+LIQ97_PERSONAL_EMP.c_categoria_ult as c_categoria,
+FP.l_banco,
+LIQ19.t_leyenda,
+FP.d_forma_pago,
+OBRA_SOC.d_obra_social,
+OBRA_SOC.dc_obra_soc,
+LIQ97_PERSONAL_EMP.c_cbu,
+TLP.n_totsret, 
+TLP.n_totnsret, 
+TLP.n_totasig, 
+TLP.n_totdesc,
+TLP.n_totant,
+TLP.n_totemb,
+TLP.n_sbasico,
+LIQ97_PERSONAL_EMP.e_anios_antig,
+LIQ97_PERSONAL_EMP.e_meses_antig
+FROM
+	LIQ20_TOT_LIQ_PER AS TLP, 
+	LIQ97_PERSONAL_EMP, 
+	LIQ99_Liquidacion AS LIQ,
+	ORG08_CS_COSTO  AS CC,
+	PER31_FORMAS_PAGO AS FP, 
+	LIQ19_EJECUCIONES as EJE,
+	LIQ19_LIQUIDACION AS LIQ19,
+	PER06_OBRAS_SOC AS OBRA_SOC,
+	ORG03_UBICACIONES(ORG03_UBICACIONES.oi_empresa={%=$PARAMIN/@oi_empresa%})
+JOIN 
+	LIQ.oi_liquidacion_ddo INNER EJE.oi_liquidacion_ddo,
+	EJE.oi_liquidacion INNER LIQ19.oi_liquidacion,
+	TLP.oi_liquidacion_ddo INNER LIQ.oi_liquidacion_ddo,
+	TLP.oi_per_emp_ddo INNER LIQ97_PERSONAL_EMP.oi_per_emp_ddo,
+	CC.c_centro_costo INNER LIQ97_PERSONAL_EMP.c_centro_costo_ult,
+	TLP.c_forma_pago LEFT OUTER FP.c_forma_pago,
+	LIQ97_PERSONAL_EMP.c_obra_social LEFT OUTER OBRA_SOC.c_obra_social,
+	LIQ97_PERSONAL_EMP.c_ubicacion LEFT OUTER ORG03_UBICACIONES.c_ubicacion
+WHERE
+	TLP.oi_tot_liq_per in ({%=string($RECIBOS/@recibos)%})
+		')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<R qry-orderby="ord">
+					<qry:attribute name="id" value="$r/@oi_tot_liq_per"/>
+					<qry:attribute name="c_numero" value="iif($r/@c_numero!='', $r/@c_numero, '0')"/>
+					<qry:attribute name="oi_per_emp_ddo" value="$r/@oi_per_emp_ddo"/>
+					<qry:attribute name="e_numero_legajo" value="$r/@e_numero_legajo"/>
+					<qry:attribute name="d_ape_y_nom" value="$r/@d_ape_y_nom"/>
+					<qry:attribute name="d_obra_social" value="iif($r/@dc_obra_soc!='',$r/@dc_obra_soc, substring($r/@d_obra_social,0,50))"/>
+					<qry:attribute name="f_pago" value="format_date($r/@f_pago,'dd/mm/yyyy')"/>
+					<qry:attribute name="e_periodo" value="iif($r/@e_quincena!='', $r/@e_quincena + '/' + substring($r/@e_periodo,4,2) + '/' + substring($r/@e_periodo,0,4),substring($r/@e_periodo,4,2) + '/' + substring($r/@e_periodo,0,4))"/>
+					<qry:attribute name="f_deposito" value="format_date($r/@f_deposito,'dd/mm/yyyy')"/>
+					<qry:attribute name="c_mes_deposito" value="$r/@c_mes_deposito"/>
+					<qry:attribute name="l_banco" value="iif($r/@l_banco='1',1,0)"/>
+					<qry:attribute name="d_banco" value="$r/@d_banco"/>
+					<qry:attribute name="CentroCosto" value="$r/@dCentroCosto"/>
+					<qry:attribute name="c_liquidacion" value="$r/@c_liquidacion"/>
+					<qry:attribute name="d_titulo" value="$r/@d_titulo"/>
+					<qry:attribute name="antig_rec" value="iif($r/@e_anios_antig!='', concat($r/@e_anios_antig, ' a. '), '')"/>
+					<qry:attribute name="antig_rec" value="iif($r/@e_meses_antig!='', concat(@antig_rec, $r/@e_meses_antig, ' m.'), @antig_rec)"/>
+					<qry:attribute value="$r/@f_ingreso" name="f_calc_antiguedad"/>
+					<qry:attribute value="number($r/@e_anios_antig) * 12 + number($r/@e_meses_antig)" name="antiguedad_reconocida"/>
+					<qry:attribute value="format_date(@f_calc_antiguedad,'yyyy')*12+format_date(@f_calc_antiguedad,'mm')" name="mes_ing"/>
+					<qry:attribute value="format_date($r/@f_liquidacion,'yyyy')*12+format_date($r/@f_liquidacion,'mm')" name="mes_liq"/>
+					<qry:attribute value="@mes_liq - @mes_ing + 1 + @antiguedad_reconocida" name="antig"/>
+					<qry:attribute value="floor(number(@antig) div 12)" name="antig_anio"/>
+					<qry:attribute value="number(@antig) mod 12" name="antig_mes"/>
+					<qry:attribute value="format_date($r/@f_nacimiento,'dd/mm/yyyy')" name="f_nacimiento"/>
+					<qry:attribute value="iif($PARAMIN/@chkOcultarLeyenda='0', $r/@t_leyenda, '-1')" name="t_leyenda"/>
+					<qry:attribute value="format_date($r/@f_liquidacion,'dd/mm/yyyy')" name="f_liquidacion"/>
+					<qry:attribute name="f_ingreso" value="format_date($r/@f_ingreso,'dd/mm/yyyy')"/>
+					<qry:attribute name="f_egreso" value="format_date($r/@f_egreso,'dd/mm/yyyy')"/>
+					<qry:attribute name="f_antiguedad_rec" value="format_date($r/@f_antiguedad_rec,'dd/mm/yyyy')"/>
+					<qry:attribute name="nro_cuil" value="$r/@nro_cuil"/>
+					<qry:attribute value="iif($r/@c_cta_bancaria!='', $r/@c_cta_bancaria, $r/@c_cbu)" name="c_cta_bancaria"/>
+					<qry:attribute value="$r/@d_sucursal" name="d_sucursal"/>
+					<qry:attribute value="$r/@d_forma_pago" name="d_forma_pago"/>
+					<qry:attribute value="$r/@d_banco_sucursal+'/'+$r/@d_sucursal" name="sucursal"/>
+					<qry:attribute value="number($r/@n_totsret) + number($r/@n_totnsret) + number($r/@n_totasig)" name="rem"/>
+					<qry:attribute value="number($r/@n_totdesc) + number($r/@n_totant) + number($r/@n_totemb)" name="ded"/>
+					<qry:attribute value="number(@rem) + number(@ded)" name="neto"/>
+					<qry:attribute value="nmd-capital(nmd-num2text(@neto))" name="neto_desc"/>
+					<qry:attribute value="concat(@neto_desc, ' con ', @neto * 100 mod 100, '/100')" name="neto_desc"/>
+					<qry:attribute value="FORMAT_NUMBER(@rem, 10, 2, '.', '', '')" name="rem"/>
+					<qry:attribute value="FORMAT_NUMBER(0-@ded, 10, '2', '.', '', '')" name="ded"/>
+					<qry:attribute value="FORMAT_NUMBER(@neto, 10, 2, '.', '', '')" name="neto"/>
+					<qry:attribute value="FORMAT_NUMBER($r/@n_sbasico, 10, 2, '.', '', '')" name="sbasico"/>
+					<qry:attribute value="FORMAT_NUMBER($r/@n_totsret, 10, 2, '.', '', '')" name="sret"/>
+					<qry:attribute value="FORMAT_NUMBER(number($r/@n_totnsret)+number($r/@n_totasig), 10, 2, '.', '', '')" name="nsret"/>
+					<qry:attribute value="FORMAT_NUMBER($r/@n_totasig, 10, 2, '.', '', '')" name="asig"/>
+					<qry:attribute value="iif($PARAMIN/@orden1!='' AND $PARAMIN/@orden1!='0', NMD_FILLRIGHT($r/@orden1, ' ', 50, 'L'), '')" name="order"/>
+					<qry:attribute value="@order + iif($PARAMIN/@orden2!='' AND $PARAMIN/@orden2!='0', NMD_FILLRIGHT($r/@orden2, ' ', 50, 'L'), '')" name="order"/>
+					<qry:attribute value="@order + NMD_FILLLEFT($r/@e_numero_legajo, '0', 10, 'R')" name="order"/>
+					<L qry-orderby="c"/>
+				</R>
+			</qry:out>
+		</qry:select>
+		<qry:select doc="PARAM" name="QRY_CARGOS">
+			<qry:xquery>
+				for $r in sql('
+SELECT 
+TLP.oi_tot_liq_per,
+C.oi_cargo_ddo,
+C.d_categoria,
+C.d_ubicacion,
+C.d_materia,
+C.d_grupo_costo,
+C.e_orden,
+C.e_cargo
+FROM 
+LIQ20_TOT_LIQ_PER AS TLP,
+LIQ97_CARGOS AS C
+JOIN
+TLP.oi_per_emp_ddo INNER C.oi_per_emp_ddo
+WHERE
+TLP.oi_tot_liq_per in ({%=$RECIBOS/@recibos%})
+ORDER BY e_orden ASC
+')/ROWS/ROW,
+$s in $RECIBOS/R
+join $r/@oi_tot_liq_per inner $s/@id
+			</qry:xquery>
+			<qry:out>
+				<qry:insert-select name="qry_pegar_cargo" doc-path="$r" to-element="$s"/>
+			</qry:out>
+		</qry:select>
+		<qry:select doc="PARAM" name="QRY_DETALLE">
+			<qry:xquery>
+				for $r in sql('
+SELECT 
+TLP.oi_tot_liq_per,
+CLP.oi_conc_liq_per,
+CON.c_concepto, 
+CON.d_concepto, 
+CON.e_secuencia,	
+CLP.n_valor AS valor,
+CLP.n_cantidad AS cantidad,
+CON.c_tipo_concepto, 
+T.e_orden,
+CON.ca_fig_recibo
+FROM 
+LIQ20_TOT_LIQ_PER AS TLP, 
+liq20_conc_liq_per AS CLP, 
+liq96_conceptos AS CON, 
+LIQ14_CONCEPTOS AS C, 
+LIQ12_TIPOS_CONC AS T
+JOIN
+TLP.oi_tot_liq_per INNER CLP.oi_tot_liq_per,
+CON.oi_concepto_ddo INNER CLP.oi_concepto_ddo,
+C.c_concepto INNER CON.c_concepto,
+C.oi_tipo_concepto INNER T.oi_tipo_concepto 
+WHERE
+T.l_nolistado = 0  and
+CLP.n_valor != 0 and
+(isnull(CON.e_etapa) or CON.e_etapa != 1) and
+CON.ca_fig_recibo != \'N\' AND
+TLP.oi_tot_liq_per in ({%=$RECIBOS/@recibos%})
+')/ROWS/ROW,
+$s in $RECIBOS/R
+join $r/@oi_tot_liq_per inner $s/@id
+			</qry:xquery>
+			<qry:out>
+				<qry:insert-select name="qry_pegar_conc" doc-path="$r" to-element="$s/L"/>
+			</qry:out>
+		</qry:select>
+		<qry:select doc="PARAM" name="QRY_DETALLE_CARGO">
+			<qry:xquery>
+				for $r in sql('
+SELECT 
+TLP.oi_tot_liq_per,
+CLP.oi_conc_liq_per,
+CON.c_concepto, 
+CON.d_concepto, 
+CON.e_secuencia,	
+CC.n_valor AS valor,
+CC.n_cantidad AS cantidad,
+CON.c_tipo_concepto, 
+T.e_orden,
+CC.oi_cargo_ddo,
+CON.ca_fig_recibo
+FROM 
+LIQ20_TOT_LIQ_PER AS TLP, 
+LIQ20_CONC_LIQ_PER AS CLP,
+LIQ20_CONC_CARGO AS CC,
+LIQ96_CONCEPTOS AS CON, 
+LIQ14_CONCEPTOS AS C, 
+LIQ12_TIPOS_CONC AS T
+JOIN
+TLP.oi_tot_liq_per INNER CLP.oi_tot_liq_per,
+CLP.oi_conc_liq_per INNER CC.oi_conc_liq_per,
+CON.oi_concepto_ddo INNER CLP.oi_concepto_ddo,
+C.c_concepto INNER CON.c_concepto,
+C.oi_tipo_concepto INNER T.oi_tipo_concepto 
+WHERE
+T.l_nolistado = 0  and
+CLP.n_valor != 0 and
+CON.e_etapa = 1 and
+CON.ca_fig_recibo != \'N\' AND
+TLP.oi_tot_liq_per in ({%=$RECIBOS/@recibos%})
+')/ROWS/ROW,
+$s in $RECIBOS/R/CA
+join $r/@oi_cargo_ddo inner $s/@id
+			</qry:xquery>
+			<qry:out>
+				<qry:insert-select name="qry_pegar_conc" doc-path="$r" to-element="$s"/>
+			</qry:out>
+		</qry:select>
+		<qry:select name="QRY_CATEGORIA" doc="PARAM">
+			<qry:xquery>
+				for $r in sql('
+SELECT
+	LIQ20_TOT_LIQ_PER.oi_tot_liq_per, LIQ94_CATEG.d_categoria
+FROM 
+	LIQ99_LIQUIDACION, LIQ99_RECIBOS, LIQ20_TOT_LIQ_PER, 
+	LIQ97_PERSONAL_EMP, LIQ94_CONVENIOS, LIQ94_CATEG
+JOIN
+	LIQ99_LIQUIDACION.oi_liquidacion_ddo INNER LIQ99_RECIBOS.oi_liquidacion_ddo,
+	LIQ99_RECIBOS.oi_tot_liq_per INNER LIQ20_TOT_LIQ_PER.oi_tot_liq_per,
+	LIQ20_TOT_LIQ_PER.oi_per_emp_ddo INNER LIQ97_PERSONAL_EMP.oi_per_emp_ddo,
+	LIQ97_PERSONAL_EMP.c_convenio INNER LIQ94_CONVENIOS.c_convenio,
+	LIQ97_PERSONAL_EMP.c_categoria_ult INNER LIQ94_CATEG.c_categoria,
+	LIQ94_CONVENIOS.oi_convenio_ddo INNER LIQ94_CATEG.oi_convenio_ddo,
+	LIQ99_LIQUIDACION.oi_codif_ddo INNER LIQ94_CONVENIOS.oi_codif_ddo
+WHERE
+	LIQ99_LIQUIDACION.c_estado = \'F\' AND
+	LIQ20_TOT_LIQ_PER.oi_tot_liq_per in ({%=$RECIBOS/@recibos%})
+')/ROWS/ROW,
+$s in $RECIBOS/R
+join $r/@oi_tot_liq_per inner $s/@id
+			</qry:xquery>
+			<qry:out>
+				<qry:insert-select name="qry_pegar_cat" doc-path="$r" to-element="$s"/>
+			</qry:out>
+		</qry:select>
+		<qry:select name="qry_pegar_cargo" doc="r">
+			<qry:out>
+				<CA qry-orderby="c">
+					<qry:attribute name="hts:delete" value="1"/>
+					<qry:attribute name="id" value="$r/@oi_cargo_ddo"/>
+					<qry:attribute name="ord" value="$r/@e_cargo"/>
+					<qry:attribute name="cargo" value="$r/@d_categoria"/>
+					<qry:attribute name="cargo" value="iif($r/@d_ubicacion!='', concat(@cargo, ' - ', $r/@d_ubicacion), @cargo)"/>
+					<qry:attribute name="cargo" value="iif($r/@d_materia!='', concat(@cargo, ' - ', $r/@d_materia), @cargo)"/>
+					<qry:attribute name="cargo" value="iif($r/@d_grupo_costo!='', concat(@cargo, ' - ', $r/@d_grupo_costo), @cargo)"/>
+				</CA>
+			</qry:out>
+		</qry:select>
+		<qry:select name="qry_pegar_conc" doc="r">
+			<qry:out>
+				<qry:attribute name="hts:delete" value="''"/>
+				<qry:element name="C">
+					<qry:attribute name="c" value="$r/@c_concepto"/>
+					<qry:attribute name="t" value="$r/@d_concepto"/>
+					<qry:attribute value="iif($r/@ca_fig_recibo='S', FORMAT_NUMBER($r/@cantidad, 10, 2, '.', '', ''), '')" name="q"/>
+					<qry:if test="$r/@c_tipo_concepto='1'">
+						<qry:then>
+							<qry:attribute value="FORMAT_NUMBER($r/@valor, 10, 2, '.', '', '')" name="r"/>
+						</qry:then>
+					</qry:if>
+					<qry:if test="$r/@c_tipo_concepto='0' or $r/@c_tipo_concepto='2'">
+						<qry:then>
+							<qry:attribute value="FORMAT_NUMBER($r/@valor, 10, 2, '.', '', '')" name="n"/>
+						</qry:then>
+					</qry:if>
+					<qry:if test="$r/@c_tipo_concepto='3' or $r/@c_tipo_concepto='7'">
+						<qry:then>
+							<qry:attribute value="FORMAT_NUMBER(0 - $r/@valor, 10, 2, '.', '', '')" name="d"/>
+						</qry:then>
+					</qry:if>
+				</qry:element>
+			</qry:out>
+		</qry:select>
+		<qry:select name="qry_pegar_cat" doc="r">
+			<qry:out>
+				<qry:attribute name="d_categoria" value="$r/@d_categoria"/>
+			</qry:out>
+		</qry:select>
+	</report:query>
+	<report:page-layout>
+		<fo:layout-master-set>
+			<fo:simple-page-master master-name="A4" reference-orientation="90" page-height="210mm" margin-top="15mm" page-width="297mm" margin-left="10mm">
+				<fo:region-before extent="200mm" region-name="TocHead"/>
+				<fo:region-body font-family="Arial" margin-top="50.5mm" margin-bottom="53mm"/>
+			</fo:simple-page-master>
+		</fo:layout-master-set>
+	</report:page-layout>
+	<report:page>
+		<xsl:template match="/RECIBOS">
+			<xsl:if test="not(R)">
+				<fo:page-sequence master-reference="A4" initial-page-number="1" force-page-count="no-force">
+					<fo:flow flow-name="xsl-region-body">
+						<fo:block text-align="center" font-size="30pt" margin="1mm" space-before="1mm">
+							No hay recibos
+						</fo:block>
+					</fo:flow>
+				</fo:page-sequence>
+			</xsl:if>
+			<xsl:apply-templates select="/RECIBOS/R"/>
+		</xsl:template>
+		<xsl:template match="/RECIBOS/R">
+			<xsl:variable name="page1">
+				<xsl:choose>
+					<xsl:when test="/RECIBOS/@chkInvertir!='' and /RECIBOS/@chkInvertir=1">
+						right
+					</xsl:when>
+					<xsl:otherwise>
+						left
+					</xsl:otherwise>
+				</xsl:choose>
+			</xsl:variable>
+			<xsl:variable name="page2">
+				<xsl:choose>
+					<xsl:when test="/RECIBOS/@chkInvertir!='' and /RECIBOS/@chkInvertir=1">
+						left
+					</xsl:when>
+					<xsl:otherwise>
+						right
+					</xsl:otherwise>
+				</xsl:choose>
+			</xsl:variable>
+			<fo:page-sequence master-reference="A4" initial-page-number="1" force-page-count="no-force">
+				<fo:static-content flow-name="TocHead">
+					<fo:table table-layout="fixed">
+						<fo:table-column column-width="134mm"/>
+						<fo:table-column column-width="10mm"/>
+						<fo:table-column column-width="134mm"/>
+						<fo:table-body>
+							<fo:table-row>
+								<fo:table-cell>
+									<fo:block text-align="left" font-size="8pt" space-before="1mm">
+										<xsl:call-template name="Header">
+											<xsl:with-param name="page" select="$page1"/>
+										</xsl:call-template>
+									</fo:block>
+								</fo:table-cell>
+								<fo:table-cell/>
+								<fo:table-cell>
+									<fo:block text-align="left" font-size="8pt" space-before="1mm">
+										<xsl:call-template name="Header">
+											<xsl:with-param name="page" select="$page2"/>
+										</xsl:call-template>
+									</fo:block>
+								</fo:table-cell>
+							</fo:table-row>
+						</fo:table-body>
+					</fo:table>
+				</fo:static-content>
+				<fo:flow flow-name="xsl-region-body">
+					<fo:table table-layout="fixed">
+						<fo:table-column column-width="134mm"/>
+						<fo:table-column column-width="10mm"/>
+						<fo:table-column column-width="134mm"/>
+						<fo:table-body>
+							<fo:table-row>
+								<fo:table-cell>
+									<fo:block text-align="left" font-size="8pt" space-before="1mm">
+										<xsl:call-template name="Body">
+											<xsl:with-param name="page" select="'left'"/>
+										</xsl:call-template>
+									</fo:block>
+								</fo:table-cell>
+								<fo:table-cell/>
+								<fo:table-cell>
+									<fo:block text-align="left" font-size="8pt" space-before="1mm">
+										<xsl:call-template name="Body">
+											<xsl:with-param name="page" select="'right'"/>
+										</xsl:call-template>
+									</fo:block>
+								</fo:table-cell>
+							</fo:table-row>
+						</fo:table-body>
+					</fo:table>
+				</fo:flow>
+			</fo:page-sequence>
+		</xsl:template>
+		<xsl:template name="Header">
+			<xsl:param name="page"/>
+			<fo:table table-layout="fixed">
+				<fo:table-column column-width="40mm"/>
+				<fo:table-column column-width="62mm"/>
+				<fo:table-column column-width="32mm"/>
+				<fo:table-body>
+					<fo:table-row height="17.5mm" font-size="7pt">
+						<fo:table-cell border-width="thin" border-style="none" border-top-style="solid" border-left-style="solid" display-align="center">
+							<fo:block text-align="center" margin-left="2mm">
+								<xsl:if test="/RECIBOS/@oi_logotipo!=''">
+									<fo:external-graphic height="17.5mm">
+										<xsl:attribute name="src">
+											<xsl:value-of select="concat('url(data:image/jpg;base64,(#IMAGE.DB(x150;NucleusRH.Base.Personal.Imagenes.HEAD;',/RECIBOS/@oi_logotipo,')#)',')')"/>
+										</xsl:attribute>
+									</fo:external-graphic>
+								</xsl:if>
+							</fo:block>
+						</fo:table-cell>
+						<fo:table-cell border-width="thin" border-style="none" border-top-style="solid">
+							<fo:block text-align="left" margin-left="2mm" space-before="3mm">
+								<xsl:value-of select="../@d_empresa"/>
+							</fo:block>
+							<fo:block text-align="left" margin-left="2mm" space-before="1.5mm">
+								<xsl:text>
+									C.U.I.T.:&#160;
+								</xsl:text>
+								<xsl:value-of select="../@d_cuit"/>
+							</fo:block>
+							<fo:block text-align="left" margin-left="2mm" space-before="1.5mm" wrap-option="no-wrap">
+								<xsl:value-of select="../@d_domicilio"/>
+							</fo:block>
+						</fo:table-cell>
+						<fo:table-cell border-width="thin" border-style="none" border-right-style="solid" border-top-style="solid" background-color="white">
+							<fo:block font-size="10pt" font-weight="bold" text-align="right" margin-right="2mm" space-before="4mm">
+								<xsl:text>
+									Recibo de Sueldo
+								</xsl:text>
+							</fo:block>
+							<fo:block text-align="right" margin-right="1mm">
+								<fo:page-number/>
+								<xsl:text>
+									/
+								</xsl:text>
+								<fo:page-number-citation>
+									<xsl:attribute name="ref-id">
+										<xsl:value-of select="@e_numero_legajo"/>
+									</xsl:attribute>
+								</fo:page-number-citation>
+							</fo:block>
+						</fo:table-cell>
+					</fo:table-row>
+				</fo:table-body>
+			</fo:table>
+			<fo:table table-layout="fixed">
+				<fo:table-column column-width="19mm"/>
+				<fo:table-column column-width="65mm"/>
+				<fo:table-column column-width="25mm"/>
+				<fo:table-column column-width="25mm"/>
+				<fo:table-body>
+					<fo:table-row height="4mm" font-size="7pt">
+						<fo:table-cell border-width="thin" border-style="solid">
+							<fo:block font-weight="bold" text-align="center" space-before="1.3mm">
+								<xsl:text>
+									Legajo
+								</xsl:text>
+							</fo:block>
+						</fo:table-cell>
+						<fo:table-cell border-width="thin" border-style="solid">
+							<fo:block text-align="center" font-weight="bold" space-before="1.3mm">
+								<xsl:text>
+									Apellido y Nombre
+								</xsl:text>
+							</fo:block>
+						</fo:table-cell>
+						<fo:table-cell border-width="thin" border-style="solid">
+							<fo:block text-align="center" font-weight="bold" space-before="1.3mm">
+								<xsl:text>
+									C.U.I.L.
+								</xsl:text>
+							</fo:block>
+						</fo:table-cell>
+						<fo:table-cell border-width="thin" border-style="solid" border-right-style="solid">
+							<fo:block text-align="center" font-weight="bold" space-before="1.3mm">
+								<xsl:text>
+									Fec.Ingreso
+								</xsl:text>
+							</fo:block>
+						</fo:table-cell>
+					</fo:table-row>
+					<fo:table-row height="4mm" font-size="7pt">
+						<fo:table-cell border-width="thin" border-style="solid" background-color="white">
+							<fo:block text-align="center" font-weight="bold" space-before="1.5mm">
+								<xsl:value-of select="@e_numero_legajo"/>
+							</fo:block>
+						</fo:table-cell>
+						<fo:table-cell border-width="thin" border-style="solid">
+							<fo:block text-align="center" margin-left="1mm" space-before="1.5mm" wrap-option="no-wrap">
+								<xsl:value-of select="@d_ape_y_nom"/>
+							</fo:block>
+						</fo:table-cell>
+						<fo:table-cell border-width="thin" border-style="solid" background-color="white">
+							<fo:block text-align="center" space-before="1.5mm">
+								<xsl:value-of select="@nro_cuil"/>
+							</fo:block>
+						</fo:table-cell>
+						<fo:table-cell border-width="thin" border-style="solid">
+							<fo:block text-align="center" space-before="1.5mm">
+								<xsl:value-of select="@f_ingreso"/>
+							</fo:block>
+						</fo:table-cell>
+					</fo:table-row>
+				</fo:table-body>
+			</fo:table>
+			<fo:table table-layout="fixed">
+				<fo:table-column column-width="84mm"/>
+				<fo:table-column column-width="25mm"/>
+				<fo:table-column column-width="25mm"/>
+				<fo:table-body>
+					<fo:table-row height="2mm" font-size="7pt">
+						<fo:table-cell border-width="thin" border-style="solid" border-bottom="none">
+							<fo:block font-weight="bold" space-before="1.3mm" text-align="center">
+								<xsl:text>
+									Ultimo dep&#243;sito SICOSS
+								</xsl:text>
+							</fo:block>
+						</fo:table-cell>
+						<fo:table-cell border-width="thin" border-style="solid">
+							<fo:block font-weight="bold" text-align="center" space-before="1.3mm">
+								<xsl:text>
+									Fec. Egreso
+								</xsl:text>
+							</fo:block>
+						</fo:table-cell>
+						<fo:table-cell border-width="thin" border-style="solid">
+							<fo:block font-weight="bold" text-align="center" space-before="1.3mm">
+								<xsl:text>
+									Ant. Rec.
+								</xsl:text>
+							</fo:block>
+						</fo:table-cell>
+					</fo:table-row>
+					<fo:table-row font-size="7pt">
+						<fo:table-cell border-width="thin" border-style="solid">
+							<fo:block text-align="center" space-before="1mm" wrap-option="no-wrap">
+								<xsl:value-of select="@f_deposito"/>
+								<xsl:value-of select="' - '"/>
+								<xsl:value-of select="@c_mes_deposito"/>
+								<xsl:value-of select="' - '"/>
+								<xsl:value-of select="@d_banco"/>
+							</fo:block>
+						</fo:table-cell>
+						<fo:table-cell border-width="thin" border-style="solid" background-color="white">
+							<fo:block text-align="center" space-before="1mm">
+								<xsl:value-of select="@f_egreso"/>
+							</fo:block>
+						</fo:table-cell>
+						<fo:table-cell border-width="thin" border-style="solid">
+							<fo:block text-align="center" space-before="1mm">
+								<xsl:value-of select="@antig_rec"/>
+							</fo:block>
+						</fo:table-cell>
+					</fo:table-row>
+				</fo:table-body>
+			</fo:table>
+			<fo:table table-layout="fixed">
+				<fo:table-column column-width="84mm"/>
+				<fo:table-column column-width="25mm"/>
+				<fo:table-column column-width="25mm"/>
+				<fo:table-body>
+					<fo:table-row height="4mm" font-size="7pt">
+						<fo:table-cell border-width="thin" border-style="solid">
+							<fo:block font-weight="bold" text-align="center" space-before="1mm">
+								<xsl:text>
+									Liquidaci&#243;n
+								</xsl:text>
+							</fo:block>
+						</fo:table-cell>
+						<fo:table-cell border-width="thin" border-style="solid">
+							<fo:block font-weight="bold" text-align="center" space-before="1mm">
+								<xsl:text>
+									Quin/Mes/A&#241;o
+								</xsl:text>
+							</fo:block>
+						</fo:table-cell>
+						<fo:table-cell border-width="thin" border-style="solid">
+							<fo:block font-weight="bold" text-align="center" space-before="1mm">
+								<xsl:text>
+									Fecha Pago
+								</xsl:text>
+							</fo:block>
+						</fo:table-cell>
+					</fo:table-row>
+					<fo:table-row height="4mm" font-size="7pt">
+						<fo:table-cell border-width="thin" border-style="solid">
+							<fo:block text-align="center" space-before="1mm">
+								<xsl:value-of select="@d_titulo"/>
+							</fo:block>
+						</fo:table-cell>
+						<fo:table-cell border-width="thin" border-style="solid">
+							<fo:block text-align="center" space-before="1mm">
+								<xsl:value-of select="@e_periodo"/>
+							</fo:block>
+						</fo:table-cell>
+						<fo:table-cell border-width="thin" border-style="solid">
+							<fo:block text-align="center" space-before="1mm">
+								<xsl:value-of select="@f_pago"/>
+							</fo:block>
+						</fo:table-cell>
+					</fo:table-row>
+				</fo:table-body>
+			</fo:table>
+			<fo:table table-layout="fixed">
+				<fo:table-column column-width="11mm" border-width="thin" border-left-style="solid"/>
+				<fo:table-column column-width="56mm" border-width="thin" border-left-style="solid"/>
+				<fo:table-column column-width="13mm" border-width="thin" border-left-style="solid"/>
+				<fo:table-column column-width="18mm" border-width="thin" border-left-style="solid"/>
+				<fo:table-column column-width="18mm" border-width="thin" border-left-style="solid"/>
+				<fo:table-column column-width="18mm" border-width="thin" border-left-style="solid" border-right-style="solid"/>
+				<fo:table-body>
+					<fo:table-row height="4mm">
+						<fo:table-cell border-width="thin" border-bottom-style="solid">
+							<fo:block font-weight="bold" text-align="center" font-size="7pt" space-before="1mm">
+								<xsl:text>
+									C&#243;digo
+								</xsl:text>
+							</fo:block>
+						</fo:table-cell>
+						<fo:table-cell border-width="thin" border-bottom-style="solid">
+							<fo:block text-align="center" font-weight="bold" font-size="7pt" space-before="1mm">
+								<xsl:text>
+									Concepto
+								</xsl:text>
+							</fo:block>
+						</fo:table-cell>
+						<fo:table-cell border-width="thin" border-bottom-style="solid">
+							<fo:block text-align="center" font-weight="bold" font-size="7pt" space-before="1mm">
+								<xsl:text>
+									Cantidad
+								</xsl:text>
+							</fo:block>
+						</fo:table-cell>
+						<fo:table-cell border-width="thin" border-bottom-style="solid">
+							<fo:block text-align="center" font-weight="bold" font-size="7pt" space-before="1mm">
+								<xsl:text>
+									Haberes
+								</xsl:text>
+							</fo:block>
+						</fo:table-cell>
+						<fo:table-cell border-width="thin" border-bottom-style="solid">
+							<fo:block text-align="center" font-weight="bold" font-size="7pt" space-before="1mm">
+								<xsl:text>
+									Hab No Rem
+								</xsl:text>
+							</fo:block>
+						</fo:table-cell>
+						<fo:table-cell border-width="thin" border-bottom-style="solid">
+							<fo:block text-align="center" font-weight="bold" font-size="7pt" space-before="1mm">
+								<xsl:text>
+									Deducciones
+								</xsl:text>
+							</fo:block>
+						</fo:table-cell>
+					</fo:table-row>
+				</fo:table-body>
+			</fo:table>
+			<fo:table table-layout="fixed">
+				<fo:table-column column-width="134mm" border-width="thin" border-left-style="solid" border-right-style="solid"/>
+				<fo:table-body>
+					<fo:table-row height="4mm">
+						<fo:table-cell border-width="thin" margin-left="1mm" display-align="center" border-bottom-style="solid" border-top-style="none">
+							<fo:block font-weight="bold" text-align="left" font-size="7pt" space-before="0.6mm">
+								<xsl:value-of select="'Categor&#237;a - Sede - Materia - Carrera'"/>
+							</fo:block>
+						</fo:table-cell>
+					</fo:table-row>
+				</fo:table-body>
+			</fo:table>
+			<fo:table table-layout="fixed" height="90mm">
+				<fo:table-column column-width="134mm" border-width="thin" border-left-style="solid" border-right-style="solid"/>
+				<fo:table-body/>
+			</fo:table>
+			<fo:table table-layout="fixed" height="25mm">
+				<fo:table-column column-width="80mm" height="40mm"/>
+				<fo:table-column column-width="54mm" height="40mm"/>
+				<fo:table-body>
+					<fo:table-row height="3mm" font-size="7pt">
+						<fo:table-cell margin-left="1mm" text-align="left" border-width="thin" border-style="solid" border-right-style="none" border-bottom-style="solid" border-top-style="solid" background-color="white">
+							<fo:block text-align="left" font-size="8pt" space-before="2mm" space-after="1.5mm">
+								<xsl:text>
+									Asig. Familiares:&#160;
+								</xsl:text>
+								<xsl:value-of select="@asig"/>
+							</fo:block>
+							<fo:block space-before="0.3mm">
+								<xsl:text>
+									Antig&#252;edad:&#160;
+								</xsl:text>
+								<xsl:value-of select="concat(@antig_anio, ' a&#241;os ', @antig_mes, ' meses')"/>
+							</fo:block>
+							<fo:block space-before="0.3mm" wrap-option="no-wrap">
+								<xsl:text>
+									Obra Social:&#160;
+								</xsl:text>
+								<xsl:value-of select="@d_obra_social"/>
+							</fo:block>
+							<fo:block space-before="0.3mm">
+								<xsl:text>
+									Son pesos:&#160;
+								</xsl:text>
+								<xsl:value-of select="@neto_desc"/>
+							</fo:block>
+							<fo:block space-before="0.3mm">
+								<xsl:if test="@l_banco=1">
+									<xsl:value-of select="concat('Acreditado en Bco/Suc. ', @sucursal, ' - Cta. ', @c_cta_bancaria)"/>
+								</xsl:if>
+								<xsl:if test="@l_banco!=1">
+									<xsl:value-of select="concat('Forma de pago: ', @d_forma_pago)"/>
+								</xsl:if>
+							</fo:block>
+							<xsl:if test="$page='right'">
+								<fo:block space-before="1mm">
+									En concepto de mis haberes, correspondiente al periodo arriba indicado y segun la presente liquidacion dejando constancia de haber recibido un duplicado de este recibo
+								</fo:block>
+							</xsl:if>
+						</fo:table-cell>
+						<fo:table-cell margin-left="1mm" text-align="left" border-width="thin" border-style="solid" border-right-style="none" border-left-style="none" border-bottom-style="none" border-top-style="none">
+							<fo:table table-layout="fixed">
+								<fo:table-column column-width="18mm" border-width="thin" border-top-style="solid" border-bottom-style="none"/>
+								<fo:table-column column-width="18mm" border-width="thin" border-top-style="solid"/>
+								<fo:table-column column-width="18mm" border-width="thin" border-right-style="none" border-top-style="solid"/>
+								<fo:table-body>
+									<fo:table-row>
+										<fo:table-cell border-width="thin" border-bottom-style="solid" border-left-style="solid" border-right-style="solid">
+											<fo:block margin-right="1mm" text-align="right" font-weight="bold" font-size="8pt" space-before="1mm">
+												<xsl:value-of select="@sret"/>
+											</fo:block>
+										</fo:table-cell>
+										<fo:table-cell border-width="thin" border-bottom-style="solid">
+											<fo:block margin-right="1mm" text-align="right" font-weight="bold" font-size="8pt" space-before="1mm">
+												<xsl:value-of select="@nsret"/>
+											</fo:block>
+										</fo:table-cell>
+										<fo:table-cell border-width="thin" border-bottom-style="solid" border-left-style="solid" border-right-style="solid">
+											<fo:block margin-right="1mm" text-align="right" font-weight="bold" font-size="8pt" space-before="1mm">
+												<xsl:value-of select="@ded"/>
+											</fo:block>
+										</fo:table-cell>
+									</fo:table-row>
+									<fo:table-row>
+										<fo:table-cell border-width="thin" border-style="none" border-top-style="solid" border-right-style="solid" background-color="white">
+											<fo:block text-align="right" font-size="9pt" space-before="0.8mm"/>
+										</fo:table-cell>
+										<fo:table-cell border-width="0.5mm" border-right-style="none" border-left-style="solid" border-bottom-style="solid" border-top-style="solid">
+											<fo:block text-align="right" font-weight="bold" font-size="9pt" margin-right="1mm" space-before="0.8mm">
+												<xsl:text>
+													Neto $
+												</xsl:text>
+											</fo:block>
+										</fo:table-cell>
+										<fo:table-cell border-width="0.5mm" border-bottom-style="solid" border-top-style="solid" border-right-style="solid" border-right-width="thin">
+											<fo:block text-align="right" font-weight="bold" font-size="9pt" margin-right="1mm" space-before="0.8mm">
+												<xsl:value-of select="@neto"/>
+											</fo:block>
+										</fo:table-cell>
+									</fo:table-row>
+									<fo:table-row height="18mm">
+										<fo:table-cell border-width="thin" border-style="none" display-align="center" number-columns-spanned="3" border-right-style="solid">
+											<fo:block text-align="center">
+												<xsl:if test="$page='left' and /RECIBOS/@oi_firma_emp!=''">
+													<fo:external-graphic display-align="center" height="18mm">
+														<xsl:attribute name="src">
+															<xsl:value-of select="concat('url(data:image/jpg;base64,(#IMAGE.DB(x150;NucleusRH.Base.Personal.Imagenes.HEAD;',/RECIBOS/@oi_firma_emp,')#)',')')"/>
+														</xsl:attribute>
+													</fo:external-graphic>
+												</xsl:if>
+											</fo:block>
+										</fo:table-cell>
+									</fo:table-row>
+									<fo:table-row>
+										<fo:table-cell text-align="left" border-width="thin" border-style="none" border-bottom-style="solid" number-columns-spanned="3" border-right-style="solid">
+											<fo:block font-size="9pt" text-align="center">
+												<xsl:text>
+													-----------------------------------------------
+												</xsl:text>
+											</fo:block>
+											<fo:block font-size="8pt" space-before="0.2mm" text-align="center">
+												<xsl:if test="$page='left'">
+													<xsl:text>
+														Firma Empleador
+													</xsl:text>
+												</xsl:if>
+												<xsl:if test="$page='right'">
+													<xsl:text>
+														Firma Empleado
+													</xsl:text>
+												</xsl:if>
+											</fo:block>
+										</fo:table-cell>
+									</fo:table-row>
+								</fo:table-body>
+							</fo:table>
+						</fo:table-cell>
+					</fo:table-row>
+				</fo:table-body>
+			</fo:table>
+		</xsl:template>
+		<xsl:template name="Body">
+			<xsl:param name="page"/>
+			<fo:table table-layout="fixed">
+				<fo:table-column column-width="11mm"/>
+				<fo:table-column column-width="56mm"/>
+				<fo:table-column column-width="13mm"/>
+				<fo:table-column column-width="18mm"/>
+				<fo:table-column column-width="18mm"/>
+				<fo:table-column column-width="18mm"/>
+				<fo:table-body>
+					<xsl:for-each select="CA">
+						<fo:table-row height="3mm" border-style="none" space-before="1mm">
+							<fo:table-cell number-columns-spanned="6" margin-left="1mm" border-width="thin" border-style="none" display-align="center" border-bottom-style="none" border-top-style="solid">
+								<fo:block text-align="left" font-size="7pt" space-before="0.5mm" font-weight="bold">
+									<xsl:value-of select="@cargo"/>
+								</fo:block>
+							</fo:table-cell>
+						</fo:table-row>
+						<xsl:call-template name="Conceptos">
+							<xsl:with-param name="page" select="$page"/>
+						</xsl:call-template>
+					</xsl:for-each>
+					<fo:table-row height="3mm" border-style="none" space-before="1mm">
+						<fo:table-cell number-columns-spanned="6" margin-left="1mm" border-width="thin" border-style="none" display-align="center" border-bottom-style="none" border-top-style="solid">
+							<fo:block text-align="left" font-size="7pt" space-before="0.5mm" font-weight="bold">
+								Conceptos de Legajo
+							</fo:block>
+						</fo:table-cell>
+					</fo:table-row>
+					<xsl:for-each select="L">
+						<xsl:call-template name="Conceptos">
+							<xsl:with-param name="page" select="$page"/>
+						</xsl:call-template>
+					</xsl:for-each>
+				</fo:table-body>
+			</fo:table>
+		</xsl:template>
+		<xsl:template name="Conceptos">
+			<xsl:param name="page"/>
+			<xsl:for-each select="C">
+				<fo:table-row height="3mm" page-break-inside="avoid" font-size="7pt">
+					<fo:table-cell>
+						<xsl:if test="$page='left' and not(following-sibling::*) and name(parent::*)='L'">
+							<xsl:attribute name="id">
+								<xsl:value-of select="../../@e_numero_legajo"/>
+							</xsl:attribute>
+						</xsl:if>
+						<fo:block margin-left="1mm" space-before="0.5mm">
+							<xsl:value-of select="@c"/>
+						</fo:block>
+					</fo:table-cell>
+					<fo:table-cell>
+						<fo:block margin-left="1mm" space-before="0.5mm">
+							<xsl:value-of select="@t"/>
+						</fo:block>
+					</fo:table-cell>
+					<fo:table-cell>
+						<fo:block margin-right="1mm" text-align="right" space-before="0.5mm">
+							<xsl:value-of select="@q"/>
+						</fo:block>
+					</fo:table-cell>
+					<fo:table-cell>
+						<fo:block margin-right="1mm" text-align="right" space-before="0.5mm">
+							<xsl:value-of select="@r"/>
+						</fo:block>
+					</fo:table-cell>
+					<fo:table-cell>
+						<fo:block margin-right="1mm" text-align="right" space-before="0.5mm">
+							<xsl:value-of select="@n"/>
+						</fo:block>
+					</fo:table-cell>
+					<fo:table-cell>
+						<fo:block margin-right="1mm" text-align="right" space-before="0.5mm">
+							<xsl:value-of select="@d"/>
+						</fo:block>
+					</fo:table-cell>
+				</fo:table-row>
+			</xsl:for-each>
+			<xsl:if test="$page='left' and not(C) and name(.)='L'">
+				<fo:table-row>
+					<xsl:attribute name="id">
+						<xsl:value-of select="../@e_numero_legajo"/>
+					</xsl:attribute>
+					<fo:table-cell colspan="13"/>
+				</fo:table-row>
+			</xsl:if>
+		</xsl:template>
+	</report:page>
+</report:report>

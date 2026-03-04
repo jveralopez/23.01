@@ -1,0 +1,110 @@
+<html:html xmlns:html="nomad_engine.html" xmlns:qry="nomad_engine.qry" extends="Nomad.Base.BaseReport.rpt" doc="source" name="NucleusRH.Base.Liquidacion.NovedadesLiquidacion">
+	<html:query declare="&lt;DATOS oi_variable=&quot;&quot; report=&quot;&quot; modo=&quot;HTML&quot; c_tipo_variable=&quot;&quot; variable=&quot;&quot; concepto=&quot;&quot; activo=&quot;&quot;/&gt;">
+		<qry:main doc="SOURCE">
+			<qry:append-doc doc-path="#SOURCE:DATOS" name="TEMP"/>
+			<REPORT label="CONCEPTOS POR VARIABLES">
+				<qry:attribute name="date" value="format_date(Now(),'dd/mm/yyyy HH:MM')"/>
+				<GROUPS>
+					<GROUP tag="VAR" type="title">
+						<COLS>
+							<COL name="variable" label="Variable"/>
+							<COL name="d_tipo_variable" label="Tipo de Variable"/>
+							<COL name="tipo" label="Tipo de Dato"/>
+							<COL name="c_externo" label="C&#243;digo de Vinculaci&#243;n"/>
+						</COLS>
+						<GROUP tag="CONC" style="padding-left:50px;" type="table">
+							<COLS>
+								<COL name="e_secuencia" label="Secuencia" style="width: 50px"/>
+								<COL name="c_concepto" label="C&#243;digo" style="width: 100px"/>
+								<COL name="d_concepto" label="Nombre" style="width: 450px"/>
+								<COL name="c_tipo_parametro" label="Tipo Parametro" style="width: 450px"/>
+								<COL name="l_activo" label="Activo" style="width: 450px"/>
+							</COLS>
+						</GROUP>
+					</GROUP>
+				</GROUPS>
+				<qry:element name="DATA">
+					<qry:insert-select name="qry_variables" doc-path="#SOURCE:DATOS"/>
+				</qry:element>
+			</REPORT>
+		</qry:main>
+		<qry:select name="qry_variables" doc="SOURCE">
+			<qry:xquery>
+				for $r in sql('SELECT 
+				t0.oi_variable, 
+				t0.c_variable, 
+				t0.d_variable,   
+				t0.c_tipo_dato, 
+				t0.c_externo,
+				t0.c_tipo_variable
+				FROM 
+				LIQ09_VARIABLES AS t0
+				WHERE 
+				{%? (#SOURCE:@c_tipo_variable!='')
+					{% t0.c_tipo_variable = {#SOURCE:@c_tipo_variable} %}
+					{% 1 = 1 %}
+				%}  
+				and
+				{%? (#SOURCE:@oi_variable!='')
+					{% t0.oi_variable = {#SOURCE:@oi_variable} %}
+					{% 1 = 1 %}
+				%}				
+				{%? (#SOURCE:@variable!='')	
+					{% 
+						AND (CONTAIN(t0.d_variable, {#SOURCE:@variable}) OR
+						CONTAIN(t0.c_variable, {#SOURCE:@variable}) )
+					%}
+					{% %} 
+				%}
+				ORDER BY
+				{%? (#SOURCE:@ATRIB_ORDEN1!='')	{% {%=#SOURCE:@ATRIB_ORDEN1%} {%? (#SOURCE:@ORDEN1!='') {% {%=#SOURCE:@ORDEN1%}, %} {% ASC, %}	%} %} {% %} %}
+				oi_variable ASC')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:element name="VAR">
+					<qry:attribute name="variable" value="$r/@c_variable + ' - ' + $r/@d_variable"/>
+					<qry:attribute name="d_tipo_variable" value="$r/@c_tipo_variable"/>
+					<qry:attribute name="c_externo" value="$r/@c_externo"/>
+					<qry:attribute name="tipo" value="iif($r/@c_tipo_dato='IN','Entrada',iif($r/@c_tipo_dato='OUT','Entrada/Salida', iif($r/@c_tipo_dato='ACC','Acumula Cantidad', 'Acumula Valor')))"/>
+					<qry:attribute name="visible" value="0"/>
+					<qry:insert-select name="qry_conceptos" doc-path="$r"/>
+					<qry:attribute name="visible" value="iif(#TEMP:@concepto='si',iif(@visible='1',1,0),@visible)"/>
+					<qry:attribute name="visible" value="iif(#TEMP:@concepto='no',iif(@visible='1',0,1),@visible)"/>
+				</qry:element>
+			</qry:out>
+		</qry:select>
+		<qry:select name="qry_conceptos" doc="SOURCE">
+			<qry:xquery>
+				for $r in sql(' select 
+c.c_concepto, c.d_concepto, c.e_secuencia, 
+l.c_tipo_parametro, c.l_activo ,
+l.oi_variable
+from
+liq14_conc_var as l, liq14_conceptos as c
+JOIN
+l.oi_concepto INNER c.oi_concepto
+where
+{%? (#TEMP:@activo!='')
+	{% c.l_activo = {#TEMP:@activo} %}
+	{% 1 = 1 %}
+%}
+and
+l.oi_variable = {%= #SOURCE:@oi_variable %}
+group by 
+l.oi_variable, c.c_concepto, c.d_concepto, c.e_secuencia,
+l.c_tipo_parametro, c.l_activo	
+order by e_secuencia ASC, c_concepto ASC')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:element name="CONC">
+					<qry:attribute name="d_concepto" value="$r/@d_concepto" type="Nomad.NSystem.Int"/>
+					<qry:attribute name="c_concepto" value="$r/@c_concepto" type="Nomad.NSystem.Int"/>
+					<qry:attribute name="e_secuencia" value="$r/@e_secuencia" type="Nomad.NSystem.Int"/>
+					<qry:attribute name="c_tipo_parametro" value="$r/@c_tipo_parametro"/>
+					<qry:attribute name="l_activo" value="iif($r/@l_activo=1,'Si','No')" type="Nomad.NSystem.Int"/>
+				</qry:element>
+				<qry:attribute name="visible" value="1"/>
+			</qry:out>
+		</qry:select>
+	</html:query>
+</html:html>

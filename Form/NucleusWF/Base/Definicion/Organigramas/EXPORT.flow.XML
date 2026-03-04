@@ -1,0 +1,226 @@
+<flow:flow xmlns:flow="nomad_engine.flow" xmlns:doc="nomad_engine.doc" xmlns:qry="nomad_engine.qry" default_action="SHOW" name="NucleusWF.Base.Definicion.Organigramas.EXPORT.flow">
+	<flow:info label="NucleusWF.Base.Definicion.Organigramas.EXPORT.flow"/>
+	<flow:declare>
+		<doc:define name="DDO"/>
+		<doc:define name="PARENT"/>
+		<doc:define name="SELECT">
+			<DATA id="" refreshETTY="0"/>
+		</doc:define>
+		<qry:define name="LIST">
+			<qry:main doc="SOURCE">
+				<ROWS>
+					<qry:insert-select name="SQL1" doc-path=""/>
+				</ROWS>
+			</qry:main>
+			<qry:select doc="SOURCE" name="SQL1">
+				<qry:xquery>
+					for $r in FILEIO('TEMP/wfimportfile.txt')/WF-EXPORT/ITEM
+				</qry:xquery>
+				<qry:out>
+					<ROW>
+						<qry:attribute name="id" value="concat($r/@TYPE,':',$r/@ID)"/>
+						<qry:attribute name="desc" value="$r/@LABEL"/>
+						<qry:attribute name="version" value="$r/@VERSION"/>
+						<qry:attribute name="code" value="$r/@CODE"/>
+						<qry:attribute name="type" value="$r/@TYPE"/>
+						<qry:attribute name="exist" value="0"/>
+						<qry:switch test="$r/@TYPE">
+							<qry:case value="WRK"/>
+							<qry:case value="ORG"/>
+							<qry:case value="INT">
+								<qry:insert-select name="SQL1-INT" doc-path="$r"/>
+							</qry:case>
+						</qry:switch>
+					</ROW>
+				</qry:out>
+			</qry:select>
+			<qry:select doc="SOURCE" name="SQL1-INT">
+				<qry:xquery>
+					for $r in SQL('
+			select         
+				T.oi_int_mag
+			from
+			  WRK04_INT_MAN as T  
+			where
+				T.c_int_mag = {$SOURCE/@code}
+			')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:attribute name="exist" value="1"/>
+				</qry:out>
+			</qry:select>
+		</qry:define>
+		<doc:define name="RS"/>
+	</flow:declare>
+	<flow:main doc="SOURCE">
+		<flow:action name="SHOW">
+			<flow:open-form mode="SHOW" parent-doc-path="#SOURCE:" doc-path="#SELECT:" form-class="NucleusWF.Base.Definicion.Organigramas.EXPORT.form"/>
+		</flow:action>
+		<flow:action name="IMPORT">
+			<flow:open-form mode="PASO1" parent-doc-path="#SOURCE:" doc-path="#SELECT:" form-class="NucleusWF.Base.Definicion.Organigramas.IMPORT.form"/>
+		</flow:action>
+	</flow:main>
+	<flow:form mode="SHOW" parent-doc="PARENT" doc="SOURCE" form-class="NucleusWF.Base.Definicion.Organigramas.EXPORT.form" name="NucleusWF.Base.Definicion.Organigramas.EXPORT.form:SHOW">
+		<flow:action name="on-show"/>
+		<flow:action name="on-open"/>
+		<flow:action name="CANCEL">
+			<flow:close-form/>
+		</flow:action>
+		<flow:action name="ACCEPT">
+			<flow:exec-method method="Exportar" out-attr-path="#SELECT:@batch-id" priority="5" class="NucleusWF.Base.Definicion.Workflows.WF">
+				<flow:param attr-path="#SOURCE:@exportLIST" type="Nomad.NSystem.String" mode="in" name="export"/>
+			</flow:exec-method>
+			<flow:open-form form-class="Nomad.Base.Batch.Download.form" mode="BATCH" parent-doc-path="#SELECT:" doc-path="#SELECT:"/>
+		</flow:action>
+	</flow:form>
+	<flow:form name="NucleusWF.Base.Definicion.Organigramas.IMPORT.form:PASO3WA" mode="PASO3WA" parent-doc="PARENT" doc="SOURCE" form-class="NucleusWF.Base.Definicion.Organigramas.IMPORT.form">
+		<flow:action name="on-show"/>
+		<flow:action name="on-open"/>
+		<flow:action name="CANCEL">
+			<flow:close-form/>
+		</flow:action>
+		<flow:action name="ACCEPT">
+			<flow:exec-method priority="5" out-attr-path="#SELECT:@batch-id" class="NucleusWF.Base.Definicion.Workflows.WF" method="Importar">
+				<flow:param name="itemID" attr-path="#SOURCE:@element" type="Nomad.NSystem.String" mode="in"/>
+				<flow:param attr-path="#SOURCE:@modType" name="modo" type="Nomad.NSystem.String" mode="in"/>
+				<flow:param attr-path="#SOURCE:@oi_wf" type="Nomad.NSystem.String" mode="in" name="oi_wf"/>
+				<flow:param name="c_CODE" attr-path="#SOURCE:@COD" type="Nomad.NSystem.String" mode="in"/>
+				<flow:param name="c_DESC" attr-path="#SOURCE:@DES" type="Nomad.NSystem.String" mode="in"/>
+				<flow:param attr-path="#SOURCE:@oi_organigrama" type="Nomad.NSystem.String" mode="in" name="oi_organigrama"/>
+			</flow:exec-method>
+			<flow:close-form/>
+			<flow:open-form mode="PASO2" parent-doc-path="#PARENT:" doc-path="#SOURCE:" form-class="NucleusWF.Base.Definicion.Organigramas.IMPORT.form"/>
+			<flow:open-form form-class="Nomad.Base.Batch.form" mode="BATCH" parent-doc-path="#PARENT:" doc-path="#SOURCE:"/>
+		</flow:action>
+		<flow:action name="NEXT"/>
+		<flow:action name="PREV">
+			<flow:close-form/>
+			<flow:open-form mode="PASO2" parent-doc-path="#PARENT:" doc-path="#SOURCE:" form-class="NucleusWF.Base.Definicion.Organigramas.IMPORT.form"/>
+		</flow:action>
+	</flow:form>
+	<flow:form form-class="Nomad.Base.Batch.form" name="Nomad.Base.Batch.form:BATCH" mode="BATCH" doc="SOURCE">
+		<flow:action name="on-show"/>
+		<flow:action name="EXIT">
+			<flow:exit-flow return-path="#SOURCE:"/>
+		</flow:action>
+	</flow:form>
+	<flow:form name="Nomad.Base.Batch.Download.form:DOWNLOAD" mode="DOWNLOAD" form-class="Nomad.Base.Batch.Download.form" doc="SOURCE">
+		<flow:action name="on-show"/>
+		<flow:action name="EXIT">
+			<flow:exit-flow return-path="#SOURCE:"/>
+		</flow:action>
+		<flow:action name="download"/>
+	</flow:form>
+	<flow:form form-class="Nomad.Base.Batch.Download.form" name="Nomad.Base.Batch.Download.form:BATCH" mode="BATCH" doc="SOURCE">
+		<flow:action name="on-show"/>
+		<flow:action name="EXIT">
+			<flow:exit-flow return-path="#SOURCE:"/>
+		</flow:action>
+		<flow:action name="download">
+			<flow:close-form/>
+			<flow:open-form form-class="Nomad.Base.Batch.Download.form" mode="DOWNLOAD" parent-doc-path="#SOURCE:" doc-path="#SOURCE:"/>
+		</flow:action>
+	</flow:form>
+	<flow:form name="NucleusWF.Base.Definicion.Organigramas.IMPORT.form:PASO1" mode="PASO1" parent-doc="PARENT" doc="SOURCE" form-class="NucleusWF.Base.Definicion.Organigramas.IMPORT.form">
+		<flow:action name="on-show"/>
+		<flow:action name="on-open"/>
+		<flow:action name="CANCEL">
+			<flow:close-form/>
+		</flow:action>
+		<flow:action name="ACCEPT"/>
+		<flow:action name="NEXT">
+			<flow:close-form/>
+			<flow:open-form mode="PASO2" parent-doc-path="#PARENT:" doc-path="#SOURCE:" form-class="NucleusWF.Base.Definicion.Organigramas.IMPORT.form"/>
+		</flow:action>
+		<flow:action name="PREV"/>
+	</flow:form>
+	<flow:form name="NucleusWF.Base.Definicion.Organigramas.IMPORT.form:PASO2" mode="PASO2" parent-doc="PARENT" doc="SOURCE" form-class="NucleusWF.Base.Definicion.Organigramas.IMPORT.form">
+		<flow:action name="on-show">
+			<doc:load-qry output-doc="RS" qry="LIST"/>
+			<flow:attach-doc doc-path="#RS:" attach-id="RS"/>
+		</flow:action>
+		<flow:action name="on-open"/>
+		<flow:action name="CANCEL">
+			<flow:close-form/>
+		</flow:action>
+		<flow:action name="ACCEPT">
+			<flow:exec-method class="NucleusWF.Base.Definicion.Integracion.INT_MAG" method="Importar">
+				<flow:param name="itemID" attr-path="#SOURCE:@element" type="Nomad.NSystem.String" mode="in"/>
+			</flow:exec-method>
+			<flow:call-action action="on-show"/>
+		</flow:action>
+		<flow:action name="NEXT-O">
+			<flow:close-form/>
+			<flow:open-form mode="PASO3O" parent-doc-path="#PARENT:" doc-path="#SOURCE:" form-class="NucleusWF.Base.Definicion.Organigramas.IMPORT.form"/>
+		</flow:action>
+		<flow:action name="PREV">
+			<flow:close-form/>
+			<flow:open-form mode="PASO1" parent-doc-path="#PARENT:" doc-path="#SOURCE:" form-class="NucleusWF.Base.Definicion.Organigramas.IMPORT.form"/>
+		</flow:action>
+		<flow:action name="NEXT-W">
+			<flow:call-action else="NEXT-WA" action="NEXT-WN" if="#SOURCE:@eleVersion" eq="N/A"/>
+		</flow:action>
+		<flow:action name="NEXT">
+			<flow:call-action eq="ORG" if="#SOURCE:@eleType" action="NEXT-O"/>
+			<flow:call-action eq="WRK" if="#SOURCE:@eleType" action="NEXT-W"/>
+		</flow:action>
+		<flow:action name="NEXT-WA">
+			<flow:close-form/>
+			<flow:open-form mode="PASO3WA" parent-doc-path="#PARENT:" doc-path="#SOURCE:" form-class="NucleusWF.Base.Definicion.Organigramas.IMPORT.form"/>
+		</flow:action>
+		<flow:action name="NEXT-WN">
+			<flow:close-form/>
+			<flow:open-form mode="PASO3W" parent-doc-path="#PARENT:" doc-path="#SOURCE:" form-class="NucleusWF.Base.Definicion.Organigramas.IMPORT.form"/>
+		</flow:action>
+	</flow:form>
+	<flow:form name="NucleusWF.Base.Definicion.Organigramas.IMPORT.form:PASO3O" mode="PASO3O" parent-doc="PARENT" doc="SOURCE" form-class="NucleusWF.Base.Definicion.Organigramas.IMPORT.form">
+		<flow:action name="on-show"/>
+		<flow:action name="on-open"/>
+		<flow:action name="CANCEL">
+			<flow:close-form/>
+		</flow:action>
+		<flow:action name="NEXT"/>
+		<flow:action name="PREV">
+			<flow:close-form/>
+			<flow:open-form mode="PASO2" parent-doc-path="#PARENT:" doc-path="#SOURCE:" form-class="NucleusWF.Base.Definicion.Organigramas.IMPORT.form"/>
+		</flow:action>
+		<flow:action name="ACCEPT">
+			<flow:exec-method priority="5" out-attr-path="#SELECT:@batch-id" class="NucleusWF.Base.Definicion.Organigramas.ORGANIGRAMA" method="Importar">
+				<flow:param name="itemID" attr-path="#SOURCE:@element" type="Nomad.NSystem.String" mode="in"/>
+				<flow:param attr-path="#SOURCE:@modType" name="modo" type="Nomad.NSystem.String" mode="in"/>
+				<flow:param attr-path="#SOURCE:@oi_organigrama" type="Nomad.NSystem.String" mode="in" name="oi_organigrama"/>
+				<flow:param name="CODE" attr-path="#SOURCE:@COD" type="Nomad.NSystem.String" mode="in"/>
+				<flow:param name="DESC" attr-path="#SOURCE:@DES" type="Nomad.NSystem.String" mode="in"/>
+				<flow:param attr-path="#SOURCE:@refreshETTY" name="refreshETTY" type="Nomad.NSystem.Boolean" mode="in"/>
+			</flow:exec-method>
+			<flow:close-form/>
+			<flow:open-form mode="PASO2" parent-doc-path="#PARENT:" doc-path="#SOURCE:" form-class="NucleusWF.Base.Definicion.Organigramas.IMPORT.form"/>
+			<flow:open-form form-class="Nomad.Base.Batch.form" mode="BATCH" parent-doc-path="#PARENT:" doc-path="#SOURCE:"/>
+		</flow:action>
+	</flow:form>
+	<flow:form name="NucleusWF.Base.Definicion.Organigramas.IMPORT.form:PASO3W" mode="PASO3W" parent-doc="PARENT" doc="SOURCE" form-class="NucleusWF.Base.Definicion.Organigramas.IMPORT.form">
+		<flow:action name="on-show"/>
+		<flow:action name="on-open"/>
+		<flow:action name="CANCEL">
+			<flow:close-form/>
+		</flow:action>
+		<flow:action name="ACCEPT">
+			<flow:exec-method priority="5" out-attr-path="#SELECT:@batch-id" class="NucleusWF.Base.Definicion.Workflows.WF" method="Importar">
+				<flow:param name="itemID" attr-path="#SOURCE:@element" type="Nomad.NSystem.String" mode="in"/>
+				<flow:param attr-path="#SOURCE:@modType" name="modo" type="Nomad.NSystem.String" mode="in"/>
+				<flow:param attr-path="#SOURCE:@oi_wf" type="Nomad.NSystem.String" mode="in" name="oi_wf"/>
+				<flow:param name="c_CODE" attr-path="#SOURCE:@COD" type="Nomad.NSystem.String" mode="in"/>
+				<flow:param name="c_DESC" attr-path="#SOURCE:@DES" type="Nomad.NSystem.String" mode="in"/>
+				<flow:param attr-path="#SOURCE:@oi_organigrama" type="Nomad.NSystem.String" mode="in" name="oi_organigrama"/>
+			</flow:exec-method>
+			<flow:close-form/>
+			<flow:open-form mode="PASO2" parent-doc-path="#PARENT:" doc-path="#SOURCE:" form-class="NucleusWF.Base.Definicion.Organigramas.IMPORT.form"/>
+			<flow:open-form form-class="Nomad.Base.Batch.form" mode="BATCH" parent-doc-path="#PARENT:" doc-path="#SOURCE:"/>
+		</flow:action>
+		<flow:action name="NEXT"/>
+		<flow:action name="PREV">
+			<flow:close-form/>
+			<flow:open-form mode="PASO2" parent-doc-path="#PARENT:" doc-path="#SOURCE:" form-class="NucleusWF.Base.Definicion.Organigramas.IMPORT.form"/>
+		</flow:action>
+	</flow:form>
+</flow:flow>

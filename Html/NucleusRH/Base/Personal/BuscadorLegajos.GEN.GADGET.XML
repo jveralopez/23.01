@@ -1,0 +1,450 @@
+<html:html xmlns:html="nomad_engine.html" xmlns:qry="nomad_engine.qry" xmlns:xsl="http://www.w3.org/1999/XSL/Transform" name="Buscador de legajos" extends="NucleusRH.Base.Configuracion.GadgetBASE.rpt" doc="source">
+	<html:query declare="&lt;PARAMS search=&quot;&quot; empresa=&quot;&quot; pos=&quot;&quot; pues=&quot;&quot; oi_personal=&quot;419&quot; fromrow=&quot;0&quot; pagesize=&quot;10&quot; /&gt;">
+		<qry:main doc="SOURCE">
+			<qry:element name="MAIN">
+				<qry:element name="PAGEDATA">
+					<qry:attribute name="hts:delete1" value="'1'"/>
+					<qry:attribute name="IF" value="0"/>
+					<qry:attribute name="fromrow" value="'0'"/>
+					<qry:attribute name="pagesize" value="'10'"/>
+					<qry:attribute name="suma" value="'0'"/>
+					<qry:if test="#SOURCE:PARAMS/@oi_personal != ''">
+						<qry:then>
+							<qry:attribute name="IF" value="1"/>
+							<qry:attribute name="suma" value="'1'"/>
+						</qry:then>
+					</qry:if>
+					<qry:if test="#SOURCE:PARAMS/@fromrow != ''">
+						<qry:then>
+							<qry:attribute name="IF" value="2"/>
+							<qry:attribute name="fromrow" value="#SOURCE:PARAMS/@fromrow"/>
+							<qry:attribute name="pagesize" value="NUMBER(#SOURCE:PARAMS/@pagesize)"/>
+							<qry:attribute name="suma" value="NUMBER(@fromrow) + NUMBER(@pagesize)"/>
+						</qry:then>
+					</qry:if>
+					<qry:attribute name="qpagesize" value="NUMBER(@pagesize) + 1"/>
+					<qry:append-doc name="PAGEDATA" doc-path="."/>
+				</qry:element>
+				<qry:element name="DATA">
+					<qry:attribute name="lastsearch" value="#SOURCE:PARAMS/@search"/>
+					<qry:attribute name="registros" value="'0'"/>
+					<qry:attribute name="ut" value="#PROXY:@TOKEN"/>
+					<qry:attribute name="fromrow" value="NUMBER(#PAGEDATA:@fromrow)"/>
+					<qry:attribute name="pagesize" value="NUMBER(#PAGEDATA:@pagesize)"/>
+					<qry:insert-select doc-path="#SOURCE:PARAMS" name="qry_personas"/>
+					<qry:attribute name="rtipo" value="''"/>
+				</qry:element>
+			</qry:element>
+		</qry:main>
+		<qry:select name="qry_personas" doc="PARAM">
+			<qry:xquery>
+				for $r in sql(' 
+				FROMROW {%=#PAGEDATA:@fromrow%} MAXSIZE {%=#PAGEDATA:@qpagesize%}
+
+				SELECT
+					p.d_ape_y_nom,
+					pe.e_numero_legajo,
+					p.te_celular,
+					p.d_email,
+					e.d_empresa,
+					u.d_ubicacion,
+					u.c_ubicacion,
+					cc.d_centro_costo,
+					pu.d_puesto,
+					u.n_pais,
+					u.n_area,
+					u.n_telefono,
+					u.d_calle,
+					u.e_numero,
+					u.e_piso,
+					u.d_departamento,
+					u.c_postal,
+					p.oi_foto,
+					p.oi_usuario_sistema,
+					pe.c_nro_interno
+
+				FROM
+ 					PER01_PERSONAL as p,
+ 					PER02_PERSONAL_EMP as pe,
+ 					ORG03_EMPRESAS as e,
+ 					ORG03_UBICACIONES as u,
+ 					ORG08_CS_COSTO AS cc,
+ 					ORG04_PUESTOS AS pu
+				
+				JOIN
+					p.oi_personal INNER pe.oi_personal,
+					pe.oi_empresa INNER e.oi_empresa,
+					pe.oi_ubicacion LEFT OUTER u.oi_ubicacion,
+					pe.oi_ctro_costo_ult LEFT OUTER cc.oi_centro_costo,
+					pe.oi_puesto_ult LEFT OUTER pu.oi_puesto
+				
+				WHERE
+					pe.oi_indic_activo = 1  
+					{%? (#PARAM:@search != '') 
+  						{% AND (
+  							CONTAIN(p.d_ape_y_nom, {#PARAM:@search})
+  							OR CONTAIN(e.d_empresa, {#PARAM:@search})
+  							OR CONTAIN(u.c_ubicacion + \'-\' + u.d_ubicacion, {#PARAM:@search})
+  							OR CONTAIN(cc.d_centro_costo, {#PARAM:@search})
+  							OR CONTAIN(pu.d_puesto, {#PARAM:@search})
+  							OR CONTAIN(u.d_calle, {#PARAM:@search})
+  							OR CONTAIN(u.d_departamento, {#PARAM:@search})
+  							)
+  						%}
+  						{% %}
+ 					%}
+					{%? (#PARAM:@oi_personal != '') 
+  						{% AND p.oi_personal = {#PARAM:@oi_personal} %}
+  						{% %}
+ 					%}
+
+					{%? (#PARAM:@search = '' AND #PARAM:@oi_personal = '') 
+  						{% AND 1 = 2 %}
+  						{% %}
+ 					%}
+
+				ORDER BY
+					d_ape_y_nom ASC 
+
+			')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:attribute name="registros" value="NUMBER($r/@_position) + 1"/>
+				<qry:attribute name="col" value="NUMBER(./@col) + 1"/>
+				<qry:attribute name="col" value="IIF(./@col = '3', 1, ./@col)"/>
+				<qry:if test="$r/@_position = #PAGEDATA:@suma">
+					<qry:then>
+						<qry:attribute name="next" value="'1'"/>
+					</qry:then>
+				</qry:if>
+				<qry:element name="LEG">
+					<qry:attribute name="oi_foto" value="iif($r/@oi_foto!='',$r/@oi_foto,'no')"/>
+					<qry:attribute name="d_ape_y_nom" value="$r/@d_ape_y_nom"/>
+					<qry:attribute name="te_celular" value="$r/@te_celular"/>
+					<qry:attribute name="d_email" value="$r/@d_email"/>
+					<qry:attribute name="d_empresa" value="$r/@d_empresa"/>
+					<qry:attribute name="c_ubicacion" value="$r/@c_ubicacion"/>
+					<qry:attribute name="d_ubicacion" value="$r/@d_ubicacion"/>
+					<qry:attribute name="d_centro_costo" value="$r/@d_centro_costo"/>
+					<qry:attribute name="d_puesto" value="$r/@d_puesto"/>
+					<qry:attribute name="e_numero_legajo" value="$r/@e_numero_legajo"/>
+					<qry:attribute name="telefon_suc" value="$r/@n_pais"/>
+					<qry:attribute name="telefon_suc" value="iif($r/@n_area!='', @telefon_suc + '-' + $r/@n_area,@telefon_suc)"/>
+					<qry:attribute name="telefon_suc" value="iif($r/@n_telefono!='', @telefon_suc + '-' + $r/@n_telefono,@telefon_suc)"/>
+					<qry:attribute name="telefon_suc" value="iif($r/@c_nro_interno!='', @telefon_suc + ' (int. ' + $r/@c_nro_interno + ')',@telefon_suc)"/>
+					<qry:attribute name="direccion_suc" value="$r/@d_calle"/>
+					<qry:attribute name="direccion_suc" value="iif($r/@e_numero!='',@direccion_suc + ' ' + $r/@e_numero, @direccion_suc)"/>
+					<qry:attribute name="direccion_suc" value="iif($r/@e_piso!='',@direccion_suc + ' P.' + $r/@e_piso, @direccion_suc)"/>
+					<qry:attribute name="direccion_suc" value="iif($r/@d_departamento!='',@direccion_suc + ' D.' + $r/@d_departamento, @direccion_suc)"/>
+					<qry:attribute name="direccion_suc" value="iif($r/@c_postal!='',@direccion_suc + ' [' + $r/@c_postal +']', @direccion_suc)"/>
+					<qry:attribute name="col" value="../@col"/>
+					<qry:attribute name="pos" value="$r/@_position"/>
+					<qry:attribute name="estado" value="''"/>
+					<qry:if test="$r/@_position = #PAGEDATA:@suma">
+						<qry:then>
+							<qry:attribute name="BORRADO" value="'1'"/>
+							<qry:attribute name="hts:delete" value="'1'"/>
+						</qry:then>
+					</qry:if>
+				</qry:element>
+			</qry:out>
+		</qry:select>
+	</html:query>
+	<html:xslt>
+		<xsl:template name="MainReport" match="DATA">
+			<body bgcolor="#F2F2EC" scroll="no" onload="OnLoad();">
+				<table class="tabla_detail estilo1" cellspacing="0" cellpadding="0">
+					<tr>
+						<th>
+							Buscador de legajos
+						</th>
+					</tr>
+					<tr>
+						<td class="titu_1 underline" height="35px">
+							<table border="0" width="100%">
+								<tr>
+									<td width="95%">
+										<input type="textbox" id="txtSer" name="txtSer" class="textentry" style="width:100%;" onkeypress="SearchKeyPress(event.keyCode);" onfocus="this.value = this.value;">
+											<xsl:attribute name="value">
+												<xsl:value-of select="@lastsearch"/>
+											</xsl:attribute>
+										</input>
+									</td>
+									<td width="5%" style="PADDING-LEFT:10px;">
+										<img src="../../../images/Reports/search_n.gif" style="cursor:pointer;" onclick="Search();" onmouseover="ChangeStyleSB(this, true);" onmouseout="ChangeStyleSB(this, false);"/>
+									</td>
+								</tr>
+							</table>
+						</td>
+					</tr>
+					<tr>
+						<td>
+							<div>
+								<xsl:if test="@registros = '0'">
+									<table style="font-size:11px; width:100%;">
+										<tr>
+											<td height="30px" style="width:100%; background-color:#f7f7f7; font-weight:bold; color: #3085b8; padding-left:5px;">
+												El filtro aplicado no retorna legajos.
+											</td>
+										</tr>
+									</table>
+								</xsl:if>
+								<xsl:if test="@fromrow != '0' or @next = '1'">
+									<table style="font-size:11px; width:100%; background-color:#f7f7f7; height:1px;">
+										<tr>
+											<xsl:if test="@fromrow != '0'">
+												<td class="boton2_n" style="background-image: url(../../../Skins/Default/Images/SmallButtons/prev_n.gif); background-position: center left; padding-left:20px; padding-right:5px; text-align:right;" onclick="tdBotonPrev();" onmouseover="ChangeStyleBut2(this, 'OVER');" onmouseout="ChangeStyleBut2(this, 'NORMAL');">
+													P&#225;gina anterior
+												</td>
+											</xsl:if>
+											<td>
+												&#160;
+											</td>
+											<xsl:if test="@next = '1'">
+												<td class="boton2_n" style="background-image: url(../../../Skins/Default/Images/SmallButtons/next_n.gif); background-position: center right; padding-left:5px; padding-right:20px; text-align:left;" onclick="tdBotonNext();" onmouseover="ChangeStyleBut2(this, 'OVER');" onmouseout="ChangeStyleBut2(this, 'NORMAL');">
+													P&#225;gina posterior
+												</td>
+											</xsl:if>
+										</tr>
+									</table>
+								</xsl:if>
+								<table style="border-collapse:collapse;" cellspacing="0" cellpadding="0">
+									<xsl:for-each select="LEG">
+										<tr class="ResultRow">
+											<td style="width:5%;">
+												<img width="80px">
+													<xsl:choose>
+														<xsl:when test="@oi_foto = 'no'">
+															<xsl:attribute name="src">
+																<xsl:value-of select="'../../../Images/Reports/defaultimg.JPG'"/>
+															</xsl:attribute>
+														</xsl:when>
+														<xsl:otherwise>
+															<xsl:attribute name="src">
+																<xsl:value-of select="concat('data:image/jpg;base64,(#IMAGE.DB(x128;NucleusRH.Base.Personal.Imagenes.HEAD;', @oi_foto, ')#)')"/>
+															</xsl:attribute>
+														</xsl:otherwise>
+													</xsl:choose>
+												</img>
+											</td>
+											<td style="vertical-align:top; align:left; padding-left:10px;" class="tabla_detail">
+												<span class="titu_1">
+													<xsl:value-of select="concat(@d_ape_y_nom, ' [', @e_numero_legajo, '] ')"/>
+													&#160;
+												</span>
+												<br/>
+												<xsl:if test="@d_puesto != ''">
+													<span class="row_estilo_1" style="font-weight:bold;">
+														<xsl:value-of select="@d_puesto"/>
+														&#160;
+													</span>
+													<br/>
+												</xsl:if>
+												<span class="titu_4">
+													<xsl:value-of select="@d_empresa"/>
+													&#160;
+												</span>
+												<br/>
+												<br/>
+												<xsl:if test="@d_ubicacion != '' or @direccion_suc != ''">
+													<xsl:value-of select="concat(@c_ubicacion, '-', @d_ubicacion, ' (', @direccion_suc, ')')"/>
+													<br/>
+												</xsl:if>
+												<xsl:if test="@c_nro_interno != ''">
+													<xsl:value-of select="concat('Int.: ', @c_nro_interno)"/>
+													<br/>
+												</xsl:if>
+												<xsl:if test="@d_email != ''">
+													<xsl:value-of select="@d_email"/>
+													<br/>
+												</xsl:if>
+												<xsl:if test="@telefon_suc != ''">
+													<xsl:value-of select="concat('Tel. Suc.: ', @telefon_suc)"/>
+													<br/>
+												</xsl:if>
+												<xsl:if test="@d_centro_costo != ''">
+													<xsl:value-of select="@d_centro_costo"/>
+												</xsl:if>
+											</td>
+										</tr>
+									</xsl:for-each>
+								</table>
+								<xsl:if test="@fromrow != '0' or @next = '1'">
+									<table style="font-size:11px; width:100%; background-color:#f7f7f7; height:1px;">
+										<tr>
+											<xsl:if test="@fromrow != '0'">
+												<td class="boton2_n" style="background-image: url(../../../Skins/Default/Images/SmallButtons/prev_n.gif); background-position: center left; padding-left:20px; padding-right:5px; text-align:right;" onclick="tdBotonPrev();" onmouseover="ChangeStyleBut2(this, 'OVER');" onmouseout="ChangeStyleBut2(this, 'NORMAL');">
+													P&#225;gina anterior
+												</td>
+											</xsl:if>
+											<td>
+												&#160;
+											</td>
+											<xsl:if test="@next = '1'">
+												<td class="boton2_n" style="background-image: url(../../../Skins/Default/Images/SmallButtons/next_n.gif); background-position: center right; padding-left:5px; padding-right:20px; text-align:left;" onclick="tdBotonNext();" onmouseover="ChangeStyleBut2(this, 'OVER');" onmouseout="ChangeStyleBut2(this, 'NORMAL');">
+													P&#225;gina posterior
+												</td>
+											</xsl:if>
+										</tr>
+									</table>
+								</xsl:if>
+							</div>
+						</td>
+					</tr>
+				</table>
+				<input type="hidden" id="hidFromRow" name="hidFromRow">
+					<xsl:attribute name="value">
+						<xsl:value-of select="@fromrow"/>
+					</xsl:attribute>
+				</input>
+				<input type="hidden" id="hidPS" name="hidPS">
+					<xsl:attribute name="value">
+						<xsl:value-of select="@pagesize"/>
+					</xsl:attribute>
+				</input>
+			</body>
+		</xsl:template>
+		<xsl:template name="ReportSCRIPT">
+			var pageSize = 10;
+		
+			function OnLoad() {
+				var objTemp;
+
+				//Setea el pagesize
+				objTemp = document.getElementById("hidPS");
+				if (objTemp != null)
+					if (objTemp.value != "") pageSize = objTemp.value;
+		
+				document.getElementById("txtSer").focus();
+				
+			}
+
+			function SplitStruct() {
+				var objTemp;
+				var arrEst, strEst;
+				var strResult = "";
+				var x, y;
+				var maxCadenas = 6;
+
+				objTemp = document.getElementById("estruc");
+				if (objTemp.value != "") {
+					arrEst = objTemp.value.split("+");
+
+					if (Compare(arrEst.length, maxCadenas) == -1) {
+						alert("No se puden superar las " + maxCadenas + " cadenas de b&#250;squeda en el campo Estructura. Las cadenas por encima del m&#225;ximo se omitir&#225;n");
+					}
+					
+					for (x = 0; x != arrEst.length; x++) {
+						strEst = jsTrim(arrEst[x]);
+						
+						strResult = strResult + "{#CHAR.AMP#}es" + (x + 1) + "=" + encodeURIComponent(strEst);
+						
+						strSep = "(M)";
+					}
+					
+				}
+				
+				return strResult;
+			}
+
+
+			function GetRows(pFrom, pPageSize) {
+				var dir;
+				var params = "";
+				var temp;
+				var objTemp;
+				
+				dir = "../../../ReportViewer.aspx?";
+				dir = dir + "report={#PROXY.APP#}.NucleusRH.Base.Personal.BuscadorLegajos.GEN.GADGET";
+
+ 				objTemp = document.getElementById("txtSer");
+				if (objTemp.value != "") params = params + "{#CHAR.AMP#}search=" + encodeURIComponent(objTemp.value);
+				
+				//Agrega el paginado
+				params = params + "{#CHAR.AMP#}fromrow=" + pFrom;
+				params = params + "{#CHAR.AMP#}pagesize=" + pPageSize;
+				
+ 				if (params != "")
+					document.location = dir + params;
+
+				return;
+			}
+
+			function SearchKeyPress(code) {
+				if (code == 13) Search();
+			}
+
+			function Search() {
+				GetRows(0, pageSize);
+				return;
+			}
+			
+			function tdBotonPrev() {
+				var objTemp;
+				var paFrom = 0;
+
+ 				objTemp = document.getElementById("hidFromRow");
+				if (objTemp.value != "") paFrom = objTemp.value;
+				
+				paFrom = paFrom - pageSize;
+				
+				GetRows(paFrom, pageSize);
+				return;
+			}
+
+			function tdBotonNext() {
+				var objTemp;
+				var paFrom = 0;
+
+ 				objTemp = document.getElementById("hidFromRow");
+				if (objTemp.value != "") paFrom = objTemp.value; 
+				
+				paFrom = parseInt(paFrom, 10) + parseInt(pageSize, 10);
+				
+				GetRows(paFrom, pageSize);
+				return;
+			}
+			
+			function ChangeStyleBut2(pobj, pType) {
+				if (pType == "OVER")
+					pobj.className = "boton2_o";
+				else
+					pobj.className = "boton2_n";
+			}
+			
+			function jsTrim (pTarget) {
+ 				return pTarget.replace(/^\s*|\s*$/g,"");
+			}
+			
+			function Replace(strin, strfnd, strrpl) {
+				var strout="", lastpos;
+				
+				for (lastpos=0, pos=strin.indexOf(strfnd); pos!=-1; lastpos=pos+strfnd.length, pos=strin.indexOf(strfnd,lastpos))
+				{                
+					strout+=strin.substr(lastpos,pos-lastpos);
+					strout+=strrpl;
+				} 		
+				strout+=strin.substr(lastpos);
+				
+				return strout;
+			}
+		</xsl:template>
+		<xsl:template name="ReportSTYLE">
+			.ResultRow {
+			height:110px;
+		}
+
+	.ResultRow TD {
+  		border-bottom-width: 1px;
+  		border-bottom-style: solid;
+  		border-bottom-color: #C8C8C8;
+  		
+  		border-top-width: 1px;
+  		border-top-style: solid;
+  		border-top-color: #C8C8C8;
+
+  		padding-top: 5px;
+		}
+		</xsl:template>
+	</html:xslt>
+</html:html>

@@ -1,0 +1,1342 @@
+<html:html xmlns:html="nomad_engine.html" xmlns:qry="nomad_engine.qry" name="NucleusRH.Base.Personas.LegajosTrayectorias.rpt" extends="Nomad.Base.BaseReport.rpt" doc="source">
+	<html:for-each declare="&lt;FILTRO oi_clase_org=&quot;&quot; gcustom=&quot;&quot; oi_empresa=&quot;1&quot; chkCategoria=&quot;1&quot; chkCentroDeCosto=&quot;1&quot; chkContrato=&quot;1&quot; chkPuesto=&quot;1&quot; chkPosicion=&quot;1&quot; chkRemuneracion=&quot;1&quot; chkTipoPersonal=&quot;1&quot; chkCalendarios=&quot;1&quot; chkReingresos=&quot;1&quot; chkEquipoMovil=&quot;1&quot; chkCargos=&quot;1&quot; chkUbicaciones=&quot;1&quot; gpers=&quot;&quot; activos=&quot;1&quot; nombre=&quot;&quot; documento=&quot;&quot; sexo=&quot;&quot; grupo_sanguineo=&quot;&quot; listlegajos=&quot;610492, 127&quot; oi_indic_activo=&quot;&quot; egresado=&quot;&quot; oi_forma_pago=&quot;&quot; oi_tipo_personal=&quot;&quot; fecha_desde=&quot;&quot; fecha_hasta=&quot;&quot; cb_confidenciales=&quot;&quot; oi_grupo_ccosto=&quot;&quot; oi_centro_costo=&quot;&quot; oi_convenio=&quot;&quot; soloconvenio=&quot;&quot; oi_categoria=&quot;&quot; oi_ubicacion_desde=&quot;&quot; oi_ubicacion_hasta=&quot;&quot; oi_estructura=&quot;&quot; escructura_childs=&quot;&quot; oi_contrato=&quot;&quot; oi_afjp=&quot;&quot; oi_obra_social=&quot;&quot; oi_sindicato=&quot;&quot; l_afiliado_sind=&quot;0&quot; oi_departamento=&quot;&quot; oi_sector=&quot;&quot; legID=&quot;15&quot; leg_where=&quot;LEG.e_numero_legajo in (610492,127)&quot; nom_where=&quot;&quot;&gt;&lt;PERSONAS&gt;&lt;ROW VALUES=&quot;15,12760&quot;/&gt;&lt;/PERSONAS&gt;&lt;/FILTRO&gt;">
+		<qry:main doc="PARAM">
+			<qry:append-doc name="PARAMIN" doc-path="#PARAM:FILTRO"/>
+			<qry:append-doc name="DOCNIVEL" doc-path=""/>
+			<qry:append-doc name="DOCPADRE" doc-path=""/>
+			<REPORT label="Listado de Trayectorias de Legajos">
+				<qry:attribute value="format_date(now(),'dd/mm/yyyy HH:MM')" name="date"/>
+				<GROUPS>
+					<!--<GROUP tag="LEG" type="title">-->
+					<GROUP tag="L" type="table">
+						<COLS>
+							<COL name="d_empresa" label="Empresa"/>
+							<COL name="e_numero_legajo" label="Legajo"/>
+							<COL name="d_ape_y_nom" label="Apellido y Nombre"/>
+							<COL name="c_nro_documento" label="DNI"/>
+							<COL name="d_indic_activo" label="Estado"/>
+							<qry:insert-select name="QRY_COL"/>
+							<COL name="d_tipo_tray" label="Tipo de Trayectoria"/>
+							<COL name="c_tray" label="C&#243;digo de Trayectoria"/>
+							<COL name="d_tray" label="Descripci&#243;n de Trayectoria"/>
+							<COL name="f_ingreso" label="Fecha Desde"/>
+							<COL name="f_egreso" label="Fecha Hasta"/>
+							<COL name="motivo" label="Motivo"/>
+							<COL name="observ" label="Observaciones"/>
+						</COLS>
+					</GROUP>
+					<!--</GROUP>-->
+				</GROUPS>
+				<qry:element name="DATA">
+					<qry:element name="EST">
+						<qry:append-doc name="ESTRUCTURAS" doc-path="."/>
+						<qry:element name="E">
+							<qry:attribute value="" name="desc1"/>
+							<qry:attribute value="0" name="id"/>
+							<qry:attribute value="1" name="nivel"/>
+						</qry:element>
+						<qry:insert-select name="qry_SQL1" doc-path="#PARAM:FILTRO"/>
+					</qry:element>
+					<qry:if test="#PARAM:FILTRO/PERSONAS/ROW/@values!=''">
+						<qry:then>
+							<qry:insert-select doc-path="#PARAM:FILTRO/PERSONAS/ROW" name="QRY_PERSONAS"/>
+						</qry:then>
+						<qry:else>
+							<qry:attribute value="''" name="values"/>
+							<qry:insert-select doc-path="." name="QRY_PERSONAS"/>
+						</qry:else>
+					</qry:if>
+				</qry:element>
+			</REPORT>
+		</qry:main>
+		<qry:select name="QRY_COL" doc="SOURCE">
+			<qry:xquery>
+				for $r in SQL('
+		SELECT 
+			ORG26_PARAMETROS.c_parametro,
+			ORG26_PARAMETROS.d_valor
+		FROM
+			ORG26_PARAMETROS                
+		WHERE
+			ORG26_PARAMETROS.c_modulo = \'PER\' AND 
+			ORG26_PARAMETROS.d_clase = \'RepTrayectorias\' AND
+			ORG26_PARAMETROS.c_parametro IN (\'NivelEstruct\')
+	')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:insert-select name="qry_pegar_columnas" doc-path="$r"/>
+			</qry:out>
+		</qry:select>
+		<qry:select name="qry_pegar_columnas" doc="SOURCE">
+			<qry:xquery>
+				for $r in secuence('int,1,{%=#SOURCE:@d_valor%},1')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:element name="COL">
+					<qry:attribute name="label" value="'Estructura ' + $r/@value"/>
+					<qry:attribute name="name" value="'desc'+ number(number(#SOURCE:@d_valor) - (number($r/@value) - 1))"/>
+				</qry:element>
+			</qry:out>
+		</qry:select>
+		<qry:select doc="PARAM" name="qry_SQL1">
+			<qry:xquery>
+				for $r in sql('				
+SELECT 
+ORG01_UNI_ORG.d_unidad_org, 
+ORG02_CLASES_ORG.oi_estructura_org,
+ORG02_CLASES_ORG.l_automatica			
+FROM 
+ORG02_CLASES_ORG,
+ORG02_ESTRUCTURAS,
+ORG01_UNI_ORG,
+ORG03_EMPRESAS			
+JOIN
+ORG02_CLASES_ORG.oi_estructura_org INNER ORG02_ESTRUCTURAS.oi_estructura,
+ORG01_UNI_ORG.oi_unidad_org INNER ORG02_ESTRUCTURAS.oi_unidad_org,
+ORG01_UNI_ORG.c_unidad_org INNER ORG03_EMPRESAS.c_empresa  
+WHERE
+ORG02_CLASES_ORG.c_estado = \'V\'
+
+AND ORG01_UNI_ORG.oi_tipo_uni_org = 1
+AND ORG03_EMPRESAS.oi_empresa = {#PARAM:@oi_empresa}		
+')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:element name="E">
+					<qry:if test="$r/@l_automatica=1">
+						<qry:then>
+							<qry:attribute value="$r/@d_unidad_org" name="desc1"/>
+						</qry:then>
+						<qry:else>
+							<qry:attribute value="" name="desc1"/>
+						</qry:else>
+					</qry:if>
+					<qry:attribute value="$r/@oi_estructura_org" name="id"/>
+					<qry:attribute value="1" name="nivel"/>
+				</qry:element>
+				<qry:if test="$r/@l_automatica=1">
+					<qry:then>
+						<qry:attribute-doc doc="DOCNIVEL" name="nivel" value="1"/>
+						<qry:insert-select name="qry_SQL3"/>
+					</qry:then>
+				</qry:if>
+			</qry:out>
+		</qry:select>
+		<qry:select name="qry_SQL3">
+			<qry:xquery>
+				for $r in sql('				
+		SELECT 
+			ORG02_ESTRUCTURAS.oi_estructura,
+			ORG01_UNI_ORG.d_unidad_org,  
+			ORG02_ESTRUCTURAS.oi_estr_padre,
+			tablaCantidad.cantidad
+		FROM
+			ORG02_ESTRUCTURAS,
+			ORG01_UNI_ORG,
+			(SELECT count(ORG02_ESTRUCTURAS.oi_estructura) as cantidad
+				FROM
+				ORG02_ESTRUCTURAS,
+				ORG01_UNI_ORG			
+				JOIN
+				ORG02_ESTRUCTURAS.oi_unidad_org INNER ORG01_UNI_ORG.oi_unidad_org
+				WHERE
+				ORG02_ESTRUCTURAS.oi_estr_padre in ({%=string(#ESTRUCTURAS:E[@nivel=#DOCNIVEL:@nivel]/@id)%})) as tablaCantidad			
+		JOIN
+			ORG02_ESTRUCTURAS.oi_unidad_org INNER ORG01_UNI_ORG.oi_unidad_org	
+		WHERE				
+			ORG02_ESTRUCTURAS.oi_estr_padre in ({%=string(#ESTRUCTURAS:E[@nivel=#DOCNIVEL:@nivel]/@id)%})														
+	')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:element name="E">
+					<qry:attribute value="number(#DOCNIVEL:@nivel) + 1" name="nivel"/>
+					<qry:attribute value="$r/@d_unidad_org" name-calc="'desc' + (number(#DOCNIVEL:@nivel) + 1)"/>
+					<qry:attribute value="$r/@oi_estructura" name="id"/>
+					<qry:attribute value="$r/@oi_estr_padre" name="oi_estr_padre"/>
+					<qry:attribute-doc doc="DOCPADRE" name="oi_estr_padre" value="$r/@oi_estr_padre"/>
+					<qry:insert-select name="qry_DESC"/>
+				</qry:element>
+				<qry:attribute name="cantidad_reg" value="$r/@cantidad"/>
+				<qry:attribute value="count(#ESTRUCTURAS:E[@nivel=(number(#DOCNIVEL:@nivel) + 1)])" name="cantidad_doc"/>
+				<qry:if test="@cantidad_reg = @cantidad_doc">
+					<qry:then>
+						<qry:insert-select name="qry_SQL2"/>
+					</qry:then>
+				</qry:if>
+			</qry:out>
+		</qry:select>
+		<qry:select name="qry_SQL2">
+			<qry:out>
+				<qry:attribute value="count(#ESTRUCTURAS:E[@nivel=#DOCNIVEL:@nivel])" name="cantidad"/>
+				<qry:if test="@cantidad &gt; 0">
+					<qry:then>
+						<qry:attribute-doc doc="DOCNIVEL" name="nivel" value="number(#DOCNIVEL:@nivel) + 1"/>
+						<qry:insert-select name="qry_SQL3"/>
+					</qry:then>
+				</qry:if>
+			</qry:out>
+		</qry:select>
+		<qry:select name="qry_DESC">
+			<qry:out>
+				<qry:switch test="number(#DOCNIVEL:@nivel) + 1">
+					<qry:case value="2">
+						<qry:attribute value="#ESTRUCTURAS:E[@id=#DOCPADRE:@oi_estr_padre]/@desc1" name="desc1"/>
+					</qry:case>
+					<qry:case value="3">
+						<qry:attribute value="#ESTRUCTURAS:E[@id=#DOCPADRE:@oi_estr_padre]/@desc1" name="desc1"/>
+						<qry:attribute value="#ESTRUCTURAS:E[@id=#DOCPADRE:@oi_estr_padre]/@desc2" name="desc2"/>
+					</qry:case>
+					<qry:case value="4">
+						<qry:attribute value="#ESTRUCTURAS:E[@id=#DOCPADRE:@oi_estr_padre]/@desc1" name="desc1"/>
+						<qry:attribute value="#ESTRUCTURAS:E[@id=#DOCPADRE:@oi_estr_padre]/@desc2" name="desc2"/>
+						<qry:attribute value="#ESTRUCTURAS:E[@id=#DOCPADRE:@oi_estr_padre]/@desc3" name="desc3"/>
+					</qry:case>
+					<qry:case value="5">
+						<qry:attribute value="#ESTRUCTURAS:E[@id=#DOCPADRE:@oi_estr_padre]/@desc1" name="desc1"/>
+						<qry:attribute value="#ESTRUCTURAS:E[@id=#DOCPADRE:@oi_estr_padre]/@desc2" name="desc2"/>
+						<qry:attribute value="#ESTRUCTURAS:E[@id=#DOCPADRE:@oi_estr_padre]/@desc3" name="desc3"/>
+						<qry:attribute value="#ESTRUCTURAS:E[@id=#DOCPADRE:@oi_estr_padre]/@desc4" name="desc4"/>
+					</qry:case>
+					<qry:case value="6">
+						<qry:attribute value="#ESTRUCTURAS:E[@id=#DOCPADRE:@oi_estr_padre]/@desc1" name="desc1"/>
+						<qry:attribute value="#ESTRUCTURAS:E[@id=#DOCPADRE:@oi_estr_padre]/@desc2" name="desc2"/>
+						<qry:attribute value="#ESTRUCTURAS:E[@id=#DOCPADRE:@oi_estr_padre]/@desc3" name="desc3"/>
+						<qry:attribute value="#ESTRUCTURAS:E[@id=#DOCPADRE:@oi_estr_padre]/@desc4" name="desc4"/>
+						<qry:attribute value="#ESTRUCTURAS:E[@id=#DOCPADRE:@oi_estr_padre]/@desc5" name="desc5"/>
+					</qry:case>
+					<qry:case value="7">
+						<qry:attribute value="#ESTRUCTURAS:E[@id=#DOCPADRE:@oi_estr_padre]/@desc1" name="desc1"/>
+						<qry:attribute value="#ESTRUCTURAS:E[@id=#DOCPADRE:@oi_estr_padre]/@desc2" name="desc2"/>
+						<qry:attribute value="#ESTRUCTURAS:E[@id=#DOCPADRE:@oi_estr_padre]/@desc3" name="desc3"/>
+						<qry:attribute value="#ESTRUCTURAS:E[@id=#DOCPADRE:@oi_estr_padre]/@desc4" name="desc4"/>
+						<qry:attribute value="#ESTRUCTURAS:E[@id=#DOCPADRE:@oi_estr_padre]/@desc5" name="desc5"/>
+						<qry:attribute value="#ESTRUCTURAS:E[@id=#DOCPADRE:@oi_estr_padre]/@desc6" name="desc6"/>
+					</qry:case>
+					<qry:case value="8">
+						<qry:attribute value="#ESTRUCTURAS:E[@id=#DOCPADRE:@oi_estr_padre]/@desc1" name="desc1"/>
+						<qry:attribute value="#ESTRUCTURAS:E[@id=#DOCPADRE:@oi_estr_padre]/@desc2" name="desc2"/>
+						<qry:attribute value="#ESTRUCTURAS:E[@id=#DOCPADRE:@oi_estr_padre]/@desc3" name="desc3"/>
+						<qry:attribute value="#ESTRUCTURAS:E[@id=#DOCPADRE:@oi_estr_padre]/@desc4" name="desc4"/>
+						<qry:attribute value="#ESTRUCTURAS:E[@id=#DOCPADRE:@oi_estr_padre]/@desc5" name="desc5"/>
+						<qry:attribute value="#ESTRUCTURAS:E[@id=#DOCPADRE:@oi_estr_padre]/@desc6" name="desc6"/>
+						<qry:attribute value="#ESTRUCTURAS:E[@id=#DOCPADRE:@oi_estr_padre]/@desc7" name="desc7"/>
+					</qry:case>
+					<qry:case value="9">
+						<qry:attribute value="#ESTRUCTURAS:E[@id=#DOCPADRE:@oi_estr_padre]/@desc1" name="desc1"/>
+						<qry:attribute value="#ESTRUCTURAS:E[@id=#DOCPADRE:@oi_estr_padre]/@desc2" name="desc2"/>
+						<qry:attribute value="#ESTRUCTURAS:E[@id=#DOCPADRE:@oi_estr_padre]/@desc3" name="desc3"/>
+						<qry:attribute value="#ESTRUCTURAS:E[@id=#DOCPADRE:@oi_estr_padre]/@desc4" name="desc4"/>
+						<qry:attribute value="#ESTRUCTURAS:E[@id=#DOCPADRE:@oi_estr_padre]/@desc5" name="desc5"/>
+						<qry:attribute value="#ESTRUCTURAS:E[@id=#DOCPADRE:@oi_estr_padre]/@desc6" name="desc6"/>
+						<qry:attribute value="#ESTRUCTURAS:E[@id=#DOCPADRE:@oi_estr_padre]/@desc7" name="desc7"/>
+						<qry:attribute value="#ESTRUCTURAS:E[@id=#DOCPADRE:@oi_estr_padre]/@desc8" name="desc8"/>
+					</qry:case>
+					<qry:case value="10">
+						<qry:attribute value="#ESTRUCTURAS:E[@id=#DOCPADRE:@oi_estr_padre]/@desc1" name="desc1"/>
+						<qry:attribute value="#ESTRUCTURAS:E[@id=#DOCPADRE:@oi_estr_padre]/@desc2" name="desc2"/>
+						<qry:attribute value="#ESTRUCTURAS:E[@id=#DOCPADRE:@oi_estr_padre]/@desc3" name="desc3"/>
+						<qry:attribute value="#ESTRUCTURAS:E[@id=#DOCPADRE:@oi_estr_padre]/@desc4" name="desc4"/>
+						<qry:attribute value="#ESTRUCTURAS:E[@id=#DOCPADRE:@oi_estr_padre]/@desc5" name="desc5"/>
+						<qry:attribute value="#ESTRUCTURAS:E[@id=#DOCPADRE:@oi_estr_padre]/@desc6" name="desc6"/>
+						<qry:attribute value="#ESTRUCTURAS:E[@id=#DOCPADRE:@oi_estr_padre]/@desc7" name="desc7"/>
+						<qry:attribute value="#ESTRUCTURAS:E[@id=#DOCPADRE:@oi_estr_padre]/@desc8" name="desc8"/>
+						<qry:attribute value="#ESTRUCTURAS:E[@id=#DOCPADRE:@oi_estr_padre]/@desc9" name="desc9"/>
+					</qry:case>
+					<qry:case value="11">
+						<qry:attribute value="#ESTRUCTURAS:E[@id=#DOCPADRE:@oi_estr_padre]/@desc1" name="desc1"/>
+						<qry:attribute value="#ESTRUCTURAS:E[@id=#DOCPADRE:@oi_estr_padre]/@desc2" name="desc2"/>
+						<qry:attribute value="#ESTRUCTURAS:E[@id=#DOCPADRE:@oi_estr_padre]/@desc3" name="desc3"/>
+						<qry:attribute value="#ESTRUCTURAS:E[@id=#DOCPADRE:@oi_estr_padre]/@desc4" name="desc4"/>
+						<qry:attribute value="#ESTRUCTURAS:E[@id=#DOCPADRE:@oi_estr_padre]/@desc5" name="desc5"/>
+						<qry:attribute value="#ESTRUCTURAS:E[@id=#DOCPADRE:@oi_estr_padre]/@desc6" name="desc6"/>
+						<qry:attribute value="#ESTRUCTURAS:E[@id=#DOCPADRE:@oi_estr_padre]/@desc7" name="desc7"/>
+						<qry:attribute value="#ESTRUCTURAS:E[@id=#DOCPADRE:@oi_estr_padre]/@desc8" name="desc8"/>
+						<qry:attribute value="#ESTRUCTURAS:E[@id=#DOCPADRE:@oi_estr_padre]/@desc9" name="desc9"/>
+						<qry:attribute value="#ESTRUCTURAS:E[@id=#DOCPADRE:@oi_estr_padre]/@desc10" name="desc10"/>
+					</qry:case>
+					<qry:case value="12">
+						<qry:attribute value="#ESTRUCTURAS:E[@id=#DOCPADRE:@oi_estr_padre]/@desc1" name="desc1"/>
+						<qry:attribute value="#ESTRUCTURAS:E[@id=#DOCPADRE:@oi_estr_padre]/@desc2" name="desc2"/>
+						<qry:attribute value="#ESTRUCTURAS:E[@id=#DOCPADRE:@oi_estr_padre]/@desc3" name="desc3"/>
+						<qry:attribute value="#ESTRUCTURAS:E[@id=#DOCPADRE:@oi_estr_padre]/@desc4" name="desc4"/>
+						<qry:attribute value="#ESTRUCTURAS:E[@id=#DOCPADRE:@oi_estr_padre]/@desc5" name="desc5"/>
+						<qry:attribute value="#ESTRUCTURAS:E[@id=#DOCPADRE:@oi_estr_padre]/@desc6" name="desc6"/>
+						<qry:attribute value="#ESTRUCTURAS:E[@id=#DOCPADRE:@oi_estr_padre]/@desc7" name="desc7"/>
+						<qry:attribute value="#ESTRUCTURAS:E[@id=#DOCPADRE:@oi_estr_padre]/@desc8" name="desc8"/>
+						<qry:attribute value="#ESTRUCTURAS:E[@id=#DOCPADRE:@oi_estr_padre]/@desc9" name="desc9"/>
+						<qry:attribute value="#ESTRUCTURAS:E[@id=#DOCPADRE:@oi_estr_padre]/@desc10" name="desc10"/>
+						<qry:attribute value="#ESTRUCTURAS:E[@id=#DOCPADRE:@oi_estr_padre]/@desc11" name="desc11"/>
+					</qry:case>
+					<qry:case value="13">
+						<qry:attribute value="#ESTRUCTURAS:E[@id=#DOCPADRE:@oi_estr_padre]/@desc1" name="desc1"/>
+						<qry:attribute value="#ESTRUCTURAS:E[@id=#DOCPADRE:@oi_estr_padre]/@desc2" name="desc2"/>
+						<qry:attribute value="#ESTRUCTURAS:E[@id=#DOCPADRE:@oi_estr_padre]/@desc3" name="desc3"/>
+						<qry:attribute value="#ESTRUCTURAS:E[@id=#DOCPADRE:@oi_estr_padre]/@desc4" name="desc4"/>
+						<qry:attribute value="#ESTRUCTURAS:E[@id=#DOCPADRE:@oi_estr_padre]/@desc5" name="desc5"/>
+						<qry:attribute value="#ESTRUCTURAS:E[@id=#DOCPADRE:@oi_estr_padre]/@desc6" name="desc6"/>
+						<qry:attribute value="#ESTRUCTURAS:E[@id=#DOCPADRE:@oi_estr_padre]/@desc7" name="desc7"/>
+						<qry:attribute value="#ESTRUCTURAS:E[@id=#DOCPADRE:@oi_estr_padre]/@desc8" name="desc8"/>
+						<qry:attribute value="#ESTRUCTURAS:E[@id=#DOCPADRE:@oi_estr_padre]/@desc9" name="desc9"/>
+						<qry:attribute value="#ESTRUCTURAS:E[@id=#DOCPADRE:@oi_estr_padre]/@desc10" name="desc10"/>
+						<qry:attribute value="#ESTRUCTURAS:E[@id=#DOCPADRE:@oi_estr_padre]/@desc11" name="desc11"/>
+						<qry:attribute value="#ESTRUCTURAS:E[@id=#DOCPADRE:@oi_estr_padre]/@desc12" name="desc12"/>
+					</qry:case>
+					<qry:case value="14">
+						<qry:attribute value="#ESTRUCTURAS:E[@id=#DOCPADRE:@oi_estr_padre]/@desc1" name="desc1"/>
+						<qry:attribute value="#ESTRUCTURAS:E[@id=#DOCPADRE:@oi_estr_padre]/@desc2" name="desc2"/>
+						<qry:attribute value="#ESTRUCTURAS:E[@id=#DOCPADRE:@oi_estr_padre]/@desc3" name="desc3"/>
+						<qry:attribute value="#ESTRUCTURAS:E[@id=#DOCPADRE:@oi_estr_padre]/@desc4" name="desc4"/>
+						<qry:attribute value="#ESTRUCTURAS:E[@id=#DOCPADRE:@oi_estr_padre]/@desc5" name="desc5"/>
+						<qry:attribute value="#ESTRUCTURAS:E[@id=#DOCPADRE:@oi_estr_padre]/@desc6" name="desc6"/>
+						<qry:attribute value="#ESTRUCTURAS:E[@id=#DOCPADRE:@oi_estr_padre]/@desc7" name="desc7"/>
+						<qry:attribute value="#ESTRUCTURAS:E[@id=#DOCPADRE:@oi_estr_padre]/@desc8" name="desc8"/>
+						<qry:attribute value="#ESTRUCTURAS:E[@id=#DOCPADRE:@oi_estr_padre]/@desc9" name="desc9"/>
+						<qry:attribute value="#ESTRUCTURAS:E[@id=#DOCPADRE:@oi_estr_padre]/@desc10" name="desc10"/>
+						<qry:attribute value="#ESTRUCTURAS:E[@id=#DOCPADRE:@oi_estr_padre]/@desc11" name="desc11"/>
+						<qry:attribute value="#ESTRUCTURAS:E[@id=#DOCPADRE:@oi_estr_padre]/@desc12" name="desc12"/>
+						<qry:attribute value="#ESTRUCTURAS:E[@id=#DOCPADRE:@oi_estr_padre]/@desc13" name="desc13"/>
+					</qry:case>
+					<qry:case value="15">
+						<qry:attribute value="#ESTRUCTURAS:E[@id=#DOCPADRE:@oi_estr_padre]/@desc1" name="desc1"/>
+						<qry:attribute value="#ESTRUCTURAS:E[@id=#DOCPADRE:@oi_estr_padre]/@desc2" name="desc2"/>
+						<qry:attribute value="#ESTRUCTURAS:E[@id=#DOCPADRE:@oi_estr_padre]/@desc3" name="desc3"/>
+						<qry:attribute value="#ESTRUCTURAS:E[@id=#DOCPADRE:@oi_estr_padre]/@desc4" name="desc4"/>
+						<qry:attribute value="#ESTRUCTURAS:E[@id=#DOCPADRE:@oi_estr_padre]/@desc5" name="desc5"/>
+						<qry:attribute value="#ESTRUCTURAS:E[@id=#DOCPADRE:@oi_estr_padre]/@desc6" name="desc6"/>
+						<qry:attribute value="#ESTRUCTURAS:E[@id=#DOCPADRE:@oi_estr_padre]/@desc7" name="desc7"/>
+						<qry:attribute value="#ESTRUCTURAS:E[@id=#DOCPADRE:@oi_estr_padre]/@desc8" name="desc8"/>
+						<qry:attribute value="#ESTRUCTURAS:E[@id=#DOCPADRE:@oi_estr_padre]/@desc9" name="desc9"/>
+						<qry:attribute value="#ESTRUCTURAS:E[@id=#DOCPADRE:@oi_estr_padre]/@desc10" name="desc10"/>
+						<qry:attribute value="#ESTRUCTURAS:E[@id=#DOCPADRE:@oi_estr_padre]/@desc11" name="desc11"/>
+						<qry:attribute value="#ESTRUCTURAS:E[@id=#DOCPADRE:@oi_estr_padre]/@desc12" name="desc12"/>
+						<qry:attribute value="#ESTRUCTURAS:E[@id=#DOCPADRE:@oi_estr_padre]/@desc13" name="desc13"/>
+						<qry:attribute value="#ESTRUCTURAS:E[@id=#DOCPADRE:@oi_estr_padre]/@desc14" name="desc14"/>
+					</qry:case>
+					<qry:case value="16">
+						<qry:attribute value="#ESTRUCTURAS:E[@id=#DOCPADRE:@oi_estr_padre]/@desc1" name="desc1"/>
+						<qry:attribute value="#ESTRUCTURAS:E[@id=#DOCPADRE:@oi_estr_padre]/@desc2" name="desc2"/>
+						<qry:attribute value="#ESTRUCTURAS:E[@id=#DOCPADRE:@oi_estr_padre]/@desc3" name="desc3"/>
+						<qry:attribute value="#ESTRUCTURAS:E[@id=#DOCPADRE:@oi_estr_padre]/@desc4" name="desc4"/>
+						<qry:attribute value="#ESTRUCTURAS:E[@id=#DOCPADRE:@oi_estr_padre]/@desc5" name="desc5"/>
+						<qry:attribute value="#ESTRUCTURAS:E[@id=#DOCPADRE:@oi_estr_padre]/@desc6" name="desc6"/>
+						<qry:attribute value="#ESTRUCTURAS:E[@id=#DOCPADRE:@oi_estr_padre]/@desc7" name="desc7"/>
+						<qry:attribute value="#ESTRUCTURAS:E[@id=#DOCPADRE:@oi_estr_padre]/@desc8" name="desc8"/>
+						<qry:attribute value="#ESTRUCTURAS:E[@id=#DOCPADRE:@oi_estr_padre]/@desc9" name="desc9"/>
+						<qry:attribute value="#ESTRUCTURAS:E[@id=#DOCPADRE:@oi_estr_padre]/@desc10" name="desc10"/>
+						<qry:attribute value="#ESTRUCTURAS:E[@id=#DOCPADRE:@oi_estr_padre]/@desc11" name="desc11"/>
+						<qry:attribute value="#ESTRUCTURAS:E[@id=#DOCPADRE:@oi_estr_padre]/@desc12" name="desc12"/>
+						<qry:attribute value="#ESTRUCTURAS:E[@id=#DOCPADRE:@oi_estr_padre]/@desc13" name="desc13"/>
+						<qry:attribute value="#ESTRUCTURAS:E[@id=#DOCPADRE:@oi_estr_padre]/@desc14" name="desc14"/>
+						<qry:attribute value="#ESTRUCTURAS:E[@id=#DOCPADRE:@oi_estr_padre]/@desc15" name="desc15"/>
+					</qry:case>
+					<qry:case value="17">
+						<qry:attribute value="#ESTRUCTURAS:E[@id=#DOCPADRE:@oi_estr_padre]/@desc1" name="desc1"/>
+						<qry:attribute value="#ESTRUCTURAS:E[@id=#DOCPADRE:@oi_estr_padre]/@desc2" name="desc2"/>
+						<qry:attribute value="#ESTRUCTURAS:E[@id=#DOCPADRE:@oi_estr_padre]/@desc3" name="desc3"/>
+						<qry:attribute value="#ESTRUCTURAS:E[@id=#DOCPADRE:@oi_estr_padre]/@desc4" name="desc4"/>
+						<qry:attribute value="#ESTRUCTURAS:E[@id=#DOCPADRE:@oi_estr_padre]/@desc5" name="desc5"/>
+						<qry:attribute value="#ESTRUCTURAS:E[@id=#DOCPADRE:@oi_estr_padre]/@desc6" name="desc6"/>
+						<qry:attribute value="#ESTRUCTURAS:E[@id=#DOCPADRE:@oi_estr_padre]/@desc7" name="desc7"/>
+						<qry:attribute value="#ESTRUCTURAS:E[@id=#DOCPADRE:@oi_estr_padre]/@desc8" name="desc8"/>
+						<qry:attribute value="#ESTRUCTURAS:E[@id=#DOCPADRE:@oi_estr_padre]/@desc9" name="desc9"/>
+						<qry:attribute value="#ESTRUCTURAS:E[@id=#DOCPADRE:@oi_estr_padre]/@desc10" name="desc10"/>
+						<qry:attribute value="#ESTRUCTURAS:E[@id=#DOCPADRE:@oi_estr_padre]/@desc11" name="desc11"/>
+						<qry:attribute value="#ESTRUCTURAS:E[@id=#DOCPADRE:@oi_estr_padre]/@desc12" name="desc12"/>
+						<qry:attribute value="#ESTRUCTURAS:E[@id=#DOCPADRE:@oi_estr_padre]/@desc13" name="desc13"/>
+						<qry:attribute value="#ESTRUCTURAS:E[@id=#DOCPADRE:@oi_estr_padre]/@desc14" name="desc14"/>
+						<qry:attribute value="#ESTRUCTURAS:E[@id=#DOCPADRE:@oi_estr_padre]/@desc15" name="desc15"/>
+						<qry:attribute value="#ESTRUCTURAS:E[@id=#DOCPADRE:@oi_estr_padre]/@desc16" name="desc16"/>
+					</qry:case>
+					<qry:case value="18">
+						<qry:attribute value="#ESTRUCTURAS:E[@id=#DOCPADRE:@oi_estr_padre]/@desc1" name="desc1"/>
+						<qry:attribute value="#ESTRUCTURAS:E[@id=#DOCPADRE:@oi_estr_padre]/@desc2" name="desc2"/>
+						<qry:attribute value="#ESTRUCTURAS:E[@id=#DOCPADRE:@oi_estr_padre]/@desc3" name="desc3"/>
+						<qry:attribute value="#ESTRUCTURAS:E[@id=#DOCPADRE:@oi_estr_padre]/@desc4" name="desc4"/>
+						<qry:attribute value="#ESTRUCTURAS:E[@id=#DOCPADRE:@oi_estr_padre]/@desc5" name="desc5"/>
+						<qry:attribute value="#ESTRUCTURAS:E[@id=#DOCPADRE:@oi_estr_padre]/@desc6" name="desc6"/>
+						<qry:attribute value="#ESTRUCTURAS:E[@id=#DOCPADRE:@oi_estr_padre]/@desc7" name="desc7"/>
+						<qry:attribute value="#ESTRUCTURAS:E[@id=#DOCPADRE:@oi_estr_padre]/@desc8" name="desc8"/>
+						<qry:attribute value="#ESTRUCTURAS:E[@id=#DOCPADRE:@oi_estr_padre]/@desc9" name="desc9"/>
+						<qry:attribute value="#ESTRUCTURAS:E[@id=#DOCPADRE:@oi_estr_padre]/@desc10" name="desc10"/>
+						<qry:attribute value="#ESTRUCTURAS:E[@id=#DOCPADRE:@oi_estr_padre]/@desc11" name="desc11"/>
+						<qry:attribute value="#ESTRUCTURAS:E[@id=#DOCPADRE:@oi_estr_padre]/@desc12" name="desc12"/>
+						<qry:attribute value="#ESTRUCTURAS:E[@id=#DOCPADRE:@oi_estr_padre]/@desc13" name="desc13"/>
+						<qry:attribute value="#ESTRUCTURAS:E[@id=#DOCPADRE:@oi_estr_padre]/@desc14" name="desc14"/>
+						<qry:attribute value="#ESTRUCTURAS:E[@id=#DOCPADRE:@oi_estr_padre]/@desc15" name="desc15"/>
+						<qry:attribute value="#ESTRUCTURAS:E[@id=#DOCPADRE:@oi_estr_padre]/@desc16" name="desc16"/>
+						<qry:attribute value="#ESTRUCTURAS:E[@id=#DOCPADRE:@oi_estr_padre]/@desc17" name="desc17"/>
+					</qry:case>
+					<qry:case value="19">
+						<qry:attribute value="#ESTRUCTURAS:E[@id=#DOCPADRE:@oi_estr_padre]/@desc1" name="desc1"/>
+						<qry:attribute value="#ESTRUCTURAS:E[@id=#DOCPADRE:@oi_estr_padre]/@desc2" name="desc2"/>
+						<qry:attribute value="#ESTRUCTURAS:E[@id=#DOCPADRE:@oi_estr_padre]/@desc3" name="desc3"/>
+						<qry:attribute value="#ESTRUCTURAS:E[@id=#DOCPADRE:@oi_estr_padre]/@desc4" name="desc4"/>
+						<qry:attribute value="#ESTRUCTURAS:E[@id=#DOCPADRE:@oi_estr_padre]/@desc5" name="desc5"/>
+						<qry:attribute value="#ESTRUCTURAS:E[@id=#DOCPADRE:@oi_estr_padre]/@desc6" name="desc6"/>
+						<qry:attribute value="#ESTRUCTURAS:E[@id=#DOCPADRE:@oi_estr_padre]/@desc7" name="desc7"/>
+						<qry:attribute value="#ESTRUCTURAS:E[@id=#DOCPADRE:@oi_estr_padre]/@desc8" name="desc8"/>
+						<qry:attribute value="#ESTRUCTURAS:E[@id=#DOCPADRE:@oi_estr_padre]/@desc9" name="desc9"/>
+						<qry:attribute value="#ESTRUCTURAS:E[@id=#DOCPADRE:@oi_estr_padre]/@desc10" name="desc10"/>
+						<qry:attribute value="#ESTRUCTURAS:E[@id=#DOCPADRE:@oi_estr_padre]/@desc11" name="desc11"/>
+						<qry:attribute value="#ESTRUCTURAS:E[@id=#DOCPADRE:@oi_estr_padre]/@desc12" name="desc12"/>
+						<qry:attribute value="#ESTRUCTURAS:E[@id=#DOCPADRE:@oi_estr_padre]/@desc13" name="desc13"/>
+						<qry:attribute value="#ESTRUCTURAS:E[@id=#DOCPADRE:@oi_estr_padre]/@desc14" name="desc14"/>
+						<qry:attribute value="#ESTRUCTURAS:E[@id=#DOCPADRE:@oi_estr_padre]/@desc15" name="desc15"/>
+						<qry:attribute value="#ESTRUCTURAS:E[@id=#DOCPADRE:@oi_estr_padre]/@desc16" name="desc16"/>
+						<qry:attribute value="#ESTRUCTURAS:E[@id=#DOCPADRE:@oi_estr_padre]/@desc17" name="desc17"/>
+						<qry:attribute value="#ESTRUCTURAS:E[@id=#DOCPADRE:@oi_estr_padre]/@desc18" name="desc18"/>
+					</qry:case>
+					<qry:case value="20">
+						<qry:attribute value="#ESTRUCTURAS:E[@id=#DOCPADRE:@oi_estr_padre]/@desc1" name="desc1"/>
+						<qry:attribute value="#ESTRUCTURAS:E[@id=#DOCPADRE:@oi_estr_padre]/@desc2" name="desc2"/>
+						<qry:attribute value="#ESTRUCTURAS:E[@id=#DOCPADRE:@oi_estr_padre]/@desc3" name="desc3"/>
+						<qry:attribute value="#ESTRUCTURAS:E[@id=#DOCPADRE:@oi_estr_padre]/@desc4" name="desc4"/>
+						<qry:attribute value="#ESTRUCTURAS:E[@id=#DOCPADRE:@oi_estr_padre]/@desc5" name="desc5"/>
+						<qry:attribute value="#ESTRUCTURAS:E[@id=#DOCPADRE:@oi_estr_padre]/@desc6" name="desc6"/>
+						<qry:attribute value="#ESTRUCTURAS:E[@id=#DOCPADRE:@oi_estr_padre]/@desc7" name="desc7"/>
+						<qry:attribute value="#ESTRUCTURAS:E[@id=#DOCPADRE:@oi_estr_padre]/@desc8" name="desc8"/>
+						<qry:attribute value="#ESTRUCTURAS:E[@id=#DOCPADRE:@oi_estr_padre]/@desc9" name="desc9"/>
+						<qry:attribute value="#ESTRUCTURAS:E[@id=#DOCPADRE:@oi_estr_padre]/@desc10" name="desc10"/>
+						<qry:attribute value="#ESTRUCTURAS:E[@id=#DOCPADRE:@oi_estr_padre]/@desc11" name="desc11"/>
+						<qry:attribute value="#ESTRUCTURAS:E[@id=#DOCPADRE:@oi_estr_padre]/@desc12" name="desc12"/>
+						<qry:attribute value="#ESTRUCTURAS:E[@id=#DOCPADRE:@oi_estr_padre]/@desc13" name="desc13"/>
+						<qry:attribute value="#ESTRUCTURAS:E[@id=#DOCPADRE:@oi_estr_padre]/@desc14" name="desc14"/>
+						<qry:attribute value="#ESTRUCTURAS:E[@id=#DOCPADRE:@oi_estr_padre]/@desc15" name="desc15"/>
+						<qry:attribute value="#ESTRUCTURAS:E[@id=#DOCPADRE:@oi_estr_padre]/@desc16" name="desc16"/>
+						<qry:attribute value="#ESTRUCTURAS:E[@id=#DOCPADRE:@oi_estr_padre]/@desc17" name="desc17"/>
+						<qry:attribute value="#ESTRUCTURAS:E[@id=#DOCPADRE:@oi_estr_padre]/@desc18" name="desc18"/>
+						<qry:attribute value="#ESTRUCTURAS:E[@id=#DOCPADRE:@oi_estr_padre]/@desc19" name="desc19"/>
+					</qry:case>
+				</qry:switch>
+			</qry:out>
+		</qry:select>
+		<qry:select doc="PARAM" name="QRY_PERSONAS">
+			<qry:out>
+				<qry:call>
+					<FILTRO>
+						<qry:attribute name="oi_empresa" value="#PARAMIN:@oi_empresa"/>
+						<qry:attribute name="jerarquico" value="#PARAMIN:@jerarquico"/>
+						<qry:attribute name="chkCategoria" value="#PARAMIN:@chkCategoria"/>
+						<qry:attribute name="chkCentroDeCosto" value="#PARAMIN:@chkCentroDeCosto"/>
+						<qry:attribute name="chkContrato" value="#PARAMIN:@chkContrato"/>
+						<qry:attribute name="chkPuesto" value="#PARAMIN:@chkPuesto"/>
+						<qry:attribute name="chkPosicion" value="#PARAMIN:@chkPosicion"/>
+						<qry:attribute name="chkRemuneracion" value="#PARAMIN:@chkRemuneracion"/>
+						<qry:attribute name="chkTipoPersonal" value="#PARAMIN:@chkTipoPersonal"/>
+						<qry:attribute name="chkCalendarios" value="#PARAMIN:@chkCalendarios"/>
+						<qry:attribute name="chkReingresos" value="#PARAMIN:@chkReingresos"/>
+						<qry:attribute name="chkEquipoMovil" value="#PARAMIN:@chkEquipoMovil"/>
+						<qry:attribute name="chkCargos" value="#PARAMIN:@chkCargos"/>
+						<qry:attribute name="chkUbicaciones" value="#PARAMIN:@chkUbicaciones"/>
+						<qry:attribute value="#PARAM:@values" name="values"/>
+						<qry:insert-element doc-path="#ESTRUCTURAS:"/>
+					</FILTRO>
+				</qry:call>
+			</qry:out>
+		</qry:select>
+	</html:for-each>
+	<html:query declare="&lt;FILTRO values=&quot;15,12760&quot; chkUbicaciones=&quot;1&quot; chkCargos=&quot;1&quot; chkEquipoMovil=&quot;1&quot; chkReingresos=&quot;1&quot; chkCalendarios=&quot;1&quot; chkTipoPersonal=&quot;1&quot; chkRemuneracion=&quot;1&quot; chkPosicion=&quot;1&quot; chkPuesto=&quot;1&quot; chkContrato=&quot;1&quot; chkCentroDeCosto=&quot;1&quot; chkCategoria=&quot;1&quot; jerarquico=&quot;1&quot; oi_empresa=&quot;1&quot;&gt;&#13;&#10;&#9;&#9;&#9;&#9;&lt;EST cantidad=&quot;2&quot; cantidad_doc=&quot;1&quot; cantidad_reg=&quot;1&quot;&gt;&#13;&#10;&#9;&#9;&#9;&#9;&#9;&lt;E nivel=&quot;1&quot; id=&quot;0&quot;/&gt;&#13;&#10;&#9;&#9;&#9;&#9;&#9;&lt;E nivel=&quot;1&quot; id=&quot;1&quot; desc1=&quot;Soluciones Integrales&quot;/&gt;&#13;&#10;&#9;&#9;&#9;&#9;&#9;&lt;E desc1=&quot;Soluciones Integrales&quot; oi_estr_padre=&quot;1&quot; id=&quot;2&quot; desc2=&quot;Gerente General&quot; nivel=&quot;2&quot;/&gt;&#13;&#10;&#9;&#9;&#9;&#9;&#9;&lt;E desc2=&quot;Gerente General&quot; desc1=&quot;Soluciones Integrales&quot; oi_estr_padre=&quot;2&quot; id=&quot;3&quot; desc3=&quot;Administrativo 1&quot; nivel=&quot;3&quot;/&gt;&#13;&#10;&#9;&#9;&#9;&#9;&#9;&lt;E desc2=&quot;Gerente General&quot; desc1=&quot;Soluciones Integrales&quot; oi_estr_padre=&quot;2&quot; id=&quot;4&quot; desc3=&quot;Administrativo 2&quot; nivel=&quot;3&quot;/&gt;&#13;&#10;&#9;&#9;&#9;&#9;&#9;&lt;E desc2=&quot;Gerente General&quot; desc1=&quot;Soluciones Integrales&quot; oi_estr_padre=&quot;2&quot; id=&quot;5&quot; desc3=&quot;Ficticia&quot; nivel=&quot;3&quot;/&gt;&#13;&#10;&#9;&#9;&#9;&#9;&#9;&lt;E desc3=&quot;Ficticia&quot; desc2=&quot;Gerente General&quot; desc1=&quot;Soluciones Integrales&quot; oi_estr_padre=&quot;5&quot; id=&quot;6&quot; desc4=&quot;Asesor&quot; nivel=&quot;4&quot;/&gt;&#13;&#10;&#9;&#9;&#9;&#9;&#9;&lt;E desc3=&quot;Administrativo 1&quot; desc2=&quot;Gerente General&quot; desc1=&quot;Soluciones Integrales&quot; oi_estr_padre=&quot;3&quot; id=&quot;105&quot; desc4=&quot;Prueba&quot; nivel=&quot;4&quot;/&gt;&#13;&#10;&#9;&#9;&#9;&#9;&#9;&lt;E desc3=&quot;Administrativo 2&quot; desc2=&quot;Gerente General&quot; desc1=&quot;Soluciones Integrales&quot; oi_estr_padre=&quot;4&quot; id=&quot;106&quot; desc4=&quot;prueba2&quot; nivel=&quot;4&quot;/&gt;&#13;&#10;&#9;&#9;&#9;&#9;&#9;&lt;E desc4=&quot;prueba2&quot; desc3=&quot;Administrativo 2&quot; desc2=&quot;Gerente General&quot; desc1=&quot;Soluciones Integrales&quot; oi_estr_padre=&quot;106&quot; id=&quot;110&quot; desc5=&quot;qwe&quot; nivel=&quot;5&quot;/&gt;&#13;&#10;&#9;&#9;&#9;&#9;&#9;&lt;E desc4=&quot;Prueba&quot; desc3=&quot;Administrativo 1&quot; desc2=&quot;Gerente General&quot; desc1=&quot;Soluciones Integrales&quot; oi_estr_padre=&quot;105&quot; id=&quot;602&quot; desc5=&quot;GER&quot; nivel=&quot;5&quot;/&gt;&#13;&#10;&#9;&#9;&#9;&#9;&#9;&lt;E desc5=&quot;qwe&quot; desc4=&quot;prueba2&quot; desc3=&quot;Administrativo 2&quot; desc2=&quot;Gerente General&quot; desc1=&quot;Soluciones Integrales&quot; oi_estr_padre=&quot;110&quot; id=&quot;201&quot; desc6=&quot;4123&quot; nivel=&quot;6&quot;/&gt;&#13;&#10;&#9;&#9;&#9;&#9;&#9;&lt;E nivel=&quot;1&quot; id=&quot;101&quot;/&gt;&#13;&#10;&#9;&#9;&#9;&#9;&lt;/EST&gt;&#13;&#10;&#9;&#9;&#9;&lt;/FILTRO&gt;">
+		<qry:main doc="PARAM">
+			<qry:no-show>
+				<qry:append-doc name="ESTRUC" doc-path="#PARAM:FILTRO/EST"/>
+				<!--<qry:element name="LEG">-->
+				<qry:attribute name="oi_empresa" value="#PARAM:FILTRO/@oi_empresa"/>
+				<qry:attribute name="jerarquico" value="#PARAM:FILTRO/@jerarquico"/>
+				<qry:attribute name="chkCategoria" value="#PARAM:FILTRO/@chkCategoria"/>
+				<qry:attribute name="chkCentroDeCosto" value="#PARAM:FILTRO/@chkCentroDeCosto"/>
+				<qry:attribute name="chkContrato" value="#PARAM:FILTRO/@chkContrato"/>
+				<qry:attribute name="chkPuesto" value="#PARAM:FILTRO/@chkPuesto"/>
+				<qry:attribute name="chkPosicion" value="#PARAM:FILTRO/@chkPosicion"/>
+				<qry:attribute name="chkRemuneracion" value="#PARAM:FILTRO/@chkRemuneracion"/>
+				<qry:attribute name="chkTipoPersonal" value="#PARAM:FILTRO/@chkTipoPersonal"/>
+				<qry:attribute name="chkCalendarios" value="#PARAM:FILTRO/@chkCalendarios"/>
+				<qry:attribute name="chkReingresos" value="#PARAM:FILTRO/@chkReingresos"/>
+				<qry:attribute name="chkEquipoMovil" value="#PARAM:FILTRO/@chkEquipoMovil"/>
+				<qry:attribute name="chkCargos" value="#PARAM:FILTRO/@chkCargos"/>
+				<qry:attribute name="chkUbicaciones" value="#PARAM:FILTRO/@chkUbicaciones"/>
+				<qry:attribute value="#PARAM:FILTRO/@values" name="values"/>
+				<qry:append-doc name="LEGAJOS_TRAY" doc-path="."/>
+				<qry:insert-select doc-path="." name="qry_Legajos"/>
+				<!--</qry:element>-->
+			</qry:no-show>
+		</qry:main>
+		<qry:select doc="PARAM" name="qry_Legajos">
+			<qry:xquery>
+				for $r in sql('
+SELECT   
+PER02_PERSONAL_EMP.oi_personal_emp,
+ORG03_EMPRESAS.d_empresa,
+PER02_PERSONAL_EMP.e_numero_legajo,
+PER01_PERSONAL.d_ape_y_nom,
+PER01_PERSONAL.c_nro_documento,
+PER21_INDIC_ACTIVO.d_indic_activo,
+IIFISNULL(ORG02_ESTRUC_PERS.oi_estructura,0) AS oi_estructura,
+(PER02_PERSONAL_EMP.e_numero_legajo + 10000000) as orden
+FROM 
+PER02_PERSONAL_EMP,
+ORG03_EMPRESAS,
+PER01_PERSONAL,			
+ORG02_ESTRUC_PERS,
+ORG02_CLASES_ORG,			
+PER21_INDIC_ACTIVO
+JOIN   
+PER02_PERSONAL_EMP.oi_empresa INNER ORG03_EMPRESAS.oi_empresa,
+PER02_PERSONAL_EMP.oi_personal INNER PER01_PERSONAL.oi_personal, 
+PER02_PERSONAL_EMP.oi_personal_emp LEFT OUTER ORG02_ESTRUC_PERS.oi_personal_emp,
+ORG02_ESTRUC_PERS.oi_clase_org LEFT OUTER ORG02_CLASES_ORG.oi_clase_org,
+PER02_PERSONAL_EMP.oi_indic_activo LEFT OUTER PER21_INDIC_ACTIVO.oi_indic_activo
+WHERE 
+PER02_PERSONAL_EMP.oi_empresa = {#PARAM:@oi_empresa} 									
+{%? (#PARAM:@values!='') {% AND PER02_PERSONAL_EMP.oi_personal_emp in ({%=#PARAM:@values%}) %} {% %} %}							
+AND (isnull(ORG02_CLASES_ORG.oi_clase_org) 
+     OR (ORG02_CLASES_ORG.c_estado = \'V\' AND ORG02_CLASES_ORG.l_automatica = 1)) 
+')/ROWS/ROW,
+$x in $ESTRUC/E
+join $r/@oi_estructura inner $x/@id  
+orderby $r/@orden ASC
+			</qry:xquery>
+			<qry:out>
+				<qry:append-doc name="ESTRUCTURASL" doc-path="$x"/>
+				<qry:if test="#PARAM:@chkCategoria = '1'">
+					<qry:then>
+						<qry:insert-select name="qry_Tray_Cat" doc-path="$r"/>
+					</qry:then>
+				</qry:if>
+				<qry:if test="#PARAM:@chkCentroDeCosto = '1'">
+					<qry:then>
+						<qry:insert-select name="qry_Tray_CC" doc-path="$r"/>
+					</qry:then>
+				</qry:if>
+				<qry:if test="#PARAM:@chkContrato = '1'">
+					<qry:then>
+						<qry:insert-select name="qry_Tray_Contrato" doc-path="$r"/>
+					</qry:then>
+				</qry:if>
+				<qry:if test="#PARAM:@chkPuesto = '1'">
+					<qry:then>
+						<qry:insert-select name="qry_Tray_Puesto" doc-path="$r"/>
+					</qry:then>
+				</qry:if>
+				<qry:if test="#PARAM:@chkPosicion = '1'">
+					<qry:then>
+						<qry:insert-select name="qry_Tray_Pos" doc-path="$r"/>
+					</qry:then>
+				</qry:if>
+				<qry:if test="#PARAM:@chkRemuneracion = '1'">
+					<qry:then>
+						<qry:insert-select name="qry_Tray_Remuneracion" doc-path="$r"/>
+					</qry:then>
+				</qry:if>
+				<qry:if test="#PARAM:@chkTipoPersonal = '1'">
+					<qry:then>
+						<qry:insert-select name="qry_Tray_TipoPer" doc-path="$r"/>
+					</qry:then>
+				</qry:if>
+				<qry:if test="#PARAM:@chkCalendarios = '1'">
+					<qry:then>
+						<qry:insert-select name="qry_Tray_Calendario" doc-path="$r"/>
+					</qry:then>
+				</qry:if>
+				<qry:if test="#PARAM:@chkReingresos = '1'">
+					<qry:then>
+						<qry:insert-select name="qry_Tray_Ingresos" doc-path="$r"/>
+					</qry:then>
+				</qry:if>
+				<qry:if test="#PARAM:@chkEquipoMovil = '1'">
+					<qry:then>
+						<qry:insert-select name="qry_Tray_Equipo_Movil" doc-path="$r"/>
+					</qry:then>
+				</qry:if>
+				<qry:if test="#PARAM:@chkCargos = '1'">
+					<qry:then>
+						<qry:insert-select name="qry_Tray_Cargos" doc-path="$r"/>
+					</qry:then>
+				</qry:if>
+				<qry:if test="#PARAM:@chkUbicaciones = '1'">
+					<qry:then>
+						<qry:insert-select name="qry_Tray_Ubic" doc-path="$r"/>
+					</qry:then>
+				</qry:if>
+			</qry:out>
+		</qry:select>
+		<qry:select name="qry_Tray_Cat" doc="PARAM">
+			<qry:xquery>
+				for $r in sql('										
+	SELECT
+		\'Convenio-Categoria\' as d_tipo_tray, 
+		ORG18_CATEGORIAS.c_categoria,
+		ORG18_CATEGORIAS.d_categoria,
+		PER02_CATEG_PER.f_ingreso,
+		PER02_CATEG_PER.f_egreso,
+		PER05_MOT_CAMBIO.c_motivo_cambio,
+		PER05_MOT_CAMBIO.d_motivo_cambio,
+		PER02_CATEG_PER.o_cambio_categoria
+	FROM 
+		PER02_CATEG_PER, 
+		ORG18_CATEGORIAS,
+		PER05_MOT_CAMBIO
+	JOIN
+		PER02_CATEG_PER.oi_categoria INNER ORG18_CATEGORIAS.oi_categoria,				
+		PER02_CATEG_PER.oi_motivo_cambio LEFT OUTER PER05_MOT_CAMBIO.oi_motivo_cambio
+	WHERE
+		PER02_CATEG_PER.oi_personal_emp = {#PARAM:@oi_personal_emp}				
+	ORDER BY 
+		f_ingreso ASC 
+')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:element name="L">
+					<qry:insert-select name="qry_Pegar" doc-path="$ESTRUCTURASL"/>
+					<qry:attribute value="#PARAM:@oi_estructura" name="oi_estructura"/>
+					<qry:attribute value="#PARAM:@oi_personal_emp" name="oi_personal_emp"/>
+					<qry:attribute value="#PARAM:@d_empresa" name="d_empresa"/>
+					<qry:attribute value="#PARAM:@e_numero_legajo" name="e_numero_legajo"/>
+					<qry:attribute value="#PARAM:@d_ape_y_nom" name="d_ape_y_nom"/>
+					<qry:attribute value="#PARAM:@c_nro_documento" name="c_nro_documento"/>
+					<qry:attribute value="#PARAM:@d_indic_activo" name="d_indic_activo"/>
+					<qry:attribute value="$r/@d_tipo_tray" name="d_tipo_tray"/>
+					<qry:attribute value="$r/@c_categoria" name="c_tray"/>
+					<qry:attribute value="$r/@d_categoria" name="d_tray"/>
+					<qry:attribute value="format_date($r/@f_ingreso,'dd/mm/yyyy')" name="f_ingreso"/>
+					<qry:attribute value="format_date($r/@f_egreso,'dd/mm/yyyy')" name="f_egreso"/>
+					<qry:attribute value="$r/@c_motivo_cambio + ' - ' + $r/@d_motivo_cambio" name="motivo"/>
+					<qry:attribute value="$r/@o_cambio_categoria" name="observ"/>
+				</qry:element>
+			</qry:out>
+		</qry:select>
+		<qry:select name="qry_Tray_CC" doc="PARAM">
+			<qry:xquery>
+				for $r in sql('										
+	SELECT 
+		\'Centro de Costo\' as d_tipo_tray,
+		ORG08_CS_COSTO.c_centro_costo,
+		ORG08_CS_COSTO.d_centro_costo,
+		PER02_CCOSTO_PER.f_ingreso,
+		PER02_CCOSTO_PER.f_egreso,
+		PER05_MOT_CAMBIO.c_motivo_cambio,
+		PER05_MOT_CAMBIO.d_motivo_cambio,
+		PER02_CCOSTO_PER.o_cambio_ccosto
+	FROM 
+		PER02_CCOSTO_PER,
+		ORG08_CS_COSTO,  
+		PER05_MOT_CAMBIO
+	JOIN
+		PER02_CCOSTO_PER.oi_centro_costo INNER ORG08_CS_COSTO.oi_centro_costo,
+		PER02_CCOSTO_PER.oi_motivo_cambio LEFT OUTER PER05_MOT_CAMBIO.oi_motivo_cambio
+	WHERE 
+		PER02_CCOSTO_PER.oi_personal_emp = {#PARAM:@oi_personal_emp}	         
+	ORDER BY
+		f_ingreso ASC
+')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:element name="L">
+					<qry:insert-select name="qry_Pegar" doc-path="$ESTRUCTURASL"/>
+					<qry:attribute value="#PARAM:@oi_estructura" name="oi_estructura"/>
+					<qry:attribute value="#PARAM:@oi_personal_emp" name="oi_personal_emp"/>
+					<qry:attribute value="#PARAM:@d_empresa" name="d_empresa"/>
+					<qry:attribute value="#PARAM:@e_numero_legajo" name="e_numero_legajo"/>
+					<qry:attribute value="#PARAM:@d_ape_y_nom" name="d_ape_y_nom"/>
+					<qry:attribute value="#PARAM:@c_nro_documento" name="c_nro_documento"/>
+					<qry:attribute value="#PARAM:@d_indic_activo" name="d_indic_activo"/>
+					<qry:attribute value="$r/@d_tipo_tray" name="d_tipo_tray"/>
+					<qry:attribute value="$r/@c_centro_costo" name="c_tray"/>
+					<qry:attribute value="$r/@d_centro_costo" name="d_tray"/>
+					<qry:attribute value="format_date($r/@f_ingreso,'dd/mm/yyyy')" name="f_ingreso"/>
+					<qry:attribute value="format_date($r/@f_egreso,'dd/mm/yyyy')" name="f_egreso"/>
+					<qry:attribute value="$r/@c_motivo_cambio + ' - ' + $r/@d_motivo_cambio" name="motivo"/>
+					<qry:attribute value="$r/@o_cambio_ccosto" name="observ"/>
+				</qry:element>
+			</qry:out>
+		</qry:select>
+		<qry:select name="qry_Tray_Puesto" doc="PARAM">
+			<qry:xquery>
+				for $r in sql('										
+	SELECT 
+		\'Puesto\' as d_tipo_tray,
+		ORG04_PUESTOS.c_puesto,
+		ORG04_PUESTOS.d_puesto,
+		PER02_PUESTO_PER.f_ingreso,
+		PER02_PUESTO_PER.f_egreso,
+		PER05_MOT_CAMBIO.c_motivo_cambio,
+		PER05_MOT_CAMBIO.d_motivo_cambio,
+		PER02_PUESTO_PER.o_cambio_puesto
+	FROM 
+		PER02_PUESTO_PER,
+		ORG04_PUESTOS,
+		PER05_MOT_CAMBIO
+	JOIN
+		PER02_PUESTO_PER.oi_puesto INNER ORG04_PUESTOS.oi_puesto,
+		PER02_PUESTO_PER.oi_motivo_cambio LEFT OUTER PER05_MOT_CAMBIO.oi_motivo_cambio
+	WHERE 
+		PER02_PUESTO_PER.oi_personal_emp = {#PARAM:@oi_personal_emp}    
+	ORDER BY
+		f_ingreso ASC 
+')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:element name="L">
+					<qry:insert-select name="qry_Pegar" doc-path="$ESTRUCTURASL"/>
+					<qry:attribute value="#PARAM:@oi_estructura" name="oi_estructura"/>
+					<qry:attribute value="#PARAM:@oi_personal_emp" name="oi_personal_emp"/>
+					<qry:attribute value="#PARAM:@d_empresa" name="d_empresa"/>
+					<qry:attribute value="#PARAM:@e_numero_legajo" name="e_numero_legajo"/>
+					<qry:attribute value="#PARAM:@d_ape_y_nom" name="d_ape_y_nom"/>
+					<qry:attribute value="#PARAM:@c_nro_documento" name="c_nro_documento"/>
+					<qry:attribute value="#PARAM:@d_indic_activo" name="d_indic_activo"/>
+					<qry:attribute value="$r/@d_tipo_tray" name="d_tipo_tray"/>
+					<qry:attribute value="$r/@c_puesto" name="c_tray"/>
+					<qry:attribute value="$r/@d_puesto" name="d_tray"/>
+					<qry:attribute value="format_date($r/@f_ingreso,'dd/mm/yyyy')" name="f_ingreso"/>
+					<qry:attribute value="format_date($r/@f_egreso,'dd/mm/yyyy')" name="f_egreso"/>
+					<qry:attribute value="$r/@c_motivo_cambio + ' - ' + $r/@d_motivo_cambio" name="motivo"/>
+					<qry:attribute value="$r/@o_cambio_puesto" name="observ"/>
+				</qry:element>
+			</qry:out>
+		</qry:select>
+		<qry:select name="qry_Tray_Pos" doc="PARAM">
+			<qry:xquery>
+				for $r in sql('													
+	SELECT
+		\'Posicion\' as d_tipo_tray, 
+		ORG04_POSICIONES.c_posicion,
+		ORG04_POSICIONES.d_posicion,
+		PER02_POSIC_PER.f_ingreso,
+		PER02_POSIC_PER.f_egreso,
+		PER05_MOT_CAMBIO.c_motivo_cambio,
+		PER05_MOT_CAMBIO.d_motivo_cambio,
+		PER02_POSIC_PER.o_cambio_posic
+	FROM 
+		PER02_POSIC_PER,
+		ORG04_POSICIONES,
+		PER05_MOT_CAMBIO
+	JOIN
+		PER02_POSIC_PER.oi_posicion INNER ORG04_POSICIONES.oi_posicion,
+		PER02_POSIC_PER.oi_motivo_cambio LEFT OUTER PER05_MOT_CAMBIO.oi_motivo_cambio
+	WHERE 
+		PER02_POSIC_PER.oi_personal_emp = {#PARAM:@oi_personal_emp}
+	ORDER BY
+		f_ingreso ASC
+')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:element name="L">
+					<qry:insert-select name="qry_Pegar" doc-path="$ESTRUCTURASL"/>
+					<qry:attribute value="#PARAM:@oi_estructura" name="oi_estructura"/>
+					<qry:attribute value="#PARAM:@oi_personal_emp" name="oi_personal_emp"/>
+					<qry:attribute value="#PARAM:@d_empresa" name="d_empresa"/>
+					<qry:attribute value="#PARAM:@e_numero_legajo" name="e_numero_legajo"/>
+					<qry:attribute value="#PARAM:@d_ape_y_nom" name="d_ape_y_nom"/>
+					<qry:attribute value="#PARAM:@c_nro_documento" name="c_nro_documento"/>
+					<qry:attribute value="#PARAM:@d_indic_activo" name="d_indic_activo"/>
+					<qry:attribute value="$r/@d_tipo_tray" name="d_tipo_tray"/>
+					<qry:attribute value="$r/@c_posicion" name="c_tray"/>
+					<qry:attribute value="$r/@d_posicion" name="d_tray"/>
+					<qry:attribute value="format_date($r/@f_ingreso,'dd/mm/yyyy')" name="f_ingreso"/>
+					<qry:attribute value="format_date($r/@f_egreso,'dd/mm/yyyy')" name="f_egreso"/>
+					<qry:attribute value="$r/@c_motivo_cambio + ' - ' + $r/@d_motivo_cambio" name="motivo"/>
+					<qry:attribute value="$r/@o_cambio_posic" name="observ"/>
+				</qry:element>
+			</qry:out>
+		</qry:select>
+		<qry:select name="qry_Tray_TipoPer" doc="PARAM">
+			<qry:xquery>
+				for $r in sql('													
+	SELECT 
+		\'Tipo de Personal\' as d_tipo_tray,
+		PER11_TIPOS_PERS.c_tipo_personal,
+		PER11_TIPOS_PERS.d_tipo_personal,
+		PER02_TIPOSP_PER.f_ingreso,
+		PER02_TIPOSP_PER.f_egreso,
+		PER05_MOT_CAMBIO.c_motivo_cambio,
+		PER05_MOT_CAMBIO.d_motivo_cambio,
+		PER02_TIPOSP_PER.o_cambio_tper
+	FROM 
+		PER02_TIPOSP_PER,
+		PER11_TIPOS_PERS, 
+		PER05_MOT_CAMBIO	
+	JOIN
+		PER02_TIPOSP_PER.oi_tipo_personal INNER PER11_TIPOS_PERS.oi_tipo_personal,
+		PER02_TIPOSP_PER.oi_motivo_cambio LEFT OUTER PER05_MOT_CAMBIO.oi_motivo_cambio
+	WHERE 
+		PER02_TIPOSP_PER.oi_personal_emp = {#PARAM:@oi_personal_emp}                         
+	ORDER BY
+		f_ingreso ASC				
+')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:element name="L">
+					<qry:insert-select name="qry_Pegar" doc-path="$ESTRUCTURASL"/>
+					<qry:attribute value="#PARAM:@oi_estructura" name="oi_estructura"/>
+					<qry:attribute value="#PARAM:@oi_personal_emp" name="oi_personal_emp"/>
+					<qry:attribute value="#PARAM:@d_empresa" name="d_empresa"/>
+					<qry:attribute value="#PARAM:@e_numero_legajo" name="e_numero_legajo"/>
+					<qry:attribute value="#PARAM:@d_ape_y_nom" name="d_ape_y_nom"/>
+					<qry:attribute value="#PARAM:@c_nro_documento" name="c_nro_documento"/>
+					<qry:attribute value="#PARAM:@d_indic_activo" name="d_indic_activo"/>
+					<qry:attribute value="$r/@d_tipo_tray" name="d_tipo_tray"/>
+					<qry:attribute value="$r/@c_tipo_personal" name="c_tray"/>
+					<qry:attribute value="$r/@d_tipo_personal" name="d_tray"/>
+					<qry:attribute value="format_date($r/@f_ingreso,'dd/mm/yyyy')" name="f_ingreso"/>
+					<qry:attribute value="format_date($r/@f_egreso,'dd/mm/yyyy')" name="f_egreso"/>
+					<qry:attribute value="$r/@c_motivo_cambio + ' - ' + $r/@d_motivo_cambio" name="motivo"/>
+					<qry:attribute value="$r/@o_cambio_tper" name="observ"/>
+				</qry:element>
+			</qry:out>
+		</qry:select>
+		<qry:select name="qry_Tray_Ubic" doc="PARAM">
+			<qry:xquery>
+				for $r in sql('													
+	SELECT                
+		\'Ubicacion\' as d_tipo_tray,
+		ORG03_UBICACIONES.c_ubicacion,
+		ORG03_UBICACIONES.d_ubicacion,
+		PER02_UBIC_PER.f_desde,
+		PER02_UBIC_PER.f_hasta, 
+		PER05_MOT_CAMBIO.c_motivo_cambio,
+		PER05_MOT_CAMBIO.d_motivo_cambio,
+		PER02_UBIC_PER.o_cambio_ubic
+	FROM 
+		PER02_UBIC_PER,
+		ORG03_UBICACIONES,
+		PER05_MOT_CAMBIO
+	JOIN 
+		PER02_UBIC_PER.oi_ubicacion INNER ORG03_UBICACIONES.oi_ubicacion,	
+		PER02_UBIC_PER.oi_motivo_cambio LEFT OUTER PER05_MOT_CAMBIO.oi_motivo_cambio
+	WHERE 
+		PER02_UBIC_PER.oi_personal_emp = {#PARAM:@oi_personal_emp}                     
+	ORDER BY
+		f_desde ASC                                     						
+')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:element name="L">
+					<qry:insert-select name="qry_Pegar" doc-path="$ESTRUCTURASL"/>
+					<qry:attribute value="#PARAM:@oi_estructura" name="oi_estructura"/>
+					<qry:attribute value="#PARAM:@oi_personal_emp" name="oi_personal_emp"/>
+					<qry:attribute value="#PARAM:@d_empresa" name="d_empresa"/>
+					<qry:attribute value="#PARAM:@e_numero_legajo" name="e_numero_legajo"/>
+					<qry:attribute value="#PARAM:@d_ape_y_nom" name="d_ape_y_nom"/>
+					<qry:attribute value="#PARAM:@c_nro_documento" name="c_nro_documento"/>
+					<qry:attribute value="#PARAM:@d_indic_activo" name="d_indic_activo"/>
+					<qry:attribute value="$r/@d_tipo_tray" name="d_tipo_tray"/>
+					<qry:attribute value="$r/@c_ubicacion" name="c_tray"/>
+					<qry:attribute value="$r/@d_ubicacion" name="d_tray"/>
+					<qry:attribute value="format_date($r/@f_desde,'dd/mm/yyyy')" name="f_ingreso"/>
+					<qry:attribute value="format_date($r/@f_hasta,'dd/mm/yyyy')" name="f_egreso"/>
+					<qry:attribute value="$r/@c_motivo_cambio + ' - ' + $r/@d_motivo_cambio" name="motivo"/>
+					<qry:attribute value="$r/@o_cambio_ubic" name="observ"/>
+				</qry:element>
+			</qry:out>
+		</qry:select>
+		<qry:select name="qry_Tray_Ingresos" doc="PARAM">
+			<qry:xquery>
+				for $r in sql('													
+	SELECT
+		\'Reingresos\' as d_tipo_tray, 
+		PER02_INGRESOS_PER.f_ingreso,
+		PER02_INGRESOS_PER.f_egreso,
+		PER22_MOT_EG_PER.c_motivo_eg_per,
+		PER22_MOT_EG_PER.d_motivo_eg_per,	
+		PER02_INGRESOS_PER.f_fin_contrato,
+		PER02_INGRESOS_PER.c_alta_afip,
+		PER02_INGRESOS_PER.c_egreso_afip
+	FROM 
+		PER02_INGRESOS_PER,
+		PER22_MOT_EG_PER
+	JOIN
+		PER02_INGRESOS_PER.oi_motivo_eg_per LEFT OUTER PER22_MOT_EG_PER.oi_motivo_eg_per
+	WHERE 
+		PER02_INGRESOS_PER.oi_personal_emp = {#PARAM:@oi_personal_emp} 
+	ORDER BY
+		f_ingreso ASC		                                  						
+')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:element name="L">
+					<qry:insert-select name="qry_Pegar" doc-path="$ESTRUCTURASL"/>
+					<qry:attribute value="#PARAM:@oi_estructura" name="oi_estructura"/>
+					<qry:attribute value="#PARAM:@oi_personal_emp" name="oi_personal_emp"/>
+					<qry:attribute value="#PARAM:@d_empresa" name="d_empresa"/>
+					<qry:attribute value="#PARAM:@e_numero_legajo" name="e_numero_legajo"/>
+					<qry:attribute value="#PARAM:@d_ape_y_nom" name="d_ape_y_nom"/>
+					<qry:attribute value="#PARAM:@c_nro_documento" name="c_nro_documento"/>
+					<qry:attribute value="#PARAM:@d_indic_activo" name="d_indic_activo"/>
+					<qry:attribute value="$r/@d_tipo_tray" name="d_tipo_tray"/>
+					<qry:attribute value="format_date($r/@f_ingreso,'dd/mm/yyyy')" name="f_ingreso"/>
+					<qry:attribute value="format_date($r/@f_egreso,'dd/mm/yyyy')" name="f_egreso"/>
+					<qry:attribute value="$r/@c_motivo_eg_per + ' - ' + $r/@d_motivo_eg_per" name="motivo"/>
+					<qry:attribute value="$r/@f_fin_contrato + ' - ' + $r/@c_alta_afip + ' - ' + $r/@c_egreso_afip" name="observ"/>
+				</qry:element>
+			</qry:out>
+		</qry:select>
+		<qry:select name="qry_Tray_Contrato" doc="PARAM">
+			<qry:xquery>
+				for $r in sql('													
+	SELECT 
+		\'Contrato\' as d_tipo_tray,
+		PER02_CONTR_PER.f_inicio,
+		PER02_CONTR_PER.f_fin,
+		PER02_CONTR_PER.o_contrato_per,
+		PER28_CONTRATOS.c_contrato,
+		PER28_CONTRATOS.d_contrato
+	FROM 
+		PER02_CONTR_PER,
+		PER28_CONTRATOS	 
+	JOIN
+		PER02_CONTR_PER.oi_contrato LEFT OUTER PER28_CONTRATOS.oi_contrato
+	WHERE
+		PER02_CONTR_PER.oi_personal_emp = {#PARAM:@oi_personal_emp}                         
+	ORDER BY
+		f_inicio ASC				
+')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:element name="L">
+					<qry:insert-select name="qry_Pegar" doc-path="$ESTRUCTURASL"/>
+					<qry:attribute value="#PARAM:@oi_estructura" name="oi_estructura"/>
+					<qry:attribute value="#PARAM:@oi_personal_emp" name="oi_personal_emp"/>
+					<qry:attribute value="#PARAM:@d_empresa" name="d_empresa"/>
+					<qry:attribute value="#PARAM:@e_numero_legajo" name="e_numero_legajo"/>
+					<qry:attribute value="#PARAM:@d_ape_y_nom" name="d_ape_y_nom"/>
+					<qry:attribute value="#PARAM:@c_nro_documento" name="c_nro_documento"/>
+					<qry:attribute value="#PARAM:@d_indic_activo" name="d_indic_activo"/>
+					<qry:attribute value="$r/@d_tipo_tray" name="d_tipo_tray"/>
+					<qry:attribute value="format_date($r/@f_inicio,'dd/mm/yyyy')" name="f_ingreso"/>
+					<qry:attribute value="format_date($r/@f_fin,'dd/mm/yyyy')" name="f_egreso"/>
+					<qry:attribute value="$r/@o_contrato_per" name="observ"/>
+					<qry:attribute value="$r/@c_contrato" name="c_tray"/>
+					<qry:attribute value="$r/@d_contrato" name="d_tray"/>
+				</qry:element>
+			</qry:out>
+		</qry:select>
+		<qry:select name="qry_Tray_Remuneracion" doc="PARAM">
+			<qry:xquery>
+				for $r in sql('													
+	SELECT 
+		\'Remuneraci&#243;n\' as d_tipo_tray,
+		PER02_REMUN_PER.f_desde,
+		PER02_REMUN_PER.f_hasta,
+		PER05_MOT_CAMBIO.c_motivo_cambio,
+		PER05_MOT_CAMBIO.d_motivo_cambio,
+		PER02_REMUN_PER.o_remun_per,
+		PER02_REMUN_PER.n_remun_per
+	FROM 
+		PER02_REMUN_PER,
+		PER05_MOT_CAMBIO	
+	JOIN	
+	    PER02_REMUN_PER.oi_motivo_cambio LEFT OUTER  PER05_MOT_CAMBIO.oi_motivo_cambio
+	WHERE
+		PER02_REMUN_PER.oi_personal_emp = {#PARAM:@oi_personal_emp}                         
+	ORDER BY
+		f_desde ASC				
+')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:element name="L">
+					<qry:insert-select name="qry_Pegar" doc-path="$ESTRUCTURASL"/>
+					<qry:attribute value="#PARAM:@oi_estructura" name="oi_estructura"/>
+					<qry:attribute value="#PARAM:@oi_personal_emp" name="oi_personal_emp"/>
+					<qry:attribute value="#PARAM:@d_empresa" name="d_empresa"/>
+					<qry:attribute value="#PARAM:@e_numero_legajo" name="e_numero_legajo"/>
+					<qry:attribute value="#PARAM:@d_ape_y_nom" name="d_ape_y_nom"/>
+					<qry:attribute value="#PARAM:@c_nro_documento" name="c_nro_documento"/>
+					<qry:attribute value="#PARAM:@d_indic_activo" name="d_indic_activo"/>
+					<qry:attribute value="$r/@d_tipo_tray" name="d_tipo_tray"/>
+					<qry:attribute value="'Remuneraci&#243;n'" name="c_tray"/>
+					<qry:attribute value="FORMAT_NUMBER($r/@n_remun_per, 0, 2, ',', '', '')" name="d_tray"/>
+					<qry:attribute value="format_date($r/@f_desde,'dd/mm/yyyy')" name="f_ingreso"/>
+					<qry:attribute value="format_date($r/@f_hasta,'dd/mm/yyyy')" name="f_egreso"/>
+					<qry:attribute value="$r/@c_motivo_cambio + ' - ' + $r/@d_motivo_cambio" name="motivo"/>
+					<qry:attribute value="$r/@o_remun_per" name="observ"/>
+				</qry:element>
+			</qry:out>
+		</qry:select>
+		<qry:select name="qry_Tray_Calendario" doc="PARAM">
+			<qry:xquery>
+				for $r in sql('													
+	SELECT 
+		\'Calendario\' as d_tipo_tray,
+		PER02_CALENDARIO_PER.f_desde,
+		PER02_CALENDARIO_PER.f_hasta,
+		PER05_MOT_CAMBIO.c_motivo_cambio,
+		PER05_MOT_CAMBIO.d_motivo_cambio,
+		PER02_CALENDARIO_PER.o_cambio_calend,
+		ORG27_CAL_FERIADOS.c_calendario,
+		ORG27_CAL_FERIADOS.d_calendario
+	FROM 
+		PER02_CALENDARIO_PER,
+		PER05_MOT_CAMBIO,
+		ORG27_CAL_FERIADOS	
+	JOIN	
+	    PER02_CALENDARIO_PER.oi_motivo_cambio LEFT OUTER  PER05_MOT_CAMBIO.oi_motivo_cambio,
+	   PER02_CALENDARIO_PER.oi_calendario LEFT OUTER ORG27_CAL_FERIADOS.oi_calendario
+	WHERE
+		PER02_CALENDARIO_PER.oi_personal_emp = {#PARAM:@oi_personal_emp}                         
+	ORDER BY
+		f_desde ASC				
+')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:element name="L">
+					<qry:insert-select name="qry_Pegar" doc-path="$ESTRUCTURASL"/>
+					<qry:attribute value="#PARAM:@oi_estructura" name="oi_estructura"/>
+					<qry:attribute value="#PARAM:@oi_personal_emp" name="oi_personal_emp"/>
+					<qry:attribute value="#PARAM:@d_empresa" name="d_empresa"/>
+					<qry:attribute value="#PARAM:@e_numero_legajo" name="e_numero_legajo"/>
+					<qry:attribute value="#PARAM:@d_ape_y_nom" name="d_ape_y_nom"/>
+					<qry:attribute value="#PARAM:@c_nro_documento" name="c_nro_documento"/>
+					<qry:attribute value="#PARAM:@d_indic_activo" name="d_indic_activo"/>
+					<qry:attribute value="$r/@d_tipo_tray" name="d_tipo_tray"/>
+					<qry:attribute value="format_date($r/@f_desde,'dd/mm/yyyy')" name="f_ingreso"/>
+					<qry:attribute value="format_date($r/@f_hasta,'dd/mm/yyyy')" name="f_egreso"/>
+					<qry:attribute value="$r/@c_motivo_cambio + ' - ' + $r/@d_motivo_cambio" name="motivo"/>
+					<qry:attribute value="$r/@o_cambio_calend" name="observ"/>
+					<qry:attribute value="$r/@c_calendario" name="c_tray"/>
+					<qry:attribute value="$r/@d_calendario" name="d_tray"/>
+				</qry:element>
+			</qry:out>
+		</qry:select>
+		<qry:select name="qry_Tray_Equipo_Movil" doc="PARAM">
+			<qry:xquery>
+				for $r in sql('													
+	SELECT 
+		\'Equipo M&#243;vil\' as d_tipo_tray,
+		PER02_EQUIPO_PER.f_ingreso,
+		PER02_EQUIPO_PER.f_egreso,
+		PER05_MOT_CAMBIO.c_motivo_cambio,
+		PER05_MOT_CAMBIO.d_motivo_cambio,
+		PER02_EQUIPO_PER.o_equipo_per,
+		PER34_EQUIPOS_MOV.c_equipo_mov,
+		PER34_EQUIPOS_MOV.d_equipo_mov
+	FROM 
+		PER02_EQUIPO_PER,
+		PER05_MOT_CAMBIO,
+		PER34_EQUIPOS_MOV	
+	JOIN	
+	    PER02_EQUIPO_PER.oi_motivo_cambio LEFT OUTER  PER05_MOT_CAMBIO.oi_motivo_cambio,
+	   	PER02_EQUIPO_PER.oi_equipo_mov LEFT OUTER  PER34_EQUIPOS_MOV.oi_equipo_mov
+	WHERE
+		PER02_EQUIPO_PER.oi_personal_emp = {#PARAM:@oi_personal_emp}                         
+	ORDER BY
+		f_ingreso ASC				
+')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:element name="L">
+					<qry:insert-select name="qry_Pegar" doc-path="$ESTRUCTURASL"/>
+					<qry:attribute value="#PARAM:@oi_estructura" name="oi_estructura"/>
+					<qry:attribute value="#PARAM:@oi_personal_emp" name="oi_personal_emp"/>
+					<qry:attribute value="#PARAM:@d_empresa" name="d_empresa"/>
+					<qry:attribute value="#PARAM:@e_numero_legajo" name="e_numero_legajo"/>
+					<qry:attribute value="#PARAM:@d_ape_y_nom" name="d_ape_y_nom"/>
+					<qry:attribute value="#PARAM:@c_nro_documento" name="c_nro_documento"/>
+					<qry:attribute value="#PARAM:@d_indic_activo" name="d_indic_activo"/>
+					<qry:attribute value="$r/@d_tipo_tray" name="d_tipo_tray"/>
+					<qry:attribute value="format_date($r/@f_ingreso,'dd/mm/yyyy')" name="f_ingreso"/>
+					<qry:attribute value="format_date($r/@f_egreso,'dd/mm/yyyy')" name="f_egreso"/>
+					<qry:attribute value="$r/@c_motivo_cambio + ' - ' + $r/@d_motivo_cambio" name="motivo"/>
+					<qry:attribute value="$r/@o_equipo_per" name="observ"/>
+					<qry:attribute value="$r/@c_equipo_mov" name="c_tray"/>
+					<qry:attribute value="$r/@d_equipo_mov" name="d_tray"/>
+				</qry:element>
+			</qry:out>
+		</qry:select>
+		<qry:select name="qry_Tray_Cargos" doc="PARAM">
+			<qry:xquery>
+				for $r in sql('													
+	SELECT 
+		\'Cargos\' as d_tipo_tray,
+		PER02_CARGOS.f_ingreso,
+		PER02_CARGOS.f_egreso,
+		PER02_CARGOS.o_cargo,
+		ORG18_CATEGORIAS.c_categoria,
+		ORG18_CATEGORIAS.d_categoria
+	FROM 
+		PER02_CARGOS,
+		ORG18_CATEGORIAS
+	JOIN
+	 	PER02_CARGOS.oi_categoria LEFT OUTER ORG18_CATEGORIAS.oi_categoria
+	WHERE
+		PER02_CARGOS.oi_personal_emp = {#PARAM:@oi_personal_emp}                         
+	ORDER BY
+		f_ingreso ASC				
+')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:element name="L">
+					<qry:insert-select name="qry_Pegar" doc-path="$ESTRUCTURASL"/>
+					<qry:attribute value="#PARAM:@oi_estructura" name="oi_estructura"/>
+					<qry:attribute value="#PARAM:@oi_personal_emp" name="oi_personal_emp"/>
+					<qry:attribute value="#PARAM:@d_empresa" name="d_empresa"/>
+					<qry:attribute value="#PARAM:@e_numero_legajo" name="e_numero_legajo"/>
+					<qry:attribute value="#PARAM:@d_ape_y_nom" name="d_ape_y_nom"/>
+					<qry:attribute value="#PARAM:@c_nro_documento" name="c_nro_documento"/>
+					<qry:attribute value="#PARAM:@d_indic_activo" name="d_indic_activo"/>
+					<qry:attribute value="$r/@d_tipo_tray" name="d_tipo_tray"/>
+					<qry:attribute value="format_date($r/@f_ingreso,'dd/mm/yyyy')" name="f_ingreso"/>
+					<qry:attribute value="format_date($r/@f_egreso,'dd/mm/yyyy')" name="f_egreso"/>
+					<qry:attribute value="$r/@o_cargo" name="observ"/>
+					<qry:attribute value="$r/@c_categoria" name="c_tray"/>
+					<qry:attribute value="$r/@d_categoria" name="d_tray"/>
+				</qry:element>
+			</qry:out>
+		</qry:select>
+		<qry:select doc="PARAM" name="qry_Pegar">
+			<qry:out>
+				<qry:switch test="#PARAM:@nivel">
+					<qry:case value="1">
+						<qry:attribute value="$PARAM/@desc1" name="desc1"/>
+					</qry:case>
+					<qry:case value="2">
+						<qry:attribute value="$PARAM/@desc1" name="desc1"/>
+						<qry:attribute value="$PARAM/@desc2" name="desc2"/>
+					</qry:case>
+					<qry:case value="3">
+						<qry:attribute value="$PARAM/@desc1" name="desc1"/>
+						<qry:attribute value="$PARAM/@desc2" name="desc2"/>
+						<qry:attribute value="$PARAM/@desc3" name="desc3"/>
+					</qry:case>
+					<qry:case value="4">
+						<qry:attribute value="$PARAM/@desc1" name="desc1"/>
+						<qry:attribute value="$PARAM/@desc2" name="desc2"/>
+						<qry:attribute value="$PARAM/@desc3" name="desc3"/>
+						<qry:attribute value="$PARAM/@desc4" name="desc4"/>
+					</qry:case>
+					<qry:case value="5">
+						<qry:attribute value="$PARAM/@desc1" name="desc1"/>
+						<qry:attribute value="$PARAM/@desc2" name="desc2"/>
+						<qry:attribute value="$PARAM/@desc3" name="desc3"/>
+						<qry:attribute value="$PARAM/@desc4" name="desc4"/>
+						<qry:attribute value="$PARAM/@desc5" name="desc5"/>
+					</qry:case>
+					<qry:case value="6">
+						<qry:attribute value="$PARAM/@desc1" name="desc1"/>
+						<qry:attribute value="$PARAM/@desc2" name="desc2"/>
+						<qry:attribute value="$PARAM/@desc3" name="desc3"/>
+						<qry:attribute value="$PARAM/@desc4" name="desc4"/>
+						<qry:attribute value="$PARAM/@desc5" name="desc5"/>
+						<qry:attribute value="$PARAM/@desc6" name="desc6"/>
+					</qry:case>
+					<qry:case value="7">
+						<qry:attribute value="$PARAM/@desc1" name="desc1"/>
+						<qry:attribute value="$PARAM/@desc2" name="desc2"/>
+						<qry:attribute value="$PARAM/@desc3" name="desc3"/>
+						<qry:attribute value="$PARAM/@desc4" name="desc4"/>
+						<qry:attribute value="$PARAM/@desc5" name="desc5"/>
+						<qry:attribute value="$PARAM/@desc6" name="desc6"/>
+						<qry:attribute value="$PARAM/@desc7" name="desc7"/>
+					</qry:case>
+					<qry:case value="8">
+						<qry:attribute value="$PARAM/@desc1" name="desc1"/>
+						<qry:attribute value="$PARAM/@desc2" name="desc2"/>
+						<qry:attribute value="$PARAM/@desc3" name="desc3"/>
+						<qry:attribute value="$PARAM/@desc4" name="desc4"/>
+						<qry:attribute value="$PARAM/@desc5" name="desc5"/>
+						<qry:attribute value="$PARAM/@desc6" name="desc6"/>
+						<qry:attribute value="$PARAM/@desc7" name="desc7"/>
+						<qry:attribute value="$PARAM/@desc8" name="desc8"/>
+					</qry:case>
+					<qry:case value="9">
+						<qry:attribute value="$PARAM/@desc1" name="desc1"/>
+						<qry:attribute value="$PARAM/@desc2" name="desc2"/>
+						<qry:attribute value="$PARAM/@desc3" name="desc3"/>
+						<qry:attribute value="$PARAM/@desc4" name="desc4"/>
+						<qry:attribute value="$PARAM/@desc5" name="desc5"/>
+						<qry:attribute value="$PARAM/@desc6" name="desc6"/>
+						<qry:attribute value="$PARAM/@desc7" name="desc7"/>
+						<qry:attribute value="$PARAM/@desc8" name="desc8"/>
+						<qry:attribute value="$PARAM/@desc9" name="desc9"/>
+					</qry:case>
+					<qry:case value="10">
+						<qry:attribute value="$PARAM/@desc1" name="desc1"/>
+						<qry:attribute value="$PARAM/@desc2" name="desc2"/>
+						<qry:attribute value="$PARAM/@desc3" name="desc3"/>
+						<qry:attribute value="$PARAM/@desc4" name="desc4"/>
+						<qry:attribute value="$PARAM/@desc5" name="desc5"/>
+						<qry:attribute value="$PARAM/@desc6" name="desc6"/>
+						<qry:attribute value="$PARAM/@desc7" name="desc7"/>
+						<qry:attribute value="$PARAM/@desc8" name="desc8"/>
+						<qry:attribute value="$PARAM/@desc9" name="desc9"/>
+						<qry:attribute value="$PARAM/@desc10" name="desc10"/>
+					</qry:case>
+					<qry:case value="11">
+						<qry:attribute value="$PARAM/@desc1" name="desc1"/>
+						<qry:attribute value="$PARAM/@desc2" name="desc2"/>
+						<qry:attribute value="$PARAM/@desc3" name="desc3"/>
+						<qry:attribute value="$PARAM/@desc4" name="desc4"/>
+						<qry:attribute value="$PARAM/@desc5" name="desc5"/>
+						<qry:attribute value="$PARAM/@desc6" name="desc6"/>
+						<qry:attribute value="$PARAM/@desc7" name="desc7"/>
+						<qry:attribute value="$PARAM/@desc8" name="desc8"/>
+						<qry:attribute value="$PARAM/@desc9" name="desc9"/>
+						<qry:attribute value="$PARAM/@desc10" name="desc10"/>
+						<qry:attribute value="$PARAM/@desc11" name="desc11"/>
+					</qry:case>
+					<qry:case value="12">
+						<qry:attribute value="$PARAM/@desc1" name="desc1"/>
+						<qry:attribute value="$PARAM/@desc2" name="desc2"/>
+						<qry:attribute value="$PARAM/@desc3" name="desc3"/>
+						<qry:attribute value="$PARAM/@desc4" name="desc4"/>
+						<qry:attribute value="$PARAM/@desc5" name="desc5"/>
+						<qry:attribute value="$PARAM/@desc6" name="desc6"/>
+						<qry:attribute value="$PARAM/@desc7" name="desc7"/>
+						<qry:attribute value="$PARAM/@desc8" name="desc8"/>
+						<qry:attribute value="$PARAM/@desc9" name="desc9"/>
+						<qry:attribute value="$PARAM/@desc10" name="desc10"/>
+						<qry:attribute value="$PARAM/@desc11" name="desc11"/>
+						<qry:attribute value="$PARAM/@desc12" name="desc12"/>
+					</qry:case>
+					<qry:case value="13">
+						<qry:attribute value="$PARAM/@desc1" name="desc1"/>
+						<qry:attribute value="$PARAM/@desc2" name="desc2"/>
+						<qry:attribute value="$PARAM/@desc3" name="desc3"/>
+						<qry:attribute value="$PARAM/@desc4" name="desc4"/>
+						<qry:attribute value="$PARAM/@desc5" name="desc5"/>
+						<qry:attribute value="$PARAM/@desc6" name="desc6"/>
+						<qry:attribute value="$PARAM/@desc7" name="desc7"/>
+						<qry:attribute value="$PARAM/@desc8" name="desc8"/>
+						<qry:attribute value="$PARAM/@desc9" name="desc9"/>
+						<qry:attribute value="$PARAM/@desc10" name="desc10"/>
+						<qry:attribute value="$PARAM/@desc11" name="desc11"/>
+						<qry:attribute value="$PARAM/@desc12" name="desc12"/>
+						<qry:attribute value="$PARAM/@desc13" name="desc13"/>
+					</qry:case>
+					<qry:case value="14">
+						<qry:attribute value="$PARAM/@desc1" name="desc1"/>
+						<qry:attribute value="$PARAM/@desc2" name="desc2"/>
+						<qry:attribute value="$PARAM/@desc3" name="desc3"/>
+						<qry:attribute value="$PARAM/@desc4" name="desc4"/>
+						<qry:attribute value="$PARAM/@desc5" name="desc5"/>
+						<qry:attribute value="$PARAM/@desc6" name="desc6"/>
+						<qry:attribute value="$PARAM/@desc7" name="desc7"/>
+						<qry:attribute value="$PARAM/@desc8" name="desc8"/>
+						<qry:attribute value="$PARAM/@desc9" name="desc9"/>
+						<qry:attribute value="$PARAM/@desc10" name="desc10"/>
+						<qry:attribute value="$PARAM/@desc11" name="desc11"/>
+						<qry:attribute value="$PARAM/@desc12" name="desc12"/>
+						<qry:attribute value="$PARAM/@desc13" name="desc13"/>
+						<qry:attribute value="$PARAM/@desc14" name="desc14"/>
+					</qry:case>
+					<qry:case value="15">
+						<qry:attribute value="$PARAM/@desc1" name="desc1"/>
+						<qry:attribute value="$PARAM/@desc2" name="desc2"/>
+						<qry:attribute value="$PARAM/@desc3" name="desc3"/>
+						<qry:attribute value="$PARAM/@desc4" name="desc4"/>
+						<qry:attribute value="$PARAM/@desc5" name="desc5"/>
+						<qry:attribute value="$PARAM/@desc6" name="desc6"/>
+						<qry:attribute value="$PARAM/@desc7" name="desc7"/>
+						<qry:attribute value="$PARAM/@desc8" name="desc8"/>
+						<qry:attribute value="$PARAM/@desc9" name="desc9"/>
+						<qry:attribute value="$PARAM/@desc10" name="desc10"/>
+						<qry:attribute value="$PARAM/@desc11" name="desc11"/>
+						<qry:attribute value="$PARAM/@desc12" name="desc12"/>
+						<qry:attribute value="$PARAM/@desc13" name="desc13"/>
+						<qry:attribute value="$PARAM/@desc14" name="desc14"/>
+						<qry:attribute value="$PARAM/@desc15" name="desc15"/>
+					</qry:case>
+					<qry:case value="16">
+						<qry:attribute value="$PARAM/@desc1" name="desc1"/>
+						<qry:attribute value="$PARAM/@desc2" name="desc2"/>
+						<qry:attribute value="$PARAM/@desc3" name="desc3"/>
+						<qry:attribute value="$PARAM/@desc4" name="desc4"/>
+						<qry:attribute value="$PARAM/@desc5" name="desc5"/>
+						<qry:attribute value="$PARAM/@desc6" name="desc6"/>
+						<qry:attribute value="$PARAM/@desc7" name="desc7"/>
+						<qry:attribute value="$PARAM/@desc8" name="desc8"/>
+						<qry:attribute value="$PARAM/@desc9" name="desc9"/>
+						<qry:attribute value="$PARAM/@desc10" name="desc10"/>
+						<qry:attribute value="$PARAM/@desc11" name="desc11"/>
+						<qry:attribute value="$PARAM/@desc12" name="desc12"/>
+						<qry:attribute value="$PARAM/@desc13" name="desc13"/>
+						<qry:attribute value="$PARAM/@desc14" name="desc14"/>
+						<qry:attribute value="$PARAM/@desc15" name="desc15"/>
+						<qry:attribute value="$PARAM/@desc16" name="desc16"/>
+					</qry:case>
+					<qry:case value="17">
+						<qry:attribute value="$PARAM/@desc1" name="desc1"/>
+						<qry:attribute value="$PARAM/@desc2" name="desc2"/>
+						<qry:attribute value="$PARAM/@desc3" name="desc3"/>
+						<qry:attribute value="$PARAM/@desc4" name="desc4"/>
+						<qry:attribute value="$PARAM/@desc5" name="desc5"/>
+						<qry:attribute value="$PARAM/@desc6" name="desc6"/>
+						<qry:attribute value="$PARAM/@desc7" name="desc7"/>
+						<qry:attribute value="$PARAM/@desc8" name="desc8"/>
+						<qry:attribute value="$PARAM/@desc9" name="desc9"/>
+						<qry:attribute value="$PARAM/@desc10" name="desc10"/>
+						<qry:attribute value="$PARAM/@desc11" name="desc11"/>
+						<qry:attribute value="$PARAM/@desc12" name="desc12"/>
+						<qry:attribute value="$PARAM/@desc13" name="desc13"/>
+						<qry:attribute value="$PARAM/@desc14" name="desc14"/>
+						<qry:attribute value="$PARAM/@desc15" name="desc15"/>
+						<qry:attribute value="$PARAM/@desc16" name="desc16"/>
+						<qry:attribute value="$PARAM/@desc17" name="desc17"/>
+					</qry:case>
+					<qry:case value="18">
+						<qry:attribute value="$PARAM/@desc1" name="desc1"/>
+						<qry:attribute value="$PARAM/@desc2" name="desc2"/>
+						<qry:attribute value="$PARAM/@desc3" name="desc3"/>
+						<qry:attribute value="$PARAM/@desc4" name="desc4"/>
+						<qry:attribute value="$PARAM/@desc5" name="desc5"/>
+						<qry:attribute value="$PARAM/@desc6" name="desc6"/>
+						<qry:attribute value="$PARAM/@desc7" name="desc7"/>
+						<qry:attribute value="$PARAM/@desc8" name="desc8"/>
+						<qry:attribute value="$PARAM/@desc9" name="desc9"/>
+						<qry:attribute value="$PARAM/@desc10" name="desc10"/>
+						<qry:attribute value="$PARAM/@desc11" name="desc11"/>
+						<qry:attribute value="$PARAM/@desc12" name="desc12"/>
+						<qry:attribute value="$PARAM/@desc13" name="desc13"/>
+						<qry:attribute value="$PARAM/@desc14" name="desc14"/>
+						<qry:attribute value="$PARAM/@desc15" name="desc15"/>
+						<qry:attribute value="$PARAM/@desc16" name="desc16"/>
+						<qry:attribute value="$PARAM/@desc17" name="desc17"/>
+						<qry:attribute value="$PARAM/@desc18" name="desc18"/>
+					</qry:case>
+					<qry:case value="19">
+						<qry:attribute value="$PARAM/@desc1" name="desc1"/>
+						<qry:attribute value="$PARAM/@desc2" name="desc2"/>
+						<qry:attribute value="$PARAM/@desc3" name="desc3"/>
+						<qry:attribute value="$PARAM/@desc4" name="desc4"/>
+						<qry:attribute value="$PARAM/@desc5" name="desc5"/>
+						<qry:attribute value="$PARAM/@desc6" name="desc6"/>
+						<qry:attribute value="$PARAM/@desc7" name="desc7"/>
+						<qry:attribute value="$PARAM/@desc8" name="desc8"/>
+						<qry:attribute value="$PARAM/@desc9" name="desc9"/>
+						<qry:attribute value="$PARAM/@desc10" name="desc10"/>
+						<qry:attribute value="$PARAM/@desc11" name="desc11"/>
+						<qry:attribute value="$PARAM/@desc12" name="desc12"/>
+						<qry:attribute value="$PARAM/@desc13" name="desc13"/>
+						<qry:attribute value="$PARAM/@desc14" name="desc14"/>
+						<qry:attribute value="$PARAM/@desc15" name="desc15"/>
+						<qry:attribute value="$PARAM/@desc16" name="desc16"/>
+						<qry:attribute value="$PARAM/@desc17" name="desc17"/>
+						<qry:attribute value="$PARAM/@desc18" name="desc18"/>
+						<qry:attribute value="$PARAM/@desc19" name="desc19"/>
+					</qry:case>
+					<qry:case value="20">
+						<qry:attribute value="$PARAM/@desc1" name="desc1"/>
+						<qry:attribute value="$PARAM/@desc2" name="desc2"/>
+						<qry:attribute value="$PARAM/@desc3" name="desc3"/>
+						<qry:attribute value="$PARAM/@desc4" name="desc4"/>
+						<qry:attribute value="$PARAM/@desc5" name="desc5"/>
+						<qry:attribute value="$PARAM/@desc6" name="desc6"/>
+						<qry:attribute value="$PARAM/@desc7" name="desc7"/>
+						<qry:attribute value="$PARAM/@desc8" name="desc8"/>
+						<qry:attribute value="$PARAM/@desc9" name="desc9"/>
+						<qry:attribute value="$PARAM/@desc10" name="desc10"/>
+						<qry:attribute value="$PARAM/@desc11" name="desc11"/>
+						<qry:attribute value="$PARAM/@desc12" name="desc12"/>
+						<qry:attribute value="$PARAM/@desc13" name="desc13"/>
+						<qry:attribute value="$PARAM/@desc14" name="desc14"/>
+						<qry:attribute value="$PARAM/@desc15" name="desc15"/>
+						<qry:attribute value="$PARAM/@desc16" name="desc16"/>
+						<qry:attribute value="$PARAM/@desc17" name="desc17"/>
+						<qry:attribute value="$PARAM/@desc18" name="desc18"/>
+						<qry:attribute value="$PARAM/@desc19" name="desc19"/>
+						<qry:attribute value="$PARAM/@desc20" name="desc20"/>
+					</qry:case>
+				</qry:switch>
+			</qry:out>
+		</qry:select>
+	</html:query>
+</html:html>

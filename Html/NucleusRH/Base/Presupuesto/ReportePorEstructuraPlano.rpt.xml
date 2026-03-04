@@ -1,0 +1,329 @@
+<html:html xmlns:html="nomad_engine.html" xmlns:qry="nomad_engine.qry" name="NucleusRH.Base.Presupuesto.ReportePorEstructura.rpt" extends="Nomad.Base.BaseReport.rpt" doc="source">
+	<html:for-each declare="&lt;DATA oi_presupuesto=&quot;1&quot; oi_escenario=&quot;1&quot; oi_est_reporte=&quot;1&quot; oi_def_reporte=&quot;1&quot;/&gt;">
+		<qry:main doc="SOURCE">
+			<qry:append-doc name="PARAMIN" doc-path="#SOURCE:DATA"/>
+			<REPORT>
+				<qry:insert-select name="DEFqry_reporte"/>
+				<qry:attribute name="date" value="format_date(Now(),'dd/mm/yyyy HH:MM')"/>
+				<GROUPS>
+					<GROUP tag="ITEM" type="table">
+						<COLS>
+							<COL name="d_nodo_1" label="Nivel 1"/>
+							<COL name="d_nodo_2" label="Nivel 2"/>
+							<COL name="d_nodo_3" label="Nivel 3"/>
+							<COL name="d_clase_item" label="Clase" nowrap="1"/>
+							<COL name="d_tipo_item" label="Tipo" nowrap="1"/>
+							<COL name="d_item" label="Item" nowrap="1"/>
+							<qry:insert-select name="DEFqry_detalle"/>
+							<COL name="totalItem" label="Total" type="num"/>
+						</COLS>
+					</GROUP>
+				</GROUPS>
+				<qry:element name="NIVELES">
+					<qry:append-doc name="NIVELES" doc-path="."/>
+					<qry:insert-select name="qry_ultimo_nivel" doc-path="#SOURCE:DATA"/>
+				</qry:element>
+				<qry:insert-select name="qry_split" doc-path="#SOURCE:DATA"/>
+			</REPORT>
+		</qry:main>
+		<qry:select name="qry_ultimo_nivel" doc="SOURCE">
+			<qry:xquery>
+				for $r in SQL('
+SELECT          
+DCO.c_ultimo_nivel
+FROM
+PRE05_DET_CONCEPTOS AS DCO, 
+PRE03_DETALLES AS DET, 
+PRE01_PER_FISCAL AS PER,
+PRE05_LEGAJOS AS LEG, 
+PRE11_CONC_ITEMS AS CIT,
+PRE11_GRU_ITEMS AS GRU,
+PRE11_ITEMS AS ITE, 
+PRE11_NIVELES AS NIV,
+PRE18_CLASE_ITEM as CLA,
+PRE19_TIPO_ITEM as TIP,
+PRE06_EST_REPORTE as EST, 
+PRE06_NODOS as NOD1, 
+PRE06_NODOS as NOD2,
+PRE06_NODOS as NOD3 
+JOIN
+DCO.oi_detalle_pres INNER DET.oi_detalle_pres,				
+DET.oi_periodo_fiscal INNER PER.oi_periodo_fiscal,				
+LEG.oi_legajo INNER DCO.oi_legajo,
+CIT.oi_concepto INNER DCO.oi_concepto,				
+LEG.oi_grupo INNER GRU.oi_grupo,
+GRU.oi_item INNER CIT.oi_item, 
+CIT.oi_item INNER ITE.oi_item,
+ITE.oi_nivel INNER NIV.oi_nivel,  
+CLA.oi_clase_item INNER ITE.oi_clase_item,
+TIP.oi_tipo_item INNER ITE.oi_tipo_item,
+EST.oi_nodo INNER NOD1.oi_nodo,
+NOD1.oi_nodo INNER NOD2.oi_nodo_padre,
+NOD2.oi_nodo INNER NOD3.oi_nodo_padre,
+NOD3.c_valor_iden INNER DCO.c_ultimo_nivel
+WHERE 					
+LEG.oi_escenario =  {#SOURCE:@oi_escenario}
+and PER.l_afecto_total = 1
+and NIV.oi_def_reporte = {#SOURCE:@oi_def_reporte}
+and EST.oi_est_reporte = {#SOURCE:@oi_est_reporte}
+GROUP BY
+DCO.c_ultimo_nivel 
+
+')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:element name="NIVEL">
+					<qry:attribute name="c_ultimo_nivel" value="$r/@c_ultimo_nivel"/>
+				</qry:element>
+			</qry:out>
+		</qry:select>
+		<qry:select name="qry_split" doc="SOURCE">
+			<qry:xquery>
+				for $r in split('1;{%= string(#NIVELES:NIVEL/@c_ultimo_nivel) %}')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:call>
+					<FILTRO>
+						<qry:attribute name="oi_def_reporte" value="#SOURCE:@oi_def_reporte"/>
+						<qry:attribute name="oi_est_reporte" value="#SOURCE:@oi_est_reporte"/>
+						<qry:attribute name="oi_escenario" value="#SOURCE:@oi_escenario"/>
+						<qry:attribute value="$r/@value" name="c_ultimos_niveles"/>
+					</FILTRO>
+				</qry:call>
+			</qry:out>
+		</qry:select>
+		<qry:select name="DEFqry_reporte">
+			<qry:xquery>
+				for $r in sql('
+
+SELECT
+PRE.d_presupuesto,
+ESC.e_numero
+FROM 
+PRE12_PRESUPUESTO AS PRE, 
+PRE03_ESCENARIOS AS ESC
+JOIN
+PRE.oi_presupuesto INNER ESC.oi_presupuesto
+WHERE
+ESC.oi_escenario = {#PARAMIN:@oi_escenario}
+
+')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:attribute name="label" value="$r/@d_presupuesto + ' - ' + $r/@e_numero"/>
+			</qry:out>
+		</qry:select>
+		<qry:select name="DEFqry_detalle">
+			<qry:xquery>
+				for $r in sql('
+
+SELECT
+DET.oi_detalle_pres,
+PER.d_periodo_fiscal
+FROM
+PRE03_DETALLES AS DET,
+PRE01_PER_FISCAL AS PER
+JOIN
+DET.oi_periodo_fiscal INNER PER.oi_periodo_fiscal
+WHERE 
+DET.oi_escenario = {#PARAMIN:@oi_escenario}
+AND PER.l_afecto_total = 1
+
+')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:element name="COL">
+					<qry:attribute name="name" value="'detalle' + $r/@oi_detalle_pres"/>
+					<qry:attribute name="label" value="$r/@d_periodo_fiscal"/>
+					<qry:attribute name="type" value="'num'"/>
+				</qry:element>
+			</qry:out>
+		</qry:select>
+	</html:for-each>
+	<html:query declare="&lt;FILTRO c_ultimos_niveles=&quot;0005110N&quot; oi_escenario=&quot;1&quot; oi_est_reporte=&quot;1&quot; oi_def_reporte=&quot;1&quot;/&gt;">
+		<qry:main doc="SOURCE">
+			<qry:element name="DATA">
+				<qry:element name="DETALLES">
+					<qry:attribute name="hts:delete" value="1"/>
+					<qry:append-doc name="DETALLES" doc-path="."/>
+					<qry:insert-select name="qry_todos_detalles" doc-path="#SOURCE:FILTRO"/>
+				</qry:element>
+				<qry:element name="PERIODOS">
+					<qry:attribute name="hts:delete" value="1"/>
+					<qry:append-doc name="PERIODOS" doc-path="."/>
+					<qry:insert-select name="qry_periodos" doc-path="#SOURCE:FILTRO"/>
+				</qry:element>
+				<qry:insert-select name="qry_datos" doc-path="#SOURCE:FILTRO"/>
+			</qry:element>
+		</qry:main>
+		<qry:select name="qry_datos" doc="SOURCE">
+			<qry:xquery>
+				for $r in SQL('
+SELECT          
+max(NOD1.d_nodo) as d_nodo_1,
+max(NOD2.d_nodo) as d_nodo_2,
+max(NOD3.d_nodo) as d_nodo_3,
+max(CLA.d_clase_item) as d_clase_item,
+max(TIP.d_tipo_item) as d_tipo_item,
+max(ITE.d_item) as d_item,  
+SUM(DCO.n_valor_final) AS suma,
+CIT.oi_item,
+DCO.c_ultimo_nivel
+FROM
+PRE05_DET_CONCEPTOS AS DCO, 
+PRE03_DETALLES AS DET, 
+PRE01_PER_FISCAL AS PER,
+PRE05_LEGAJOS AS LEG, 
+PRE11_CONC_ITEMS AS CIT,
+PRE11_GRU_ITEMS AS GRU,
+PRE11_ITEMS AS ITE, 
+PRE11_NIVELES AS NIV,
+PRE18_CLASE_ITEM as CLA,
+PRE19_TIPO_ITEM as TIP,
+PRE06_EST_REPORTE as EST, 
+PRE06_NODOS as NOD1, 
+PRE06_NODOS as NOD2,
+PRE06_NODOS as NOD3 
+JOIN
+DCO.oi_detalle_pres INNER DET.oi_detalle_pres,				
+DET.oi_periodo_fiscal INNER PER.oi_periodo_fiscal,				
+LEG.oi_legajo INNER DCO.oi_legajo,
+CIT.oi_concepto INNER DCO.oi_concepto,				
+LEG.oi_grupo INNER GRU.oi_grupo,
+GRU.oi_item INNER CIT.oi_item, 
+CIT.oi_item INNER ITE.oi_item,
+ITE.oi_nivel INNER NIV.oi_nivel,  
+CLA.oi_clase_item INNER ITE.oi_clase_item,
+TIP.oi_tipo_item INNER ITE.oi_tipo_item,
+EST.oi_nodo INNER NOD1.oi_nodo,
+NOD1.oi_nodo INNER NOD2.oi_nodo_padre,
+NOD2.oi_nodo INNER NOD3.oi_nodo_padre,
+NOD3.c_valor_iden INNER DCO.c_ultimo_nivel
+WHERE 					
+LEG.oi_escenario =  {#SOURCE:@oi_escenario} 
+and PER.l_afecto_total = 1
+and NIV.oi_def_reporte = {#SOURCE:@oi_def_reporte} 
+and EST.oi_est_reporte = {#SOURCE:@oi_est_reporte}
+and DCO.c_ultimo_nivel in (\'{%=#SOURCE:@c_ultimos_niveles%}\')
+GROUP BY
+CIT.oi_item,
+DCO.c_ultimo_nivel 
+order by 
+d_nodo_2 asc,
+d_nodo_3 asc,
+d_clase_item asc,
+d_tipo_item asc,
+d_item asc     
+    
+')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:element name="ITEM">
+					<qry:attribute name="d_nodo_1" value="$r/@d_nodo_1"/>
+					<qry:attribute name="d_nodo_2" value="$r/@d_nodo_2"/>
+					<qry:attribute name="d_nodo_3" value="$r/@d_nodo_3"/>
+					<qry:attribute name="d_clase_item" value="$r/@d_clase_item"/>
+					<qry:attribute name="d_tipo_item" value="$r/@d_tipo_item"/>
+					<qry:attribute name="d_item" value="$r/@d_item"/>
+					<qry:insert-select name="qry_detalle" doc-path="$r"/>
+					<qry:attribute name="totalItem" value="$r/@suma"/>
+					<qry:attribute name="hts:delete" value="iif(@totalItem = 0,'1','0')"/>
+				</qry:element>
+			</qry:out>
+		</qry:select>
+		<qry:select name="qry_detalle" doc="SOURCE">
+			<qry:xquery>
+				for $r in #PERIODOS:PERIODO
+			</qry:xquery>
+			<qry:out>
+				<qry:attribute name-calc="'detalle'+$r/@oi_detalle_pres" value="#DETALLES:DETALLE[@oi_detalle_pres =$r/@oi_detalle_pres and @oi_item = #SOURCE:@oi_item and @c_ultimo_nivel = #SOURCE:@c_ultimo_nivel]/@suma"/>
+			</qry:out>
+		</qry:select>
+		<qry:select name="qry_periodos" doc="SOURCE">
+			<qry:xquery>
+				for $r in SQL('
+
+SELECT
+DET.oi_detalle_pres,
+PER.d_periodo_fiscal
+FROM
+PRE03_DETALLES AS DET,
+PRE01_PER_FISCAL AS PER
+JOIN
+DET.oi_periodo_fiscal INNER PER.oi_periodo_fiscal
+WHERE 
+DET.oi_escenario = {#SOURCE:@oi_escenario}
+AND PER.l_afecto_total = 1
+
+')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:element name="PERIODO">
+					<qry:attribute name="oi_detalle_pres" value="$r/@oi_detalle_pres"/>
+				</qry:element>
+			</qry:out>
+		</qry:select>
+		<qry:select name="qry_todos_detalles" doc="SOURCE">
+			<qry:xquery>
+				for $r in SQL('
+SELECT           
+SUM(DCO.n_valor_final) AS suma,
+DCO.oi_detalle_pres,
+CIT.oi_item,
+DCO.c_ultimo_nivel
+FROM
+PRE05_DET_CONCEPTOS AS DCO, 
+PRE03_DETALLES AS DET, 
+PRE01_PER_FISCAL AS PER,
+PRE05_LEGAJOS AS LEG, 
+PRE11_CONC_ITEMS AS CIT,
+PRE11_GRU_ITEMS AS GRU,
+PRE11_ITEMS AS ITE, 
+PRE11_NIVELES AS NIV,
+PRE18_CLASE_ITEM as CLA,
+PRE19_TIPO_ITEM as TIP,
+PRE06_EST_REPORTE as EST, 
+PRE06_NODOS as NOD1, 
+PRE06_NODOS as NOD2,
+PRE06_NODOS as NOD3 
+JOIN
+DCO.oi_detalle_pres INNER DET.oi_detalle_pres,				
+DET.oi_periodo_fiscal INNER PER.oi_periodo_fiscal,				
+LEG.oi_legajo INNER DCO.oi_legajo,
+CIT.oi_concepto INNER DCO.oi_concepto,				
+LEG.oi_grupo INNER GRU.oi_grupo,
+GRU.oi_item INNER CIT.oi_item, 
+CIT.oi_item INNER ITE.oi_item,
+ITE.oi_nivel INNER NIV.oi_nivel,  
+CLA.oi_clase_item INNER ITE.oi_clase_item,
+TIP.oi_tipo_item INNER ITE.oi_tipo_item,
+EST.oi_nodo INNER NOD1.oi_nodo,
+NOD1.oi_nodo INNER NOD2.oi_nodo_padre,
+NOD2.oi_nodo INNER NOD3.oi_nodo_padre,
+NOD3.c_valor_iden INNER DCO.c_ultimo_nivel
+WHERE 					
+LEG.oi_escenario =  {#SOURCE:@oi_escenario}  
+and PER.l_afecto_total = 1
+and NIV.oi_def_reporte = {#SOURCE:@oi_def_reporte}  
+and EST.oi_est_reporte = {#SOURCE:@oi_est_reporte}
+and DCO.c_ultimo_nivel in (\'{%=#SOURCE:@c_ultimos_niveles%}\')   
+GROUP BY
+DCO.oi_detalle_pres,
+CIT.oi_item,
+DCO.c_ultimo_nivel 
+order by  
+oi_detalle_pres asc
+        	
+')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:element name="DETALLE">
+					<qry:attribute name="suma" value="$r/@suma"/>
+					<qry:attribute name="oi_detalle_pres" value="$r/@oi_detalle_pres"/>
+					<qry:attribute name="oi_item" value="$r/@oi_item"/>
+					<qry:attribute name="c_ultimo_nivel" value="$r/@c_ultimo_nivel"/>
+				</qry:element>
+			</qry:out>
+		</qry:select>
+	</html:query>
+</html:html>

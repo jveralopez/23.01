@@ -1,0 +1,68 @@
+====== Generación de la esperanza personal ======
+
+La generación de la [[wiki:NucleusRH.Base.Tiempos_Trabajados.EsperanzaPer|esperanza personal]] implica ejecutar un proceso que obtiene la esperanza de los horarios asignados a una persona y luego le //aplica// las [[wiki:NucleusRH.Base.Tiempos_Trabajados.Novedades|novedades]], [[wiki:NucleusRH.Base.Tiempos_Trabajados.Licencias|licencias]] y [[wiki:NucleusRH.Base.Tiempos_Trabajados.AutorizacionHoras|autorización de horas]].
+
+===== Descripción técnica =====
+El proceso de generación es una operación compleja y está compuesto por una serie de pasos bien definidos.
+
+Por razones de velocidad, tanto este DDO como el de la [[wiki:NucleusRH.Base.Tiempos_Trabajados.EsperanzaHor|esperanza horaria]] no se graban en la base de datos. Cada vez que se deseé ver la esperanza se deberá llamar a los métodos GetRangeHope y GetRangeHope de la clase **NucleusRH.Base.Tiempos_Trabajados.EsperanzaPer.ESPERANZAPER** descriptos en la siguiente [[wiki:NucleusRH.Base.Tiempos_Trabajados.EsperanzaPer|página]].
+
+==== Recuperación del DDO desde el Caché ====
+
+Los DDO ya generados se guardan en caché para optimizar la velocidad de respuesta. La clave de acceso al caché está conformado por //el número de semana// + //el oi_personal_emp//. En caso de existir se retorna el DDO desde el caché y no se procesa nada.
+
+Si en el caché no se encuetra el DDO solicitado se generará y luego se lo incluirá al caché.
+
+==== Obtención del HASH ====
+El HASH es un código único que se genera a partir de una consulta a la base de datos. Dentro de dicha consulta se incluyen datos que si se modifican pueden cambiar la esperanza generada.
+
+Para generar el HASH de la semana se toma como base el query en el recurso **ESPERANZAPER.Resources.QRY_HASH**. Luego se agrega un **tag** llamado DETALLE_DIARIO en donde se genera un detalle por cada día dentro de la semana indicando el [[wiki:NucleusRH.Base.Organizacion.CalendarioFeriado|calendario]], la [[wiki:NucleusRH.Base.Tiempos_Trabajados.Licencias|licencia]] y el [[wiki:NucleusRH.Base.Tiempos_Trabajados.Horarios|horario]] para ese día. El resultado obtenido es el parámetro de entrada para la generación de la esperanza, ya que toda la información necesaria se encuentra allí.
+
+==== Generación ====
+Se crean cada uno de los días dentro de la semana tal cual como vienen de la esperanza horaria. El objeto día siempre es creado, a lo sumo puede que no tenga DETALLES.
+
+En un principio el detalle se conforma con todas las horas definidas en el horario. Las horas que necesitan autorización se agregan como cualquier tipo de hora, solo que en caso de que no esté autorizada se agrega con el atributo l_RequiereAut en 0.
+
+Luego se //aplican// las particularidades de la persona en el siguiente orden:
+  - Licencias
+  - Horas autorizadas
+  - Novedades
+Es importante recordar el orden porque establece una //jerarquía// de aplicación. Este orden determina que ante dos o más particularidades prevalece la que se aplica en última instancia. Por ejemplo, una hora autorizada puede ser modificada por una novedad, pero nunca se podrá dar lo contrario, es decir, autorizar una hora incluida en una novedad.
+
+  * **Licencias**
+Cuando se aplican las [[wiki:NucleusRH.Base.Tiempos_Trabajados.Licencias|licencias]] se reemplazan las horas de presencia obligatoria por la hora asociada a la licencia. Las horas no obligatorias se eliminan. De esta forma solo se contabilizan como cantidad de horas en licencia la suma de las horas obligatorias.
+
+Ejemplo:\\
+Se le otorga un día de licencia por enfermedad a una persona que tiene 8 horas normales y 2 extras no obligatorias. El resultado es 8 horas de licencia. No seria correcto mostrar 10 horas porque en realidad las 2 horas extras no son obligatorias.
+
+Gráfico con ejemplos de como se aplican las licencias.
+
+{{ wiki:Imagenes/Licencias.JPG }}
+
+  * **Horas autorizadas**
+
+Cuando se aplican las [[wiki:NucleusRH.Base.Tiempos_Trabajados.AutorizacionHoras|horas autorizadas]] se "activan" las horas //autorizables// dentro del rango de la autorización.
+
+Una vez autorizada la hora comienza a tenerse en cuenta en la [[wiki:NucleusRH.Base.Tiempos_Trabajados.VerificarFichadas|verificación de fichadas]] y en el [[wiki:NucleusRH.Base.Tiempos_Trabajados.GenProcesamiento|procesamiento de horas]].
+
+Gráfico con ejemplos de como se aplican las horas autorizadas.
+
+{{wiki:Imagenes/horasAut.JPG}}
+
+  * **Novedades**
+
+El proceso de generación de la esperanza personal actua de diferentes modos según si la [[wiki:NucleusRH.Base.Tiempos_Trabajados.Novedades|novedad]] es de presencia o ausencia.
+
+Cuando se aplica una novedad de presencia se inserta un nuevo "rango" con el tipo de hora indicado.
+
+Gráfico con ejemplos de como se aplican las novedades de presencia.
+
+{{ wiki:Imagenes/NovPresencia.JPG }}
+
+Cuando se aplica una novedad de ausencia sólo se reemplazan las horas de presencia obligatoria por el tipo de hora indicado, tal cual se hace con las licencias.
+
+Gráfico con ejemplos de como se aplican las novedades de presencia.
+
+{{ wiki:Imagenes/NovAusencia.JPG }}
+
+

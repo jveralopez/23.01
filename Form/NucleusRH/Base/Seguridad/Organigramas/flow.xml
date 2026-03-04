@@ -1,0 +1,179 @@
+<flow:flow xmlns:flow="nomad_engine.flow" xmlns:doc="nomad_engine.doc" xmlns:qry="nomad_engine.qry" default_action="policy" extends="NucleusRH.Base.Seguridad.Organigramas.autoflow" name="NucleusRH.Base.Seguridad.Organigramas">
+	<flow:declare>
+		<doc:define name="PERSONAS">
+			<DATO>
+				<PERSONAS/>
+			</DATO>
+		</doc:define>
+		<doc:define name="CHECKS">
+			<ROWS/>
+		</doc:define>
+		<qry:define name="QRY_ORG">
+			<qry:main doc="SOURCE">
+				<qry:element name="ROWS">
+					<qry:insert-select name="qry_org" doc-path=""/>
+				</qry:element>
+			</qry:main>
+			<qry:select name="qry_org" doc="PARAM">
+				<qry:xquery>
+					for $r in SQL('
+			SELECT
+				SEG01_ORGANIGRAMAS.l_seguridad
+			FROM
+				SEG01_ORGANIGRAMAS
+			WHERE
+				SEG01_ORGANIGRAMAS.l_automatica = 1
+		')
+		/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:attribute name="l_seguridad" value="$r/@l_seguridad"/>
+				</qry:out>
+			</qry:select>
+		</qry:define>
+		<doc:define name="DOC">
+			<ROWS/>
+		</doc:define>
+		<doc:define name="CHECKSG">
+			<ROWS/>
+		</doc:define>
+		<doc:define name="GRUPOS">
+			<ROWS/>
+		</doc:define>
+		<qry:define name="LIST">
+			<qry:main maxdeep="2">
+				<qry:element name="ROWS">
+					<qry:insert-select name="sql1"/>
+				</qry:element>
+			</qry:main>
+			<qry:select doc="PARAM" name="sql1">
+				<qry:xquery>
+					for $r in sql('SELECT t0.oi_grupo as oi_grupo, t0.c_grupo as c_grupo, t0.d_grupo as d_grupo, t0.oi_grupo_seguridad as oi_grupo_seguridad, t0.d_gruposeg as d_gruposeg, SEC.policy, t0.c_grupo as CODE, t0.d_grupo as TEXT FROM SEG02_GRUPOS as t0,NMD_SECURITY(class=\'NucleusRH.Base.Seguridad.Grupos.GRUPO\') as SEC JOIN t0.oi_grupo LEFT OUTER SEC.id  ORDER BY oi_grupo asc')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:element name="ROW">
+						<qry:attribute name="policy" value="$r/@policy"/>
+						<qry:attribute name="id" value="$r/@oi_grupo"/>
+						<qry:attribute name="c_grupo" value="$r/@c_grupo"/>
+						<qry:attribute name="d_grupo" value="$r/@d_grupo"/>
+						<qry:attribute name="oi_grupo_seguridad" value="$r/@oi_grupo_seguridad"/>
+						<qry:attribute name="d_gruposeg" value="$r/@d_gruposeg"/>
+						<qry:attribute name="CODE" value="$r/@CODE"/>
+						<qry:attribute name="TEXT" value="$r/@TEXT"/>
+					</qry:element>
+				</qry:out>
+			</qry:select>
+		</qry:define>
+	</flow:declare>
+	<flow:main doc="SOURCE">
+		<flow:action name="policy">
+			<flow:open-form form-class="NucleusRH.Base.Seguridad.Organigramas.TREE-POLICY.form" doc-path="#SOURCE:" mode="SHOW"/>
+		</flow:action>
+		<flow:action name="ADDPER">
+			<flow:open-form doc-path="#PERSONAS:" parent-doc-path="#SOURCE:" mode="SHOW" form-class="NucleusRH.Base.Seguridad.Organigramas.PERSONAS.form"/>
+		</flow:action>
+		<flow:action name="DELPER">
+			<flow:exec-method method="Eliminar" priority="4" out-attr-path="#BATCHDOC:@batch-id" class="NucleusRH.Base.Seguridad.Organigramas.PERSONAL_ESTR">
+				<flow:param doc-path="#SOURCE:/ROWS" type="Nomad.NSystem.Proxy.NomadXML" mode="in" name="param"/>
+				<flow:param attr-path="#SOURCE:@oi_estructura" type="Nomad.NSystem.String" mode="in" name="oi_estructura"/>
+			</flow:exec-method>
+			<flow:open-form form-class="nomad.base.batchtolist.form" mode="BATCH" doc-path="#BATCHDOC:"/>
+		</flow:action>
+		<flow:action name="DELPERSS">
+			<flow:exec-method method="EliminarSS" priority="4" out-attr-path="#BATCHDOC:@batch-id" class="NucleusRH.Base.Seguridad.Organigramas.PERSONAL_ESTR">
+				<flow:param doc-path="#SOURCE:/ROWS" type="Nomad.NSystem.Proxy.NomadXML" mode="in" name="param"/>
+				<flow:param attr-path="#SOURCE:@oi_estructura" type="Nomad.NSystem.String" mode="in" name="oi_estructura"/>
+			</flow:exec-method>
+			<flow:open-form form-class="nomad.base.batchtolist.form" mode="BATCH" doc-path="#BATCHDOC:"/>
+		</flow:action>
+		<flow:action name="PASTEESTR">
+			<flow:exec-method out-attr-path="#BATCHDOC:@batch-id" priority="4" class="NucleusRH.Base.Seguridad.Organigramas.ESTRUCTURA" method="Pegar">
+				<flow:param attr-path="#SOURCE:@ID" type="Nomad.NSystem.String" mode="in" name="ID"/>
+				<flow:param attr-path="#SOURCE:@PARENT" name="PARENT" type="Nomad.NSystem.String" mode="in"/>
+				<flow:param attr-path="#SOURCE:@aplicaseg" type="Nomad.NSystem.Boolean" mode="in" name="aplicaseg"/>
+			</flow:exec-method>
+			<flow:open-form form-class="nomad.base.batchtolist.form" mode="BATCH" doc-path="#BATCHDOC:"/>
+		</flow:action>
+		<flow:action name="DELESTR">
+			<flow:exec-method priority="4" out-attr-path="#BATCHDOC:@batch-id" method="Eliminar" class="NucleusRH.Base.Seguridad.Organigramas.ESTRUCTURA">
+				<flow:param attr-path="#SOURCE:@ID" type="Nomad.NSystem.String" mode="in" name="ID"/>
+			</flow:exec-method>
+			<flow:open-form form-class="nomad.base.batchtolist.form" mode="BATCH" doc-path="#BATCHDOC:"/>
+		</flow:action>
+		<flow:action name="APLICASEG">
+			<flow:exec-method method="AplicarSeg" priority="4" out-attr-path="#BATCHDOC:@batch-id" class="NucleusRH.Base.Seguridad.Organigramas.ESTRUCTURA">
+				<flow:param attr-path="#SOURCE:@ID" type="Nomad.NSystem.String" mode="in" name="id"/>
+			</flow:exec-method>
+			<flow:open-form form-class="nomad.base.batchtolist.form" mode="BATCH" doc-path="#BATCHDOC:"/>
+		</flow:action>
+		<flow:action name="ADDGRU">
+			<flow:open-form doc-path="#SOURCE:" parent-doc-path="#SOURCE:" mode="SHOW" form-class="NucleusRH.Base.Seguridad.Organigramas.GRUPOS.form"/>
+		</flow:action>
+		<flow:action name="DELGRU">
+			<flow:exec-method method="Eliminar" priority="4" out-attr-path="#BATCHDOC:@batch-id" class="NucleusRH.Base.Seguridad.Organigramas.GRUPO_ESTR">
+				<flow:param doc-path="#SOURCE:/ROWS" type="Nomad.NSystem.Proxy.NomadXML" mode="in" name="param"/>
+				<flow:param attr-path="#SOURCE:@oi_estructura" type="Nomad.NSystem.String" mode="in" name="oi_estructura"/>
+			</flow:exec-method>
+			<flow:open-form form-class="nomad.base.batchtolist.form" mode="BATCH" doc-path="#BATCHDOC:"/>
+		</flow:action>
+		<flow:action name="DELGRUSS">
+			<flow:log text-path="#SOURCE:" text="KSOURCE"/>
+			<flow:log text-path="#SOURCE:/ROWS" text="KSOURCE2"/>
+			<flow:exec-method method="EliminarSS" priority="4" out-attr-path="#BATCHDOC:@batch-id" class="NucleusRH.Base.Seguridad.Organigramas.GRUPO_ESTR">
+				<flow:param doc-path="#SOURCE:/ROWS" type="Nomad.NSystem.Proxy.NomadXML" mode="in" name="param"/>
+				<flow:param attr-path="#SOURCE:@oi_estructura" type="Nomad.NSystem.String" mode="in" name="oi_estructura"/>
+			</flow:exec-method>
+			<flow:open-form form-class="nomad.base.batchtolist.form" mode="BATCH" doc-path="#BATCHDOC:"/>
+		</flow:action>
+	</flow:main>
+	<flow:form form-class="NucleusRH.Base.Seguridad.Organigramas.TREE-POLICY.form" name="NucleusRH.Base.Seguridad.Organigramas.TREE-POLICY.form:SHOW" parent-doc="PARENTSOURCE" doc="SOURCE" mode="SHOW">
+		<flow:action name="BACK">
+			<flow:close-form/>
+		</flow:action>
+		<flow:action name="on-show"/>
+		<flow:action name="NOAPLICASEG">
+			<flow:exec-method method="NoAplicarSeg" class="NucleusRH.Base.Seguridad.Organigramas.ESTRUCTURA">
+				<flow:param attr-path="#SOURCE:@org" type="Nomad.NSystem.String" mode="in" name="id"/>
+			</flow:exec-method>
+			<doc:load-qry output-doc="DOC" qry="QRY_ORG"/>
+			<doc:set-attribute from-attr-path="#DOC:@l_seguridad" to-attr-path="#SOURCE:@l_seguridad"/>
+			<flow:log text-path="#DOC:" text="JP_DOC"/>
+		</flow:action>
+	</flow:form>
+	<flow:form name="NucleusRH.Base.Seguridad.Organigramas.PERSONAS.form:SHOW" parent-doc="PARENTSOURCE" doc="SOURCE" mode="SHOW" form-class="NucleusRH.Base.Seguridad.Organigramas.PERSONAS.form">
+		<flow:action name="on-show">
+			<flow:log text-path="#SOURCE:" text="JP_SOURCE"/>
+			<flow:log text="JP_PAENTSOURCE" text-path="#PARENTSOURCE:"/>
+		</flow:action>
+		<flow:action name="CANCEL">
+			<flow:exit-flow return-path="#SOURCE:"/>
+		</flow:action>
+		<flow:action name="SAVE">
+			<flow:exec-method priority="4" out-attr-path="#BATCHDOC:@batch-id" class="NucleusRH.Base.Seguridad.Organigramas.PERSONAL_ESTR" method="Agregar">
+				<flow:param doc-path="#SOURCE:PERSONAS" type="Nomad.NSystem.Proxy.NomadXML" mode="in" name="param"/>
+				<flow:param attr-path="#PARENTSOURCE:@ID" type="Nomad.NSystem.String" mode="in" name="oi_estructura"/>
+				<flow:param attr-path="#PARENTSOURCE:@aplicaseg" type="Nomad.NSystem.Boolean" mode="in" name="aplicaseg"/>
+			</flow:exec-method>
+			<flow:open-form form-class="nomad.base.batchtolist.form" mode="BATCH" doc-path="#BATCHDOC:"/>
+		</flow:action>
+	</flow:form>
+	<flow:form name="NucleusRH.Base.Seguridad.Organigramas.GRUPOS.form:SHOW" parent-doc="PARENTSOURCE" doc="SOURCE" mode="SHOW" form-class="NucleusRH.Base.Seguridad.Organigramas.GRUPOS.form">
+		<flow:action name="on-show">
+			<doc:load-qry output-doc="QRY_LIST" qry="LIST" input-doc-path="#FILTERDATA:"/>
+			<flow:attach-doc doc-path="#QRY_LIST:" attach-id="RS"/>
+		</flow:action>
+		<flow:action name="CANCEL">
+			<flow:exit-flow return-path="#SOURCE:"/>
+		</flow:action>
+		<flow:action name="SAVE">
+			<flow:log text-path="#CHECKS:" text="JP_CHECKS"/>
+			<flow:log text-path="#PARENTSOURCE:" text="JP_SS"/>
+			<flow:exec-method priority="4" out-attr-path="#BATCHDOC:@batch-id" class="NucleusRH.Base.Seguridad.Organigramas.GRUPO_ESTR" method="Agregar">
+				<flow:param doc-path="#CHECKS:" type="Nomad.NSystem.Proxy.NomadXML" mode="in" name="param"/>
+				<flow:param attr-path="#PARENTSOURCE:@ID" type="Nomad.NSystem.String" mode="in" name="oi_estructura"/>
+				<flow:param attr-path="#PARENTSOURCE:@aplicaseg" type="Nomad.NSystem.Boolean" mode="in" name="aplicaseg"/>
+			</flow:exec-method>
+			<flow:open-form form-class="nomad.base.batchtolist.form" mode="BATCH" doc-path="#BATCHDOC:"/>
+		</flow:action>
+	</flow:form>
+</flow:flow>

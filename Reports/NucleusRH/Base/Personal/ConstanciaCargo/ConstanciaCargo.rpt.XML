@@ -1,0 +1,278 @@
+<report:report xmlns:report="nomad_engine.report" xmlns:qry="nomad_engine.qry" xmlns:fo="http://www.w3.org/1999/XSL/Format" xmlns:xsl="http://www.w3.org/1999/XSL/Transform" name="NucleusRH.Base.Personal.ConstanciaCargo" doc="source">
+	<report:query declare="&lt;PARAMS oi_personal_emp=&quot;41&quot; f_constancia=&quot;&quot; suscribe=&quot;SARASOLA Lorena, Sec. Administrativo&quot; const_cargo=&quot;1&quot;/&gt;">
+		<qry:main doc="SOURCE">
+			<qry:element name="ROOT">
+				<qry:append-doc name="FILTRO" doc-path="#SOURCE:PARAMS"/>
+				<qry:if test="#FILTRO:@f_constancia!=''">
+					<qry:then>
+						<qry:attribute value="format_date(#FILTRO:@f_constancia,'dd') + ' de ' + format_date(#FILTRO:@f_constancia,'mmm') + ' de ' + format_date(#FILTRO:@f_constancia,'yyyy')" name="date"/>
+					</qry:then>
+					<qry:else>
+						<qry:attribute value="format_date(now(),'dd') + ' de ' + format_date(now(),'mmm') + ' de ' + format_date(now(),'yyyy')" name="date"/>
+					</qry:else>
+				</qry:if>
+				<qry:attribute name="suscribe" value="#FILTRO:@suscribe"/>
+				<qry:insert-select name="QRY_LEG" doc-path="#SOURCE:PARAMS"/>
+			</qry:element>
+		</qry:main>
+		<qry:select doc="PARAM" name="QRY_LEG">
+			<qry:xquery>
+				for $r in SQL('
+				SELECT 
+		    	   	PER01_PERSONAL.d_ape_y_nom,
+		    	   	PER01_PERSONAL.c_nro_documento,
+		    	   	PER02_PERSONAL_EMP.oi_personal_emp,
+		   			PER02_PERSONAL_EMP.f_ingreso,
+		   			PER02_PERSONAL_EMP.f_egreso
+				FROM
+					ORG03_EMPRESAS,
+					PER02_PERSONAL_EMP,
+					PER01_PERSONAL
+				JOIN                    
+				  	ORG03_EMPRESAS.oi_empresa INNER PER02_PERSONAL_EMP.oi_empresa,
+				  	PER02_PERSONAL_EMP.oi_personal INNER PER01_PERSONAL.oi_personal
+    			WHERE 
+					PER02_PERSONAL_EMP.oi_personal_emp = {#PARAM:@oi_personal_emp}
+		')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:attribute name="legajo" value="$r/@d_ape_y_nom"/>
+				<qry:attribute name="documento" value="concat(substring($r/@c_nro_documento,0,2),'.',substring($r/@c_nro_documento,2,3),'.', substring($r/@c_nro_documento,5,3))"/>
+				<qry:attribute name="ingreso_leg" value="format-date($r/@f_ingreso, 'dd/mm/yyyy')"/>
+				<qry:attribute name="egreso_leg" value="format-date($r/@f_engreso, 'dd/mm/yyyy')"/>
+				<qry:if test="#PARAM:@const_cargo=1">
+					<qry:then>
+						<qry:attribute name="titulo" value="'CONSTANCIA DOCENTE'"/>
+						<qry:attribute name="tipo" value="'Docente'"/>
+					</qry:then>
+					<qry:else>
+						<qry:attribute name="titulo" value="'CONSTANCIA DE EMPLEO'"/>
+						<qry:attribute name="tipo" value="'Empleado/a'"/>
+					</qry:else>
+				</qry:if>
+				<qry:attribute name="texto" value="#PARAM:@texto_libre"/>
+				<qry:insert-select name="QRY_CARGO" doc-path="$r"/>
+			</qry:out>
+		</qry:select>
+		<qry:select doc="PARAM" name="QRY_CARGO">
+			<qry:xquery>
+				for $r in SQL('
+				SELECT 
+		   			PER02_CARGOS.f_ingreso as ing_car,
+		   			PER02_CARGOS.f_egreso as eg_car,
+		   			PER02_CARGOS.e_anio,
+		   			PER02_CARGOS.c_cuatrimestre, 
+		   			PER02_CARGOS.n_hscatedra,
+		   			ORG18_CATEGORIAS.c_categoria,
+		   			ORG18_CATEGORIAS.d_categoria,
+		   			PER39_MATERIAS.c_materia,
+		   			PER39_MATERIAS.d_materia,
+		   			PER40_GRUPO_COSTO.c_grupo_costo,
+		   			PER40_GRUPO_COSTO.d_grupo_costo
+				FROM
+					PER02_PERSONAL_EMP,
+					PER02_CARGOS,
+					ORG18_CATEGORIAS,
+					PER39_MATERIAS,
+                    PER40_GRUPO_COSTO
+				JOIN                    
+				  	PER02_PERSONAL_EMP.oi_personal_emp INNER PER02_CARGOS.oi_personal_emp,
+				  	PER02_CARGOS.oi_categoria LEFT OUTER ORG18_CATEGORIAS.oi_categoria,
+				  	PER02_CARGOS.oi_grupo_costo LEFT OUTER PER40_GRUPO_COSTO.oi_grupo_costo,
+				  	PER02_CARGOS.oi_materia LEFT OUTER PER39_MATERIAS.oi_materia
+    			WHERE 
+					PER02_PERSONAL_EMP.oi_personal_emp = {#PARAM:@oi_personal_emp} 
+				ORDER BY
+					ing_car ASC,
+					eg_car ASC
+		')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<CARGO>
+					<qry:attribute name="legajo" value="$r/@d_ape_y_nom"/>
+					<qry:attribute name="ingreso_leg" value="format-date($r/@f_ingreso, 'dd/mm/yyyy')"/>
+					<qry:attribute name="egreso_leg" value="format-date($r/@f_engreso, 'dd/mm/yyyy')"/>
+					<qry:attribute name="ingreso_car" value="format_date($r/@ing_car,'dd/mm/yyyy')"/>
+					<qry:attribute name="egreso_car" value="format_date($r/@eg_car,'dd/mm/yyyy')"/>
+					<qry:attribute name="anio" value="$r/@e_anio"/>
+					<qry:attribute name="hs_catedra" value="iif($r/@n_hscatedra!='', number($r/@n_hscatedra), 0)"/>
+					<qry:attribute name="cuatrimestre" value="iif($r/@c_cuatrimestre!='',$r/@c_cuatrimestre,0)"/>
+					<qry:attribute name="categoria" value="$r/@d_categoria"/>
+					<qry:attribute name="grupo_costo" value="$r/@d_grupo_costo"/>
+					<qry:attribute name="materia" value="iif($r/@d_materia!='',$r/@d_materia, 0)"/>
+				</CARGO>
+			</qry:out>
+		</qry:select>
+	</report:query>
+	<report:page-layout>
+		<fo:layout-master-set>
+			<fo:simple-page-master font-family="Arial" master-name="A4" page-height="297mm" page-width="210mm" margin-top="30mm" margin-bottom="20mm" margin-left="20mm" margin-right="15mm">
+				<fo:region-body margin="1mm"/>
+			</fo:simple-page-master>
+		</fo:layout-master-set>
+	</report:page-layout>
+	<report:page>
+		<xsl:template match="/ROOT">
+			<fo:page-sequence master-reference="A4" initial-page-number="1" force-page-count="no-force">
+				<fo:flow flow-name="xsl-region-body">
+					<xsl:call-template name="INTRO"/>
+				</fo:flow>
+			</fo:page-sequence>
+		</xsl:template>
+		<xsl:template name="INTRO">
+			<fo:table>
+				<fo:table-column/>
+				<fo:table-body>
+					<fo:table-row>
+						<fo:table-cell>
+							<fo:block font-size="12pt" text-align="center" font-weight="bold">
+								<xsl:value-of select="@titulo"/>
+							</fo:block>
+						</fo:table-cell>
+					</fo:table-row>
+				</fo:table-body>
+			</fo:table>
+			<fo:table>
+				<fo:table-column/>
+				<fo:table-body>
+					<fo:table-row>
+						<fo:table-cell text-align="justify">
+							<fo:block space-before="15mm" space-after="10mm" start-indent="1" font-size="10pt">
+								<xsl:text>
+									Quien suscribe&#160;
+								</xsl:text>
+								<xsl:value-of select="@suscribe"/>
+								<xsl:text>
+									&#160;de la Universidad del Centro Educativo Latinoamericano, HACE CONSTAR que&#160;
+								</xsl:text>
+								<xsl:value-of select="@legajo"/>
+								<xsl:text>
+									&#160;D.N.I&#160;
+								</xsl:text>
+								<xsl:value-of select="@documento"/>
+								<xsl:text>
+									, se ha desempe&#241;ado en esta Universidad como&#160;
+								</xsl:text>
+								<xsl:value-of select="@tipo"/>
+								<xsl:text>
+									&#160;desde el&#160;
+								</xsl:text>
+								<xsl:value-of select="@ingreso_leg"/>
+								<xsl:if test="@egreso_leg!=''">
+									<xsl:text>
+										&#160;hasta el presente&#160;
+									</xsl:text>
+									<xsl:value-of select="@egreso_leg"/>
+								</xsl:if>
+								<xsl:text>
+									, seg&#250;n el siguiente detalle:
+								</xsl:text>
+							</fo:block>
+						</fo:table-cell>
+					</fo:table-row>
+				</fo:table-body>
+			</fo:table>
+			<xsl:for-each select="CARGO">
+				<xsl:call-template name="CARGO"/>
+			</xsl:for-each>
+			<xsl:call-template name="FOOT"/>
+		</xsl:template>
+		<xsl:template name="CARGO">
+			<fo:table margin-top="" margin-left="15mm" width="100%">
+				<fo:table-column/>
+				<fo:table-body>
+					<fo:table-row>
+						<fo:table-cell text-align="justify">
+							<fo:block space-before="1mm" margin-left="5mm" font-size="10pt" font-weight="bold" text-decoration="underline">
+								<xsl:text>
+									Desde el&#160;
+								</xsl:text>
+								<xsl:value-of select="@ingreso_car"/>
+								<xsl:if test="@egreso_car!=''">
+									<xsl:text>
+										&#160;hasta el&#160;
+									</xsl:text>
+									<xsl:value-of select="@egreso_car"/>
+								</xsl:if>
+								<xsl:text>
+									:
+								</xsl:text>
+							</fo:block>
+							<xsl:if test="@materia=0">
+								<xsl:if test="@cuatrimestre=0">
+									<xsl:if test="@hs_catedra=0">
+										<fo:block font-size="10pt" space-after="4mm">
+											<xsl:value-of select="@categoria"/>
+										</fo:block>
+									</xsl:if>
+								</xsl:if>
+							</xsl:if>
+							<xsl:if test="@materia!=0">
+								<fo:block font-size="10pt" space-after="4mm">
+									<xsl:value-of select="@categoria"/>
+									<xsl:text>
+										&#160;en la c&#225;tedra de&#160;
+									</xsl:text>
+									<xsl:value-of select="@materia"/>
+									<xsl:text>
+										&#160;materia correspondiente al&#160;
+									</xsl:text>
+									<xsl:if test="@cuatrimestre=1">
+										<xsl:text>
+											1&#186; cuatrimestre
+										</xsl:text>
+									</xsl:if>
+									<xsl:if test="@cuatrimestre=2">
+										<xsl:text>
+											2&#186; cuatrimestre
+										</xsl:text>
+									</xsl:if>
+									<xsl:if test="@cuatrimestre='A'">
+										<xsl:text>
+											1&#186; y 2&#186; cuatrimestre
+										</xsl:text>
+									</xsl:if>
+									<xsl:text>
+										&#160;del&#160;
+									</xsl:text>
+									<xsl:value-of select="@anio"/>
+									<xsl:text>
+										&#186; a&#241;o de la carrera de&#160;
+									</xsl:text>
+									<xsl:value-of select="@grupo_costo"/>
+									<xsl:text>
+										&#160;con una carga horaria semanal de&#160;
+									</xsl:text>
+									<xsl:value-of select="@hs_catedra"/>
+									<xsl:text>
+										&#160;horas c&#225;tedra.
+									</xsl:text>
+								</fo:block>
+							</xsl:if>
+						</fo:table-cell>
+					</fo:table-row>
+				</fo:table-body>
+			</fo:table>
+		</xsl:template>
+		<xsl:template name="FOOT">
+			<fo:table margin-top="15mm" width="100%">
+				<fo:table-column/>
+				<fo:table-body>
+					<fo:table-row>
+						<fo:table-cell text-align="justify">
+							<fo:block white-space-collapse="false" space-before="6mm" font-size="10pt">
+								<xsl:text>
+									A pedido del interesado y para ser presentada ante las autoridades que corresponda, se extiende la presente constancia en la ciudad de Rosario, el d&#237;a&#160;
+								</xsl:text>
+								<xsl:value-of select="@date"/>
+								<xsl:text>
+									.
+								</xsl:text>
+							</fo:block>
+						</fo:table-cell>
+					</fo:table-row>
+				</fo:table-body>
+			</fo:table>
+		</xsl:template>
+	</report:page>
+</report:report>

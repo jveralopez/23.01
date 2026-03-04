@@ -1,0 +1,119 @@
+<flow:flow xmlns:flow="nomad_engine.flow" xmlns:doc="nomad_engine.doc" xmlns:qry="nomad_engine.qry" name="NucleusRH.Base.Liquidacion.Reporte.Formulario649Portal" default_action="initialize" extends="Nomad.Base.flow">
+	<flow:info label="Flow para NucleusRH.Base.Liquidacion.Reporte.Formulario649"/>
+	<flow:declare>
+		<doc:define name="FILTERDATA">
+			<FILTRO excluir="" oi_liquidacion="">
+				<LIQUIDACIONES/>
+			</FILTRO>
+		</doc:define>
+		<doc:define name="RAIZ">
+			<DATOS/>
+		</doc:define>
+		<doc:define name="LEGAJO"/>
+		<qry:define name="QRY_LEGAJO">
+			<qry:main doc="SOURCE">
+				<qry:element name="PER">
+					<qry:attribute name="flag" value="'0'"/>
+					<qry:insert-select name="sql1" doc-path="."/>
+				</qry:element>
+			</qry:main>
+			<qry:select doc="SOURCE" name="sql1">
+				<qry:xquery>
+					for $r in SQL(' 
+				SELECT 
+					PER02_PERSONAL_EMP.oi_personal_emp,
+					PER02_PERSONAL_EMP.e_numero_legajo,
+					PER01_PERSONAL.d_ape_y_nom,
+					PER01_PERSONAL.oi_foto, 
+					ORG03_EMPRESAS.oi_empresa,
+					ORG03_EMPRESAS.d_empresa
+					
+				FROM
+					PER02_PERSONAL_EMP, 
+					PER01_PERSONAL,
+					ORG03_EMPRESAS
+				JOIN
+					PER02_PERSONAL_EMP.oi_personal INNER PER01_PERSONAL.oi_personal,
+					PER02_PERSONAL_EMP.oi_empresa INNER ORG03_EMPRESAS.oi_empresa
+				WHERE 
+					PER01_PERSONAL.oi_usuario_sistema = {#PROXY:@etty}
+					AND PER02_PERSONAL_EMP.oi_indic_activo=1   
+				
+			')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:attribute name="oi_personal_emp" value="$r/@oi_personal_emp"/>
+					<qry:attribute name="legajo" value="$r/@e_numero_legajo"/>
+					<qry:attribute name="nombre" value="$r/@d_ape_y_nom"/>
+					<qry:attribute name="empresa" value="$r/@d_empresa"/>
+					<qry:attribute name="oi_empresa" value="$r/@oi_empresa"/>
+					<qry:attribute name="image" value="$r/@oi_foto"/>
+					<qry:attribute name="flag" value="'1'"/>
+				</qry:out>
+			</qry:select>
+		</qry:define>
+		<qry:define declare="&lt;FILTRO oi_empresa=&quot;164&quot; legajo=&quot;15139&quot; excluir=&quot;&quot; oi_liquidacion=&quot;&quot; gcustom=&quot;&quot; periodo_desde=&quot;201201&quot; periodo_hasta=&quot;201601&quot; liqID=&quot;5482&quot; oi_personal_emp=&quot;1&quot;&gt;&#13;&#10;&#9;&lt;LIQUIDACIONES&gt;&lt;ROW VALUES=&quot;5482&quot; /&gt;&lt;/LIQUIDACIONES&gt;&#13;&#10;&lt;/FILTRO&gt;" name="QRY_REPORT">
+			<qry:main doc="SOURCE">
+				<DATOS>
+					<ROWS>
+						<ROW>
+							<qry:attribute name="id" value="#SOURCE:FILTRO/@oi_personal_emp"/>
+						</ROW>
+					</ROWS>
+					<DATOS>
+						<qry:attribute name="salida" value="'HTML'"/>
+						<qry:attribute name="nombre" value="'blanco'"/>
+						<qry:attribute name="oi_empresaFIL" value="#SOURCE:FILTRO/@oi_empresa"/>
+						<qry:attribute name="oi_liquidacionFIL" value="#SOURCE:FILTRO/LIQUIDACIONES/ROW/@VALUES"/>
+						<qry:attribute name="l_anioAnterior" value="#SOURCE:FILTRO/@l_anioAnterior"/>
+					</DATOS>
+				</DATOS>
+			</qry:main>
+		</qry:define>
+	</flow:declare>
+	<flow:main doc="SOURCE">
+		<flow:action name="initialize">
+			<doc:load-qry output-doc="LEGAJO" input-doc-path="#LEGAJO:" qry="QRY_LEGAJO"/>
+			<flow:attach-doc doc-path="#LEGAJO:" attach-id="LEGAJO"/>
+			<flow:open-form form-class="NucleusRH.Base.Liquidacion.Reporte.Formulario649Portal.filter.form" doc-path="#FILTERDATA:" mode="FILTER"/>
+		</flow:action>
+	</flow:main>
+	<flow:form form-class="NucleusRH.Base.Liquidacion.Reporte.Formulario649Portal.filter.form" name="NucleusRH.Base.Liquidacion.Reporte.Formulario649Portal.filter.form:FILTER" doc="SOURCE" mode="FILTER">
+		<flow:action name="on-open">
+			<flow:call-action action="Load-FILTER"/>
+			<flow:call-action else="Load-LEGAJO" action="NODATA" eq="0" if="#LEGAJO:@flag"/>
+		</flow:action>
+		<flow:action name="ACCEPT">
+			<flow:call-action action="Save-FILTER"/>
+			<doc:load-qry output-doc="RAIZ" input-doc-path="#SOURCE:" qry="QRY_REPORT"/>
+			<flow:call-action action="REPORT"/>
+		</flow:action>
+		<flow:action name="BACK">
+			<flow:close-form/>
+		</flow:action>
+		<flow:action name="Save-FILTER">
+			<flow:save-user-data name="FILTER-NucleusRH.Base.Liquidacion.Reporte.Formulario649Portal.form" doc-path="#FILTERDATA:"/>
+		</flow:action>
+		<flow:action name="Load-FILTER">
+			<flow:load-user-data name="FILTER-NucleusRH.Base.Liquidacion.Reporte.Formulario649Portal.form" doc="FILTERDATA"/>
+		</flow:action>
+		<flow:action name="REPORT">
+			<flow:exec-method class="NucleusRH.Base.Liquidacion.Liquidacion.LIQUIDACION" priority="5" out-attr-path="#BATCHDOC:@batch-id" method="Form649">
+				<flow:param doc-path="#RAIZ:" type="Nomad.NSystem.Proxy.NomadXML" mode="in" name="report-param"/>
+			</flow:exec-method>
+			<flow:open-form form-class="Nomad.base.batch.report.form" mode="BATCH" doc-path="#BATCHDOC:"/>
+		</flow:action>
+		<flow:action name="NODATA">
+			<flow:open-form form-class="NucleusRH.Base.Liquidacion.Reporte.Formulario649Portal.NOLEGAJO.form" mode="SHOW" doc-path="#RAIZ:"/>
+		</flow:action>
+		<flow:action name="Load-LEGAJO">
+			<doc:set-attribute from-attr-path="#LEGAJO:@oi_empresa" to-attr-path="#SOURCE:@oi_empresa"/>
+			<doc:set-attribute from-attr-path="#LEGAJO:@oi_personal_emp" to-attr-path="#SOURCE:@oi_personal_emp"/>
+		</flow:action>
+	</flow:form>
+	<flow:form form-class="NucleusRH.Base.Liquidacion.Reporte.Formulario649Portal.NOLEGAJO.form" name="NucleusRH.Base.Liquidacion.Reporte.Formulario649Portal.NOLEGAJO.form:SHOW" mode="SHOW" doc="SOURCE">
+		<flow:action name="BACK">
+			<flow:close-form next-action="BACK"/>
+		</flow:action>
+	</flow:form>
+</flow:flow>

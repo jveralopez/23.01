@@ -1,0 +1,362 @@
+<html:html xmlns:html="nomad_engine.html" xmlns:qry="nomad_engine.qry" name="NucleusRH.Base.Configuracion." extends="Nomad.Base.BaseReport.rpt" doc="source">
+	<html:query declare="&lt;DATA &#13;&#10;&#9;c_estado=&quot;&quot;&#13;&#10;&#9;tipo=&quot;&quot; &#13;&#10;/&gt;">
+		<qry:main doc="SOURCE">
+			<REPORT style="width:100%" label="Listado de programaciones">
+				<qry:if test="$SOURCE/DATA/@c_estado!=''">
+					<qry:then>
+						<qry:if test="$SOURCE/DATA/@c_estado='A'">
+							<qry:then>
+								<qry:attribute name="label" value="'Listado de programaciones activas'"/>
+							</qry:then>
+							<qry:else>
+								<qry:attribute name="label" value="'Listado de programaciones inactivas'"/>
+							</qry:else>
+						</qry:if>
+					</qry:then>
+				</qry:if>
+				<GROUPS>
+					<GROUP style="width:100%" type="title" tag="PROG">
+						<COLS>
+							<COL style="width:30%" label="Programaci&#243;n" name="d_descr"/>
+							<COL style="width:30%" label="Fecha inicio" name="f_inicio" type="date"/>
+							<COL style="width:30%" label="Fecha fin" name="f_fin" type="date"/>
+							<COL style="width:30%" label="Fecha &#250;ltima ejecuci&#243;n" name="f_ult_ejecucion" type="date"/>
+							<COL style="width:30%" label="Fecha pr&#243;xima ejecuci&#243;n" name="f_pro_ejecucion" type="date"/>
+							<qry:if test="$SOURCE/DATA/@c_estado=''">
+								<qry:then>
+									<COL style="width:30%" label="Estado" name="c_estado"/>
+								</qry:then>
+							</qry:if>
+						</COLS>
+						<GROUP style="width:100%" type="table" tag="PROG_DET">
+							<COLS>
+								<COL style="width:30%" label="Detalles" name="d_prog_det" type="multiline"/>
+							</COLS>
+						</GROUP>
+					</GROUP>
+				</GROUPS>
+				<DATA>
+					<qry:insert-select name="qryProg" doc-path="$SOURCE"/>
+				</DATA>
+			</REPORT>
+		</qry:main>
+		<qry:select name="qryProg" doc="PARAM">
+			<qry:xquery>
+				for $r in SQL('
+ SELECT
+	p.oi_prog,
+	p.d_descr,
+	p.f_inicio,
+	p.f_fin,
+	p.f_ult_ejecucion,
+  p.f_pro_ejecucion,
+	p.c_estado
+FROM 
+	CFG07_PROG as p 
+WHERE 1=1
+{%? ($PARAM/DATA/@c_estado = '') {%  %} {% and p.c_estado = {$PARAM/DATA/@c_estado} %} %}
+
+
+{%? ($PARAM/DATA/@tipo = 'T') {%
+	 and p.oi_prog IN (SELECT t.oi_prog FROM CFG09_TAREAS as t) %} {%  %} %} 
+
+{%? ($PARAM/DATA/@tipo = 'A') {%
+	 and p.oi_prog IN (SELECT a.oi_prog FROM CFG01_ALERTAS as a) %} {%  %} %} 
+
+
+')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<PROG>
+					<qry:attribute name="d_descr" value="$r/@d_descr"/>
+					<qry:attribute name="f_inicio" value="format-date(datetime($r/@f_inicio), 'dd/mm/yyyy')"/>
+					<qry:attribute name="f_fin" value="iif($r/@f_fin='','-',format-date(datetime($r/@f_fin), 'dd/mm/yyyy'))"/>
+					<qry:attribute name="f_ult_ejecucion" value="iif($r/@f_ult_ejecucion='','-',format-date(datetime($r/@f_ult_ejecucion), 'dd/mm/yyyy'))"/>
+					<qry:attribute name="f_pro_ejecucion" value="iif($r/@f_pro_ejecucion='','-',format-date(datetime($r/@f_pro_ejecucion), 'dd/mm/yyyy'))"/>
+					<qry:if test="$PARAM/DATA/@c_estado=''">
+						<qry:then>
+							<qry:attribute name="c_estado" value="iif($r/@c_estado='A', 'Activo', 'Inactivo')"/>
+						</qry:then>
+					</qry:if>
+					<qry:insert-select name="qryProgDet" doc-path="$r"/>
+				</PROG>
+			</qry:out>
+		</qry:select>
+		<!-- SELECT DE DETALLES DE PROGRAMACION -->
+		<qry:select name="qryProgDet" doc="PARAM">
+			<qry:xquery>
+				for $r in SQL('
+SELECT
+	pd.c_tipo,
+	pd.d_prog_det,
+	pd.d_horas,
+	pd.d_dias_semana,
+	pd.d_dias_mes,
+	pd.d_semanas_mes,
+	pd.d_semanas_anno,
+	pd.d_meses,
+	pd.d_annos 
+FROM
+	CFG07_PROG_DETS as pd
+WHERE 
+	pd.oi_prog = {#PARAM:@oi_prog} 
+')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<PROG_DET>
+					<qry:if test="$r/@c_tipo='X'">
+						<qry:then>
+							<qry:attribute name="d_prog_det" value="'Programaci&#243;n avanzada:'"/>
+							<!-- HORAS -->
+							<qry:if test="$r/@d_horas!=''">
+								<qry:then>
+									<qry:attribute name="d_prog_det" value="Concat(@d_prog_det, '&#10; - A las siguientes horas: ')"/>
+									<qry:insert-select name="splHoras" doc-path="$r"/>
+								</qry:then>
+							</qry:if>
+							<!-- DIAS SEMANA-->
+							<qry:if test="$r/@d_dias_semana!=''">
+								<qry:then>
+									<qry:attribute name="d_prog_det" value="Concat(@d_prog_det, '&#10; - En la semana, los d&#237;as: ')"/>
+									<qry:insert-select name="splDiaSem" doc-path="$r"/>
+								</qry:then>
+							</qry:if>
+							<!-- DIAS MES -->
+							<qry:if test="$r/@d_dias_mes!=''">
+								<qry:then>
+									<qry:attribute name="d_prog_det" value="Concat(@d_prog_det, '&#10; - En el mes, los d&#237;as: ')"/>
+									<qry:insert-select name="splDiaMes" doc-path="$r"/>
+								</qry:then>
+							</qry:if>
+							<!-- SEMANAS MES -->
+							<qry:if test="$r/@d_semanas_mes!=''">
+								<qry:then>
+									<qry:attribute name="d_prog_det" value="Concat(@d_prog_det, '&#10; - En el mes, las semanas: ')"/>
+									<qry:insert-select name="splSemMes" doc-path="$r"/>
+								</qry:then>
+							</qry:if>
+							<!-- SEMANAS ANIO -->
+							<qry:if test="$r/@d_semanas_anno!=''">
+								<qry:then>
+									<qry:attribute name="d_prog_det" value="Concat(@d_prog_det, '&#10; - En el a&#241;o, las semanas: ')"/>
+									<qry:insert-select name="splSemAnio" doc-path="$r"/>
+								</qry:then>
+							</qry:if>
+							<!-- MESES -->
+							<qry:if test="$r/@d_meses!=''">
+								<qry:then>
+									<qry:attribute name="d_prog_det" value="Concat(@d_prog_det, '&#10; - En los meses: ')"/>
+									<qry:insert-select name="splMeses" doc-path="$r"/>
+								</qry:then>
+							</qry:if>
+							<!-- ANIOS -->
+							<qry:if test="$r/@d_annos!=''">
+								<qry:then>
+									<qry:attribute name="d_prog_det" value="Concat(@d_prog_det, '&#10; - En los a&#241;os: ')"/>
+									<qry:insert-select name="splAnno" doc-path="$r"/>
+								</qry:then>
+							</qry:if>
+						</qry:then>
+						<qry:else>
+							<qry:attribute name="d_prog_det" value="$r/@d_prog_det"/>
+						</qry:else>
+					</qry:if>
+				</PROG_DET>
+			</qry:out>
+		</qry:select>
+		<!-- SPLIT HORAS -->
+		<qry:select name="splHoras" doc="PARAM">
+			<qry:xquery>
+				for $r in SPLIT('1;{%=translate(#PARAM:@d_horas, '|', ',')%}')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:attribute name="d_prog_det" value="CONCAT(./@d_prog_det, ./@flag, format-date($r/@value, 'HH:MM'))"/>
+				<qry:attribute name="flag" value="' - '"/>
+			</qry:out>
+		</qry:select>
+		<!-- SPLIT DIAS DE LA SEMANA -->
+		<qry:select name="splDiaSem" doc="PARAM">
+			<qry:xquery>
+				for $r in SPLIT('1;{%=translate(#PARAM:@d_dias_semana, '|', ',')%}')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:switch test="$r/@value">
+					<qry:case value="1">
+						<qry:attribute name="d_prog_det" value="CONCAT(./@d_prog_det, ./@flag1 , 'Lunes')"/>
+						<qry:attribute name="flag1" value="' - '"/>
+					</qry:case>
+					<qry:case value="2">
+						<qry:attribute name="d_prog_det" value="CONCAT(./@d_prog_det, ./@flag1, 'Martes')"/>
+						<qry:attribute name="flag1" value="' - '"/>
+					</qry:case>
+					<qry:case value="3">
+						<qry:attribute name="d_prog_det" value="CONCAT(./@d_prog_det, ./@flag1, 'Mi&#233;rcoles')"/>
+						<qry:attribute name="flag1" value="' - '"/>
+					</qry:case>
+					<qry:case value="4">
+						<qry:attribute name="d_prog_det" value="CONCAT(./@d_prog_det, ./@flag1, 'Jueves')"/>
+						<qry:attribute name="flag1" value="' - '"/>
+					</qry:case>
+					<qry:case value="5">
+						<qry:attribute name="d_prog_det" value="CONCAT(./@d_prog_det, ./@flag1, 'Viernes')"/>
+						<qry:attribute name="flag1" value="' - '"/>
+					</qry:case>
+					<qry:case value="6">
+						<qry:attribute name="d_prog_det" value="CONCAT(./@d_prog_det, ./@flag1, 'S&#225;bado')"/>
+						<qry:attribute name="flag1" value="' - '"/>
+					</qry:case>
+					<qry:case value="7">
+						<qry:attribute name="d_prog_det" value="CONCAT(./@d_prog_det, ./@flag1, 'Domingo')"/>
+						<qry:attribute name="flag1" value="' - '"/>
+					</qry:case>
+				</qry:switch>
+			</qry:out>
+		</qry:select>
+		<!-- SPLIT DIAS DEL MES -->
+		<qry:select name="splDiaMes" doc="PARAM">
+			<qry:xquery>
+				for $r in SPLIT('1;{%=translate(#PARAM:@d_dias_mes, '|', ',')%}')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:if test="$r/@value='UL'">
+					<qry:then>
+						<qry:attribute name="d_prog_det" value="CONCAT(./@d_prog_det, ./@flag2, '&#218;ltimo d&#237;a del mes')"/>
+						<qry:attribute name="flag2" value="' - '"/>
+					</qry:then>
+					<qry:else>
+						<qry:if test="$r/@value='PE'">
+							<qry:then>
+								<qry:attribute name="d_prog_det" value="CONCAT(./@d_prog_det, ./@flag2, 'Pen&#250;ltimo d&#237;a del mes')"/>
+								<qry:attribute name="flag2" value="' - '"/>
+							</qry:then>
+							<qry:else>
+								<qry:attribute name="d_prog_det" value="CONCAT(./@d_prog_det, ./@flag2, $r/@value)"/>
+								<qry:attribute name="flag2" value="' - '"/>
+							</qry:else>
+						</qry:if>
+					</qry:else>
+				</qry:if>
+			</qry:out>
+		</qry:select>
+		<!-- SPLIT SEMANAS DEL MES -->
+		<qry:select name="splSemMes" doc="PARAM">
+			<qry:xquery>
+				for $r in SPLIT('1;{%=translate(#PARAM:@d_semanas_mes, '|', ',')%}')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:if test="$r/@value='UL'">
+					<qry:then>
+						<qry:attribute name="d_prog_det" value="CONCAT(./@d_prog_det, ./@flag3, '&#218;ltima semana del mes')"/>
+						<qry:attribute name="flag3" value="' - '"/>
+					</qry:then>
+					<qry:else>
+						<qry:if test="$r/@value='PE'">
+							<qry:then>
+								<qry:attribute name="d_prog_det" value="CONCAT(./@d_prog_det, ./@flag3, 'Pen&#250;ltima seamana del mes')"/>
+								<qry:attribute name="flag3" value="' - '"/>
+							</qry:then>
+							<qry:else>
+								<qry:attribute name="d_prog_det" value="CONCAT(./@d_prog_det, ./@flag3, $r/@value)"/>
+								<qry:attribute name="flag3" value="' - '"/>
+							</qry:else>
+						</qry:if>
+					</qry:else>
+				</qry:if>
+			</qry:out>
+		</qry:select>
+		<!-- SPLIT SEMANAS DEL ANIO-->
+		<qry:select name="splSemAnio" doc="PARAM">
+			<qry:xquery>
+				for $r in SPLIT('1;{%=translate(#PARAM:@d_semanas_anno, '|', ',')%}')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:if test="$r/@value='UL'">
+					<qry:then>
+						<qry:attribute name="d_prog_det" value="CONCAT(./@d_prog_det, ./@flag4, '&#218;ltima semana del a&#241;o')"/>
+						<qry:attribute name="flag4" value="' - '"/>
+					</qry:then>
+					<qry:else>
+						<qry:if test="$r/@value='PE'">
+							<qry:then>
+								<qry:attribute name="d_prog_det" value="CONCAT(./@d_prog_det, ./@flag4, 'Pen&#250;ltima seamana del a&#241;o')"/>
+								<qry:attribute name="flag4" value="' - '"/>
+							</qry:then>
+							<qry:else>
+								<qry:attribute name="d_prog_det" value="CONCAT(./@d_prog_det, ./@flag4, $r/@value)"/>
+								<qry:attribute name="flag4" value="' - '"/>
+							</qry:else>
+						</qry:if>
+					</qry:else>
+				</qry:if>
+			</qry:out>
+		</qry:select>
+		<!-- SPLIT MESES-->
+		<qry:select name="splMeses" doc="PARAM">
+			<qry:xquery>
+				for $r in SPLIT('1;{%=translate(#PARAM:@d_meses, '|', ',')%}')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:switch test="$r/@value">
+					<qry:case value="01">
+						<qry:attribute name="d_prog_det" value="CONCAT(./@d_prog_det, ./@flag5, 'Enero')"/>
+						<qry:attribute name="flag5" value="' - '"/>
+					</qry:case>
+					<qry:case value="02">
+						<qry:attribute name="d_prog_det" value="CONCAT(./@d_prog_det, ./@flag5, 'Febrero')"/>
+						<qry:attribute name="flag5" value="' - '"/>
+					</qry:case>
+					<qry:case value="03">
+						<qry:attribute name="d_prog_det" value="CONCAT(./@d_prog_det, ./@flag5, 'Marzo')"/>
+						<qry:attribute name="flag5" value="' - '"/>
+					</qry:case>
+					<qry:case value="04">
+						<qry:attribute name="d_prog_det" value="CONCAT(./@d_prog_det, ./@flag5, 'Abril')"/>
+						<qry:attribute name="flag5" value="' - '"/>
+					</qry:case>
+					<qry:case value="05">
+						<qry:attribute name="d_prog_det" value="CONCAT(./@d_prog_det, ./@flag5, 'Mayo')"/>
+						<qry:attribute name="flag5" value="' - '"/>
+					</qry:case>
+					<qry:case value="06">
+						<qry:attribute name="d_prog_det" value="CONCAT(./@d_prog_det, ./@flag5, 'Junio')"/>
+						<qry:attribute name="flag5" value="' - '"/>
+					</qry:case>
+					<qry:case value="07">
+						<qry:attribute name="d_prog_det" value="CONCAT(./@d_prog_det, ./@flag5, 'Julio')"/>
+						<qry:attribute name="flag5" value="' - '"/>
+					</qry:case>
+					<qry:case value="08">
+						<qry:attribute name="d_prog_det" value="CONCAT(./@d_prog_det, ./@flag5, 'Agosto')"/>
+						<qry:attribute name="flag5" value="' - '"/>
+					</qry:case>
+					<qry:case value="09">
+						<qry:attribute name="d_prog_det" value="CONCAT(./@d_prog_det, ./@flag5, 'Septiembre')"/>
+						<qry:attribute name="flag5" value="' - '"/>
+					</qry:case>
+					<qry:case value="10">
+						<qry:attribute name="d_prog_det" value="CONCAT(./@d_prog_det, ./@flag5, 'Octubre')"/>
+						<qry:attribute name="flag5" value="' - '"/>
+					</qry:case>
+					<qry:case value="11">
+						<qry:attribute name="d_prog_det" value="CONCAT(./@d_prog_det, ./@flag5, 'Noviembre')"/>
+						<qry:attribute name="flag5" value="' - '"/>
+					</qry:case>
+					<qry:case value="12">
+						<qry:attribute name="d_prog_det" value="CONCAT(./@d_prog_det, ./@flag5, 'Diciembre')"/>
+						<qry:attribute name="flag5" value="' - '"/>
+					</qry:case>
+				</qry:switch>
+			</qry:out>
+		</qry:select>
+		<!-- SPLIT ANIOS -->
+		<qry:select name="splAnno" doc="PARAM">
+			<qry:xquery>
+				for $r in SPLIT('1;{%=translate(#PARAM:@d_annos, '|', ',')%}')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:attribute name="d_prog_det" value="CONCAT(./@d_prog_det, ./@flag6, $r/@value)"/>
+				<qry:attribute name="flag6" value="' - '"/>
+			</qry:out>
+		</qry:select>
+	</html:query>
+</html:html>

@@ -1,0 +1,288 @@
+<flow:flow xmlns:flow="nomad_engine.flow" xmlns:doc="nomad_engine.doc" xmlns:form="nomad_engine.form" xmlns:qry="nomad_engine.qry" default_action="DEBUG" name="NucleusWF.Base.Ejecucion.Formularios.ShowForm.flow">
+	<flow:info label="Valida si un usuario puede resolver un WF y retorna una pantalla con la instancia o un mensaje."/>
+	<flow:declare>
+		<doc:define name="ROLES">
+			<ROLES/>
+		</doc:define>
+		<form:Resource name="ROOTRoles" declare="&lt;DATA oi_thread=&quot;5001&quot; ETTY=&quot;&quot; /&gt;"/>
+		<qry:define declare="&lt;DATA oi_thread=&quot;301&quot; oi_node=&quot;507&quot; /&gt;" name="GetRoles">
+			<qry:main doc="SOURCE">
+				<tree>
+					<qry:append-doc name="DATAIN" doc-path="."/>
+					<qry:attribute name="ETTY" value="iif(#SOURCE:./@ETTY='',#PROXY:@ETTY,#SOURCE:./@ETTY)"/>
+					<qry:attribute name="oi_thread" value="#SOURCE:./@oi_thread"/>
+					<qry:insert-select doc-path="$DATAIN" name="ORGANIGRAMA"/>
+					<qry:create-doc name="ROLES-ENTIDAD"/>
+					<qry:if test="$DATAIN/@d_owner=$DATAIN/@ETTY">
+						<qry:then>
+							<qry:insert-select doc-path="$DATAIN" name="ROL_OWNER" to-element="$ROLES-ENTIDAD"/>
+						</qry:then>
+					</qry:if>
+					<qry:insert-select doc-path="$DATAIN" name="ROLES_ENTIDAD" to-element="$ROLES-ENTIDAD"/>
+					<qry:create-doc name="ROLES-NODE"/>
+					<qry:insert-select doc-path="$DATAIN" name="ROLES_PUEDEN" to-element="$ROLES-NODE"/>
+					<options>
+						<qry:insert-select doc-path="$DATAIN" name="ROLES_RESOLVER"/>
+					</options>
+					<qry:if test="count(options/option)=1">
+						<qry:then>
+							<qry:attribute name="value" value="options/option[0]/@value"/>
+						</qry:then>
+					</qry:if>
+				</tree>
+			</qry:main>
+			<qry:select name="ORGANIGRAMA" doc="SOURCE">
+				<qry:xquery>
+					for $r in SQL('
+
+select
+org2.oi_organigrama,
+ins.c_estructura,
+ins.d_owner,
+th.oi_node
+from
+wrk02_threads as th,
+wrk02_instances as ins,
+wrk01_wf as wf,
+wrk05_organigramas as org1, 
+wrk05_organigramas as org2
+join          
+th.oi_instance INNER ins.oi_instance,
+ins.oi_wf INNER wf.oi_wf,
+wf.oi_organigrama INNER org1.oi_organigrama
+where
+th.oi_thread = {#SOURCE:@oi_thread}     
+and org1.c_organigrama = org2.c_organigrama
+and org1.e_version_pub = org2.e_version
+
+')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:attribute name="oi_node" value="$r/@oi_node"/>
+					<qry:attribute name="oi_organigrama" value="$r/@oi_organigrama"/>
+					<qry:attribute name="c_estr_div" value="$r/@c_estructura"/>
+					<qry:attribute name="d_owner" value="$r/@d_owner"/>
+				</qry:out>
+			</qry:select>
+			<qry:select name="ROLES_PUEDEN" doc="SOURCE">
+				<qry:xquery>
+					for $r in SQL('
+select
+T.oi_thread, N.c_rol, R.d_role, R.d_color
+from
+wrk02_threads as T,
+WRK01_ROLES_NODE as N,
+WRK05_ROLES as R
+join
+T.oi_node inner N.oi_node,
+R.c_role inner N.c_rol
+where
+T.oi_thread={%= $SOURCE/@oi_thread %}
+and R.oi_organigrama={%= $SOURCE/@oi_organigrama %}  
+and N.c_puede_deleg!=\'NO\'
+
+')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<ROL>
+						<qry:attribute name="cod" value="$r/@c_rol"/>
+						<qry:attribute name="des" value="$r/@d_role"/>
+						<qry:attribute name="color" value="$r/@d_color"/>
+					</ROL>
+				</qry:out>
+			</qry:select>
+			<qry:select name="ROL_OWNER" doc="SOURCE">
+				<qry:xquery>
+					for $r in SQL('
+select
+R.c_role, R.d_role
+from
+WRK05_ROLES as R
+where
+R.oi_organigrama={%= $SOURCE/@oi_organigrama %} and R.c_role=\'OWNER\'
+
+')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<ROL>
+						<qry:attribute name="cod" value="$r/@c_role"/>
+						<qry:attribute name="des" value="$r/@d_role"/>
+					</ROL>
+				</qry:out>
+			</qry:select>
+			<qry:select name="ROLES_ENTIDAD" doc="SOURCE">
+				<qry:xquery>
+					for $r in SQL('
+select
+R.c_role, R.d_role
+from
+WRK05_ROLES as R,
+WRK05_ENTIDAD_ESTR as E,
+WRK05_ESTRUCTURA as S,
+WRK05_ESTR_ESTR as SS
+join
+R.oi_organigrama inner S.oi_organigrama,
+S.c_role inner R.c_role,
+S.oi_estructura inner E.oi_estructura,
+SS.oi_estructura inner S.oi_estructura,
+SS.c_role inner R.c_role
+where                  
+E.oi_entidad=\'{%=$SOURCE/@ETTY %}\' and
+R.oi_organigrama={%= $SOURCE/@oi_organigrama %} and
+SS.c_estructura=\'{%= $SOURCE/@c_estr_div %}\'
+
+')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<ROL>
+						<qry:attribute name="cod" value="$r/@c_role"/>
+						<qry:attribute name="des" value="$r/@d_role"/>
+					</ROL>
+				</qry:out>
+			</qry:select>
+			<qry:select name="ROLES_RESOLVER" doc="SOURCE">
+				<qry:xquery>
+					for
+$e in $ROLES-ENTIDAD/ROL,
+$n in $ROLES-NODE/ROL
+join
+$e/@cod inner $n/@cod
+				</qry:xquery>
+				<qry:out>
+					<option>
+						<qry:attribute name="cod" value="$n/@cod"/>
+						<qry:attribute name="value" value="$n/@cod"/>
+						<qry:attribute name="text" value="$n/@des"/>
+					</option>
+				</qry:out>
+			</qry:select>
+		</qry:define>
+		<qry:define name="GetAssign" declare="&lt;DATA oi_thread=&quot;1601&quot; oi_node=&quot;3105&quot; /&gt;">
+			<qry:main doc="SOURCE">
+				<ROLES>
+					<qry:insert-select doc-path="$SOURCE/DATA" name="ORGANIGRAMA"/>
+					<qry:insert-select doc-path="." name="ROLES"/>
+					<qry:attribute name="oi_node" value="''"/>
+					<qry:attribute name="oi_organigrama" value="''"/>
+					<qry:attribute name="c_estructura" value="''"/>
+				</ROLES>
+			</qry:main>
+			<qry:select name="ORGANIGRAMA" doc="SOURCE">
+				<qry:xquery>
+					for $r in SQL('
+select
+org2.oi_organigrama,
+ins.c_estructura,
+th.oi_node
+from
+wrk02_threads as th,
+wrk02_instances as ins,
+wrk01_wf as wf,
+wrk05_organigramas as org1, 
+wrk05_organigramas as org2
+join          
+th.oi_instance INNER ins.oi_instance,
+ins.oi_wf INNER wf.oi_wf,
+wf.oi_organigrama INNER org1.oi_organigrama
+where
+th.oi_thread = {#SOURCE:@oi_thread}     
+and org1.c_organigrama = org2.c_organigrama
+and org1.e_version_pub = org2.e_version
+	')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:attribute name="oi_node" value="$r/@oi_node"/>
+					<qry:attribute name="oi_organigrama" value="$r/@oi_organigrama"/>
+					<qry:attribute name="c_estructura" value="$r/@c_estructura"/>
+				</qry:out>
+			</qry:select>
+			<qry:select name="ROLES" doc="SOURCE">
+				<qry:xquery>
+					for $r in SQL('
+select 
+est2.oi_estructura,
+wrk05_roles.d_role,
+est2.d_estructura
+from 
+wrk05_estr_estr, 
+wrk05_estructura as est1,
+wrk05_estructura as est2,
+wrk05_roles
+where est1.c_estructura = {#SOURCE:@c_estructura}
+and est1.oi_estructura = wrk05_estr_estr.oi_estructura
+and est1.oi_organigrama = {#SOURCE:@oi_organigrama}
+and est2.oi_organigrama = {#SOURCE:@oi_organigrama}
+and est2.c_estructura = wrk05_estr_estr.c_estructura
+and est2.oi_organigrama = wrk05_roles.oi_organigrama
+and wrk05_estr_estr.c_role  = wrk05_roles.c_role
+	')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<option>
+						<qry:attribute name="cod" value="$r/@oi_estructura"/>
+						<qry:attribute name="value" value="$r/@oi_estructura"/>
+						<qry:attribute name="NAME" value="$r/@d_role+' - '+$r/@d_estructura"/>
+						<qry:attribute name="text" value="$r/@d_role+' - '+$r/@d_estructura"/>
+					</option>
+				</qry:out>
+			</qry:select>
+		</qry:define>
+	</flow:declare>
+	<flow:main doc="SOURCE">
+		<flow:action name="DELEGATE">
+			<flow:open-form doc-path="#SOURCE:" mode="SHOW" form-class="NucleusWF.Base.Ejecucion.Formularios.Delegar.form"/>
+		</flow:action>
+		<flow:action name="ASSIGN">
+			<flow:open-form mode="ASSIGN" doc-path="#SOURCE:" form-class="NucleusWF.Base.Ejecucion.Formularios.Delegar.form"/>
+		</flow:action>
+		<flow:action name="DEBUG">
+			<doc:set-attribute to-attr-path="#SOURCE:@oi_thread" from-value="5001"/>
+			<doc:set-attribute to-attr-path="#SOURCE:@ETTY" from-value=""/>
+			<flow:open-form doc-path="#SOURCE:" mode="SHOW" form-class="NucleusWF.Base.Ejecucion.Formularios.Delegar.form"/>
+		</flow:action>
+	</flow:main>
+	<flow:form mode="SHOW" form-class="NucleusWF.Base.Ejecucion.Formularios.Delegar.form" name="NucleusWF.Base.Ejecucion.Formularios.Delegar.form:SHOW" doc="SOURCE">
+		<flow:action name="on-show">
+			<doc:load-qry output-doc="ROLES" input-doc-path="#SOURCE:" qry="GetRoles"/>
+			<doc:set-attribute from-attr-path="#ROLES:@value" to-attr-path="#SOURCE:@c_rol_etty"/>
+			<flow:attach-doc doc-path="#ROLES:options" attach-id="ROLES"/>
+		</flow:action>
+		<flow:action name="ACCEPT">
+			<flow:exec-method class="NucleusWF.Base.Ejecucion.Instancias.INSTANCE" method="Delegar">
+				<flow:param attr-path="#SOURCE:@oi_thread" name="oi_thread" type="Nomad.NSystem.Int" mode="in"/>
+				<flow:param attr-path="#SOURCE:@PASO" type="Nomad.NSystem.Int" mode="in" name="paso"/>
+				<flow:param name="Etty" attr-path="#SOURCE:@ETTY" type="Nomad.NSystem.String" mode="in"/>
+				<flow:param attr-path="#SOURCE:@c_rol" type="Nomad.NSystem.String" name="c_rol" mode="in"/>
+				<flow:param attr-path="#SOURCE:@c_estructura" type="Nomad.NSystem.String" name="c_estructura" mode="in"/>
+				<flow:param attr-path="#SOURCE:@oi_entidad" type="Nomad.NSystem.String" name="oi_entidad" mode="in"/>
+				<flow:param attr-path="#SOURCE:@o_comentario" name="o_comentario" type="Nomad.NSystem.String" mode="in"/>
+			</flow:exec-method>
+			<flow:exit-flow next-action="on-show" return-path="#SOURCE:"/>
+		</flow:action>
+		<flow:action name="CANCEL">
+			<flow:exit-flow return-path="#SOURCE:"/>
+		</flow:action>
+	</flow:form>
+	<flow:form name="NucleusWF.Base.Ejecucion.Formularios.Delegar.form:ASSIGN" mode="ASSIGN" form-class="NucleusWF.Base.Ejecucion.Formularios.Delegar.form" doc="SOURCE">
+		<flow:action name="on-show">
+			<doc:load-qry output-doc="ROLES" input-doc-path="#SOURCE:" qry="GetRoles"/>
+			<doc:set-attribute from-attr-path="#ROLES:@value" to-attr-path="#SOURCE:@c_rol_etty"/>
+			<flow:attach-doc doc-path="#ROLES:" attach-id="ROLES"/>
+		</flow:action>
+		<flow:action name="ACCEPT">
+			<flow:exec-method class="NucleusWF.Base.Ejecucion.Instancias.INSTANCE" method="Delegar">
+				<flow:param attr-path="#SOURCE:@oi_thread" name="oi_thread" type="Nomad.NSystem.Int" mode="in"/>
+				<flow:param attr-path="#SOURCE:@PASO" type="Nomad.NSystem.Int" mode="in" name="paso"/>
+				<flow:param name="Etty" attr-path="#SOURCE:@ETTY" type="Nomad.NSystem.String" mode="in"/>
+				<flow:param attr-path="#SOURCE:@c_rol" type="Nomad.NSystem.String" name="c_rol" mode="in"/>
+				<flow:param attr-path="#SOURCE:@c_estructura" type="Nomad.NSystem.String" name="c_estructura" mode="in"/>
+				<flow:param attr-path="#SOURCE:@oi_entidad" type="Nomad.NSystem.String" name="oi_entidad" mode="in"/>
+				<flow:param attr-path="#SOURCE:@o_comentario" name="o_comentario" type="Nomad.NSystem.String" mode="in"/>
+			</flow:exec-method>
+			<flow:exit-flow next-action="on-show" return-path="#SOURCE:"/>
+		</flow:action>
+		<flow:action name="CANCEL">
+			<flow:exit-flow return-path="#SOURCE:"/>
+		</flow:action>
+	</flow:form>
+</flow:flow>

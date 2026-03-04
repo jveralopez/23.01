@@ -1,0 +1,66 @@
+<flow:flow xmlns:flow="nomad_engine.flow" xmlns:doc="nomad_engine.doc" xmlns:qry="nomad_engine.qry" extends="Nomad.Base.interface.batch.flow" name="NucleusRH.Base.Tiempos_Trabajados.Nomina.ARCHIVO.flow" default_action="initialize">
+	<flow:info label="ArchivoNomina"/>
+	<flow:declare>
+		<doc:define name="FILTERDATA">
+			<FILTRO>
+				<ROWS/>
+			</FILTRO>
+		</doc:define>
+		<doc:define name="ARCHIVO"/>
+		<qry:define name="QRY_ARCHIVO" declare="&lt;FILTRO terminal=&quot;&quot; gcustom=&quot;&quot; oi_terminal=&quot;4&quot; oi_empresa=&quot;196&quot; nombre=&quot;&quot; documento=&quot;&quot; legajo_desde=&quot;&quot; legajo_hasta=&quot;&quot; oi_indic_activo=&quot;&quot; egresado=&quot;&quot; oi_forma_pago=&quot;&quot; oi_centro_costo=&quot;&quot; oi_categoria=&quot;&quot; oi_estructura=&quot;&quot; escructura_childs=&quot;&quot; oi_afjp=&quot;&quot; oi_obra_social=&quot;&quot; oi_sindicato=&quot;&quot; legajo_reloj_desde=&quot;&quot; legajo_reloj_hasta=&quot;&quot; tarjeta_desde=&quot;&quot; tarjeta_hasta=&quot;&quot; oi_horario=&quot;&quot; oi_escuadra=&quot;&quot; tipo=&quot;&quot;&gt;&lt;ROWS nmd-col=&quot;1&quot;&gt;&lt;ROW id=&quot;11565&quot; /&gt;&lt;ROW id=&quot;11566&quot; /&gt;&lt;ROW id=&quot;11567&quot; /&gt;&lt;ROW id=&quot;11568&quot; /&gt;&lt;ROW id=&quot;11569&quot; /&gt;&lt;ROW id=&quot;11570&quot; /&gt;&lt;ROW id=&quot;11571&quot; /&gt;&lt;ROW id=&quot;11573&quot; /&gt;&lt;ROW id=&quot;11574&quot; /&gt;&lt;ROW id=&quot;11575&quot; /&gt;&lt;ROW id=&quot;11576&quot; /&gt;&lt;ROW id=&quot;11578&quot; /&gt;&lt;ROW id=&quot;11579&quot; /&gt;&lt;/ROWS&gt;&lt;/FILTRO&gt;">
+			<qry:main doc="SOURCE">
+				<qry:element name="DATO">
+					<qry:insert-select name="sql1" doc-path="#SOURCE:FILTRO"/>
+				</qry:element>
+			</qry:main>
+			<qry:select name="sql1" doc="SOURCE">
+				<qry:xquery>
+					for $r in sql ('
+				SELECT TTA05_TERMINALES.d_archivo_nom
+				FROM TTA05_TERMINALES
+				WHERE TTA05_TERMINALES.oi_terminal = {#SOURCE:@oi_terminal} 
+			')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:attribute name="archivo" value="$r/@d_archivo_nom"/>
+				</qry:out>
+			</qry:select>
+		</qry:define>
+		<doc:define name="FILE"/>
+	</flow:declare>
+	<flow:main doc="SOURCE">
+		<flow:action name="initialize">
+			<flow:open-form doc-path="#FILTERDATA:" form-class="NucleusRH.Base.Tiempos_Trabajados.Nomina.EXPORTAR.filter.form" mode="FILTER"/>
+		</flow:action>
+	</flow:main>
+	<flow:form name="NucleusRH.Base.Tiempos_Trabajados.Nomina.ARCHIVO.filter.form:FILTER" form-class="NucleusRH.Base.Tiempos_Trabajados.Nomina.EXPORTAR.filter.form" mode="FILTER" doc="SOURCE" parent-doc="PARENTSOURCE">
+		<flow:action name="on-show">
+			<flow:call-action action="Load-FILTER"/>
+			<flow:log text-path="#SOURCE:" text="ppsource"/>
+			<flow:attach-doc attach-id="ARRB" doc-path="#SOURCE:ROWS"/>
+		</flow:action>
+		<flow:action name="BACK">
+			<flow:close-form/>
+		</flow:action>
+		<flow:action name="Save-FILTER">
+			<flow:save-user-data name="FILTER-NucleusRH.Base.Tiempos_Trabajados.ExportarNomina" doc-path="#FILTERDATA:"/>
+		</flow:action>
+		<flow:action name="Load-FILTER">
+			<flow:load-user-data name="FILTER-NucleusRH.Base.Tiempos_Trabajados.ExportarNomina" doc="FILTERDATA"/>
+		</flow:action>
+		<flow:action name="ACCEPT">
+			<flow:load-user-data name="NOMINALIST" doc="FILE"/>
+			<doc:delete-object doc-path="#SOURCE:ROWS"/>
+			<doc:add-object doc-path="#FILE:" parent-doc-path="#SOURCE:"/>
+			<flow:call-action action="Save-FILTER"/>
+			<flow:log text="ppsourcenomina" text-path="#SOURCE:"/>
+			<doc:load-qry output-doc="ARCHIVO" input-doc-path="#SOURCE:" qry="QRY_ARCHIVO"/>
+			<flow:exec-method class="NucleusRH.Base.Tiempos_Trabajados.Personal.PERSONAL_EMP" method="ExportarNomina" priority="5" out-type="String" out-attr-path="#BATCHDOC:@batch-id">
+				<flow:param attr-path="#SOURCE:@oi_terminal" mode="in" name="oi_terminal" type="Nomad.NSystem.Int"/>
+				<flow:param type="Nomad.NSystem.Proxy.NomadXML" doc-path="#SOURCE:ROWS" name="param" mode="in"/>
+			</flow:exec-method>
+			<flow:open-form form-class="NucleusRH.Base.Tiempos_Trabajados.Nomina.ARCHIVO.batch.form" mode="SHOW" doc-path="#BATCHDOC:"/>
+		</flow:action>
+	</flow:form>
+	<flow:form extends="Nomad.Base.interface.batch.form:SHOW" form-class="NucleusRH.Base.Tiempos_Trabajados.Nomina.ARCHIVO.batch.form" name="NucleusRH.Base.Tiempos_Trabajados.Nomina.ARCHIVO.batch.form:SHOW" mode="SHOW" doc="SOURCE"/>
+</flow:flow>

@@ -1,0 +1,226 @@
+<ALERT xmlns:qry="nomad_engine.qry" name="CAMBIOS_EST_EVA.alert" label="Estados de Evaluaciones">
+	<PARAMS>
+		<PARAM label="C&#243;digos de Estados de Evaluaci&#243;n" type="string" req="1" name="Estados"/>
+		<PARAM label="C&#243;digo de Estado de Evento" type="string" name="Est_even" req="0"/>
+		<PARAM event-key="NucleusRH.Base.Evaluacion2.Evaluaciones.EVALUACION" type="string" req="0" label="Evaluaciones" name="Evaluaciones"/>
+		<PARAM event-key="NucleusRH.Base.SeleccionDePostulantes.Postulantes.POSTULANTE" type="string" req="0" label="Postulantes" name="Postulantes"/>
+	</PARAMS>
+	<QRY declare="&lt;PARAMS Estados=&quot;HA&quot; Est_even=&quot;H&quot; Evaluaciones=&quot;&quot; Postulantes=&quot;&quot; eve_keyname=&quot;NucleusRH.Base.Evaluacion2.Evaluaciones.EVALUACION&quot; eve_name=&quot;NucleusRH.Base.Evaluacion2.Evaluaciones.chg_status&quot;&gt;&#13;&#10;&#9;&#9;  &lt;EVE/&gt;&#13;&#10;&#9;&#9;&lt;/PARAMS&gt;">
+		<qry:include name="Nomad.Base.Login.Entidades.ENTIDAD.INFO"/>
+		<qry:main doc="PARAMS">
+			<qry:append-doc name="PARAMIN" doc-path="$PARAMS/PARAMS"/>
+			<qry:element name="ROWS">
+				<qry:element name="TODOS">
+					<qry:append-doc name="MYDOC" doc-path="."/>
+					<qry:attribute name="EST" value="concat('\\\'', nmd-replace($PARAMIN/@Estados,',','\\\',\\\''), '\\\'')"/>
+					<qry:attribute name="EST_EVEN" value="$PARAMIN/@Est_even"/>
+					<qry:attribute name="EST_EVE" value="$PARAMIN/EVE/@ParamCod"/>
+					<qry:insert-select name="QRY_EVALUADOR" doc-path="."/>
+					<qry:if test="@EST_EVE='' OR contains(@EST,concat('\\\'',@EST_EVE,'\\\'')) ">
+						<qry:then>
+							<qry:insert-select name="QRY_EVALUACION" doc-path="$PARAMIN/EVE"/>
+						</qry:then>
+					</qry:if>
+				</qry:element>
+			</qry:element>
+		</qry:main>
+		<qry:select doc="PARAM" name="QRY_EVALUADOR">
+			<qry:xquery>
+				for $r in sql('
+			SELECT
+				PER01_PERSONAL.d_ape_y_nom, 
+				PER01_PERSONAL.d_nombres,
+				PER01_PERSONAL.d_apellido,
+				PER01_PERSONAL.d_email,
+				PER01_PERSONAL.oi_usuario_sistema,
+				EDD03_EVALUACION.oi_evaluador
+			FROM
+				PER01_PERSONAL,
+				PER02_PERSONAL_EMP,
+				{%? (#MYDOC:@EST_EVEN!='') {% EDD02_EVENTOS, %}  {% %} %}       
+				EDD03_EVALUACION,
+				EDD04_EXCEPCIONES
+			JOIN 
+				EDD03_EVALUACION.oi_evaluador INNER PER02_PERSONAL_EMP.oi_personal_emp,
+				PER02_PERSONAL_EMP.oi_personal INNER PER01_PERSONAL.oi_personal,
+				PER01_PERSONAL.oi_personal LEFT OUTER EDD04_EXCEPCIONES.oi_personal  	
+			{%? (#MYDOC:@EST_EVEN!='') {% , EDD02_EVENTOS.oi_evento INNER EDD03_EVALUACION.oi_evento %}  {% %} %}	
+			WHERE
+			  1=1
+				{%? (#MYDOC:@EST_EVEN!='')                         
+				{% AND EDD02_EVENTOS.c_estado = {#MYDOC:@EST_EVEN} %}  
+				{% %} %}      
+				AND EDD03_EVALUACION.c_estado IN ({%=#PARAM:@EST%}) 	
+			GROUP BY
+				EDD03_EVALUACION.oi_evaluador,
+				PER01_PERSONAL.d_ape_y_nom, 
+				PER01_PERSONAL.d_nombres,
+				PER01_PERSONAL.d_apellido,
+				PER01_PERSONAL.d_email,
+				PER01_PERSONAL.oi_usuario_sistema		
+		')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<EVALUADOR>
+					<qry:attribute name="hts:delete" value="1"/>
+					<qry:attribute name="oi_evaluador" value="$r/@oi_evaluador"/>
+					<qry:attribute name="NOMBREYAP" value="$r/@d_ape_y_nom"/>
+					<qry:attribute name="NOMBRE" value="$r/@d_nombres"/>
+					<qry:attribute name="APELLIDO" value="$r/@d_apellido"/>
+					<qry:attribute name="MAIL" value="nmd-replace(string($r/@d_email),',',';')"/>
+					<qry:insert-select name="sql1" doc-path="$r"/>
+					<!--qry:insert-select name="QRY_EVALUACION" doc-path="$r"/-->
+				</EVALUADOR>
+			</qry:out>
+		</qry:select>
+		<qry:select doc="PARAM" name="QRY_EVALUACION">
+			<qry:xquery>
+				for $r in sql('
+			SELECT
+				EDD02_EVENTOS.d_evento,
+				EDD02_EVENTOS.c_evento, 
+				EDD03_EVALUACION.oi_evaluador,
+				EDD03_EVALUACION.c_estado,
+				EDD03_EVALUACION.f_evaluacion,
+				EDD03_EVALUACION.oi_evaluacion,
+				EVALUADO.d_ape_y_nom as emp_apenom,
+				EVALUADO.d_email,
+				EVALUADO.d_nombres,
+				EVALUADO.d_apellido,
+				EVALUADO.oi_usuario_sistema,
+				SUPERVISOR.d_ape_y_nom as sup_apenom
+			FROM
+				EDD02_EVENTOS,
+				EDD03_EVALUACION,
+				PER02_PERSONAL_EMP,
+				PER01_PERSONAL as EVALUADO,
+				PER01_PERSONAL as SUPERVISOR
+			JOIN 
+				EDD02_EVENTOS.oi_evento INNER EDD03_EVALUACION.oi_evento, 
+				EDD03_EVALUACION.oi_personal_emp INNER PER02_PERSONAL_EMP.oi_personal_emp,
+				PER02_PERSONAL_EMP.oi_personal INNER EVALUADO.oi_personal,
+				EDD03_EVALUACION.oi_supervisor LEFT OUTER SUPERVISOR.oi_personal		
+			WHERE
+				1=1
+				{%? (#MYDOC:@EST_EVEN!='')                         
+				{% AND EDD02_EVENTOS.c_estado = {#MYDOC:@EST_EVEN} %}  
+				{% %} %}  
+				{%? (#PARAM:@IDS!='')                         
+				{% AND EDD03_EVALUACION.oi_evaluacion in ({%=#PARAM:@IDS%}) %}  
+				{% 
+				AND EDD03_EVALUACION.c_estado IN ({%=#MYDOC:@EST%}) %} %}
+		')/ROWS/ROW,
+		$s in $MYDOC/EVALUADOR
+		join $r/@oi_evaluador inner $s/@oi_evaluador
+			</qry:xquery>
+			<qry:out>
+				<qry:insert-select name="pegar_eva" doc-path="$r" to-element="$s"/>
+			</qry:out>
+		</qry:select>
+		<qry:select name="pegar_eva" doc="r">
+			<qry:out>
+				<qry:attribute name="hts:delete" value="0"/>
+				<EVALUACION>
+					<qry:attribute name="NOMYAP_EMP" value="$r/@emp_apenom"/>
+					<qry:attribute name="NOMBRE_EMP" value="$r/@d_nombres"/>
+					<qry:attribute name="APELLIDO_EMP" value="$r/@d_apellido"/>
+					<qry:attribute name="MAIL" value="$r/@d_email"/>
+					<qry:insert-select name="sql1" doc-path="$r"/>
+					<qry:attribute name="NOMBRE_SUP" value="$r/@sup_apenom"/>
+					<qry:attribute name="EVENTO" value="$r/@c_evento + ' - ' + $r/@d_evento"/>
+					<qry:attribute name="FECHA" value="format-date($r/@f_evaluacion, 'dd/mm/yyyy HH:MM')"/>
+					<qry:switch test="$r/@c_estado">
+						<qry:case value="RZ">
+							<qry:attribute name="ESTADO" value="'Rechazada'"/>
+						</qry:case>
+						<qry:case value="AB">
+							<qry:attribute name="ESTADO" value="'Abierta'"/>
+						</qry:case>
+						<qry:case value="HA">
+							<qry:attribute name="ESTADO" value="'Habilitada'"/>
+						</qry:case>
+						<qry:case value="EV">
+							<qry:attribute name="ESTADO" value="'Evaluada'"/>
+						</qry:case>
+						<qry:case value="CO">
+							<qry:attribute name="ESTADO" value="'Confirmada'"/>
+						</qry:case>
+						<qry:case value="AN">
+							<qry:attribute name="ESTADO" value="'Anulada'"/>
+						</qry:case>
+						<qry:case value="AP">
+							<qry:attribute name="ESTADO" value="'Aprobada'"/>
+						</qry:case>
+						<qry:case value="CE">
+							<qry:attribute name="ESTADO" value="'Cerrada'"/>
+						</qry:case>
+						<qry:default>
+							<qry:attribute name="ESTADO" value="$r/@c_estado"/>
+						</qry:default>
+					</qry:switch>
+				</EVALUACION>
+			</qry:out>
+		</qry:select>
+		<qry:select doc="PARAM" name="sql1">
+			<qry:xquery>
+				for $r in file('Nomad\\Base\\Login\\Entidades\\{%=#PARAM:@oi_usuario_sistema%}.ENTIDAD.XML')/ENTIDAD
+			</qry:xquery>
+			<qry:out>
+				<qry:attribute name="MAIL" value="@MAIL + ';' + nmd-replace(string($r/MAILS/MAIL[@PRINCIPAL=1]/@EMAIL),',',';')"/>
+			</qry:out>
+		</qry:select>
+	</QRY>
+	<MAILS>
+		<MAIL suject="Estados de Evaluaciones" group="EVALUADOR">
+			**Buen d&#237;a {% @EVALUADOR.NOMBREYAP %},** 
+
+El Proceso de Calificaci&#243;n del Desempe&#241;o ya est&#225; en marcha. Y para esta instancia te acercamos el **listado de evaluaciones "HABILITADAS" y disponibles para su calificaci&#243;n:**
+
+{%FOR-EACH EVALUACION%}
+  * {% @EVALUACION.NOMBRE_EMP %}\\ 
+{%END EVALUACION%}
+
+La tarea consiste en valorar el desempe&#241;o de tus colaboradores asignando una calificaci&#243;n a cada responsabilidad y competencia anunciada, as&#237; como establecer un plan de mejora de aquellas que consideres que tuvieron un desempe&#241;o m&#225;s bajo. 
+
+//**Ning&#250;n piloto alcanza un alto desempe&#241;o en el circuito si no se detiene en boxes.**//\\ 
+//**&#161;El tiempo invertido en este proceso proceso puede significar una gran diferencia en el resultado final, tanto a favor de los colaboradores, como de cada una de las &#225;reas y de toda la Organizaci&#243;n!**// 
+
+Te invitamos a hacer click **AQU&#205;** para acceder a m&#225;s informaci&#243;n. 
+
+Cualquier duda o inconveniente, pod&#233;s contactarte con Mar&#237;a Cecilia Lingua, de la Gerencia de Recursos Humanos (mlingua@sancorseguros.com). 
+
+Muchas gracias. 
+
+
+//**Gerencia de Recursos Humanos**//\\ 
+//**Capital Humano**//
+		</MAIL>
+		<MAIL suject="Estados de Evaluaciones" group="EVALUACION">
+			**Estimada/o {% @EVALUACION.NOMYAP_EMP %}:**\\ 
+		Se ha modificado el estado de las siguientes evaluaciones.
+
+^Fecha         ^Evento       ^Supervisor         ^Estado                ^          
+{%FOR-EACH EVALUACION%}|{%@EVALUACION.FECHA%} |{%@EVALUACION.EVENTO%} | {% @EVALUACION.NOMBRE_SUP %} | {% @EVALUACION.ESTADO %} |
+{%END EVALUACION%}
+		</MAIL>
+	</MAILS>
+	<GROUPS>
+		<GROUP label="Por Evaluador" name="EVALUADOR">
+			<FIELD type="string" label="Nombre y Apellido" name="NOMBREYAP"/>
+			<FIELD type="string" label="Nombre" name="NOMBRE"/>
+			<FIELD type="string" label="Apellido" name="APELLIDO"/>
+			<FIELD label="E-Mail Evaluador" type="string" name="MAIL"/>
+		</GROUP>
+		<GROUP label="Por Evaluado" name="EVALUACION">
+			<FIELD type="string" label="Nombre y Apellido Empleado" name="NOMYAP_EMP"/>
+			<FIELD name="NOMBRE_EMP" type="string" label="Nombre Empleado"/>
+			<FIELD name="APELLIDO_EMP" type="string" label="Apellido Empleado"/>
+			<FIELD type="string" label="E-Mail Empleado" name="MAIL"/>
+			<FIELD type="string" label="Nombre Supervisor" name="NOMBRE_SUP"/>
+			<FIELD type="string" label="Estado" name="ESTADO"/>
+			<FIELD type="string" label="Fecha" name="FECHA"/>
+			<FIELD type="string" label="Evento" name="EVENTO"/>
+		</GROUP>
+	</GROUPS>
+	<ENUMS/>
+</ALERT>

@@ -1,0 +1,142 @@
+<form:Form xmlns:form="nomad_engine.form" xmlns:qry="nomad_engine.qry" default_mode="LIST" doc="source" name="NucleusRH.Base.Liquidacion.Interface.LibroSueldoDigitalLista.form">
+	<form:Scripts>
+		//Descarga un arhivo
+function DOWNLOAD() {
+	bajar(Ctrl("LIST").GetSelectAttrValue("file_name"));
+}       
+
+//Descarga un arhivo
+function bajar(pFileName) {
+	var np = GetProxy();
+	var nSQL = np.SQLService();    
+ 	try {
+		DownloadFile("INTERFACES\\"+pFileName, pFileName);
+		return true;
+
+ 	} catch (e) {
+		return false;
+ 	}
+}         
+
+//Descarga todos los archivos
+function DOWNLOAD_ALL() {    
+    download_files(Ctrl("LIST").RowsCount());
+}    
+
+//Descarga todos los archivos
+function download_files(cantidad) {
+  function download_next(i) {
+    var FileName;
+    
+    if (i &gt;= cantidad) {
+      return;
+    }   
+    
+    FileName = Ctrl('LIST').GetAttrValue(i,'file_name');
+    if(!bajar(FileName)) return;
+    
+    setTimeout(function() {
+      download_next(i + 1);
+    }, 500);
+  }
+  download_next(0);
+}          
+
+function load() {
+	CtrlEnabled("descargar",Ctrl('LIST').GetSelectRow() != null);
+}        
+
+/*
+function EsUltimoProceso(c_liquidacion,oi_liquidacion_ddo,c_empresa)
+{
+	var np = GetProxy();
+	var nSQL = np.SQLService();      
+    var qry = Ctrl("main").getResource("qry_cambios");
+      
+  	var result = nSQL.GetXML(qry, "&lt;DATA c_liquidacion='"+c_liquidacion+"' oi_liquidacion_ddo='"+oi_liquidacion_ddo+"' c_empresa='"+c_empresa+"' /&gt;");      
+  	
+  	return result.GetAttr("cambio") == 0;
+}                        
+
+function LimpiarCodigo(c_liquidacion)
+{ 
+   return  c_liquidacion.replace(/[\\/:*?"&lt;&gt;|]/g,'_');
+}
+*/
+	</form:Scripts>
+	<form:Center name="center">
+		<form:Blank name="bl1"/>
+		<form:ListView width="1200" visible="LIST|LIST_EDIT" name="LIST" paging="1" rows="-250" docname="RS">
+			<form:LVColumns>
+				<form:LVColumn label="Empresa" name="c_empresa" type="string" width="100px" sorteable="1" attrname="c_empresa" align="left"/>
+				<form:LVColumn attrname="c_liquidacion" align="left" sorteable="1" width="100px" type="string" label="C&#243;digo" name="c_liquidacion"/>
+				<form:LVColumn attrname="d_titulo" align="left" sorteable="1" descr="Descripcion de la liquidacion" width="100px" type="string" label="T&#237;tulo" name="d_titulo"/>
+				<form:LVColumn label="Jurisdicci&#243;n" name="juris_afip" attrname="juris_afip" type="string"/>
+				<form:LVColumn align="left" label="Periodo" name="e_periodo" type="string" width="100px" sorteable="1" attrname="e_periodo"/>
+				<form:LVColumn sorteable="1" width="100px" type="string" align="left" label="Legajos" name="n_legajos" attrname="n_legajos"/>
+				<form:LVColumn label="Nro. Liq" align="left" width="100px" sorteable="1" type="string" name="n_liq" attrname="n_liq"/>
+				<form:LVColumn type="combo" additional="&lt;combo action=&quot;COMBO&quot; flow=&quot;NucleusRH.Base.Liquidacion.Liquidacion.LIQUIDACION.c_estado.combo.autoflow&quot; /&gt;" label="Estado" name="c_estado" attrname="c_estado"/>
+				<form:LVColumn name="oi_liquidacion_ddo" type="string" visible="0" attrname="oi_liquidacion_ddo"/>
+				<form:LVColumn label="Generada por Liquidacion" type="string" name="c_liq_genera" attrname="c_liq_genera"/>
+				<form:LVColumn name="c_emp" type="string" visible="0" attrname="c_emp"/>
+				<form:LVColumn visible="0" label="Archivo" type="string" name="file_name" attrname="file_name"/>
+			</form:LVColumns>
+		</form:ListView>
+	</form:Center>
+	<form:Bottom name="bottom">
+		<form:RowAligner name="buttonlinks11" columns="5">
+			<form:Row name="row1">
+				<form:Button visible="SHOW|LIST" name="Volver" label="Volver" img="back" descrip="" note="">
+					<form:Event runat="server" name="onclick" action="BACK"/>
+				</form:Button>
+				<form:Button img="scripts" label="Descargar" name="descargar" visible="SHOW|LIST" descrip="" note="">
+					<form:Event action="DOWNLOAD" runat="client" name="onclick"/>
+				</form:Button>
+				<form:Button img="table_check" label="Descargar Todo" name="descargarTodo" visible="SHOW|LIST" descrip="" note="">
+					<form:Event action="DOWNLOAD_ALL" runat="client" name="onclick"/>
+				</form:Button>
+			</form:Row>
+		</form:RowAligner>
+	</form:Bottom>
+	<form:Event action="load" name="onload" runat="client"/>
+	<form:Resources>
+		<form:Resource declare="&lt;DATA c_liquidacion='042018sutep_LSD' oi_liquidacion_ddo='2401' c_empresa='DINO' /&gt;" name="qry_cambios">
+			<qry:main doc="SOURCE" name="main">
+				<qry:element name="ROW">
+					<qry:insert-select name="sql1" doc-path="#SOURCE:."/>
+				</qry:element>
+			</qry:main>
+			<qry:select name="sql1" doc="SOURCE">
+				<qry:xquery>
+					for $r in SQL('
+			SELECT 
+			LIQ99_LIQUIDACION.oi_liquidacion_ddo
+			FROM 
+			LIQ19_LIQUIDACION,
+			LIQ19_EJECUCIONES,
+			LIQ99_LIQUIDACION,
+			ORG03_EMPRESAS
+			JOIN
+			LIQ19_LIQUIDACION.oi_liquidacion INNER  LIQ19_EJECUCIONES.oi_liquidacion,
+			LIQ19_EJECUCIONES.oi_liquidacion_ddo INNER LIQ99_LIQUIDACION.oi_liquidacion_ddo 
+			where 
+			LIQ19_LIQUIDACION.c_liquidacion = {#SOURCE:@c_liquidacion}  
+			and LIQ99_LIQUIDACION.c_empresa = {#SOURCE:@c_empresa}  
+			and LIQ99_LIQUIDACION.c_estado = \'F\'
+			
+			')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:if test="$r/@oi_liquidacion_ddo = #SOURCE:@oi_liquidacion_ddo">
+						<qry:then>
+							<qry:attribute name="cambio" value="'0'"/>
+						</qry:then>
+						<qry:else>
+							<qry:attribute name="cambio" value="'1'"/>
+						</qry:else>
+					</qry:if>
+				</qry:out>
+			</qry:select>
+		</form:Resource>
+	</form:Resources>
+</form:Form>

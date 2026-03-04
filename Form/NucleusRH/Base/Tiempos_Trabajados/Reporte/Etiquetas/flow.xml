@@ -1,0 +1,113 @@
+<flow:flow extends="Nomad.Base.flow" xmlns:flow="nomad_engine.form" xmlns:doc="nomad_engine.form" xmlns:qry="nomad_engine.form" name="Etiquetas">
+	<flow:info label="Etiquetas"/>
+	<flow:declare>
+		<doc:define name="FILTERDATA">
+			<FILTRO file-name="" batch-id="" oi_clase_org="" oi_estructura="" oi_empresa="">
+				<PERSONAS/>
+			</FILTRO>
+		</doc:define>
+		<doc:define name="PERSONAS"/>
+		<qry:define name="QRY_PERSONAS" declare="&lt;FILTRO file-name=&quot;&quot; batch-id=&quot;&quot; oi_clase_org=&quot;&quot; oi_estructura=&quot;&quot; oi_empresa=&quot;1&quot;&gt;&lt;PERSONAS /&gt;&lt;/FILTRO&gt;">
+			<qry:main doc="PARAM">
+				<qry:append-doc name="FILTRO" doc-path="#PARAM:FILTRO"/>
+				<qry:element name="ROWS">
+					<qry:insert-select doc-path="#FILTRO:" name="QRY_LISTA_PERSONAS"/>
+				</qry:element>
+			</qry:main>
+			<qry:select doc="PARAM" name="QRY_LISTA_PERSONAS">
+				<qry:xquery>
+					for $r in sql('
+				SELECT PER01_PERSONAL.oi_personal, ORG02_ESTRUC_PERS.oi_estructura
+				FROM PER01_PERSONAL, ORG03_EMPRESAS, PER02_PERSONAL_EMP, ORG02_ESTRUC_PERS
+				JOIN  PER01_PERSONAL.oi_personal INNER PER02_PERSONAL_EMP.oi_personal,
+				ORG03_EMPRESAS.oi_empresa RIGHT OUTER PER02_PERSONAL_EMP.oi_empresa,
+				ORG02_ESTRUC_PERS.oi_personal_emp RIGHT OUTER PER02_PERSONAL_EMP.oi_personal_emp
+				WHERE PER02_PERSONAL_EMP.oi_empresa = {#FILTRO:@oi_empresa}				
+				{%? (#FILTRO:@oi_clase_org != '') {% AND ORG02_ESTRUC_PERS.oi_clase_org= {#FILTRO:@oi_clase_org} %} {%  %}   %}
+				{%? (#PARAM:@oi_estructura != '') {% AND ORG02_ESTRUC_PERS.oi_estructura = {#PARAM:@oi_estructura} %} {%  %}   %}  								
+			')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:insert-select doc-path="$r/.[#FILTRO:@oi_estructura!='']" name="QRY_DATOS_ESTR_SIG_NIVEL"/>
+					<qry:insert-select doc-path="$r" name="QRY_DATOS_PERSONAS"/>
+				</qry:out>
+			</qry:select>
+			<qry:select doc="PARAM" name="QRY_DATOS_ESTR_SIG_NIVEL">
+				<qry:xquery>
+					for $r in sql('
+				SELECT ORG02_ESTRUCTURAS.oi_estructura, ORG01_UNI_ORG.oi_unidad_org 
+				FROM ORG02_ESTRUCTURAS, ORG01_UNI_ORG
+				JOIN ORG02_ESTRUCTURAS.oi_unidad_org LEFT OUTER ORG01_UNI_ORG.oi_unidad_org 
+				WHERE ORG02_ESTRUCTURAS.oi_estr_padre = {#PARAM:@oi_estructura}				
+			')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:insert-select doc-path="$r" name="QRY_LISTA_PERSONAS"/>
+				</qry:out>
+			</qry:select>
+			<qry:select doc="PARAM" name="QRY_DATOS_PERSONAS">
+				<qry:xquery>
+					for $r in sql('
+				SELECT PER01_PERSONAL.oi_personal, PER01_PERSONAL.oi_foto				
+				FROM PER01_PERSONAL, ORG03_EMPRESAS, PER10_GRUPOS_SANG, PER33_ART, 
+				PER02_PERSONAL_EMP, PER01_DOMIC_PER, ORG02_ESTRUC_PERS
+				JOIN PER01_PERSONAL.oi_personal INNER PER02_PERSONAL_EMP.oi_personal,
+				ORG03_EMPRESAS.oi_empresa RIGHT OUTER PER02_PERSONAL_EMP.oi_empresa,
+				PER10_GRUPOS_SANG.oi_grupo_sanguineo RIGHT OUTER PER01_PERSONAL.oi_grupo_sanguineo,
+				PER33_ART.oi_art RIGHT OUTER PER02_PERSONAL_EMP.oi_art,
+				PER01_DOMIC_PER.oi_personal RIGHT OUTER PER01_PERSONAL.oi_personal,
+				ORG02_ESTRUC_PERS.oi_personal_emp RIGHT OUTER PER02_PERSONAL_EMP.oi_personal_emp
+				WHERE PER01_DOMIC_PER.oi_tipo_domicilio = 2
+				AND PER02_PERSONAL_EMP.oi_empresa = {#FILTRO:@oi_empresa}				
+				{%? (string(#FILTRO:PERSONAS/PERSONA/@id)!='') {% AND PER02_PERSONAL_EMP.oi_personal_emp in ({%=string(#FILTRO:PERSONAS/PERSONA/@id) %}) %} {%  %} %}	
+				AND PER01_PERSONAL.oi_personal = {#PARAM:@oi_personal}
+					')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:element name="ROW">
+						<qry:attribute value="$r/@oi_personal" name="oi_personal" type="Nomad.NSystem.String"/>
+						<qry:attribute value="$r/@oi_foto" name="oi_imagen" type="Nomad.NSystem.String"/>
+					</qry:element>
+				</qry:out>
+				<qry:insert-select doc-path="$r/.[#FILTRO:@oi_estructura!='']" name="QRY_DATOS_ESTR_SIG_NIVEL"/>
+			</qry:select>
+		</qry:define>
+	</flow:declare>
+	<flow:main doc="SOURCE">
+		<flow:action name="initialize">
+			<flow:open-form form-class="NucleusRH.Base.Tiempos_Trabajados.Reporte.Etiquetas.filter.form" doc-path="#SOURCE:" mode="FILTER"/>
+		</flow:action>
+	</flow:main>
+	<flow:form form-class="NucleusRH.Base.Tiempos_Trabajados.Reporte.Etiquetas.filter.form" name="NucleusRH.Base.Tiempos_Trabajados.Reporte.Etiquetas.filter.form:FILTER" parent-doc="PARENTSOURCE" doc="SOURCE" mode="FILTER">
+		<flow:action name="BACK">
+			<flow:close-form/>
+		</flow:action>
+		<flow:action name="ACCEPT">
+			<doc:assign-mapping dir-apply="a-&gt;b" b-doc="FILTERDATA" a-doc="FORM">
+				<map docB="B" docA="A">
+					<submap path-docB="#B:PERSONAS" path-docA="#A:ctrl[@id='grdPersonal']/rows">
+						<map docB="B" docA="A">
+							<link B="#B:@id" A="#A:columns/ctrl[@id='oi_personal_emp']/@xval"/>
+						</map>
+						<ProtoA/>
+						<ProtoB>
+							<PERSONA id=""/>
+						</ProtoB>
+					</submap>
+				</map>
+			</doc:assign-mapping>
+			<flow:log text="ppfilterdata" text-path="#FILTERDATA:"/>
+			<doc:load-qry output-doc="PERSONAS" input-doc-path="#FILTERDATA:" qry="QRY_PERSONAS"/>
+			<flow:log text="pppers" text-path="#PERSONAS:"/>
+			<flow:exec-method class="NucleusRH.Base.Personal.Imagenes.HEAD" method="CopyImg">
+				<flow:param doc="PERSONAS" type="Nomad.NSystem.Object" mode="in" name="PARAM"/>
+			</flow:exec-method>
+			<flow:exec-method out-attr-path="#FILTERDATA:@batch-id" out-type="String" priority="5" method="execute" class="Nomad.NSystem.Crystal.NmdCrystalBatch">
+				<flow:param value="NucleusRH.Base.Tiempos_Trabajados.Etiquetas\Etiquetas.def" name="report-name" mode="in" type="Nomad.NSystem.String"/>
+				<flow:param name="report-param" mode="in" type="Nomad.NSystem.Object" doc="FILTERDATA"/>
+				<flow:param attr-path="#FILTERDATA:@file-name" name="report-file" mode="in" type="Nomad.NSystem.String"/>
+			</flow:exec-method>
+			<flow:open-form form-class="Nomad.base.batch.report.form" mode="BATCH" doc-path="#FILTERDATA:"/>
+		</flow:action>
+	</flow:form>
+</flow:flow>

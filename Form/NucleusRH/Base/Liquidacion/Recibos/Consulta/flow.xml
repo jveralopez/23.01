@@ -1,0 +1,501 @@
+<flow:flow xmlns:flow="nomad_engine.flow" xmlns:doc="nomad_engine.doc" xmlns:qry="nomad_engine.qry" default_action="initialize" name="NucleusRH.Base.Liquidacion.Recibos.Consulta.flow">
+	<flow:info label="Consulta de Recibos"/>
+	<flow:declare>
+		<doc:define name="FILTERDATA">
+			<FILTRO>
+				<PERSONAS/>
+				<LIQUIDACIONES/>
+			</FILTRO>
+		</doc:define>
+		<qry:define declare="&lt;FILTRO gcustom=&quot;&quot; oi_empresa=&quot;164&quot; gpers=&quot;&quot; liq_cod=&quot;&quot; liq_f_des=&quot;&quot; liq_f_has=&quot;&quot; liq_f_pag_des=&quot;&quot; liq_f_pag_has=&quot;&quot; liq_oi_tipo_liq=&quot;&quot; liq_c_estado=&quot;&quot; liqID=&quot;&quot; activos=&quot;&quot; nombre=&quot;&quot; documento=&quot;&quot; sexo=&quot;&quot; grupo_sanguineo=&quot;&quot; listlegajos=&quot;&quot; oi_indic_activo=&quot;&quot; egresado=&quot;&quot; oi_forma_pago=&quot;&quot; oi_tipo_personal=&quot;&quot; fecha_desde=&quot;&quot; fecha_hasta=&quot;&quot; oi_centro_costo=&quot;&quot; oi_categoria=&quot;&quot; soloconvenio=&quot;&quot; oi_ubicacion_desde=&quot;&quot; oi_ubicacion_hasta=&quot;&quot; oi_estructura=&quot;&quot; escructura_childs=&quot;&quot; oi_convenio=&quot;&quot; oi_afjp=&quot;&quot; oi_obra_social=&quot;&quot; oi_sindicato=&quot;&quot; oi_banco=&quot;&quot; oi_sucursal=&quot;&quot; legID=&quot;&quot; leg_where=&quot;&quot;&gt;&#13;&#10;  &lt;PERSONAS&gt;    &#13;&#10;  &#9;&lt;ROW VALUES=&quot;11462,11465,11466,11471,11496,11497,11498,11499,11500,11501,11502,11503,11504,11505&quot; /&gt;&#13;&#10;  &#9;&lt;ROW VALUES=&quot;11506,11509,11464,11511,11513,11514,11554,11470,11467,11468,11469,11510&quot; /&gt;&#13;&#10;  &lt;/PERSONAS&gt;&#13;&#10;  &lt;LIQUIDACIONES&gt;&#13;&#10;    &lt;ROW VALUES=&quot;94,86,102,64,62,68,85,63,80,81,82,92,103,121,96,88,93,65,66,95,39,40,57,41,58,42,59,43,60,44,49,61,99,54,38,47,50,48,51,90,89,67,52,45&quot; /&gt;&#13;&#10;  &lt;/LIQUIDACIONES&gt;&#13;&#10;&lt;/FILTRO&gt;&#13;&#10;" name="FILTER">
+			<qry:main doc="SOURCE">
+				<qry:element name="ROWS">
+					<qry:append-doc name="PARAMIN" doc-path="#SOURCE:FILTRO"/>
+					<qry:append-doc name="LEGAJOS" doc-path="#SOURCE:FILTRO/PERSONAS"/>
+					<qry:append-doc name="LIQUIDACIONES" doc-path="#SOURCE:FILTRO/LIQUIDACIONES"/>
+					<qry:insert-select name="SPLIT" doc-path="#SOURCE:FILTRO/PERSONAS"/>
+					<!--qry:insert-select name="sql1" doc-path="$LEGAJOS/ROW"/-->
+				</qry:element>
+			</qry:main>
+			<qry:select name="SPLIT" doc="SOURCE">
+				<qry:xquery>
+					for $r in split('50;{%=#SOURCE:ROW/@values%}')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:insert-select name="sql1" doc-path="$r"/>
+				</qry:out>
+			</qry:select>
+			<qry:select name="sql1" doc="SOURCE">
+				<qry:xquery>
+					for $r in SQL('
+				SELECT 
+					LIQ20_TOT_LIQ_PER.oi_tot_liq_per, LIQ97_PERSONAL_EMP.e_numero_legajo, 
+					LIQ97_PERSONAL_EMP.d_ape_y_nom, LIQ19_EJECUCIONES.oi_ejecucion,
+					LIQ99_LIQUIDACION.c_liquidacion, LIQ99_LIQUIDACION.d_titulo,
+					LIQ20_TOT_LIQ_PER.f_cierre,LIQ20_TOT_LIQ_PER.n_totpag,
+					PER02_PERSONAL_EMP.oi_personal_emp,LIQ25_PERSONAL_LIQ.oi_personal_liq,
+					LIQ99_LIQUIDACION.e_periodo, LIQ99_LIQUIDACION.f_pago, ORG03_EMPRESAS.oi_empresa,
+					ORG03_EMPRESAS.c_empresa, ORG03_EMPRESAS.d_empresa,LIQ19_EJECUCIONES.oi_liquidacion 
+				FROM
+					LIQ25_PERSONAL_LIQ, LIQ19_EJECUCIONES, LIQ99_LIQUIDACION,
+					LIQ99_RECIBOS, LIQ20_TOT_LIQ_PER, ORG03_EMPRESAS, 
+					LIQ97_PERSONAL_EMP, PER02_PERSONAL_EMP
+				WHERE
+					LIQ25_PERSONAL_LIQ.oi_liquidacion = LIQ19_EJECUCIONES.oi_liquidacion AND
+					LIQ19_EJECUCIONES.oi_liquidacion_ddo = LIQ99_LIQUIDACION.oi_liquidacion_ddo AND
+					LIQ99_LIQUIDACION.oi_liquidacion_ddo = LIQ99_RECIBOS.oi_liquidacion_ddo AND
+					LIQ99_RECIBOS.oi_tot_liq_per = LIQ20_TOT_LIQ_PER.oi_tot_liq_per AND
+					LIQ20_TOT_LIQ_PER.oi_per_emp_ddo = LIQ97_PERSONAL_EMP.oi_per_emp_ddo AND
+					LIQ97_PERSONAL_EMP.e_numero_legajo = PER02_PERSONAL_EMP.e_numero_legajo AND
+					LIQ25_PERSONAL_LIQ.oi_personal_emp = PER02_PERSONAL_EMP.oi_personal_emp AND
+					LIQ97_PERSONAL_EMP.c_empresa = ORG03_EMPRESAS.c_empresa AND
+					LIQ99_LIQUIDACION.c_estado = \'F\' AND
+					LIQ19_EJECUCIONES.oi_liquidacion IN ({%=string($LIQUIDACIONES/ROW/@values)%}) AND 
+					PER02_PERSONAL_EMP.oi_personal_emp IN ({%=#SOURCE:@value%})
+				ORDER BY 
+					e_numero_legajo ASC, oi_ejecucion ASC
+			')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:element name="ROW">
+						<qry:attribute name="id" value="$r/@oi_tot_liq_per"/>
+						<qry:attribute name="oi_tot_liq_per" value="$r/@oi_tot_liq_per"/>
+						<qry:attribute name="e_numero_legajo" value="$r/@e_numero_legajo"/>
+						<qry:attribute name="d_ape_y_nom" value="$r/@d_ape_y_nom"/>
+						<qry:attribute name="liquidacion" value="$r/@c_liquidacion + '-' + $r/@d_titulo"/>
+						<qry:attribute name="empresa" value="$r/@c_empresa + '-' + $r/@d_empresa"/>
+						<qry:attribute name="periodo" value="$r/@e_periodo +'01'"/>
+						<qry:attribute name="periodo_pago" value="$r/@f_pago"/>
+						<!--qry:attribute name="periodo" value="format_date($r/@e_periodo+'01','mm/yyyy')"/>
+			<qry:attribute name="periodo_pago" value="format_date($r/@f_pago, 'mm/yyyy')"/-->
+						<qry:attribute name="n_tot_pago" value="FORMAT_NUMBER($r/@n_totpag, 10, 2, '.', '', '')"/>
+						<qry:attribute name="f_cierre" value="$r/@f_cierre"/>
+						<qry:insert-select name="qry_cerrado_0" doc-path="$r/.[@f_cierre='']"/>
+						<qry:insert-select name="qry_cerrado_1" doc-path="$r/.[@f_cierre!='']"/>
+						<qry:attribute name="oi_personal_liq" value="$r/@oi_personal_liq"/>
+						<qry:attribute name="oi_personal_emp" value="$r/@oi_personal_emp"/>
+						<qry:attribute name="oi_empresa" value="$r/@oi_empresa"/>
+						<qry:attribute name="oi_liquidacion" value="$r/@oi_liquidacion"/>
+					</qry:element>
+				</qry:out>
+			</qry:select>
+			<qry:select name="qry_cerrado_0">
+				<qry:out>
+					<qry:attribute name="title" value="'Liquidaci&#243;n Abierta'"/>
+					<qry:attribute name="img" value="'Listas/WF.gif'"/>
+				</qry:out>
+			</qry:select>
+			<qry:select name="qry_cerrado_1">
+				<qry:out>
+					<qry:attribute name="title" value="'Liquidaci&#243;n Cerrada'"/>
+					<qry:attribute name="img" value="'Listas/WF_END.gif'"/>
+				</qry:out>
+			</qry:select>
+		</qry:define>
+		<doc:define name="RECIBOS"/>
+		<doc:define name="DAT_ENTRADA">
+			<LIQS ids=""/>
+		</doc:define>
+		<qry:define declare="&lt;sform nmd-col=&quot;1&quot;&gt;&#13;&#10;  &lt;ctrl id=&quot;main&quot; /&gt;&#13;&#10;  &lt;ctrl id=&quot;main_Title&quot; /&gt;&#13;&#10;  &lt;ctrl id=&quot;lbl_titulo&quot; xval=&quot;&quot; cval=&quot;&quot; /&gt;&#13;&#10;  &lt;ctrl id=&quot;main_Center&quot; /&gt;&#13;&#10;  &lt;ctrl id=&quot;blank1&quot; /&gt;&#13;&#10;  &lt;ctrl id=&quot;buttonlinks&quot; /&gt;&#13;&#10;  &lt;ctrl id=&quot;buttonlinks_row_top&quot; /&gt;&#13;&#10;  &lt;ctrl id=&quot;columns1&quot; /&gt;&#13;&#10;  &lt;ctrl id=&quot;columns1_col1&quot; /&gt;&#13;&#10;  &lt;ctrl id=&quot;rowsiter&quot; /&gt;&#13;&#10;  &lt;ctrl id=&quot;rowsiter_rowiter&quot; /&gt;&#13;&#10;  &lt;ctrl id=&quot;blank_rowtop1&quot; /&gt;&#13;&#10;  &lt;ctrl id=&quot;iter_search&quot; xval=&quot;&quot; cval=&quot;&quot; /&gt;&#13;&#10;  &lt;ctrl id=&quot;iter_search_Search&quot; /&gt;&#13;&#10;  &lt;ctrl id=&quot;columns2&quot; /&gt;&#13;&#10;  &lt;ctrl id=&quot;columns2_col1&quot; /&gt;&#13;&#10;  &lt;ctrl id=&quot;list1&quot; xval=&quot;3437&quot; cval=&quot;&quot; /&gt;&#13;&#10;  &lt;ctrl id=&quot;empresa&quot; /&gt;&#13;&#10;  &lt;ctrl id=&quot;e_numero_legajo&quot; /&gt;&#13;&#10;  &lt;ctrl id=&quot;d_ape_y_nom&quot; /&gt;&#13;&#10;  &lt;ctrl id=&quot;liquidacion&quot; /&gt;&#13;&#10;  &lt;ctrl id=&quot;periodo&quot; /&gt;&#13;&#10;  &lt;ctrl id=&quot;periodo_pago&quot; /&gt;&#13;&#10;  &lt;ctrl id=&quot;n_tot_pago&quot; /&gt;&#13;&#10;  &lt;ctrl id=&quot;main_Right&quot; /&gt;&#13;&#10;  &lt;ctrl id=&quot;VGroup_AccionesRecibos&quot; xval=&quot;&quot; cval=&quot;&quot; /&gt;&#13;&#10;  &lt;ctrl id=&quot;RECIBO&quot; /&gt;&#13;&#10;  &lt;ctrl id=&quot;DETALLE_RECIBO&quot; /&gt;&#13;&#10;  &lt;ctrl id=&quot;FORM_649&quot; /&gt;&#13;&#10;  &lt;ctrl id=&quot;IMP_RECIBO&quot; /&gt;&#13;&#10;  &lt;ctrl id=&quot;VGroup_ChildsRecibos&quot; xval=&quot;&quot; cval=&quot;&quot; /&gt;&#13;&#10;  &lt;ctrl id=&quot;VAL_VAREF&quot; FO=&quot;1&quot; /&gt;&#13;&#10;  &lt;ctrl id=&quot;RECIBO&quot; /&gt;&#13;&#10;  &lt;ctrl id=&quot;main_Bottom&quot; /&gt;&#13;&#10;  &lt;ctrl id=&quot;botonera&quot; /&gt;&#13;&#10;  &lt;ctrl id=&quot;botonera_fila6&quot; /&gt;&#13;&#10;  &lt;ctrl id=&quot;BACK&quot; /&gt;&#13;&#10;&lt;/sform&gt;&#13;&#10;" name="DAT_ENT">
+			<qry:main doc="SOURCE">
+				<qry:element name="ROWS">
+					<qry:insert-select name="sql1" doc-path="#SOURCE:sform/ctrl[@id='list1']"/>
+					<qry:insert-select name="sql2" doc-path="#SOURCE:sform/ctrl[@id='list1']"/>
+					<qry:insert-select name="sql3" doc-path="#SOURCE:sform/ctrl[@id='list1']"/>
+					<qry:insert-select name="sql4" doc-path="#SOURCE:sform/ctrl[@id='list1']"/>
+					<qry:insert-select name="sql5" doc-path="#SOURCE:sform/ctrl[@id='list1']"/>
+				</qry:element>
+			</qry:main>
+			<qry:select name="sql1" doc="SOURCE">
+				<qry:xquery>
+					for $r in SQL('
+				SELECT 
+					LIQ97_VAL_VAREF.c_variable, 
+					LIQ97_VAL_VAREF.n_valor, 
+					LIQ95_VARIABLES.d_variable,
+					LIQ97_VAL_VAREF.oi_val_varef_ddo
+				FROM 
+					LIQ20_TOT_LIQ_PER, 
+					LIQ97_VAL_VAREF, 
+					LIQ95_VARIABLES
+				WHERE 
+					LIQ20_TOT_LIQ_PER.oi_per_emp_ddo = LIQ97_VAL_VAREF.oi_per_emp_ddo AND
+					LIQ97_VAL_VAREF.oi_variable_ddo = LIQ95_VARIABLES.oi_variable_ddo AND
+					LIQ20_TOT_LIQ_PER.oi_tot_liq_per = {%=#SOURCE:@xval%} AND
+					LIQ95_VARIABLES.c_tipo_variable != \'5\' AND
+					LIQ97_VAL_VAREF.n_valor != 0
+				ORDER BY 
+					c_variable ASC
+      ')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:element name="ROW1">
+						<qry:attribute name="id" value="$r/@oi_val_varef_ddo"/>
+						<qry:attribute name="c_variable" value="$r/@c_variable"/>
+						<qry:attribute name="n_valor" value="$r/@n_valor"/>
+						<qry:attribute name="d_variable" value="$r/@d_variable"/>
+					</qry:element>
+				</qry:out>
+			</qry:select>
+			<qry:select name="sql2" doc="SOURCE">
+				<qry:xquery>
+					for $r in SQL('
+		SELECT 
+			LIQ99_VAL_VARGN.c_variable, 
+			LIQ99_VAL_VARGN.n_valor, 
+			LIQ95_VARIABLES.d_variable, 
+			LIQ99_VAL_VARGN.oi_val_vargn_ddo
+		FROM 
+			LIQ20_TOT_LIQ_PER, 
+			LIQ99_RECIBOS, 
+			LIQ99_LIQUIDACION,
+			LIQ99_VAL_VARGN, 
+			LIQ95_VARIABLES
+		WHERE 
+			LIQ20_TOT_LIQ_PER.oi_tot_liq_per = LIQ99_RECIBOS.oi_tot_liq_per AND
+			LIQ99_RECIBOS.oi_liquidacion_ddo = LIQ99_LIQUIDACION.oi_liquidacion_ddo AND 
+			LIQ99_LIQUIDACION.oi_liquidacion_ddo = LIQ99_VAL_VARGN.oi_liquidacion_ddo AND
+			LIQ99_VAL_VARGN.oi_variable_ddo = LIQ95_VARIABLES.oi_variable_ddo AND
+			LIQ99_LIQUIDACION.c_estado = \'F\' AND               
+			LIQ95_VARIABLES.c_tipo_variable != \'5\' AND
+			LIQ99_VAL_VARGN.n_valor != 0 AND
+			LIQ20_TOT_LIQ_PER.oi_tot_liq_per = {%=#SOURCE:@xval%}
+		ORDER BY 
+			c_variable ASC
+      ')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:element name="ROW2">
+						<qry:attribute name="id" value="$r/@oi_val_vargn_ddo"/>
+						<qry:attribute name="c_variable" value="$r/@c_variable"/>
+						<qry:attribute name="n_valor" value="$r/@n_valor"/>
+						<qry:attribute name="d_variable" value="$r/@d_variable"/>
+					</qry:element>
+				</qry:out>
+			</qry:select>
+			<qry:select name="sql3" doc="SOURCE">
+				<qry:xquery>
+					for $r in SQL('
+			SELECT 
+				LIQ98_VAL_VAREN.c_variable, 
+				LIQ98_VAL_VAREN.n_valor, 
+				LIQ95_VARIABLES.d_variable,
+				LIQ98_VAL_VAREN.oi_val_varen_ddo
+			FROM 
+				LIQ20_TOT_LIQ_PER, 
+				LIQ98_VAL_VAREN, 
+				LIQ95_VARIABLES
+			WHERE 
+				LIQ20_TOT_LIQ_PER.oi_per_liq_ddo = LIQ98_VAL_VAREN.oi_per_liq_ddo AND
+				LIQ98_VAL_VAREN.oi_variable_ddo = LIQ95_VARIABLES.oi_variable_ddo AND	
+				LIQ95_VARIABLES.c_tipo_variable != \'5\' AND
+				LIQ98_VAL_VAREN.n_valor != 0 AND
+				LIQ20_TOT_LIQ_PER.oi_tot_liq_per = {%=#SOURCE:@xval%}
+			ORDER BY 
+				c_variable ASC
+      ')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:element name="ROW3">
+						<qry:attribute name="id" value="$r/@oi_val_varen_ddo"/>
+						<qry:attribute name="c_variable" value="$r/@c_variable"/>
+						<qry:attribute name="n_valor" value="$r/@n_valor"/>
+						<qry:attribute name="d_variable" value="$r/@d_variable"/>
+					</qry:element>
+				</qry:out>
+			</qry:select>
+			<qry:select name="sql4" doc="SOURCE">
+				<qry:xquery>
+					for $r in SQL('
+		SELECT 
+			LIQ99_VAL_VARGN.c_variable, 
+			LIQ99_VAL_VARGN.n_valor, 
+			LIQ95_VARIABLES.d_variable, 
+			LIQ99_VAL_VARGN.oi_val_vargn_ddo
+		FROM 
+			LIQ20_TOT_LIQ_PER, 
+			LIQ99_RECIBOS, 
+			LIQ99_LIQUIDACION,
+			LIQ99_VAL_VARGN, 
+			LIQ95_VARIABLES
+		WHERE 
+			LIQ20_TOT_LIQ_PER.oi_tot_liq_per = LIQ99_RECIBOS.oi_tot_liq_per AND
+			LIQ99_RECIBOS.oi_liquidacion_ddo = LIQ99_LIQUIDACION.oi_liquidacion_ddo AND 
+			LIQ99_LIQUIDACION.oi_liquidacion_ddo = LIQ99_VAL_VARGN.oi_liquidacion_ddo AND
+			LIQ99_VAL_VARGN.oi_variable_ddo = LIQ95_VARIABLES.oi_variable_ddo AND
+			LIQ99_LIQUIDACION.c_estado = \'F\' AND
+			LIQ95_VARIABLES.c_tipo_variable != \'5\' AND
+			LIQ99_VAL_VARGN.n_valor != 0 AND
+			LIQ20_TOT_LIQ_PER.oi_tot_liq_per = {%=#SOURCE:@xval%}
+		ORDER BY 
+			c_variable ASC
+      ')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:element name="ROW4">
+						<qry:attribute name="id" value="$r/@oi_val_vargn_ddo"/>
+						<qry:attribute name="c_variable" value="$r/@c_variable"/>
+						<qry:attribute name="n_valor" value="$r/@n_valor"/>
+						<qry:attribute name="d_variable" value="$r/@d_variable"/>
+					</qry:element>
+				</qry:out>
+			</qry:select>
+			<qry:select name="sql5" doc="SOURCE">
+				<qry:xquery>
+					for $r in SQL('
+			SELECT 
+				LIQ98_VAL_N_ANNO.c_variable,LIQ98_VAL_N_ANNO.e_anno, 
+				LIQ98_VAL_N_ANNO.n_valor_1, LIQ98_VAL_N_ANNO.n_valor_2, 
+				LIQ98_VAL_N_ANNO.n_valor_3,LIQ98_VAL_N_ANNO.n_valor_4,	
+				LIQ98_VAL_N_ANNO.n_valor_5,LIQ98_VAL_N_ANNO.n_valor_6, 
+				LIQ98_VAL_N_ANNO.n_valor_7,LIQ98_VAL_N_ANNO.n_valor_8, 
+				LIQ98_VAL_N_ANNO.n_valor_9,LIQ98_VAL_N_ANNO.n_valor_10, 
+				LIQ98_VAL_N_ANNO.n_valor_11,LIQ98_VAL_N_ANNO.n_valor_12,
+				LIQ95_VARIABLES.d_variable, LIQ98_VAL_N_ANNO.oi_val_n_anno_ddo
+			FROM 
+				LIQ20_TOT_LIQ_PER, 
+				LIQ98_VAL_N_ANNO,
+				LIQ95_VARIABLES
+			WHERE 
+				LIQ20_TOT_LIQ_PER.oi_per_liq_ddo = LIQ98_VAL_N_ANNO.oi_per_liq_ddo AND
+				LIQ98_VAL_N_ANNO.oi_variable_ddo = LIQ95_VARIABLES.oi_variable_ddo AND
+				LIQ95_VARIABLES.c_tipo_variable != \'5\' AND
+				LIQ20_TOT_LIQ_PER.oi_tot_liq_per = {%=#SOURCE:@xval%}
+			ORDER BY 
+				c_variable ASC, e_anno ASC
+      ')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:if test="$r/@n_valor_1!=0">
+						<qry:then>
+							<qry:element name="ROW5">
+								<qry:attribute name="id" value="$r/@oi_val_n_anno_ddo"/>
+								<qry:attribute name="c_variable" value="$r/@c_variable+ '  [01/'+ $r/@e_anno + ']'"/>
+								<qry:attribute name="n_valor" value="$r/@n_valor_1"/>
+								<qry:attribute name="d_variable" value="$r/@d_variable"/>
+							</qry:element>
+						</qry:then>
+					</qry:if>
+					<qry:if test="$r/@n_valor_2!=0">
+						<qry:then>
+							<qry:element name="ROW">
+								<qry:attribute name="id" value="$r/@oi_val_n_anno_ddo"/>
+								<qry:attribute name="c_variable" value="$r/@c_variable+ '  [02/'+ $r/@e_anno + ']'"/>
+								<qry:attribute name="n_valor" value="$r/@n_valor_2"/>
+								<qry:attribute name="d_variable" value="$r/@d_variable"/>
+							</qry:element>
+						</qry:then>
+					</qry:if>
+					<qry:if test="$r/@n_valor_3!=0">
+						<qry:then>
+							<qry:element name="ROW">
+								<qry:attribute name="id" value="$r/@oi_val_n_anno_ddo"/>
+								<qry:attribute name="c_variable" value="$r/@c_variable+ '  [03/'+ $r/@e_anno + ']'"/>
+								<qry:attribute name="n_valor" value="$r/@n_valor_3"/>
+								<qry:attribute name="d_variable" value="$r/@d_variable"/>
+							</qry:element>
+						</qry:then>
+					</qry:if>
+					<qry:if test="$r/@n_valor_4!=0">
+						<qry:then>
+							<qry:element name="ROW">
+								<qry:attribute name="id" value="$r/@oi_val_n_anno_ddo"/>
+								<qry:attribute name="c_variable" value="$r/@c_variable+ '  [04/'+ $r/@e_anno + ']'"/>
+								<qry:attribute name="n_valor" value="$r/@n_valor_4"/>
+								<qry:attribute name="d_variable" value="$r/@d_variable"/>
+							</qry:element>
+						</qry:then>
+					</qry:if>
+					<qry:if test="$r/@n_valor_5!=0">
+						<qry:then>
+							<qry:element name="ROW">
+								<qry:attribute name="id" value="$r/@oi_val_n_anno_ddo"/>
+								<qry:attribute name="c_variable" value="$r/@c_variable+ '  [05/'+ $r/@e_anno + ']'"/>
+								<qry:attribute name="n_valor" value="$r/@n_valor_5"/>
+								<qry:attribute name="d_variable" value="$r/@d_variable"/>
+							</qry:element>
+						</qry:then>
+					</qry:if>
+					<qry:if test="$r/@n_valor_6!=0">
+						<qry:then>
+							<qry:element name="ROW">
+								<qry:attribute name="id" value="$r/@oi_val_n_anno_ddo"/>
+								<qry:attribute name="c_variable" value="$r/@c_variable+ '  [06/'+ $r/@e_anno + ']'"/>
+								<qry:attribute name="n_valor" value="$r/@n_valor_6"/>
+								<qry:attribute name="d_variable" value="$r/@d_variable"/>
+							</qry:element>
+						</qry:then>
+					</qry:if>
+					<qry:if test="$r/@n_valor_7!=0">
+						<qry:then>
+							<qry:element name="ROW">
+								<qry:attribute name="id" value="$r/@oi_val_n_anno_ddo"/>
+								<qry:attribute name="c_variable" value="$r/@c_variable+ '  [07/'+ $r/@e_anno + ']'"/>
+								<qry:attribute name="n_valor" value="$r/@n_valor_7"/>
+								<qry:attribute name="d_variable" value="$r/@d_variable"/>
+							</qry:element>
+						</qry:then>
+					</qry:if>
+					<qry:if test="$r/@n_valor_8!=0">
+						<qry:then>
+							<qry:element name="ROW">
+								<qry:attribute name="id" value="$r/@oi_val_n_anno_ddo"/>
+								<qry:attribute name="c_variable" value="$r/@c_variable+ '  [08/'+ $r/@e_anno + ']'"/>
+								<qry:attribute name="n_valor" value="$r/@n_valor_8"/>
+								<qry:attribute name="d_variable" value="$r/@d_variable"/>
+							</qry:element>
+						</qry:then>
+					</qry:if>
+					<qry:if test="$r/@n_valor_9!=0">
+						<qry:then>
+							<qry:element name="ROW">
+								<qry:attribute name="id" value="$r/@oi_val_n_anno_ddo"/>
+								<qry:attribute name="c_variable" value="$r/@c_variable+ '  [09/'+ $r/@e_anno + ']'"/>
+								<qry:attribute name="n_valor" value="$r/@n_valor_9"/>
+								<qry:attribute name="d_variable" value="$r/@d_variable"/>
+							</qry:element>
+						</qry:then>
+					</qry:if>
+					<qry:if test="$r/@n_valor_10!=0">
+						<qry:then>
+							<qry:element name="ROW">
+								<qry:attribute name="id" value="$r/@oi_val_n_anno_ddo"/>
+								<qry:attribute name="c_variable" value="$r/@c_variable+ '  [10/'+ $r/@e_anno + ']'"/>
+								<qry:attribute name="n_valor" value="$r/@n_valor_10"/>
+								<qry:attribute name="d_variable" value="$r/@d_variable"/>
+							</qry:element>
+						</qry:then>
+					</qry:if>
+					<qry:if test="$r/@n_valor_11!=0">
+						<qry:then>
+							<qry:element name="ROW">
+								<qry:attribute name="id" value="$r/@oi_val_n_anno_ddo"/>
+								<qry:attribute name="c_variable" value="$r/@c_variable+ '  [11/'+ $r/@e_anno + ']'"/>
+								<qry:attribute name="n_valor" value="$r/@n_valor_11"/>
+								<qry:attribute name="d_variable" value="$r/@d_variable"/>
+							</qry:element>
+						</qry:then>
+					</qry:if>
+					<qry:if test="$r/@n_valor_12!=0">
+						<qry:then>
+							<qry:element name="ROW">
+								<qry:attribute name="id" value="$r/@oi_val_n_anno_ddo"/>
+								<qry:attribute name="c_variable" value="$r/@c_variable+ '  [12/'+ $r/@e_anno + ']'"/>
+								<qry:attribute name="n_valor" value="$r/@n_valor_12"/>
+								<qry:attribute name="d_variable" value="$r/@d_variable"/>
+							</qry:element>
+						</qry:then>
+					</qry:if>
+				</qry:out>
+			</qry:select>
+		</qry:define>
+	</flow:declare>
+	<flow:main doc="SOURCE">
+		<flow:action name="initialize">
+			<flow:open-form doc-path="#FILTERDATA:" form-class="NucleusRH.Base.Liquidacion.Recibos.Consulta.filter.form" mode="FILTER"/>
+		</flow:action>
+	</flow:main>
+	<flow:form parent-doc="PARENTSOURCE" mode="FILTER" form-class="NucleusRH.Base.Liquidacion.Recibos.Consulta.filter.form" name="NucleusRH.Base.Liquidacion.Recibos.Consulta.filter.form:FILTER" doc="SOURCE">
+		<flow:action name="ACCEPT">
+			<flow:log text-path="#SOURCE:" text="kkokok"/>
+			<!--doc:load-qry input-doc-path="#SOURCE:" output-doc="RECIBOS" qry="FILTER"/-->
+			<flow:call-action action="Save-FILTER"/>
+			<flow:log text-path="#RECIBOS:" text="EMIRECIBOS"/>
+			<doc:load-qry input-doc-path="#SOURCE:" output-doc="RECIBOS" qry="FILTER"/>
+			<flow:open-form doc-path="#RECIBOS:" mode="LIST" form-class="NucleusRH.Base.Liquidacion.Recibos.Consulta.form"/>
+		</flow:action>
+		<flow:action name="BACK">
+			<flow:exit-flow return-path="#SOURCE:"/>
+		</flow:action>
+		<flow:action name="on-show">
+			<flow:call-action action="Load-FILTER"/>
+		</flow:action>
+		<flow:action name="Load-FILTER">
+			<flow:load-user-data doc="SOURCE" name="FILTER-Consulta Recibos"/>
+		</flow:action>
+		<flow:action name="Save-FILTER">
+			<flow:save-user-data doc-path="#SOURCE:" name="FILTER-Consulta Recibos"/>
+		</flow:action>
+	</flow:form>
+	<flow:form parent-doc="PARENTSOURCE" doc="SOURCE" mode="LIST" form-class="NucleusRH.Base.Liquidacion.Recibos.Consulta.form" name="NucleusRH.Base.Liquidacion.Recibos.Consulta.form:SHOW">
+		<flow:action name="on-show">
+			<flow:log text="EMIRECIBOS2" text-path="#RECIBOS:"/>
+			<!--doc:load-qry input-doc-path="#FILTERDATA:" output-doc="LIQIDS" qry="QRY_LIQS"/-->
+			<flow:attach-doc doc-path="#RECIBOS:" attach-id="RS"/>
+		</flow:action>
+		<flow:action name="BACK">
+			<flow:close-form/>
+		</flow:action>
+		<flow:action name="CALL:DAT_ENTRADA">
+			<flow:log text-path="#FORM:" text="EMIRECIBOS"/>
+			<doc:load-qry output-doc="DAT_ENTRADA" input-doc-path="#FORM:" qry="DAT_ENT"/>
+			<flow:open-form doc-path="#DAT_ENTRADA:" form-class="NucleusRH.Base.Liquidacion.Recibos.Consulta.DAT_ENTRADA.form" mode="LIST"/>
+		</flow:action>
+	</flow:form>
+	<flow:form form-class="NucleusRH.Base.Liquidacion.Recibos.Consulta.DAT_ENTRADA.form" name="NucleusRH.Base.Liquidacion.Recibos.Consulta.DAT_ENTRADA.form:LIST" parent-doc="PARENTSOURCE" doc="SOURCE" mode="LIST">
+		<flow:action name="on-show">
+			<flow:log text-path="#DAT_ENTRADA:" text="EMIDATA"/>
+			<flow:attach-doc doc-path="#DAT_ENTRADA:" attach-id="RS"/>
+		</flow:action>
+		<flow:action name="BACK">
+			<flow:close-form/>
+		</flow:action>
+	</flow:form>
+	<flow:group name="DAT_ENTRADA">
+		<!--flow:form extends="CLASSNOROOT:SHOW" doc-path="/VAL_VAREF[@id='{#iter-cursor:@value}']" parent-doc="PARENTSOURCE" doc="SOURCE" name="NucleusRH.Base.Liquidacion.Legajo_Liquidacion.VAL_VAREF.autoform:SHOW" form-class="NucleusRH.Base.Liquidacion.Legajo_Liquidacion.VAL_VAREF.autoform" mode="SHOW"/>
+<flow:form extends="CLASSNOROOT:LIST" doc-path="/VAL_VAREF[@id='{#iter-cursor:@value}']" parent-doc="PARENTSOURCE" doc="SOURCE" name="NucleusRH.Base.Liquidacion.Recibos.Consulta.DAT_ENTRADA.form:LIST" form-class="NucleusRH.Base.Liquidacion.Recibos.Consulta.DAT_ENTRADA.form" mode="LIST">
+	<flow:action name="load-child-LIST">
+		<doc:load-qry output-doc="DAT_ENTRADA" input-doc-path="#RECIBOS:" qry="DAT_ENT"/>
+	</flow:action>
+</flow:form>
+<flow:form extends="CLASSNOROOT:LIST_EDIT" doc-path="/VAL_VAREF[@id='{#iter-cursor:@value}']" parent-doc="PARENTSOURCE" doc="SOURCE" name="NucleusRH.Base.Liquidacion.Legajo_Liquidacion.VAL_VAREF.autoform:LIST_EDIT" form-class="NucleusRH.Base.Liquidacion.Legajo_Liquidacion.VAL_VAREF.autoform" mode="LIST_EDIT">
+	<flow:action name="new-DDO">
+		<doc:new-object doc="NEWDDO" class="NucleusRH.Base.Liquidacion.Legajo_Liquidacion.VAL_VAREF"/>
+	</flow:action>
+	<flow:action name="delete-DDO">
+		<doc:delete-object doc-path="#PARENTSOURCE:VAL_VAREF[@id='{#FORM:ctrl[@id='LIST']/@xval}']" class="NucleusRH.Base.Liquidacion.Legajo_Liquidacion.VAL_VAREF"/>
+	</flow:action>
+	<flow:action name="open-flow-ADD">
+		<flow:open-form parent-doc-path="#PARENTSOURCE:" doc-path="#NEWDDO:" mode="NEW" form-class="NucleusRH.Base.Liquidacion.Legajo_Liquidacion.VAL_VAREF.autoform"/>
+	</flow:action>
+	<flow:action name="open-flow-LIST">
+		<flow:open-form iter-index="#PARENTSOURCE:VAL_VAREF/@id" parent-doc-path="#PARENTSOURCE:" doc-path="#PARENTSOURCE:" mode="LIST_EDIT" form-class="NucleusRH.Base.Liquidacion.Legajo_Liquidacion.VAL_VAREF.autoform"/>
+	</flow:action>
+	<flow:action name="load-child-LIST">
+		<doc:load-qry output-doc="QRY_LIST" input-doc-path="#PARENTSOURCE:" qry="LIST:NucleusRH.Base.Liquidacion.Legajo_Liquidacion.VAL_VAREF"/>
+	</flow:action>
+</flow:form>
+<flow:form extends="CLASSNOROOT:NOREG:EDIT" parent-doc="PARENTSOURCE" doc="SOURCE" name="NucleusRH.Base.Liquidacion.Legajo_Liquidacion.VAL_VAREF.noreg.autoform:EDIT" form-class="NucleusRH.Base.Liquidacion.Legajo_Liquidacion.VAL_VAREF.noreg.autoform" mode="EDIT">
+	<flow:action name="new-DDO">
+		<doc:new-object doc="NEWDDO" class="NucleusRH.Base.Liquidacion.Legajo_Liquidacion.VAL_VAREF"/>
+	</flow:action>
+	<flow:action name="delete-DDO">
+		<doc:delete-object doc-path="#PARENTSOURCE:VAL_VAREF[@id='{#FORM:ctrl[@id='LIST']/@xval}']" class="NucleusRH.Base.Liquidacion.Legajo_Liquidacion.VAL_VAREF"/>
+	</flow:action>
+	<flow:action name="open-flow-EDIT">
+		<flow:open-form iter-index="#PARENTSOURCE:VAL_VAREF/@id" parent-doc-path="#PARENTSOURCE:" doc-path="#PARENTSOURCE:" mode="EDIT" form-class="NucleusRH.Base.Liquidacion.Legajo_Liquidacion.VAL_VAREF.autoform"/>
+	</flow:action>
+	<flow:action name="open-flow-ADD">
+		<flow:open-form parent-doc-path="#PARENTSOURCE:" doc-path="#NEWDDO:" mode="NEW" form-class="NucleusRH.Base.Liquidacion.Legajo_Liquidacion.VAL_VAREF.autoform"/>
+	</flow:action>
+	<flow:action name="open-flow-LIST">
+		<flow:open-form iter-index="#PARENTSOURCE:VAL_VAREF/@id" parent-doc-path="#PARENTSOURCE:" doc-path="#PARENTSOURCE:" mode="LIST_EDIT" form-class="NucleusRH.Base.Liquidacion.Legajo_Liquidacion.VAL_VAREF.autoform"/>
+	</flow:action>
+	<flow:action name="load-child-LIST">
+		<doc:load-qry output-doc="QRY_LIST" input-doc-path="#PARENTSOURCE:" qry="LIST:NucleusRH.Base.Liquidacion.Legajo_Liquidacion.VAL_VAREF"/>
+	</flow:action>
+</flow:form>
+<flow:form extends="CLASSNOROOT:EDIT" doc-path="/VAL_VAREF[@id='{#iter-cursor:@value}']" parent-doc="PARENTSOURCE" doc="SOURCE" name="NucleusRH.Base.Liquidacion.Legajo_Liquidacion.VAL_VAREF.autoform:EDIT" form-class="NucleusRH.Base.Liquidacion.Legajo_Liquidacion.VAL_VAREF.autoform" mode="EDIT">
+	<flow:action name="new-DDO">
+		<doc:new-object doc="NEWDDO" class="NucleusRH.Base.Liquidacion.Legajo_Liquidacion.VAL_VAREF"/>
+	</flow:action>
+	<flow:action name="delete-DDO">
+		<doc:delete-object doc-path="#SOURCE:" class="NucleusRH.Base.Liquidacion.Legajo_Liquidacion.VAL_VAREF" doc="SOURCE"/>
+	</flow:action>
+	<flow:action name="open-flow-ADD">
+		<flow:open-form parent-doc-path="#PARENTSOURCE:" doc-path="#NEWDDO:" mode="NEW" form-class="NucleusRH.Base.Liquidacion.Legajo_Liquidacion.VAL_VAREF.autoform"/>
+	</flow:action>
+</flow:form>
+<flow:form extends="CLASSNOROOT:NEW" parent-doc="PARENTSOURCE" doc="SOURCE" name="NucleusRH.Base.Liquidacion.Legajo_Liquidacion.VAL_VAREF.autoform:NEW" form-class="NucleusRH.Base.Liquidacion.Legajo_Liquidacion.VAL_VAREF.autoform" mode="NEW"/-->
+	</flow:group>
+</flow:flow>

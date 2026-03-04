@@ -1,0 +1,80 @@
+<html:html xmlns:html="nomad_engine.html" xmlns:qry="nomad_engine.qry" extends="Nomad.Base.BaseReport.rpt" doc="source" name="NucleusRH.Base.Liquidacion.ComentariosRecibo">
+	<html:query declare="&lt;DATOS oi_liquidacion=&quot;69&quot; /&gt;">
+		<qry:main doc="SOURCE">
+			<qry:append-doc name="PARAMIN" doc-path="#SOURCE:DATOS"/>
+			<REPORT label="Listado de comentarios de recibos">
+				<qry:attribute name="date" value="format_date(Now(),'dd/mm/yyyy HH:MM')"/>
+				<GROUPS>
+					<GROUP tag="LIQ" type="title">
+						<COLS>
+							<COL name="d_empresa" label="Empresa"/>
+							<COL name="d_liquidacion" label="Liquidaci&#243;n"/>
+						</COLS>
+						<GROUP tag="DATO" type="table" noreg="No se encontraron registros para los filtros seleccionados.">
+							<COLS>
+								<COL label="Legajo" name="legajo" style="width:15%"/>
+								<COL label="Apellido y Nombre" name="d_ape_y_nom" style="width:25%"/>
+								<COL label="Comentarios" name="o_comentarios" style="width:60%"/>
+							</COLS>
+						</GROUP>
+					</GROUP>
+				</GROUPS>
+				<qry:element name="DATA">
+					<qry:element name="LIQ">
+						<qry:insert-select name="qry_cabecera" doc-path="#PARAMIN:"/>
+						<qry:insert-select name="qry_datos" doc-path="#PARAMIN:"/>
+					</qry:element>
+				</qry:element>
+			</REPORT>
+		</qry:main>
+		<qry:select name="qry_cabecera" doc="SOURCE">
+			<qry:xquery>
+				for $r in sql('
+			SELECT 
+				ORG03_EMPRESAS.d_empresa, 
+				LIQ19_LIQUIDACION.c_liquidacion, 
+				LIQ19_LIQUIDACION.d_titulo
+			FROM 
+				ORG03_EMPRESAS, 
+				LIQ19_LIQUIDACION
+			JOIN 
+				ORG03_EMPRESAS.oi_empresa INNER LIQ19_LIQUIDACION.oi_empresa
+			WHERE 
+				LIQ19_LIQUIDACION.oi_liquidacion = {#SOURCE:@oi_liquidacion}
+		')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:attribute name="d_empresa" value="$r/@d_empresa"/>
+				<qry:attribute name="d_liquidacion" value="$r/@c_liquidacion + ' - ' + $r/@d_titulo"/>
+			</qry:out>
+		</qry:select>
+		<qry:select name="qry_datos" doc="SOURCE">
+			<qry:xquery>
+				for $r in sql(' 
+			SELECT 
+				PER02_PERSONAL_EMP.e_numero_legajo,
+				PER01_PERSONAL.d_ape_y_nom,
+				LIQ25_PERSONAL_LIQ.o_comentarios
+			FROM
+				PER02_PERSONAL_EMP,
+				PER01_PERSONAL,
+				LIQ25_PERSONAL_LIQ
+			JOIN
+				LIQ25_PERSONAL_LIQ.oi_personal_emp INNER PER02_PERSONAL_EMP.oi_personal_emp,
+				PER02_PERSONAL_EMP.oi_personal INNER PER01_PERSONAL.oi_personal
+			WHERE 
+				LIQ25_PERSONAL_LIQ.oi_liquidacion = {%=#SOURCE:@oi_liquidacion%} AND
+				LEN(LIQ25_PERSONAL_LIQ.o_comentarios) &gt; 0
+			ORDER BY e_numero_legajo ASC			
+		')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:element name="DATO">
+					<qry:attribute name="legajo" value="$r/@e_numero_legajo"/>
+					<qry:attribute name="d_ape_y_nom" value="$r/@d_ape_y_nom"/>
+					<qry:attribute name="o_comentarios" value="$r/@o_comentarios"/>
+				</qry:element>
+			</qry:out>
+		</qry:select>
+	</html:query>
+</html:html>

@@ -1,0 +1,114 @@
+<html:html xmlns:html="nomad_engine.html" xmlns:qry="nomad_engine.qry" name="NucleusRH.Base.Presupuesto.PorPersona.rpt" extends="Nomad.Base.BaseReport.rpt" doc="source">
+	<html:query>
+		<qry:main doc="SOURCE">
+			<qry:append-doc name="PARAMIN" doc-path="#SOURCE:"/>
+			<REPORT label="Legajo dentro del escenario">
+				<qry:attribute name="date" value="format_date(Now(),'dd/mm/yyyy HH:MM')"/>
+				<GROUPS>
+					<GROUP tag="PERSONA" type="title">
+						<COLS>
+							<COL name="e_numero_legajo" label="Legajo"/>
+							<COL name="d_legajo" label="Persona"/>
+							<COL name="f_ingreso" label="Fecha de Ingreso" type="date"/>
+							<COL name="f_egreso" label="Fecha de Egreso" type="date"/>
+							<COL name="f_antiguedad" label="Fecha de Reconocimiento de la Antiguedad" type="date"/>
+						</COLS>
+						<GROUP tag="CONCEPTO" style="padding-left:50px;" type="table">
+							<COLS>
+								<COL name="c_concepto" label="Cod" style="width:15%"/>
+								<COL name="d_concepto" label="Concepto" style="width:15%" nowrap="1"/>
+								<qry:insert-select name="qry_columna_conceptos" doc-path="#SOURCE:"/>
+							</COLS>
+						</GROUP>
+					</GROUP>
+				</GROUPS>
+				<qry:element name="DATA">
+					<qry:insert-select name="qry_cabecera" doc-path="#SOURCE:"/>
+				</qry:element>
+			</REPORT>
+		</qry:main>
+		<qry:select name="qry_columna_conceptos" doc="SOURCE">
+			<qry:xquery>
+				for $r in sql('
+SELECT  
+	F.d_periodo_fiscal, 
+	F.e_orden, D.oi_detalle_pres
+FROM 
+	PRE03_DETALLES AS D, 
+	PRE01_PER_FISCAL AS F
+WHERE 
+	D.oi_periodo_fiscal = F.oi_periodo_fiscal
+	and
+	D.oi_escenario = {#SOURCE:LEGAJO/oi_escenario/@value}
+ORDER BY 
+	e_orden ASC
+			')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:element name="COL">
+					<qry:attribute name="name" value="'Detalle' + $r/@oi_detalle_pres"/>
+					<qry:attribute name="label" value="$r/@d_periodo_fiscal"/>
+					<qry:attribute name="type" value="'num'"/>
+				</qry:element>
+			</qry:out>
+		</qry:select>
+		<qry:select name="qry_cabecera" doc="SOURCE">
+			<qry:xquery>
+				for $r in #SOURCE:LEGAJO
+			</qry:xquery>
+			<qry:out>
+				<qry:element name="PERSONA">
+					<qry:attribute name="e_numero_legajo" value="$r/@e_numero_legajo"/>
+					<qry:attribute name="d_legajo" value="$r/@d_legajo"/>
+					<qry:attribute name="f_ingreso" value="format_date($r/@f_ingreso,'dd/mm/yyyy')"/>
+					<qry:attribute name="f_egreso" value="format_date($r/@f_egreso,'dd/mm/yyyy')"/>
+					<qry:attribute name="f_antiguedad" value="format_date($r/@f_antiguedad,'dd/mm/yyyy')"/>
+					<qry:insert-select name="qry_conceptos" doc-path="#SOURCE:"/>
+				</qry:element>
+			</qry:out>
+		</qry:select>
+		<qry:select name="qry_conceptos" doc="SOURCE">
+			<qry:xquery>
+				for $r in sql('
+SELECT 
+	P.oi_concepto, 
+	P.e_concepto, 
+	P.d_concepto, P.e_secuencia
+FROM 
+	PRE07_CONCEPTOS AS P
+ORDER BY	
+	e_secuencia ASC
+			')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:element name="CONCEPTO">
+					<qry:attribute name="c_concepto" value="$r/@e_concepto"/>
+					<qry:attribute name="d_concepto" value="$r/@d_concepto"/>
+					<qry:attribute name="oi_concepto" value="$r/@oi_concepto"/>
+					<qry:insert-select name="qry_concepto_persona" doc-path="."/>
+				</qry:element>
+			</qry:out>
+		</qry:select>
+		<qry:select name="qry_concepto_persona" doc="SOURCE">
+			<qry:xquery>
+				for $r in #PARAMIN:LEGAJO/DET_CONCEPTOS/DET_CONCEPTO[oi_concepto/@value=#SOURCE:@oi_concepto]
+			</qry:xquery>
+			<qry:out>
+				<qry:element name="attr">
+					<qry:attribute name="name" value="'Detalle' + $r/oi_detalle_pres/@value"/>
+					<qry:if test="$r/@d_mensaje!=''">
+						<qry:then>
+							<qry:attribute name="val" value="'CON ERROR'"/>
+							<qry:attribute name="val" value="$r/@d_mensaje"/>
+							<qry:attribute name="error" value="1"/>
+						</qry:then>
+						<qry:else>
+							<qry:attribute name="val" value="0 + number($r/@n_valor_final)"/>
+							<qry:attribute name="error" value="0"/>
+						</qry:else>
+					</qry:if>
+				</qry:element>
+			</qry:out>
+		</qry:select>
+	</html:query>
+</html:html>

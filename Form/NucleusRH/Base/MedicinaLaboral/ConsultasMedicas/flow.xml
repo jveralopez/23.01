@@ -1,0 +1,60 @@
+<flow:flow xmlns:flow="nomad_engine.flow" xmlns:doc="nomad_engine.doc" xmlns:qry="nomad_engine.qry" extends="Nomad.base.HTML_XLS.flow" name="NucleusRH.Base.MedicinaLaboral.ConsultasMedicas.flow">
+	<flow:info label="Consutlas medicas"/>
+	<flow:declare>
+		<doc:define name="PARAMS"/>
+		<qry:define name="auxiliar_fechahora">
+			<qry:main doc="PARAMS">
+				<qry:element name="DATOS">
+					<qry:insert-select name="auxiliar_fechahora" doc-path="."/>
+				</qry:element>
+			</qry:main>
+			<qry:select name="auxiliar_fechahora" doc="SOURCE">
+				<qry:xquery>
+					for $r in SQL('
+		  SELECT
+		    ORG26_PARAMETROS.c_modulo,
+ 				ORG26_PARAMETROS.c_parametro,
+ 				ORG26_PARAMETROS.d_parametro,
+ 				ORG26_PARAMETROS.d_valor
+		  FROM
+		   	ORG26_PARAMETROS
+		  WHERE
+		  		ORG26_PARAMETROS.c_modulo = "MED" 
+		  AND ORG26_PARAMETROS.c_parametro = "FECHAHORACONSUL"      
+				')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:if test="$r/@d_valor != ''">
+						<qry:then>
+							<qry:attribute name="auxiliar_fechahora" value="$r/@d_valor"/>
+						</qry:then>
+					</qry:if>
+				</qry:out>
+			</qry:select>
+		</qry:define>
+	</flow:declare>
+	<flow:main doc="PARAMS">
+		<flow:action name="initialize">
+			<doc:load-qry output-doc="PARAMS" qry="auxiliar_fechahora"/>
+			<flow:open-form form-class="NucleusRH.Base.MedicinaLaboral.ConsultasMedicas.CONSULTA.form" mode="NEW" doc-path="#PARAMS:"/>
+			<qry:attribute name="auxiliar_fechahora" value="$r/@d_valor"/>
+		</flow:action>
+	</flow:main>
+	<flow:form doc="SOURCE" parent-doc="PARENTSOURCE" name="NucleusRH.Base.MedicinaLaboral.ConsultasMedicas.CONSULTA.form:NEW" form-class="NucleusRH.Base.MedicinaLaboral.ConsultasMedicas.CONSULTA.form" mode="NEW">
+		<flow:action name="SAVE">
+			<flow:exec-method priority="1" out-attr-path="#BATCHDOC:@batch-id" class="NucleusRH.Base.MedicinaLaboral.LegajoMedicina.PERSONAL_EMP" method="RegistrarConsulta">
+				<flow:param doc="PARAMS" type="Nomad.NSystem.Proxy.NomadXML" mode="in" name="param"/>
+				<flow:param attr-path="#FORM:ctrl[@id='licvalue']/@xval" type="Nomad.NSystem.Boolean" mode="in" name="genlic"/>
+			</flow:exec-method>
+			<flow:open-form form-class="Nomad.base.HTML_XLS.form" parent-doc-path="#SOURCE:" mode="SHOW" doc-path="#BATCHDOC:"/>
+		</flow:action>
+		<flow:action name="CANCEL">
+			<flow:close-form/>
+		</flow:action>
+	</flow:form>
+	<flow:form extends="Nomad.base.HTML_XLS.form:SHOW" form-class="Nomad.base.HTML_XLS.form" name="Nomad.base.HTML_XLS:SHOW" mode="SHOW" doc="SOURCE">
+		<flow:action name="BACK">
+			<flow:exit-flow return-path="#SOURCE:"/>
+		</flow:action>
+	</flow:form>
+</flow:flow>

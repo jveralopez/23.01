@@ -1,0 +1,179 @@
+<html:html xmlns:html="nomad_engine.html" xmlns:qry="nomad_engine.qry" name="NucleusRH.Base.Vacaciones.SaldoVacaciones" extends="Nomad.Base.BaseReport.rpt" doc="source">
+	<html:for-each declare="&lt;FILTRO oi_clase_org=&quot;&quot; gcustom=&quot;&quot; oi_empresa=&quot;1&quot; per_desde=&quot;&quot; per_hasta=&quot;&quot; gpers=&quot;&quot; activos=&quot;&quot; nombre=&quot;&quot; documento=&quot;&quot; sexo=&quot;&quot; grupo_sanguineo=&quot;&quot; listlegajos=&quot;1-50&quot; oi_indic_activo=&quot;&quot; egresado=&quot;&quot; oi_forma_pago=&quot;&quot; oi_tipo_personal=&quot;&quot; fecha_desde=&quot;&quot; fecha_hasta=&quot;&quot; cb_confidenciales=&quot;&quot; oi_grupo_ccosto=&quot;&quot; oi_centro_costo=&quot;&quot; oi_convenio=&quot;&quot; soloconvenio=&quot;&quot; oi_categoria=&quot;&quot; oi_ubicacion_desde=&quot;&quot; oi_ubicacion_hasta=&quot;&quot; oi_estructura=&quot;&quot; escructura_childs=&quot;&quot; oi_contrato=&quot;&quot; oi_afjp=&quot;&quot; oi_obra_social=&quot;&quot; oi_sindicato=&quot;&quot; l_afiliado_sind=&quot;0&quot; oi_departamento=&quot;&quot; oi_sector=&quot;&quot; legID=&quot;&quot; leg_where=&quot;(LEG.e_numero_legajo &amp;gt;= 1 AND LEG.e_numero_legajo &amp;lt;= 50)&quot;&gt;&lt;PERSONAS&gt;&lt;ROW VALUES=&quot;518,1,2,3,4,5,6&quot; /&gt;&lt;/PERSONAS&gt;&lt;/FILTRO&gt;">
+		<qry:main doc="PARAM">
+			<qry:append-doc name="FILTRO" doc-path="#PARAM:/FILTRO"/>
+			<REPORT label="Saldo de Vacaciones por Empresa">
+				<qry:attribute value="format_date(now(),'dd/mm/yyyy HH:MM')" name="date"/>
+				<GROUPS>
+					<GROUP tag="TIT" type="title" noreg="No se encontraron registros.">
+						<COLS>
+							<COL name="empresa" label="Empresa"/>
+							<qry:if test="#PARAM:FILTRO/@per_desde!=''">
+								<qry:then>
+									<COL name="per_desde" label="Per&#237;odo Desde"/>
+								</qry:then>
+							</qry:if>
+							<qry:if test="#PARAM:FILTRO/@per_hasta!=''">
+								<qry:then>
+									<COL name="per_hasta" label="Per&#237;odo Hasta"/>
+								</qry:then>
+							</qry:if>
+						</COLS>
+						<GROUP tag="PER" type="table" noreg="No se encontraron registros.">
+							<COLS>
+								<COL name="legajo" label="Legajo" style="width:8%;"/>
+								<COL name="ape_y_nom" label="Apellido y Nombre" style="width:26%;"/>
+								<COL name="periodo" label="Per&#237;odo" style="width:12%;text-align:center"/>
+								<COL name="pendientes" label="Pendientes" style="width:12%;text-align:center"/>
+								<COL name="ubicacion" label="Ubicaci&#243;n" style="width:12%;text-align:center"/>
+								<COL name="categoria" label="Categor&#237;a" style="width:15%;text-align:center"/>
+								<COL name="centrodecosto" label="Centro de Costo" style="width:15%;text-align:center"/>
+							</COLS>
+						</GROUP>
+					</GROUP>
+				</GROUPS>
+				<qry:element name="DATA">
+					<TIT qry-orderby="orderby">
+						<qry:insert-select doc-path="#PARAM:FILTRO/PERSONAS/ROW" name="QRY_PERSONAS"/>
+						<qry:insert-select doc-path="#PARAM:FILTRO" name="QRY_FILTROS"/>
+					</TIT>
+				</qry:element>
+			</REPORT>
+		</qry:main>
+		<qry:select doc="PARAM" name="QRY_PERSONAS">
+			<qry:out>
+				<qry:call>
+					<FILTRO>
+						<qry:attribute value="$PARAM/@values" name="values"/>
+						<qry:attribute name="per_desde" value="$FILTRO/@per_desde"/>
+						<qry:attribute name="per_hasta" value="$FILTRO/@per_hasta"/>
+						<qry:attribute name="oi_empresa" value="$FILTRO/@oi_empresa"/>
+					</FILTRO>
+				</qry:call>
+			</qry:out>
+		</qry:select>
+		<qry:select name="QRY_FILTROS" doc="PARAM">
+			<qry:xquery>
+				for $r in sql('
+				SELECT
+					EMP.c_empresa,
+				  EMP.d_empresa
+				FROM               
+				 	ORG03_EMPRESAS AS EMP
+				WHERE
+					EMP.oi_empresa = {#PARAM:@oi_empresa}
+			')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:attribute name="empresa" value="$r/@c_empresa + '-' + $r/@d_empresa"/>
+				<qry:attribute name="per_desde" value="$PARAM/@per_desde"/>
+				<qry:attribute name="per_hasta" value="$PARAM/@per_hasta"/>
+			</qry:out>
+		</qry:select>
+	</html:for-each>
+	<html:query declare="&lt;FILTRO oi_empresa=&quot;1&quot; values=&quot;518,1,2,3,4,5,6&quot;/&gt;">
+		<qry:main doc="PARAM">
+			<qry:no-show>
+				<qry:insert-select doc-path="#PARAM:/FILTRO" name="QRY_DATOS"/>
+			</qry:no-show>
+		</qry:main>
+		<qry:select name="QRY_DATOS" doc="PARAM">
+			<qry:xquery>
+				for $r in sql('
+				SELECT
+					PER02.e_numero_legajo as leg,
+					PER02.oi_personal_emp,
+				  	EMP.c_empresa,
+				  	EMP.d_empresa,
+				  	PER01.d_ape_y_nom,
+				  	CTACTE.e_dias_pend,
+  					PER.c_periodo,
+  					S.c_ubicacion,
+  					S.d_ubicacion,
+  					K.c_centro_costo,
+  					K.d_centro_costo,
+  					C.c_categoria,
+  					C.d_categoria
+				FROM               
+				 	PER02_PERSONAL_EMP AS PER02,
+					ORG03_EMPRESAS AS EMP,
+					PER01_PERSONAL AS PER01,
+					VAC01_CTA_CTE_VAC AS CTACTE,
+					VAC04_PERIODOS AS PER,
+					ORG03_UBICACIONES AS S,
+					ORG08_CS_COSTO AS K,
+					ORG18_CATEGORIAS AS C
+				JOIN
+					EMP.oi_empresa INNER PER02.oi_empresa,
+					PER02.oi_personal INNER PER01.oi_personal, 
+					PER02.oi_personal_emp INNER CTACTE.oi_personal_emp,
+					CTACTE.oi_periodo INNER PER.oi_periodo,
+					PER02.oi_ubicacion LEFT OUTER S.oi_ubicacion,
+					PER02.oi_ctro_costo_ult LEFT OUTER K.oi_centro_costo,
+					PER02.oi_categoria_ult LEFT OUTER C.oi_categoria
+				WHERE
+					PER02.oi_personal_emp in ({%=#PARAM:@values%}) AND
+					PER.oi_periodo != 1000 
+					{%? (#PARAM:@per_desde!='') 
+  					{% 	AND PER.e_ano &gt;= {#PARAM:@per_desde} %}
+  					{%  %}                     
+ 					%}
+ 					{%? (#PARAM:@per_hasta!='') 
+  					{% 	AND PER.e_ano &lt;= {#PARAM:@per_hasta} %}
+  					{%  %}
+  				%}
+  			UNION
+  			SELECT
+					PER02.e_numero_legajo as leg,
+					PER02.oi_personal_emp,
+				  	EMP.c_empresa,
+				  	EMP.d_empresa,
+				  	PER01.d_ape_y_nom,
+				  	CTACTE.e_dias_otorg * -1 as e_dias_pend,
+  					\'A cuenta\' as c_periodo,
+  					S.c_ubicacion,
+  					S.d_ubicacion,
+  					K.c_centro_costo,
+  					K.d_centro_costo,
+  					C.c_categoria,
+  					C.d_categoria
+				FROM               
+				 	PER02_PERSONAL_EMP AS PER02,
+					ORG03_EMPRESAS AS EMP,
+					PER01_PERSONAL AS PER01,
+					VAC01_CTA_CTE_VAC AS CTACTE,
+					VAC04_PERIODOS AS PER,
+					ORG03_UBICACIONES AS S,
+					ORG08_CS_COSTO AS K,
+					ORG18_CATEGORIAS AS C
+				JOIN
+					EMP.oi_empresa INNER PER02.oi_empresa,
+					PER02.oi_personal INNER PER01.oi_personal, 
+					PER02.oi_personal_emp INNER CTACTE.oi_personal_emp,
+					CTACTE.oi_periodo INNER PER.oi_periodo,
+					PER02.oi_ubicacion LEFT OUTER S.oi_ubicacion,
+					PER02.oi_ctro_costo_ult LEFT OUTER K.oi_centro_costo,
+					PER02.oi_categoria_ult LEFT OUTER C.oi_categoria
+					
+				WHERE
+                    PER02.oi_personal_emp in ({%=#PARAM:@values%}) AND
+					PER.oi_periodo = 1000 AND
+					CTACTE.e_dias_otorg &gt; 0 
+			')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:element name="PER">
+					<qry:attribute name="orderby" value="nmd_fillleft($r/@leg,'0',10)+'_'+$r/@c_periodo"/>
+					<qry:attribute name="empresa" value="$r/@c_empresa + '-' + $r/@d_empresa"/>
+					<qry:attribute name="legajo" value="$r/@leg"/>
+					<qry:attribute name="ape_y_nom" value="$r/@d_ape_y_nom"/>
+					<qry:attribute name="periodo" value="$r/@c_periodo"/>
+					<qry:attribute name="pendientes" value="$r/@e_dias_pend"/>
+					<qry:attribute name="ubicacion" value="$r/@c_ubicacion + '-' + $r/@d_ubicacion"/>
+					<qry:attribute name="categoria" value="$r/@c_categoria + '-' + $r/@d_categoria"/>
+					<qry:attribute name="centrodecosto" value="$r/@c_centro_costo + '-' + $r/@d_centro_costo"/>
+				</qry:element>
+			</qry:out>
+		</qry:select>
+	</html:query>
+</html:html>

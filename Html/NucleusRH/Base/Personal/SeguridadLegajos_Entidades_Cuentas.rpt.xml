@@ -1,0 +1,179 @@
+<html:html xmlns:html="nomad_engine.html" xmlns:qry="nomad_engine.qry" extends="Nomad.Base.BaseReport.rpt" doc="source" name="NucleusRH.Base.Personal.Legajos_Entidades_Cuentas_Seguridad.rpt">
+	<html:query declare="&lt;DATA oi_empresa=&quot;99&quot;/&gt;">
+		<qry:main name="" doc="source">
+			<qry:append-doc name="FILTER" doc-path="#source:."/>
+			<REPORT label="Reporte de seguridad" style="width:100%">
+				<GROUPS>
+					<qry:if test="$FILTER/@oi_empresa!=''">
+						<qry:then>
+							<GROUP tag="INPUT" type="title" style="width:100%">
+								<COLS>
+									<COL name="empresa" label="Empresa"/>
+								</COLS>
+								<GROUP tag="ENTIDAD" type="table_title" label="Legajos sin nodos en la estructura de seguridad" style="width:100%" noreg="No hay legajos activos vinculados a una cuenta sin nodo en la estructura de seguridad para la empresa seleccionada">
+									<COLS>
+										<COL name="c_entidad" label="Cod. Entidad"/>
+										<COL name="d_entidad" label="Desc. Entidad"/>
+										<COL name="nro_legajo" label="Nro. Legajo"/>
+										<COL name="persona" label="Persona"/>
+									</COLS>
+								</GROUP>
+							</GROUP>
+						</qry:then>
+						<qry:else>
+							<GROUP tag="ENTIDAD" type="table_title" label="Legajos sin nodos en la estructura de seguridad" style="width:100%" noreg="No hay legajos activos vinculados a una cuenta sin nodo en la estructura de seguridad">
+								<COLS>
+									<COL name="c_entidad" label="Cod. Entidad"/>
+									<COL name="d_entidad" label="Desc. Entidad"/>
+									<COL name="nro_legajo" label="Nro. Legajo"/>
+									<COL name="persona" label="Persona"/>
+									<COL name="empresa" label="Empresa"/>
+								</COLS>
+							</GROUP>
+						</qry:else>
+					</qry:if>
+				</GROUPS>
+				<DATA>
+					<qry:if test="$FILTER/@oi_empresa!=''">
+						<qry:then>
+							<INPUT>
+								<qry:insert-select name="QRY_EMPRESA" doc-path=""/>
+							</INPUT>
+						</qry:then>
+						<qry:else>
+							<qry:insert-select name="QRY_COMPLETO" doc-path=""/>
+						</qry:else>
+					</qry:if>
+				</DATA>
+			</REPORT>
+		</qry:main>
+		<qry:select name="QRY_EMPRESA" doc="">
+			<qry:xquery>
+				for $r in SQL('
+			
+			SELECT
+			ORG03_EMPRESAS.d_empresa
+			
+			FROM
+			ORG03_EMPRESAS
+			
+			WHERE
+			ORG03_EMPRESAS.oi_empresa = {$FILTER/@oi_empresa}
+
+			')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:attribute name="empresa" value="$r/@d_empresa"/>
+				<qry:insert-select name="QRY_LEGAJOS_ACTIVOS" doc-path=""/>
+			</qry:out>
+		</qry:select>
+		<qry:select name="QRY_LEGAJOS_ACTIVOS" doc="">
+			<qry:xquery>
+				for $r in SQL('
+				
+				SELECT
+				PER02_PERSONAL_EMP.oi_personal as oi_personal,
+				PER02_PERSONAL_EMP.e_numero_legajo as e_numero_legajo,
+				PER01_PERSONAL.oi_usuario_sistema as oi_usuario_sistema,
+				PER01_PERSONAL.d_ape_y_nom as d_ape_y_nom,
+				SEG01_PER_ESTR.oi_estructura as oi_estructura
+				         	 
+				FROM
+				PER02_PERSONAL_EMP,
+				PER01_PERSONAL,
+				SEG01_PER_ESTR,
+				ORG03_EMPRESAS
+				
+				JOIN
+				PER02_PERSONAL_EMP.oi_personal INNER PER01_PERSONAL.oi_personal,
+				PER02_PERSONAL_EMP.oi_empresa INNER ORG03_EMPRESAS.oi_empresa,
+				PER01_PERSONAL.oi_personal LEFT OUTER SEG01_PER_ESTR.oi_personal 
+												
+				WHERE 
+				PER02_PERSONAL_EMP.oi_indic_activo = 1 AND 
+				PER01_PERSONAL.oi_usuario_sistema != "" AND
+				ORG03_EMPRESAS.oi_empresa = {$FILTER/@oi_empresa}
+
+				ORDER BY
+				oi_personal ASC
+		
+				')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:if test="$r/@oi_estructura=''">
+					<qry:then>
+						<ENTIDAD>
+							<qry:attribute name="nro_legajo" value="$r/@e_numero_legajo"/>
+							<qry:attribute name="persona" value="$r/@d_ape_y_nom"/>
+							<qry:insert-select name="QRY_CUENTAS_ENTIDAD" doc-path="$r"/>
+						</ENTIDAD>
+					</qry:then>
+				</qry:if>
+			</qry:out>
+		</qry:select>
+		<qry:select name="QRY_COMPLETO">
+			<qry:xquery>
+				for $r in SQL('
+				
+				SELECT
+				PER02_PERSONAL_EMP.oi_personal as oi_personal,
+				PER02_PERSONAL_EMP.e_numero_legajo as e_numero_legajo,
+				PER01_PERSONAL.oi_usuario_sistema as oi_usuario_sistema,
+				PER01_PERSONAL.d_ape_y_nom as d_ape_y_nom,
+				ORG03_EMPRESAS.d_empresa,
+				ORG03_EMPRESAS.oi_empresa as oi_empresa,
+				SEG01_PER_ESTR.oi_estructura as oi_estructura 
+				         	 
+				FROM
+				PER02_PERSONAL_EMP,
+				PER01_PERSONAL,
+				SEG01_PER_ESTR,
+				ORG03_EMPRESAS
+				
+				JOIN
+				PER02_PERSONAL_EMP.oi_personal INNER PER01_PERSONAL.oi_personal,
+				PER02_PERSONAL_EMP.oi_empresa INNER ORG03_EMPRESAS.oi_empresa, 
+				PER01_PERSONAL.oi_personal LEFT OUTER SEG01_PER_ESTR.oi_personal 
+												
+				WHERE 
+				PER02_PERSONAL_EMP.oi_indic_activo = 1 AND 
+				PER01_PERSONAL.oi_usuario_sistema != ""
+
+				ORDER BY
+				oi_empresa ASC
+				
+				')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:if test="$r/@oi_estructura=''">
+					<qry:then>
+						<ENTIDAD>
+							<qry:attribute name="nro_legajo" value="$r/@e_numero_legajo"/>
+							<qry:attribute name="persona" value="$r/@d_ape_y_nom"/>
+							<qry:attribute name="empresa" value="$r/@d_empresa"/>
+							<qry:insert-select name="QRY_CUENTAS_ENTIDAD" doc-path="$r"/>
+						</ENTIDAD>
+					</qry:then>
+				</qry:if>
+			</qry:out>
+		</qry:select>
+		<qry:select doc="PARAM" name="QRY_CUENTAS_ENTIDAD">
+			<qry:xquery>
+				for $r in FILE('Nomad\\Base\\Login\\Cuentas\\{%=$PARAM/@oi_usuario_sistema%}.CUENTA.XML')/CUENTA/ENTIDAD
+			</qry:xquery>
+			<qry:out>
+				<qry:insert-select name="QRY_ENTIDAD" doc-path="$r"/>
+			</qry:out>
+		</qry:select>
+		<qry:select doc="PARAM" name="QRY_ENTIDAD">
+			<qry:xquery>
+				for $r in FILE('Nomad\\Base\\Login\\Entidades\\{%=$PARAM/@value%}.ENTIDAD.XML')/ENTIDAD
+			</qry:xquery>
+			<qry:out>
+				<qry:attribute name="d_entidad" value="$r/@DES"/>
+				<qry:attribute name="c_entidad" value="$r/@COD"/>
+			</qry:out>
+		</qry:select>
+	</html:query>
+	<html:xslt/>
+</html:html>

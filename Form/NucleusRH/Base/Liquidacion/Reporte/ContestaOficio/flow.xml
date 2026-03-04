@@ -1,0 +1,89 @@
+<flow:flow xmlns:flow="nomad_engine.flow" xmlns:doc="nomad_engine.doc" xmlns:qry="nomad_engine.qry" name="NucleusRH.Base.Liquidacion.Reporte.ContestaOficio" extends="Nomad.Base.flow" default_action="initialize">
+	<flow:info label="Flow para NucleusRH.Base.Liquidacion.Reporte.ContestaOficio"/>
+	<flow:declare>
+		<doc:define name="DDO"/>
+		<doc:define name="NEWDDO"/>
+		<doc:define name="QRY"/>
+		<doc:define name="FILTERDATA">
+			<DATOS oi_personal_emp="" oi_embargo=""/>
+		</doc:define>
+		<qry:define declare="&lt;DATO oi_personal_emp=&quot;11462&quot; oi_embargo=&quot;&quot; /&gt;" name="QRY_EMBARGOS">
+			<qry:main doc="PARAM">
+				<qry:element name="ROWS">
+					<qry:insert-select name="qry1" doc-path="#PARAM:DATO"/>
+				</qry:element>
+			</qry:main>
+			<qry:select name="qry1" doc="PARAM">
+				<qry:xquery>
+					for $r in sql('
+				SELECT 
+					EMB.oi_embargo,
+					EMB.e_nro_oficio,
+					EMB.f_recepcion,
+					EMB.o_caratula,
+					EMB.c_nro_expediente,
+					EMB.c_estado
+				FROM 
+					LIQ07_EMBARGOS AS EMB
+				WHERE 				
+					EMB.oi_personal_emp = {#PARAM:@oi_personal_emp}
+			')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:element name="ROW">
+						<qry:attribute name="id" value="$r/@oi_embargo"/>
+						<qry:attribute name="f_recepcion" value="$r/@f_recepcion"/>
+						<qry:attribute name="e_nro_oficio" value="$r/@e_nro_oficio"/>
+						<qry:attribute name="c_nro_expediente" value="$r/@c_nro_expediente"/>
+						<qry:attribute name="o_caratula" value="$r/@o_caratula"/>
+						<qry:attribute name="c_estado" value="$r/@c_estado"/>
+					</qry:element>
+				</qry:out>
+			</qry:select>
+		</qry:define>
+		<doc:define name="RS">
+			<ROWS/>
+		</doc:define>
+		<doc:define name="REPORT">
+			<DATA empty-attr=""/>
+		</doc:define>
+	</flow:declare>
+	<flow:main doc="SOURCE">
+		<flow:action name="initialize">
+			<flow:open-form form-class="NucleusRH.Base.Liquidacion.Reporte.ContestaOficio.filter.form" doc-path="#FILTERDATA:" mode="FILTER"/>
+		</flow:action>
+	</flow:main>
+	<flow:form form-class="NucleusRH.Base.Liquidacion.Reporte.ContestaOficio.filter.form" name="NucleusRH.Base.Liquidacion.Reporte.ContestaOficio.filter.form:FILTER" doc="SOURCE" mode="FILTER">
+		<flow:action name="ACCEPT">
+			<flow:call-action action="Save-FILTER"/>
+			<doc:set-attribute from-attr-path="#FORM:ctrl[@id='LIST']/@xval" to-attr-path="#FILTERDATA:@oi_embargo"/>
+			<!--flow:exec-method method="ExecReportHTML" out-attr-path="#BATCHDOC:@batch-id" priority="1" class="Nomad.Base.Report.GeneralReport.REPORT">
+		<flow:param value="NucleusRH.Base.Sanciones.Notificacion.rpt" type="Nomad.NSystem.String" mode="in" name="ReportName"/>
+		<flow:param doc-path="#FILTERDATA:" name="paramIN" type="Nomad.NSystem.Proxy.NomadXML" mode="in"/>
+	</flow:exec-method-->
+			<!--flow:exec-method method="FormContesta" class="NucleusRH.Base.Liquidacion.Liquidacion.LIQUIDACION" priority="5" out-attr-path="#BATCHDOC:@batch-id">
+		<flow:param type="Nomad.NSystem.Proxy.NomadXML" doc-path="#FILTERDATA:" mode="in" name="report-param"/>
+	</flow:exec-method-->
+			<flow:exec-method class="Nomad.Base.Report.GeneralReport.REPORT" method="ExecReportFO" out-attr-path="#BATCHDOC:@batch-id" priority="5">
+				<flow:param value="NucleusRH.Base.Liquidacion.ContestaOficio.ContestaOficio.rpt" type="Nomad.NSystem.String" mode="in" name="ReportName"/>
+				<flow:param doc-path="#FILTERDATA:" type="Nomad.NSystem.Proxy.NomadXML" mode="in" name="xmlParam"/>
+			</flow:exec-method>
+			<doc:set-attribute from-value="211 - Formulario Contestaci&#243;n de oficio" to-attr-path="#BATCHDOC:@title"/>
+			<flow:open-form form-class="Nomad.base.batch.report.form" mode="BATCH" doc-path="#BATCHDOC:"/>
+		</flow:action>
+		<flow:action name="BACK">
+			<flow:close-form/>
+		</flow:action>
+		<flow:action name="Save-FILTER">
+			<flow:save-user-data name="FILTER-NucleusRH.Base.Liquidacion.Reporte.ContestaOficio" doc-path="#FILTERDATA:"/>
+		</flow:action>
+		<flow:action name="Load-FILTER">
+			<flow:load-user-data name="FILTER-NucleusRH.Base.Liquidacion.Reporte.ContestaOficio" doc="FILTERDATA"/>
+		</flow:action>
+	</flow:form>
+	<flow:form mode="BATCH" form-class="NucleusRH.Base.Liquidacion.Reporte.ContestaOficio.Reportes.form" name="NucleusRH.Base.Liquidacion.Reporte.ContestaOficio.Reportes.form" doc="source">
+		<flow:action name="BACK">
+			<flow:exit-flow return-path="#FILTERDATA:"/>
+		</flow:action>
+	</flow:form>
+</flow:flow>

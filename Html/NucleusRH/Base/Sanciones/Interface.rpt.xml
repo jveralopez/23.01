@@ -1,0 +1,57 @@
+<html:html xmlns:html="nomad_engine.html" xmlns:qry="nomad_engine.qry" name="NucleusRH.Base.Tiempos_Trabajados.InterfaceHoras.rpt" extends="Nomad.Base.BaseReport.rpt" doc="source">
+	<html:query declare="&lt;FILTRO oi_empresa=&quot;196&quot; f_ini=&quot;20100101&quot; f_fin=&quot;20101010&quot;&gt;&#13;&#10;  &lt;ROWS nmd-col=&quot;1&quot;&gt;&#13;&#10;    &lt;ROW id=&quot;11565&quot; /&gt;&#13;&#10;    &lt;ROW id=&quot;11566&quot; /&gt;&#13;&#10;    &lt;ROW id=&quot;11567&quot; /&gt;&#13;&#10;    &lt;ROW id=&quot;11568&quot; /&gt;&#13;&#10;    &lt;ROW id=&quot;11569&quot; /&gt;&#13;&#10;    &lt;ROW id=&quot;11570&quot; /&gt;&#13;&#10;    &lt;ROW id=&quot;11571&quot; /&gt;&#13;&#10;    &lt;ROW id=&quot;11573&quot; /&gt;&#13;&#10;    &lt;ROW id=&quot;11574&quot; /&gt;&#13;&#10;    &lt;ROW id=&quot;11575&quot; /&gt;&#13;&#10;    &lt;ROW id=&quot;11576&quot; /&gt;&#13;&#10;    &lt;ROW id=&quot;11578&quot; /&gt;&#13;&#10;    &lt;ROW id=&quot;11580&quot; /&gt;&#13;&#10;    &lt;ROW id=&quot;11581&quot; /&gt;&#13;&#10;    &lt;ROW id=&quot;11582&quot; /&gt;&#13;&#10;    &lt;ROW id=&quot;11583&quot; /&gt;&#13;&#10;    &lt;ROW id=&quot;13886&quot; /&gt;&#13;&#10;  &lt;/ROWS&gt;&#13;&#10;&lt;/FILTRO&gt;&#13;&#10;">
+		<qry:main doc="PARAM">
+			<qry:append-doc name="FILTRO" doc-path="#PARAM:/FILTRO"/>
+			<REPORT marco="0" style="width:100%">
+				<GROUPS>
+					<GROUP tag="ROW" type="table" style="width:30%">
+						<COLS>
+							<COL name="e_numero_legajo" label="Legajo" style="width:30%"/>
+							<COL name="c_enlace" label="C&#243;digo de Enlace"/>
+							<COL name="n_valor" label="Valor" type="num"/>
+						</COLS>
+					</GROUP>
+				</GROUPS>
+				<qry:element name="DATA">
+					<qry:insert-select name="QRY_SANCIONES" doc-path="#PARAM:FILTRO"/>
+				</qry:element>
+			</REPORT>
+		</qry:main>
+		<qry:select name="QRY_SANCIONES" doc="PARAM">
+			<qry:xquery>
+				for $r in sql('
+				SELECT 					
+					PER02_PERSONAL_EMP.e_numero_legajo,
+					SAN02_SANCIONES.c_enlace,
+					SUM(SAN03_SANCION_PER.n_valor) as n_valor
+					FROM 
+						SAN03_SANCION_PER, 
+						SAN02_SANCIONES,
+						PER02_PERSONAL_EMP
+				JOIN
+					SAN03_SANCION_PER.oi_sancion INNER SAN02_SANCIONES.oi_sancion,					
+					SAN03_SANCION_PER.oi_personal_emp INNER PER02_PERSONAL_EMP.oi_personal_emp
+				WHERE 
+					PER02_PERSONAL_EMP.oi_empresa = {#PARAM:@oi_empresa}
+					AND PER02_PERSONAL_EMP.oi_personal_emp in ({%=string(#FILTRO:ROWS/ROW/@id)%})
+					AND ISNOTNULL(SAN03_SANCION_PER.n_valor)
+					AND SAN03_SANCION_PER.f_fechahora_sanc &gt;= {Datetime(#FILTRO:@f_ini)}
+					AND SAN03_SANCION_PER.f_fechahora_sanc &lt;= {Datetime(Number(Datetime(#FILTRO:@f_fin))+1)}				
+					AND SAN03_SANCION_PER.c_estado = \'A\'
+				GROUP BY 					
+					SAN02_SANCIONES.c_enlace,
+					PER02_PERSONAL_EMP.e_numero_legajo
+				ORDER BY 
+					e_numero_legajo ASC
+			')ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:element name="ROW">
+					<qry:attribute name="e_numero_legajo" value="$r/@e_numero_legajo"/>
+					<qry:attribute name="c_enlace" value="$r/@c_enlace"/>
+					<qry:attribute name="n_valor" value="$r/@n_valor"/>
+				</qry:element>
+			</qry:out>
+		</qry:select>
+	</html:query>
+</html:html>

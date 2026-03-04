@@ -1,0 +1,125 @@
+<ALERT xmlns:qry="nomad_engine.qry" label="Vencimiento de documentos personales." name="DOC.VENCIMIENTO.alert">
+	<PARAMS>
+		<PARAM label="D&#237;as previos desde al vencimiento" name="DiasPrevDesde" type="int" req="1"/>
+		<PARAM label="D&#237;as previos hasta al vencimiento" name="DiasPrevHasta" type="int" req="1"/>
+		<PARAM type="string" req="0" label="Tipos de Documentos" name="TipoDoc"/>
+	</PARAMS>
+	<QRY declare="&lt;PARAMS DiasPrevDesde=&quot;31&quot; DiasPrevHasta=&quot;37&quot; TipoDoc=&quot;CI;DNI&quot;/&gt;">
+		<qry:include name="Nomad.Base.Login.Entidades.ENTIDAD.INFO"/>
+		<qry:main doc="PARAMS">
+			<qry:append-doc name="PARAMIN" doc-path="$PARAMS/PARAMS"/>
+			<qry:element name="ROWS">
+				<RRHH>
+					<qry:attribute name="f_desde" value="now-date() + #PARAMIN:@DiasprevDesde"/>
+					<qry:attribute name="f_hasta" value="now-date() + #PARAMIN:@DiasprevHasta"/>
+					<qry:attribute name="TipoDoc" value="#PARAMIN:@TipoDoc"/>
+					<qry:attribute name="DIASDESDE" value="#PARAMIN:@DiasprevDesde"/>
+					<qry:attribute name="DIASHASTA" value="#PARAMIN:@DiasprevHasta"/>
+					<qry:insert-select name="QRY_DOC_PER" doc-path="."/>
+				</RRHH>
+			</qry:element>
+		</qry:main>
+		<qry:select doc="PARAM" name="QRY_DOC_PER">
+			<qry:xquery>
+				for $r in sql('
+			SELECT
+				PER02_PERSONAL_EMP.e_numero_legajo,
+				PER01_PERSONAL.d_ape_y_nom,
+				PER01_PERSONAL.c_nro_documento,
+				PER20_TIPOS_DOC.c_tipo_documento,
+				PER20_TIPOS_DOC.d_tipo_documento,
+				PER01_DOCUM_PER.f_vencimiento_doc,
+				PER01_PERSONAL.d_email,
+				PER01_PERSONAL.oi_usuario_sistema,
+				ORG03_EMPRESAS.c_empresa,
+				ORG03_EMPRESAS.d_empresa
+			FROM
+				PER01_PERSONAL,
+				PER02_PERSONAL_EMP,
+				PER20_TIPOS_DOC,
+				PER01_DOCUM_PER,
+				ORG03_EMPRESAS	
+			JOIN 
+				ORG03_EMPRESAS.oi_empresa INNER PER02_PERSONAL_EMP.oi_empresa,
+				PER01_PERSONAL.oi_personal INNER PER02_PERSONAL_EMP.oi_personal,
+				PER01_PERSONAL.oi_personal INNER PER01_DOCUM_PER.oi_personal,
+				PER01_DOCUM_PER.oi_tipo_documento INNER PER20_TIPOS_DOC.oi_tipo_documento	
+			WHERE                               
+				PER01_DOCUM_PER.f_vencimiento_doc &lt;= {Datetime(#PARAM:@f_hasta)} AND
+	 			PER01_DOCUM_PER.f_vencimiento_doc &gt;= {Datetime(#PARAM:@f_desde)} 
+				{%? (#PARAM:@TipoDoc='') 
+					{% %} 
+					{% and (contain(\';\'+{#PARAM:@TipoDoc}+\';\',\';\'+PER20_TIPOS_DOC.c_tipo_documento+\';\')) %} %} 
+			ORDER BY 
+				d_empresa ASC,
+				e_numero_legajo ASC,
+				f_vencimiento_doc ASC
+		')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:element name="EMP">
+					<qry:attribute name="LEGAJO" value="$r/@e_numero_legajo"/>
+					<qry:attribute name="NOMBRE" value="$r/@d_ape_y_nom"/>
+					<qry:attribute name="CODEMPRESA" value="$r/@c_empresa"/>
+					<qry:attribute name="DESCEMPRESA" value="$r/@d_empresa"/>
+					<qry:attribute name="CODDOC" value="$r/@d_tipo_documento"/>
+					<qry:attribute name="NRODOC" value="$r/@c_nro_documento"/>
+					<qry:attribute name="TIPODOC" value="$r/@c_tipo_documento"/>
+					<qry:attribute name="MAIL" value="nmd-replace(string($r/@d_email),',',';')"/>
+					<qry:attribute name="VENCIMIENTO" value="$r/@f_vencimiento_doc"/>
+					<qry:attribute name="DIAS_VENC" value="datetime($r/@f_vencimiento_doc)-now-date()"/>
+					<qry:attribute name="DIASDESDE" value="#PARAMIN:@DiasprevDesde"/>
+					<qry:attribute name="DIASHASTA" value="#PARAMIN:@DiasprevHasta"/>
+					<qry:insert-select name="sql1" doc-path="$r"/>
+				</qry:element>
+			</qry:out>
+		</qry:select>
+		<qry:select doc="PARAM" name="sql1">
+			<qry:xquery>
+				for $r in file('Nomad\\Base\\Login\\Entidades\\{%=#PARAM:@oi_usuario_sistema%}.ENTIDAD.XML')/ENTIDAD
+			</qry:xquery>
+			<qry:out>
+				<qry:attribute name="MAIL" value="@MAIL + ';' + nmd-replace(string($r/MAILS/MAIL[@PRINCIPAL=1]/@EMAIL),',',';')"/>
+			</qry:out>
+		</qry:select>
+	</QRY>
+	<MAILS>
+		<MAIL suject="[Alertas NucleusRH] Vencimiento de documentaci&#243;n personal" group="EMP">
+			RECURSOS HUMANOS te informa que en {% @EMP.DIAS_VENC %} d&#237;as vencer&#225; el documento: {% @EMP.TIPODOC %} {% @EMP.NRODOC %}.\\ 
+      
+      
+Recuerde renovarlo.
+
+&#193;rea de Recursos Humanos.
+		</MAIL>
+		<MAIL suject="[Alertas NucleusRH] Vencimiento de documentaci&#243;n personal" group="RRHH">
+			**Los siguientes legajos tienen documentos personales con vencimiento entre {% @EMP.DIASDESDE %} y {% @EMP.DIASHASTA %} d&#237;as:**
+
+         
+^Empresa              ^Legajo              ^Documento              ^Vencimiento     ^Cantidad de D&#237;as    ^
+{%FOR-EACH EMP%}|[{% @EMP.CODEMPRESA %}] {% @EMP.DESCEMPRESA %}  |[{% @EMP.LEGAJO %}] {% @EMP.NOMBRE %}  |[{% @EMP.TIPODOC %}] {% @EMP.NRODOC %}  |{% @EMP.VENCIMIENTO %}  |   {% @EMP.DIAS_VENC %}|
+{%END EMP%}
+		</MAIL>
+	</MAILS>
+	<GROUPS>
+		<GROUP name="EMP" label="Por Empleado">
+			<FIELD name="CODEMPRESA" label="C&#243;digo Empresa" type="string"/>
+			<FIELD name="DESCEMPRESA" label="Descripci&#243;n Empresa" type="string"/>
+			<FIELD name="LEGAJO" label="Legajo" type="string"/>
+			<FIELD name="NOMBRE" label="Apellido y Nombre" type="string"/>
+			<FIELD label="Documento" name="CODDOC" type="string"/>
+			<FIELD label="Tipo Documento" name="TIPODOC" type="string"/>
+			<FIELD label="Nro. Documento" name="NRODOC" type="string"/>
+			<FIELD name="VENCIMIENTO" type="date" label="Vencimiento"/>
+			<FIELD name="MAIL" label="E-Mail" type="string"/>
+			<FIELD name="DIAS_VENC" label="Cantidad de D&#237;as" type="int"/>
+			<FIELD name="DIASDESDE" label="D&#237;as Desde" type="int"/>
+			<FIELD name="DIASHASTA" label="D&#237;as Hasta" type="int"/>
+		</GROUP>
+		<GROUP name="RRHH" label="Por RRHH">
+			<FIELD name="DIASDESDE" label="D&#237;as Desde" type="int"/>
+			<FIELD name="DIASHASTA" label="D&#237;as Hasta" type="int"/>
+		</GROUP>
+	</GROUPS>
+	<ENUMS/>
+</ALERT>

@@ -1,0 +1,249 @@
+<qry:define declare="&lt;FILTRO incluir=&quot;T&quot; oi_empresa=&quot;187&quot; FormatRPT=&quot;PDF&quot;&gt;&lt;PERSONAS /&gt;&lt;/FILTRO&gt;" name="CREDENCIALES" xmlns:qry="XXX">
+	<qry:main doc="PARAM" xmlns:qry="XXX">
+		<qry:append-doc name="FILTRO" doc-path="#PARAM:/FILTRO"/>
+		<qry:element name="CREDENCIALES">
+			<qry:attribute value="'0'" name="cant"/>
+			<qry:insert-select doc-path="#FILTRO:" name="QRY_EMPRESA_CREDENCIAL"/>
+			<qry:insert-select doc-path="#FILTRO:/.[#FILTRO:@incluir='P']" name="QRY_LEGAJOS_PROPIOS"/>
+			<qry:insert-select doc-path="#FILTRO:/.[#FILTRO:@incluir='T']" name="QRY_LEGAJOS_PROPIOS"/>
+			<qry:insert-select doc-path="#FILTRO:/.[#FILTRO:@incluir='C']" name="QRY_LEGAJOS_CONTRATISTAS"/>
+			<qry:insert-select doc-path="#FILTRO:/.[#FILTRO:@incluir='T']" name="QRY_LEGAJOS_CONTRATISTAS"/>
+			<qry:insert-select doc-path=".[./@cant='0']" name="QRY_VACIO"/>
+		</qry:element>
+	</qry:main>
+	<qry:select xmlns:qry="XXX" doc="PARAM" name="QRY_EMPRESA_CREDENCIAL">
+		<qry:xquery>
+			for $r in sql('
+				SELECT ORG03_EMPRESAS.oi_empresa, ORG03_EMPRESAS.c_empresa,
+				ORG03_EMPRESAS.d_empresa, ORG03_EMPRESAS.d_calle,
+				ORG03_EMPRESAS.e_numero, ORG03_EMPRESAS.e_piso,
+				ORG03_EMPRESAS.d_departamento, ORG03_EMPRESAS.oi_localidad,
+				ORG03_EMPRESAS.te_telefono, ORG03_EMPRESAS.oi_logotipo
+				FROM ORG03_EMPRESAS
+				WHERE ORG03_EMPRESAS.oi_empresa = {#PARAM:@oi_empresa}
+			')/ROWS/ROW
+		</qry:xquery>
+		<qry:out>
+			<qry:attribute value="$r/@oi_empresa" name="oi_empresa_cred"/>
+			<qry:attribute value="$r/@c_empresa" name="c_empresa_cred"/>
+			<qry:attribute value="$r/@d_empresa" name="d_empresa_cred"/>
+			<qry:attribute value="$r/@d_calle + ' ' + $r/@e_numero  + ' ' + $r/@e_piso + ' ' + $r/@d_departamento" name="domicilio_emp_cred"/>
+			<qry:attribute value="$r/@te_telefono" name="te_empresa_cred"/>
+			<qry:insert-select doc-path="$r" name="QRY_LOCALIDAD_CRED"/>
+			<qry:attribute value="'0'" name="logotipo" type="Nomad.NSystem.String"/>
+			<qry:insert-select doc-path="$r/.[$r/@oi_logotipo!='']" name="QRY_LOGOTIPO"/>
+		</qry:out>
+	</qry:select>
+	<qry:select xmlns:qry="XXX" doc="PARAM" name="QRY_LOCALIDAD_CRED">
+		<qry:xquery>
+			for $r in sql('
+				SELECT ORG19_LOCALIDADES.oi_localidad,
+				ORG19_LOCALIDADES.d_localidad, ORG19_LOCALIDADES.c_postal
+				FROM ORG19_LOCALIDADES
+				WHERE ORG19_LOCALIDADES.oi_localidad = {#PARAM:@oi_localidad}
+			')/ROWS/ROW
+		</qry:xquery>
+		<qry:out>
+			<qry:attribute value="$r/@oi_localidad" name="oi_localidad_cred"/>
+			<qry:attribute value="'(' + $r/@c_postal + ')' + ' ' + $r/@d_localidad" name="localidad_cred"/>
+		</qry:out>
+	</qry:select>
+	<qry:select xmlns:qry="XXX" doc="PARAM" name="QRY_LEGAJOS_PROPIOS">
+		<qry:xquery>
+			for $r in sql('
+				SELECT PER02_PERSONAL_EMP.oi_personal_emp
+				FROM PER02_PERSONAL_EMP
+				WHERE PER02_PERSONAL_EMP.oi_empresa = {#PARAM:@oi_empresa}
+				{%? (string(#FILTRO:PERSONAS/PERSONA/@id)!='') 
+				{% AND PER02_PERSONAL_EMP.oi_personal_emp in ({%=string(#FILTRO:PERSONAS/PERSONA/@id)%}) %} 
+				{%  %} 
+			%}
+			')/ROWS/ROW
+		</qry:xquery>
+		<qry:out>
+			<qry:element name="CREDENCIAL">
+				<qry:attribute value="$r/@oi_personal_emp" name="oi_personal_emp"/>
+				<qry:attribute value="'0'" name="l_contratista"/>
+				<qry:insert-select doc-path="$r" name="QRY_DATOS"/>
+				<qry:insert-select doc-path="$r" name="SECURITY"/>
+			</qry:element>
+			<qry:attribute value="'1'" name="cant"/>
+		</qry:out>
+	</qry:select>
+	<qry:select xmlns:qry="XXX" doc="PARAM" name="QRY_LEGAJOS_CONTRATISTAS">
+		<qry:xquery>
+			for $r in sql('
+				SELECT PER02_PERSONAL_EMP.oi_personal_emp	
+				FROM PER02_PERSONAL_EMP
+				WHERE PER02_PERSONAL_EMP.oi_empresa_vinc = {#PARAM:@oi_empresa}
+				{%? (string(#FILTRO:PERSONAS/PERSONA/@id)!='') 
+				{% AND PER02_PERSONAL_EMP.oi_personal_emp in ({%=string(#FILTRO:PERSONAS/PERSONA/@id)%}) %} 
+				{%  %} 
+			%}
+			')/ROWS/ROW
+		</qry:xquery>
+		<qry:out>
+			<qry:element name="CREDENCIAL">
+				<qry:attribute value="'1'" name="l_contratista"/>
+				<qry:attribute value="$r/@oi_personal_emp" name="oi_personal_emp"/>
+				<qry:insert-select doc-path="$r" name="QRY_DATOS"/>
+				<qry:insert-select doc-path="$r" name="SECURITY"/>
+			</qry:element>
+			<qry:attribute value="'1'" name="cant"/>
+		</qry:out>
+	</qry:select>
+	<qry:select xmlns:qry="XXX" doc="PARAM" name="QRY_DATOS">
+		<qry:out>
+			<qry:insert-select doc-path="#PARAM:" name="QRY_DATOS_PER"/>
+			<qry:insert-select doc-path="#PARAM:" name="QRY_EMPRESA"/>
+			<qry:insert-select doc-path="#PARAM:" name="QRY_ART"/>
+			<qry:insert-select doc-path="#PARAM:" name="QRY_GSANG"/>
+			<qry:insert-select doc-path="#PARAM:" name="QRY_DATOS_TTA"/>
+		</qry:out>
+	</qry:select>
+	<qry:select xmlns:qry="XXX" doc="PARAM" name="QRY_DATOS_PER">
+		<qry:xquery>
+			for $r in sql('
+				SELECT PER02_PERSONAL_EMP.e_numero_legajo, PER01_PERSONAL.d_ape_y_nom,
+				PER01_PERSONAL.c_nro_cuil, PER01_PERSONAL.oi_foto
+				FROM PER02_PERSONAL_EMP, PER01_PERSONAL
+				JOIN PER02_PERSONAL_EMP.oi_personal INNER PER01_PERSONAL.oi_personal
+				WHERE PER02_PERSONAL_EMP.oi_personal_emp = {#PARAM:@oi_personal_emp}
+			')/ROWS/ROW
+		</qry:xquery>
+		<qry:out>
+			<qry:attribute value="$r/@e_numero_legajo + ' - ' + $r/@d_ape_y_nom" name="personal"/>
+			<qry:attribute value="$r/@c_nro_cuil" name="c_nro_cuil"/>
+			<qry:attribute value="'0'" name="foto" type="Nomad.NSystem.String"/>
+			<qry:insert-select doc-path="$r/.[$r/@oi_foto!='']" name="QRY_IMAGEN"/>
+		</qry:out>
+	</qry:select>
+	<qry:select xmlns:qry="XXX" doc="PARAM" name="QRY_DATOS_TTA">
+		<qry:xquery>
+			for $r in sql('
+				SELECT TTA04_PERSONAL.e_nro_legajo_reloj, TTA04_PERSONAL.d_nro_tarjeta
+				FROM TTA04_PERSONAL				
+				WHERE TTA04_PERSONAL.oi_personal_emp = {#PARAM:@oi_personal_emp}
+			')/ROWS/ROW
+		</qry:xquery>
+		<qry:out>
+			<qry:attribute value="$r/@e_nro_legajo_reloj" name="e_nro_legajo_reloj"/>
+			<qry:attribute value="$r/@d_nro_tarjeta" name="d_nro_tarjeta"/>
+		</qry:out>
+	</qry:select>
+	<qry:select xmlns:qry="XXX" doc="PARAM" name="QRY_EMPRESA">
+		<qry:xquery>
+			for $r in sql('
+				SELECT ORG03_EMPRESAS.oi_empresa, ORG03_EMPRESAS.c_empresa,
+				ORG03_EMPRESAS.d_empresa, ORG03_EMPRESAS.d_calle,
+				ORG03_EMPRESAS.e_numero, ORG03_EMPRESAS.e_piso,
+				ORG03_EMPRESAS.d_departamento, ORG03_EMPRESAS.oi_localidad
+				FROM ORG03_EMPRESAS, PER02_PERSONAL_EMP
+				JOIN ORG03_EMPRESAS.oi_empresa INNER PER02_PERSONAL_EMP.oi_empresa
+				WHERE PER02_PERSONAL_EMP.oi_personal_emp = {#PARAM:@oi_personal_emp}
+			')/ROWS/ROW
+		</qry:xquery>
+		<qry:out>
+			<qry:attribute value="$r/@oi_empresa" name="oi_empresa"/>
+			<qry:attribute value="$r/@c_empresa" name="c_empresa"/>
+			<qry:attribute value="$r/@d_empresa" name="d_empresa"/>
+			<qry:attribute value="$r/@d_calle + ' ' + $r/@e_numero  + ' ' + $r/@e_piso + ' ' + $r/@d_departamento" name="domicilio_emp"/>
+			<qry:insert-select doc-path="$r" name="QRY_LOCALIDAD"/>
+		</qry:out>
+	</qry:select>
+	<qry:select doc="PARAM" name="QRY_IMAGEN">
+		<qry:xquery>
+			for $r in #PARAM:
+		</qry:xquery>
+		<qry:out>
+			<qry:attribute value="$r/@oi_foto" name="foto" type="Nomad.NSystem.String"/>
+		</qry:out>
+	</qry:select>
+	<qry:select doc="PARAM" name="QRY_LOGOTIPO">
+		<qry:xquery>
+			for $r in #PARAM:
+		</qry:xquery>
+		<qry:out>
+			<qry:attribute value="$r/@oi_logotipo" name="logotipo" type="Nomad.NSystem.String"/>
+		</qry:out>
+	</qry:select>
+	<qry:select xmlns:qry="XXX" doc="PARAM" name="QRY_ART">
+		<qry:xquery>
+			for $r in sql('
+				SELECT PER33_ART.oi_art, PER33_ART.d_art
+				FROM PER33_ART, PER02_PERSONAL_EMP
+				JOIN PER33_ART.oi_art INNER PER02_PERSONAL_EMP.oi_art
+				WHERE PER02_PERSONAL_EMP.oi_personal_emp = {#PARAM:@oi_personal_emp}
+			')/ROWS/ROW
+		</qry:xquery>
+		<qry:out>
+			<qry:attribute value="$r/@oi_art" name="oi_art"/>
+			<qry:attribute value="$r/@d_art" name="d_art"/>
+		</qry:out>
+	</qry:select>
+	<qry:select xmlns:qry="XXX" doc="PARAM" name="QRY_GSANG">
+		<qry:xquery>
+			for $r in sql('
+				SELECT PER10_GRUPOS_SANG.oi_grupo_sanguineo, PER10_GRUPOS_SANG.d_grupo_sanguineo 
+				FROM PER10_GRUPOS_SANG, PER02_PERSONAL_EMP, PER01_PERSONAL
+				JOIN PER10_GRUPOS_SANG.oi_grupo_sanguineo INNER PER01_PERSONAL.oi_grupo_sanguineo,
+				PER02_PERSONAL_EMP.oi_personal INNER PER01_PERSONAL.oi_personal
+				WHERE PER02_PERSONAL_EMP.oi_personal_emp = {#PARAM:@oi_personal_emp}				
+			')/ROWS/ROW
+		</qry:xquery>
+		<qry:out>
+			<qry:attribute value="$r/@oi_grupo_saguineo" name="oi_grupo_sanguineo"/>
+			<qry:attribute value="$r/@d_grupo_sanguineo" name="d_grupo_sanguineo"/>
+		</qry:out>
+	</qry:select>
+	<qry:select xmlns:qry="XXX" doc="PARAM" name="QRY_LOCALIDAD">
+		<qry:xquery>
+			for $r in sql('
+				SELECT ORG19_LOCALIDADES.oi_localidad, ORG19_LOCALIDADES.oi_provincia,
+				ORG19_LOCALIDADES.d_localidad
+				FROM ORG19_LOCALIDADES
+				WHERE ORG19_LOCALIDADES.oi_localidad = {#PARAM:@oi_localidad}
+			')/ROWS/ROW
+		</qry:xquery>
+		<qry:out>
+			<qry:attribute value="$r/@oi_localidad" name="oi_localidad"/>
+			<qry:attribute value="$r/@d_localidad" name="d_localidad"/>
+			<qry:insert-select doc-path="$r" name="QRY_PROVINCIA"/>
+		</qry:out>
+	</qry:select>
+	<qry:select xmlns:qry="XXX" doc="PARAM" name="QRY_PROVINCIA">
+		<qry:xquery>
+			for $r in sql('
+				SELECT ORG35_PROVINCIAS.oi_provincia, ORG35_PROVINCIAS.d_provincia
+				FROM ORG35_PROVINCIAS
+				WHERE ORG35_PROVINCIAS.oi_provincia = {#PARAM:@oi_provincia}
+			')/ROWS/ROW
+		</qry:xquery>
+		<qry:out>
+			<qry:attribute value="$r/@oi_provincia" name="oi_provincia"/>
+			<qry:attribute value="$r/@d_provincia" name="d_provincia"/>
+		</qry:out>
+	</qry:select>
+	<qry:select doc="PARAM" name="SECURITY">
+		<qry:xquery>
+			for $r in sql('
+			SELECT NMD_SECURITY.policy 
+			FROM NMD_SECURITY 
+			WHERE NMD_SECURITY.class=\'NucleusRH.Base.Personal.LegajoEmpresa.PERSONAL_EMP\' 
+			AND NMD_SECURITY.id={#PARAM:@oi_personal_emp}
+		')/ROWS/ROW
+		</qry:xquery>
+		<qry:out>
+			<qry:attribute value="$r/@policy" name="policy"/>
+		</qry:out>
+	</qry:select>
+	<qry:select doc="PARAM" name="QRY_VACIO">
+		<qry:out>
+			<qry:element name="CREDENCIAL">
+				<qry:attribute value="'0'" name="oi_personal_emp"/>
+				<qry:attribute value="'0'" name="foto"/>
+				<qry:attribute value="'0'" name="l_contratista"/>
+			</qry:element>
+		</qry:out>
+	</qry:select>
+</qry:define>

@@ -1,0 +1,172 @@
+<form:Form xmlns:form="nomad_engine.form" xmlns:qry="nomad_engine.qry" default_mode="FILTER2" extends="NucleusRH.Base.Evaluacion2.Evaluacion.ASIGNACION.filter.form" name="NucleusRH.Base.Evaluacion2.Evaluacion.REPORTE-FILTRO2.form" doc="source">
+	<form:Title>
+		<form:Label label="003 - Consulta de Evaluaciones por Legajo" name="lbl_titulo" align="center" style="S3 LCol_w" visible=""/>
+	</form:Title>
+	<form:Center width="100%">
+		<form:VGroup nvalue="#source:@gcustom" label="Criterios de selecci&#243;n de par&#225;metros para el Proceso" border="1" width="90%" name="vgroupDatosCustom" collapse="1">
+			<form:Columns name="cols2" width="100%">
+				<form:Column name="cols2_1" valign="middle" separation="2" align="left">
+					<form:Grid nvalue="#FILTERDATA1:EVENTOS" doc="SOURCEGRILLA" idvalue="#SOURCEGRILLA:@id" label="Eventos" width="480px" proto="&lt;EVENTO/&gt;" name="grdEvento" note="" descrip="" rows="3" allowhelper="0" allowdelall="1" allownew="1" allowdel="1" paging="1" enabled="">
+						<form:GColumns>
+							<form:GColumn allow_order="0">
+								<form:ComboBox label="Evento Evaluativo" queryname1="NucleusRH.Base.Evaluacion2.Eventos.EVENTO.INFO" nvalue="#SOURCEGRILLA:@id" name="oi_evento" xsize="50" mode="QRY" required="0" X-POLICY="./FORM/NucleusRH/Base/Evaluacion2/Evaluacion/REPORTE-FILTRO2/form/oi_evento"/>
+							</form:GColumn>
+						</form:GColumns>
+					</form:Grid>
+				</form:Column>
+			</form:Columns>
+			<form:Columns name="cols1" visible="0" width="100%"/>
+		</form:VGroup>
+		<form:VGroup nvalue="#source:@gpers" border="1" width="90%" collapse="1" label="Criterios de selecci&#243;n de personas" name="vgroupDatosPers">
+			<form:Columns name="colsemps" width="100%">
+				<form:Column valign="middle" name="colemp" align="left">
+					<form:ComboBox queryname1="NucleusRH.Base.Organizacion.Empresas.EMPRESA.INFO" xsize="40" mode="QRY" required="1" label="Empresa" nvalue="#source:@empresa" name="empresa" X-POLICY="./FORM/NucleusRH/Base/Evaluacion2/Evaluacion/REPORTE-FILTRO2/form/empresa">
+						<form:Policies>
+							<form:Updateable X-POLICY="./FORM/NucleusRH/Base/Evaluacion2/Evaluacion/ASIGNACION/filter/form/empresa/HAB"/>
+							<form:Visible X-POLICY="./FORM/NucleusRH/Base/Evaluacion2/Evaluacion/ASIGNACION/filter/form/empresa"/>
+						</form:Policies>
+						<form:Policies>
+							<form:Updateable X-POLICY="./FORM/NucleusRH/Base/Evaluacion2/Evaluacion/REPORTE-FILTRO2/form/empresa/HAB"/>
+							<form:Visible X-POLICY="./FORM/NucleusRH/Base/Evaluacion2/Evaluacion/REPORTE-FILTRO2/form/empresa"/>
+						</form:Policies>
+					</form:ComboBox>
+				</form:Column>
+			</form:Columns>
+			<form:Tab name="tab_filtro">
+				<form:Panels>
+					<form:Panel label="Evaluaci&#243;n" name="evaluacion" selected="1">
+						<form:Columns name="cols_evaluacion" width="95%" height="130px">
+							<form:Column name="col1_evaluacion" valign="top" align="left">
+								<form:ComboBox xsize="50" mode="OPT" descrip="Estado" nvalue="#source:@estado" required="0" label="Estado" name="ESTADO">
+									<options>
+										<option text="Abierta" value="AB"/>
+										<option text="Habilitada" value="HA"/>
+										<option text="Evaluada" value="EV"/>
+										<option text="Confirmada" value="CO"/>
+										<option text="Aprobada" value="AP"/>
+										<option text="Rechazada" value="RZ"/>
+										<option text="Anulada" value="AN"/>
+										<option text="Publicada" value="PU"/>
+										<option text="Cerrada" value="CE"/>
+									</options>
+								</form:ComboBox>
+							</form:Column>
+						</form:Columns>
+					</form:Panel>
+				</form:Panels>
+			</form:Tab>
+		</form:VGroup>
+	</form:Center>
+	<form:Scripts>
+		function exec_qry()
+{
+	
+	var np, nSQL, i;
+
+	np = GetProxy();
+	nSQL = np.SQLService(); 	
+	var qry = Ctrl("main").getResource("qry_" + Ctrl("tab_filtro").GetSelectedPanelID());	
+	var qryMembers = qry.split("##");
+	var qryMembers = qryMembers[1].split(",");         
+	
+	var nmdDATA=new NomadXML("PARAM");
+	for (i=0; i&lt;qryMembers.length; i++)
+	{
+		if (Ctrl(qryMembers[i]).m_Required &amp;&amp; Ctrl(qryMembers[i]).GetXValue()=="")
+		{
+			alert("El valor es requerido");
+			Ctrl(qryMembers[i]).SetFocus();
+			return null;
+		}				
+		nmdDATA.SetAttr(qryMembers[i], Ctrl(qryMembers[i]).GetXValue());
+	}
+     
+  var result = nSQL.GetXML(qry, nmdDATA.ToString());
+  var resultArray = XML2array(result);
+  
+  /*
+  // Ejecuta query EXTERNO
+ 	if (Ctrl("main").getResource("qry_externo"))
+ 	{
+ 		qry = Ctrl("main").getResource("qry_externo");
+		
+		qryMembers = qry.split("##");
+		qryMembers = qryMembers[1].split(",");         
+ 		
+	 	nmdDATA=new NomadXML("PARAM");
+		for (i=0; i&lt;qryMembers.length; i++)
+		{
+			
+			alert(qryMembers[i]);
+			if (Ctrl(qryMembers[i]).m_Required &amp;&amp; Ctrl(qryMembers[i]).GetXValue()=="")
+			{
+				alert("El valor es requerido");
+				Ctrl(qryMembers[i]).SetFocus();
+				return null;
+			}				
+			nmdDATA.SetAttr(qryMembers[i], Ctrl(qryMembers[i]).GetXValue());
+		}
+
+  		alert(qry);
+  		alert(nmdDATA.ToString());
+  		result = nSQL.GetXML(qry, nmdDATA.ToString());
+	  var auxResult = XML2array(result);
+
+	  intersect(resultArray, auxResult);
+	}
+ 	 	*/	
+  return resultArray;
+}
+	</form:Scripts>
+	<form:Resources>
+		<form:Resource declare="&lt;PARAM EVENTO=&quot;2&quot; empresa=&quot;202&quot; activos=&quot;&quot; SUPERVISOR=&quot;12092&quot; EVALUADOR=&quot;&quot;/&gt;" name="qry_evaluacion">
+			<qry:main name="qry" doc="SOURCE">
+				<qry:element name="ROWS">
+					<qry:insert-select name="sql1" doc-path="#SOURCE:PARAM"/>
+				</qry:element>
+			</qry:main>
+			<qry:select name="sql1" doc="SOURCE">
+				<qry:xquery>
+					for $r in sql('
+				SELECT
+					ORG03_EMPRESAS.d_empresa, 
+					PER02_PERSONAL_EMP.oi_personal_emp, 
+					PER02_PERSONAL_EMP.e_numero_legajo, 
+					PER01_PERSONAL.d_ape_y_nom
+				FROM
+					EDD03_EVALUACION,
+					PER02_PERSONAL_EMP,
+					PER01_PERSONAL,
+					ORG03_EMPRESAS
+				JOIN
+					EDD03_EVALUACION.oi_personal_emp INNER PER02_PERSONAL_EMP.oi_personal_emp,
+					PER02_PERSONAL_EMP.oi_personal INNER PER01_PERSONAL.oi_personal,
+					PER02_PERSONAL_EMP.oi_empresa INNER ORG03_EMPRESAS.oi_empresa
+				WHERE 
+					1=1
+					{%?(#SOURCE:@ESTADO!='') {% and EDD03_EVALUACION.c_estado= {#SOURCE:@ESTADO} %} {% %} %}
+					{%?(#SOURCE:@empresa!='') {% and ORG03_EMPRESAS.oi_empresa = {#SOURCE:@empresa} %} {% %} %}
+					{%?(#SOURCE:@activos='1') {% and PER02_PERSONAL_EMP.oi_indic_activo= \'1\' %} {% %} %}
+					{%?(#SOURCE:@SUPERVISOR!='') {% AND EDD03_EVALUACION.oi_supervisor in (SELECT PER02_PERSONAL_EMP.oi_personal_emp FROM PER02_PERSONAL_EMP WHERE PER02_PERSONAL_EMP.oi_personal = {%=#SOURCE:@SUPERVISOR%}) %} {% %} %}
+					{%?(#SOURCE:@EVALUADOR!='') {% AND EDD03_EVALUACION.oi_evaluador in (SELECT PER02_PERSONAL_EMP.oi_personal_emp FROM PER02_PERSONAL_EMP WHERE PER02_PERSONAL_EMP.oi_personal = {%=#SOURCE:@EVALUADOR%}) %} {% %} %}
+				ORDER BY 
+					d_empresa ASC, 
+					e_numero_legajo ASC
+		')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:element name="ROW">
+						<qry:attribute name="id" value="$r/@oi_personal_emp"/>
+						<qry:attribute name="d_empresa" value="$r/@d_empresa"/>
+						<qry:attribute name="e_numero_legajo" value="$r/@e_numero_legajo"/>
+						<qry:attribute name="d_ape_y_nom" value="$r/@d_ape_y_nom"/>
+						<qry:attribute name="e_nro_legajo_reloj" value="$r/@e_nro_legajo_reloj"/>
+					</qry:element>
+				</qry:out>
+				<qry:params>
+					##ESTADO,empresa,activos,SUPERVISOR,EVALUADOR##
+				</qry:params>
+			</qry:select>
+		</form:Resource>
+	</form:Resources>
+</form:Form>

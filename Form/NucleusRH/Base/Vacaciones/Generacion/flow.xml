@@ -1,0 +1,78 @@
+<flow:flow xmlns:flow="nomad_engine.flow" xmlns:doc="nomad_engine.doc" xmlns:qry="nomad_engine.qry" name="NucleusRH.Base.Vacaciones.Generacion.flow" extends="Nomad.Base.flow">
+	<flow:info label="Flow para NucleusRH.Base.Personal.Reportes.AptitudesVsPuesto"/>
+	<flow:declare>
+		<doc:define name="DDO"/>
+		<doc:define name="NEWDDO"/>
+		<doc:define name="QRY">
+			<ROWS/>
+		</doc:define>
+		<doc:define name="FILTERDATA">
+			<FILTRO l_sobreescribe="0" oi_periodo="">
+				<PERSONAS/>
+			</FILTRO>
+		</doc:define>
+		<doc:define name="PARAM"/>
+		<qry:define name="GET_PARAMETROS" declare="&lt;FILTRO l_sobreescribe=&quot;1&quot; oi_periodo=&quot;5&quot; gcustom=&quot;&quot; gpers=&quot;&quot; empresa=&quot;8&quot; activos=&quot;1&quot; nombre=&quot;&quot; documento=&quot;&quot; sexo=&quot;&quot; grupo_sanguineo=&quot;&quot; listlegajos=&quot;&quot; oi_indic_activo=&quot;&quot; egresado=&quot;&quot; oi_forma_pago=&quot;&quot; oi_tipo_personal=&quot;&quot; leg_list=&quot;&quot; leg_desde1=&quot;&quot; leg_desde2=&quot;&quot; leg_desde3=&quot;&quot; leg_hasta1=&quot;&quot; leg_hasta2=&quot;&quot; leg_hasta3=&quot;&quot; oi_centro_costo=&quot;&quot; oi_categoria=&quot;&quot; soloconvenio=&quot;&quot; oi_ubicacion_desde=&quot;&quot; oi_ubicacion_hasta=&quot;&quot; oi_estructura=&quot;&quot; escructura_childs=&quot;&quot; oi_afjp=&quot;&quot; oi_obra_social=&quot;&quot; oi_sindicato=&quot;&quot; legID=&quot;&quot;&gt;&#13;&#10;  &lt;PERSONAS&gt;&#13;&#10;    &lt;ROW VALUES=&quot;11472,236,11495,11494,11493,11492,11491,11490,11489,11488,11487,11486,11485,11484,11483,11482,11481,11480,11479,11478,11477,11476,11475,11474,11473,11463,11519&quot; /&gt;&#13;&#10;  &lt;/PERSONAS&gt;&#13;&#10;&lt;/FILTRO&gt;">
+			<qry:main doc="SOURCE">
+				<qry:element name="ROWS">
+					<qry:insert-select doc-path="#SOURCE:FILTRO/PERSONAS/ROW" name="RS1"/>
+				</qry:element>
+			</qry:main>
+			<qry:select name="RS1" doc="SOURCE">
+				<qry:xquery>
+					for $r in sql('
+				SELECT
+					PER02_PERSONAL_EMP.oi_personal_emp
+				FROM 
+					PER02_PERSONAL_EMP
+    		WHERE
+					PER02_PERSONAL_EMP.oi_personal_emp in ({%=string(#SOURCE:@VALUES) %}) 
+			')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:element name="ROW">
+						<qry:attribute name="id" value="$r/@oi_personal_emp" type="Nomad.NSystem.String"/>
+					</qry:element>
+				</qry:out>
+			</qry:select>
+		</qry:define>
+	</flow:declare>
+	<flow:main doc="SOURCE">
+		<flow:action name="initialize">
+			<flow:open-form doc-path="#FILTERDATA:" form-class="NucleusRH.Base.Vacaciones.Generacion.filter.form" mode="FILTER"/>
+		</flow:action>
+	</flow:main>
+	<flow:form name="NucleusRH.Base.Vacaciones.Generacion.filter.form:FILTER" mode="FILTER" form-class="NucleusRH.Base.Vacaciones.Generacion.filter.form" doc="SOURCE">
+		<flow:action name="BACK">
+			<flow:close-form/>
+		</flow:action>
+		<flow:action name="on-show">
+			<flow:call-action action="Load-FILTER"/>
+		</flow:action>
+		<flow:action name="FILTER">
+			<!---flow:load-user-data name="PER_IDsLegajos" doc="QRY"/-->
+			<flow:log text="jprFILTERDATA" text-path="#FILTERDATA:"/>
+			<flow:log text="jprQRY" text-path="#QRY:"/>
+			<flow:call-action action="Load-parametros"/>
+			<flow:call-action action="Save-FILTER"/>
+			<flow:exec-method class="NucleusRH.Base.Vacaciones.LegajoVacaciones.PERSONAL_EMP" out-attr-path="#BATCHDOC:@batch-id" priority="5" method="Generar_Vacaciones" out-type="String">
+				<flow:param type="Nomad.NSystem.Proxy.NomadXML" name="param" doc="QRY" mode="in"/>
+				<flow:param attr-path="#FILTERDATA:@l_sobreescribe" type="Nomad.NSystem.Boolean" mode="in" name="l_sobreescribe"/>
+				<flow:param attr-path="#FILTERDATA:@oi_periodo" type="Nomad.NSystem.String" mode="in" name="oi_periodo"/>
+			</flow:exec-method>
+			<flow:call-action action="open-flow-BATCH"/>
+		</flow:action>
+		<flow:action name="open-flow-BATCH">
+			<flow:open-form form-class="nomad.base.batchtolist.form" mode="BATCH" doc-path="#BATCHDOC:"/>
+		</flow:action>
+		<flow:action name="Load-FILTER">
+			<flow:load-user-data doc="FILTERDATA" name="FILTER-NucleusRH.Base.Vacaciones.Generacion"/>
+		</flow:action>
+		<flow:action name="Save-FILTER">
+			<flow:save-user-data doc-path="#FILTERDATA:" name="FILTER-NucleusRH.Base.Vacaciones.Generacion"/>
+		</flow:action>
+		<flow:action name="Load-parametros">
+			<doc:load-qry output-doc="QRY" input-doc-path="#FILTERDATA:" qry="GET_PARAMETROS"/>
+		</flow:action>
+	</flow:form>
+</flow:flow>

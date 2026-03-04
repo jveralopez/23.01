@@ -1,0 +1,142 @@
+<flow:flow xmlns:flow="nomad_engine.flow" xmlns:doc="nomad_engine.doc" xmlns:qry="nomad_engine.qry" default_action="initialize" extends="Nomad.Base.flow" name="LibroLey_FO">
+	<flow:info label="LibroLeyCargos"/>
+	<flow:declare>
+		<doc:define name="FILTERDATA">
+			<FILTRO FormatRPT="PDF">
+				<LIQUIDACIONES/>
+			</FILTRO>
+		</doc:define>
+		<doc:define name="SUELDOS"/>
+		<qry:define declare="&lt;FILTRO  modelo_defecto=&quot;10&quot; excluir=&quot;&quot; oi_liquidacion=&quot;&quot; periodo=&quot;202505&quot; modelo=&quot;nacional&quot; empresa=&quot;1&quot; periodo_hasta=&quot;202505&quot; l_confidencial=&quot;&quot; chkZIP=&quot;&quot;&gt;&lt;PERSONAS nmd-col=&quot;1&quot;&gt;&lt;ROW VALUES=&quot;1&quot; id=&quot;2023111912321&quot;/&gt;&lt;ROW VALUES=&quot;84549&quot; id=&quot;2023111912322&quot;/&gt;&lt;/PERSONAS&gt;&lt;/FILTRO&gt;" name="COMBO">
+			<qry:main doc="SOURCE">
+				<ROWS>
+					<qry:append-doc name="PARAM" doc-path="#SOURCE:."/>
+					<qry:insert-select name="CUSTOM" doc-path="$PARAM"/>
+					<qry:if test="#SOURCE:FILTRO/@modelo_defecto = ''">
+						<qry:then>
+							<qry:element name="PRUEBA_218"/>
+							<qry:if test="count(OPT)=0">
+								<qry:then>
+									<qry:insert-select name="BASE" doc-path="$PARAM"/>
+								</qry:then>
+							</qry:if>
+						</qry:then>
+					</qry:if>
+				</ROWS>
+			</qry:main>
+			<qry:select name="BASE" doc="SOURCE">
+				<qry:xquery>
+					for $r in FILESTORE('Resources/NucleusRH.Base.Liquidacion.LIBROLEY.resource.XML')/LIBROLEY/LIBROLEY[contains(@valido,'215')]
+				</qry:xquery>
+				<qry:out>
+					<qry:insert-select name="MODELO" doc-path="$r"/>
+				</qry:out>
+			</qry:select>
+			<qry:select name="CUSTOM" doc="SOURCE">
+				<qry:xquery>
+					for $r in FILESTORE('Resources/NucleusRH.{%=substring-before(#PROXY:@APP,'-')%}.Liquidacion.LIBROLEY.resource.XML')/LIBROLEY/LIBROLEY[contains(@valido,'215')]
+				</qry:xquery>
+				<qry:out>
+					<qry:insert-select name="MODELO" doc-path="$r"/>
+				</qry:out>
+			</qry:select>
+			<qry:select name="MODELO" doc="SOURCE">
+				<qry:out>
+					<qry:if test="$PARAM/@modelo_defecto != '' and $PARAM/@modelo_defecto &lt;= 8">
+						<qry:then>
+							<COUNT>
+								<qry:attribute name="contador" value="count(../COUNT)"/>
+								<qry:attribute name="hts:delete" value="1"/>
+							</COUNT>
+							<qry:if test="count(./COUNT) = $PARAM/@modelo_defecto">
+								<qry:then>
+									<OPT>
+										<qry:attribute name="id" value="$PARAM/@modelo_defecto"/>
+										<qry:attribute name="code" value="@id"/>
+										<qry:attribute name="value" value="@id"/>
+										<qry:attribute name="text" value="$SOURCE/@label"/>
+										<qry:attribute name="file" value="$SOURCE/@file"/>
+										<qry:attribute name="chkZIP" value="$SOURCE/@chkZIP"/>
+										<qry:attribute name="chkOcultarLeyenda" value="$SOURCE/@chkOcultarLeyenda"/>
+										<qry:attribute name="chkInvertir" value="$SOURCE/@chkInvertir"/>
+										<qry:if test="$PARAM/@modelo_defecto != '' and $PARAM/@modelo_defecto != @id ">
+											<qry:then>
+												<qry:attribute name="hts:delete" value="1"/>
+											</qry:then>
+										</qry:if>
+									</OPT>
+								</qry:then>
+							</qry:if>
+						</qry:then>
+						<qry:else>
+							<OPT>
+								<qry:attribute name="id" value="count(../OPT)"/>
+								<qry:attribute name="code" value="@id"/>
+								<qry:attribute name="value" value="@id"/>
+								<qry:attribute name="text" value="$SOURCE/@label"/>
+								<qry:attribute name="file" value="$SOURCE/@file"/>
+								<qry:attribute name="chkZIP" value="$SOURCE/@chkZIP"/>
+								<qry:attribute name="chkOcultarLeyenda" value="$SOURCE/@chkOcultarLeyenda"/>
+								<qry:attribute name="chkInvertir" value="$SOURCE/@chkInvertir"/>
+								<qry:if test="$PARAM/@modelo != '' and $PARAM/@modelo != @id ">
+									<qry:then>
+										<qry:attribute name="hts:delete" value="1"/>
+									</qry:then>
+								</qry:if>
+							</OPT>
+						</qry:else>
+					</qry:if>
+				</qry:out>
+			</qry:select>
+		</qry:define>
+		<doc:define name="RS"/>
+	</flow:declare>
+	<flow:main doc="PARAMIN">
+		<flow:action name="initialize">
+			<flow:open-form form-class="NucleusRH.Base.Liquidacion.Reporte.LibroLey.LibroLey_FO.filter.form" doc-path="#FILTERDATA:" mode="FILTER"/>
+		</flow:action>
+		<flow:action name="COMBO">
+			<doc:load-qry output-doc="RS" qry="COMBO"/>
+			<flow:exit-flow return-path="#RS:"/>
+		</flow:action>
+		<flow:action name="COMBO2">
+			<doc:load-qry output-doc="RS" qry="COMBO2"/>
+			<flow:exit-flow return-path="#RS:"/>
+		</flow:action>
+	</flow:main>
+	<flow:form form-class="NucleusRH.Base.Liquidacion.Reporte.LibroLey.LibroLey_FO.filter.form" name="NucleusRH.Base.Liquidacion.Reporte.LibroLey.LibroLey_FO.filter.form:FILTER" mode="FILTER" doc="SOURCE" parent-doc="PARENTSOURCE">
+		<flow:action name="CANCEL">
+			<flow:close-form/>
+		</flow:action>
+		<flow:action name="Save-FILTER">
+			<flow:save-user-data name="NucleusRH.Base.Liquidacion.Reporte.LibroLey.LibroLey_FO.filter" doc-path="#FILTERDATA:"/>
+		</flow:action>
+		<flow:action name="on-open">
+			<flow:call-action action="Load-FILTER"/>
+		</flow:action>
+		<flow:action name="Load-FILTER">
+			<flow:load-user-data name="NucleusRH.Base.Liquidacion.Reporte.LibroLey.LibroLey_FO.filter" doc="FILTERDATA"/>
+		</flow:action>
+		<flow:action name="REPORT_ZIP">
+			<flow:exec-method method="ExecReportFOZip" out-attr-path="#FILTERDATA:@batch-id" class="Nomad.Base.Report.GeneralReport.REPORT" priority="5">
+				<flow:param value="NucleusRH.Base.Liquidacion.LibroLeyFo.LibroLeyFo.rpt" name="report-name" mode="in" type="Nomad.NSystem.String"/>
+				<flow:param type="Nomad.NSystem.Proxy.NomadXML" doc="FILTERDATA" name="report-param" mode="in"/>
+			</flow:exec-method>
+			<flow:open-form form-class="Nomad.Base.Batch.Download.form" mode="BATCH_ZIP" doc-path="#FILTERDATA:"/>
+		</flow:action>
+		<flow:action name="ACCEPT">
+			<doc:load-qry input-doc-path="#FILTERDATA:" output-doc="RS" qry="COMBO"/>
+			<doc:set-attribute from-attr-path="#RS:OPT/@chkOcultarLeyenda" to-attr-path="#FILTERDATA:@chkOcultarLeyenda"/>
+			<doc:set-attribute from-attr-path="#RS:OPT/@chkInvertir" to-attr-path="#FILTERDATA:@chkInvertir"/>
+			<flow:call-action action="Save-FILTER"/>
+			<flow:call-action else="REPORT_PDF" action="REPORT_ZIP" eq="1" if="#RS:OPT/@chkZIP"/>
+		</flow:action>
+		<flow:action name="REPORT_PDF">
+			<flow:exec-method out-attr-path="#FILTERDATA:@batch-id" method="ExecReportFO" class="Nomad.Base.Report.GeneralReport.REPORT" priority="5">
+				<flow:param attr-path="#RS:OPT/@file" type="Nomad.NSystem.String" mode="in" name="ReportName"/>
+				<flow:param doc="FILTERDATA" type="Nomad.NSystem.Proxy.NomadXML" mode="in" name="xmlParam"/>
+			</flow:exec-method>
+			<flow:open-form doc-path="#FILTERDATA:" mode="BATCH" form-class="Nomad.base.batch.report.form"/>
+		</flow:action>
+	</flow:form>
+</flow:flow>

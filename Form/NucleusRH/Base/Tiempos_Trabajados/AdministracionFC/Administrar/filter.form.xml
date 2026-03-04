@@ -1,0 +1,56 @@
+<form:Form xmlns:form="nomad_engine.form" xmlns:qry="nomad_engine.qry" name="NucleusRH.Base.Tiempos_Trabajados.AdministracionFC.Administrar.filter.form" extends="NucleusRH.Base.Tiempos_Trabajados.Reporte.filter.form" doc="source">
+	<form:Title>
+		<form:Label label="Administraci&#243;n de Francos Compensatorios" name="lbl_titulo" visible="" style="S3 LCol_w" align="center"/>
+	</form:Title>
+	<form:Center height="100%" width="100%">
+		<form:VGroup visible="0" label="Criterios de selecci&#243;n de fechas" nvalue="#source:@gcustom" border="1" width="90%" name="vgroupDatosCustom" collapse="1"/>
+		<form:Hidden name="fecha_vencimiento" nvalue="#source:@fecha_vencimiento"/>
+	</form:Center>
+	<form:Resources>
+		<form:Resource name="qry_externo">
+			<qry:main name="qry">
+				<qry:element name="ROWS">
+					<qry:insert-select name="VencimientoFC"/>
+					<qry:insert-select name="sql1" doc-path="."/>
+				</qry:element>
+			</qry:main>
+			<qry:select name="sql1" doc="SOURCE">
+				<qry:xquery>
+					for $r in sql('			
+				SELECT 
+					TTA20_REGISTRO_FC.oi_personal_emp
+				FROM 
+					TTA20_REGISTRO_FC
+				WHERE        
+					TTA20_REGISTRO_FC.l_aprob=1
+					AND TTA20_REGISTRO_FC.n_saldo &gt; 0   
+				 	{%? (#SOURCE:@fecha_vencimiento = '') {% %} {% AND TTA20_REGISTRO_FC.f_registro_fc &gt;= {Datetime(#SOURCE:@fecha_vencimiento)} %} %} 
+					
+			')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:element name="ROW">
+						<qry:attribute name="id" value="$r/@oi_personal_emp"/>
+					</qry:element>
+				</qry:out>
+			</qry:select>
+			<qry:select name="VencimientoFC">
+				<qry:xquery>
+					for $r in sql('
+				SELECT 
+					ORG26_PARAMETROS.oi_parametro, 
+					ORG26_PARAMETROS.d_valor,
+					ADDMONTHS(NOW(),STRING2NUMBER(ORG26_PARAMETROS.d_valor)*(-1)) as fecha
+				FROM 
+					ORG26_PARAMETROS
+				WHERE 
+					ORG26_PARAMETROS.c_parametro = \'VencimientoFC\'
+				')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:attribute name="fecha_vencimiento" value="substring($r/@fecha,0,8)"/>
+				</qry:out>
+			</qry:select>
+		</form:Resource>
+	</form:Resources>
+</form:Form>

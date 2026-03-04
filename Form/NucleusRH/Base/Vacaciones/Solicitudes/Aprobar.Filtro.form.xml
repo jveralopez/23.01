@@ -1,0 +1,114 @@
+<form:Form xmlns:form="nomad_engine.form" xmlns:qry="nomad_engine.qry" name="NucleusRH.Base.Vacaciones.Solicitudes.Aprobar.Filtro.form" extends="NucleusRH.Base.Personal.LegajoEmpresa.filter.form" doc="source">
+	<form:Title>
+		<form:Label label="Selecci&#243;n de Solicitudes" style="S3 LCol_w" name="lbl_titulo"/>
+	</form:Title>
+	<form:Center width="100%">
+		<form:VGroup nvalue="#source:@gcustom" border="1" width="90%" label="Criterios de selecci&#243;n particulares" name="vgroupDatosCustom" collapse="1">
+			<form:Columns name="colsCus1" width="100%">
+				<form:Column name="colCus1" valign="middle" align="left">
+					<form:DateTime nvalue="#source:@f_ini" name="f_ini" label="Fecha Inicio" mask="dd/mm/yyyy" enabled="" required="1" pattern="YYYYMMDD">
+						<form:SButtons>
+							<form:SButton visible="" name="Calendar" label="Calendar" img="Calendar">
+								<form:Event runat="client" name="onclick" action="SHOW_HELPER"/>
+							</form:SButton>
+						</form:SButtons>
+						<form:Event runat="client" name="onvalidate" action="VALIDARRANGOFECHA"/>
+					</form:DateTime>
+					<form:DateTime nvalue="#source:@f_fin" name="f_fin" label="Fecha Fin" mask="dd/mm/yyyy" enabled="" required="1" pattern="YYYYMMDD">
+						<form:SButtons>
+							<form:SButton visible="" name="Calendar" label="Calendar" img="Calendar">
+								<form:Event runat="client" name="onclick" action="SHOW_HELPER"/>
+							</form:SButton>
+						</form:SButtons>
+						<form:Event runat="client" name="onvalidate" action="VALIDARRANGOFECHAF"/>
+					</form:DateTime>
+				</form:Column>
+			</form:Columns>
+		</form:VGroup>
+	</form:Center>
+	<form:Bottom>
+		<form:RowAligner name="rowaligner1">
+			<form:Row name="row1">
+				<form:Button visible="0" name="AGREGAR" label="Agregar" img="add" descrip="Agregar un Legajo" note="Volver al Menu princial">
+					<form:Event action="ADD" runat="server" name="onclick"/>
+				</form:Button>
+			</form:Row>
+		</form:RowAligner>
+	</form:Bottom>
+	<form:Scripts>
+		function VALIDARRANGOFECHA(myThis)
+				{ 	
+					if (myThis.TypedValue() &gt; Ctrl("f_fin").TypedValue())
+						{
+							myThis.SetError('La fecha de inicio es mayor que la fecha de fin');
+							return false;						
+						}					
+						else return true;												
+				}					
+
+    
+
+function VALIDARRANGOFECHAF(myThis)
+				{ 
+					if (Ctrl("f_ini").TypedValue() == "" &amp;&amp; myThis.TypedValue()  != "")
+						{
+							myThis.SetError('El rango de fechas especificado no es correcto');
+							return false;						
+						}					
+						else return true;												
+				}
+				
+function Ejecutar()
+{               
+ 	if (Ctrl("list2").TotalRowsCount()==0)
+ 	{             
+ 		alert("No hay legajos filtrados.");
+ 		return false;
+ 	}
+ 	
+ 	Ctrl('legajos').DelAllRow();
+ 	for (key in arrB) Ctrl('legajos').AddRow().SetAttr('id', key.substr(1));
+ 	
+	Ctrl("main").DoEvent("FILTER");
+}
+	</form:Scripts>
+	<form:Event action="FILTER" name="FILTER" runat="server"/>
+	<form:Resources>
+		<form:Resource name="qry_externo">
+			<qry:main name="qry" doc="SOURCE">
+				<qry:element name="ROWS">
+					<qry:insert-select name="sql1" doc-path="#SOURCE:/PARAM"/>
+				</qry:element>
+			</qry:main>
+			<qry:select name="sql1" doc="SOURCE">
+				<qry:xquery>
+					for $r in sql('
+			SELECT
+				PER02_PERSONAL_EMP.oi_personal_emp 
+			FROM 
+				PER02_PERSONAL_EMP,
+				VAC01_SOLICITUDES, 
+				VAC02_ESTADOS_SOl,
+				VAC01_PERSONAL
+			JOIN
+				VAC01_SOLICITUDES.oi_personal_emp INNER  PER02_PERSONAL_EMP.oi_personal_emp,
+				VAC02_ESTADOS_SOl.oi_estado_solic INNER VAC01_SOLICITUDES.oi_estado_solic,
+				VAC01_PERSONAL.oi_personal_emp INNER VAC01_SOLICITUDES.oi_personal_emp
+      WHERE
+				VAC02_ESTADOS_SOL.c_estado_solic =\'S\'
+				AND VAC01_SOLICITUDES.f_desde_solicitud  &gt;= {DateTime(#SOURCE:@f_ini)}				
+				AND VAC01_SOLICITUDES.f_hasta_solicitud  &lt;= {DateTime(#SOURCE:@f_fin)} 																	
+		')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:element name="ROW">
+						<qry:attribute name="id" value="$r/@oi_personal_emp"/>
+					</qry:element>
+				</qry:out>
+			</qry:select>
+			<qry:params>
+				##f_ini,f_fin##
+			</qry:params>
+		</form:Resource>
+	</form:Resources>
+</form:Form>

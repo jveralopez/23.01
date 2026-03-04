@@ -1,0 +1,100 @@
+<flow:flow xmlns:flow="nomad_engine.flow" xmlns:doc="nomad_engine.doc" xmlns:qry="nomad_engine.qry" description="indicador Costos de sueldos" default_action="initialize" extends="Nomad.Base.flow" name="NucleusRH.Base.Indicadores.Sueldos">
+	<flow:info label="Flow para NucleusRH.Base.Indicadores.Sueldos">
+		Flow para Nomad.Base.Liquidacion.Liquidacion
+	</flow:info>
+	<flow:declare>
+		<doc:define name="FILTERDATA">
+			<DATA/>
+		</doc:define>
+		<qry:define name="qry_LastActualizacion">
+			<qry:main doc="SOURCE">
+				<qry:element name="Datos">
+					<qry:insert-select doc-path="#SOURCE:" name="qry_FindLast"/>
+				</qry:element>
+			</qry:main>
+			<qry:select doc="doc_Last" name="qry_FindLast">
+				<qry:xquery>
+					for $r in sql ('  SELECT MAX (TCO01_EJECUCIONES.f_Inicio_ejec ) as f_Inicio_ejec 
+FROM TCO01_EJECUCIONES WHERE TCO01_EJECUCIONES.c_modulo_tco=\'Sueldos\' ')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:insert-select doc-path="$r" name="qry_Result"/>
+				</qry:out>
+			</qry:select>
+			<qry:select doc="doc_result" name="qry_Result">
+				<qry:xquery>
+					&#32;&#32;for $r in sql (' SELECT TCO01_EJECUCIONES.c_ejecucion, TCO01_EJECUCIONES.c_estado , TCO01_EJECUCIONES.f_Inicio_ejec
+FROM TCO01_EJECUCIONES WHERE TCO01_EJECUCIONES.c_modulo_tco=\'Sueldos\'
+and TCO01_EJECUCIONES.f_Inicio_ejec =
+{DateTime(#doc_result:@f_Inicio_ejec)}
+ ')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:attribute value="$r/@c_ejecucion" name="c_ejecucion_F"/>
+					<qry:attribute value="$r/@c_estado" name="c_estado_F"/>
+					<qry:attribute value="iif($r/@c_estado='C',1,(iif($r/@c_estado='E',10,0)))" name="n_estado_F"/>
+					<qry:attribute value="$r/@f_Inicio_ejec" name="Fecha_Max"/>
+					<qry:insert-select doc-path="$r" name="qry_ResultDIM"/>
+				</qry:out>
+			</qry:select>
+			<qry:select doc="doc_resultDIM" name="qry_ResultDIM">
+				<qry:xquery>
+					&#32;&#32;for $r in sql (' SELECT TCO01_EJECUCIONES.c_ejecucion, TCO01_EJECUCIONES.c_estado 
+FROM TCO01_EJECUCIONES WHERE TCO01_EJECUCIONES.c_modulo_tco=\'DIMENSIONES\'
+and TCO01_EJECUCIONES.c_ejecucion = {#doc_resultDIM:@c_ejecucion}
+ ')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:attribute value="$r/@c_ejecucion" name="c_ejecucion_D"/>
+					<qry:attribute name="c_estado_D" value="$r/@c_estado"/>
+					<qry:attribute value="iif($r/@c_estado='C',1,(iif($r/@c_estado='E',10,0))) + #doc_resultDIM:@n_estado_F" name="n_estado_D"/>
+					<qry:insert-select doc-path="./" name="qry_ResultALL"/>
+				</qry:out>
+			</qry:select>
+			<qry:select doc="doc_resultALL" name="qry_ResultALL">
+				<qry:xquery>
+					&#32;&#32;for $r in sql (' SELECT TCO01_EJECUCIONES.c_ejecucion, TCO01_EJECUCIONES.c_estado 
+FROM TCO01_EJECUCIONES WHERE TCO01_EJECUCIONES.c_modulo_tco=\'datosComunes\'
+and  TCO01_EJECUCIONES.c_ejecucion =    {#doc_resultALL:@c_ejecucion_D}
+ ')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:attribute value="$r/@c_ejecucion" name="c_ejecucion_Com"/>
+					<qry:attribute value="$r/@c_estado" name="c_estado_Com"/>
+					<qry:attribute value="iif($r/@c_estado='C',1,(iif($r/@c_estado='E',10,0))) + #doc_resultALL:@n_estado_D" name="n_estado"/>
+					<qry:insert-select doc-path="./" name="qry_ResultFIN"/>
+				</qry:out>
+			</qry:select>
+			<qry:select doc="doc_FIN" name="qry_ResultFIN">
+				<qry:out>
+					<qry:attribute value="iif(#doc_FIN:@n_estado=0,'Sin Errores',(iif(#doc_FIN:@n_estado&lt;4,'Con errores','En Ejecucion')))" name="c_estado"/>
+				</qry:out>
+			</qry:select>
+		</qry:define>
+		<doc:define name="LastEjec"/>
+	</flow:declare>
+	<flow:main doc="SOURCE">
+		<flow:action name="initialize">
+			<doc:set-attribute from-value="Init" to-attr-path="#FILTERDATA:@action"/>
+			<flow:html-gen input-doc-path="#FILTERDATA:" out-file-path="#FILTERDATA:@URL" template-file="NucleusRH.Base.Indicadores.JPivot.rpt"/>
+			<flow:open-form form-class="NucleusRH.Base.Indicadores.Sueldos.Costos.form" doc-path="#FILTERDATA:" mode="SHOW"/>
+		</flow:action>
+	</flow:main>
+	<flow:form form-class="NucleusRH.Base.Indicadores.Sueldos.Costos.form" name="NucleusRH.Base.Indicadores.Sueldos.Costos.form:SHOW" mode="SHOW" doc="SOURCE">
+		<flow:action name="EJECUTAR_CLICK">
+			<flow:attach-doc doc-path="#FILTERDATA:" attach-id="filterdata"/>
+			<doc:set-attribute from-value="JPivot" to-attr-path="#FILTERDATA:@action"/>
+			<flow:exec-method out-type="Nomad.NSystem.String" out-attr-path="#FILTERDATA:@serverOLAP" class="NucleusRH.Base.Indicadores.Ejecuciones.EJECUCION" method="svr_jPivotHtml"/>
+			<flow:html-gen input-doc-path="#FILTERDATA:" out-file-path="#FILTERDATA:@URL" template-file="NucleusRH.Base.Indicadores.JPivot.rpt"/>
+			<flow:open-form form-class="NucleusRH.Base.Indicadores.Sueldos.Costos.form" doc-path="#FILTERDATA:" mode="SHOW"/>
+		</flow:action>
+		<flow:action name="VOLVER_CLICK">
+			<flow:close-form/>
+		</flow:action>
+		<flow:action name="on-show">
+			<doc:load-qry qry="qry_LastActualizacion" input-doc-path="#FILTERDATA:" output-doc="LastEjec"/>
+			<doc:set-attribute to-attr-path="#SOURCE:@Fecha_Max" from-attr-path="#LastEjec:@Fecha_Max"/>
+			<doc:set-attribute to-attr-path="#SOURCE:@c_estado" from-attr-path="#LastEjec:@c_estado"/>
+		</flow:action>
+	</flow:form>
+</flow:flow>

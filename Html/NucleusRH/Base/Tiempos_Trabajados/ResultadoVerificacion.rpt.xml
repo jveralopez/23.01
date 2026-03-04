@@ -1,0 +1,414 @@
+<html:html xmlns:html="nomad_engine.html" xmlns:qry="nomad_engine.qry" xmlns:xsl="http://www.w3.org/1999/XSL/Transform" name="NucleusRH.Base.Tiempos_Trabajados.ResultadoVerificacion.rpt" doc="source">
+	<html:query declare="&lt;DATOS&gt;&#13;&#10;&#9;&lt;RESULTADO validos=&quot;86&quot; error=&quot;14&quot; f_ini=&quot;20120810&quot; f_fin=&quot;20120930&quot; /&gt;&#13;&#10;&#9;&lt;ROWS&gt;&#13;&#10;&#9;&#9;&lt;ROW oi_grupo_hor=&quot;1&quot; e_numero_legajo=&quot;2&quot; oi_empresa=&quot;196&quot; oi_calendario=&quot;1&quot; id=&quot;11566&quot; status=&quot;E&quot; err_desc=&quot;Error en el primer paso de la verificacion.'hola'&quot; /&gt;&#13;&#10;&#9;&lt;/ROWS&gt;&#13;&#10;&lt;/DATOS&gt;" name="ResultadoVerificacion">
+		<qry:main doc="PARAM">
+			<qry:append-doc name="FECHA" doc-path="#PARAM:DATOS"/>
+			<qry:element name="DATOS">
+				<qry:attribute value="format_date(now(),'dd/mm/yyyy HH:MM:SS')" name="f_informe"/>
+				<qry:attribute value="format_date(#FECHA:RESULTADO/@f_ini,'dd/mm/yyyy')" name="f_ini"/>
+				<qry:attribute value="format_date(#FECHA:RESULTADO/@f_fin,'dd/mm/yyyy')" name="f_fin"/>
+				<qry:attribute value="#PARAM:DATOS/RESULTADO/@error + '%'" name="error"/>
+				<qry:attribute value="#PARAM:DATOS/RESULTADO/@validos + '%'" name="correcto"/>
+				<qry:element name="ERRORES">
+					<qry:attribute value="'0'" name="errores"/>
+					<qry:insert-select name="QRY_ERROR" doc-path="#PARAM:DATOS/ROWS/ROW[@status='E']"/>
+				</qry:element>
+				<qry:element name="CORRECTOS">
+					<qry:attribute value="'0'" name="correctos"/>
+					<qry:insert-select name="QRY_CORRECTO" doc-path="#PARAM:DATOS/ROWS/ROW[@status='P']"/>
+				</qry:element>
+				<qry:element name="SINFICHADAS">
+					<qry:attribute value="'0'" name="sinfichadas"/>
+					<qry:insert-select name="QRY_SINFICHADAS" doc-path="#PARAM:DATOS/ROWS/ROW[@status='N']"/>
+				</qry:element>
+			</qry:element>
+		</qry:main>
+		<qry:select doc="PARAM" name="QRY_ERROR">
+			<qry:xquery>
+				for $r in #PARAM:
+			</qry:xquery>
+			<qry:out>
+				<qry:element name="ERROR">
+					<qry:attribute value="$r/@id" name="id"/>
+					<qry:attribute value="'error'" name="status"/>
+					<qry:attribute value="$r/@err_desc" name="err_desc"/>
+					<qry:attribute value="format_date($r/@f_ini, 'dd/mm/yyyy HH:MM')" name="f_desde"/>
+					<qry:attribute value="format_date($r/@f_fin, 'dd/mm/yyyy HH:MM')" name="f_hasta"/>
+					<qry:element name="DET">
+						<qry:insert-select name="QRY_DETALLE" doc-path=".."/>
+					</qry:element>
+					<qry:insert-select name="QRY_DATOS" doc-path="."/>
+				</qry:element>
+				<qry:attribute value="'1'" name="errores"/>
+			</qry:out>
+		</qry:select>
+		<qry:select doc="PARAM" name="QRY_DETALLE">
+			<qry:xquery>
+				for $r in SPLIT('1;{%=nmd-replace(#PARAM:@err_desc,'\'','')%}')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:element name="ROW">
+					<qry:attribute name="value" value="substring_before($r/@value,'{')"/>
+					<qry:attribute name="id" value="substring_after($r/@value, '{')"/>
+					<qry:attribute name="id" value="substring_before(@id, '}')"/>
+					<qry:if test="@id = ''">
+						<qry:then>
+							<qry:attribute name="id" value="'0'"/>
+						</qry:then>
+					</qry:if>
+				</qry:element>
+			</qry:out>
+		</qry:select>
+		<qry:select doc="PARAM" name="QRY_CORRECTO">
+			<qry:xquery>
+				for $r in #PARAM:
+			</qry:xquery>
+			<qry:out>
+				<qry:element name="CORRECTO">
+					<qry:attribute value="$r/@id" name="id"/>
+					<qry:attribute value="'ok'" name="status"/>
+					<qry:attribute value="$r/@err_desc" name="err_desc"/>
+					<qry:attribute value="format_date($r/@f_ini, 'dd/mm/yyyy HH:MM')" name="f_desde"/>
+					<qry:attribute value="format_date($r/@f_fin, 'dd/mm/yyyy HH:MM')" name="f_hasta"/>
+					<qry:insert-select name="QRY_DATOS" doc-path="."/>
+				</qry:element>
+				<qry:attribute value="'1'" name="correctos"/>
+			</qry:out>
+		</qry:select>
+		<qry:select doc="PARAM" name="QRY_SINFICHADAS">
+			<qry:xquery>
+				for $r in sql ('
+				SELECT PER02_PERSONAL_EMP.oi_personal_emp, PER02_PERSONAL_EMP.f_egreso 
+				FROM PER02_PERSONAL_EMP
+				WHERE PER02_PERSONAL_EMP.oi_personal_emp = {#PARAM:@id}  
+				AND (PER02_PERSONAL_EMP.f_egreso &gt; {Datetime(#FECHA:@f_ini)}
+				OR ISNULL(PER02_PERSONAL_EMP.f_egreso))				
+			')ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:element name="SINFICHADA">
+					<qry:attribute value="#PARAM:@id" name="id"/>
+					<qry:attribute value="$r/@f_egreso" name="f_egreso"/>
+					<qry:attribute value="'sf'" name="status"/>
+					<qry:attribute value="#PARAM:@err_desc" name="err_desc"/>
+					<qry:attribute value="format_date(#PARAM:@f_ini, 'dd/mm/yyyy HH:MM')" name="f_desde"/>
+					<qry:attribute value="format_date(#PARAM:@f_fin, 'dd/mm/yyyy HH:MM')" name="f_hasta"/>
+					<qry:insert-select name="QRY_DATOS" doc-path="."/>
+				</qry:element>
+				<qry:attribute value="'1'" name="sinfichadas"/>
+			</qry:out>
+		</qry:select>
+		<qry:select doc="PARAM" name="QRY_DATOS">
+			<qry:xquery>
+				for $r in sql ('
+				SELECT ORG03_EMPRESAS.c_empresa,
+				PER02_PERSONAL_EMP.e_numero_legajo,
+				PER01_PERSONAL.d_ape_y_nom
+				FROM PER02_PERSONAL_EMP, 
+				PER01_PERSONAL, ORG03_EMPRESAS
+				JOIN 
+				PER02_PERSONAL_EMP.oi_personal INNER PER01_PERSONAL.oi_personal,
+				ORG03_EMPRESAS.oi_empresa INNER PER02_PERSONAL_EMP.oi_empresa
+				WHERE PER02_PERSONAL_EMP.oi_personal_emp = {#PARAM:@id} 
+			')ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:attribute value="'('+ $r/@c_empresa + '-' + $r/@e_numero_legajo + ') - ' + $r/@d_ape_y_nom" name="legajo"/>
+				<qry:attribute value="#FECHA:RESULTADO/@f_ini" name="f_ini"/>
+				<qry:attribute value="#FECHA:RESULTADO/@f_fin" name="f_fin"/>
+			</qry:out>
+		</qry:select>
+	</html:query>
+	<html:xslt>
+		<xsl:template match="/DATOS">
+			<html>
+				<HEAD>
+					<SCRIPT>
+						function EditLegajo(oi_personal_emp, f_ini, f_fin, id)
+					{										
+						var el = 'Leg_'+oi_personal_emp;						
+						var x=document.getElementById(el);  				
+						x.style.color="black";
+						window.parent.ShowFichadas(oi_personal_emp, f_ini, f_fin, id,'NucleusRH.Base.Tiempos_Trabajados.FichadasIng.Editar.flow');
+					}
+					</SCRIPT>
+					<STYLE>
+						BODY
+					{
+						font-family:verdana;
+						font-weight:normal; 
+						background-color:white; 
+						font-size:11px;						
+					}
+					
+					TABLE
+					{
+						
+						padding: 0px;
+						
+						border-collapse: collapse; 
+						
+						font-size: 10px;
+						font-family: Verdana;
+						color: #2f2f2f;
+						
+						margin: 0px 0px 10px 0px;
+					}
+					
+					TABLE.WITHOUTBORDER
+					{
+					border:none;
+					
+					}
+					
+					TD
+					{
+						padding: 0px;
+						margin: 10px;
+					}
+					.TDBARRA 
+					{ 
+						 border-left:1px solid black;
+						 border-top:1px solid black;
+						 border-right:1px solid black;
+						 border-bottom:1px solid black;
+					}
+					TD
+					{
+						padding: 2px;
+						margin: 10px;						
+					}
+					
+					a:link {text-decoration: none}
+					a:visited {text-decoration: none}
+					a:active {text-decoration: none}
+					a:hover {text-decoration: underline}
+					</STYLE>
+				</HEAD>
+				<body bgcolor="#F6F6F1">
+					<h3 align="center">
+						Resultado de la Verificaci&#243;n de Fichadas
+					</h3>
+					<b>
+						Fecha de Emisi&#243;n:&#160;
+					</b>
+					<xsl:value-of select="@f_informe"/>
+					<br/>
+					<b>
+						Fecha de Desde:&#160;
+					</b>
+					<xsl:value-of select="@f_ini"/>
+					<br/>
+					<b>
+						Fecha de Hasta:&#160;
+					</b>
+					<xsl:value-of select="@f_fin"/>
+					<br/>
+					<br/>
+					<table cellspacing="0" cellpadding="0" width="95%" align="center" border="0">
+						<tr height="20px">
+							<td style="background-color:#6EB558;">
+								<xsl:if test="@correcto = '0%'">
+									<xsl:attribute name="style">
+										visible:hidden;
+									</xsl:attribute>
+								</xsl:if>
+								<xsl:attribute name="width">
+									<xsl:value-of select="@correcto"/>
+								</xsl:attribute>
+							</td>
+							<td style="background-color:#FF573A;">
+								<xsl:if test="@error= '0%'">
+									<xsl:attribute name="style">
+										visible:hidden;
+									</xsl:attribute>
+								</xsl:if>
+								<xsl:attribute name="width">
+									<xsl:value-of select="@error"/>
+								</xsl:attribute>
+							</td>
+						</tr>
+					</table>
+					<table width="95%" align="center" border="0">
+						<tr height="20px">
+							<td width="30%"/>
+							<td align="right">
+								<div style="background-color:#6EB558;;width:10px; height:10px"/>
+							</td>
+							<td align="left">
+								<b>
+									<xsl:text>
+										&#160;Correctas:&#160;
+									</xsl:text>
+									<xsl:value-of select="@correcto"/>
+								</b>
+							</td>
+							<td align="right">
+								<div style="background-color:#FF573A;width:10px; height:10px"/>
+							</td>
+							<td align="left">
+								<b>
+									<xsl:text>
+										&#160;Incorrectas:&#160;
+									</xsl:text>
+									<xsl:value-of select="@error"/>
+								</b>
+							</td>
+							<td width="30%"/>
+						</tr>
+					</table>
+					<table style="padding:0px; margin:0px;" border="0">
+						<xsl:if test="ERRORES/@errores = '0'">
+							<xsl:attribute name="style">
+								display:none
+							</xsl:attribute>
+						</xsl:if>
+						<td align="center">
+							<img src="../Skins/_Default/Images/Reports/cancel.gif" border="0" width="15" height="15"/>
+						</td>
+						<td style="font-size:11px;" align="left">
+							<b>
+								Err&#243;neos
+							</b>
+						</td>
+					</table>
+					<table class="tabla1" width="95%" align="center" border="1">
+						<xsl:if test="ERRORES/@errores = '0'">
+							<xsl:attribute name="style">
+								display:none
+							</xsl:attribute>
+						</xsl:if>
+						<tr>
+							<th align="left" width="100px" bgcolor="#BBBBBB">
+								<b>
+									Empresa - Legajo
+								</b>
+							</th>
+							<th align="left" width="120px" bgcolor="#BBBBBB">
+								<b>
+									Descripci&#243;n
+								</b>
+							</th>
+						</tr>
+						<xsl:apply-templates select="ERRORES"/>
+					</table>
+					<table style="padding:0px; margin:0px;" border="0">
+						<xsl:if test="CORRECTOS/@correctos = '0'">
+							<xsl:attribute name="style">
+								display:none
+							</xsl:attribute>
+						</xsl:if>
+						<td align="center">
+							<img src="../Skins/_Default/Images/Reports/ok.gif" border="0" width="15" height="15"/>
+						</td>
+						<td style="font-size:11px;" align="left">
+							<b>
+								Correctos
+							</b>
+						</td>
+					</table>
+					<table width="95%" align="center" border="1">
+						<xsl:if test="CORRECTOS/@correctos = '0'">
+							<xsl:attribute name="style">
+								display:none
+							</xsl:attribute>
+						</xsl:if>
+						<tr>
+							<th align="left" width="100px" bgcolor="#BBBBBB">
+								<b>
+									Empresa - Legajo
+								</b>
+							</th>
+							<th align="left" width="120px" bgcolor="#BBBBBB">
+								<b>
+									Descripci&#243;n
+								</b>
+							</th>
+						</tr>
+						<xsl:apply-templates select="CORRECTOS"/>
+					</table>
+					<table style="padding:0px; margin:0px;" border="0">
+						<xsl:if test="SINFICHADAS/@sinfichadas = '0'">
+							<xsl:attribute name="style">
+								display:none
+							</xsl:attribute>
+						</xsl:if>
+						<td align="center">
+							<img src="../Skins/_Default/Images/Reports/ukn.ico" border="0" width="15" height="15"/>
+						</td>
+						<td style="font-size:11px;" align="left">
+							<b>
+								No Verificados
+							</b>
+						</td>
+					</table>
+					<table width="95%" align="center" border="1">
+						<xsl:if test="SINFICHADAS/@sinfichadas = '0'">
+							<xsl:attribute name="style">
+								display:none
+							</xsl:attribute>
+						</xsl:if>
+						<tr>
+							<th align="left" width="100px" bgcolor="#BBBBBB">
+								<b>
+									Empresa - Legajo
+								</b>
+							</th>
+							<th align="left" width="120px" bgcolor="#BBBBBB">
+								<b>
+									Descripci&#243;n
+								</b>
+							</th>
+						</tr>
+						<xsl:apply-templates select="SINFICHADAS"/>
+					</table>
+				</body>
+			</html>
+		</xsl:template>
+		<xsl:template match="ERRORES/ERROR">
+			<tr>
+				<td style="border-right:none;color:red;" width="350px">
+					<xsl:attribute name="id">
+						<xsl:value-of select="concat('Leg_', @id)"/>
+					</xsl:attribute>
+					<xsl:value-of select="@legajo"/>
+				</td>
+				<td width="500px">
+					<table>
+						<xsl:for-each select="DET/ROW">
+							<tr>
+								<td>
+									<a title="Acceder a las fichadas del legajo" href="javascript:">
+										<xsl:attribute name="onclick">
+											<xsl:value-of select="concat('EditLegajo(', ../../@id, ', ', ../../@f_ini, ', ', ../../@f_fin, ', ', @id, ')')"/>
+										</xsl:attribute>
+										<xsl:value-of select="@value"/>
+									</a>
+								</td>
+							</tr>
+						</xsl:for-each>
+					</table>
+				</td>
+			</tr>
+		</xsl:template>
+		<xsl:template match="CORRECTOS/CORRECTO">
+			<tr>
+				<td width="350px">
+					<xsl:value-of select="@legajo"/>
+				</td>
+				<td width="500px">
+					<xsl:value-of select="@err_desc"/>
+				</td>
+			</tr>
+		</xsl:template>
+		<xsl:template match="SINFICHADAS/SINFICHADA">
+			<tr>
+				<td width="350px">
+					<xsl:value-of select="@legajo"/>
+				</td>
+				<td width="500px">
+					<xsl:value-of select="@err_desc"/>
+				</td>
+			</tr>
+		</xsl:template>
+	</html:xslt>
+</html:html>

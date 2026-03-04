@@ -1,0 +1,2 @@
+ALTER TABLE PER01_CURSOS_PER
+ALTER COLUMN oi_curso int null

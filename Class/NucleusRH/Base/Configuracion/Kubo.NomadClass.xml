@@ -1,0 +1,353 @@
+<class-package xmlns:qry="nomad_engine.qry" root-class="ApiKubo" DDOBase="NucleusRH\Base\Configuracion" name="Kubo" meta-class="DB" languaje="SP">
+	<class access="direct" size="M" name="ApiKubo">
+		<meta-properties/>
+		<resource name="QRY_HASH" declare="&lt;DATA urlBase='18' /&gt;" include="true">
+			<qry:include mode="EXTERN" name="NucleusRH.Base.Configuracion.URLS.query"/>
+			<qry:main name="main" doc="SOURCE">
+				<qry:insert-select name="qry_urls" doc-path="#SOURCE:."/>
+			</qry:main>
+		</resource>
+		<method return-class="Nomad.NSystem.Proxy.NomadXML" return-type="Nomad.NSystem.Object" modifier="static" access="public" label="Loguea a un usuario en la app de doc" name="LoginUsuario">
+			<meta-properties>
+				<dotnet11-properties type="lib"/>
+			</meta-properties>
+			<arguments>
+				<argument class="Nomad.NSystem.Proxy.NomadXML" type="Nomad.NSystem.Object" pass="byval" name="xmlParam"/>
+			</arguments>
+		</method>
+		<method modifier="static" access="public" label="Crea o actualiza empleados en Nucleus doc" name="EnviarEmpleados">
+			<meta-properties>
+				<dotnet11-properties type="lib"/>
+			</meta-properties>
+			<arguments/>
+		</method>
+		<resource declare="&lt;DATA&gt;&#13;&#10;&lt;ROW codigo=&quot;\'E1\'&quot; /&gt;&#13;&#10;&lt;ROW codigo=&quot;\'APPWS\'&quot; /&gt;&#13;&#10;&lt;ROW codigo=&quot;\'NUC\'&quot; /&gt;&#13;&#10;&lt;ROW codigo=&quot;\'SI\'&quot; /&gt;&#13;&#10;&lt;ROW codigo=&quot;\'TRE\'&quot; /&gt; &lt;/DATA&gt;" include="true" name="QRY_LEGAJOS">
+			<qry:main doc="SOURCE" name="main">
+				<qry:element name="ROWS">
+					<!--<FOTOS>
+<qry:append-doc name="FOTOS" doc-path="."/>
+<qry:insert-select name="qry_fotos" doc-path="#SOURCE:."/>
+<qry:insert-select name="qry_agrupar"/>
+</FOTOS> -->
+					<qry:insert-select name="qry_params"/>
+					<qry:insert-select name="qry_legajos" doc-path="#SOURCE:."/>
+				</qry:element>
+			</qry:main>
+			<qry:select doc="SOURCE" name="qry_legajos">
+				<qry:xquery>
+					for $r in SQL('
+			
+			SELECT   
+			PER02_PERSONAL_EMP.oi_personal_emp,    
+			PER02_PERSONAL_EMP.c_hashdoc,
+			PER02_PERSONAL_EMP.e_numero_legajo, 
+			PER02_PERSONAL_EMP.f_egreso,
+  
+			PER01_PERSONAL.c_nro_cuil,
+            PER01_PERSONAL.oi_foto,
+			PER01_PERSONAL.te_celular,
+			PER01_PERSONAL.d_email,   
+			PER01_PERSONAL.d_nombres,
+			PER01_PERSONAL.d_apellido,  
+				PER01_PERSONAL.oi_usuario_sistema,
+			PER02_PERSONAL_EMP.f_ingreso,
+			ORG03_EMPRESAS.c_empresa,
+			ORG18_CONVENIOS.c_convenio,
+			ORG03_EMPRESAS.c_enlace as c_enlace_empresa,
+			ORG18_CONVENIOS.c_enlace as c_enlace_convenio			
+			FROM
+			PER02_PERSONAL_EMP,
+			PER01_PERSONAL,
+			ORG03_EMPRESAS,
+			ORG18_CATEGORIAS,
+			ORG18_CONVENIOS   
+			JOIN
+			PER02_PERSONAL_EMP.oi_personal INNER PER01_PERSONAL.oi_personal,
+			ORG03_EMPRESAS.oi_empresa INNER PER02_PERSONAL_EMP.oi_empresa,	 			
+			ORG18_CATEGORIAS.oi_categoria INNER PER02_PERSONAL_EMP.oi_categoria_ult,
+			ORG18_CONVENIOS.oi_convenio INNER ORG18_CATEGORIAS.oi_convenio
+			WHERE 
+			(
+				ORG03_EMPRESAS.c_empresa in ({%= string(#SOURCE:ROW/@codigo) %})
+				OR                                                              
+				ORG03_EMPRESAS.c_enlace in ({%= string(#SOURCE:ROW/@codigo) %})				
+			)
+			and PER02_PERSONAL_EMP.oi_indic_activo= \'1\'
+			and ISNOTNULL(PER01_PERSONAL.d_email)
+			and ISNOTNULL(PER01_PERSONAL.c_nro_cuil)
+			')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:element name="ROW">
+						<qry:attribute name="oi_personal_emp" value="$r/@oi_personal_emp"/>
+						<qry:attribute name="c_hashdoc" value="$r/@c_hashdoc"/>
+						<qry:if test="$r/@c_enlace_empresa != ''">
+							<qry:then>
+								<qry:attribute name="Empresa" value="$r/@c_enlace_empresa"/>
+							</qry:then>
+							<qry:else>
+								<qry:attribute name="Empresa" value="$r/@c_empresa"/>
+							</qry:else>
+						</qry:if>
+						<qry:attribute name="Legajo" value="$r/@e_numero_legajo"/>
+						<qry:attribute name="c_nro_cuil" value="translate($r/@c_nro_cuil,'-','')"/>
+						<qry:attribute name="Cuil" value="concat(substring(@c_nro_cuil,0,2),'-',substring(@c_nro_cuil,2,8),'-',substring(@c_nro_cuil,10,1))"/>
+						<!--<qry:attribute name="Mail" value="$r/@d_email"/> -->
+						<qry:if test="../@EmailEntidadDOC ='1'">
+							<qry:then>
+								<qry:if test="$r/@oi_usuario_sistema !=''">
+									<qry:then>
+										<qry:insert-select name="qry_entidad" doc-path="$r"/>
+									</qry:then>
+								</qry:if>
+							</qry:then>
+							<qry:else>
+								<qry:attribute name="Mail" value="$r/@d_email"/>
+							</qry:else>
+						</qry:if>
+						<!--<qry:attribute name="Celular" value="$r/@te_celular"/> -->
+						<qry:attribute name="Nombre" value="$r/@d_nombres"/>
+						<qry:attribute name="Apellido" value="$r/@d_apellido"/>
+						<qry:attribute name="anio" value="substring($r/@f_ingreso,0,4)"/>
+						<qry:attribute name="mes" value="substring($r/@f_ingreso,4,2)"/>
+						<qry:attribute name="dia" value="substring($r/@f_ingreso,6,2)"/>
+						<qry:attribute name="GrupoUsuario" value="iif(../@GrupoUsuarioDOC != '',../@GrupoUsuarioDOC,'EMPLEADOS')"/>
+						<qry:attribute name="Notificar" value="iif(../@NotificarDOC != '',../@NotificarDOC,'MAIL')"/>
+						<qry:element name="FechaIngreso">
+							<qry:attribute name="type" value="'int'"/>
+							<qry:attribute name="Year" value="../@anio"/>
+							<qry:attribute name="Month" value="../@mes"/>
+							<qry:attribute name="Day" value="../@dia"/>
+						</qry:element>
+						<qry:attribute name="f_egreso" value="$r/@f_egreso"/>
+						<!--<qry:if test="$r/@f_egreso != ''">
+<qry:then>
+<qry:attribute name="anio_egre" value="substring($r/@f_egreso,0,4)"/>
+<qry:attribute name="mes_egre" value="substring($r/@f_egreso,4,2)"/>
+<qry:attribute name="dia_egre" value="substring($r/@f_egreso,6,2)"/>
+<qry:element name="FechaEgreso">
+<qry:attribute name="type" value="'int'"/>
+<qry:attribute name="Year" value="../@anio_egre"/>
+<qry:attribute name="Month" value="../@mes_egre"/>
+<qry:attribute name="Day" value="../@dia_egre"/>
+</qry:element>
+</qry:then>
+</qry:if> -->
+						<qry:attribute name="oi_foto" value="$r/@oi_foto"/>
+						<qry:if test="$r/@c_enlace_convenio != ''">
+							<qry:then>
+								<qry:attribute name="CONVENIO" value="$r/@c_enlace_convenio"/>
+							</qry:then>
+							<qry:else>
+								<qry:attribute name="CONVENIO" value="$r/@c_convenio"/>
+							</qry:else>
+						</qry:if>
+						<!--<qry:attribute name="MotivoEgreso" value="iif(../@MotivoEgresoDOC != '',../@MotivoEgresoDOC,'1000')"/> -->
+					</qry:element>
+				</qry:out>
+			</qry:select>
+			<qry:select name="qry_fotos" doc="SOURCE">
+				<qry:xquery>
+					for $r in SQL('
+			 SELECT   
+		    PER19_BINARIOS.oi_imagenes_per,
+		    PER19_BINARIOS.c_bloque,
+		    PER19_BINARIOS.t_datos 
+			FROM
+			PER02_PERSONAL_EMP,
+			PER01_PERSONAL,
+			ORG03_EMPRESAS,
+			PER19_IMAGENES,
+			PER19_BINARIOS   
+			JOIN
+			PER02_PERSONAL_EMP.oi_personal INNER PER01_PERSONAL.oi_personal,
+			ORG03_EMPRESAS.oi_empresa INNER PER02_PERSONAL_EMP.oi_empresa,
+			PER01_PERSONAL.oi_foto INNER PER19_IMAGENES.oi_imagen_per,
+			PER19_IMAGENES.oi_imagen_per INNER PER19_BINARIOS.oi_imagenes_per			
+			WHERE 
+			ORG03_EMPRESAS.c_empresa in ({%= string(#SOURCE:ROW/@codigo) %})
+			order by  
+			oi_imagenes_per asc,c_bloque asc
+			')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:insert-element doc-path="$r"/>
+				</qry:out>
+			</qry:select>
+			<qry:select name="qry_params">
+				<qry:xquery>
+					for $r in SQL('
+			SELECT  
+			ORG26_PARAMETROS.c_parametro,
+			ORG26_PARAMETROS.d_valor
+			FROM
+			ORG26_PARAMETROS
+			WHERE
+			ORG26_PARAMETROS.c_parametro = \'GrupoUsuarioDOC\'
+			or  ORG26_PARAMETROS.c_parametro = \'NotificarDOC\'
+			or  ORG26_PARAMETROS.c_parametro = \'MotivoEgresoDOC\'    
+			or  ORG26_PARAMETROS.c_parametro = \'EmailEntidadDOC\'
+			')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:attribute value="$r/@d_valor" name-calc="$r/@c_parametro"/>
+				</qry:out>
+			</qry:select>
+			<qry:select name="qry_entidad" doc="SOURCE">
+				<qry:xquery>
+					for $r in FILE('Nomad\\Base\\Login\\Entidades\\{%=#SOURCE:@oi_usuario_sistema%}.ENTIDAD.XML')/ENTIDAD
+				</qry:xquery>
+				<qry:out>
+					<qry:attribute value="$r/MAILS/MAIL[@PRINCIPAL='1']/@EMAIL" name="Mail"/>
+				</qry:out>
+			</qry:select>
+		</resource>
+		<method modifier="static" access="public" label="Obtener licencias desde ndoc" name="ObtenerLicencias">
+			<meta-properties>
+				<dotnet11-properties type="lib"/>
+			</meta-properties>
+			<arguments>
+				<argument class="Nomad.NSystem.Proxy.NomadXML" type="Nomad.NSystem.Object" pass="byval" name="xmlParam"/>
+			</arguments>
+		</method>
+		<method label="Crea o actualiza empleados en Nucleus doc auto" name="ObtenerLicencias_AUTO" modifier="static" access="public">
+			<meta-properties>
+				<dotnet11-properties type="lib"/>
+			</meta-properties>
+			<arguments/>
+		</method>
+		<resource name="QRY_PERSONAL_TODO">
+			<qry:main name="main" doc="SOURCE">
+				<qry:element name="ROWS">
+					<qry:insert-select name="sql1" doc-path="#SOURCE:."/>
+				</qry:element>
+			</qry:main>
+			<qry:select name="sql1" doc="SOURCE">
+				<qry:xquery>
+					for $r in SQL('
+			SELECT 
+			PER02_PERSONAL_EMP.e_numero_legajo,
+			ORG03_EMPRESAS.c_empresa,
+			PER02_PERSONAL_EMP.oi_personal_emp
+			FROM
+			PER02_PERSONAL_EMP,
+			ORG03_EMPRESAS
+			JOIN
+			PER02_PERSONAL_EMP.oi_empresa INNER ORG03_EMPRESAS.oi_empresa
+			WHERE
+			PER02_PERSONAL_EMP.oi_indic_activo != \'4\'
+			')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:element name="ROW">
+						<qry:attribute name="oi_personal_emp" value="$r/@oi_personal_emp"/>
+						<qry:attribute name="c_personal_emp" value="concat($r/@c_empresa,'_',$r/@e_numero_legajo)"/>
+					</qry:element>
+				</qry:out>
+			</qry:select>
+		</resource>
+		<resource declare="&lt;DATA e_numero_legajo='101' c_empresa='100' f_inicio='20210507' /&gt;" name="QRY_LICENCIAS">
+			<qry:main doc="SOURCE" name="main">
+				<qry:element name="ROW">
+					<qry:attribute name="existe" value="'0'"/>
+					<qry:insert-select name="sql1" doc-path="#SOURCE:."/>
+				</qry:element>
+			</qry:main>
+			<qry:select doc="SOURCE" name="sql1">
+				<qry:xquery>
+					for $r in SQL('		
+	select L.oi_licen_per_ddo
+from  
+LIQ97_LICEN_PER  as L,   
+LIQ97_PERSONAL_EMP as PER
+JOIN
+L.oi_per_emp_ddo INNER PER.oi_per_emp_ddo 
+WHere 
+PER.e_numero_legajo = {#SOURCE:@e_numero_legajo}
+and PER.c_empresa = {#SOURCE:@c_empresa}
+and L.f_inicio = {datetime(#SOURCE:@f_inicio)}		
+			')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:attribute name="existe" value="'1'"/>
+				</qry:out>
+			</qry:select>
+		</resource>
+		<method return-type="Nomad.NSystem.Boolean" name="eveActualizarCtaCteVacaciones" access="public" modifier="event">
+			<meta-properties/>
+			<arguments/>
+		</method>
+	</class>
+	<class name="Login">
+		<meta-properties/>
+		<attribute label="Token" type="Nomad.NSystem.String" name="Token" manual="1">
+			<meta-properties/>
+		</attribute>
+		<attribute label="Url base" type="Nomad.NSystem.String" name="Url" manual="1">
+			<meta-properties/>
+		</attribute>
+		<attribute label="Fecha de expiracion de sesion" type="Nomad.NSystem.String" name="Expired" manual="1">
+			<meta-properties/>
+		</attribute>
+		<attribute label="Error" type="Nomad.NSystem.String" name="Error" manual="1">
+			<meta-properties/>
+		</attribute>
+		<attribute label="Nombre del esquema" type="Nomad.NSystem.String" name="Scheme" manual="1">
+			<meta-properties/>
+		</attribute>
+	</class>
+	<class name="LoginRegistro">
+		<meta-properties>
+			<file-properties id-gen="@COD" file="NuclesuRH.Base.configuracion.Kubo.LoginRegistro"/>
+		</meta-properties>
+		<attribute label="Codigo del registro" type="Nomad.NSystem.String" name="COD" manual="1">
+			<meta-properties/>
+		</attribute>
+		<attribute label="Token" type="Nomad.NSystem.String" name="Token" manual="1">
+			<meta-properties/>
+		</attribute>
+		<attribute label="Url base" type="Nomad.NSystem.String" name="Url" manual="1">
+			<meta-properties/>
+		</attribute>
+		<attribute label="Fecha de expiracion de sesion" type="Nomad.NSystem.String" name="Expired" manual="1">
+			<meta-properties/>
+		</attribute>
+		<attribute name="Scheme" label="Nombre del esquema" type="Nomad.NSystem.String" manual="1">
+			<meta-properties/>
+		</attribute>
+	</class>
+	<class access="direct" size="M" name="Resultado">
+		<meta-properties/>
+		<attribute type="Nomad.NSystem.String" name="Action" manual="1">
+			<meta-properties/>
+		</attribute>
+		<assosiation class="Description" name="Description" type="composition" manual="1">
+			<meta-properties/>
+			<multiplicity to="1" from="1"/>
+		</assosiation>
+	</class>
+	<class size="M" access="direct" name="Description">
+		<meta-properties/>
+		<attribute null="true" type="Nomad.NSystem.String" name="ES" manual="1">
+			<meta-properties/>
+		</attribute>
+		<attribute type="Nomad.NSystem.String" null="true" name="EN" manual="1">
+			<meta-properties/>
+		</attribute>
+		<attribute type="Nomad.NSystem.String" name="PR" manual="1">
+			<meta-properties/>
+		</attribute>
+	</class>
+	<class access="direct" size="M" name="Empresa">
+		<meta-properties/>
+		<attribute readonly="false" label="Codigo de empresa" type="Nomad.NSystem.String" null="true" name="Codigo" manual="1">
+			<meta-properties/>
+		</attribute>
+		<attribute readonly="false" null="true" label="Descripcion" type="Nomad.NSystem.String" name="Descripcion" manual="1">
+			<meta-properties/>
+		</attribute>
+		<attribute readonly="false" null="true" type="Nomad.NSystem.String" label="cuit de la empresa" name="Cuit" manual="1">
+			<meta-properties/>
+		</attribute>
+	</class>
+</class-package>

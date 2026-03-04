@@ -1,0 +1,279 @@
+<flow:flow xmlns:flow="nomad_engine.flow" xmlns:qry="nomad_engine.qry" xmlns:doc="nomad_engine.doc" default_action="initialize" extends="NucleusRH.Base.Evaluacion2.Eventos.autoflow" name="NucleusRH.Base.Evaluacion2.Eventos">
+	<flow:info label="Flow para NucleusRH.Base.Evaluacion2.Eventos"/>
+	<flow:declare>
+		<qry:define name="qry_inicializados" declare="&lt;EVENTO id=&quot;2&quot; /&gt;">
+			<qry:main doc="SOURCE">
+				<qry:element name="FILTRO">
+					<qry:attribute value="#SOURCE:EVENTO/@id" name="oi_evento"/>
+					<qry:element name="ROWS">
+						<qry:insert-select doc-path="#SOURCE:EVENTO" name="SQL2"/>
+					</qry:element>
+				</qry:element>
+			</qry:main>
+			<qry:select doc="SOURCE" name="SQL2">
+				<qry:xquery>
+					for $r in sql('
+				SELECT 
+					EDD03_EVALUACION.oi_personal_emp, 
+					PER02_PERSONAL_EMP.e_numero_legajo,
+					PER01_PERSONAL.d_ape_y_nom
+				FROM 
+					EDD03_EVALUACION, EDD02_EVENTOS, PER02_PERSONAL_EMP, PER01_PERSONAL
+				JOIN                              
+					EDD03_EVALUACION.oi_evento INNER EDD02_EVENTOS.oi_evento,
+					EDD03_EVALUACION.oi_personal_emp INNER PER02_PERSONAL_EMP.oi_personal_emp,
+					PER02_PERSONAL_EMP.oi_personal INNER PER01_PERSONAL.oi_personal
+				WHERE 
+					EDD03_EVALUACION.oi_evento = {#SOURCE:@id}
+				ORDER BY 
+					e_numero_legajo ASC
+			')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:element name="ROW">
+						<qry:attribute value="$r/@oi_personal_emp" name="id"/>
+						<qry:attribute value="$r/@e_numero_legajo" name="e_numero_legajo"/>
+						<qry:attribute value="$r/@d_ape_y_nom" name="d_ape_y_nom"/>
+					</qry:element>
+				</qry:out>
+			</qry:select>
+		</qry:define>
+		<doc:define name="PARAM"/>
+		<doc:define name="INI_DOC"/>
+		<doc:define name="FILTERDATA">
+			<DATA/>
+		</doc:define>
+		<doc:define name="REPORTDATA">
+			<PARAM/>
+		</doc:define>
+		<qry:define name="REPORT" declare="&lt;DATA oi_evento=&quot;1&quot; /&gt;">
+			<qry:main name="" doc="SOURCE">
+				<qry:element name="ROW">
+					<qry:insert-select name="SQL1" doc-path="#SOURCE:."/>
+				</qry:element>
+			</qry:main>
+			<qry:select name="SQL1" doc="SOURCE">
+				<qry:xquery>
+					for $r in SQL('
+				select                
+					TY.d_reporte as REPORT
+				from        
+					EDD01_TIPOS_EVAL as TY,
+					EDD02_EVENTOS as EV
+				join                  
+					TY.oi_tipo_eval inner EV.oi_tipo_eval
+				where
+					 EV.oi_evento = {#SOURCE:@oi_evento}
+			')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:attribute name="REPORT" value="$r/@REPORT"/>
+				</qry:out>
+			</qry:select>
+		</qry:define>
+		<doc:define name="REPORTNAME"/>
+		<doc:define class="NucleusRH.Base.Evaluacion2.Evaluacion.EVALUACION" name="EVA"/>
+	</flow:declare>
+	<flow:main doc="SOURCE"/>
+	<flow:group Name="EVENTO">
+		<flow:form extends="NucleusRH.Base.Evaluacion2.Eventos.EVENTO.autoform:NEW" parent-doc="PARENTSOURCE" doc="SOURCE" name="NucleusRH.Base.Evaluacion2.Eventos.EVENTO.form:NEW" form-class="NucleusRH.Base.Evaluacion2.Eventos.EVENTO.autoform" mode="NEW">
+			<flow:action name="save-DDO">
+				<flow:exec-method this-doc="NEWDDOROOT" method="RefreshPlantilla"/>
+				<doc:save-object class="NucleusRH.Base.Evaluacion2.Eventos.EVENTO" doc="NEWDDOROOT"/>
+				<doc:load-object id-path="#NEWDDOROOT:@id" class="NucleusRH.Base.Evaluacion2.Eventos.EVENTO" doc="DDO"/>
+			</flow:action>
+		</flow:form>
+		<flow:form extends="NucleusRH.Base.Evaluacion2.Eventos.EVENTO.autoform:SHOW" parent-doc="PARENTSOURCE" doc="SOURCE" name="NucleusRH.Base.Evaluacion2.Eventos.EVENTO.form:SHOW" form-class="NucleusRH.Base.Evaluacion2.Eventos.EVENTO.autoform" mode="SHOW">
+			<flow:action name="CALL:PLANTILLA">
+				<flow:open-form iter-index="#DDO:PLANTILLAS/PLANTILLA/@id" parent-doc-path="#DDO:PLANTILLAS" doc-path="#DDO:PLANTILLAS" mode="SHOW" form-class="NucleusRH.Base.Evaluacion2.Eventos.PLANTILLA.noreg.autoform"/>
+			</flow:action>
+			<flow:action name="ADMINISTRAR">
+				<doc:load-qry output-doc="PARAM" input-doc-path="#SOURCE:" qry="qry_inicializados"/>
+				<flow:open-form form-class="NucleusRH.Base.Evaluacion2.Eventos.ADMINISTRAR.form" parent-doc-path="#SOURCE:" doc-path="#PARAM:" mode="EDIT"/>
+			</flow:action>
+			<flow:action name="HABILITAR">
+				<flow:exec-method class="NucleusRH.Base.Evaluacion2.Eventos.EVENTO" priority="6" out-type="String" out-attr-path="#BATCHDOC:@batch-id" method="CambiarEstado">
+					<flow:param attr-path="#SOURCE:@id" type="Nomad.NSystem.String" mode="in" name="evento"/>
+					<flow:param value="H" name="estado_eve" mode="in" type="Nomad.NSystem.String"/>
+					<flow:param value="HA" name="estado_eva" mode="in" type="Nomad.NSystem.String"/>
+				</flow:exec-method>
+				<flow:open-form form-class="nomad.base.batchtolist.form" mode="BATCH" doc-path="#BATCHDOC:"/>
+			</flow:action>
+			<flow:action name="DESHABILITAR">
+				<flow:call-action action="load-DDO"/>
+				<flow:exec-method class="NucleusRH.Base.Evaluacion2.Eventos.EVENTO" priority="6" out-type="String" out-attr-path="#BATCHDOC:@batch-id" method="CambiarEstado">
+					<flow:param attr-path="#SOURCE:@id" type="Nomad.NSystem.String" mode="in" name="evento"/>
+					<flow:param value="I" name="estado_eve" mode="in" type="Nomad.NSystem.String"/>
+					<flow:param value="AB" name="estado_eva" mode="in" type="Nomad.NSystem.String"/>
+				</flow:exec-method>
+				<flow:open-form form-class="nomad.base.batchtolist.form" mode="BATCH" doc-path="#BATCHDOC:"/>
+			</flow:action>
+		</flow:form>
+		<flow:form extends="NucleusRH.Base.Evaluacion2.Eventos.EVENTO.autoform:LIST" parent-doc="PARENTSOURCE" doc="SOURCE" name="NucleusRH.Base.Evaluacion2.Eventos.EVENTO.form:LIST" form-class="NucleusRH.Base.Evaluacion2.Eventos.EVENTO.autoform" mode="LIST">
+			<flow:action name="CALL:PLANTILLA">
+				<flow:call-action action="load-DDO"/>
+				<flow:open-form iter-index="#DDO:PLANTILLAS/PLANTILLA/@id" parent-doc-path="#DDO:PLANTILLAS" doc-path="#DDO:PLANTILLAS" mode="SHOW" form-class="NucleusRH.Base.Evaluacion2.Eventos.PLANTILLA.noreg.autoform"/>
+			</flow:action>
+			<flow:action name="ADMINISTRAR">
+				<flow:call-action action="load-DDO"/>
+				<doc:load-qry output-doc="PARAM" input-doc-path="#SOURCE:" qry="qry_inicializados"/>
+				<flow:open-form form-class="NucleusRH.Base.Evaluacion2.Eventos.ADMINISTRAR.form" parent-doc-path="#SOURCE:" doc-path="#PARAM:" mode="EDIT"/>
+			</flow:action>
+			<flow:action name="HABILITAR">
+				<flow:call-action action="load-DDO"/>
+				<flow:exec-method class="NucleusRH.Base.Evaluacion2.Eventos.EVENTO" priority="6" out-type="String" out-attr-path="#BATCHDOC:@batch-id" method="CambiarEstado">
+					<flow:param attr-path="#SOURCE:@id" type="Nomad.NSystem.String" mode="in" name="evento"/>
+					<flow:param value="H" name="estado_eve" mode="in" type="Nomad.NSystem.String"/>
+					<flow:param value="HA" name="estado_eva" mode="in" type="Nomad.NSystem.String"/>
+				</flow:exec-method>
+				<flow:open-form form-class="nomad.base.batchtolist.form" mode="BATCH" doc-path="#BATCHDOC:"/>
+			</flow:action>
+			<flow:action name="DESHABILITAR">
+				<flow:call-action action="load-DDO"/>
+				<flow:exec-method class="NucleusRH.Base.Evaluacion2.Eventos.EVENTO" priority="6" out-type="String" out-attr-path="#BATCHDOC:@batch-id" method="CambiarEstado">
+					<flow:param attr-path="#SOURCE:@id" type="Nomad.NSystem.String" mode="in" name="evento"/>
+					<flow:param value="I" name="estado_eve" mode="in" type="Nomad.NSystem.String"/>
+					<flow:param value="AB" name="estado_eva" mode="in" type="Nomad.NSystem.String"/>
+				</flow:exec-method>
+				<flow:open-form form-class="nomad.base.batchtolist.form" mode="BATCH" doc-path="#BATCHDOC:"/>
+			</flow:action>
+			<flow:action name="CERRAR">
+				<flow:call-action action="load-DDO"/>
+				<flow:load-user-data doc="FILTERDATA" name="FILTER-NucleusRH.Base.Evaluacion2.Evaluacion.EVALUACION"/>
+				<doc:set-attribute to-attr-path="#FILTERDATA:@oi_evento" from-attr-path="#DDO:@id"/>
+				<flow:open-form doc-path="#FILTERDATA:" mode="CERRAR" form-class="NucleusRH.Base.Evaluacion2.Evaluacion.FILTRO.form"/>
+			</flow:action>
+		</flow:form>
+	</flow:group>
+	<flow:group name="AdministrarLegajos">
+		<flow:form form-class="NucleusRH.Base.Evaluacion2.Eventos.ADMINISTRAR.form" name="NucleusRH.Base.Evaluacion2.Eventos.ADMINISTRAR.form:EDIT" parent-doc="PARENTSOURCE" mode="EDIT" doc="SOURCE">
+			<flow:action name="BACK">
+				<flow:close-form/>
+			</flow:action>
+			<flow:action name="on-show">
+				<flow:attach-doc doc-path="#SOURCE:ROWS" attach-id="ARRA"/>
+			</flow:action>
+			<flow:action name="SAVE">
+				<doc:load-qry output-doc="INI_DOC" input-doc-path="#PARENTSOURCE:" qry="qry_inicializados"/>
+				<flow:exec-method class="NucleusRH.Base.Evaluacion2.Eventos.EVENTO" priority="6" out-type="String" out-attr-path="#BATCHDOC:@batch-id" method="AdministrarLegajos">
+					<flow:param doc-path="#SOURCE:ROWS" type="Nomad.NSystem.Object" mode="in" name="PARAM"/>
+					<flow:param attr-path="#PARENTSOURCE:@id" type="Nomad.NSystem.String" mode="in" name="evento"/>
+				</flow:exec-method>
+				<flow:close-form/>
+				<flow:open-form form-class="nomad.base.batchtolist.form" mode="BATCH" doc-path="#BATCHDOC:"/>
+			</flow:action>
+		</flow:form>
+	</flow:group>
+	<flow:group name="CERRAR">
+		<flow:form parent-doc="PARENTSOURCE" doc="SOURCE" name="NucleusRH.Base.Evaluacion2.Evaluacion.FILTRO.form:FILTER" form-class="NucleusRH.Base.Evaluacion2.Evaluacion.FILTRO.form" mode="CERRAR">
+			<flow:action name="on-open"/>
+			<flow:action name="on-show"/>
+			<flow:action name="Save-FILTER">
+				<flow:save-user-data doc-path="#SOURCE:" name="FILTER-NucleusRH.Base.Evaluacion2.Evaluacion.EVALUACION"/>
+			</flow:action>
+			<flow:action name="CONSULTAR">
+				<flow:call-action action="Save-FILTER"/>
+				<flow:call-action action="GETDATA"/>
+				<flow:open-form form-class="NucleusRH.Base.Evaluacion2.Evaluacion.REPORTE.form" parent-doc-path="#SOURCE:" doc-path="#SOURCE:" mode="SHOW"/>
+			</flow:action>
+			<flow:action name="EVALUAR">
+				<flow:call-action action="Save-FILTER"/>
+				<flow:call-action action="GETDATA"/>
+				<flow:open-form mode="EVALUADOR" form-class="NucleusRH.Base.Evaluacion2.Evaluacion.REPORTE.form" parent-doc-path="#SOURCE:" doc-path="#SOURCE:"/>
+			</flow:action>
+			<flow:action name="CERRAR">
+				<flow:call-action action="Save-FILTER"/>
+				<flow:call-action action="GETDATA"/>
+				<flow:exec-method method="CambiarEstadoFlow" class="NucleusRH.Base.Evaluacion2.Evaluacion.EVALUACION" out-type="String">
+					<flow:param attr-path="#SOURCE:@oi_evaluacion" name="oi_evaluacion" type="Nomad.NSystem.String" mode="in"/>
+					<flow:param value="CE" type="Nomad.NSystem.String" mode="in" name="c_estado"/>
+				</flow:exec-method>
+			</flow:action>
+			<flow:action name="CONFIRM">
+				<flow:call-action action="Save-FILTER"/>
+				<flow:call-action action="GETDATA"/>
+				<flow:exec-method method="CambiarEstadoFlow" class="NucleusRH.Base.Evaluacion2.Evaluacion.EVALUACION" out-type="String">
+					<flow:param attr-path="#SOURCE:@oi_evaluacion" name="oi_evaluacion" type="Nomad.NSystem.String" mode="in"/>
+					<flow:param value="CO" type="Nomad.NSystem.String" mode="in" name="c_estado"/>
+				</flow:exec-method>
+			</flow:action>
+			<flow:action name="APROBAR">
+				<flow:call-action action="Save-FILTER"/>
+				<flow:call-action action="GETDATA"/>
+				<flow:exec-method method="CambiarEstadoFlow" class="NucleusRH.Base.Evaluacion2.Evaluacion.EVALUACION" out-type="String">
+					<flow:param attr-path="#SOURCE:@oi_evaluacion" name="oi_evaluacion" type="Nomad.NSystem.String" mode="in"/>
+					<flow:param value="AP" type="Nomad.NSystem.String" mode="in" name="c_estado"/>
+				</flow:exec-method>
+			</flow:action>
+			<flow:action name="RECHAZAR">
+				<flow:call-action action="Save-FILTER"/>
+				<flow:call-action action="GETDATA"/>
+				<flow:exec-method method="CambiarEstadoFlow" class="NucleusRH.Base.Evaluacion2.Evaluacion.EVALUACION" out-type="String">
+					<flow:param attr-path="#SOURCE:@oi_evaluacion" name="oi_evaluacion" type="Nomad.NSystem.String" mode="in"/>
+					<flow:param value="RZ" type="Nomad.NSystem.String" mode="in" name="c_estado"/>
+				</flow:exec-method>
+			</flow:action>
+			<flow:action name="BACK">
+				<flow:call-action action="Save-FILTER"/>
+				<flow:exit-flow return-path="#SOURCE:"/>
+			</flow:action>
+			<flow:action name="GETDATA">
+				<doc:load-qry input-doc-path="#SOURCE:" output-doc="REPORTNAME" qry="REPORT"/>
+				<flow:log text="#REPORTNAME:" text-path="#REPORTNAME:"/>
+				<doc:set-attribute from-attr-path="#REPORTNAME:@REPORT" to-attr-path="#SOURCE:@REPORT"/>
+			</flow:action>
+			<flow:action name="ANULAR">
+				<flow:call-action action="Save-FILTER"/>
+				<flow:call-action action="GETDATA"/>
+				<flow:exec-method method="CambiarEstadoFlow" class="NucleusRH.Base.Evaluacion2.Evaluacion.EVALUACION" out-type="String">
+					<flow:param attr-path="#SOURCE:@oi_evaluacion" name="oi_evaluacion" type="Nomad.NSystem.String" mode="in"/>
+					<flow:param value="AN" type="Nomad.NSystem.String" mode="in" name="c_estado"/>
+				</flow:exec-method>
+			</flow:action>
+			<flow:action name="CERRAR_EVENTO">
+				<flow:exec-method method="CambiarEstado" out-attr-path="#BATCHDOC:@batch-id" priority="6" class="NucleusRH.Base.Evaluacion2.Eventos.EVENTO">
+					<flow:param attr-path="#SOURCE:@oi_evento" mode="in" type="Nomad.NSystem.String" name="evento"/>
+					<flow:param value="C" mode="in" type="Nomad.NSystem.String" name="estado_eve"/>
+					<flow:param value="-" mode="in" type="Nomad.NSystem.String" name="estado_eva"/>
+				</flow:exec-method>
+				<flow:close-form/>
+				<flow:open-form form-class="nomad.base.batchtolist.form" mode="BATCH" doc-path="#BATCHDOC:"/>
+			</flow:action>
+			<flow:action name="ELIMINAR_EVALUACIONES">
+				<flow:exec-method out-attr-path="#BATCHDOC:@batch-id" priority="6" method="EliminarEvaluaciones" class="NucleusRH.Base.Evaluacion2.Eventos.EVENTO">
+					<flow:param attr-path="#SOURCE:@oi_evento" mode="in" type="Nomad.NSystem.String" name="evento"/>
+					<flow:param attr-path="#SOURCE:@lst_estado" mode="in" type="Nomad.NSystem.String" name="estado_eva"/>
+				</flow:exec-method>
+				<flow:open-form form-class="nomad.base.batchtolist.form" mode="BATCH" doc-path="#BATCHDOC:"/>
+			</flow:action>
+			<flow:action name="CERRAR_EVALUACIONES">
+				<flow:exec-method out-attr-path="#BATCHDOC:@batch-id" priority="6" method="CerrarEvaluaciones" class="NucleusRH.Base.Evaluacion2.Eventos.EVENTO">
+					<flow:param attr-path="#SOURCE:@oi_evento" mode="in" type="Nomad.NSystem.String" name="evento"/>
+					<flow:param attr-path="#SOURCE:@lst_estado" mode="in" type="Nomad.NSystem.String" name="estado_eva"/>
+				</flow:exec-method>
+				<flow:open-form form-class="nomad.base.batchtolist.form" mode="BATCH" doc-path="#BATCHDOC:"/>
+			</flow:action>
+			<flow:action name="After-Change"/>
+		</flow:form>
+		<flow:form parent-doc="SOURCE" form-class="NucleusRH.Base.Evaluacion2.Evaluacion.REPORTE.form" name="NucleusRH.Base.Evaluacion2.Evaluacion.REPORTE.form:SHOW" doc="SOURCE" mode="SHOW">
+			<flow:action name="on-show"/>
+			<flow:action name="on-open"/>
+			<flow:action name="BACK">
+				<flow:close-form/>
+			</flow:action>
+		</flow:form>
+		<flow:form mode="EVALUADOR" name="NucleusRH.Base.Evaluacion2.Evaluacion.REPORTE.form:EVALUADOR" parent-doc="SOURCE" form-class="NucleusRH.Base.Evaluacion2.Evaluacion.REPORTE.form" doc="SOURCE">
+			<flow:action name="on-show"/>
+			<flow:action name="on-open"/>
+			<flow:action name="BACK">
+				<flow:close-form/>
+			</flow:action>
+		</flow:form>
+	</flow:group>
+	<flow:form mode="BATCH" name="nomad.base.batchtolist.form:BATCH" form-class="nomad.base.batchtolist.form" doc="SOURCE">
+		<flow:action name="on-show"/>
+		<flow:action name="EXIT">
+			<flow:close-form next-action="After-Change"/>
+		</flow:action>
+	</flow:form>
+</flow:flow>

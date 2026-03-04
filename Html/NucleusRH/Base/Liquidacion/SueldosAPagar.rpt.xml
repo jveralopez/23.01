@@ -1,0 +1,289 @@
+<html:html xmlns:html="nomad_engine.html" xmlns:qry="nomad_engine.qry" extends="Nomad.Base.BaseReport.rpt" doc="source" name="NucleusRH.Base.Liquidacion">
+	<html:query declare="&lt;FILTRO salida=&quot;HTML&quot; oi_empresa=&quot;1&quot; cb_confidenciales=&quot;T&quot; e_periodo=&quot;202001&quot; oi_forma_pago=&quot;&quot; orden1=&quot;&quot; orden2=&quot;&quot; oi_user=&quot;lvergara&quot;&gt;&lt;LIQUIDACIONES/&gt;&lt;/FILTRO&gt;">
+		<qry:main doc="SOURCE">
+			<qry:append-doc name="FILTRO" doc-path="#SOURCE:/FILTRO"/>
+			<REPORT label="Sueldos a Pagar">
+				<qry:attribute name="date" value="format_date(Now(),'dd/mm/yyyy HH:MM')"/>
+				<GROUPS>
+					<GROUP tag="EMPRESA" type="title">
+						<COLS>
+							<COL name="empresa" label="Empresa"/>
+							<COL name="cant" label="Cantidad Legajos"/>
+						</COLS>
+						<GROUP tag="LIQ" type="table" style="width:500px;" noreg="No se encontraron registros para los filtros seleccionados.">
+							<COLS>
+								<COL name="Liq" label="Liquidaciones"/>
+							</COLS>
+						</GROUP>
+						<GROUP tag="RECIBOS" type="table" noreg="No se encontraron registros para los filtros seleccionados.">
+							<COLS>
+								<COL name="e_numero_legajo" label="Legajo"/>
+								<COL name="c_ubicacion" label="Ubicaci&#243;n"/>
+								<COL name="personal" label="Apellido y Nombre" nowrap="1"/>
+								<COL name="c_nro_cuil" label="C.U.I.L." nowrap="1"/>
+								<COL name="d_forma_pago" label="Forma Pago" nowrap="1"/>
+								<COL name="c_cta_bancaria" label="Nro. Cta" nowrap="1"/>
+								<COL name="c_cbu" label="CBU" type="long" nowrap="1"/>
+								<COL name="d_centro_costo" label="Centro de costo" nowrap="1"/>
+								<COL name="n_sbasico" label="Sueldo Basico" type="num" nowrap="1"/>
+								<COL name="n_totsret" label="Suj. Reten." type="num" nowrap="1"/>
+								<COL name="n_totnsret" label="No Suj. Reten." type="num" nowrap="1"/>
+								<COL name="n_totasig" label="Asig." type="num" nowrap="1"/>
+								<COL name="n_totdesc" label="Descuentos" type="num" nowrap="1"/>
+								<COL name="n_totant" label="Anticipos" type="num" nowrap="1"/>
+								<COL name="n_totemb" label="Embargos" type="num" nowrap="1"/>
+								<COL name="n_totpag" label="Neto" type="num" nowrap="1"/>
+								<COL name="n_totcont" label="Contribuciones" type="num" nowrap="1"/>
+							</COLS>
+							<FCOLS>
+								<COL colspan="7"/>
+								<COL label="Totales"/>
+								<COL name="tn_sbasico" type="num" nowrap="1" style="text-align:right;"/>
+								<COL name="tn_totsret" type="num" nowrap="1" style="text-align:right;"/>
+								<COL name="tn_totnsret" type="num" nowrap="1" style="text-align:right;"/>
+								<COL name="tn_totasig" type="num" nowrap="1" style="text-align:right;"/>
+								<COL name="tn_totdesc" type="num" nowrap="1" style="text-align:right;"/>
+								<COL name="tn_totant" type="num" nowrap="1" style="text-align:right;"/>
+								<COL name="tn_totemb" type="num" nowrap="1" style="text-align:right;"/>
+								<COL name="tn_totpag" type="num" nowrap="1" style="text-align:right;"/>
+								<COL name="tn_totcont" type="num" nowrap="1" style="text-align:right;"/>
+							</FCOLS>
+						</GROUP>
+					</GROUP>
+				</GROUPS>
+				<qry:element name="DATA">
+					<!--qry:insert-select name="QRY_CONFIDENCIALES" doc-path="#FILTRO:"/>
+<qry:attribute-doc doc="FILTRO" name="confidencial" value="@confidencial"/-->
+					<qry:element name="EMPRESA">
+						<qry:insert-select doc-path="#FILTRO:" name="QRY_LIQUIDACIONES"/>
+						<qry:attribute value="'0'" name="cant"/>
+						<qry:attribute value="'0'" name="tn_sbasico"/>
+						<qry:attribute value="'0'" name="tn_totsret"/>
+						<qry:attribute value="'0'" name="tn_totnsret"/>
+						<qry:attribute value="'0'" name="tn_totasig"/>
+						<qry:attribute value="'0'" name="tn_totdesc"/>
+						<qry:attribute value="'0'" name="tn_totant"/>
+						<qry:attribute value="'0'" name="tn_totemb"/>
+						<qry:attribute value="'0'" name="tn_totpag"/>
+						<qry:attribute value="'0'" name="tn_totcont"/>
+						<qry:insert-select doc-path="#FILTRO:" name="QRY_RECIBOS"/>
+						<qry:insert-select doc-path="." name="QRY_DATOS_EMPRESA"/>
+					</qry:element>
+				</qry:element>
+			</REPORT>
+		</qry:main>
+		<qry:select doc="PARAM" name="QRY_LIQUIDACIONES">
+			<qry:xquery>
+				for $r in sql('
+SELECT LIQ19_LIQUIDACION.oi_liquidacion,
+LIQ19_LIQUIDACION.c_liquidacion,
+LIQ19_LIQUIDACION.d_titulo	
+FROM LIQ19_LIQUIDACION
+WHERE
+LIQ19_LIQUIDACION.oi_empresa = {#PARAM:@oi_empresa}
+{%? (#PARAM:@e_periodo!='') {% AND LIQ19_LIQUIDACION.e_periodo = {#PARAM:@e_periodo} %} {% %} %}
+{%? (string(#PARAM:LIQUIDACIONES/LIQUIDACION/@id)!='') {% AND LIQ19_LIQUIDACION.oi_liquidacion IN ({%=string(#PARAM:LIQUIDACIONES/LIQUIDACION/@id)%}) %} {% %} %}
+{%? ((#PARAM:@e_periodo='') AND (string(#PARAM:LIQUIDACIONES/LIQUIDACION/@id)='')) {% AND 1=2 %} {% %} %}
+{%? (#FILTRO:@l_simulacion!='')	{% AND LIQ19_LIQUIDACION.l_simulacion = {%= #FILTRO:@l_simulacion %} %} {% %} %}
+{%? (#PARAM:@cb_confidenciales != '' and #FILTRO:@cb_confidenciales!='T' ) 
+{%  
+{%? (#PARAM:@cb_confidenciales = 'C') {%	AND LIQ19_LIQUIDACION.l_confidencial = 1%}{% AND LIQ19_LIQUIDACION.l_confidencial = 0 %} %} 
+%} 
+{%	%}
+%}
+')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:element name="LIQ">
+					<qry:attribute value="$r/@c_liquidacion + ' - ' + $r/@d_titulo" name="Liq"/>
+				</qry:element>
+			</qry:out>
+		</qry:select>
+		<qry:select doc="PARAM" name="QRY_RECIBOS1">
+			<qry:out>
+				<qry:element name="SUELDOSAPAGAR">
+					<qry:element name="LIQUIDACIONES"/>
+					<qry:element name="SUELDOS">
+						<qry:insert-select doc-path=".[./@cant='0']" name="QRY_VACIO"/>
+					</qry:element>
+				</qry:element>
+			</qry:out>
+		</qry:select>
+		<qry:select doc="PARAM" name="QRY_RECIBOS">
+			<qry:xquery>
+				for $r in sql('
+SELECT 
+{%? (#FILTRO:@orden1!=''){% max({%=#FILTRO:@orden1 %}) as orden1,%}{% %} %}
+{%? (#FILTRO:@orden2!=''){% max({%=#FILTRO:@orden2 %}) as orden2,%}{% %} %}
+LIQ97_PERSONAL_EMP.e_numero_legajo,    
+LIQ97_PERSONAL_EMP.e_numero_legajo AS LEG,
+Max(LIQ97_PERSONAL_EMP.c_ubicacion) as UBI,
+max(LIQ99_LIQUIDACION.oi_empresa_ddo) as oi_empresa_ddo,  				
+max(LIQ97_PERSONAL_EMP.c_cta_bancaria) as c_cta_bancaria,
+max(LIQ97_PERSONAL_EMP.d_ape_y_nom) as d_ape_y_nom,
+max(LIQ97_PERSONAL_EMP.c_nro_cuil) as c_nro_cuil,
+max(PER31_FORMAS_PAGO.d_forma_pago) as d_forma_pago,
+max(LIQ20_TOT_LIQ_PER.n_sbasico) as n_sbasico,
+sum(LIQ20_TOT_LIQ_PER.n_totsret) as n_totsret,
+sum(LIQ20_TOT_LIQ_PER.n_totpag) as n_totpag,
+sum(LIQ20_TOT_LIQ_PER.n_totnsret) as n_totnsret,
+sum(LIQ20_TOT_LIQ_PER.n_totdesc) as n_totdesc,
+sum(LIQ20_TOT_LIQ_PER.n_totasig) as n_totasig,
+sum(LIQ20_TOT_LIQ_PER.n_totant) as n_totant,				
+sum(LIQ20_TOT_LIQ_PER.n_totemb) as n_totemb,
+sum(LIQ20_TOT_LIQ_PER.n_totcont) as n_totcont,
+max(LIQ97_PERSONAL_EMP.c_cbu) as c_cbu,
+max(ORG08_CS_COSTO.d_centro_costo) as d_centro_costo
+FROM
+LIQ20_TOT_LIQ_PER, 
+LIQ97_PERSONAL_EMP,
+LIQ99_LIQUIDACION, 
+LIQ99_RECIBOS, 
+LIQ19_LIQUIDACION, 
+ORG03_EMPRESAS,
+PER31_FORMAS_PAGO,
+ORG03_UBICACIONES(ORG03_UBICACIONES.oi_empresa={%=#PARAM:@oi_empresa%}),
+ORG08_CS_COSTO
+JOIN 
+LIQ19_LIQUIDACION.oi_empresa INNER ORG03_EMPRESAS.oi_empresa,
+LIQ19_LIQUIDACION.c_liquidacion INNER LIQ99_LIQUIDACION.c_liquidacion,
+ORG03_EMPRESAS.c_empresa INNER LIQ99_LIQUIDACION.c_empresa,
+LIQ99_LIQUIDACION.oi_liquidacion_ddo INNER LIQ99_RECIBOS.oi_liquidacion_ddo,
+LIQ20_TOT_LIQ_PER.oi_per_emp_ddo INNER LIQ97_PERSONAL_EMP.oi_per_emp_ddo,
+LIQ20_TOT_LIQ_PER.oi_tot_liq_per INNER LIQ99_RECIBOS.oi_tot_liq_per,
+LIQ20_TOT_LIQ_PER.c_forma_pago LEFT OUTER PER31_FORMAS_PAGO.c_forma_pago,
+LIQ97_PERSONAL_EMP.c_ubicacion LEFT OUTER ORG03_UBICACIONES.c_ubicacion,
+LIQ97_PERSONAL_EMP.c_centro_costo_ult INNER ORG08_CS_COSTO.c_centro_costo
+WHERE
+LIQ99_LIQUIDACION.c_estado = \'F\' and
+ORG03_EMPRESAS.oi_empresa = {#PARAM:@oi_empresa}
+{%? (#PARAM:@e_periodo!='') {% AND LIQ19_LIQUIDACION.e_periodo = {#PARAM:@e_periodo} %} {% %} %}
+{%? (string(#PARAM:LIQUIDACIONES/LIQUIDACION/@id)!='') {% AND LIQ19_LIQUIDACION.oi_liquidacion IN ({%=string(#PARAM:LIQUIDACIONES/LIQUIDACION/@id)%}) %} {% %} %}
+{%? ((#PARAM:@e_periodo='') and (string(#PARAM:LIQUIDACIONES/LIQUIDACION/@id)='')) {% and 1=2 %} {% %} %}
+{%? (#FILTRO:@l_simulacion!='')	{% AND LIQ19_LIQUIDACION.l_simulacion = {%= #FILTRO:@l_simulacion %} %} {% %} %}
+{%? (#FILTRO:@oi_forma_pago!='') {% AND PER31_FORMAS_PAGO.oi_forma_pago = {#FILTRO:@oi_forma_pago} %} {% %} %} 
+{%? (#PARAM:@cb_confidenciales != '' and #FILTRO:@cb_confidenciales!='T' ) 
+{%  
+{%? (#PARAM:@cb_confidenciales = 'C') {%	AND LIQ19_LIQUIDACION.l_confidencial = 1%}{% AND LIQ19_LIQUIDACION.l_confidencial = 0 %} %} 
+%} 
+{%	%}
+%} 
+GROUP BY 
+LIQ97_PERSONAL_EMP.e_numero_legajo
+ORDER BY
+{%? (#FILTRO:@orden1!='') {% orden1 ASC, %} {% %} %}
+{%? (#FILTRO:@orden2!='') {% orden2 ASC, %} {% %} %}
+LEG ASC 
+')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:element name="RECIBOS">
+					<qry:attribute value="$r/@UBI" name="c_ubicacion"/>
+					<qry:attribute value="$r/@oi_tot_liq_per" name="oi_tot_liq_per"/>
+					<qry:attribute value="$r/@oi_liquidacion_ddo" name="oi_liquidacion_ddo"/>
+					<qry:attribute value="$r/@c_liquidacion + ' - ' + $r/@d_titulo" name="liquidacion"/>
+					<qry:attribute value="$r/@e_numero_legajo" name="e_numero_legajo"/>
+					<qry:attribute value="iif($r/@c_cta_bancaria!='', $r/@c_cta_bancaria, '-')" name="c_cta_bancaria"/>
+					<qry:attribute value="$r/@n_sbasico" name="n_sbasico"/>
+					<qry:attribute value="$r/@n_totsret" name="n_totsret"/>
+					<qry:attribute value="$r/@n_totpag" name="n_totpag"/>
+					<qry:attribute value="$r/@n_totnsret" name="n_totnsret"/>
+					<qry:attribute value="$r/@n_totdesc" name="n_totdesc"/>
+					<qry:attribute value="$r/@n_totasig" name="n_totasig"/>
+					<qry:attribute value="$r/@n_totant" name="n_totant"/>
+					<qry:attribute value="$r/@d_ape_y_nom" name="personal"/>
+					<qry:attribute value="iif($r/@c_nro_cuil!='', $r/@c_nro_cuil, '-')" name="c_nro_cuil"/>
+					<qry:attribute value="$r/@d_forma_pago" name="d_forma_pago"/>
+					<qry:attribute value="$r/@n_totemb" name="n_totemb"/>
+					<qry:attribute value="$r/@n_totcont" name="n_totcont"/>
+					<qry:attribute value="$r/@c_cbu" name="c_cbu"/>
+					<qry:attribute value="$r/@d_centro_costo" name="d_centro_costo"/>
+				</qry:element>
+				<qry:attribute value="number(@cant) + 1" name="cant"/>
+				<qry:attribute value="number(@tn_sbasico) + number($r/@n_sbasico)" name="tn_sbasico"/>
+				<qry:attribute value="number(@tn_totsret) + number($r/@n_totsret)" name="tn_totsret"/>
+				<qry:attribute value="number(@tn_totnsret) + number($r/@n_totnsret)" name="tn_totnsret"/>
+				<qry:attribute value="number(@tn_totasig) + number($r/@n_totasig)" name="tn_totasig"/>
+				<qry:attribute value="number(@tn_totdesc) + number($r/@n_totdesc)" name="tn_totdesc"/>
+				<qry:attribute value="number(@tn_totant) + number($r/@n_totant)" name="tn_totant"/>
+				<qry:attribute value="number(@tn_totemb) + number($r/@n_totemb)" name="tn_totemb"/>
+				<qry:attribute value="number(@tn_totpag) + number($r/@n_totpag)" name="tn_totpag"/>
+				<qry:attribute value="number(@tn_totcont) + number($r/@n_totcont)" name="tn_totcont"/>
+				<qry:attribute value="$r/@oi_empresa_ddo" name="oi_empresa_ddo"/>
+			</qry:out>
+		</qry:select>
+		<qry:select doc="PARAM" name="QRY_DATOS_EMPRESA">
+			<qry:xquery>
+				for $r in sql('
+SELECT LIQ93_EMPRESAS.c_empresa,
+LIQ93_EMPRESAS.d_empresa
+FROM LIQ93_EMPRESAS			
+WHERE LIQ93_EMPRESAS.oi_empresa_ddo = {#PARAM:@oi_empresa_ddo}
+')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:attribute value="$r/@c_empresa + ' - ' + $r/@d_empresa" name="empresa"/>
+			</qry:out>
+		</qry:select>
+		<qry:select doc="PARAM" name="SECURITY">
+			<qry:xquery>
+				for $r in sql('select policy from NMD_SECURITY where class=\'NucleusRH.Base.Personal.LegajoEmpresa.PERSONAL_EMP\' and id={#PARAM:@oi_personal_emp}')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:attribute value="$r/@policy" name="policy"/>
+			</qry:out>
+		</qry:select>
+		<qry:select doc="PARAM" name="QRY_VACIO">
+			<qry:out>
+				<qry:element name="SUELDO">
+					<qry:attribute value="'0'" name="empresa"/>
+					<qry:attribute value="'0'" name="c_empresa"/>
+					<qry:attribute value="'0'" name="c_nro_cuil"/>
+					<qry:attribute value="'0'" name="personal"/>
+					<qry:attribute value="'0'" name="n_totcont"/>
+					<qry:attribute value="'0'" name="n_totemb"/>
+					<qry:attribute value="'0'" name="n_totant"/>
+					<qry:attribute value="'0'" name="n_totasig"/>
+					<qry:attribute value="'0'" name="n_totdesc"/>
+					<qry:attribute value="'0'" name="n_totnsret"/>
+					<qry:attribute value="'0'" name="n_totpag"/>
+					<qry:attribute value="'0'" name="n_totsret"/>
+					<qry:attribute value="'0'" name="n_sbasico"/>
+					<qry:attribute value="'0'" name="c_cta_bancaria"/>
+					<qry:attribute value="'0'" name="e_numero_legajo"/>
+					<qry:attribute value="'0'" name="oi_empresa_ddo"/>
+					<qry:attribute value="'0'" name="liquidacion"/>
+					<qry:attribute value="'0'" name="oi_liquidacion_ddo"/>
+					<qry:attribute value="'0'" name="oi_tot_liq_per"/>
+				</qry:element>
+			</qry:out>
+		</qry:select>
+		<qry:select name="QRY_CONFIDENCIALES" doc="SOURCE">
+			<qry:xquery>
+				for $r in path('Nomad\\Base\\Login\\Cuentas')/Cuenta[@UUID = #SOURCE:@oi_user]
+			</qry:xquery>
+			<qry:out>
+				<qry:insert-select name="sql1_AUX" doc-path="$r"/>
+			</qry:out>
+		</qry:select>
+		<qry:select doc="PARAM" name="sql1_AUX">
+			<qry:xquery>
+				for $r in file(4,'Nomad\\Base\\Login\\Cuentas\\{%=#PARAM:@FILE%}')/CUENTA/GRUPOS/USUARIO_GRUPO/GRUPO
+			</qry:xquery>
+			<qry:out>
+				<qry:if test="$r/@value='ADM_CON'">
+					<qry:then>
+						<qry:attribute name="confidencial" value="'conf'"/>
+					</qry:then>
+					<qry:else>
+						<qry:if test="$r/@value='NO_ADM_CON'">
+							<qry:then>
+								<qry:attribute name="confidencial" value="'noconf'"/>
+							</qry:then>
+						</qry:if>
+					</qry:else>
+				</qry:if>
+			</qry:out>
+		</qry:select>
+	</html:query>
+</html:html>

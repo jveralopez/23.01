@@ -1,0 +1,166 @@
+<form:Form xmlns:form="nomad_engine.form" extends="NucleusRH.Base.Tiempos_Trabajados.LicenciasSec.LICENCIA_SEC.MAIN.STD_LIST.autoform" name="NucleusRH.Base.Tiempos_Trabajados.LicenciasSec.LICENCIA_SEC.MAIN.STD_LIST.form" default_mode="LIST" doc="source">
+	<form:Center height="100%" width="95%">
+		<form:Rower name="rower1" separation="10" order-change="PREV:LIST_REG">
+			<form:Label label="Fecha inicio desde" style="S2 LCol_g" name="lbl_f_desde"/>
+			<form:DateTime mask="dd/mm/yyyy" pattern="YYYYMMDD" name="f_desde" prev="" visible="" max="" min="">
+				<form:SButtons>
+					<form:SButton name="Calendar" label="Calendar" visible="" img="Calendar" descrip="">
+						<form:Event runat="client" name="onclick" action="SHOW_HELPER"/>
+					</form:SButton>
+				</form:SButtons>
+			</form:DateTime>
+			<form:Label label="Fecha fin hasta" style="S2 LCol_g" name="lbl_f_hasta"/>
+			<form:DateTime mask="dd/mm/yyyy" pattern="YYYYMMDD" name="f_hasta" prev="" visible="" max="" min="">
+				<form:SButtons>
+					<form:SButton name="Calendar" label="Calendar" visible="" img="Calendar" descrip="">
+						<form:Event runat="client" name="onclick" action="SHOW_HELPER"/>
+					</form:SButton>
+				</form:SButtons>
+			</form:DateTime>
+			<form:Label style="S2 LCol_g" label="Creados por m&#237;" name="lbl_current_user"/>
+			<form:CheckBox name="l_current_user"/>
+		</form:Rower>
+		<form:Blank height="5px" name="blank2" order-change="PREV:LIST_REG"/>
+		<form:Rower name="rower2" separation="10" order-change="PREV:LIST_REG">
+			<form:Label name="BUSCAR_LBL" align="left" width="100%" style="S2 LCol_g" dynamic="0" label="Buscar"/>
+			<form:TextBox name="BUSCAR" length="64" xsize="64" ysize="1" descr="Texto a Buscar" required="False">
+				<form:Event action="OnSearch" runat="client" name="onpressenter"/>
+				<form:SButtons>
+					<form:SButton descrip="Buscar Registros" name="Search" label="Buscar" img="search">
+						<form:Event action="OnSearch" runat="client" name="onclick"/>
+					</form:SButton>
+				</form:SButtons>
+			</form:TextBox>
+		</form:Rower>
+		<form:Label visible="0" name="BUSCAR_LBL" align="left" width="100%" style="S2 LCol_g" dynamic="0" label="Buscar"/>
+		<form:TextBox visible="0" name="BUSCAR" length="64" xsize="64" ysize="1" descr="Texto a Buscar" required="False"/>
+	</form:Center>
+	<form:Bottom>
+		<form:RowAligner name="buttonlinks">
+			<form:Row name="row1">
+				<form:Button descrip="Eliminar un Registro" img="application_delete.gif" label="Eliminar" name="DELETE" visible="0"/>
+				<form:Button name="DELETE1" descrip="Eliminar un Registro" img="application_delete.gif" label="Eliminar" visible="!SELECT" order-change="PREV:BB2">
+					<form:Event action="delete_onclick" name="onclick" runat="client"/>
+				</form:Button>
+				<form:Button name="DELETE2" descrip="Eliminar un Registro" img="application_delete.gif" label="Eliminar" visible="!SELECT" order-change="PREV:BB2">
+					<form:Event action="delete_onclick" name="onclick" runat="client"/>
+				</form:Button>
+			</form:Row>
+		</form:RowAligner>
+	</form:Bottom>
+	<form:Scripts>
+		function OnLoad()
+{
+  //Cargo la Configuracion
+  CFG   =new NomadXML(Ctrl("main").getResource("QRY_CFG"));
+  CHLCFG=new NomadXML(Ctrl("main").getResource("QRY_CHILD"));
+
+  //Mensaje Inicial de la Lista
+  Ctrl("LIST").MsgEmply=(CFG.GetAttr("autoload")!="0"?"Cargando...":"Especifique alg&#250;n criterio de b&#250;squeda...");
+  Ctrl("LIST_REG").SetXValue(CFG.GetAttr("autoload")!="0"?"Cargando...":"Especifique alg&#250;n criterio de b&#250;squeda.");
+
+  //Modifico los Recursos
+  ReplaceResource("QRY_IDS");
+  ReplaceResource("QRY_IDS_LIST");
+  ReplaceResource("QRY_IDS_METHOD");
+  ReplaceResource("QRY_IDS_PARENT");
+
+  //Actualizo el Titulo
+  if ((CFG.GetAttr("RESOURCE-PARENT")!="") &amp;&amp; (Ctrl("PARENT").GetXValue()!=""))
+  {
+    if (TIT==null)
+      TIT=GetProxy().SQLService().GetXML(Ctrl("main").getResource("QRY_IDS_PARENT"), '&lt;PARAM IDS="'+Ctrl("PARENT").GetXValue()+'"/&gt;');
+
+  while(TIT!=null)
+  {
+    if (TIT.GetAttr("descr")!="")
+      Ctrl("PAR").SetXValue(" ("+TIT.GetAttr("descr")+")");
+    TIT=TIT.FirstChild();
+  }
+  }
+  
+  //AGREGAR NUEVOS FILTROS	
+	var filter = CFG.AddTailElement('FILTER');			
+ 	filter.SetAttr('name', 'f_desde'); 	
+	filter = CFG.AddTailElement('FILTER');			
+ 	filter.SetAttr('name', 'f_hasta');
+  filter = CFG.AddTailElement('FILTER');
+  filter.SetAttr('name', 'l_current_user');  
+
+  //Cargo la Lista
+  RefreshList(false);
+  
+  //Evento PosONLOAD
+  PosOnLoad();
+}
+
+
+function EnabledButtons()
+{
+  var cur,f;
+  if (Ctrl("LIST").GetXValue()=="" || Ctrl("LIST").TotalRow&lt;=0)
+  {
+    CtrlEnabled("SHOW"  ,false);
+    CtrlEnabled("ACCEPT",false);
+    CtrlEnabled("ADD"   ,CheckEnabledButton("ADD"));
+    CtrlEnabled("EDIT"  ,false);
+    CtrlEnabled("DELETE1",false);
+    CtrlEnabled("DELETE2",false);
+    CtrlEnabled("ADMIN" ,false);
+
+    //Buscar que botones estan habilitados siempre
+    for (cur=CHLCFG.FirstChild(); cur; cur=cur.Next())
+    {
+      f=cur.GetAttrInt("flag");
+      CtrlEnabled(cur.GetAttr("name"), (f==2?CheckEnabledButton(cur.GetAttr("name")):false));
+    }
+  } else
+  if (Ctrl("LIST").GetSelectAttrValue("lock")!="")
+  {
+    CtrlEnabled("SHOW"  ,CheckEnabledButton("SHOW"));
+    CtrlEnabled("ACCEPT",CheckEnabledButton("ACCEPT"));
+    CtrlEnabled("ADD"   ,CheckEnabledButton("ADD"));
+    CtrlEnabled("EDIT"  ,Ctrl("LIST").GetSelectAttrValue("lock")=="2"?CheckEnabledButton("EDIT"):false);
+    CtrlEnabled("DELETE1",false);
+    CtrlEnabled("DELETE2",false);
+    CtrlEnabled("ADMIN" ,(GetProxy().Admin()?CheckEnabledButton("ADMIN"):false));
+
+    //Buscar que botones estan habilitados si esta bloqueado
+    for (cur=CHLCFG.FirstChild(); cur; cur=cur.Next())
+    {
+      f=cur.GetAttrInt("flag");
+      CtrlEnabled(cur.GetAttr("name"), (f==2?CheckEnabledButton(cur.GetAttr("name")):false));
+    }
+  } else
+  {
+    CtrlEnabled("SHOW"  ,CheckEnabledButton("SHOW"));
+    CtrlEnabled("ACCEPT",CheckEnabledButton("ACCEPT"));
+    CtrlEnabled("ADD"   ,CheckEnabledButton("ADD"));
+    CtrlEnabled("EDIT"  ,CheckEnabledButton("EDIT"));    
+    CtrlEnabled("ADMIN" ,(GetProxy().Admin()?CheckEnabledButton("ADMIN"):false));
+        
+    if(Ctrl("LIST").GetSelectAttrValue("l_eliminar_1")=="1")
+    	CtrlEnabled("DELETE1",true);
+    else
+    	CtrlEnabled("DELETE1",false);
+    if(Ctrl("LIST").GetSelectAttrValue("l_eliminar_2")=="1")
+    	CtrlEnabled("DELETE2",true);
+    else
+    	CtrlEnabled("DELETE2",false);
+
+    //Habilitar todos los botones
+    for (cur=CHLCFG.FirstChild(); cur; cur=cur.Next())
+      CtrlEnabled(cur.GetAttr("name"), CheckEnabledButton(cur.GetAttr("name")));
+  }
+}
+
+
+function delete_onclick()
+{
+	if (!confirm("&#191;Est&#225; seguro que desea eliminar la Licencia?")) return false;
+
+  Ctrl("main").DoEvent("DELETE");
+  return true;
+}
+	</form:Scripts>
+</form:Form>

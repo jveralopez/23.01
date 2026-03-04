@@ -1,0 +1,429 @@
+<html:html xmlns:html="nomad_engine.html" xmlns:qry="nomad_engine.qry" xmlns:xsl="http://www.w3.org/1999/XSL/Transform" doc="source" name="NucleusRH.Base.Liquidacion.ListadoSindicatos">
+	<html:query declare="&lt;DATOS c_empresa=&quot;1&quot; e_periodo=&quot;201907&quot; report=&quot;&quot; salida=&quot;EXCEL&quot; l_simulacion=&quot;0&quot;&gt;&#13;&#10;&#9;&lt;SINDICATOS/&gt;&#13;&#10;&lt;/DATOS&gt;">
+		<qry:main doc="SOURCE">
+			<qry:append-doc name="PARAMIN" doc-path="$SOURCE/DATOS"/>
+			<qry:element name="DATOS">
+				<qry:insert-select doc-path="$SOURCE/DATOS" name="qry_cabecera"/>
+				<qry:element name="SINDICATOS">
+					<qry:insert-select doc-path="$SOURCE/DATOS" name="qry_sindicatos"/>
+				</qry:element>
+			</qry:element>
+		</qry:main>
+		<qry:select doc="SOURCE" name="qry_cabecera">
+			<qry:xquery>
+				for $r in sql('
+				SELECT LIQ93_EMPRESAS.d_empresa
+				FROM LIQ93_EMPRESAS
+				WHERE LIQ93_EMPRESAS.oi_empresa_ddo in (SELECT max(LIQ93_EMPRESAS.oi_empresa_ddo) as oi_empresa_ddo FROM LIQ93_EMPRESAS WHERE LIQ93_EMPRESAS.c_empresa = \'{%=$SOURCE/@c_empresa%}\')
+			')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:attribute name="d_empresa" value="$r/@d_empresa"/>
+				<qry:attribute name="e_periodo" value="format_date(datetime($SOURCE/@e_periodo+'01'),'mm/yyyy')"/>
+				<qry:attribute name="f_emision" value="format_date(now(),'dd/mm/yyyy HH:MM')"/>
+			</qry:out>
+		</qry:select>
+		<qry:select doc="SOURCE" name="qry_sindicatos">
+			<qry:xquery>
+				for $r in sql('
+				SELECT
+					PER30_SINDICATOS.c_sindicato,
+					PER30_SINDICATOS.d_sindicato
+				FROM 
+					LIQ20_TOT_LIQ_PER, 
+					LIQ99_LIQUIDACION, 
+					LIQ97_PERSONAL_EMP, 
+					LIQ99_RECIBOS, 
+					PER30_SINDICATOS
+				JOIN 				
+					LIQ99_LIQUIDACION.oi_liquidacion_ddo INNER LIQ99_RECIBOS.oi_liquidacion_ddo,
+					LIQ99_RECIBOS.oi_tot_liq_per INNER LIQ20_TOT_LIQ_PER.oi_tot_liq_per,
+					LIQ20_TOT_LIQ_PER.oi_per_emp_ddo INNER LIQ97_PERSONAL_EMP.oi_per_emp_ddo,
+					LIQ97_PERSONAL_EMP.c_sindicato INNER PER30_SINDICATOS.c_sindicato
+				WHERE
+					LIQ99_LIQUIDACION.c_empresa = {$PARAMIN/@c_empresa} AND
+					LIQ99_LIQUIDACION.e_periodo = {$PARAMIN/@e_periodo} AND
+					LIQ99_LIQUIDACION.c_estado = \'F\'
+					{%? (string($SOURCE/SINDICATOS/SINDICATO/@oi_sindicato)!='') {% AND PER30_SINDICATOS.oi_sindicato IN ({%=string($SOURCE/SINDICATOS/SINDICATO/@oi_sindicato) %}) %} {%  %} %}
+				GROUP BY 
+					PER30_SINDICATOS.c_sindicato,
+					PER30_SINDICATOS.d_sindicato
+				ORDER BY c_sindicato ASC
+			')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:element name="SINDICATO">
+					<qry:attribute name="c_sindicato" value="$r/@c_sindicato"/>
+					<qry:attribute name="d_sindicato" value="$r/@c_sindicato + ' - ' + $r/@d_sindicato"/>
+					<qry:insert-select doc-path="." name="qry_personas"/>
+				</qry:element>
+			</qry:out>
+		</qry:select>
+		<qry:select doc="SOURCE" name="qry_personas">
+			<qry:xquery>
+				for $r in sql('
+				SELECT 
+					LIQ97_PERSONAL_EMP.e_numero_legajo, 
+					max(LIQ97_PERSONAL_EMP.c_nro_cuil) as c_nro_cuil,
+					max(LIQ97_PERSONAL_EMP.d_ape_y_nom) as d_ape_y_nom,
+					max(LIQ97_PERSONAL_EMP.f_ingreso) as f_ingreso,
+					sum(LIQ20_TOT_LIQ_PER.n_totsret) as n_totsret,
+					sum(LIQ20_TOT_LIQ_PER.n_sinddesc) as n_sinddesc,
+					sum(LIQ20_TOT_LIQ_PER.n_sindcontr) as  n_sindcontr,
+					sum(LIQ20_TOT_LIQ_PER.n_sindapvol) as n_sindapvol
+				FROM 
+					LIQ20_TOT_LIQ_PER, 
+					LIQ99_LIQUIDACION, 
+					LIQ97_PERSONAL_EMP, 
+					LIQ99_RECIBOS
+				JOIN 				
+					LIQ20_TOT_LIQ_PER.oi_per_emp_ddo INNER LIQ97_PERSONAL_EMP.oi_per_emp_ddo,
+					LIQ99_RECIBOS.oi_liquidacion_ddo INNER LIQ99_LIQUIDACION.oi_liquidacion_ddo,
+					LIQ99_RECIBOS.oi_tot_liq_per INNER LIQ20_TOT_LIQ_PER.oi_tot_liq_per
+				WHERE
+					LIQ97_PERSONAL_EMP.c_sindicato = {$SOURCE/@c_sindicato} AND
+					LIQ99_LIQUIDACION.c_empresa = {$PARAMIN/@c_empresa} AND 
+					LIQ99_LIQUIDACION.e_periodo = {$PARAMIN/@e_periodo} AND
+					LIQ99_LIQUIDACION.c_estado = \'F\'
+				GROUP BY LIQ97_PERSONAL_EMP.e_numero_legajo
+				ORDER BY e_numero_legajo asc
+			')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:attribute name="n_sinddesc" value="number(./@n_sinddesc) + number($r/@n_sinddesc)"/>
+				<qry:attribute name="n_sindcontr" value="number(./@n_sindcontr) + number($r/@n_sindcontr)"/>
+				<qry:attribute name="n_sindapvol" value="number(./@n_sindapvol) + number($r/@n_sindapvol)"/>
+				<qry:element name="PERSONA">
+					<qry:attribute value="$r/@e_numero_legajo" name="e_numero_legajo"/>
+					<qry:attribute value="$r/@c_nro_cuil" name="c_nro_cuil"/>
+					<qry:attribute value="$r/@d_ape_y_nom" name="d_ape_y_nom"/>
+					<qry:attribute value="format_date($r/@f_ingreso,'dd/mm/yyyy')" name="f_ingreso"/>
+					<qry:attribute value="abs($r/@n_totsret)" name="n_totsret"/>
+					<qry:attribute value="abs($r/@n_sinddesc)" name="n_sinddesc"/>
+					<qry:attribute value="abs($r/@n_sindcontr)" name="n_sindcontr"/>
+					<qry:attribute value="abs($r/@n_sindapvol)" name="n_sindapvol"/>
+				</qry:element>
+				<qry:attribute name="tot_descuentos" value="abs(@n_sinddesc)"/>
+				<qry:attribute name="tot_contribuciones" value="abs(@n_sindcontr)"/>
+				<qry:attribute name="tot_aportesvol" value="abs(@n_sindapvol)"/>
+				<qry:attribute name="total_format" value="abs(number(@n_sindcontr) - number(@n_sinddesc) - number(@n_sindapvol))"/>
+			</qry:out>
+		</qry:select>
+	</html:query>
+	<html:xslt>
+		<xsl:template match="DATOS">
+			<html>
+				<head>
+					<style>
+						table{ border:1px solid black; font-size:10pt; border-collapse: collapse; }
+				 td{ border:solid 1px black; }
+				 .head{ font-weight:bold; text-align:center;}
+				 .title{ font-size:8pt; }
+				 .title1{ font-size:14pt; background-color:#DDDDDD; text-align:left; }
+				 .space{ background-color:#AAAAAA; font-size:2px; }
+				 tr.SaltoDePagina{ PAGE-BREAK-AFTER: always; }
+					</style>
+				</head>
+				<body>
+					<xsl:apply-templates select="SINDICATOS"/>
+				</body>
+			</html>
+		</xsl:template>
+		<xsl:template match="SINDICATOS">
+			<xsl:for-each select="SINDICATO">
+				<table border="1" width="100%" cellpadding="2px">
+					<thead style="display: table-header-group">
+						<tr>
+							<td class="title1" colspan="6" style="border-right:none">
+								<span align="left">
+									PLANILLA DE APORTES Y CONTRIBUCIONES - SINDICATOS
+								</span>
+								<span style="margin-left: 50px;">
+									<xsl:value-of select="../../@d_empresa"/>
+								</span>
+							</td>
+							<td class="title1" colspan="2" style="border-left:none; font-size:10px">
+								<span align="left">
+									<b>
+										Fecha de Emisi&#243;n:
+									</b>
+								</span>
+								<span style="text-align:right;">
+									<xsl:value-of select="../../@f_emision"/>
+								</span>
+							</td>
+						</tr>
+						<tr>
+							<td style="font-weight:bold" align="left" colspan="6">
+								<span style="margin-left: 50px">
+									Sindicato:&#160;
+								</span>
+								<xsl:value-of select="@d_sindicato"/>
+							</td>
+							<td class="head" colspan="2">
+								<span>
+									Per&#237;odo:&#160;
+								</span>
+								<xsl:value-of select="../../@e_periodo"/>
+							</td>
+						</tr>
+						<xsl:if test="PERSONA">
+							<tr>
+								<td class="head" nowrap="1">
+									<span>
+										Nro. Legajo
+									</span>
+								</td>
+								<td class="head" nowrap="1">
+									<span>
+										CUIL
+									</span>
+								</td>
+								<td class="head" nowrap="1">
+									<span>
+										Apellido y Nombre
+									</span>
+								</td>
+								<td class="head" nowrap="1">
+									<span>
+										Fecha de Ingreso
+									</span>
+								</td>
+								<td class="head" nowrap="1">
+									<span>
+										Remuneraci&#243;n
+									</span>
+								</td>
+								<td class="head" nowrap="1">
+									<span>
+										Descuento
+									</span>
+								</td>
+								<td class="head" nowrap="1">
+									<span>
+										Contribuci&#243;n
+									</span>
+								</td>
+								<td class="head" nowrap="1">
+									<span>
+										Aporte Voluntario
+									</span>
+								</td>
+							</tr>
+						</xsl:if>
+					</thead>
+					<xsl:if test="not(PERSONA)">
+						<td colspan="9" align="center">
+							<b>
+								NO HAY REGISTROS
+							</b>
+						</td>
+					</xsl:if>
+					<xsl:for-each select="PERSONA">
+						<tr>
+							<xsl:choose>
+								<xsl:when test="@e_numero_legajo">
+									<td align="Center" nowrap="1">
+										<xsl:value-of select="@e_numero_legajo"/>
+									</td>
+								</xsl:when>
+								<xsl:otherwise>
+									<td align="Center" nowrap="1">
+										&#160;
+									</td>
+								</xsl:otherwise>
+							</xsl:choose>
+							<xsl:choose>
+								<xsl:when test="@c_nro_cuil">
+									<td align="Center" nowrap="1">
+										<xsl:value-of select="@c_nro_cuil"/>
+									</td>
+								</xsl:when>
+								<xsl:otherwise>
+									<td align="Center" nowrap="1">
+										&#160;
+									</td>
+								</xsl:otherwise>
+							</xsl:choose>
+							<xsl:choose>
+								<xsl:when test="@d_ape_y_nom">
+									<td align="Center" nowrap="1">
+										<xsl:value-of select="@d_ape_y_nom"/>
+									</td>
+								</xsl:when>
+								<xsl:otherwise>
+									<td align="Center" nowrap="1">
+										&#160;
+									</td>
+								</xsl:otherwise>
+							</xsl:choose>
+							<xsl:choose>
+								<xsl:when test="@f_ingreso">
+									<td align="Center" nowrap="1">
+										<xsl:value-of select="@f_ingreso"/>
+									</td>
+								</xsl:when>
+								<xsl:otherwise>
+									<td align="Center" nowrap="1">
+										&#160;
+									</td>
+								</xsl:otherwise>
+							</xsl:choose>
+							<xsl:choose>
+								<xsl:when test="@n_totsret">
+									<td align="right" nowrap="1" style="mso-number-format:0.00;">
+										<xsl:attribute name="x:num" namespace="urn:schemas-microsoft-com:office:excel">
+											<xsl:value-of select="@n_totsret"/>
+										</xsl:attribute>
+										<xsl:value-of select="format-number(@n_totsret, '###,###,##0.00')"/>
+									</td>
+								</xsl:when>
+								<xsl:otherwise>
+									<td align="right" nowrap="1" style="mso-number-format:0.00;">
+										&#160;
+									</td>
+								</xsl:otherwise>
+							</xsl:choose>
+							<xsl:choose>
+								<xsl:when test="@n_sinddesc">
+									<td align="right" nowrap="1" style="mso-number-format:0.00;">
+										<xsl:attribute name="x:num" namespace="urn:schemas-microsoft-com:office:excel">
+											<xsl:value-of select="@n_sinddesc"/>
+										</xsl:attribute>
+										<xsl:value-of select="format-number(@n_sinddesc, '###,###,##0.00')"/>
+									</td>
+								</xsl:when>
+								<xsl:otherwise>
+									<td align="right" nowrap="1" style="mso-number-format:0.00;">
+										&#160;
+									</td>
+								</xsl:otherwise>
+							</xsl:choose>
+							<xsl:choose>
+								<xsl:when test="@n_sindcontr">
+									<td align="right" nowrap="1" style="mso-number-format:0.00;">
+										<xsl:attribute name="x:num" namespace="urn:schemas-microsoft-com:office:excel">
+											<xsl:value-of select="@n_sindcontr"/>
+										</xsl:attribute>
+										<xsl:value-of select="format-number(@n_sindcontr, '###,###,##0.00')"/>
+									</td>
+								</xsl:when>
+								<xsl:otherwise>
+									<td align="right" nowrap="1" style="mso-number-format:0.00;">
+										&#160;
+									</td>
+								</xsl:otherwise>
+							</xsl:choose>
+							<xsl:choose>
+								<xsl:when test="@n_sindapvol">
+									<td align="right" nowrap="1" style="mso-number-format:0.00;">
+										<xsl:attribute name="x:num" namespace="urn:schemas-microsoft-com:office:excel">
+											<xsl:value-of select="@n_sindapvol"/>
+										</xsl:attribute>
+										<xsl:value-of select="format-number(@n_sindapvol, '###,###,##0.00')"/>
+									</td>
+								</xsl:when>
+								<xsl:otherwise>
+									<td align="right" nowrap="1" style="mso-number-format:0.00;">
+										&#160;
+									</td>
+								</xsl:otherwise>
+							</xsl:choose>
+						</tr>
+					</xsl:for-each>
+					<xsl:if test="PERSONA">
+						<xsl:call-template name="Totales"/>
+					</xsl:if>
+				</table>
+				<xsl:if test="position() != last()">
+					<p style="page-break-after: always; margin-top:0px; margin-bottom:0px">
+						&#160;
+					</p>
+				</xsl:if>
+			</xsl:for-each>
+		</xsl:template>
+		<xsl:template name="Totales">
+			<tr>
+				<td colspan="3">
+					<b>
+						Cantidad de Legajos:&#160;
+					</b>
+					<xsl:value-of select="count(PERSONA)"/>
+				</td>
+				<td align="right" colspan="2">
+					<strong>
+						Subtotales
+					</strong>
+				</td>
+				<xsl:choose>
+					<xsl:when test="@tot_descuentos">
+						<td align="right" style="mso-number-format:0.00;">
+							<xsl:attribute name="x:num" namespace="urn:schemas-microsoft-com:office:excel">
+								<xsl:value-of select="@tot_descuentos"/>
+							</xsl:attribute>
+							<xsl:value-of select="format-number(@tot_descuentos, '###,###,##0.00')"/>
+						</td>
+					</xsl:when>
+					<xsl:otherwise>
+						<td align="right" style="mso-number-format:0.00;">
+							&#160;
+						</td>
+					</xsl:otherwise>
+				</xsl:choose>
+				<xsl:choose>
+					<xsl:when test="@tot_contribuciones">
+						<td align="right" style="mso-number-format:0.00;">
+							<xsl:attribute name="x:num" namespace="urn:schemas-microsoft-com:office:excel">
+								<xsl:value-of select="@tot_contribuciones"/>
+							</xsl:attribute>
+							<xsl:value-of select="format-number(@tot_contribuciones, '###,###,##0.00')"/>
+						</td>
+					</xsl:when>
+					<xsl:otherwise>
+						<td align="right" style="mso-number-format:0.00;">
+							&#160;
+						</td>
+					</xsl:otherwise>
+				</xsl:choose>
+				<xsl:choose>
+					<xsl:when test="@tot_aportesvol">
+						<td align="right" style="mso-number-format:0.00;">
+							<xsl:attribute name="x:num" namespace="urn:schemas-microsoft-com:office:excel">
+								<xsl:value-of select="@tot_aportesvol"/>
+							</xsl:attribute>
+							<xsl:value-of select="format-number(@tot_aportesvol, '###,###,##0.00')"/>
+						</td>
+					</xsl:when>
+					<xsl:otherwise>
+						<td align="right" style="mso-number-format:0.00;">
+							&#160;
+						</td>
+					</xsl:otherwise>
+				</xsl:choose>
+			</tr>
+			<tr>
+				<td align="right" colspan="7">
+					<b>
+						Total
+					&#160;
+					</b>
+				</td>
+				<xsl:choose>
+					<xsl:when test="@total_format">
+						<td align="right">
+							<xsl:attribute name="x:num" namespace="urn:schemas-microsoft-com:office:excel">
+								<xsl:value-of select="@total_format"/>
+							</xsl:attribute>
+							<xsl:value-of select="format-number(@total_format, '###,###,##0.00')"/>
+						</td>
+					</xsl:when>
+					<xsl:otherwise>
+						<td align="right">
+							&#160;
+						</td>
+					</xsl:otherwise>
+				</xsl:choose>
+			</tr>
+		</xsl:template>
+	</html:xslt>
+</html:html>

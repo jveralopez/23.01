@@ -1,0 +1,70 @@
+<flow:flow xmlns:flow="nomad_engine.flow" xmlns:doc="nomad_engine.doc" xmlns:qry="nomad_engine.qry" extends="Nomad.base.HTML_XLS.flow" default_action="initialize" name="Nomad.Base.Presupuesto.Reportes.PorEstructura">
+	<flow:info label="Flow para Nomad.Base.Presupuesto.Reportes.PorEstructura">
+		Flow para Nomad.Base.Presupuesto.Reportes.PorEstructura
+	</flow:info>
+	<flow:declare>
+		<doc:define name="FILTERDATA">
+			<DATA salida="HTML"/>
+		</doc:define>
+		<qry:define name="qry_obtener_estructura">
+			<qry:main doc="SOURCE">
+				<qry:element name="DATA">
+					<qry:attribute name="oi_escenario" value="#SOURCE:DATA/@oi_escenario"/>
+					<qry:insert-select doc-path="#SOURCE:DATA" name="qry_Obtener"/>
+				</qry:element>
+			</qry:main>
+			<qry:select name="qry_Obtener" doc="SOURCE">
+				<qry:xquery>
+					for $r in sql ('
+	SELECT E.oi_est_reporte, E.oi_def_reporte,E.oi_presupuesto 
+FROM PRE03_ESCENARIOS AS E
+WHERE e.oi_escenario = {#SOURCE:@oi_escenario}
+	')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:attribute name="oi_est_reporte" value="$r/@oi_est_reporte"/>
+					<qry:attribute name="oi_def_reporte" value="$r/@oi_def_reporte"/>
+					<qry:attribute name="oi_presupuesto" value="$r/@oi_presupuesto"/>
+				</qry:out>
+			</qry:select>
+		</qry:define>
+	</flow:declare>
+	<flow:main doc="SOURCE">
+		<flow:action name="initialize">
+			<flow:open-form parent-doc-path="#SOURCE:" form-class="NucleusRH.Base.Presupuesto.Reportes.PorEstructura.filtro.form" mode="FILTER" doc-path="#FILTERDATA:"/>
+		</flow:action>
+		<flow:action name="initializeEscenario">
+			<doc:set-attribute from-attr-path="#SOURCE:@oi_escenario" to-attr-path="#FILTERDATA:@oi_escenario"/>
+			<doc:set-attribute from-attr-path="#SOURCE:@oi_est_reporte" to-attr-path="#FILTERDATA:@oi_est_reporte"/>
+			<doc:set-attribute from-attr-path="#SOURCE:@oi_def_reporte" to-attr-path="#FILTERDATA:@oi_def_reporte"/>
+			<doc:load-qry qry="qry_obtener_estructura" output-doc="FILTERDATA" input-doc-path="#FILTERDATA:"/>
+			<flow:exec-method method="ReportePorEstructura" class="NucleusRH.Base.Presupuesto.EstructuraReportes.EST_REPORTE" out-attr-path="#BATCHDOC:@batch-id" priority="9">
+				<flow:param type="Nomad.NSystem.Proxy.NomadXML" doc="FILTERDATA" mode="in" name="param"/>
+			</flow:exec-method>
+			<doc:set-attribute from-value="Reporte por Estructura" to-attr-path="#BATCHDOC:@title"/>
+			<flow:open-form mode="SHOW" form-class="Nomad.base.HTML_XLS.form" parent-doc-path="#SOURCE:" doc-path="#BATCHDOC:"/>
+		</flow:action>
+	</flow:main>
+	<flow:form parent-doc="PARENTSOURCE" form-class="NucleusRH.Base.Presupuesto.Reportes.PorEstructura.filtro.form" name="NucleusRH.Base.Presupuesto.Reportes.PorEstructura.filtro.form:EDIT" mode="FILTER" doc="SOURCE">
+		<flow:action name="on-open">
+			<flow:call-action action="Load-FILTER"/>
+		</flow:action>
+		<flow:action name="Load-FILTER">
+			<flow:load-user-data name="FILTER-NucleusRH.Base.Presupuesto.Reportes.PorEstructura" doc="FILTERDATA"/>
+		</flow:action>
+		<flow:action name="Save-FILTER">
+			<flow:save-user-data name="FILTER-NucleusRH.Base.Presupuesto.Reportes.PorEstructura" doc-path="#FILTERDATA:"/>
+		</flow:action>
+		<flow:action name="ACCEPT">
+			<flow:call-action action="Save-FILTER"/>
+			<flow:exec-method method="ReportePorEstructura" class="NucleusRH.Base.Presupuesto.EstructuraReportes.EST_REPORTE" out-attr-path="#BATCHDOC:@batch-id" priority="9">
+				<flow:param type="Nomad.NSystem.Proxy.NomadXML" doc="FILTERDATA" mode="in" name="param"/>
+			</flow:exec-method>
+			<doc:set-attribute from-value="Reporte por Estructura" to-attr-path="#BATCHDOC:@title"/>
+			<flow:open-form parent-doc-path="#SOURCE:" mode="SHOW" doc-path="#BATCHDOC:" form-class="Nomad.base.HTML_XLS.form"/>
+		</flow:action>
+		<flow:action name="CANCEL">
+			<flow:close-form/>
+		</flow:action>
+	</flow:form>
+</flow:flow>

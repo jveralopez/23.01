@@ -1,0 +1,112 @@
+<html:html xmlns:html="nomad_engine.html" xmlns:qry="nomad_engine.qry" name="NucleusRH.Base.Legales.HistorialEstadoCarpeta" doc="source" extends="Nomad.Base.BaseReport.rpt">
+	<html:query declare="&lt;PARAMS oi_carpeta=&quot;126&quot;/&gt;&#13;&#10;">
+		<qry:main name="" doc="SOURCE">
+			<qry:append-doc name="PARAMIN" doc-path="#SOURCE:PARAMS"/>
+			<REPORT label="Historial de Cambio de Estados" style="width:100%">
+				<qry:attribute name="date" value="format_date(Now(),'dd/mm/yyyy HH:MM')"/>
+				<GROUPS>
+					<GROUP tag="CARPETA" type="title" label="" style="">
+						<COLS>
+							<COL name="empresa" label="Empresa" style="width:30%"/>
+							<COL name="d_carpeta" label="Carpeta" style="width:30%"/>
+							<COL name="estadoActual" label="Estado Actual" style="width:30%"/>
+						</COLS>
+						<GROUP tag="HIST" type="table" style="width:100%">
+							<COLS>
+								<COL name="f_hisest_carpeta" label="Fecha" type="date"/>
+								<COL name="usuario_cambia" label="Usuario"/>
+								<COL name="est_ant" label="Estado Carpeta Anterior"/>
+								<COL name="est_nu" label="Estado Carpeta Nuevo"/>
+								<COL name="o_hisest_carpeta" label="Motivo de Cambio"/>
+								<COL name="d_causal" label="Causal de Baja"/>
+							</COLS>
+						</GROUP>
+					</GROUP>
+				</GROUPS>
+				<qry:element name="DATA">
+					<qry:element name="CARPETA">
+						<qry:insert-select name="qry_carpeta" doc-path="#PARAMIN:"/>
+					</qry:element>
+				</qry:element>
+			</REPORT>
+		</qry:main>
+		<qry:select doc="SOURCE" name="qry_carpeta">
+			<qry:xquery>
+				for $r in sql('
+				SELECT
+					C.oi_carpeta,
+					C.c_carpeta,
+					C.d_carpeta,
+					C.oi_estado_carpeta,
+					E.c_empresa,
+					E.d_empresa
+					
+					
+				FROM
+					LEG01_CARPETAS as C,
+					ORG03_EMPRESAS as E
+					
+				JOIN
+				C.oi_empresa INNER E.oi_empresa
+				WHERE
+					C.oi_carpeta = {#SOURCE:@oi_carpeta}
+			')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:attribute name="empresa" value="'[' + $r/@c_empresa +']' + ' - ' + $r/@d_empresa"/>
+				<qry:attribute name="d_carpeta" value="'[' + $r/@c_carpeta + ']' + ' - ' + $r/@d_carpeta"/>
+				<qry:insert-select name="qry_cambios" doc-path="$r"/>
+				<qry:insert-select name="getEstadoActual" doc-path="$r"/>
+			</qry:out>
+		</qry:select>
+		<qry:select doc="SOURCE" name="qry_cambios">
+			<qry:xquery>
+				for $r in sql('
+				SELECT
+					LEG01_HIST_ESTADOS.f_hisest_carpeta,
+					LEG01_HIST_ESTADOS.usuario_cambia,
+					LEG01_HIST_ESTADOS.o_hisest_carpeta,
+					ANT.d_estado as est_ant,
+					NU.d_estado as est_nu,
+					LEG59_CAUSALES_BAJA.d_causal
+				FROM
+					LEG01_HIST_ESTADOS,
+					LEG31_ESTADOS as ANT,
+					LEG31_ESTADOS as NU,
+					LEG59_CAUSALES_BAJA
+				JOIN
+					LEG01_HIST_ESTADOS.oi_estado_carpeta INNER NU.oi_estado,
+					LEG01_HIST_ESTADOS.oi_est_car_ant INNER ANT.oi_estado,
+					LEG01_HIST_ESTADOS.oi_causal LEFT LEG59_CAUSALES_BAJA.oi_causal
+				WHERE
+					LEG01_HIST_ESTADOS.oi_carpeta = {#SOURCE:@oi_carpeta}
+				ORDER BY
+					f_hisest_carpeta DESC
+			')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:element name="HIST">
+					<qry:attribute name="f_hisest_carpeta" value="format-date($r/@f_hisest_carpeta, 'dd/mm/yyyy HH:MM')"/>
+					<qry:attribute name="usuario_cambia" value="$r/@usuario_cambia"/>
+					<qry:attribute name="est_ant" value="$r/@est_ant"/>
+					<qry:attribute name="est_nu" value="$r/@est_nu"/>
+					<qry:attribute name="o_hisest_carpeta" value="$r/@o_hisest_carpeta"/>
+					<qry:attribute name="d_causal" value="$r/@d_causal"/>
+				</qry:element>
+			</qry:out>
+		</qry:select>
+		<qry:select name="getEstadoActual" doc="PARAM">
+			<qry:xquery>
+				for $r in SQL
+			('
+			 SELECT E.d_estado 
+			 FROM LEG31_ESTADOS as E
+			 WHERE E.oi_estado  = {$PARAM/@oi_estado_carpeta}
+			')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:attribute name="estadoActual" value="$r/@d_estado"/>
+			</qry:out>
+		</qry:select>
+	</html:query>
+</html:html>

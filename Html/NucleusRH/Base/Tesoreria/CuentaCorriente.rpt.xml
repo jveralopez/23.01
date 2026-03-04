@@ -1,0 +1,97 @@
+<html:html xmlns:html="nomad_engine.html" xmlns:qry="nomad_engine.qry" name="NucleusRH.Base.Tesoreria.CuentaCorrienteLegajo" extends="Nomad.Base.BaseReport.rpt" doc="source">
+	<html:query declare="&lt;DATOS e_periodo_des=&quot;201201&quot; e_periodo_has=&quot;201212&quot; oi_empresa=&quot;1&quot; l_inicializadas=&quot;1&quot;/&gt;&#13;&#10;">
+		<qry:main doc="SOURCE">
+			<qry:append-doc name="PARAMIN" doc-path="#SOURCE:DATOS"/>
+			<REPORT label="001 - Cuenta corriente por empresa" style="width:80%;">
+				<qry:attribute name="date" value="format_date(now(), 'dd/mm/yyyy')"/>
+				<GROUPS>
+					<GROUP tag="CAB" type="title">
+						<COLS>
+							<COL name="empresa" label="Empresa"/>
+							<COL name="periodo" label="Per&#237;odos"/>
+							<COL name="inicializadas" label="Incluye liq. inicializadas"/>
+						</COLS>
+						<GROUP tag="LEG" type="table" style="width:100%;" noreg="No se encontraron Legajos.">
+							<COLS>
+								<COL name="e_numero_legajo" label="Legajo" style="width:10%;"/>
+								<COL name="d_ape_y_nom" label="Nombre" style="width:50%;"/>
+								<COL name="liq" label="Liquidado" style="width:10%;" type="num"/>
+								<COL name="pag" label="Pagado" style="width:10%;" type="num"/>
+								<COL name="net" label="Saldo" style="width:10%;" type="num"/>
+							</COLS>
+							<FCOLS>
+								<COL name="count" colspan="2"/>
+								<COL name="liq" type="num"/>
+								<COL name="pag" type="num"/>
+								<COL name="net" type="num"/>
+							</FCOLS>
+						</GROUP>
+					</GROUP>
+				</GROUPS>
+				<qry:element name="DATA">
+					<qry:element name="CAB">
+						<qry:insert-select name="qry_cabecera"/>
+						<qry:attribute name="periodo" value="format_date($PARAMIN/@e_periodo_des + '01', 'mm/yyyy') + ' - ' + format_date($PARAMIN/@e_periodo_has + '01', 'mm/yyyy')"/>
+						<qry:attribute name="inicializadas" value="iif($PARAMIN/@l_inicializadas=1, 'Si', 'No')"/>
+						<qry:insert-select name="qry_legajos" doc-path="."/>
+						<qry:attribute name="count" value="'Cantidad de Legajos: ' + count(LEG/@e_numero_legajo)"/>
+						<qry:attribute name="liq" value="sum(LEG/@liq)"/>
+						<qry:attribute name="pag" value="sum(LEG/@pag)"/>
+						<qry:attribute name="net" value="sum(LEG/@net)"/>
+					</qry:element>
+				</qry:element>
+			</REPORT>
+		</qry:main>
+		<qry:select doc="SOURCE" name="qry_cabecera">
+			<qry:xquery>
+				for $r in sql('
+				SELECT ORG03_EMPRESAS.c_empresa, ORG03_EMPRESAS.d_empresa
+				FROM ORG03_EMPRESAS
+				WHERE ORG03_EMPRESAS.oi_empresa = {$PARAMIN/@oi_empresa}
+				')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:attribute name="c_empresa" value="$r/@c_empresa"/>
+				<qry:attribute name="empresa" value="$r/@c_empresa + ' - ' + $r/@d_empresa"/>
+			</qry:out>
+		</qry:select>
+		<qry:select doc="SOURCE" name="qry_legajos">
+			<qry:xquery>
+				for $r in sql('
+			SELECT 	 
+				LIQ97_PERSONAL_EMP.e_numero_legajo,
+				max(LIQ97_PERSONAL_EMP.d_ape_y_nom) as d_ape_y_nom,
+				SUM(LIQ20_TOT_LIQ_PER.n_totpag) AS n_totpag,
+				SUM(LIQ20_TOT_LIQ_PER.n_montopagado) AS n_montopagado
+			FROM
+				LIQ99_LIQUIDACION,
+				LIQ99_RECIBOS,
+				LIQ20_TOT_LIQ_PER, 
+				LIQ97_PERSONAL_EMP
+			JOIN
+				LIQ99_LIQUIDACION.oi_liquidacion_ddo INNER LIQ99_RECIBOS.oi_liquidacion_ddo,
+				LIQ99_RECIBOS.oi_tot_liq_per INNER LIQ20_TOT_LIQ_PER.oi_tot_liq_per,
+				LIQ20_TOT_LIQ_PER.oi_per_emp_ddo INNER LIQ97_PERSONAL_EMP.oi_per_emp_ddo
+			WHERE 
+				LIQ99_LIQUIDACION.c_estado = \'F\' AND
+				LIQ97_PERSONAL_EMP.c_empresa = {$SOURCE/@c_empresa} AND
+				LIQ99_LIQUIDACION.e_periodo &gt;= {$PARAMIN/@e_periodo_des} AND
+				LIQ99_LIQUIDACION.e_periodo &lt;= {$PARAMIN/@e_periodo_has}
+				{%? ($PARAMIN/@l_inicializadas = '0') {% AND ISNOTNULL(LIQ99_LIQUIDACION.f_cierre) %} {% %} %}
+			GROUP BY 
+				LIQ97_PERSONAL_EMP.e_numero_legajo
+			ORDER BY e_numero_legajo ASC
+				')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<LEG>
+					<qry:attribute name="e_numero_legajo" value="$r/@e_numero_legajo"/>
+					<qry:attribute name="d_ape_y_nom" value="$r/@d_ape_y_nom"/>
+					<qry:attribute name="liq" value="$r/@n_totpag"/>
+					<qry:attribute name="pag" value="$r/@n_montopagado"/>
+					<qry:attribute name="net" value="number($r/@n_totpag) - number($r/@n_montopagado)"/>
+				</LEG>
+			</qry:out>
+		</qry:select>
+	</html:query>
+</html:html>

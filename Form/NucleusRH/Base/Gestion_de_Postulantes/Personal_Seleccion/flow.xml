@@ -1,0 +1,224 @@
+<flow:flow xmlns:flow="nomad_engine.flow" xmlns:qry="nomad_engine.qry" xmlns:doc="nomad_engine.doc" extends="NucleusRH.Base.Gestion_de_Postulantes.Personal_Seleccion.autoflow" name="Personal_Seleccion">
+	<flow:info label="Flow para NucleusRH.Base.Gestion_de_Postulantes.Personal_Seleccion"/>
+	<flow:declare>
+		<qry:define declare="&lt;ROWS nmd-col=&quot;1&quot;&gt;&#13;&#10;  &lt;ROW id=&quot;11423&quot; /&gt;&#13;&#10;  &lt;ROW id=&quot;232&quot; /&gt;&#13;&#10;  &lt;ROW id=&quot;233&quot; /&gt;&#13;&#10;  &lt;ROW id=&quot;234&quot; /&gt;&#13;&#10;  &lt;ROW id=&quot;235&quot; /&gt;&#13;&#10;  &lt;ROW id=&quot;237&quot; /&gt;&#13;&#10;  &lt;ROW id=&quot;238&quot; /&gt;&#13;&#10;  &lt;ROW id=&quot;239&quot; /&gt;&#13;&#10;  &lt;ROW id=&quot;240&quot; /&gt;&#13;&#10;  &lt;ROW id=&quot;11457&quot; /&gt;&#13;&#10;  &lt;ROW id=&quot;11433&quot; /&gt;&#13;&#10;  &lt;ROW id=&quot;11449&quot; /&gt;&#13;&#10;  &lt;ROW id=&quot;11450&quot; /&gt;&#13;&#10;  &lt;ROW id=&quot;11539&quot; /&gt;&#13;&#10;  &lt;ROW id=&quot;11428&quot; /&gt;&#13;&#10;  &lt;ROW id=&quot;11427&quot; /&gt;&#13;&#10;  &lt;ROW id=&quot;229&quot; /&gt;&#13;&#10;  &lt;ROW id=&quot;11458&quot; /&gt;&#13;&#10;  &lt;ROW id=&quot;221&quot; /&gt;&#13;&#10;  &lt;ROW id=&quot;11432&quot; /&gt;&#13;&#10;  &lt;ROW id=&quot;11434&quot; /&gt;&#13;&#10;  &lt;ROW id=&quot;11516&quot; /&gt;&#13;&#10;  &lt;ROW id=&quot;11517&quot; /&gt;&#13;&#10;  &lt;ROW id=&quot;11520&quot; /&gt;&#13;&#10;  &lt;ROW id=&quot;11518&quot; /&gt;&#13;&#10;  &lt;ROW id=&quot;11534&quot; /&gt;&#13;&#10;  &lt;ROW id=&quot;11535&quot; /&gt;&#13;&#10;  &lt;ROW id=&quot;11538&quot; /&gt;&#13;&#10;  &lt;ROW id=&quot;11551&quot; /&gt;&#13;&#10;  &lt;ROW id=&quot;11572&quot; /&gt;&#13;&#10;&lt;/ROWS&gt;&#13;&#10;" name="LIST">
+			<qry:main doc="SOURCE">
+				<qry:element name="ROWS">
+					<qry:insert-select name="sql1" doc-path="#SOURCE:ROWS"/>
+				</qry:element>
+			</qry:main>
+			<qry:select doc="SOURCE" name="sql1">
+				<qry:xquery>
+					for $r in sql('
+					SELECT 
+						PER02_PERSONAL_EMP.oi_personal_emp, 
+						PER02_PERSONAL_EMP.e_numero_legajo, 
+						PER02_PERSONAL_EMP.e_numero_legajo as CODE, 
+						PER01_PERSONAL.d_ape_y_nom as TEXT, 
+						ORG03_EMPRESAS.d_empresa, 
+						PER02_PERSONAL_EMP.oi_personal
+					FROM 
+						PER02_PERSONAL_EMP,
+						ORG03_EMPRESAS,
+						PER01_PERSONAL 
+					JOIN 
+						ORG03_EMPRESAS.oi_empresa INNER PER02_PERSONAL_EMP.oi_empresa,
+						PER02_PERSONAL_EMP.oi_personal INNER PER01_PERSONAL.oi_personal
+					WHERE
+						1=1
+						{%? (string(#SOURCE:ROW/@id)!='') {% AND PER02_PERSONAL_EMP.oi_personal_emp in ({%=string(#SOURCE:ROW/@id) %}) %} {%  %} %}
+					ORDER BY 
+						oi_personal_emp asc
+				')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:element name="ROW">
+						<qry:attribute name="id" value="$r/@oi_personal_emp"/>
+						<qry:attribute name="e_numero_legajo" value="$r/@e_numero_legajo"/>
+						<qry:attribute name="CODE" value="$r/@CODE"/>
+						<qry:attribute name="TEXT" value="$r/@TEXT"/>
+						<qry:attribute name="oi_empresa" value="$r/@d_empresa"/>
+						<qry:attribute name="oi_personal" value="$r/@TEXT"/>
+						<qry:insert-select doc-path="." name="FIND-PER-DESCR"/>
+					</qry:element>
+				</qry:out>
+			</qry:select>
+			<qry:select doc="PARAM" name="FIND-PER-DESCR">
+				<qry:xquery>
+					for $r in sql('
+					SELECT 
+						PER02_PERSONAL_EMP.e_numero_legajo AS COD, 
+						PER01_PERSONAL.d_ape_y_nom AS DES 
+					FROM 
+						PER02_PERSONAL_EMP, 
+						PER01_PERSONAL			
+					JOIN 
+						PER02_PERSONAL_EMP.oi_personal INNER PER01_PERSONAL.oi_personal
+					WHERE 
+						PER02_PERSONAL_EMP.oi_personal_emp = {#PARAM:@id}
+				')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:attribute value="'[' + $r/@COD + '] ' + $r/@DES" name="descr"/>
+					<qry:attribute value="$r/@DES" name="text"/>
+				</qry:out>
+			</qry:select>
+		</qry:define>
+		<qry:define name="FOTO">
+			<qry:main doc="SOURCE">
+				<qry:element name="ROW">
+					<qry:insert-select doc-path="#SOURCE:PERSONAL_EMP" name="RS1"/>
+				</qry:element>
+			</qry:main>
+			<qry:select name="RS1" doc="SOURCE">
+				<qry:xquery>
+					for $r in sql('
+				SELECT
+					PER01_PERSONAL.oi_foto
+				FROM 
+					PER02_PERSONAL_EMP, 
+					PER01_PERSONAL
+				JOIN 
+					PER02_PERSONAL_EMP.oi_personal LEFT OUTER PER01_PERSONAL.oi_personal
+				WHERE
+					PER02_PERSONAL_EMP.oi_personal_emp = {#SOURCE:@id} 
+			')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:attribute name="oi_foto" value="$r/@oi_foto" type="Nomad.NSystem.Int"/>
+				</qry:out>
+			</qry:select>
+		</qry:define>
+		<qry:define name="FILTER">
+			<qry:main doc="SOURCE">
+				<qry:element name="ROWS">
+					<qry:insert-select doc-path="#SOURCE:FILTRO" name="RS1"/>
+				</qry:element>
+			</qry:main>
+			<qry:select name="RS1" doc="SOURCE">
+				<qry:xquery>
+					for $r in sql(' 
+				SELECT 
+					PER02_PERSONAL_EMP.oi_personal_emp 
+				FROM
+					PER02_PERSONAL_EMP, 
+					PER01_PERSONAL
+				JOIN
+					PER02_PERSONAL_EMP.oi_personal INNER PER01_PERSONAL.oi_personal
+				WHERE
+					1=1 
+					{%? (string(#SOURCE:PERSONAS/PERSONA/@id)!='') {% AND per02_personal_emp.oi_personal_emp in ({%=string(#SOURCE:PERSONAS/PERSONA/@id) %}) %} {%  %} %}
+					{%? (#SOURCE:@oi_empresa!='')	{% and PER02_PERSONAL_EMP.oi_empresa={%=#SOURCE:@oi_empresa %} %} {% %} %}
+				ORDER BY
+					{%? (#SOURCE:@ATRIB_ORDEN1!='') {% {%=#SOURCE:@ATRIB_ORDEN1%} {%=#SOURCE:@ORDEN1 %}, %} {% %} %} 
+					{%? (#SOURCE:@ATRIB_ORDEN2!='') {% {%=#SOURCE:@ATRIB_ORDEN2%} {%=#SOURCE:@ORDEN2 %}, %} {% %} %}
+					{%? (#SOURCE:@ATRIB_ORDEN3!='') {% {%=#SOURCE:@ATRIB_ORDEN3%} {%=#SOURCE:@ORDEN3 %}, %} {% %} %} 
+					oi_personal_emp	ASC
+			')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:element name="ROW">
+						<qry:attribute name="id" value="$r/@oi_personal_emp" type="Nomad.NSystem.Int"/>
+						<qry:attribute name="value" value="$r/@oi_personal_emp" type="Nomad.NSystem.Int"/>
+					</qry:element>
+				</qry:out>
+			</qry:select>
+		</qry:define>
+		<doc:define name="FOTOUT"/>
+		<doc:define name="FILTERDATA">
+			<FILTRO ORDEN3="" ATRIB_ORDEN3="" ORDEN2="" ATRIB_ORDEN2="" ORDEN1="" ATRIB_ORDEN1="" oi_empresa="">
+				<PERSONAS/>
+			</FILTRO>
+		</doc:define>
+		<doc:define name="QRY"/>
+	</flow:declare>
+	<flow:main doc="SOURCE">
+		<flow:action name="initialize">
+			<flow:open-form doc-path="#FILTERDATA:" mode="FILTER" form-class="NucleusRH.Base.Gestion_de_Postulantes.Personal_Seleccion.PERSONAL_EMP.filter.form"/>
+		</flow:action>
+	</flow:main>
+	<flow:group Name="PERSONAL_EMP">
+		<flow:form mode="FILTER" form-class="NucleusRH.Base.Gestion_de_Postulantes.Personal_Seleccion.PERSONAL_EMP.filter.form" name="NucleusRH.Base.Gestion_de_Postulantes.Personal_Seleccion.PERSONAL_EMP.filter.form:FILTER" doc="SOURCE" parent-doc="PARENTSOURCE" extends="NucleusRH.Base.Gestion_de_Postulantes.Personal_Seleccion.PERSONAL_EMP.filter.autoform:FILTER">
+			<flow:action name="on-show">
+				<flow:call-action action="inits-DDO"/>
+				<flow:load-user-data name="PER_IDsLegajos" doc="QRY"/>
+				<flow:attach-doc attach-id="ARRB" doc-path="#QRY:"/>
+			</flow:action>
+			<flow:action name="FILTER">
+				<flow:load-user-data name="PER_IDsLegajos" doc="QRY"/>
+				<flow:call-action action="Save-FILTER"/>
+				<flow:call-action action="open-flow-SHOW"/>
+			</flow:action>
+			<flow:comment>
+				&lt;flow:action name="on-show"&gt;
+	&lt;flow:close-form/&gt;
+	&lt;doc:load-qry qry="FILTER" input-doc-path="#FILTERDATA:" output-doc="QRY"/&gt;
+	&lt;doc:new-object class="NucleusRH.Base.Gestion_de_Postulantes.Personal_Seleccion.PERSONAL_EMP" doc="DDO"/&gt;
+	&lt;flow:open-form form-class="NucleusRH.Base.Gestion_de_Postulantes.Personal_Seleccion.PERSONAL_EMP.noreg.autoform" mode="SHOW" doc-path="#DDO:" parent-doc-path="#QRY:" iter-index="#QRY:ROW/@value"/&gt;
+&lt;/flow:action&gt;
+			</flow:comment>
+			<flow:action name="open-flow-SHOW">
+				<flow:open-form form-class="NucleusRH.Base.Gestion_de_Postulantes.Personal_Seleccion.PERSONAL_EMP.noreg.autoform" iter-index="#QRY:ROW/@id" parent-doc-path="#QRY:" doc-path="#DDO:" mode="EDIT"/>
+			</flow:action>
+		</flow:form>
+		<flow:form form-class="NucleusRH.Base.Gestion_de_Postulantes.Personal_Seleccion.PERSONAL_EMP.noreg.autoform" name="NucleusRH.Base.Gestion_de_Postulantes.Personal_Seleccion.PERSONAL_EMP.noreg.form:EDIT" extends="NucleusRH.Base.Gestion_de_Postulantes.Personal_Seleccion.PERSONAL_EMP.noreg.autoform:EDIT" mode="EDIT" doc="SOURCE" parent-doc="PARENTSOURCE">
+			<flow:action name="open-flow-SHOW">
+				<flow:open-form iter-index="#QRY:ROW/@id" parent-doc-path="#QRY:" doc-path="#DDO:" mode="SHOW" form-class="NucleusRH.Base.Gestion_de_Postulantes.Personal_Seleccion.PERSONAL_EMP.form"/>
+			</flow:action>
+			<flow:action name="open-flow-LIST">
+				<flow:open-form iter-index="#QRY_LIST:ROW/@id" parent-doc-path="#QRY_LIST:" doc-path="#DDO:" mode="LIST" form-class="NucleusRH.Base.Gestion_de_Postulantes.Personal_Seleccion.PERSONAL_EMP.form"/>
+			</flow:action>
+			<flow:action name="goto-list">
+				<flow:log text-path="#QRY:" text="jprQRY"/>
+				<doc:load-qry output-doc="QRY_LIST" qry="LIST" input-doc-path="#QRY:"/>
+				<flow:call-action action="open-flow-LIST"/>
+			</flow:action>
+			<flow:action name="goto-show">
+				<flow:call-action action="open-flow-SHOW"/>
+			</flow:action>
+		</flow:form>
+		<flow:form mode="SHOW" form-class="NucleusRH.Base.Gestion_de_Postulantes.Personal_Seleccion.PERSONAL_EMP.form" name="NucleusRH.Base.Gestion_de_Postulantes.Personal_Seleccion.PERSONAL_EMP.form:SHOW" doc="SOURCE" parent-doc="PARENTSOURCE" extends="NucleusRH.Base.Gestion_de_Postulantes.Personal_Seleccion.PERSONAL_EMP.autoform:SHOW">
+			<flow:action name="on-move-iterator">
+				<doc:load-object doc="DDO" class="NucleusRH.Base.Gestion_de_Postulantes.Personal_Seleccion.PERSONAL_EMP" id-path="#iter-cursor:@value"/>
+				<doc:load-qry output-doc="FOTOUT" input-doc-path="#DDO:" qry="FOTO"/>
+			</flow:action>
+			<flow:action name="open-flow-EDIT">
+				<flow:open-form doc-path="#DDO:" mode="EDIT" form-class="NucleusRH.Base.Gestion_de_Postulantes.Personal_Seleccion.PERSONAL_EMP.form"/>
+			</flow:action>
+			<flow:action name="ITER:FIND">
+				<doc:assign-mapping a-doc="PARENTSOURCE" b-doc="FINDROWS" dir-apply="a-&gt;b">
+					<map docA="A" docB="B">
+						<link A="#FORM:ctrl[@id='iter-search']/@xval" B="#B:@FIND"/>
+						<submap path-docA="#A:" path-docB="#B:ROWS">
+							<map docA="A" docB="B">
+								<link A="#A:@id" B="#B:@id"/>
+							</map>
+							<ProtoA/>
+							<ProtoB>
+								<ROW id=""/>
+							</ProtoB>
+						</submap>
+					</map>
+				</doc:assign-mapping>
+				<doc:load-qry qry="FIND:NucleusRH.Base.Gestion_de_Postulantes.Personal_Seleccion.PERSONAL_EMP" input-doc-path="#FINDROWS:" output-doc="FINDRESULT"/>
+				<doc:iter-move value-path="#FINDRESULT:@findID" invalid-msg="Sin resultados en la busqueda."/>
+			</flow:action>
+		</flow:form>
+		<flow:form mode="EDIT" form-class="NucleusRH.Base.Gestion_de_Postulantes.Personal_Seleccion.PERSONAL_EMP.form" name="NucleusRH.Base.Gestion_de_Postulantes.Personal_Seleccion.PERSONAL_EMP.form:EDIT" doc="SOURCE" parent-doc="PARENTSOURCE" extends="NucleusRH.Base.Gestion_de_Postulantes.Personal_Seleccion.PERSONAL_EMP.autoform:EDIT"/>
+		<flow:form extends="NucleusRH.Base.Gestion_de_Postulantes.Personal_Seleccion.PERSONAL_EMP.autoform:LIST" parent-doc="PARENTSOURCE" doc="SOURCE" name="NucleusRH.Base.Gestion_de_Postulantes.Personal_Seleccion.PERSONAL_EMP.form:LIST" form-class="NucleusRH.Base.Gestion_de_Postulantes.Personal_Seleccion.PERSONAL_EMP.form" mode="LIST">
+			<flow:action name="open-flow-EDIT">
+				<flow:open-form doc-path="#DDO:" mode="EDIT" form-class="NucleusRH.Base.Gestion_de_Postulantes.Personal_Seleccion.PERSONAL_EMP.form"/>
+			</flow:action>
+			<flow:action name="After-Change">
+				<doc:load-qry output-doc="QRY_LIST" qry="LIST" input-doc-path="#QRY:"/>
+				<doc:set-attribute to-attr-path="#FORM:ctrl[@id='LIST']/@xval" from-attr-path="#DDO:@id"/>
+			</flow:action>
+			<flow:action name="After-Back">
+				<doc:load-qry output-doc="QRY_LIST" qry="LIST" input-doc-path="#QRY:"/>
+			</flow:action>
+			<flow:action name="PARENT">
+				<doc:load-qry output-doc="QRY_LIST" qry="LIST" input-doc-path="#QRY:"/>
+			</flow:action>
+		</flow:form>
+	</flow:group>
+</flow:flow>

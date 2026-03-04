@@ -1,0 +1,559 @@
+<flow:flow default_action="HELP" name="NucleusRH.Base.Liquidacion.Liquidacion.Inicializar.LegajoLiq.LM.guia" xmlns:flow="nomad_engine.form" xmlns:qry="nomad_engine.form" xmlns:doc="nomad_engine.form">
+	<flow:main doc="SOURCE">
+		<flow:action name="HELP">
+			<doc:load-qry qry="HELP" input-doc-path="#SOURCE:" output-doc="RS"/>
+			<flow:open-form form-class="NucleusRH.Base.Liquidacion.Liquidacion.Inicializar.LegajoLiq.LM.guia.form" mode="SHOW" doc-path="#RS:" parent-doc-path="#SOURCE:"/>
+		</flow:action>
+	</flow:main>
+	<flow:declare>
+		<doc:define name="RS"/>
+		<doc:define name="OUT"/>
+		<qry:define declare="&lt;helper-mess ID=&quot;43&quot;/&gt;" name="HELP">
+			<qry:main doc="SOURCE">
+				<qry:element name="DATOS">
+					<qry:attribute name="ID" value="#SOURCE:helper-mess/@ID" type="Nomad.NSystem.String"/>
+					<qry:insert-select doc-path="#SOURCE:" name="DatosLiq"/>
+					<qry:append-doc doc-path="#SOURCE:" name="FILTRO"/>
+					<qry:element name="ROWS">
+						<qry:insert-select doc-path=".[../@oi_tipo_liq!=3]" name="IN"/>
+						<qry:insert-select doc-path=".[../@oi_tipo_liq!=3]" name="NOIN"/>
+						<qry:insert-select doc-path=".[../@oi_tipo_liq!=3]" name="INHABMEN"/>
+						<qry:insert-select doc-path=".[../@oi_tipo_liq!=3]" name="NOINHABMEN"/>
+						<qry:insert-select doc-path=".[../@oi_tipo_liq!=3]" name="INHABQUIN"/>
+						<qry:insert-select doc-path=".[../@oi_tipo_liq!=3]" name="NOINHABQUIN"/>
+						<qry:insert-select doc-path=".[../@oi_tipo_liq=3]" name="INEGRESO"/>
+						<qry:insert-select doc-path=".[../@oi_tipo_liq=3]" name="NOINEGRESO"/>
+					</qry:element>
+				</qry:element>
+			</qry:main>
+			<qry:select name="DatosLiq" doc="SOURCE">
+				<qry:xquery>
+					for $r in sql('
+select 
+LIQ19.oi_tipo_liq,
+LIQ19.c_clase
+from 
+liq19_liquidacion AS LIQ19 
+WHERE
+liq19.OI_LIQUIDACION = {%= #SOURCE:helper-mess/@ID %}
+')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:attribute name="oi_tipo_liq" value="$r/@oi_tipo_liq"/>
+					<qry:attribute name="c_clase" value="$r/@c_clase"/>
+				</qry:out>
+			</qry:select>
+			<qry:select name="INEGRESO" doc="SOURCE">
+				<qry:xquery>
+					for $r in sql('
+select 
+PER02.OI_PERSONAL_EMP AS IDD, 
+PER02.E_NUMERO_LEGAJO, 
+PER01.D_APE_Y_NOM, 
+ORG03.c_empresa, 
+ORG03.d_empresa 
+from 
+PER02_PERSONAL_EMP AS PER02, 
+org03_empresas AS ORG03, 
+PER01_PERSONAL AS PER01, 
+liq19_liquidacion AS LIQ19, 
+liq07_personal AS LIQ07,
+LIQ01_TLIQ_TPER as L01 
+JOIN 
+PER02.oi_empresa INNER org03.oi_empresa,
+liq19.oi_empresa INNER org03.oi_empresa,
+liq07.oi_personal_emp INNER per02.oi_personal_emp,
+PER02.OI_PERSONAL INNER PER01.OI_PERSONAL,
+L01.oi_tipo_personal INNER per02.oi_tipo_personal,
+L01.oi_tipo_liq INNER LIQ19.oi_tipo_liq
+WHERE
+PER02.OI_PERSONAL_EMP not in (SELECT liq25.oi_personal_emp 
+FROM liq25_personal_liq AS LIQ25
+WHERE liq25.oi_liquidacion = {%= #FILTRO:helper-mess/@ID %})
+AND 
+liq19.OI_LIQUIDACION = {%= #FILTRO:helper-mess/@ID %} 
+and
+per02.oi_indic_activo = 4
+and
+(liq07.l_liq_final = 0 or isnull(liq07.l_liq_final) or LIQ19.l_ajuste = 1)
+AND 
+{%? 
+	(string(#FILTRO:helper-mess/rows/row/@oi_personal_emp)!='') 
+	{%  
+		PER02.OI_PERSONAL_EMP in ({%=string(#FILTRO:helper-mess/rows/row/@oi_PERSONAL_EMP) %}) 
+	%} 
+	{% 
+		1 = 2 
+	%} 
+%}
+order by E_NUMERO_LEGAJO ASC
+')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:element name="ROW">
+						<qry:attribute name="id" value="$r/@IDD" type="Nomad.NSystem.Int"/>
+						<qry:attribute name="value" value="$r/@IDD" type="Nomad.NSystem.Int"/>
+						<qry:attribute name="code" value="$r/@E_NUMERO_LEGAJO" type="Nomad.NSystem.String"/>
+						<qry:attribute name="text" value="$r/@D_APE_Y_NOM" type="Nomad.NSystem.String"/>
+						<qry:attribute name="codEmpresa" value="$r/@c_empresa" type="Nomad.NSystem.String"/>
+						<qry:attribute name="dscEmpresa" value="$r/@D_empresa" type="Nomad.NSystem.String"/>
+						<qry:attribute name="check" value="1" type="Nomad.NSystem.Boolean"/>
+					</qry:element>
+				</qry:out>
+			</qry:select>
+			<qry:select name="NOINEGRESO" doc="SOURCE">
+				<qry:xquery>
+					for $r in sql('
+select 
+PER02.OI_PERSONAL_EMP AS IDD, 
+PER02.E_NUMERO_LEGAJO, 
+PER01.D_APE_Y_NOM, 
+ORG03.c_empresa, 
+ORG03.d_empresa 
+from 
+PER02_PERSONAL_EMP AS PER02, 
+org03_empresas AS ORG03, 
+PER01_PERSONAL AS PER01, 
+liq19_liquidacion AS LIQ19, 
+liq07_personal AS LIQ07,
+LIQ01_TLIQ_TPER as L01 
+JOIN 
+PER02.oi_empresa INNER org03.oi_empresa,
+liq19.oi_empresa INNER org03.oi_empresa,
+liq07.oi_personal_emp INNER per02.oi_personal_emp,
+PER02.OI_PERSONAL INNER PER01.OI_PERSONAL,
+L01.oi_tipo_personal INNER per02.oi_tipo_personal,
+L01.oi_tipo_liq INNER LIQ19.oi_tipo_liq
+WHERE
+PER02.OI_PERSONAL_EMP not in (SELECT liq25.oi_personal_emp 
+FROM liq25_personal_liq AS LIQ25
+WHERE liq25.oi_liquidacion = {%= #FILTRO:helper-mess/@ID %})
+AND 
+liq19.OI_LIQUIDACION = {%= #FILTRO:helper-mess/@ID %} 
+and
+per02.oi_indic_activo = 4 
+and
+(liq07.l_liq_final = 0 or isnull(liq07.l_liq_final) or LIQ19.l_ajuste = 1)
+AND 
+{%? 
+	(string(#FILTRO:helper-mess/rows/row/@oi_personal_emp)!='') 
+	{%  
+		PER02.OI_PERSONAL_EMP not in ({%=string(#FILTRO:helper-mess/rows/row/@oi_PERSONAL_EMP) %}) 
+	%} 
+	{% 
+		1 = 1 
+	%} 
+%}
+order by E_NUMERO_LEGAJO ASC
+')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:element name="ROW">
+						<qry:attribute name="id" value="$r/@IDD" type="Nomad.NSystem.Int"/>
+						<qry:attribute name="value" value="$r/@IDD" type="Nomad.NSystem.Int"/>
+						<qry:attribute name="code" value="$r/@E_NUMERO_LEGAJO" type="Nomad.NSystem.String"/>
+						<qry:attribute name="text" value="$r/@D_APE_Y_NOM" type="Nomad.NSystem.String"/>
+						<qry:attribute name="codEmpresa" value="$r/@c_empresa" type="Nomad.NSystem.String"/>
+						<qry:attribute name="dscEmpresa" value="$r/@D_empresa" type="Nomad.NSystem.String"/>
+						<qry:attribute name="check" value="0" type="Nomad.NSystem.Boolean"/>
+					</qry:element>
+				</qry:out>
+			</qry:select>
+			<qry:select name="IN" doc="SOURCE">
+				<qry:xquery>
+					for $r in sql('
+select 
+PER02.OI_PERSONAL_EMP AS IDD, 
+PER02.E_NUMERO_LEGAJO, 
+PER01.D_APE_Y_NOM, 
+ORG03.c_empresa, 
+ORG03.d_empresa 
+from 
+PER02_PERSONAL_EMP AS PER02, 
+org03_empresas AS ORG03, 
+PER01_PERSONAL AS PER01, 
+liq19_liquidacion AS LIQ19, 
+liq07_personal AS LIQ07,
+LIQ01_TLIQ_TPER as L01 
+JOIN 
+PER02.oi_empresa INNER org03.oi_empresa,
+liq19.oi_empresa INNER org03.oi_empresa,
+liq07.oi_personal_emp INNER per02.oi_personal_emp,
+PER02.OI_PERSONAL INNER PER01.OI_PERSONAL,
+L01.oi_tipo_personal INNER per02.oi_tipo_personal,
+L01.oi_tipo_liq INNER LIQ19.oi_tipo_liq
+WHERE
+PER02.OI_PERSONAL_EMP not in (SELECT liq25.oi_personal_emp 
+FROM liq25_personal_liq AS LIQ25
+WHERE liq25.oi_liquidacion = {%= #FILTRO:helper-mess/@ID %})
+AND 
+liq19.OI_LIQUIDACION = {%= #FILTRO:helper-mess/@ID %} 
+and
+per02.oi_indic_activo = 1
+
+and  
+not(LIQ19.oi_tipo_liq = 1)
+AND 
+{%? 
+	(string(#FILTRO:helper-mess/rows/row/@oi_personal_emp)!='') 
+	{%  
+		PER02.OI_PERSONAL_EMP in ({%=string(#FILTRO:helper-mess/rows/row/@oi_PERSONAL_EMP) %}) 
+	%} 
+	{% 
+		1 = 2 
+	%} 
+%}
+order by E_NUMERO_LEGAJO ASC
+')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:element name="ROW">
+						<qry:attribute name="id" value="$r/@IDD" type="Nomad.NSystem.Int"/>
+						<qry:attribute name="value" value="$r/@IDD" type="Nomad.NSystem.Int"/>
+						<qry:attribute name="code" value="$r/@E_NUMERO_LEGAJO" type="Nomad.NSystem.String"/>
+						<qry:attribute name="text" value="$r/@D_APE_Y_NOM" type="Nomad.NSystem.String"/>
+						<qry:attribute name="codEmpresa" value="$r/@c_empresa" type="Nomad.NSystem.String"/>
+						<qry:attribute name="dscEmpresa" value="$r/@D_empresa" type="Nomad.NSystem.String"/>
+						<qry:attribute name="check" value="1" type="Nomad.NSystem.Boolean"/>
+					</qry:element>
+				</qry:out>
+			</qry:select>
+			<qry:select name="NOIN" doc="SOURCE">
+				<qry:xquery>
+					for $r in sql('
+select 
+PER02.OI_PERSONAL_EMP AS IDD, 
+PER02.E_NUMERO_LEGAJO, 
+PER01.D_APE_Y_NOM, 
+ORG03.c_empresa, 
+ORG03.d_empresa 
+from 
+PER02_PERSONAL_EMP AS PER02, 
+org03_empresas AS ORG03, 
+PER01_PERSONAL AS PER01, 
+liq19_liquidacion AS LIQ19, 
+liq07_personal AS LIQ07,
+LIQ01_TLIQ_TPER as L01 
+JOIN 
+PER02.oi_empresa INNER org03.oi_empresa,
+liq19.oi_empresa INNER org03.oi_empresa,
+liq07.oi_personal_emp INNER per02.oi_personal_emp,
+PER02.OI_PERSONAL INNER PER01.OI_PERSONAL,
+L01.oi_tipo_personal INNER per02.oi_tipo_personal,
+L01.oi_tipo_liq INNER LIQ19.oi_tipo_liq
+WHERE
+PER02.OI_PERSONAL_EMP not in (SELECT liq25.oi_personal_emp 
+FROM liq25_personal_liq AS LIQ25
+WHERE liq25.oi_liquidacion = {%= #FILTRO:helper-mess/@ID %})
+AND 
+liq19.OI_LIQUIDACION = {%= #FILTRO:helper-mess/@ID %} 
+and
+per02.oi_indic_activo = 1      
+and  
+not(LIQ19.oi_tipo_liq = 1)
+AND 
+{%? 
+	(string(#FILTRO:helper-mess/rows/row/@oi_personal_emp)!='') 
+	{%  
+		PER02.OI_PERSONAL_EMP not in ({%=string(#FILTRO:helper-mess/rows/row/@oi_PERSONAL_EMP) %}) 
+	%} 
+	{% 
+		1 = 1 
+	%} 
+%}
+order by E_NUMERO_LEGAJO ASC
+')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:element name="ROW">
+						<qry:attribute name="id" value="$r/@IDD" type="Nomad.NSystem.Int"/>
+						<qry:attribute name="value" value="$r/@IDD" type="Nomad.NSystem.Int"/>
+						<qry:attribute name="code" value="$r/@E_NUMERO_LEGAJO" type="Nomad.NSystem.String"/>
+						<qry:attribute name="text" value="$r/@D_APE_Y_NOM" type="Nomad.NSystem.String"/>
+						<qry:attribute name="codEmpresa" value="$r/@c_empresa" type="Nomad.NSystem.String"/>
+						<qry:attribute name="dscEmpresa" value="$r/@D_empresa" type="Nomad.NSystem.String"/>
+						<qry:attribute name="check" value="0" type="Nomad.NSystem.Boolean"/>
+					</qry:element>
+				</qry:out>
+			</qry:select>
+			<qry:select name="INHABMEN" doc="SOURCE">
+				<qry:xquery>
+					for $r in sql('
+select 
+PER02.OI_PERSONAL_EMP AS IDD, 
+PER02.E_NUMERO_LEGAJO, 
+PER01.D_APE_Y_NOM, 
+ORG03.c_empresa, 
+ORG03.d_empresa 
+from 
+PER02_PERSONAL_EMP AS PER02, 
+org03_empresas AS ORG03, 
+PER01_PERSONAL AS PER01, 
+liq19_liquidacion AS LIQ19, 
+liq07_personal AS LIQ07,
+LIQ01_TLIQ_TPER as L01 
+JOIN 
+PER02.oi_empresa INNER org03.oi_empresa,
+liq19.oi_empresa INNER org03.oi_empresa,
+liq07.oi_personal_emp INNER per02.oi_personal_emp,
+PER02.OI_PERSONAL INNER PER01.OI_PERSONAL,
+L01.oi_tipo_personal INNER per02.oi_tipo_personal,
+L01.oi_tipo_liq INNER LIQ19.oi_tipo_liq
+WHERE
+PER02.OI_PERSONAL_EMP not in (SELECT liq25.oi_personal_emp 
+FROM liq25_personal_liq AS LIQ25
+WHERE liq25.oi_liquidacion = {%= #FILTRO:helper-mess/@ID %})
+AND 
+liq19.OI_LIQUIDACION = {%= #FILTRO:helper-mess/@ID %} 
+and
+per02.oi_indic_activo = 1  
+and 
+liq19.c_clase = \'M\'
+and
+L01.oi_tipo_personal in (1,4,8,3) 
+and  
+LIQ19.oi_tipo_liq = 1
+AND 
+{%? 
+	(string(#FILTRO:helper-mess/rows/row/@oi_personal_emp)!='') 
+	{%  
+		PER02.OI_PERSONAL_EMP in ({%=string(#FILTRO:helper-mess/rows/row/@oi_PERSONAL_EMP) %}) 
+	%} 
+	{% 
+		1 = 2 
+	%} 
+%}
+order by E_NUMERO_LEGAJO ASC
+')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:element name="ROW">
+						<qry:attribute name="id" value="$r/@IDD" type="Nomad.NSystem.Int"/>
+						<qry:attribute name="value" value="$r/@IDD" type="Nomad.NSystem.Int"/>
+						<qry:attribute name="code" value="$r/@E_NUMERO_LEGAJO" type="Nomad.NSystem.String"/>
+						<qry:attribute name="text" value="$r/@D_APE_Y_NOM" type="Nomad.NSystem.String"/>
+						<qry:attribute name="codEmpresa" value="$r/@c_empresa" type="Nomad.NSystem.String"/>
+						<qry:attribute name="dscEmpresa" value="$r/@D_empresa" type="Nomad.NSystem.String"/>
+						<qry:attribute name="check" value="1" type="Nomad.NSystem.Boolean"/>
+					</qry:element>
+				</qry:out>
+			</qry:select>
+			<qry:select name="NOINHABMEN" doc="SOURCE">
+				<qry:xquery>
+					for $r in sql('
+select 
+PER02.OI_PERSONAL_EMP AS IDD, 
+PER02.E_NUMERO_LEGAJO, 
+PER01.D_APE_Y_NOM, 
+ORG03.c_empresa, 
+ORG03.d_empresa 
+from 
+PER02_PERSONAL_EMP AS PER02, 
+org03_empresas AS ORG03, 
+PER01_PERSONAL AS PER01, 
+liq19_liquidacion AS LIQ19, 
+liq07_personal AS LIQ07,
+LIQ01_TLIQ_TPER as L01 
+JOIN 
+PER02.oi_empresa INNER org03.oi_empresa,
+liq19.oi_empresa INNER org03.oi_empresa,
+liq07.oi_personal_emp INNER per02.oi_personal_emp,
+PER02.OI_PERSONAL INNER PER01.OI_PERSONAL,
+L01.oi_tipo_personal INNER per02.oi_tipo_personal,
+L01.oi_tipo_liq INNER LIQ19.oi_tipo_liq
+WHERE
+PER02.OI_PERSONAL_EMP not in (SELECT liq25.oi_personal_emp 
+FROM liq25_personal_liq AS LIQ25
+WHERE liq25.oi_liquidacion = {%= #FILTRO:helper-mess/@ID %})
+AND 
+liq19.OI_LIQUIDACION = {%= #FILTRO:helper-mess/@ID %} 
+and
+per02.oi_indic_activo = 1  
+and 
+liq19.c_clase = \'M\'
+and
+L01.oi_tipo_personal in (1,4,8,3) 
+and  
+LIQ19.oi_tipo_liq = 1      
+AND 
+{%? 
+	(string(#FILTRO:helper-mess/rows/row/@oi_personal_emp)!='') 
+	{%  
+		PER02.OI_PERSONAL_EMP not in ({%=string(#FILTRO:helper-mess/rows/row/@oi_PERSONAL_EMP) %}) 
+	%} 
+	{% 
+		1 = 1 
+	%} 
+%}
+order by E_NUMERO_LEGAJO ASC
+')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:element name="ROW">
+						<qry:attribute name="id" value="$r/@IDD" type="Nomad.NSystem.Int"/>
+						<qry:attribute name="value" value="$r/@IDD" type="Nomad.NSystem.Int"/>
+						<qry:attribute name="code" value="$r/@E_NUMERO_LEGAJO" type="Nomad.NSystem.String"/>
+						<qry:attribute name="text" value="$r/@D_APE_Y_NOM" type="Nomad.NSystem.String"/>
+						<qry:attribute name="codEmpresa" value="$r/@c_empresa" type="Nomad.NSystem.String"/>
+						<qry:attribute name="dscEmpresa" value="$r/@D_empresa" type="Nomad.NSystem.String"/>
+						<qry:attribute name="check" value="0" type="Nomad.NSystem.Boolean"/>
+					</qry:element>
+				</qry:out>
+			</qry:select>
+			<qry:select name="INHABQUIN" doc="SOURCE">
+				<qry:xquery>
+					for $r in sql('
+select 
+PER02.OI_PERSONAL_EMP AS IDD, 
+PER02.E_NUMERO_LEGAJO, 
+PER01.D_APE_Y_NOM, 
+ORG03.c_empresa, 
+ORG03.d_empresa 
+from 
+PER02_PERSONAL_EMP AS PER02, 
+org03_empresas AS ORG03, 
+PER01_PERSONAL AS PER01, 
+liq19_liquidacion AS LIQ19, 
+liq07_personal AS LIQ07,
+LIQ01_TLIQ_TPER as L01 
+JOIN 
+PER02.oi_empresa INNER org03.oi_empresa,
+liq19.oi_empresa INNER org03.oi_empresa,
+liq07.oi_personal_emp INNER per02.oi_personal_emp,
+PER02.OI_PERSONAL INNER PER01.OI_PERSONAL,
+L01.oi_tipo_personal INNER per02.oi_tipo_personal,
+L01.oi_tipo_liq INNER LIQ19.oi_tipo_liq
+WHERE
+PER02.OI_PERSONAL_EMP not in (SELECT liq25.oi_personal_emp 
+FROM liq25_personal_liq AS LIQ25
+WHERE liq25.oi_liquidacion = {%= #FILTRO:helper-mess/@ID %})
+AND 
+liq19.OI_LIQUIDACION = {%= #FILTRO:helper-mess/@ID %} 
+and
+per02.oi_indic_activo = 1  
+and 
+liq19.c_clase = \'Q\'
+and
+L01.oi_tipo_personal in (2,5) 
+and  
+LIQ19.oi_tipo_liq = 1
+AND 
+{%? 
+	(string(#FILTRO:helper-mess/rows/row/@oi_personal_emp)!='') 
+	{%  
+		PER02.OI_PERSONAL_EMP in ({%=string(#FILTRO:helper-mess/rows/row/@oi_PERSONAL_EMP) %}) 
+	%} 
+	{% 
+		1 = 2 
+	%} 
+%}
+order by E_NUMERO_LEGAJO ASC
+')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:element name="ROW">
+						<qry:attribute name="id" value="$r/@IDD" type="Nomad.NSystem.Int"/>
+						<qry:attribute name="value" value="$r/@IDD" type="Nomad.NSystem.Int"/>
+						<qry:attribute name="code" value="$r/@E_NUMERO_LEGAJO" type="Nomad.NSystem.String"/>
+						<qry:attribute name="text" value="$r/@D_APE_Y_NOM" type="Nomad.NSystem.String"/>
+						<qry:attribute name="codEmpresa" value="$r/@c_empresa" type="Nomad.NSystem.String"/>
+						<qry:attribute name="dscEmpresa" value="$r/@D_empresa" type="Nomad.NSystem.String"/>
+						<qry:attribute name="check" value="1" type="Nomad.NSystem.Boolean"/>
+					</qry:element>
+				</qry:out>
+			</qry:select>
+			<qry:select name="NOINHABQUIN" doc="SOURCE">
+				<qry:xquery>
+					for $r in sql('
+select 
+PER02.OI_PERSONAL_EMP AS IDD, 
+PER02.E_NUMERO_LEGAJO, 
+PER01.D_APE_Y_NOM, 
+ORG03.c_empresa, 
+ORG03.d_empresa 
+from 
+PER02_PERSONAL_EMP AS PER02, 
+org03_empresas AS ORG03, 
+PER01_PERSONAL AS PER01, 
+liq19_liquidacion AS LIQ19, 
+liq07_personal AS LIQ07,
+LIQ01_TLIQ_TPER as L01 
+JOIN 
+PER02.oi_empresa INNER org03.oi_empresa,
+liq19.oi_empresa INNER org03.oi_empresa,
+liq07.oi_personal_emp INNER per02.oi_personal_emp,
+PER02.OI_PERSONAL INNER PER01.OI_PERSONAL,
+L01.oi_tipo_personal INNER per02.oi_tipo_personal,
+L01.oi_tipo_liq INNER LIQ19.oi_tipo_liq
+WHERE
+PER02.OI_PERSONAL_EMP not in (SELECT liq25.oi_personal_emp 
+FROM liq25_personal_liq AS LIQ25
+WHERE liq25.oi_liquidacion = {%= #FILTRO:helper-mess/@ID %})
+AND 
+liq19.OI_LIQUIDACION = {%= #FILTRO:helper-mess/@ID %} 
+and
+per02.oi_indic_activo = 1  
+and 
+liq19.c_clase = \'Q\'
+and
+L01.oi_tipo_personal in (2,5) 
+and  
+LIQ19.oi_tipo_liq = 1      
+AND 
+{%? 
+	(string(#FILTRO:helper-mess/rows/row/@oi_personal_emp)!='') 
+	{%  
+		PER02.OI_PERSONAL_EMP not in ({%=string(#FILTRO:helper-mess/rows/row/@oi_PERSONAL_EMP) %}) 
+	%} 
+	{% 
+		1 = 1 
+	%} 
+%}
+order by E_NUMERO_LEGAJO ASC
+')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:element name="ROW">
+						<qry:attribute name="id" value="$r/@IDD" type="Nomad.NSystem.Int"/>
+						<qry:attribute name="value" value="$r/@IDD" type="Nomad.NSystem.Int"/>
+						<qry:attribute name="code" value="$r/@E_NUMERO_LEGAJO" type="Nomad.NSystem.String"/>
+						<qry:attribute name="text" value="$r/@D_APE_Y_NOM" type="Nomad.NSystem.String"/>
+						<qry:attribute name="codEmpresa" value="$r/@c_empresa" type="Nomad.NSystem.String"/>
+						<qry:attribute name="dscEmpresa" value="$r/@D_empresa" type="Nomad.NSystem.String"/>
+						<qry:attribute name="check" value="0" type="Nomad.NSystem.Boolean"/>
+					</qry:element>
+				</qry:out>
+			</qry:select>
+		</qry:define>
+		<qry:define name="PRUEBA">
+			<qry:main doc="SOURCE">
+				<qry:element name="helper-mess">
+					<qry:attribute name="ID" value="#SOURCE:DATOS/@ID" type="Nomad.NSystem.Int"/>
+					<qry:element name="rows">
+						<qry:insert-select doc-path="#SOURCE:" name="RS1"/>
+					</qry:element>
+				</qry:element>
+			</qry:main>
+			<qry:select name="RS1" doc="SOURCE">
+				<qry:xquery>
+					for $r in #SOURCE:DATOS/ROWS/ROW[@check=1]
+				</qry:xquery>
+				<qry:out>
+					<qry:element name="row">
+						<qry:attribute name="oi_personal_emp" value="$r/@id" type="Nomad.NSystem.Int"/>
+					</qry:element>
+				</qry:out>
+			</qry:select>
+		</qry:define>
+	</flow:declare>
+	<flow:form name="ini" form-class="NucleusRH.Base.Liquidacion.Liquidacion.Inicializar.LegajoLiq.LM.guia.form" mode="SHOW" doc="SOURCE" parent-doc="INVAL">
+		<flow:action name="on-show"/>
+		<flow:action name="ACCEPT">
+			<doc:load-qry qry="PRUEBA" input-doc-path="#SOURCE:" output-doc="OUT"/>
+			<flow:exit-flow return-path="#OUT:"/>
+		</flow:action>
+		<flow:action name="CANCEL">
+			<flow:exit-flow return-path="#INVAL:"/>
+		</flow:action>
+	</flow:form>
+</flow:flow>

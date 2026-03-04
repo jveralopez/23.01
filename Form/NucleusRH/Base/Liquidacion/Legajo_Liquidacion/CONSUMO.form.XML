@@ -1,0 +1,207 @@
+<form:Form xmlns:form="nomad_engine.form" xmlns:qry="nomad_engine.qry" name="NucleusRH.Base.Liquidacion.Legajo_Liquidacion.CONSUMO.form" extends="NucleusRH.Base.Liquidacion.Legajo_Liquidacion.CONSUMO.autoform" mess="&#191;Est&#225; seguro que desa cancelar la operaci&#243;n?" doc="source">
+	<form:Help>
+		<form:Help-title text="Consumos" name="TITLE"/>
+		<form:Help-descr name="DESCR"/>
+		<form:Help-note name="NOTE"/>
+	</form:Help>
+	<form:Scripts>
+		function LOAD()
+{          
+	  
+	if(Ctrl('main').GetMode() == 'NEW')
+	{
+		Ctrl('c_estado').SetXValue("A");		
+		BuscarUltimoNumeroComprobante();
+	}  
+	       
+	if(Ctrl('main').GetMode() == 'EDIT' &amp;&amp; Ctrl('c_estado').GetXValue() == "P")
+	{
+		CtrlEnabled('c_consumo_per',false);
+		CtrlEnabled('f_consumo',false);
+		CtrlEnabled('c_estado',false);
+		CtrlEnabled('oi_consumo',false);
+		CtrlEnabled('e_importe',false);   
+		CtrlEnabled('d_observaciones',false);		
+	}    
+	
+	if(Ctrl('main').GetMode() == 'LIST_EDIT' &amp;&amp; Ctrl('LIST').GetSelectAttrValue("c_estado") == "P")
+	{
+		CtrlEnabled("DELETE",false);
+	}   
+	
+	if(Ctrl('main').GetMode() == 'LIST' || Ctrl('main').GetMode() == 'LIST_EDIT')
+	{
+		Ctrl('con').SetXValue(Ctrl('consumos').GetXValue()); 
+		
+	}
+}                                 
+
+function BuscarUltimoNumeroComprobante()
+{       
+
+	var np = new NomadProxy("", ut);
+	var nSQL = np.SQLService();
+    var xmlSalida = nSQL.GetXML(Ctrl("main").getResource("qry_nro"), "");
+	var c_memoria = parseInt(Ctrl('con').GetXValue()) + 1;
+	var c_bd = parseInt(xmlSalida.GetAttr('nro'));
+    var c_final;
+    if(c_memoria &gt; c_bd)
+    	c_final = c_memoria;
+    else
+    	c_final = c_bd;
+	Ctrl('c_consumo_per').SetXValue(c_final.toString()); 
+	
+
+}      
+
+function ListClick()
+{ 
+	var img,t;
+	
+	if (Ctrl("LIST"))
+	{           
+		if (Ctrl("LIST").RowsCount()==0)
+		{
+			CtrlEnabled("EDIT"  ,false);
+			CtrlEnabled("DELETE",false);
+		} else
+		{
+			img=Ctrl("LIST").GetSelectAttrValue("img").toUpperCase().split("/");
+			img=img[img.length-1].split(".")[0];
+			
+			switch(img)
+			{
+				case "LOCK":
+					CtrlEnabled("EDIT"  ,false);
+					CtrlEnabled("DELETE",false);
+				break;
+				case "LOCKDEL":
+					CtrlEnabled("EDIT"  ,true );
+					CtrlEnabled("DELETE",false);
+				break;
+				case "LOCKEDIT":
+					CtrlEnabled("EDIT"  ,false);
+					CtrlEnabled("DELETE",true );
+				break;
+				default:
+					CtrlEnabled("EDIT"  ,true);
+					CtrlEnabled("DELETE",true);
+				break;
+			}
+		}
+	}
+	
+	if ((Ctrl("LockREG")) &amp;&amp; (Ctrl("HiLockREG"))) 
+	{                  
+		
+		Ctrl("LockREG").SetXValue(Ctrl("HiLockREG").GetXValue());
+		CtrlEnabled("EDIT"  ,Ctrl("LockREG").GetXValue()!="1");
+		CtrlEnabled("DELETE",Ctrl("LockREG").GetXValue()!="1");  
+		      
+		for (t=0; t&lt;Ctrl("main_Center").m_Children.length; t++)
+			if (Ctrl("main_Center").m_Children[t].m_ID.substr(0,12)=="main_columns")
+				Ctrl("main_Center").m_Children[t].SetEnabled(Ctrl("LockREG").GetXValue()!="1");
+	}     
+	          
+	if(Ctrl('main').GetMode() == 'LIST_EDIT')
+	{
+		if(Ctrl('LIST').GetSelectAttrValue("c_estado") == "P")
+		{
+			CtrlEnabled("DELETE",false);
+		}
+	}          
+	
+}
+
+function ListDobleClick()
+{             
+	if (Ctrl("MOSTRAR")) 
+		Ctrl("MOSTRAR").DoEvent("OnClick");
+}           
+
+function CHANGE()
+{
+     BuscarOiTipoConsumo();
+}     
+
+
+function BuscarOiTipoConsumo()
+{            
+	var np = new NomadProxy("", ut);
+	var nSQL = np.SQLService();
+    var xmlSalida = nSQL.GetXML(Ctrl("main").getResource("qry_oi_consumo"), "&lt;FILTER oi_consumo='"+Ctrl('oi_consumo').GetXValue()+"'/&gt;");
+	Ctrl('oi_tipo_consumo').SetXValue(xmlSalida.GetAttr('oi_tipo_consumo'));
+}
+	</form:Scripts>
+	<form:Event action="LOAD" name="onload" runat="client"/>
+	<form:Resources>
+		<form:Resource name="qry_nro">
+			<qry:main doc="SOURCE" name="main">
+				<qry:element name="ROW">
+					<qry:insert-select name="sql1" doc-path="#SOURCE:."/>
+				</qry:element>
+			</qry:main>
+			<qry:select doc="SOURCE" name="sql1">
+				<qry:xquery>
+					for $r in SQL('
+			
+			SELECT max(STRING2NUMBER(LIQ07_CONSUMO_PER.c_consumo_per))  as maximo
+			FROM 
+			LIQ07_CONSUMO_PER
+			
+			')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:attribute name="nro" value="number($r/@maximo) + 1 "/>
+				</qry:out>
+			</qry:select>
+		</form:Resource>
+		<form:Resource declare="&lt;FILTER oi_consumo='1'/&gt;" name="qry_oi_consumo">
+			<qry:main doc="SOURCE" name="main">
+				<qry:element name="ROW">
+					<qry:insert-select name="sql1" doc-path="#SOURCE:."/>
+				</qry:element>
+			</qry:main>
+			<qry:select doc="SOURCE" name="sql1">
+				<qry:xquery>
+					for $r in SQL('	
+			SELECT 
+			C.oi_tipo_consumo
+			FROM 
+			LIQ08_CONSUMOS as C
+			WHERE
+			C.oi_consumo = {#SOURCE:@oi_consumo}
+			
+			')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:attribute name="oi_tipo_consumo" value="$r/@oi_tipo_consumo"/>
+				</qry:out>
+			</qry:select>
+		</form:Resource>
+	</form:Resources>
+	<form:Center width="95%">
+		<form:Columns visible="SHOW|EDIT|DELETE|NEW" name="main_columnsCONSUMO">
+			<form:Column name="main_columnsCONSUMOcolumn1">
+				<form:ComboBox queryname1="NucleusRH.Base.Liquidacion.Consumos.CONSUMO.INFO" xsize="40" mode="QRY" required="1" label="Consumo" nvalue="#source:oi_consumo/@value" name="oi_consumo">
+					<form:Event action="CHANGE" name="onchange" runat="client"/>
+				</form:ComboBox>
+				<form:ComboBox enabled="0" label="Tipo Consumo" queryname1="NucleusRH.Base.Liquidacion.Tipo_Consumo.TIPO_CONSUMO.INFO" name="oi_tipo_consumo" nvalue="#source:oi_tipo_consumo/@value" xsize="40" mode="QRY" required="1"/>
+			</form:Column>
+		</form:Columns>
+		<form:ListView visible="LIST|LIST_EDIT" paging="1" rows="-250" docname="RS" name="LIST">
+			<form:Event action="ListClick" name="OnClick" runat="client"/>
+			<form:Event runat="client" action="ListDobleClick" name="OnDblClick"/>
+			<form:LVColumns>
+				<form:LVColumn additional="###,###,##0" align="right" sorteable="1" width="50px" type="number" label="N&#250;mero de Comprobante" attrname="c_consumo_per" name="c_consumo_per"/>
+				<form:LVColumn align="left" sorteable="1" width="40px" type="string" label="Consumo" attrname="oi_consumo" name="oi_consumo"/>
+				<form:LVColumn type="string" additional="&lt;combo action=&quot;COMBO&quot; flow=&quot;NucleusRH.Base.Liquidacion.Tipo_Consumo.TIPO_CONSUMO.Combo.autoflow&quot; /&gt;" align="left" sorteable="1" width="50px" label="Tipo de Consumo" attrname="oi_tipo_consumo" name="oi_tipo_consumo"/>
+				<form:LVColumn additional="dd/mm/yyyy" align="center" sorteable="1" width="50px" type="datetime" label="Fecha de Consumo" attrname="f_consumo" name="f_consumo"/>
+				<form:LVColumn additional="###,###,##0.00" align="right" sorteable="1" width="50px" type="number" label="Importe" attrname="e_importe" name="e_importe"/>
+				<form:LVColumn additional="&lt;OPTS&gt;&lt;OPT value=&quot;A&quot; text=&quot;Abierto&quot; /&gt;&lt;OPT value=&quot;P&quot; text=&quot;Procesado&quot; /&gt;&lt;/OPTS&gt;" align="left" sorteable="1" width="50px" type="enum" label="Estado" attrname="c_estado" name="c_estado"/>
+			</form:LVColumns>
+		</form:ListView>
+		<form:Hidden nvalue="#QRY_LIST:ROW[not(../ROW/@c_consumo_per &gt; @c_consumo_per)]/@c_consumo_per" name="consumos"/>
+		<form:Hidden nvalue="#FILTERDATA:@con" name="con"/>
+	</form:Center>
+</form:Form>

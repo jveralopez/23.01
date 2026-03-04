@@ -1,0 +1,286 @@
+<form:Form xmlns:form="nomad_engine.form" xmlns:qry="nomad_engine.qry" mess="&#191;Est&#225; seguro que desa cancelar la operaci&#243;n?" doc="source" name="NucleusRH.Base.Organizacion.Calendario_Feriados.DIA_FERIADO">
+	<form:Center width="95%">
+		<form:HiddenArr proto="NucleusRH.Base.Organizacion.Calendario_Feriados.DIA_FERIADO" name="DAYS">
+			<form:Attr name="fecha"/>
+			<form:Attr name="color"/>
+		</form:HiddenArr>
+		<form:Grid idvalue="#source:@id" visible="0" allowdel="0" allownew="0" paging="1" rows="8" nvalue="#source:" name="MAIN_GRID" doc="source">
+			<form:GColumns/>
+		</form:Grid>
+		<form:RowAligner name="ANN">
+			<form:Row name="R0">
+				<form:SButton img="PREV" descrip="Ir al A&#241;o Anterior" label="Previo" name="PREV">
+					<form:Event action="PrevYear" name="OnClick" runat="client"/>
+				</form:SButton>
+				<form:NumberBox precision="0" max="2099" min="1900" xsize="4" length="4" name="anno">
+					<form:Event action="OnChangeAnno" name="onChange" runat="client"/>
+				</form:NumberBox>
+				<form:SButton img="NEXT" label="Proximo" descrip="Ir al A&#241;o Proximo" name="NEXT">
+					<form:Event action="NextYear" name="OnClick" runat="client"/>
+				</form:SButton>
+			</form:Row>
+		</form:RowAligner>
+		<form:Blank name="bl1"/>
+		<form:RowAligner name="CALENDARIOS">
+			<form:Row name="R1">
+				<form:Calendar arr-control="DAYS" color-default="A00000" show-mode="MONTH" change-value="0" name="CAL_ENE"/>
+				<form:Calendar arr-control="DAYS" color-default="A00000" show-mode="MONTH" change-value="0" name="CAL_FEB"/>
+				<form:Calendar arr-control="DAYS" color-default="A00000" show-mode="MONTH" change-value="0" name="CAL_MAR"/>
+				<form:Calendar arr-control="DAYS" color-default="A00000" show-mode="MONTH" change-value="0" name="CAL_ABR"/>
+			</form:Row>
+			<form:Row name="R2">
+				<form:Calendar arr-control="DAYS" color-default="A00000" show-mode="MONTH" change-value="0" name="CAL_MAY"/>
+				<form:Calendar arr-control="DAYS" color-default="A00000" show-mode="MONTH" change-value="0" name="CAL_JUN"/>
+				<form:Calendar arr-control="DAYS" color-default="A00000" show-mode="MONTH" change-value="0" name="CAL_JUL"/>
+				<form:Calendar arr-control="DAYS" color-default="A00000" show-mode="MONTH" change-value="0" name="CAL_AGO"/>
+			</form:Row>
+			<form:Row name="R3">
+				<form:Calendar arr-control="DAYS" color-default="A00000" show-mode="MONTH" change-value="0" name="CAL_SEP"/>
+				<form:Calendar arr-control="DAYS" color-default="A00000" show-mode="MONTH" change-value="0" name="CAL_OCT"/>
+				<form:Calendar arr-control="DAYS" color-default="A00000" show-mode="MONTH" change-value="0" name="CAL_NOV"/>
+				<form:Calendar arr-control="DAYS" color-default="A00000" show-mode="MONTH" change-value="0" name="CAL_DIC"/>
+			</form:Row>
+		</form:RowAligner>
+		<form:Columns name="REF">
+			<form:Column align="left" name="R4">
+				<form:Container rheight="20" rwidth="40" borderwidth="0" name="cont">
+					<form:HTMLPaste name="ref" style="S1">
+						<table class="S2" height="30px">
+							<tr>
+								<td colspan="2" style="color:#0073AB;font-weight:bold">
+									Referencias:
+								</td>
+							</tr>
+							<tr>
+								<td width="20px" style="background-color:#FF0000;"/>
+								<td>
+									Licencias
+								</td>
+							</tr>
+							<tr>
+								<td width="20px" style="background-color:#FF7700;"/>
+								<td>
+									Ausencias injustificadas en periodos cerrados
+								</td>
+							</tr>
+							<tr>
+								<td width="20px" style="background-color:#E0CD00;"/>
+								<td>
+									Ausencias injustificadas en periodos sin cerrar
+								</td>
+							</tr>
+						</table>
+					</form:HTMLPaste>
+				</form:Container>
+			</form:Column>
+			<form:Column name="tre" width="400px" separation="2" align="center" valign="top"/>
+		</form:Columns>
+		<form:Hidden nvalue="#source:@oi_personal_emp" name="oi_personal_emp"/>
+	</form:Center>
+	<form:Bottom>
+		<form:RowAligner name="buttonlinks">
+			<form:Row name="row1">
+				<form:Button img="back" descrip="Volver a la pantalla anterior" name="BACK" label="Volver">
+					<form:Event action="BACK" name="onclick" runat="server"/>
+				</form:Button>
+			</form:Row>
+		</form:RowAligner>
+	</form:Bottom>
+	<form:Scripts>
+		function OnLoad()
+{                      
+	var day=new Date();   
+	Ctrl("anno").SetTypedValue(day.getFullYear());
+	
+	OnChangeAnno();	
+}                                  
+
+function SetData()
+{
+	    
+	var np, nSQL;
+	np = new NomadProxy("", ut);
+	nSQL = np.SQLService();
+	
+	//LICENCIAS 
+	
+	var resultlic = nSQL.Get(Ctrl("main").getResource("QRY_LICENCIAS"), "&lt;LEGAJO anno=\"" + Ctrl("anno").GetXValue() + "\" id=\"" + Ctrl("oi_personal_emp").GetXValue() + "\"/&gt;");		
+	var xmldoc_lic = new NomadXML(resultlic);	    
+ 
+	for(var doc = xmldoc_lic.FirstChild();doc != null;doc = doc.Next())	
+	{	
+		var f_ini = str2date(doc.GetAttr("f_inicio"));
+		var f_fin = str2date(doc.GetAttr("f_fin"));		
+	
+		for (var cday = f_ini;cday &lt;= f_fin; cday.setDate(cday.getDate()+1))
+		{		
+			var fecha = date2str(cday);									
+			var row = Ctrl("DAYS").AddRow()
+			row.SetAttr("id",fecha);
+			row.SetAttr("fecha",fecha);
+			row.SetAttr("color","FF0000");
+		}
+	}
+	//PROCESOS NO CERRADOS	
+	var resultnocer = nSQL.Get(Ctrl("main").getResource("QRY_NOCERRADO"), "&lt;LEGAJO anno=\"" + Ctrl("anno").GetXValue() + "\" id=\"" + Ctrl("oi_personal_emp").GetXValue() + "\"/&gt;");		
+	var xmldoc_nocer = new NomadXML(resultnocer);	    
+
+	for(var doc = xmldoc_nocer.FirstChild();doc != null;doc = doc.Next())
+	{
+		var fecha = doc.GetAttr("fecha");
+		var row = Ctrl("DAYS").AddRow()
+		row.SetAttr("id",fecha);
+		row.SetAttr("fecha",fecha);
+		row.SetAttr("color","E0CD00");
+	}
+	
+	//PROCESOS CERRADOS	
+	var resultcer = nSQL.Get(Ctrl("main").getResource("QRY_CERRADO"), "&lt;LEGAJO anno=\"" + Ctrl("anno").GetXValue() + "\" id=\"" + Ctrl("oi_personal_emp").GetXValue() + "\"/&gt;");		
+	var xmldoc_cer = new NomadXML(resultcer);	    
+
+	for(var doc = xmldoc_cer.FirstChild();doc != null;doc = doc.Next())
+	{
+		var fecha = doc.GetAttr("fecha");
+		var row = Ctrl("DAYS").AddRow()
+		row.SetAttr("id",fecha);
+		row.SetAttr("fecha",fecha);
+		row.SetAttr("color","FF7700");
+	}
+}
+
+
+function OnChangeAnno()
+{
+	SetData();
+	Ctrl("CAL_ENE").SetTypedValue(Ctrl("anno").TypedValue()*100+ 1);	
+	Ctrl("CAL_FEB").SetTypedValue(Ctrl("anno").TypedValue()*100+ 2);
+	Ctrl("CAL_MAR").SetTypedValue(Ctrl("anno").TypedValue()*100+ 3);
+	Ctrl("CAL_ABR").SetTypedValue(Ctrl("anno").TypedValue()*100+ 4);
+	
+	Ctrl("CAL_MAY").SetTypedValue(Ctrl("anno").TypedValue()*100+ 5);
+	Ctrl("CAL_JUN").SetTypedValue(Ctrl("anno").TypedValue()*100+ 6);
+	Ctrl("CAL_JUL").SetTypedValue(Ctrl("anno").TypedValue()*100+ 7);
+	Ctrl("CAL_AGO").SetTypedValue(Ctrl("anno").TypedValue()*100+ 8);
+	
+	Ctrl("CAL_SEP").SetTypedValue(Ctrl("anno").TypedValue()*100+ 9);
+	Ctrl("CAL_OCT").SetTypedValue(Ctrl("anno").TypedValue()*100+10);
+	Ctrl("CAL_NOV").SetTypedValue(Ctrl("anno").TypedValue()*100+11);
+	Ctrl("CAL_DIC").SetTypedValue(Ctrl("anno").TypedValue()*100+12);	
+}
+
+function PrevYear()
+{
+	Ctrl("anno").SetTypedValue(Ctrl("anno").TypedValue()-1);
+	OnChangeAnno();
+}
+
+function NextYear()
+{
+	Ctrl("anno").SetTypedValue(Ctrl("anno").TypedValue()+1);
+	OnChangeAnno();
+}
+	</form:Scripts>
+	<form:Event action="OnLoad" name="onLoad" runat="client"/>
+	<form:Title width="90%">
+		<form:RowAligner name="ralTitle">
+			<form:Row name="row1">
+				<form:Label label="203 - Ficha de Inasistencias" nowrap="1" align="center" style="S3 LCol_w" name="GEN_SHOW"/>
+				<form:Label dynamic="1" nvalue="#LEGAJO:@descr" nowrap="1" align="right" style="S3 LCol_w" name="ti_01"/>
+			</form:Row>
+		</form:RowAligner>
+	</form:Title>
+	<form:Resources>
+		<form:Resource declare="&lt;LEGAJO anno=&quot;2009&quot; id=&quot;11565&quot;/&gt;" name="QRY_LICENCIAS">
+			<qry:main doc="PARAM">
+				<qry:element name="DATA">
+					<qry:attribute name="id" value="#PARAM:LEGAJO/@id"/>
+					<qry:attribute name="desde" value="#PARAM:LEGAJO/@anno +'0101'"/>
+					<qry:attribute name="hasta" value="substring(String(Number(#PARAM:LEGAJO/@anno)+1),0,4) + '0101'"/>
+					<qry:insert-select doc-path="." name="sql1"/>
+				</qry:element>
+			</qry:main>
+			<qry:select doc="PARAM" name="sql1">
+				<qry:xquery>
+					for $r in sql('
+				SELECT PER02_LICEN_PER.f_inicio,
+				PER02_LICEN_PER.f_fin
+				FROM PER02_LICEN_PER
+				WHERE PER02_LICEN_PER.oi_personal_emp = {#PARAM:@id}
+				AND PER02_LICEN_PER.f_inicio &gt;= {Datetime(#PARAM:@desde)}
+				AND PER02_LICEN_PER.f_fin &lt; {Datetime(#PARAM:@hasta)}
+			')ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<ROW>
+						<qry:attribute name="f_inicio" value="$r/@f_inicio"/>
+						<qry:attribute name="f_fin" value="$r/@f_fin"/>
+					</ROW>
+				</qry:out>
+			</qry:select>
+		</form:Resource>
+		<form:Resource declare="&lt;LEGAJO anno=&quot;2008&quot; id=&quot;11565&quot;/&gt;" name="QRY_NOCERRADO">
+			<qry:main doc="PARAM">
+				<qry:element name="ROWS">
+					<qry:attribute name="id" value="#PARAM:LEGAJO/@id"/>
+					<qry:attribute name="desde" value="#PARAM:LEGAJO/@anno +'0101'"/>
+					<qry:attribute name="hasta" value="substring(String(Number(#PARAM:LEGAJO/@anno)+1),0,4) + '0101'"/>
+					<qry:insert-select doc-path="." name="sql1"/>
+				</qry:element>
+			</qry:main>
+			<qry:select doc="PARAM" name="sql1">
+				<qry:xquery>
+					for $r in sql('
+				SELECT TTA10_LIQUIDACJOR.f_fecjornada
+				FROM TTA10_LIQUIDACJOR, TTA10_LIQUIDACPERS,
+				TTA09_LIQUIDACION
+				JOIN TTA10_LIQUIDACJOR.oi_liquidacionpers INNER TTA10_LIQUIDACPERS.oi_liquidacionpers,
+				TTA10_LIQUIDACPERS.oi_liquidacion INNER TTA09_LIQUIDACION.oi_liquidacion
+				WHERE TTA09_LIQUIDACION.c_estado != \'cer\'
+				AND TTA10_LIQUIDACPERS.oi_personal_emp = {#PARAM:@id}
+				AND TTA10_LIQUIDACJOR.l_esperado = 1
+				AND TTA10_LIQUIDACJOR.l_presente = 0				
+				AND TTA10_LIQUIDACJOR.f_fecjornada &gt;= {Datetime(#PARAM:@desde)}
+				AND TTA10_LIQUIDACJOR.f_fecjornada &lt; {Datetime(#PARAM:@hasta)}
+			')ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<ROW>
+						<qry:attribute name="fecha" value="$r/@f_fecjornada"/>
+					</ROW>
+				</qry:out>
+			</qry:select>
+		</form:Resource>
+		<form:Resource declare="&lt;LEGAJO anno=&quot;2009&quot; id=&quot;11565&quot;/&gt;" name="QRY_CERRADO">
+			<qry:main doc="PARAM">
+				<qry:element name="ROWS">
+					<qry:attribute name="id" value="#PARAM:LEGAJO/@id"/>
+					<qry:attribute name="desde" value="#PARAM:LEGAJO/@anno +'0101'"/>
+					<qry:attribute name="hasta" value="substring(String(Number(#PARAM:LEGAJO/@anno)+1),0,4) + '0101'"/>
+					<qry:insert-select doc-path="." name="sql1"/>
+				</qry:element>
+			</qry:main>
+			<qry:select doc="PARAM" name="sql1">
+				<qry:xquery>
+					for $r in sql('
+				SELECT TTA10_LIQUIDACJOR.f_fecjornada
+				FROM TTA10_LIQUIDACJOR, TTA10_LIQUIDACPERS,
+				TTA09_LIQUIDACION
+				JOIN TTA10_LIQUIDACJOR.oi_liquidacionpers INNER TTA10_LIQUIDACPERS.oi_liquidacionpers,
+				TTA10_LIQUIDACPERS.oi_liquidacion INNER TTA09_LIQUIDACION.oi_liquidacion
+				WHERE TTA09_LIQUIDACION.c_estado = \'cer\'
+				AND TTA10_LIQUIDACPERS.oi_personal_emp = {#PARAM:@id}
+				AND TTA10_LIQUIDACJOR.l_esperado = 1
+				AND TTA10_LIQUIDACJOR.l_presente = 0				
+				AND TTA10_LIQUIDACJOR.f_fecjornada &gt;= {Datetime(#PARAM:@desde)}
+				AND TTA10_LIQUIDACJOR.f_fecjornada &lt; {Datetime(#PARAM:@hasta)}
+			')ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<ROW>
+						<qry:attribute name="fecha" value="$r/@f_fecjornada"/>
+					</ROW>
+				</qry:out>
+			</qry:select>
+		</form:Resource>
+	</form:Resources>
+</form:Form>

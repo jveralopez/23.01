@@ -1,0 +1,264 @@
+<html:html xmlns:html="nomad_engine.html" xmlns:qry="nomad_engine.qry" xmlns:xsl="http://www.w3.org/1999/XSL/Transform" extends="NucleusWF.Base.Ejecucion.BaseInicioWF.rpt" doc="source" name="NucleusWF.Base.Ejecucion.WF_Legajo.rpt">
+	<html:query declare="&lt;PARAMS oi_usuario_sistema=&quot;masosa&quot;/&gt;">
+		<qry:include name="NucleusRH.Base.Personal.Legajo.PERSONAL.QRY_INICIO_WFs"/>
+		<qry:main doc="SOURCE">
+			<qry:append-doc name="FILTER" doc-path="#SOURCE:PARAMS"/>
+			<qry:element name="REPORTE">
+				<qry:attribute name="workflow" value="#FILTER:@workflow"/>
+				<qry:element name="PERSONAS">
+					<qry:insert-select name="qry_DatosPersonales" doc-path="#SOURCE:PARAMS"/>
+				</qry:element>
+				<qry:element name="LEGAJOS">
+					<qry:attribute name="cant_leg" value="0"/>
+					<qry:insert-select name="qry_Legajos" doc-path=""/>
+				</qry:element>
+			</qry:element>
+		</qry:main>
+		<qry:select name="qry_Legajos" doc="PARAM">
+			<qry:xquery>
+				for $r in SQL('
+SELECT
+LEG.e_numero_legajo,
+EMP.dc_empresa,
+LEG.oi_personal_emp,
+EMP.oi_empresa,
+LEG.l_disponib_viajar,
+LEG.l_afiliado_sind,
+LEG.c_nro_interno,
+LEG.oi_ubicacion,
+UBI.d_ubicacion
+FROM
+PER01_PERSONAL as PER,
+PER02_PERSONAL_EMP as LEG,
+ORG03_EMPRESAS as EMP,
+ORG03_UBICACIONES as UBI
+JOIN
+PER.oi_personal INNER LEG.oi_personal,
+LEG.oi_empresa INNER EMP.oi_empresa,
+LEG.oi_ubicacion LEFT UBI.oi_ubicacion
+WHERE
+PER.oi_usuario_sistema = {#FILTER:@oi_usuario_sistema}			
+')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:attribute name="cant_leg" value="@cant_leg + 1"/>
+				<LEGAJO>
+					<qry:attribute name="n_leg" value="../@cant_leg"/>
+					<qry:attribute name="id_legajo" value="$r/@oi_personal_emp"/>
+					<qry:attribute name="nombre_empresa" value="'Empresa ' + $r/@dc_empresa"/>
+					<qry:attribute name="num_legajo" value="'Leg. ' + $r/@e_numero_legajo"/>
+					<qry:attribute name="empresa_legajo" value="@nombre_empresa + ' - ' + @num_legajo "/>
+					<qry:attribute name="id_empresa" value="$r/@oi_empresa"/>
+					<qry:attribute name="href" value="'#'+@id_empresa"/>
+					<qry:attribute name="id_input_radio" value="'legajo_'+@id_legajo"/>
+					<qry:attribute name="id_div_collapse" value="'heading_'+@id_legajo"/>
+					<qry:attribute name="select_id" value="'select_'+@id_legajo"/>
+					<qry:attribute name="ubicacion" value="iif($r/@oi_ubicacion = null,'-',$r/@d_ubicacion)"/>
+					<qry:attribute name="nro_interno" value="iif($r/@c_nro_interno = null,'-',$r/@c_nro_interno)"/>
+					<qry:attribute name="disp_viaje" value="iif($r/@l_disponib_viajar = 0,'No','S&#237;')"/>
+					<qry:attribute name="afi_sindicato" value="iif($r/@l_afiliado_sind = 0,'No','S&#237;')"/>
+				</LEGAJO>
+			</qry:out>
+		</qry:select>
+	</html:query>
+	<html:xslt>
+		<xsl:template match="LEGAJO">
+			<xsl:if test="@n_leg = 1">
+				<input type="hidden" id="oi_personal_emp">
+					<xsl:attribute name="value">
+						<xsl:value-of select="@id_legajo"/>
+					</xsl:attribute>
+				</input>
+				<input type="hidden" id="oi_empresa">
+					<xsl:attribute name="value">
+						<xsl:value-of select="@id_empresa"/>
+					</xsl:attribute>
+				</input>
+			</xsl:if>
+			<div class="panel panel-default">
+				<div class="panel-heading header-div-content pointer" role="button" data-toggle="collapse" data-parent="#accordionLeg" aria-expanded="true" aria-controls="collapseOne" onclick="BlanquearParam2(this.id)">
+					<xsl:attribute name="id">
+						<xsl:value-of select="@id_div_collapse"/>
+					</xsl:attribute>
+					<xsl:attribute name="name">
+						<xsl:value-of select="@id_empresa"/>
+					</xsl:attribute>
+					<xsl:attribute name="href">
+						<xsl:value-of select="@href"/>
+					</xsl:attribute>
+					<h4 class="panel-title">
+						<a>
+							<xsl:attribute name="name">
+								<xsl:value-of select="@id_input_radio"/>
+							</xsl:attribute>
+							<xsl:value-of select="@empresa_legajo"/>
+						</a>
+						<div class="radio-legajo">
+							<input name="legajo" type="radio">
+								<xsl:attribute name="id">
+									<xsl:value-of select="@id_input_radio"/>
+								</xsl:attribute>
+								<xsl:choose>
+									<xsl:when test="@n_leg = 1">
+										<xsl:attribute name="checked">
+											true
+										</xsl:attribute>
+									</xsl:when>
+									<xsl:otherwise>
+										<xsl:attribute name="disabled">
+											true
+										</xsl:attribute>
+									</xsl:otherwise>
+								</xsl:choose>
+							</input>
+						</div>
+					</h4>
+				</div>
+				<div role="tabpanel" aria-expanded="false">
+					<xsl:attribute name="id">
+						<xsl:value-of select="@id_empresa"/>
+					</xsl:attribute>
+					<xsl:attribute name="aria-labelledby">
+						<xsl:value-of select="@id_div_collapse"/>
+					</xsl:attribute>
+					<xsl:choose>
+						<xsl:when test="@n_leg = 1">
+							<xsl:attribute name="class">
+								panel-collapse collapse in
+							</xsl:attribute>
+						</xsl:when>
+						<xsl:otherwise>
+							<xsl:attribute name="class">
+								panel-collapse collapse
+							</xsl:attribute>
+						</xsl:otherwise>
+					</xsl:choose>
+					<div class="panel-body body-div-content">
+						<div class="col-md-6">
+							<form class="form-horizontal form-datos-legajo">
+								<div class="form-group">
+									<label class="control-label">
+										Ubicaci&#243;n:
+									</label>
+									<div>
+										<p class="form-control-static">
+											<xsl:value-of select="@ubicacion"/>
+										</p>
+									</div>
+								</div>
+								<div class="form-group">
+									<label class="control-label">
+										Nro. Interno:
+									</label>
+									<div>
+										<p class="form-control-static">
+											<xsl:value-of select="@nro_interno"/>
+										</p>
+									</div>
+								</div>
+							</form>
+						</div>
+						<div class="col-md-6">
+							<form class="form-horizontal form-datos-legajo">
+								<div class="form-group">
+									<label class="control-label">
+										Disponiblidad para viajar:
+									</label>
+									<div>
+										<p class="form-control-static">
+											<xsl:value-of select="@disp_viaje"/>
+										</p>
+									</div>
+								</div>
+								<div class="form-group">
+									<label class="control-label">
+										Afiliado al sindicato:
+									</label>
+									<div>
+										<p class="form-control-static">
+											<xsl:value-of select="@afi_sindicato"/>
+										</p>
+									</div>
+								</div>
+							</form>
+						</div>
+					</div>
+				</div>
+			</div>
+		</xsl:template>
+		<xsl:template name="BODY_CUSTOM">
+			<div class="row wfLegajo">
+				<div class="panel-group" id="accordionLeg" role="tablist" aria-multiselectable="false">
+					<xsl:apply-templates select="LEGAJOS/LEGAJO"/>
+				</div>
+			</div>
+		</xsl:template>
+		<xsl:template name="JAVASCRIPT_CUSTOM">
+			<script type="text/javascript">
+				function SetParam(param,valor){
+this.parent.SetParam(param,valor);
+}
+
+function BlanquearParam2(id){
+var legajo = id.substr(8);
+var oi_empresa = document.getElementById(id).getAttribute("name");
+console.log(legajo);
+console.log(oi_empresa);
+
+//Desabilito todos los radio y habilito solamente el que tengo seleccioanado
+$("input[type=radio]").prop("disabled", true);
+$("#legajo_"+legajo).prop("disabled", false);
+
+//Selecciono el radio del legajo.
+$("#legajo_"+legajo).prop("checked", true); 
+
+//Seteo el valor del legajo que iniciara el WF
+this.SetParam("oi_legajo",legajo);
+
+//Seteo el valor de la empresa del legajo
+this.SetParam("oi_empresa",oi_empresa);
+} 
+
+$(document).ready(function(){
+var oi_legajo = $("#oi_personal_emp").attr("value");
+SetParam("oi_legajo",oi_legajo);
+
+var oi_empresa = $("#oi_empresa").attr("value");
+SetParam("oi_empresa",oi_empresa);
+});
+			</script>
+		</xsl:template>
+		<xsl:template name="CSS_CUSTOM">
+			.wfLegajo{
+margin-top: 10px;
+}
+
+.radio-legajo{
+float:right!important;
+}      
+
+form.form-datos-legajo div label{
+margin-right: 7px;
+float: left;
+}
+
+form.form-datos-legajo div.form-group{
+margin-bottom: 0px;
+margin-left: 0px;
+}
+
+.form-horizontal.form-datos-legajo{
+margin-bottom: 0px;
+}
+
+.header-div-content{
+color: #fff!important;
+background-color: #337ab7!important;
+}
+
+.body-div-content{
+background-color: #F5F5F5;
+}
+		</xsl:template>
+	</html:xslt>
+</html:html>

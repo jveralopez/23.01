@@ -1,0 +1,278 @@
+<flow:flow xmlns:flow="nomad_engine.flow" xmlns:doc="nomad_engine.doc" xmlns:qry="nomad_engine.qry" default_action="initialize" name="NucleusRH.Base.PresupuestoLiquidacion.Liquidacion.LIQUIDACION" extends="Nomad.Base.flow">
+	<flow:info label="Flow para NucleusRH.Base.PresupuestoLiquidacion.Liquidacion.LIQUIDACION"/>
+	<flow:declare>
+		<doc:define name="DATA">
+			<DATA>
+				<LIQS/>
+				<LEGS/>
+				<ASIGS/>
+				<EGRS/>
+			</DATA>
+		</doc:define>
+		<doc:define name="RS"/>
+		<doc:define name="NOMINA"/>
+		<doc:define name="INGRESOS"/>
+		<qry:define declare="&lt;DATA oi_escenario=&quot;1&quot; oi_empresa=&quot;164&quot; oi_detalle_pres=&quot;5&quot; leg=&quot;23&quot; paso=&quot;4&quot;&gt;&#13;&#10;&#9;&lt;LIQS&gt;&#13;&#10;&#9;&#9;&lt;LIQ oi_liquidacion=&quot;47&quot;/&gt;&#13;&#10;&#9;&lt;/LIQS&gt;&#13;&#10;&#9;&lt;LEGS&gt; &#13;&#10;&#9;&#9;&lt;LEG id=&quot;23&quot; /&gt;&#13;&#10;&#9;&#9;&lt;LEG id=&quot;25&quot; /&gt;&#13;&#10;&#9;&#9;&lt;LEG id=&quot;3&quot; /&gt;&#13;&#10;&#9;&lt;/LEGS&gt;&#13;&#10;&#9;&lt;ASIGS/&gt;&#13;&#10;&#9;&lt;EGRS&gt; &#13;&#10;&#9;&#9;&lt;LEG id=&quot;1&quot; /&gt;&#13;&#10;&#9;&#9;&lt;LEG id=&quot;3&quot; /&gt;&#13;&#10;&#9;&lt;/EGRS&gt;&#13;&#10;&lt;/DATA&gt;" name="NOMINA">
+			<qry:main doc="SOURCE">
+				<qry:element name="ROWS">
+					<qry:append-doc name="PARAMIN" doc-path="#SOURCE:."/>
+					<qry:insert-select name="SQL5" doc-path="#SOURCE:."/>
+				</qry:element>
+			</qry:main>
+			<qry:select name="SQL4" doc="SOURCE">
+				<qry:out>
+					<qry:attribute value="''" name="hts:delete"/>
+				</qry:out>
+			</qry:select>
+			<qry:select name="SQL5" doc="SOURCE">
+				<qry:xquery>
+					for $r in SQL(' 
+SELECT          
+	LEG.e_numero_legajo as id,
+	LEG.d_legajo as des
+FROM
+	PRE05_LEGAJOS as LEG
+WHERE			     
+	LEG.oi_escenario={#PARAMIN:@oi_escenario} AND
+	isNull(LEG.f_egreso)
+')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:element name="option">
+						<qry:attribute name="value" value="$r/@id"/>
+						<qry:attribute name="text" value="$r/@des"/>
+						<qry:attribute value="'1'" name="hts:delete"/>
+						<qry:insert-select name="SQL4" doc-path="#PARAMIN:EGRS/LEG[@id=$r/@id]"/>
+					</qry:element>
+				</qry:out>
+			</qry:select>
+		</qry:define>
+		<qry:define declare="&lt;DATA oi_escenario=&quot;1&quot; oi_empresa=&quot;164&quot; oi_detalle_pres=&quot;5&quot; leg=&quot;23&quot; paso=&quot;4&quot;&gt;&#13;&#10;&#9;&lt;LIQS&gt;&#13;&#10;&#9;&#9;&lt;LIQ oi_liquidacion=&quot;47&quot;/&gt;&#13;&#10;&#9;&lt;/LIQS&gt;&#13;&#10;&#9;&lt;LEGS&gt; &#13;&#10;&#9;&#9;&lt;LEG id=&quot;23&quot; /&gt;&#13;&#10;&#9;&#9;&lt;LEG id=&quot;25&quot; /&gt;&#13;&#10;&#9;&#9;&lt;LEG id=&quot;3&quot; /&gt;&#13;&#10;&#9;&lt;/LEGS&gt;&#13;&#10;&#9;&lt;ASIGS&gt;&#13;&#10;&#9;&#9;&lt;ASIG id=&quot;23&quot; /&gt;&#13;&#10;&#9;&#9;&lt;ASIG id=&quot;25&quot; /&gt;&#13;&#10;&#9;&#9;&lt;ASIG id=&quot;3&quot; /&gt;&#13;&#10;&#9;&lt;/ASIGS&gt;&#13;&#10;&lt;/DATA&gt;" name="INGRESOS">
+			<qry:main doc="SOURCE">
+				<qry:element name="ROWS">
+					<qry:append-doc name="PARAMIN" doc-path="#SOURCE:."/>
+					<qry:insert-select name="SQL1" doc-path="#SOURCE:."/>
+				</qry:element>
+			</qry:main>
+			<qry:select name="SQL1" doc="SOURCE">
+				<qry:xquery>
+					for $r in SQL(' 
+SELECT 
+	LEG.e_numero_legajo as id,
+	LEG.d_ape_y_nom as des,
+	COUNT(REC.oi_tot_liq_per) as cnt
+FROM
+	LIQ19_EJECUCIONES as EJE, 
+	LIQ99_LIQUIDACION as LIQ,
+	LIQ99_RECIBOS as LIQREC,
+	LIQ20_TOT_LIQ_PER as REC,
+	LIQ97_PERSONAL_EMP as LEG
+JOIN
+	EJE.oi_liquidacion_ddo inner LIQ.oi_liquidacion_ddo,
+	LIQ.oi_liquidacion_ddo inner LIQREC.oi_liquidacion_ddo,
+	LIQREC.oi_tot_liq_per inner REC.oi_tot_liq_per,
+	REC.oi_per_emp_ddo inner LEG.oi_per_emp_ddo
+WHERE			     
+	EJE.oi_liquidacion in ({%=String(#SOURCE:LIQS/LIQ/@oi_liquidacion)%} ) AND
+	LIQ.c_estado=\'F\'       
+GROUP BY
+	LEG.e_numero_legajo, LEG.d_ape_y_nom
+ORDER BY
+	des ASC	
+			')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:element name="option">
+						<qry:attribute name="value" value="$r/@id"/>
+						<qry:attribute name="text" value="$r/@des"/>
+						<qry:attribute value="'1'" name="hts:delete"/>
+						<qry:insert-select name="SQL4" doc-path="#PARAMIN:ASIGS/ASIG[@id=$r/@id]"/>
+					</qry:element>
+				</qry:out>
+			</qry:select>
+			<qry:select name="SQL4" doc="SOURCE">
+				<qry:out>
+					<qry:attribute value="''" name="hts:delete"/>
+				</qry:out>
+			</qry:select>
+		</qry:define>
+		<qry:define name="EMPRESA" declare="&lt;DATA oi_escenario=&quot;9&quot; /&gt;">
+			<qry:main doc="SOURCE">
+				<qry:element name="ROW">
+					<qry:insert-select name="SQL1" doc-path="#SOURCE:."/>
+				</qry:element>
+			</qry:main>
+			<qry:select name="SQL1" doc="SOURCE">
+				<qry:out>
+					<qry:attribute value="$r/@oi_empresa" name="oi_empresa"/>
+				</qry:out>
+				<qry:xquery>
+					for $r in SQL(' 
+SELECT 
+	PRE12_PRESUPUESTO.oi_empresa
+FROM                      
+	PRE03_ESCENARIOS, 
+	PRE12_PRESUPUESTO
+JOIN
+	PRE03_ESCENARIOS.oi_presupuesto inner PRE12_PRESUPUESTO.oi_presupuesto
+WHERE			     
+	PRE03_ESCENARIOS.oi_escenario={#SOURCE:@oi_escenario}
+')/ROWS/ROW
+				</qry:xquery>
+			</qry:select>
+		</qry:define>
+		<doc:define name="EMPRESA"/>
+		<qry:define declare="&lt;DATA oi_escenario=&quot;102&quot; oi_empresa=&quot;1&quot; oi_detalle_pres=&quot;106&quot; paso=&quot;2&quot; leg=&quot;735&quot;&gt;&lt;LIQS&gt;&lt;LIQ oi_liquidacion=&quot;606&quot; /&gt;&lt;/LIQS&gt;&lt;LEGS nmd-col=&quot;1&quot;&gt;&lt;LEG id=&quot;735&quot; /&gt;&lt;LEG id=&quot;1050&quot; /&gt;&lt;LEG id=&quot;1949&quot; /&gt;&lt;/LEGS&gt;&lt;ASIGS /&gt;&lt;EGRS /&gt;&lt;/DATA&gt;" name="LEGAJOS">
+			<qry:include name="NucleusRH.Base.Presupuesto.LEGAJOS.query" mode="EXTERN"/>
+			<qry:main doc="SOURCE">
+				<qry:insert-select name="QRY_LEGAJOS_Presupuesto" doc-path="#SOURCE:."/>
+			</qry:main>
+		</qry:define>
+		<qry:define declare="&lt;DATA oi_escenario=&quot;102&quot; oi_empresa=&quot;1&quot; oi_detalle_pres=&quot;106&quot; paso=&quot;3&quot; leg=&quot;731&quot;&gt;&lt;LIQS&gt;&lt;LIQ oi_liquidacion=&quot;606&quot; /&gt;&lt;/LIQS&gt;&lt;LEGS nmd-col=&quot;1&quot;&gt;&lt;LEG id=&quot;1050&quot; /&gt;&lt;LEG id=&quot;731&quot; /&gt;&lt;LEG id=&quot;500160&quot; /&gt;&lt;/LEGS&gt;&lt;ASIGS nmd-col=&quot;1&quot;&gt;&lt;ASIG id=&quot;500160&quot; oi_grupo=&quot;1&quot; /&gt;&lt;ASIG id=&quot;731&quot; oi_grupo=&quot;1&quot; /&gt;&lt;/ASIGS&gt;&lt;EGRS /&gt;&lt;/DATA&gt;" name="LEGLIST">
+			<qry:include name="NucleusRH.Base.Presupuesto.LEGAJOS.query" mode="EXTERN"/>
+			<qry:include name="NucleusRH.Base.Presupuesto.PRESUPUESTO_LEGAJO.query" mode="EXTERN"/>
+			<qry:main doc="SOURCE">
+				<qry:element name="L">
+					<qry:insert-select name="QRY_LEGAJOS_Presupuesto" doc-path="#SOURCE:."/>
+					<qry:insert-select name="QRY_LEGAJOS" doc-path="#SOURCE:."/>
+				</qry:element>
+			</qry:main>
+		</qry:define>
+		<doc:define name="FILTROLEGAJOS"/>
+	</flow:declare>
+	<flow:main doc="SOURCE">
+		<flow:action name="initialize">
+			<doc:set-attribute from-attr-path="#SOURCE:@Modo" to-attr-path="#FILTERDATA:@Modo"/>
+			<doc:set-attribute from-attr-path="#SOURCE:@nivel" to-attr-path="#FILTERDATA:@nivel"/>
+			<doc:set-attribute from-attr-path="#SOURCE:@id" to-attr-path="#FILTERDATA:@id"/>
+			<doc:set-attribute from-attr-path="#SOURCE:@id_esce" to-attr-path="#FILTERDATA:@id_esce"/>
+			<doc:set-attribute from-attr-path="#SOURCE:@Modo_esce" to-attr-path="#FILTERDATA:@Modo_esce"/>
+			<doc:load-qry output-doc="EMPRESA" input-doc-path="#SOURCE:" qry="EMPRESA"/>
+			<doc:set-attribute from-attr-path="#SOURCE:@oi_escenario" to-attr-path="#DATA:@oi_escenario"/>
+			<doc:set-attribute from-attr-path="#EMPRESA:@oi_empresa" to-attr-path="#DATA:@oi_empresa"/>
+			<flow:open-form doc-path="#DATA:" mode="SHOW" form-class="NucleusRH.Base.PresupuestoLiquidacion.Liquidacion.LIQUIDACION.form"/>
+		</flow:action>
+		<flow:action name="novedades">
+			<doc:set-attribute from-attr-path="#SOURCE:@Modo" to-attr-path="#FILTERDATA:@Modo"/>
+			<doc:set-attribute from-attr-path="#SOURCE:@nivel" to-attr-path="#FILTERDATA:@nivel"/>
+			<doc:set-attribute from-attr-path="#SOURCE:@id" to-attr-path="#FILTERDATA:@id"/>
+			<doc:set-attribute from-attr-path="#SOURCE:@id_esce" to-attr-path="#FILTERDATA:@id_esce"/>
+			<doc:set-attribute from-attr-path="#SOURCE:@Modo_esce" to-attr-path="#FILTERDATA:@Modo_esce"/>
+			<doc:load-qry output-doc="EMPRESA" input-doc-path="#SOURCE:" qry="EMPRESA"/>
+			<doc:set-attribute from-attr-path="#SOURCE:@oi_escenario" to-attr-path="#DATA:@oi_escenario"/>
+			<doc:set-attribute from-attr-path="#EMPRESA:@oi_empresa" to-attr-path="#DATA:@oi_empresa"/>
+			<flow:open-form mode="NOVEDAD" doc-path="#DATA:" form-class="NucleusRH.Base.PresupuestoLiquidacion.Liquidacion.LIQUIDACION.form"/>
+		</flow:action>
+	</flow:main>
+	<flow:group name="LEGAJOS">
+		<flow:form form-class="NucleusRH.Base.PresupuestoLiquidacion.Liquidacion.LIQUIDACION.form" name="NucleusRH.Base.PresupuestoLiquidacion.Liquidacion.LIQUIDACION.form:SHOW" parent-doc="PARENTSOURCE" doc="SOURCE" mode="SHOW">
+			<flow:action name="NEXT">
+				<flow:log text="PASO 1:" text-path="#SOURCE:"/>
+				<flow:open-form mode="PASO2" doc-path="#SOURCE:" form-class="NucleusRH.Base.PresupuestoLiquidacion.Liquidacion.LEGAJOS.form"/>
+			</flow:action>
+			<flow:action name="CANCEL">
+				<flow:exit-flow next-action="initializeLegajo" next-flow="NucleusRH.Base.Presupuesto.Escenarios.flow" return-path="#FILTERDATA:"/>
+			</flow:action>
+		</flow:form>
+		<flow:form mode="SHOW" name="NucleusRH.Base.PresupuestoLiquidacion.Liquidacion.LEGAJOS.form:SHOW" form-class="NucleusRH.Base.PresupuestoLiquidacion.Liquidacion.LEGAJOS.form" parent-doc="PARENTSOURCE" doc="SOURCE">
+			<flow:action name="PREV">
+				<flow:close-form/>
+			</flow:action>
+			<flow:action name="NEXT">
+				<flow:log text="SHOW:" text-path="#SOURCE:"/>
+			</flow:action>
+			<flow:action name="CANCEL">
+				<flow:exit-flow next-action="initializeLegajo" next-flow="NucleusRH.Base.Presupuesto.Escenarios.flow" return-path="#FILTERDATA:"/>
+			</flow:action>
+			<flow:action name="on-show"/>
+			<flow:action name="ACCEPT">
+				<flow:log text="ACCEPT:" text-path="#SOURCE:"/>
+				<flow:exec-method class="NucleusRH.Base.PresupuestoLiquidacion.Conceptos.CONCEPTO" out-attr-path="#BATCHDOC:@batch-id" priority="8" method="Incorporar">
+					<flow:param type="Nomad.NSystem.Proxy.NomadXML" doc-path="#SOURCE:" mode="in" name="xmlParam"/>
+				</flow:exec-method>
+				<flow:open-form form-class="nomad.base.batchtolist.form" mode="BATCH" parent-doc-path="#SOURCE:" doc-path="#BATCHDOC:"/>
+			</flow:action>
+			<flow:action name="REFRESH">
+				<doc:load-qry output-doc="RS" input-doc-path="#SOURCE:" qry="LEGLIST"/>
+				<!--<flow:attach-doc doc-path="#RS:" attach-id="RS"/>-->
+			</flow:action>
+		</flow:form>
+		<flow:form extends="NucleusRH.Base.PresupuestoLiquidacion.Liquidacion.LEGAJOS.form:SHOW" mode="PASO2" name="NucleusRH.Base.PresupuestoLiquidacion.Liquidacion.LEGAJOS.form:PASO2" form-class="NucleusRH.Base.PresupuestoLiquidacion.Liquidacion.LEGAJOS.form" parent-doc="PARENTSOURCE" doc="SOURCE">
+			<flow:action name="NEXT">
+				<flow:log text="PASO 2:" text-path="#SOURCE:"/>
+				<flow:open-form mode="PASO3" doc-path="#SOURCE:" form-class="NucleusRH.Base.PresupuestoLiquidacion.Liquidacion.LEGAJOS.form"/>
+			</flow:action>
+			<flow:action name="on-show">
+				<doc:set-attribute from-value="2" to-attr-path="#DATA:@paso"/>
+				<doc:load-qry output-doc="FILTROLEGAJOS" input-doc-path="#SOURCE:" qry="LEGLIST"/>
+				<doc:assign-ref to-doc="RS" from-path="#FILTROLEGAJOS:ROWS2"/>
+				<flow:attach-doc doc-path="#RS:" attach-id="RS"/>
+			</flow:action>
+		</flow:form>
+		<flow:form extends="NucleusRH.Base.PresupuestoLiquidacion.Liquidacion.LEGAJOS.form:SHOW" mode="PASO3" name="NucleusRH.Base.PresupuestoLiquidacion.Liquidacion.LEGAJOS.form:PASO3" form-class="NucleusRH.Base.PresupuestoLiquidacion.Liquidacion.LEGAJOS.form" parent-doc="PARENTSOURCE" doc="SOURCE">
+			<flow:action name="NEXT">
+				<flow:log text="PASO 3:" text-path="#SOURCE:"/>
+				<flow:open-form mode="PASO4" doc-path="#SOURCE:" form-class="NucleusRH.Base.PresupuestoLiquidacion.Liquidacion.LEGAJOS.form"/>
+			</flow:action>
+			<flow:action name="on-show">
+				<doc:set-attribute from-value="3" to-attr-path="#DATA:@paso"/>
+				<doc:load-qry output-doc="FILTROLEGAJOS" input-doc-path="#SOURCE:" qry="LEGLIST"/>
+				<doc:assign-ref from-path="#FILTROLEGAJOS:ROWS2" to-doc="RS"/>
+				<flow:attach-doc doc-path="#RS:" attach-id="RS"/>
+			</flow:action>
+		</flow:form>
+		<flow:form extends="NucleusRH.Base.PresupuestoLiquidacion.Liquidacion.LEGAJOS.form:SHOW" mode="PASO4" name="NucleusRH.Base.PresupuestoLiquidacion.Liquidacion.LEGAJOS.form:PASO4" form-class="NucleusRH.Base.PresupuestoLiquidacion.Liquidacion.LEGAJOS.form" parent-doc="PARENTSOURCE" doc="SOURCE">
+			<flow:action name="NEXT">
+				<flow:log text="PASO 4:" text-path="#SOURCE:"/>
+				<flow:open-form mode="PASO5" doc-path="#SOURCE:" form-class="NucleusRH.Base.PresupuestoLiquidacion.Liquidacion.LEGAJOS.form"/>
+			</flow:action>
+			<flow:action name="on-show">
+				<doc:set-attribute from-value="4" to-attr-path="#DATA:@paso"/>
+				<doc:load-qry output-doc="FILTROLEGAJOS" input-doc-path="#SOURCE:" qry="LEGLIST"/>
+				<doc:assign-ref from-path="#FILTROLEGAJOS:ROWS2" to-doc="RS"/>
+				<flow:attach-doc doc-path="#RS:" attach-id="RS"/>
+			</flow:action>
+		</flow:form>
+		<flow:form extends="NucleusRH.Base.PresupuestoLiquidacion.Liquidacion.LEGAJOS.form:SHOW" mode="PASO5" name="NucleusRH.Base.PresupuestoLiquidacion.Liquidacion.LEGAJOS.form:PASO5" form-class="NucleusRH.Base.PresupuestoLiquidacion.Liquidacion.LEGAJOS.form" parent-doc="PARENTSOURCE" doc="SOURCE">
+			<flow:action name="on-show">
+				<doc:set-attribute from-value="5" to-attr-path="#DATA:@paso"/>
+				<doc:load-qry output-doc="NOMINA" input-doc-path="#SOURCE:" qry="NOMINA"/>
+				<doc:load-qry output-doc="INGRESOS" qry="INGRESOS" input-doc-path="#SOURCE:"/>
+				<flow:attach-doc doc-path="#NOMINA:" attach-id="NOMINA"/>
+				<flow:attach-doc doc-path="#INGRESOS:" attach-id="INGRESOS"/>
+			</flow:action>
+		</flow:form>
+		<flow:form extends="nomad.base.batchtolist.form:BATCH" mode="BATCH" name="nomad.base.batchtolist.form:XXXX" form-class="nomad.base.batchtolist.form" doc="SOURCE">
+			<flow:action name="EXIT">
+				<flow:exit-flow next-action="initializeLegajo" next-flow="NucleusRH.Base.Presupuesto.Escenarios.flow" return-path="#FILTERDATA:"/>
+			</flow:action>
+		</flow:form>
+	</flow:group>
+	<flow:group name="NOVEDADES">
+		<flow:form name="NucleusRH.Base.PresupuestoLiquidacion.Liquidacion.LIQUIDACION.form:NOVEDAD" mode="NOVEDAD" form-class="NucleusRH.Base.PresupuestoLiquidacion.Liquidacion.LIQUIDACION.form" parent-doc="PARENTSOURCE" doc="SOURCE">
+			<flow:action name="NEXT">
+				<flow:log text="PASO 1:" text-path="#SOURCE:"/>
+				<flow:open-form mode="PASO6" doc-path="#SOURCE:" form-class="NucleusRH.Base.PresupuestoLiquidacion.Liquidacion.LEGAJOS.form"/>
+			</flow:action>
+			<flow:action name="CANCEL">
+				<flow:exit-flow next-action="initializeLegajo" next-flow="NucleusRH.Base.Presupuesto.Escenarios.flow" return-path="#FILTERDATA:"/>
+			</flow:action>
+		</flow:form>
+		<flow:form mode="PASO6" name="NucleusRH.Base.PresupuestoLiquidacion.Liquidacion.LEGAJOS.form:PASO6" extends="NucleusRH.Base.PresupuestoLiquidacion.Liquidacion.LEGAJOS.form:SHOW" form-class="NucleusRH.Base.PresupuestoLiquidacion.Liquidacion.LEGAJOS.form" parent-doc="PARENTSOURCE" doc="SOURCE">
+			<flow:action name="on-show">
+				<doc:set-attribute from-value="6" to-attr-path="#DATA:@paso"/>
+				<doc:load-qry output-doc="FILTROLEGAJOS" input-doc-path="#SOURCE:" qry="LEGLIST"/>
+				<flow:log text="PRE ATT" text-path="#RS:"/>
+				<doc:assign-ref from-path="#FILTROLEGAJOS:ROWS2" to-doc="RS"/>
+				<flow:attach-doc doc-path="#RS:" attach-id="RS"/>
+			</flow:action>
+			<flow:action name="ACCEPT">
+				<flow:log text="ACCEPT:" text-path="#SOURCE:"/>
+				<flow:exec-method method="Incorporar" class="NucleusRH.Base.PresupuestoLiquidacion.Novedades.NOVEDAD" out-attr-path="#BATCHDOC:@batch-id" priority="8">
+					<flow:param type="Nomad.NSystem.Proxy.NomadXML" doc-path="#SOURCE:" mode="in" name="xmlParam"/>
+				</flow:exec-method>
+				<flow:open-form form-class="nomad.base.batchtolist.form" mode="BATCH" parent-doc-path="#SOURCE:" doc-path="#BATCHDOC:"/>
+			</flow:action>
+		</flow:form>
+	</flow:group>
+</flow:flow>

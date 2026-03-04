@@ -1,0 +1,121 @@
+<flow:flow name="NucleusRH.Base.Tiempos_Trabajados.Liquidacion.INICIALIZAR.guia.flow" extends="Nomad.simple.guia.flow" xmlns:doc="nomad_engine.form" xmlns:qry="nomad_engine.form" xmlns:flow="nomad_engine.form">
+	<flow:info label="Flow guia para NucleusRH.Base.Tiempos_Trabajados.Liquidacion.INICIALIZAR"/>
+	<flow:main doc="SOURCE"/>
+	<flow:declare>
+		<qry:define declare="&lt;helper-mess ID=&quot;221&quot;/&gt;" name="X2C">
+			<qry:main doc="SOURCE">
+				<qry:element name="ROW">
+					<qry:insert-select doc-path="#SOURCE:" name="RS1"/>
+				</qry:element>
+			</qry:main>
+			<qry:select doc="SOURCE" name="RS1">
+				<qry:xquery>
+					for $r in sql('
+				SELECT PER02_PERSONAL_EMP.oi_personal_emp AS ID,
+				PER02_PERSONAL_EMP.e_numero_legajo AS CODE,
+				PER01_PERSONAL.d_ape_y_nom AS TEXT 
+				FROM PER02_PERSONAL_EMP, PER01_PERSONAL 
+				JOIN PER02_PERSONAL_EMP.oi_personal INNER PER01_PERSONAL.oi_personal
+				WHERE PER02_PERSONAL_EMP.oi_personal_emp = {#SOURCE:helper-mess/@ID}
+			')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:attribute type="Nomad.NSystem.Int" value="$r/@ID" name="id"/>
+					<qry:attribute type="Nomad.NSystem.Int" value="$r/@ID" name="value"/>
+					<qry:attribute type="Nomad.NSystem.String" value="$r/@CODE" name="code"/>
+					<qry:attribute type="Nomad.NSystem.String" value="$r/@TEXT" name="text"/>
+				</qry:out>
+			</qry:select>
+		</qry:define>
+		<qry:define declare="&lt;helper-mess code=&quot;8&quot; oi_liquidacion=&quot;3&quot;/&gt;" name="C2X">
+			<qry:main doc="SOURCE">
+				<qry:append-doc doc-path="#SOURCE:helper-mess" name="INDOC"/>
+				<qry:element name="ROW">
+					<qry:insert-select doc-path="#SOURCE:" name="RS1"/>
+				</qry:element>
+			</qry:main>
+			<qry:select doc="SOURCE" name="RS1">
+				<qry:xquery>
+					for $r in sql('
+				SELECT PER02_PERSONAL_EMP.oi_personal_emp AS ID,
+				PER02_PERSONAL_EMP.e_numero_legajo AS CODE,
+				PER01_PERSONAL.d_ape_y_nom AS TEXT 
+				FROM PER02_PERSONAL_EMP, PER01_PERSONAL 
+				JOIN PER02_PERSONAL_EMP.oi_personal INNER PER01_PERSONAL.oi_personal
+				WHERE PER02_PERSONAL_EMP.e_numero_legajo={substring_before(#INDOC:@CODE,\'-\')}
+				AND PER02_PERSONAL_EMP.oi_empresa IN 
+					(SELECT TTA09_LIQUIDACION.oi_empresa 
+					FROM TTA09_LIQUIDACION
+					WHERE TTA09_LIQUIDACION.oi_liquidacion = {%= #SOURCE:helper-mess/@oi_liquidacion %})
+		 ')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:attribute type="Nomad.NSystem.String" value="''" name="SUB_SEARCH"/>
+					<qry:attribute type="Nomad.NSystem.String" value="''" name="PARENTID"/>
+					<qry:attribute type="Nomad.NSystem.Int" value="$r/@ID" name="id"/>
+					<qry:attribute type="Nomad.NSystem.Int" value="$r/@ID" name="value"/>
+					<qry:attribute type="Nomad.NSystem.String" value="$r/@CODE" name="code"/>
+					<qry:attribute type="Nomad.NSystem.String" value="$r/@TEXT" name="text"/>
+					<qry:insert-select doc-path="$r" name="SECURITY"/>
+				</qry:out>
+			</qry:select>
+			<qry:select doc="PARAM" name="SECURITY">
+				<qry:xquery>
+					for $r in sql('
+				SELECT NMD_SECURITY.policy 
+				FROM NMD_SECURITY 
+				WHERE NMD_SECURITY.class=\'NucleusRH.Base.Personal.LegajoEmpresa.PERSONAL_EMP\' 
+				AND NMD_SECURITY.id={#PARAM:@id}
+			')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:attribute value="$r/@policy" name="policy"/>
+				</qry:out>
+			</qry:select>
+		</qry:define>
+		<qry:define declare="&lt;helper-mess oi_liquidacion=&quot;3&quot;/&gt;" name="HELP">
+			<qry:main doc="SOURCE">
+				<qry:element name="ROWS">
+					<qry:insert-select name="RS1" doc-path="#SOURCE:"/>
+				</qry:element>
+			</qry:main>
+			<qry:select doc="SOURCE" name="RS1">
+				<qry:xquery>
+					for $r in sql('
+				SELECT PER02_PERSONAL_EMP.oi_personal_emp AS ID,
+				PER02_PERSONAL_EMP.e_numero_legajo AS CODE,
+				PER01_PERSONAL.d_ape_y_nom AS TEXT 
+				FROM PER02_PERSONAL_EMP, PER01_PERSONAL 
+				JOIN PER02_PERSONAL_EMP.oi_personal INNER PER01_PERSONAL.oi_personal				
+				WHERE PER02_PERSONAL_EMP.oi_empresa IN 
+					(SELECT TTA09_LIQUIDACION.oi_empresa 
+					FROM TTA09_LIQUIDACION
+					WHERE TTA09_LIQUIDACION.oi_liquidacion = {%= #SOURCE:helper-mess/@oi_liquidacion %})
+			')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:element name="ROW">
+						<qry:attribute type="Nomad.NSystem.Int" value="$r/@ID" name="id"/>
+						<qry:attribute type="Nomad.NSystem.Int" value="$r/@ID" name="value"/>
+						<qry:attribute type="Nomad.NSystem.String" value="$r/@CODE" name="code"/>
+						<qry:attribute type="Nomad.NSystem.String" value="$r/@TEXT" name="text"/>
+						<qry:insert-select doc-path="$r" name="SECURITY"/>
+					</qry:element>
+				</qry:out>
+			</qry:select>
+			<qry:select doc="PARAM" name="SECURITY">
+				<qry:xquery>
+					for $r in sql('
+				SELECT NMD_SECURITY.policy 
+				FROM NMD_SECURITY 
+				WHERE NMD_SECURITY.class=\'NucleusRH.Base.Personal.LegajoEmpresa.PERSONAL_EMP\' 
+				AND NMD_SECURITY.id={#PARAM:@id}
+			')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:attribute value="$r/@policy" name="policy"/>
+				</qry:out>
+			</qry:select>
+		</qry:define>
+	</flow:declare>
+</flow:flow>

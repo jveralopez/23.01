@@ -1,0 +1,295 @@
+<html:html xmlns:html="nomad_engine.html" xmlns:qry="nomad_engine.qry" extends="Nomad.Base.BaseReport.rpt" doc="source" name="NucleusRH.Base.Presupuesto.NovedadesPresupuestoDetalle">
+	<html:query declare="&lt;DATOS salida=&quot;HTML&quot; report=&quot;&quot; oi_presupuesto=&quot;1&quot; oi_escenario=&quot;9&quot; l_incluir=&quot;&quot;&gt;&#13;&#10;&#9;&lt;ROWS/&gt;&#13;&#10;&lt;/DATOS&gt;">
+		<qry:main doc="SOURCE">
+			<qry:append-doc name="PARAMIN" doc-path="#SOURCE:DATOS"/>
+			<REPORT label="NOVEDADES POR ESCENARIO (DETALLE)">
+				<qry:attribute name="date" value="format_date(Now(),'dd/mm/yyyy HH:MM')"/>
+				<GROUPS>
+					<GROUP tag="NOV" type="title">
+						<COLS>
+							<COL name="d_presupuesto" label="Presupuesto"/>
+							<COL name="e_numero" label="Escenario"/>
+						</COLS>
+						<GROUP tag="VAR" style="padding-left:50px;" type="title_collapse" noreg="No se encontraron registros para los filtros seleccionados.">
+							<COLS>
+								<COL name="d_variable" label="Variable"/>
+								<COL label="Total de variable" name="total_valor" style="text-align:right; font-weight: bold;" type="num"/>
+							</COLS>
+							<GROUP tag="LEG" style="padding-left:50px;" type="table" noreg="No se encontraron registros para los filtros seleccionados.">
+								<COLS>
+									<COL name="e_numero_legajo" label="Legajo" style="width:450px;"/>
+									<COL name="d_legajo" label="Apellido y Nombre" style="width:450px;"/>
+									<qry:insert-select name="QRY_COL"/>
+								</COLS>
+								<qry:element name="FCOLS">
+									<COL/>
+									<COL label="Total" style="text-align:RIGHT; font-weight: bold" type="num"/>
+									<qry:insert-select name="QRY_COL"/>
+								</qry:element>
+							</GROUP>
+						</GROUP>
+					</GROUP>
+				</GROUPS>
+				<qry:element name="DATA">
+					<qry:element name="N">
+						<qry:append-doc name="NOVEDADES" doc-path="."/>
+						<qry:insert-select name="qry_NOVEDADES" doc-path="#SOURCE:DATOS"/>
+					</qry:element>
+					<qry:element name="T">
+						<qry:append-doc name="TOTALES" doc-path="."/>
+						<qry:insert-select name="qry_TOTALES" doc-path="#SOURCE:DATOS"/>
+					</qry:element>
+					<qry:element name="L">
+						<qry:append-doc name="LEGAJOS" doc-path="."/>
+						<qry:insert-select name="qry_LEGAJOS" doc-path="#SOURCE:DATOS"/>
+					</qry:element>
+					<qry:element name="NOV">
+						<qry:insert-select name="qry_cabecera" doc-path="#SOURCE:DATOS"/>
+						<qry:insert-select name="qry_SQL1"/>
+					</qry:element>
+				</qry:element>
+			</REPORT>
+		</qry:main>
+		<qry:select name="QRY_COL" doc="SOURCE">
+			<qry:xquery>
+				for $r in SQL('
+			SELECT  
+				MAX(PRE01_PER_FISCAL.e_periodo) AS e_periodo,
+				MAX(PRE01_PER_FISCAL.d_periodo_fiscal) AS d_periodo_fiscal,
+				MAX(PRE01_PER_FISCAL.e_periodo_fiscal) AS e_periodo_fiscal
+			FROM 
+				PRE05_NOV_LEGAJO,
+				PRE05_LEGAJOS,
+				PRE03_DETALLES,
+				PRE17_NOVEDADES,
+				PRE01_PER_FISCAL
+			JOIN 
+				PRE05_NOV_LEGAJO.oi_legajo INNER PRE05_LEGAJOS.oi_legajo,				
+				PRE05_NOV_LEGAJO.oi_detalle_pres INNER PRE03_DETALLES.oi_detalle_pres,
+				PRE05_NOV_LEGAJO.oi_novedad INNER PRE17_NOVEDADES.oi_novedad,
+				PRE03_DETALLES.oi_periodo_fiscal INNER PRE01_PER_FISCAL.oi_periodo_fiscal
+			WHERE 
+				PRE03_DETALLES.oi_escenario = {#PARAMIN:@oi_escenario}
+				{%? (string(#PARAMIN:ROWS/ROW/@id)!='') {% AND PRE05_NOV_LEGAJO.oi_novedad in ({%=string(#PARAMIN:ROWS/ROW/@id) %}) %} {%  %} %}								
+			GROUP BY 
+				PRE03_DETALLES.oi_periodo_fiscal
+			 ORDER BY 
+			 	e_periodo ASC
+		')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:insert-select name="qry_pegar_columnas" doc-path="$r"/>
+			</qry:out>
+		</qry:select>
+		<qry:select name="qry_pegar_columnas" doc="SOURCE">
+			<qry:out>
+				<qry:element name="COL">
+					<qry:attribute name="name" value="'Periodo_' + #SOURCE:@e_periodo"/>
+					<qry:attribute name="label" value="#SOURCE:@e_periodo_fiscal + ' - ' + #SOURCE:@d_periodo_fiscal"/>
+					<qry:attribute name="type" value="'num'"/>
+				</qry:element>
+			</qry:out>
+		</qry:select>
+		<qry:select name="qry_cabecera" doc="SOURCE">
+			<qry:xquery>
+				for $r in sql('	
+			SELECT 
+				PRE12_PRESUPUESTO.d_presupuesto,
+				PRE03_ESCENARIOS.e_numero
+			FROM 
+				PRE12_PRESUPUESTO,
+				PRE03_ESCENARIOS
+			
+			JOIN 
+				PRE12_PRESUPUESTO.oi_presupuesto INNER PRE03_ESCENARIOS.oi_presupuesto
+			WHERE 
+				PRE12_PRESUPUESTO.oi_presupuesto = {#PARAMIN:@oi_presupuesto}
+				AND PRE03_ESCENARIOS.oi_escenario = {#PARAMIN:@oi_escenario}	
+			')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:attribute name="d_presupuesto" value="$r/@d_presupuesto" type="Nomad.NSystem.Int"/>
+				<qry:attribute name="e_numero" value="$r/@e_numero" type="Nomad.NSystem.String"/>
+			</qry:out>
+		</qry:select>
+		<qry:select name="qry_NOVEDADES" doc="SOURCE">
+			<qry:xquery>
+				for $r in sql('     			 	
+			SELECT 
+				PRE05_NOV_LEGAJO.oi_novedad, 
+				PRE05_NOV_LEGAJO.oi_legajo,				
+				MAX(PRE05_NOV_LEGAJO.n_valor) AS n_valor,
+				MAX(PRE01_PER_FISCAL.e_periodo) AS e_periodo,
+				MAX(PRE17_NOVEDADES.c_novedad) AS c_novedad
+			FROM 
+				PRE05_NOV_LEGAJO,
+				PRE05_LEGAJOS,
+				PRE03_DETALLES,
+				PRE17_NOVEDADES,
+				PRE01_PER_FISCAL
+			JOIN 
+				PRE05_NOV_LEGAJO.oi_legajo INNER PRE05_LEGAJOS.oi_legajo,			 
+				PRE05_NOV_LEGAJO.oi_detalle_pres INNER PRE03_DETALLES.oi_detalle_pres,			   	
+			   	PRE05_NOV_LEGAJO.oi_novedad INNER PRE17_NOVEDADES.oi_novedad,
+				PRE03_DETALLES.oi_periodo_fiscal INNER PRE01_PER_FISCAL.oi_periodo_fiscal
+			WHERE 
+				PRE03_DETALLES.oi_escenario = {%=#PARAMIN:@oi_escenario%}
+				{%? (string(#PARAMIN:ROWS/ROW/@id)!='') {% AND PRE05_NOV_LEGAJO.oi_novedad in ({%=string(#PARAMIN:ROWS/ROW/@id) %}) %} {%  %} %}												
+			GROUP BY 
+				PRE05_NOV_LEGAJO.oi_legajo, PRE05_NOV_LEGAJO.oi_novedad, PRE03_DETALLES.oi_periodo_fiscal			
+			order by c_novedad ASC			 	
+			 	
+			')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:element name="TODOS">
+					<qry:attribute name="oi_novedad" value="$r/@oi_novedad"/>
+					<qry:attribute name="oi_legajo" value="$r/@oi_legajo"/>
+					<qry:attribute name="e_periodo" value="$r/@e_periodo"/>
+					<qry:attribute name="n_valor" value="$r/@n_valor"/>
+				</qry:element>
+			</qry:out>
+		</qry:select>
+		<qry:select name="qry_LEGAJOS" doc="SOURCE">
+			<qry:xquery>
+				for $r in sql('
+			SELECT  
+			  PRE05_NOV_LEGAJO.oi_novedad,
+			  MAX(PRE05_LEGAJOS.oi_legajo) AS oi_legajo,
+			  MAX(PRE05_LEGAJOS.e_numero_legajo) AS e_numero_legajo,
+			  MAX(PRE05_LEGAJOS.d_legajo) AS d_legajo
+			FROM
+			  PRE05_NOV_LEGAJO,
+			  PRE05_LEGAJOS,
+			  PRE03_DETALLES,
+			  PRE17_NOVEDADES,
+			  PRE01_PER_FISCAL
+			JOIN
+			  PRE05_NOV_LEGAJO.oi_legajo INNER PRE05_LEGAJOS.oi_legajo,			  
+			  PRE05_NOV_LEGAJO.oi_detalle_pres INNER PRE03_DETALLES.oi_detalle_pres,			  
+			  PRE05_NOV_LEGAJO.oi_novedad INNER PRE17_NOVEDADES.oi_novedad,
+			  PRE03_DETALLES.oi_periodo_fiscal INNER PRE01_PER_FISCAL.oi_periodo_fiscal
+			WHERE 
+			  PRE03_DETALLES.oi_escenario =  {%=#PARAMIN:@oi_escenario%}
+			  {%? (string(#PARAMIN:ROWS/ROW/@id)!='') {% AND PRE05_NOV_LEGAJO.oi_novedad in ({%=string(#PARAMIN:ROWS/ROW/@id) %}) %} {%  %} %}											  			   			  			
+			GROUP BY
+			  PRE05_NOV_LEGAJO.oi_legajo, PRE05_NOV_LEGAJO.oi_novedad
+			  			
+			order by e_numero_legajo ASC
+
+			')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:element name="LEG">
+					<qry:attribute name="oi_novedad" value="$r/@oi_novedad"/>
+					<qry:attribute name="e_numero_legajo" value="$r/@e_numero_legajo"/>
+					<qry:attribute name="oi_legajo" value="$r/@oi_legajo"/>
+					<qry:attribute name="d_legajo" value="$r/@d_legajo"/>
+				</qry:element>
+			</qry:out>
+		</qry:select>
+		<qry:select name="qry_TOTALES" doc="SOURCE">
+			<qry:xquery>
+				for $r in sql('		
+			SELECT 
+				PRE05_NOV_LEGAJO.oi_novedad, 
+				PRE03_DETALLES.oi_periodo_fiscal,
+				MAX(PRE01_PER_FISCAL.e_periodo) AS e_periodo,
+				SUM(PRE05_NOV_LEGAJO.n_valor) AS n_valor
+			FROM 
+				PRE05_NOV_LEGAJO,
+				PRE05_LEGAJOS,
+				PRE03_DETALLES,
+				PRE01_PER_FISCAL
+			
+			JOIN 
+				PRE05_NOV_LEGAJO.oi_legajo INNER PRE05_LEGAJOS.oi_legajo,				
+				PRE05_NOV_LEGAJO.oi_detalle_pres INNER PRE03_DETALLES.oi_detalle_pres,				
+				PRE03_DETALLES.oi_periodo_fiscal INNER PRE01_PER_FISCAL.oi_periodo_fiscal	
+			
+			WHERE 
+				PRE03_DETALLES.oi_escenario = {%=#PARAMIN:@oi_escenario%}  
+				{%? (string(#PARAMIN:ROWS/ROW/@id)!='') {% AND PRE05_NOV_LEGAJO.oi_novedad in ({%=string(#PARAMIN:ROWS/ROW/@id) %}) %} {%  %} %}												
+			
+			GROUP BY 
+				PRE05_NOV_LEGAJO.oi_novedad, PRE03_DETALLES.oi_periodo_fiscal
+			')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:element name="TOT">
+					<qry:attribute name="oi_novedad" value="$r/@oi_novedad"/>
+					<qry:attribute name="oi_periodo_fiscal" value="$r/@oi_periodo_fiscal"/>
+					<qry:attribute name="e_periodo" value="$r/@e_periodo"/>
+					<qry:attribute name="n_valor" value="$r/@n_valor"/>
+				</qry:element>
+			</qry:out>
+		</qry:select>
+		<qry:select name="qry_SQL1">
+			<qry:xquery>
+				for $r in sql('
+		     SELECT
+				PRE05_NOV_LEGAJO.oi_novedad, 
+				MAX(PRE17_NOVEDADES.c_novedad) AS c_novedad, 
+				MAX(PRE17_NOVEDADES.d_novedad) AS d_novedad
+			FROM 
+				PRE05_NOV_LEGAJO,
+				PRE05_LEGAJOS,
+				PRE03_DETALLES,
+				PRE17_NOVEDADES,
+				PRE01_PER_FISCAL
+			JOIN 
+				PRE05_NOV_LEGAJO.oi_legajo INNER PRE05_LEGAJOS.oi_legajo,				
+				PRE05_NOV_LEGAJO.oi_detalle_pres INNER PRE03_DETALLES.oi_detalle_pres,				
+				PRE05_NOV_LEGAJO.oi_novedad INNER PRE17_NOVEDADES.oi_novedad,
+				PRE03_DETALLES.oi_periodo_fiscal INNER PRE01_PER_FISCAL.oi_periodo_fiscal
+			WHERE 
+				PRE03_DETALLES.oi_escenario =  {%=#PARAMIN:@oi_escenario%}
+				{%? (string(#PARAMIN:ROWS/ROW/@id)!='') {% AND PRE05_NOV_LEGAJO.oi_novedad in ({%=string(#PARAMIN:ROWS/ROW/@id) %}) %} {%  %} %}												
+			GROUP BY 
+				PRE05_NOV_LEGAJO.oi_novedad			
+			 ORDER BY 
+			 	c_novedad ASC
+			')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:element name="VAR">
+					<qry:attribute-doc doc="PARAMIN" name="oi_novedad" value="$r/@oi_novedad"/>
+					<qry:attribute name="oi_novedad" value="$r/@oi_novedad"/>
+					<qry:attribute name="d_variable" value="$r/@c_novedad + ' - ' + $r/@d_novedad"/>
+					<qry:insert-select name="qry_LEGAJOS_PEGAR" doc-path="$r"/>
+					<qry:insert-select name="qry_TOT_PERIODO" doc-path="$r"/>
+					<qry:attribute name="total_valor" value="SUM(#NOVEDADES:TODOS[@oi_novedad = #PARAMIN:@oi_novedad]/@n_valor)"/>
+					<qry:attribute name="total_valor" value="format-number(@total_valor, '###,###,##0.00')"/>
+				</qry:element>
+			</qry:out>
+		</qry:select>
+		<qry:select name="qry_DETALLES" doc="SOURCE">
+			<qry:xquery>
+				for $r in #NOVEDADES:TODOS[@oi_novedad=#SOURCE:@oi_novedad and @oi_legajo = #SOURCE:@oi_legajo]
+			</qry:xquery>
+			<qry:out>
+				<qry:attribute name-calc="'Periodo_' + $r/@e_periodo" value="$r/@n_valor"/>
+			</qry:out>
+		</qry:select>
+		<qry:select name="qry_TOT_PERIODO" doc="SOURCE">
+			<qry:xquery>
+				for $r in #TOTALES:TOT[@oi_novedad=#SOURCE:@oi_novedad]
+			</qry:xquery>
+			<qry:out>
+				<qry:attribute name-calc="'Periodo_' + $r/@e_periodo" value="$r/@n_valor"/>
+			</qry:out>
+		</qry:select>
+		<qry:select name="qry_LEGAJOS_PEGAR" doc="SOURCE">
+			<qry:xquery>
+				for $r in #LEGAJOS:LEG[@oi_novedad=#SOURCE:@oi_novedad]
+			</qry:xquery>
+			<qry:out>
+				<qry:element name="LEG">
+					<qry:attribute name="e_numero_legajo" value="$r/@e_numero_legajo"/>
+					<qry:attribute name="d_legajo" value="$r/@d_legajo"/>
+					<qry:insert-select name="qry_DETALLES" doc-path="$r"/>
+				</qry:element>
+			</qry:out>
+		</qry:select>
+	</html:query>
+</html:html>

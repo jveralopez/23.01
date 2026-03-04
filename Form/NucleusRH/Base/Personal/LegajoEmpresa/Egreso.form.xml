@@ -1,0 +1,122 @@
+<form:Form xmlns:form="nomad_engine.form" xmlns:qry="nomad_engine.qry" default_mode="EDIT" name="NucleusRH.Base.Personal.LegajoEmpresa.Egreso" doc="source">
+	<form:Title width="90%">
+		<form:RowAligner name="ralTitle">
+			<form:Row name="row1">
+				<form:Label name="GEN_NEW" label="Egreso de Personal -" style="S3 LCol_w" visible="" align="center" nowrap="1"/>
+				<form:Label name="ti_02" label="-" style="S3 LCol_w" align="center" nowrap="1" nvalue="#TITULO:ROW/@NOMBRE" dynamic="1"/>
+			</form:Row>
+		</form:RowAligner>
+	</form:Title>
+	<form:Center width="95%">
+		<form:Columns name="columns">
+			<form:Column name="column1">
+				<form:Blank name="blanco" visible="EDIT" width="100%"/>
+				<form:DateTime name="f_ingreso" nvalue="#source:@f_ingreso" label="Fecha Ingreso" mask="dd/mm/yyyy" descr="Fecha de ingreso" enabled="0" required="1" pattern="YYYYMMDD"/>
+				<form:DateTime name="f_egreso" nvalue="#source:@f_egreso" label="Fecha Egreso" mask="dd/mm/yyyy" descr="Fecha de egreso" enabled="EDIT" required="1" pattern="YYYYMMDD">
+					<form:SButtons>
+						<form:SButton name="Calendar" label="Calendar" visible="EDIT" img="Calendar" descrip="Fecha de egreso">
+							<form:Event runat="client" name="onclick" action="SHOW_HELPER"/>
+						</form:SButton>
+					</form:SButtons>
+				</form:DateTime>
+				<form:FKInput name="oi_motivo_eg_per" nvalue="#source:oi_motivo_eg_per/@value" label="Motivo de Egreso" length="30" xsize="15" enabled="EDIT" required="1">
+					<form:STexts>
+						<form:SText name="txt1" xsize="50"/>
+					</form:STexts>
+					<form:Helper c2x="C2X" x2c="X2C" help="HELP" name="NucleusRH.Base.Personal.Motivos_Egreso_Personal.MOTIVO_EG_PER.guia.autoflow">
+						<helper-mess code="{oi_motivo_eg_per.CVal}" id="{oi_motivo_eg_per.XVal}" text="{oi_motivo_eg_per.Text.1}"/>
+					</form:Helper>
+					<form:SButtons>
+						<form:SButton name="SEARCH" label="Search" visible="NEW|EDIT" img="SEARCH">
+							<form:Event runat="client" name="onclick" action="SHOW_HELPER"/>
+						</form:SButton>
+					</form:SButtons>
+				</form:FKInput>
+				<form:TextBox enabled="EDIT" required="0" ysize="1" xsize="50" length="50" label="N&#250;mero de Egreso AFIP" nvalue="#source:@c_egreso_afip" name="c_egreso_afip"/>
+				<form:TextBox name="o_egreso" nvalue="#source:@o_egreso" label="Observaciones" length="1000" xsize="50" ysize="1" descr="" enabled="EDIT" required="0"/>
+				<form:Hidden nvalue="#source:@oi_personal_emp" name="oi_personal_emp"/>
+				<form:Hidden nvalue="#source:@c_alta_afip" name="c_alta_afip"/>
+			</form:Column>
+		</form:Columns>
+	</form:Center>
+	<form:Bottom>
+		<form:RowAligner name="buttonlinks">
+			<form:Row name="row1">
+				<form:Button startvalidate="1" name="ACCEPT" label="Aceptar" img="ok" descrip="Acepta la operacion" note="Acepta la operacion sobre el formulario" visible="EDIT">
+					<form:Event action="ValidarNum" name="onclick" runat="client"/>
+					<form:Event runat="server" name="onclick" action="ACCEPT"/>
+				</form:Button>
+				<form:Button name="CANCEL" label="Cancelar" img="cancel" descrip="Cancelar la operacion" note="Cancela la operacion sobre el formulario" visible="EDIT">
+					<form:Event runat="server" name="onclick" action="CANCEL"/>
+				</form:Button>
+			</form:Row>
+		</form:RowAligner>
+	</form:Bottom>
+	<form:Scripts>
+		function Validar()
+{                                          
+	var param= new NomadXML("PARAM");
+	param.SetAttr("oi_personal_emp",Ctrl("oi_personal_emp").GetXValue());
+	
+	var np = new NomadProxy();
+	var nSQL = np.SQLService();               
+	
+	var result = nSQL.GetOBJ(Ctrl("main").getResource("QRY_AFIP"), param.ToString()); 
+	          
+	if(result.l_egreso_afip &amp;&amp; result.l_egreso_afip.toString()==1 &amp;&amp; Ctrl("c_egreso_afip").GetXValue()=="")
+		{
+			alert("Es requerido el n&#250;mero de egreso de Afip para la Empresa a la cual pertenece el Legajo.");  
+			Ctrl("c_egreso_afip").SetFocus();
+			return false;
+		}	
+	else
+		return true;
+}             
+
+function ValidarNum()
+{   
+	if(Validar())
+	{
+		var numero = Ctrl("c_egreso_afip").GetXValue();       
+         
+		if(numero!="" &amp;&amp; (!/^([0-9])*$/.test(numero)))
+			{
+				alert("El valor del campo 'N&#250;mero de Egreso AFIP' debe ser un n&#250;mero entero");
+				Ctrl("c_egreso_afip").SetFocus();
+				return false;
+			}	
+		else
+			return true;
+	}
+	else
+		return false;
+}
+	</form:Scripts>
+	<form:Resources>
+		<form:Resource declare="&lt;PARAM oi_personal_emp=&quot;14747&quot; /&gt;" name="QRY_AFIP">
+			<qry:main doc="SOURCE" name="MAIN">
+				<qry:element name="RESULT">
+					<qry:insert-select name="sql1" doc-path="#SOURCE:PARAM"/>
+				</qry:element>
+			</qry:main>
+			<qry:select doc="SOURCE" name="sql1">
+				<qry:xquery>
+					for $r in SQL('
+				SELECT
+					ORG03_EMPRESAS.l_egreso_afip
+				FROM
+					ORG03_EMPRESAS,
+					PER02_PERSONAL_EMP
+				JOIN
+					ORG03_EMPRESAS.oi_empresa INNER PER02_PERSONAL_EMP.oi_empresa
+				WHERE
+					PER02_PERSONAL_EMP.oi_personal_emp = {#SOURCE:@oi_personal_emp}
+			')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:attribute name="l_egreso_afip" value="$r/@l_egreso_afip"/>
+				</qry:out>
+			</qry:select>
+		</form:Resource>
+	</form:Resources>
+</form:Form>

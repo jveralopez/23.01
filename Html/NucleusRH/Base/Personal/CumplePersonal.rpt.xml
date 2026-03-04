@@ -1,0 +1,112 @@
+<html:html xmlns:html="nomad_engine.html" xmlns:qry="nomad_engine.qry" extends="Nomad.Base.BaseReport.rpt" name="NucleusRH.Base.Personal.CumplePersonal" doc="source">
+	<html:query declare="&lt;DATOS f_desde=&quot;20120901&quot; f_hasta=&quot;20120930&quot; oi_empresa=&quot;&quot; l_incluir=&quot;1&quot;&gt;&lt;ROWS/&gt;&lt;/DATOS&gt;">
+		<qry:main doc="SOURCE">
+			<qry:append-doc name="PARAMIN" doc-path="#SOURCE:DATOS"/>
+			<REPORT label="Listado de Cumplea&#241;os">
+				<qry:attribute name="date" value="format_date(Now(),'dd/mm/yyyy HH:MM')"/>
+				<GROUPS>
+					<GROUP tag="CAB" type="title" noreg="No se encontraron registros de cumplea&#241;os.">
+						<COLS>
+							<qry:if test="#SOURCE:DATOS/@oi_empresa!=''">
+								<qry:then>
+									<COL name="d_empresa" label="Empresa"/>
+								</qry:then>
+							</qry:if>
+							<COL name="f_desde" label="Fecha Desde"/>
+							<COL name="f_hasta" label="Fecha Hasta"/>
+							<COL name="l_incluir" label="Solo Activos?"/>
+						</COLS>
+						<GROUP tag="PER" style="padding-left:50px" type="table" noreg="No se encontraron registros de cumplea&#241;os.">
+							<COLS>
+								<COL name="empresa" label="Empresa" style="width:10%;"/>
+								<COL name="legajo" label="Legajo" style="width:10%;"/>
+								<COL name="ape_y_nom" label="Apellido y Nombre" style="width:50%;"/>
+								<COL name="f_nacim" label="Fecha de Nacimiento" style="width:20%;text-align:center;" type="date"/>
+								<COL name="edad" label="Edad" style="width:10%;text-align:center;"/>
+							</COLS>
+						</GROUP>
+					</GROUP>
+				</GROUPS>
+				<qry:element name="DATA">
+					<qry:element name="CAB">
+						<qry:insert-select doc-path="#SOURCE:DATOS" name="QRY_EMPRESA"/>
+						<qry:if test="#SOURCE:DATOS/@oi_empresa!=''">
+							<qry:then>
+								<qry:attribute value="#SOURCE:DATOS/@oi_empresa" name="oi_empresa"/>
+							</qry:then>
+						</qry:if>
+						<qry:attribute value="iif(#SOURCE:DATOS/@l_incluir='1', 'Si', 'No')" name="l_incluir"/>
+						<qry:attribute value="#SOURCE:DATOS/@l_incluir" name="activos"/>
+						<qry:attribute value="format_date(#SOURCE:DATOS/@f_desde, 'dd/mm')" name="f_desde"/>
+						<qry:attribute value="format_date(#SOURCE:DATOS/@f_hasta, 'dd/mm')" name="f_hasta"/>
+						<qry:attribute value="format_date(#SOURCE:DATOS/@f_desde, 'mmdd')" name="f_des"/>
+						<qry:attribute value="format_date(#SOURCE:DATOS/@f_hasta, 'mmdd')" name="f_has"/>
+						<qry:insert-select doc-path="." name="QRY_EMPLEADOS"/>
+					</qry:element>
+				</qry:element>
+			</REPORT>
+		</qry:main>
+		<qry:select doc="PARAM" name="QRY_EMPRESA">
+			<qry:xquery>
+				for $r in sql('
+					SELECT
+						ORG03_EMPRESAS.c_empresa,
+						ORG03_EMPRESAS.d_empresa
+					FROM 
+						ORG03_EMPRESAS
+					WHERE
+						ORG03_EMPRESAS.oi_empresa = {#PARAM:@oi_empresa}
+				')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:attribute name="d_empresa" value="$r/@c_empresa + ' - ' + $r/@d_empresa"/>
+			</qry:out>
+		</qry:select>
+		<qry:select doc="PARAM" name="QRY_EMPLEADOS">
+			<qry:xquery>
+				for $r in sql('
+					SELECT
+						PER02_PERSONAL_EMP.e_numero_legajo, 
+						PER01_PERSONAL.d_ape_y_nom, 
+						PER01_PERSONAL.f_nacim,
+						(GETMONTH(PER01_PERSONAL.f_nacim) * 100) + GETDAY(PER01_PERSONAL.f_nacim) as cumple,
+						ORG03_EMPRESAS.c_empresa,
+						PER02_PERSONAL_EMP.oi_indic_activo
+					FROM 						         
+						ORG03_EMPRESAS,
+						PER02_PERSONAL_EMP, 
+						PER01_PERSONAL
+					JOIN						
+						ORG03_EMPRESAS.oi_empresa INNER PER02_PERSONAL_EMP.oi_empresa,
+						PER02_PERSONAL_EMP.oi_personal INNER PER01_PERSONAL.oi_personal
+					WHERE
+						
+						(GETMONTH(PER01_PERSONAL.f_nacim) * 100) + GETDAY(PER01_PERSONAL.f_nacim) &gt;= {#PARAM:@f_des} AND
+						(GETMONTH(PER01_PERSONAL.f_nacim) * 100) + GETDAY(PER01_PERSONAL.f_nacim) &lt;= {#PARAM:@f_has} 
+						
+						{%? (#PARAM:@oi_empresa!='') 
+							{% AND PER02_PERSONAL_EMP.oi_empresa = {#PARAM:@oi_empresa} %}
+							{% %} 
+						%}
+						{%? (#PARAM:@activos='1') 
+							{% AND PER02_PERSONAL_EMP.oi_indic_activo = 1 %}
+							{% %} 
+						%}
+					ORDER BY             
+						cumple ASC,
+						c_empresa ASC,
+						e_numero_legajo ASC						
+				')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:element name="PER">
+					<qry:attribute name="empresa" value="$r/@c_empresa"/>
+					<qry:attribute name="legajo" value="$r/@e_numero_legajo"/>
+					<qry:attribute name="ape_y_nom" value="$r/@d_ape_y_nom"/>
+					<qry:attribute name="f_nacim" value="format_date($r/@f_nacim, 'dd/mm/yyyy')"/>
+					<qry:attribute name="edad" value="FLOOR((Number(now()) - Number(Datetime($r/@f_nacim))) DIV 365)"/>
+				</qry:element>
+			</qry:out>
+		</qry:select>
+	</html:query>
+</html:html>

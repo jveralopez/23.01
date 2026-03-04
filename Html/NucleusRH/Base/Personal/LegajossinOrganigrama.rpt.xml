@@ -1,0 +1,134 @@
+<html:html xmlns:html="nomad_engine.html" xmlns:qry="nomad_engine.qry" name="NucleusRH.Base.Personal.LegajossinOrganigrama" extends="Nomad.Base.BaseReport.rpt" doc="source">
+	<html:query declare="&lt;FILTRO oi_clase_org=&quot;22&quot; oi_empresa=&quot;&quot; l_activo=&quot;0&quot;/&gt;">
+		<qry:main doc="SOURCE">
+			<qry:append-doc name="PARAMIN" doc-path="#SOURCE:FILTRO"/>
+			<REPORT label="Legajos no asociados a un Organigrama">
+				<GROUPS>
+					<GROUP style="width:100%" tag="ORG" type="title">
+						<COLS>
+							<COL name="f_informe" label="Fecha de Emisi&#243;n"/>
+							<COL name="clase_org" label="Organigrama"/>
+							<COL name="c_estado" label="Versi&#243;n Organigrama" align="left" style="">
+								<OPT value="Vigente" id="V"/>
+								<OPT value="Rechazado" id="R"/>
+								<OPT value="Discontinuado" id="D"/>
+								<OPT value="Planificado" id="P"/>
+							</COL>
+						</COLS>
+						<GROUP style="width:100%" tag="EMP" type="title_collapse">
+							<COLS>
+								<COL name="empresa" label="Empresa"/>
+							</COLS>
+							<GROUP tag="LEG" type="table">
+								<COLS>
+									<COL name="e_numero_legajo" label="Legajo" style="width:10%"/>
+									<COL name="d_ape_y_nom" label="Apellido y Nombre"/>
+									<COL name="d_indic_activo" label="Estado"/>
+								</COLS>
+							</GROUP>
+						</GROUP>
+					</GROUP>
+				</GROUPS>
+				<qry:element name="DATA">
+					<qry:insert-select name="QRY_CLASE" doc-path="#PARAMIN:"/>
+				</qry:element>
+			</REPORT>
+		</qry:main>
+		<qry:select doc="PARAM" name="QRY_CLASE">
+			<qry:xquery>
+				for $r in sql('
+					SELECT ORG02_CLASES_ORG.oi_clase_org,
+					ORG02_CLASES_ORG.c_clase_org,
+					ORG02_CLASES_ORG.d_clase_org,
+					ORG02_CLASES_ORG.c_estado
+					FROM ORG02_CLASES_ORG
+					WHERE ORG02_CLASES_ORG.oi_clase_org = {#PARAM:@oi_clase_org}
+		')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:element name="ORG">
+					<qry:attribute value="format_date(now(),'dd/mm/yyyy HH:MM')" name="f_informe"/>
+					<qry:attribute type="Nomad.NSystem.String" value="$r/@oi_clase_org" name="oi_clase_org"/>
+					<qry:attribute type="Nomad.NSystem.String" value="$r/@c_clase_org + ' - ' + $r/@d_clase_org" name="clase_org"/>
+					<qry:attribute type="Nomad.NSystem.String" value="$r/@c_estado" name="c_estado"/>
+					<qry:insert-select name="QRY_EMPRESAS" doc-path="#PARAMIN:"/>
+				</qry:element>
+			</qry:out>
+		</qry:select>
+		<qry:select doc="PARAM" name="QRY_EMPRESAS">
+			<qry:xquery>
+				for $r in sql('    
+				
+			SELECT ORG03_EMPRESAS.oi_empresa, ORG03_EMPRESAS.c_empresa, 
+ORG03_EMPRESAS.d_empresa
+FROM ORG03_EMPRESAS, PER02_PERSONAL_EMP  
+join
+PER02_PERSONAL_EMP.oi_empresa INNER ORG03_EMPRESAS.oi_empresa
+
+			WHERE 1=1
+	    {%? (#PARAMIN:@oi_empresa!='') 
+				{% AND ORG03_EMPRESAS.oi_empresa = {#PARAMIN:@oi_empresa} %} 
+				{% %} 
+			%}			
+			AND PER02_PERSONAL_EMP.oi_personal_emp IN
+				(SELECT ORG02_ESTRUC_PERS.oi_personal_emp
+				FROM ORG02_ESTRUC_PERS 
+				WHERE ORG02_ESTRUC_PERS.oi_clase_org = {%=#PARAMIN:@oi_clase_org%})
+			GROUP BY ORG03_EMPRESAS.oi_empresa, ORG03_EMPRESAS.c_empresa, ORG03_EMPRESAS.d_empresa
+   
+		')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:element name="EMP">
+					<qry:attribute type="Nomad.NSystem.String" value="$r/@oi_empresa" name="oi_empresa"/>
+					<qry:attribute type="Nomad.NSystem.String" value="$r/@c_empresa + ' - ' + $r/@d_empresa" name="empresa"/>
+					<qry:attribute type="Nomad.NSystem.String" value="$r/@c_tipo_uni_org + ' - ' + $r/@d_tipo_uni_org" name="unidad_org"/>
+					<qry:insert-select doc-path="$r" name="QRY_LEGAJO"/>
+				</qry:element>
+			</qry:out>
+		</qry:select>
+		<qry:select doc="PARAM" name="QRY_LEGAJO">
+			<qry:xquery>
+				for $r in sql('
+			SELECT PER02_PERSONAL_EMP.oi_personal_emp,
+			PER02_PERSONAL_EMP.e_numero_legajo, PER01_PERSONAL.d_ape_y_nom, PER21_INDIC_ACTIVO.d_indic_activo
+			FROM PER02_PERSONAL_EMP, PER01_PERSONAL, PER21_INDIC_ACTIVO
+			JOIN 
+			PER01_PERSONAL.oi_personal INNER PER02_PERSONAL_EMP.oi_personal, 
+		  PER21_INDIC_ACTIVO.oi_indic_activo INNER PER02_PERSONAL_EMP.oi_indic_activo
+			WHERE PER02_PERSONAL_EMP.oi_empresa = {#PARAM:@oi_empresa} 
+			AND PER02_PERSONAL_EMP.oi_personal_emp NOT IN
+				(SELECT ORG02_ESTRUC_PERS.oi_personal_emp
+				FROM ORG02_ESTRUC_PERS 
+				WHERE ORG02_ESTRUC_PERS.oi_clase_org = {%=#PARAMIN:@oi_clase_org%})
+		  {%? (#PARAMIN:@l_activo='1') {% AND PER02_PERSONAL_EMP.oi_indic_activo = 1 %}  {%  %} %}
+			GROUP BY PER02_PERSONAL_EMP.oi_personal_emp,
+			PER02_PERSONAL_EMP.e_numero_legajo, PER01_PERSONAL.d_ape_y_nom, PER21_INDIC_ACTIVO.d_indic_activo
+			ORDER BY e_numero_legajo ASC
+			')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:element name="LEG">
+					<qry:attribute type="Nomad.NSystem.String" value="$r/@oi_personal_emp" name="oi_personal_emp"/>
+					<qry:attribute type="Nomad.NSystem.String" value="$r/@e_numero_legajo" name="e_numero_legajo"/>
+					<qry:attribute type="Nomad.NSystem.String" value="$r/@d_ape_y_nom" name="d_ape_y_nom"/>
+					<qry:attribute type="Nomad.NSustem.String" value="$r/@d_indic_activo" name="d_indic_activo"/>
+					<qry:insert-select doc-path="$r" name="SECURITY"/>
+				</qry:element>
+			</qry:out>
+		</qry:select>
+		<qry:select doc="PARAM" name="SECURITY">
+			<qry:xquery>
+				for $r in sql('
+			SELECT NMD_SECURITY.policy 
+			FROM NMD_SECURITY 
+			WHERE NMD_SECURITY.class=\'NucleusRH.Base.Personal.LegajoEmpresa.PERSONAL_EMP\' 
+			AND NMD_SECURITY.id={#PARAM:@oi_personal_emp}
+		')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:attribute value="$r/@policy" name="policy"/>
+			</qry:out>
+		</qry:select>
+	</html:query>
+</html:html>

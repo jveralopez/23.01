@@ -1,0 +1,419 @@
+<html:html xmlns:html="nomad_engine.html" xmlns:qry="nomad_engine.qry" extends="Nomad.Base.BaseReport.rpt" xtends="Nomad.Base.BaseReport.rpt" doc="source" name="NucleusRH.Base.Liquidacion.Formulario649">
+	<html:query declare="&lt;DATOS salida=&quot;HTML&quot; report=&quot;&quot; modo=&quot;HTML&quot; oi_liquidacion_ddo=&quot;&quot; oi_per_emp_ddo=&quot;&quot; oi_empresa=&quot;8&quot; oi_liquidacion=&quot;2648&quot; oi_personal_liq=&quot;2004&quot;/&gt;">
+		<qry:main doc="SOURCE">
+			<REPORT label="AFIP - IG Asistente Formulario 1357 (ex 649)" style="width:90%;">
+				<qry:attribute name="date" value="format_date(Now(),'dd/mm/yyyy HH:MM')"/>
+				<GROUPS>
+					<GROUP tag="LIQ" type="title">
+						<COLS>
+							<COL name="empresa" label="Empresa"/>
+							<COL name="liquidacion" label="Liquidaci&#243;n"/>
+							<COL name="empleado" label="Empleado"/>
+						</COLS>
+						<GROUP tag="ITEMS" style="padding-left:0px;" type="title_collapse" noreg="No se encontraron registros para los filtros seleccionados.">
+							<COLS>
+								<COL name="item" style="width:100%;"/>
+							</COLS>
+							<GROUP tag="DETS" style="width:90%" type="table">
+								<COLS>
+									<COL name="det" label="Detalle" style="width:80%;"/>
+									<COL name="importe" label="Importe" style="width:20%;" type="num"/>
+								</COLS>
+								<FCOLS>
+									<COL name="data" label="" style="width:80%;"/>
+									<COL name="tot" type="num" label="tot" style="width:20%;text-align:right;"/>
+								</FCOLS>
+							</GROUP>
+						</GROUP>
+					</GROUP>
+				</GROUPS>
+				<qry:element name="DATA">
+					<qry:element name="VAR">
+						<qry:append-doc name="VAR" doc-path="."/>
+						<qry:insert-select name="qry_buscar_variables" doc-path="#SOURCE:DATOS"/>
+						<qry:attribute name="c_columnas" value="substring-after(@c_columnas,',')"/>
+						<qry:attribute name="hts:delete" value="1"/>
+					</qry:element>
+					<qry:element name="LIQ">
+						<qry:append-doc name="P" doc-path="."/>
+						<qry:insert-select name="qry_params" doc-path="#SOURCE:DATOS"/>
+						<qry:insert-select name="qry_variables"/>
+						<qry:insert-select name="qry_cabecera"/>
+					</qry:element>
+				</qry:element>
+			</REPORT>
+		</qry:main>
+		<qry:select name="qry_params" doc="SOURCE">
+			<qry:xquery>
+				for $r in sql('
+SELECT 
+LIQ99_LIQUIDACION.oi_liquidacion_ddo,
+LIQ97_PERSONAL_EMP.oi_per_emp_ddo
+FROM
+LIQ19_EJECUCIONES, 
+LIQ99_LIQUIDACION,
+LIQ99_RECIBOS, 
+LIQ20_TOT_LIQ_PER, 
+LIQ93_EMPRESAS,
+LIQ97_PERSONAL_EMP,
+PER02_PERSONAL_EMP,
+ORG03_EMPRESAS,
+LIQ25_PERSONAL_LIQ
+JOIN
+LIQ19_EJECUCIONES.oi_liquidacion_ddo INNER LIQ99_LIQUIDACION.oi_liquidacion_ddo,
+LIQ99_LIQUIDACION.oi_empresa_ddo INNER LIQ93_EMPRESAS.oi_empresa_ddo,
+LIQ99_LIQUIDACION.oi_liquidacion_ddo INNER LIQ99_RECIBOS.oi_liquidacion_ddo,
+LIQ99_RECIBOS.oi_tot_liq_per INNER LIQ20_TOT_LIQ_PER.oi_tot_liq_per,
+LIQ20_TOT_LIQ_PER.oi_per_emp_ddo INNER LIQ97_PERSONAL_EMP.oi_per_emp_ddo,
+LIQ97_PERSONAL_EMP.e_numero_legajo INNER PER02_PERSONAL_EMP.e_numero_legajo,
+LIQ93_EMPRESAS.c_empresa INNER ORG03_EMPRESAS.c_empresa,
+PER02_PERSONAL_EMP.oi_empresa INNER ORG03_EMPRESAS.oi_empresa,
+LIQ25_PERSONAL_LIQ.oi_liquidacion INNER LIQ19_EJECUCIONES.oi_liquidacion,
+LIQ25_PERSONAL_LIQ.oi_personal_emp INNER PER02_PERSONAL_EMP.oi_personal_emp
+WHERE
+LIQ99_LIQUIDACION.c_estado = \'F\' AND
+LIQ19_EJECUCIONES.oi_liquidacion = {#SOURCE:@oi_liquidacion} AND
+LIQ25_PERSONAL_LIQ.oi_personal_liq = {#SOURCE:@oi_personal_liq}
+')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:attribute name="oi_liquidacion_ddo" value="$r/@oi_liquidacion_ddo"/>
+				<qry:attribute name="oi_per_emp_ddo" value="$r/@oi_per_emp_ddo"/>
+			</qry:out>
+		</qry:select>
+		<qry:select name="qry_cabecera">
+			<qry:xquery>
+				for $r in sql('
+SELECT 
+LIQ99_LIQUIDACION.c_liquidacion, LIQ99_LIQUIDACION.d_titulo,
+LIQ97_PERSONAL_EMP.c_nro_cuil, LIQ97_PERSONAL_EMP.d_ape_y_nom,
+LIQ93_EMPRESAS.c_empresa, LIQ93_EMPRESAS.d_empresa,
+LIQ93_EMPRESAS.c_cuit, LIQ97_PERSONAL_EMP.e_numero_legajo
+FROM
+LIQ99_LIQUIDACION, LIQ97_PERSONAL_EMP,
+LIQ93_EMPRESAS
+JOIN
+LIQ99_LIQUIDACION.oi_empresa_ddo INNER LIQ93_EMPRESAS.oi_empresa_ddo
+WHERE		
+LIQ99_LIQUIDACION.oi_liquidacion_ddo = {#P:@oi_liquidacion_ddo}
+AND LIQ97_PERSONAL_EMP.oi_per_emp_ddo = {#P:@oi_per_emp_ddo}
+')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:attribute name="empleado" value="$r/@e_numero_legajo + ' - ' + $r/@d_ape_y_nom + '[' + $r/@c_nro_cuil + ']'"/>
+				<qry:attribute name="empresa" value="$r/@c_empresa + ' - ' + $r/@d_empresa + '[' + $r/@c_cuit +']'" type="Nomad.NSystem.String"/>
+				<qry:attribute name="liquidacion" value="$r/@c_liquidacion + ' - ' + $r/@d_titulo" type="Nomad.NSystem.String"/>
+				<ITEMS neto="1" item="Item: 1 - Importe Bruto de las Ganancias" etiqueta="Item 1">
+					<DETS det="Abonadas por el Agente de Retenci&#243;n:"/>
+					<DETS det="Remuneraci&#243;n Bruta">
+						<qry:attribute name="importe" value="number(#P:ROW/@ap_acumigh) - number(#P:ROW/@ap_igprorrateoh) - number(#P:ROW/@ap_acumigsac) - number(#P:ROW/@ap_acumighhe) - number(#P:ROW/@ap_igacummovgra) - number(#P:ROW/@ap_igacummatdidgra)"/>
+					</DETS>
+					<DETS det="Retribuciones no Habituales">
+						<qry:attribute name="importe" value="number(#P:ROW/@ap_igprorrateoh)"/>
+					</DETS>
+					<DETS det="SAC primera cuota">
+						<qry:attribute name="importe" value="number(#P:ROW/@ap_igprimersac)"/>
+					</DETS>
+					<DETS det="SAC segunda cuota">
+						<qry:attribute name="importe" value="number(#P:ROW/@ap_igsegundosac)"/>
+					</DETS>
+					<DETS det="Horas extras remuneraci&#243;n gravada">
+						<qry:attribute name="importe" value="number(#P:ROW/@ap_acumighhe)"/>
+					</DETS>
+					<DETS det="Movilidad y vi&#225;ticos remuneraci&#243;n gravada">
+						<qry:attribute name="importe" value="number(#P:ROW/@ap_igacummovgra)"/>
+					</DETS>
+					<DETS det="Material did&#225;ctico personal docente remuneraci&#243;n gravada">
+						<qry:attribute name="importe" value="number(#P:ROW/@ap_igacummatdidgra)"/>
+					</DETS>
+					<DETS det="Remuneraci&#243;n no Alcanzada Remuneraci&#243;n Exenta" suma="1">
+						<qry:attribute name="importe" value="number(#P:ROW/@ap_igacumremNA) + number(#P:ROW/@ap_igacumremEXotras)"/>
+					</DETS>
+					<DETS det="Remuneraci&#243;n Exenta Horas Extras" suma="1">
+						<qry:attribute name="importe" value="number(#P:ROW/@ap_igacumremEX)"/>
+					</DETS>
+					<DETS det="Movilidad y vi&#225;ticos remuneraci&#243;n exenta" suma="1">
+						<qry:attribute name="importe" value="number(#P:ROW/@ap_igacummovex)"/>
+					</DETS>
+					<DETS det="Material did&#225;ctico personal docente remuneraci&#243;n exenta" suma="1">
+						<qry:attribute name="importe" value="number(#P:ROW/@ap_igacummatdidex)"/>
+					</DETS>
+					<DETS det="Otros Empleos:"/>
+					<DETS det="Remuneraci&#243;n bruta">
+						<qry:attribute name="importe" value="number(#P:ROW/@ap_igplurihaberes) - number(#P:ROW/@ap_igpluriretnohab) - number(#P:ROW/@ap_igplurisac)- number(#P:ROW/@ap_igpluriesexgra) - number(#P:ROW/@ap_igplurimovgra) - number(#P:ROW/@ap_igplurimatdid)"/>
+					</DETS>
+					<DETS det="Retribuciones no habituales">
+						<qry:attribute name="importe" value="number(#P:ROW/@ap_igpluriretnohab)"/>
+					</DETS>
+					<DETS det="SAC primera cuota">
+						<qry:attribute name="importe" value="number(#P:ROW/@ap_igpluriprimersac)"/>
+					</DETS>
+					<DETS det="SAC segunda cuota">
+						<qry:attribute name="importe" value="number(#P:ROW/@ap_igplurisegundosac)"/>
+					</DETS>
+					<DETS det="Horas extras remuneraci&#243;n gravada">
+						<qry:attribute name="importe" value="number(#P:ROW/@ap_igplurihsexgra)"/>
+					</DETS>
+					<DETS det="Movilidad y vi&#225;ticos remuneraci&#243;n gravada">
+						<qry:attribute name="importe" value="number(#P:ROW/@ap_igplurimovgra)"/>
+					</DETS>
+					<DETS det="Material did&#225;ctico personal docente remuneraci&#243;n gravada">
+						<qry:attribute name="importe" value="number(#P:ROW/@ap_igplurimatdid)"/>
+					</DETS>
+					<DETS det="Remuneraci&#243;n no alcanzada o exenta" suma="1">
+						<qry:attribute name="importe" value="number(#P:ROW/@ap_igpluriexento)"/>
+					</DETS>
+					<DETS det="Horas extras remuneraci&#243;n exenta" suma="1">
+						<qry:attribute name="importe" value="number(#P:ROW/@ap_igpluriheex)"/>
+					</DETS>
+					<DETS det="Movilidad y vi&#225;ticos remuneraci&#243;n exenta" suma="1">
+						<qry:attribute name="importe" value="number(#P:ROW/@ap_igplurimovex)"/>
+					</DETS>
+					<DETS det="Material did&#225;ctico personal docente remuneraci&#243;n exenta" suma="1">
+						<qry:attribute name="importe" value="number(#P:ROW/@ap_igplurimatdidex)"/>
+					</DETS>
+					<qry:attribute name="data" value="'Total Item 1 - TOTAL REMUNERACI&#211;N GRAVADA'"/>
+					<qry:attribute name="tot" value="number(#P:ROW/@ap_acumigh) + number(#P:ROW/@ap_igplurihaberes)"/>
+					<qry:insert-select doc-path="." name="calculo_total2"/>
+					<DETS det="TOTAL REMUNERACI&#211;N NO ALCANZADA O EXENTA">
+						<qry:attribute name="importe" value="number(@total)"/>
+					</DETS>
+					<DETS det="TOTAL REMUNERACIONES">
+						<qry:attribute name="importe" value="number(../@tot) + number(../@total)"/>
+					</DETS>
+				</ITEMS>
+				<ITEMS neto="2" item="Item: 2 - Deducciones y Degravaciones" etiqueta="Item 2">
+					<DETS det="Aportes a fondos de jubilaciones, retiros, pensiones o subsidios..." suma="1">
+						<qry:attribute name="importe" value="number(#P:ROW/@ap_igacumjubi)"/>
+					</DETS>
+					<DETS det="Ley 19.032" suma="1">
+						<qry:attribute name="importe" value="number(#P:ROW/@ap_igacumley)"/>
+					</DETS>
+					<DETS det="Aportes a fondos de jubilaciones, retiros... / Otros Empleos" suma="1">
+						<qry:attribute name="importe" value="number(#P:ROW/@ap_igplurijubi)"/>
+					</DETS>
+					<DETS det="Aportes Obra Social" suma="1">
+						<qry:attribute name="importe" value="number(#P:ROW/@ap_igacumos)"/>
+					</DETS>
+					<DETS det="Aportes Obra Social / Otros Empleos" suma="1">
+						<qry:attribute name="importe" value="number(#P:ROW/@ap_igplurios)"/>
+					</DETS>
+					<DETS det="Cuota Sindical" suma="1">
+						<qry:attribute name="importe" value="number(#P:ROW/@ap_igacumsind)"/>
+					</DETS>
+					<DETS det="Cuota Sindical / Otros Empleos" suma="1">
+						<qry:attribute name="importe" value="number(#P:ROW/@ap_igplurisind)"/>
+					</DETS>
+					<DETS det="Cuota M&#233;dico Asistencial" suma="1">
+						<qry:attribute name="importe" value="number(#P:ROW/@ap_igacumMedico)*(-1)"/>
+					</DETS>
+					<DETS det="Gastos M&#233;dicos" suma="1">
+						<qry:attribute name="importe" value="number(#P:ROW/@ap_igacumCoberMedic)*(-1)"/>
+					</DETS>
+					<DETS det="Honorarios por servicios de m&#233;dica..." suma="1">
+						<qry:attribute name="importe" value="number(#P:ROW/@ap_igacumHonoMedico)*(-1)"/>
+					</DETS>
+					<DETS det="Primas de Seguro para el caso de muerte" suma="1">
+						<qry:attribute name="importe" value="number(#P:ROW/@ap_igacumsegvida)*(-1)"/>
+					</DETS>
+					<DETS det="Gastos de Sepelio" suma="1">
+						<qry:attribute name="importe" value="number(#P:ROW/@ap_igacumsepelio)*(-1)"/>
+					</DETS>
+					<DETS det="Inter&#233;s Pr&#233;stamos Hipotecarios" suma="1">
+						<qry:attribute name="importe" value="number(#P:ROW/@ap_igacumHipotec)*(-1)"/>
+					</DETS>
+					<DETS det="Empleados del servicio dom&#233;stico" suma="1">
+						<qry:attribute name="importe" value="number(#P:ROW/@ap_igacumulaSerDome)*(-1)"/>
+					</DETS>
+					<DETS det="Alquiler" suma="1">
+						<qry:attribute name="importe" value="number(#P:ROW/@ap_igacumalquiler)*(-1)"/>
+					</DETS>
+					<DETS det="Gastos estimativos para corredores y viajantes de comercio" suma="1">
+						<qry:attribute name="importe" value="number(#P:ROW/@ap_igacumViaticos)*(-1)"/>
+					</DETS>
+					<DETS det="Aportes a Cajas Complementarias de Previsi&#243;n..." suma="1">
+						<qry:attribute name="importe" value="(number(#P:ROW/@ap_igacumRetiro) + number(#P:ROW/@ap_igacumJubProf) + number(#P:ROW/@ap_igacumAutonomos))*(-1)"/>
+					</DETS>
+					<DETS det="Primas por riesgo de muerte y de ahorro de seguros mixtos..." suma="1">
+						<qry:attribute name="importe" value="number(#P:ROW/@ap_igacumSegVidaOtros)"/>
+					</DETS>
+					<DETS det="Aportes a planes de seguro de retiro privados administrados..." suma="1">
+						<qry:attribute name="importe" value="number(#P:ROW/@ap_igacumRetiroOtros)*(-1)"/>
+					</DETS>
+					<DETS det="Cuotapartes de fondos comunes de inversi&#243;n de fines de Retiro..." suma="1">
+						<qry:attribute name="importe" value="number(#P:ROW/@ap_igacumCuotaFdo)*(-1)"/>
+					</DETS>
+					<DETS det="Donaciones..." suma="1">
+						<qry:attribute name="importe" value="number(#P:ROW/@ap_igacumDonaciones)*(-1)"/>
+					</DETS>
+					<DETS det="Descuentos obligatorios..." suma="1">
+						<qry:attribute name="importe" value="number(#P:ROW/@ap_acumigd) - (number(#P:ROW/@ap_igacumley) + number(#P:ROW/@ap_igacumjubi) + number(#P:ROW/@ap_igacumos) + number(#P:ROW/@ap_igacumsind))"/>
+					</DETS>
+					<DETS det="Aportes al capital social o al fondo de riesgo de socio..." suma="1">
+						<qry:attribute name="importe" value="number(#P:ROW/@ap_igacumApoCapSocial)*(-1)"/>
+					</DETS>
+					<DETS det="Gastos de movilidad, vi&#225;ticos y otras..." suma="1">
+						<qry:attribute name="importe" value="number(#P:ROW/@ap_igacumviaticosotros)*(-1)"/>
+					</DETS>
+					<DETS det="Gastos por adquisici&#243;n de indumentaria y/o equipamiento..." suma="1">
+						<qry:attribute name="importe" value="number(#P:ROW/@ap_igacumIndumentaria)*(-1)"/>
+					</DETS>
+					<DETS det="Otras Deducciones" suma="1">
+						<qry:attribute name="importe" value="number(#P:ROW/@ap_acumigdotras)*(-1)"/>
+					</DETS>
+					<DETS det="Prorrateo Deducciones" suma="1">
+						<qry:attribute name="importe" value="number(#P:ROW/@ax_igprod)*(-1)"/>
+					</DETS>
+					<qry:insert-select doc-path="." name="calculo_total"/>
+				</ITEMS>
+				<ITEMS neto="3" item="Item: 3 - Resultado Neto" etiqueta="Item 3">
+					<DETS det="Item 1" suma="1">
+						<qry:attribute name="importe" value="../../ITEMS[@neto=1]/@tot"/>
+					</DETS>
+					<DETS det="Item 2" suma="1">
+						<qry:attribute name="importe" value="../../ITEMS[@neto=2]/@tot"/>
+					</DETS>
+					<qry:insert-select doc-path="." name="calculo_total"/>
+				</ITEMS>
+				<ITEMS neto="4" item="Item: 4 - Deducciones Especiales / Personales" etiqueta="Item 4">
+					<DETS det="Deducciones Especiales" suma="1">
+						<qry:attribute name="importe" value="number(#P:ROW/@ap_igacumEspeciales)*(-1)"/>
+					</DETS>
+					<DETS det="Ganancia No Imponible" suma="1">
+						<qry:attribute name="importe" value="number(#P:ROW/@ap_igacumGanNoImpo)*(-1)"/>
+					</DETS>
+					<DETS det="Deducci&#243;n Espec&#237;fica" suma="1">
+						<qry:attribute name="importe" value="number(#P:ROW/@ap_igacumespecialotras)*(-1)"/>
+					</DETS>
+					<DETS det="C&#243;nyuge" suma="1">
+						<qry:attribute name="importe" value="number(#P:ROW/@ap_igacumConyuge) * (-1)"/>
+					</DETS>
+					<DETS det="Cantidad de Hijos e Hijastros">
+						<qry:attribute name="importe" value="#P:ROW/@ax_igporchijos"/>
+					</DETS>
+					<DETS det="Deducci&#243;n Total Hijos e hijastros" suma="1">
+						<qry:attribute name="importe" value="number(#P:ROW/@ap_igacumHijos) * (-1)"/>
+					</DETS>
+					<qry:insert-select doc-path="." name="calculo_total"/>
+				</ITEMS>
+				<ITEMS neto="5" item="Item: 5 - Ganancia Sujeta a Impuesto" etiqueta="Item 5">
+					<DETS det="Item 3 - Item 4" suma="1">
+						<qry:attribute name="importe" value="number(../../ITEMS[@neto=3]/@tot) + number(../../ITEMS[@neto=4]/@tot)"/>
+					</DETS>
+					<qry:insert-select doc-path="." name="calculo_total"/>
+				</ITEMS>
+				<ITEMS neto="6" item="Item: 6 - Neto Horas Extras" etiqueta="Item 6">
+					<DETS det="Horas Extras" suma="1">
+						<qry:attribute name="importe" value="number(#P:ROW/@ap_acumighheneto)*(-1)"/>
+					</DETS>
+					<qry:insert-select doc-path="." name="calculo_total"/>
+				</ITEMS>
+				<ITEMS neto="7" item="Item: 7 -  Ganancia Sujeta a Impuesto sin Neto Horas Extras" etiqueta="Item 7">
+					<DETS det="Item 5 - Item 6" suma="1">
+						<qry:attribute name="importe" value="number(../../ITEMS[@neto=5]/@tot) - number(../../ITEMS[@neto=6]/@tot)"/>
+					</DETS>
+					<qry:insert-select doc-path="." name="calculo_total"/>
+				</ITEMS>
+				<ITEMS item="Item: 8 - Total del impuesto determinado">
+					<DETS det="Cuota">
+						<qry:attribute name="importe" value="#P:ROW/@ax_igCuota"/>
+					</DETS>
+					<DETS det="Importe Desde">
+						<qry:attribute name="importe" value="#P:ROW/@ax_igImporteDesde"/>
+					</DETS>
+					<DETS det="Porcentaje">
+						<qry:attribute name="importe" value="#P:ROW/@ax_igRango"/>
+					</DETS>
+					<DETS det="Porcentaje sin Neto Hs. Extras">
+						<qry:attribute name="importe" value="#P:ROW/@ax_igRangoHE"/>
+					</DETS>
+					<DETS det="Total del Impuesto" style="font-weight:bold;">
+						<qry:attribute name="importe" value="#P:ROW/@ap_igimporte"/>
+					</DETS>
+				</ITEMS>
+				<ITEMS neto="9" item="Item: 9 - Montos Computables" etiqueta="Item 9">
+					<DETS det="Retenciones Acumuladas" suma="1">
+						<qry:attribute name="importe" value="number(#P:ROW/@ap_igacumanio) - (number(#P:ROW/@ax_igImportePeriodo)*(-1) )"/>
+					</DETS>
+					<DETS det="Pagos a cuenta" suma="1">
+						<qry:attribute name="importe" value="number(#P:ROW/@ap_igPagosACuenta)"/>
+					</DETS>
+					<DETS det="Retenci&#243;n de &#218;ltima Liquidaci&#243;n" suma="1">
+						<qry:attribute name="importe" value="number(#P:ROW/@ax_igImportePeriodo) * (-1)"/>
+					</DETS>
+					<qry:insert-select doc-path="." name="calculo_total"/>
+				</ITEMS>
+				<ITEMS item="Item: 10 - Saldo del Impuesto">
+					<qry:attribute name="importe" value="number(#P:ROW/@ap_igimporte)-number(#P:ROW/@ap_igacumanio)-number(#P:ROW/@ap_igPagosACuenta)-number(#P:ROW/@ap_igsaldoemp)"/>
+					<DETS det="A favor de la AFIP">
+						<qry:attribute name="importe" value="iif(number(../@importe)&gt;0,number(../@importe),0)"/>
+					</DETS>
+					<DETS det="A favor del Empleado">
+						<qry:attribute name="importe" value="iif(number(../@importe)&lt;0,number(../@importe)*(-1),0)"/>
+					</DETS>
+				</ITEMS>
+			</qry:out>
+		</qry:select>
+		<qry:select name="qry_variables">
+			<qry:xquery>
+				for $r in sql(' 
+SELECT {%=#VAR:@c_columnas%}
+FROM 
+LIQ20_TOT_LIQ_PER, 
+LIQ99_LIQUIDACION, 
+LIQ99_RECIBOS,
+LIQ20_VAR_GR_CONC as V
+JOIN
+LIQ99_RECIBOS.oi_liquidacion_ddo INNER LIQ99_LIQUIDACION.oi_liquidacion_ddo,
+LIQ99_RECIBOS.oi_tot_liq_per INNER LIQ20_TOT_LIQ_PER.oi_tot_liq_per,
+LIQ20_TOT_LIQ_PER.oi_tot_liq_per INNER V.oi_tot_liq_per
+WHERE		
+LIQ20_TOT_LIQ_PER.oi_per_emp_ddo = {#P:@oi_per_emp_ddo}    
+and V.c_grupo = \'1\'
+AND LIQ99_LIQUIDACION.oi_liquidacion_ddo = {#P:@oi_liquidacion_ddo}
+')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:insert-element doc-path="$r"/>
+			</qry:out>
+		</qry:select>
+		<qry:select doc="SOURCE" name="calculo_total">
+			<qry:xquery>
+				for $r in #SOURCE:./DETS[@suma='1']
+			</qry:xquery>
+			<qry:out>
+				<qry:attribute name="data" value="'Total ' + #SOURCE:@etiqueta"/>
+				<qry:attribute name="tot" value="number(@tot) + number($r/@importe)"/>
+			</qry:out>
+		</qry:select>
+		<qry:select doc="SOURCE" name="calculo_total2">
+			<qry:xquery>
+				for $r in #SOURCE:./DETS[@suma='1']
+			</qry:xquery>
+			<qry:out>
+				<qry:attribute name="total" value="number(@total) + number($r/@importe)"/>
+			</qry:out>
+		</qry:select>
+		<qry:select name="qry_buscar_variables" doc="SOURCE">
+			<qry:xquery>
+				for $r in SQL('	
+select 
+ LIQ09_VARIABLES.c_variable,
+ LIQ31_GRUPO_VAR.c_columna,
+ LIQ31_GRUPOS.c_grupo  
+from 
+LIQ31_GRUPO_VAR,
+LIQ31_GRUPOS,
+LIQ09_VARIABLES 
+JOIN
+LIQ31_GRUPO_VAR.oi_grupo INNER LIQ31_GRUPOS.oi_grupo, 
+LIQ09_VARIABLES.oi_variable INNER  LIQ31_GRUPO_VAR.oi_variable
+where LIQ31_GRUPOS.c_grupo = \'1\'		
+			')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:attribute name="c_columnas" value="concat(@c_columnas,',V.',$r/@c_columna,' as ',$r/@c_variable)"/>
+			</qry:out>
+		</qry:select>
+	</html:query>
+</html:html>

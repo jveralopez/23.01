@@ -1,0 +1,168 @@
+<flow:flow xmlns:flow="nomad_engine.flow" xmlns:doc="nomad_engine.doc" xmlns:qry="nomad_engine.qry" name="NucleusWF.Base.Definicion.Organigramas.ESTRUCTURA.SEARCH.flow">
+	<flow:info label="Flow guia para NucleusWF.Base.Definicion.Organigramas.ESTRUCTURA"/>
+	<flow:declare>
+		<doc:define name="PERSONAS"/>
+		<qry:define name="SEARCH" declare="&lt;DATA PARENT=&quot;1&quot; BUSCAR=&quot;&quot;/&gt;">
+			<qry:main doc="SOURCE">
+				<qry:append-doc name="FILTER" doc-path="#SOURCE:."/>
+				<qry:create-doc name="DOCUMENTO"/>
+				<qry:insert-select name="qry_nodos" doc-path="#SOURCE:." to-element="$DOCUMENTO"/>
+				<ROWS>
+					<qry:insert-select name="recorrer_nodos" doc-path="$DOCUMENTO/NODOS"/>
+				</ROWS>
+			</qry:main>
+			<qry:select name="qry_nodos" doc="SOURCE">
+				<qry:out>
+					<NODOS>
+						<qry:insert-select name="qry_nodos_raiz" doc-path="#SOURCE:"/>
+					</NODOS>
+				</qry:out>
+			</qry:select>
+			<qry:select name="qry_nodos_raiz" doc="SOURCE">
+				<qry:xquery>
+					for $r in SQL('
+			
+			SELECT				
+				WRK05_ESTRUCTURA.oi_estructura,
+				WRK05_ESTRUCTURA.c_estructura,
+				WRK05_ESTRUCTURA.d_estructura
+				
+			FROM
+				WRK05_ESTRUCTURA
+				
+			WHERE
+				WRK05_ESTRUCTURA.oi_organigrama = {$FILTER/@PARENT} AND
+				WRK05_ESTRUCTURA.c_estr_padre = \'\'
+				
+  		')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<NODO>
+						<qry:if test="$r/@d_estructura != '**ficticia**'">
+							<qry:then>
+								<qry:attribute name="ubicacion" value="$r/@d_estructura"/>
+							</qry:then>
+						</qry:if>
+						<PERSONAS>
+							<qry:insert-select name="qry_entidades" doc-path="$r"/>
+						</PERSONAS>
+						<qry:insert-select name="qry_nodos_hijos" doc-path="$r"/>
+					</NODO>
+				</qry:out>
+			</qry:select>
+			<qry:select name="qry_nodos_hijos" doc="SOURCE">
+				<qry:xquery>
+					for $r in SQL('
+			
+			SELECT
+				WRK05_ESTRUCTURA.oi_estructura,
+				WRK05_ESTRUCTURA.c_estructura,
+				WRK05_ESTRUCTURA.d_estructura
+				
+			FROM				
+				WRK05_ESTRUCTURA
+				
+			WHERE
+				WRK05_ESTRUCTURA.oi_organigrama = {$FILTER/@PARENT} AND
+				WRK05_ESTRUCTURA.c_estr_padre = {$SOURCE/@c_estructura}
+				
+  		')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<NODO>
+						<qry:if test="$r/@d_estructura != '**ficticia**'">
+							<qry:then>
+								<qry:if test="../@ubicacion != ''">
+									<qry:then>
+										<qry:attribute name="ubicacion" value="../@ubicacion + ' &gt; ' + $r/@d_estructura"/>
+									</qry:then>
+									<qry:else>
+										<qry:attribute name="ubicacion" value="$r/@d_estructura"/>
+									</qry:else>
+								</qry:if>
+							</qry:then>
+							<qry:else>
+								<qry:attribute name="ubicacion" value="../@ubicacion"/>
+							</qry:else>
+						</qry:if>
+						<PERSONAS>
+							<qry:insert-select name="qry_entidades" doc-path="$r"/>
+						</PERSONAS>
+						<qry:insert-select name="qry_nodos_hijos" doc-path="$r"/>
+					</NODO>
+				</qry:out>
+			</qry:select>
+			<qry:select name="qry_entidades" doc="SOURCE">
+				<qry:xquery>
+					for $r in SQL('
+			
+			SELECT
+				WRK05_ENTIDAD_ESTR.oi_entidad_estr,
+				WRK05_ENTIDAD_ESTR.d_entidad_estr
+							
+			FROM
+				WRK05_ENTIDAD_ESTR,				
+				WRK05_ESTRUCTURA
+			
+			JOIN
+				WRK05_ENTIDAD_ESTR.oi_estructura INNER WRK05_ESTRUCTURA.oi_estructura
+				
+			WHERE
+				WRK05_ESTRUCTURA.oi_organigrama = {$FILTER/@PARENT} AND
+				WRK05_ENTIDAD_ESTR.oi_estructura = {$SOURCE/@oi_estructura}
+				
+  		')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<PERSONA>
+						<qry:attribute name="id" value="$r/@oi_entidad_estr"/>
+						<qry:attribute name="entidad" value="$r/@d_entidad_estr"/>
+						<qry:attribute name="ubicacion" value="../../@ubicacion"/>
+					</PERSONA>
+				</qry:out>
+			</qry:select>
+			<qry:select name="recorrer_nodos" doc="SOURCE">
+				<qry:xquery>
+					for $r in $SOURCE/NODO
+				</qry:xquery>
+				<qry:out>
+					<qry:insert-select name="recorrer_nodos" doc-path="$r"/>
+					<qry:insert-select name="recorrer_personas" doc-path="$r"/>
+				</qry:out>
+			</qry:select>
+			<qry:select name="recorrer_personas" doc="SOURCE">
+				<qry:xquery>
+					for $r in $SOURCE/PERSONAS/PERSONA
+				</qry:xquery>
+				<qry:out>
+					<qry:if test="contains(upper-case($r/@entidad),upper-case($FILTER/@BUSCAR))">
+						<qry:then>
+							<ROW>
+								<qry:attribute name="id" value="$r/@id"/>
+								<qry:attribute name="entidad" value="$r/@entidad"/>
+								<qry:attribute name="ubicacion" value="$r/@ubicacion"/>
+							</ROW>
+						</qry:then>
+					</qry:if>
+				</qry:out>
+			</qry:select>
+		</qry:define>
+	</flow:declare>
+	<flow:main doc="SOURCE">
+		<flow:action name="LIST">
+			<flow:open-form doc-path="#SOURCE:" mode="LIST" form-class="NucleusWF.Base.Definicion.Organigramas.ESTRUCTURA.SEARCH.form"/>
+		</flow:action>
+	</flow:main>
+	<flow:form mode="LIST" form-class="NucleusWF.Base.Definicion.Organigramas.ESTRUCTURA.SEARCH.form" name="NucleusWF.Base.Definicion.Organigramas.ESTRUCTURA.SEARCH.form:LIST" parent-doc="PARENT" doc="SOURCE">
+		<flow:action name="on-show">
+			<flow:call-action action="SEARCH"/>
+		</flow:action>
+		<flow:action name="BACK">
+			<flow:exit-flow return-path="#SOURCE:"/>
+		</flow:action>
+		<flow:action name="SEARCH">
+			<doc:load-qry output-doc="PERSONAS" input-doc-path="#SOURCE:" qry="SEARCH"/>
+			<flow:attach-doc doc-path="#PERSONAS:" attach-id="RS"/>
+		</flow:action>
+	</flow:form>
+</flow:flow>

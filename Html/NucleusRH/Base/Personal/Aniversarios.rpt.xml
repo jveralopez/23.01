@@ -1,0 +1,132 @@
+<html:html xmlns:html="nomad_engine.html" xmlns:qry="nomad_engine.qry" extends="Nomad.Base.BaseReport.rpt" name="NucleusRH.Base.Personal.Aniversarios" doc="source">
+	<html:query declare="&lt;PARAMS seldate=&quot;12&quot; oi_empresa=&quot;&quot; /&gt;">
+		<qry:main doc="SOURCE">
+			<REPORT label="Listado de Aniversarios">
+				<qry:attribute name="date" value="format_date(Now(),'dd/mm/yyyy HH:MM')"/>
+				<GROUPS>
+					<GROUP tag="CAB" type="title" noreg="No se encontraron registros para los filtros seleccionados.">
+						<COLS>
+							<COL name="d_empresa" label="Empresa" align="left" width="10"/>
+							<COL name="mes" label="Fecha" align="left" width="10" style="padding-bottom:20px"/>
+						</COLS>
+						<GROUP tag="ANIVERSARIO" style="padding-left:50px;" type="table" noreg="No se encontraron aniversarios para los filtros seleccionados.">
+							<COLS>
+								<COL name="empresa" label="Empresa" style="width:30%;"/>
+								<COL name="legajo" label="Legajo" style="width:40%;"/>
+								<COL name="documento" label="Documento" style="width:10%;"/>
+								<COL name="fecha" label="Fecha Aniversario" style="width:10%;" type="date"/>
+								<COL name="cant" label="A&#241;os" style="width:10%; text-align: center"/>
+							</COLS>
+						</GROUP>
+					</GROUP>
+				</GROUPS>
+				<qry:element name="DATA">
+					<CAB>
+						<qry:attribute name="seldate" value="#SOURCE:PARAMS/@seldate"/>
+						<qry:attribute name="oi_empresa" value="#SOURCE:PARAMS/@oi_empresa"/>
+						<qry:attribute name="d_empresa" value="'NO FILTRADA'"/>
+						<qry:if test="@seldate = ''">
+							<qry:then>
+								<qry:attribute name="seldate" value="'13'"/>
+							</qry:then>
+						</qry:if>
+						<qry:if test="@seldate = '13'">
+							<qry:then>
+								<qry:attribute name="mes" value="'hoy'"/>
+								<qry:attribute name="selmes" value="'13'"/>
+							</qry:then>
+							<qry:else>
+								<qry:if test="@seldate = '00'">
+									<qry:then>
+										<qry:attribute name="mes" value="FORMAT_DATE(Now(), 'mmm')"/>
+										<qry:attribute name="selmes" value="FORMAT_DATE(Now(), 'mm')"/>
+									</qry:then>
+									<qry:else>
+										<qry:attribute name="mes" value="FORMAT_DATE(DATETIME('2009' + @seldate + '01'), 'mmm')"/>
+										<qry:attribute name="selmes" value="FORMAT_DATE(DATETIME('2009' + @seldate + '01'), 'mm')"/>
+									</qry:else>
+								</qry:if>
+							</qry:else>
+						</qry:if>
+						<qry:attribute name="mes" value="upper-case(@mes)"/>
+						<qry:insert-select doc-path="." name="QRY_EMPRESA"/>
+						<qry:insert-select doc-path="." name="QRY_ANIVERSARIOS"/>
+					</CAB>
+				</qry:element>
+			</REPORT>
+		</qry:main>
+		<qry:select doc="PARAM" name="QRY_EMPRESA">
+			<qry:xquery>
+				for $r in sql('
+					SELECT
+						ORG03_EMPRESAS.d_empresa
+					FROM 
+						ORG03_EMPRESAS
+					WHERE
+						ORG03_EMPRESAS.oi_empresa = {#PARAM:@oi_empresa}
+				')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:attribute name="d_empresa" value="upper-case($r/@d_empresa)"/>
+			</qry:out>
+		</qry:select>
+		<qry:select name="QRY_ANIVERSARIOS" doc="SOURCE">
+			<qry:xquery>
+				for $r in sql(' 
+				SELECT     
+					pemp.e_numero_legajo,
+					per.d_ape_y_nom,
+					per.c_nro_documento,
+					tipodoc.c_tipo_documento,
+					tipodoc.d_tipo_documento,
+					per.d_email,
+					emp.c_empresa,
+					emp.d_empresa,
+			 	    pemp.f_ingreso,
+					GETDAY(pemp.f_ingreso) as dia
+
+				FROM
+			   		PER01_PERSONAL as per,
+					PER02_PERSONAL_EMP as pemp,
+					ORG04_PUESTOS as pues,
+					ORG03_EMPRESAS as emp,
+					ORG19_LOCALIDADES as loc,
+					PER20_TIPOS_DOC as tipodoc
+                
+				JOIN 
+					per.oi_personal INNER pemp.oi_personal,
+					pemp.oi_puesto_ult LEFT OUTER pues.oi_puesto,
+					pemp.oi_empresa LEFT OUTER emp.oi_empresa,
+					emp.oi_localidad LEFT OUTER loc.oi_localidad,
+					per.oi_tipo_documento LEFT OUTER tipodoc.oi_tipo_documento
+
+				WHERE
+					pemp.oi_indic_activo = 1
+				  
+				  {%? (#SOURCE:@selmes = '13')
+				      {% and GETMONTH(pemp.f_ingreso) = {%=STRING(month_from_dateTime(Now()))%} and GETDAY(pemp.f_ingreso) = {%=STRING(day_from_dateTime(Now()))%} %}
+				      {% and GETMONTH(pemp.f_ingreso) = {#SOURCE:@selmes} %}
+				  %}  
+				  
+				  {%? (#SOURCE:@oi_empresa != '')
+				       {% and pemp.oi_empresa = {#SOURCE:@oi_empresa} %}
+				  	   {% %}  
+				  %}
+
+			   	ORDER BY 
+			   		dia ASC, d_ape_y_nom ASC
+
+			')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:element name="ANIVERSARIO">
+					<qry:attribute name="empresa" value="concat('[',$r/@c_empresa,'] ',$r/@d_empresa)"/>
+					<qry:attribute name="legajo" value="concat('[',$r/@e_numero_legajo,'] ',$r/@d_ape_y_nom)"/>
+					<qry:attribute name="documento" value="concat('[',$r/@c_tipo_documento,'] ',$r/@c_nro_documento)"/>
+					<qry:attribute name="fecha" value="format-date($r/@f_ingreso,'dd/mm/yyyy')"/>
+					<qry:attribute name="cant" value="Number(format_date(now(), 'yyyy')) - Number(format_date($r/@f_ingreso, 'yyyy'))"/>
+				</qry:element>
+			</qry:out>
+		</qry:select>
+	</html:query>
+</html:html>

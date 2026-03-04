@@ -1,0 +1,364 @@
+<HTML>
+	<HEAD>
+		<LINK HREF="./Styles/General.css" REL="stylesheet" TYPE="text/css">
+		
+		<script src="./Scripts/nmdXML.js"   type="text/javascript"></script>
+		<SCRIPT src="./Scripts/controls.js" type="text/javascript"></SCRIPT>
+
+		<SCRIPT type="text/javascript" language="javascript">
+						
+			function pageLoad() {
+				
+				//Selcciona el DNI
+				document.getElementById("selTipoDoc").value = {#QRY:NucleusRH.Tipos_Documento_DNI.xml#};
+				document.getElementById("inpNumDoc").focus();
+				
+				parent.ShowWait(false);
+			}
+			
+			function btnIngresar_Click() {
+				CallTimeOut("Ingresando...", "ValidatePass();");
+			}
+
+			function btnRecCon_Click() {
+				CallTimeOut("Enviado mail con contraseña...", "ValidateRemind();");
+			}			
+			
+			function inpClave_KPress(pkeyCode) {
+				if (pkeyCode == 13)
+					btnIngresar_Click();
+			}
+			
+			function btnRegistrar_Click() {
+				location.href = "Registro.htm";
+			}
+			
+			function ValidatePass() {
+				var objHTML;
+				var xmlLogin;
+				var bolOK = true;
+				
+				//Valida los controles
+				objHTML = document.getElementById("inpNumDoc");
+				if (objHTML.value == "") {
+					alert("Es necesario ingresar el número de documento.")
+					objHTML.focus();
+					parent.ShowWait(false);
+					return;
+				
+				} else {
+					xmlLogin = new NomadXML("PARAM");
+					
+					xmlLogin.SetAttr("c_nro_doc", objHTML.value);
+
+					objHTML = document.getElementById("selTipoDoc");
+					xmlLogin.SetAttr("oi_tipo_documento", objHTML.value);
+					
+				}
+					
+				objHTML = document.getElementById("inpClave");
+				if (objHTML.value == "") {
+					alert("Es necesario ingresar la clave.")
+					objHTML.focus();
+					parent.ShowWait(false);
+					return;
+				
+				} else {
+					xmlLogin.SetAttr("c_password", objHTML.value);
+				}
+				
+				var xmlResult;
+
+				xmlResult = parent.ExecuteNomadMethod("NucleusRH.Base.SeleccionDePostulantes.CVs.CV", "ValidatePass", xmlLogin);
+				
+				if (xmlResult == null) {
+					alert("Se produjo un error en el sistema. Por favor reintente nuevamente en unos minutos.")
+				} else {
+					if (xmlResult.GetAttr("out") == "OK") {
+						parent.gxmlUData = xmlResult;
+						parent.LogMode("LO");
+						
+						//Valida si debe mostrar un aviso luego de logearse
+						if (parent.GetMainParam("oi_aviso") == "")
+							location.href = "ShowCV.htm";
+						else {
+							Postularse();
+							return;
+						}
+							
+					} else {
+						alert(xmlResult.GetAttr("out"));
+					}
+				}
+					
+				parent.ShowWait(false);
+			}
+
+			function ValidateRemind() {
+				var objHTML;
+				var xmlRemind;
+				var bolOK = true;
+				
+				//Valida los controles
+				objHTML = document.getElementById("inpNumDoc");
+				if (objHTML.value == "") {
+					alert("Es necesario ingresar el número de documento.")
+					objHTML.focus();
+					parent.ShowWait(false);
+					return;
+
+				} else {
+					xmlRemind = new NomadXML("PARAM");
+					
+					xmlRemind.SetAttr("c_nro_doc", objHTML.value);
+
+					objHTML = document.getElementById("selTipoDoc");
+					xmlRemind.SetAttr("oi_tipo_documento", objHTML.value);
+					
+				}
+
+				var xmlResult;
+
+				xmlResult = parent.ExecuteNomadMethod("NucleusRH.Base.SeleccionDePostulantes.CVs.CV", "RemindPass", xmlRemind);
+				
+				if (xmlResult == null) {
+					alert("Se produjo un error en el sistema. Por favor reintente nuevamente en unos minutos.")
+				} else {
+					var strTemp = xmlResult.GetAttr("out");
+					if (strTemp.substr(0, 2) == "OK") {
+						
+						strTemp = strTemp.split("|");
+						alert("Se ha enviado un e-mail a la casilla de correo " + strTemp[1] + " con su contraseña.");
+						
+					} else {
+						alert(xmlResult.GetAttr("out"));
+					}
+				}
+					
+				parent.ShowWait(false);
+			}
+						
+			function Postularse() {
+				
+				if (parent.gxmlUData)  {
+					var xmlResult;
+					var xmlData;
+
+					xmlData = new NomadXML("DATA");
+					xmlData.SetAttr("oi_aviso", parent.GetMainParam("oi_aviso"))
+					xmlData.SetAttr("oi_cv", parent.gxmlUData.GetAttr("oi_cv"));
+					
+					xmlResult = parent.ExecuteNomadMethod("NucleusRH.Base.SeleccionDePostulantes.CVs.CV", "Postular", xmlData);
+					
+					if (xmlResult == null) {
+						alert("Se produjo un error en el sistema. Por favor reintente nuevamente en unos minutos.")
+					} else {
+						if (xmlResult.GetAttr("out") == "OK") {
+							alert("La postulación se realizó correctamente.");
+							parent.SetMainParam("show_mis_postus", "1");
+							location.href = "Avisos.htm";
+						} else {
+							alert("Error realizando la postulación: " + xmlResult.GetAttr("out"));
+						}
+					}
+					
+					parent.SetMainParam("oi_aviso", "");
+					
+				} else {
+					alert("Para postularse debe iniciar sesión.")
+				}
+				
+				parent.ShowWait(false);
+			}
+
+			
+			function PageShowWait(pMode) {
+				return;
+			}
+
+			function ShowDetail(pOIAviso) {
+				//Verifica si tiene un aviso pendiente de visita
+				if (parent.GetMainParam("oi_aviso") == "") {
+					if (pOIAviso) location.href = "Avisos.htm?oi_aviso=" + pOIAviso;
+				} else {
+					if (confirm("Tiene un aviso pendiente de postulación. Si desea postularse deberá iniciar sesión.\nDesea iniciar sesión ?")) {
+						objHTML = document.getElementById("inpNumDoc").focus();
+					} else {
+						parent.SetMainParam("oi_aviso", "");
+						if (pOIAviso) location.href = "Avisos.htm?oi_aviso=" + pOIAviso;
+					}
+				}
+			}
+			
+		</SCRIPT>
+
+		
+	</HEAD>
+	<BODY scroll="no" class="Main" onload="pageLoad();">
+		<table style="TABLE-LAYOUT: fixed" cellpadding="0" cellspacing="0" height="100%" width="100%">
+			<col width="60%" />
+			<col width="40%" />
+			
+			<tr height="100%">
+				<td height="100%" valign="top" class="alignCenter">
+					<!-- Tabla de IMAGEN PRINCIPAL ---------------------------------------------------------------------------------------------------------->
+					<table class="text_1" cellpadding="3" cellspacing="2" width="90%" height="100%">
+						<col />						
+						<tr>
+							<td class="alignCenter">
+								<img src="./Images/MainLogin.jpg" />
+							</td>
+						</tr>
+						<tr>
+							<td class="title_2" style="padding-left:10px;">Bienvenido a "Trabaje con Nosotros"</td>
+						</tr>
+						<tr>
+							<td style="padding-left:10px; COLOR: #094495; FONT-SIZE: 14px;"colspan="2">Ingres&aacute; tu Curr&iacute;culum. Queremos conocerte.</td>
+						</tr>
+						<tr>
+							<td>
+								<table class="text_1" cellpadding="0" cellspacing="0" width="100%">
+									<tr>
+										<td style="padding-left:10px;" class="titulo_1">&Uacute;ltimas ofertas laborales - Postulate aqu&iacute;</td>
+										<td style="padding-right:10px;cursor:pointer;" class="titulo_1" align="right" onclick="parent.butOLab_Click(this);">
+			                	Ver m&aacute;s &gt;&gt;
+		                </td>
+									</tr>									
+								</table>
+							</td>
+						</tr>
+						<tr>
+							<td height="100%">
+								<iframe id="ifrResult" name="ifrResult" style="width:100%; height:100%;" src="reportviewer.aspx?file=NucleusRH.Base.SeleccionDepostulantes.Avisos.rpt&maxsize=5&fromlogin=1&cache=4" frameborder="0">
+								</iframe>
+							</td>
+						</tr>						
+					</table>
+				</td>
+				<td height="100%" valign="top">
+					<!-- Tabla de LOGIN --------------------------------------------------------------------------------------------------------------------->
+					
+					<table class="text_1" cellpadding="0" cellspacing="0" width="100%">
+						<col width="100%" />
+						
+						<tr>
+							<td class="alignCenter">
+								<img src="./Images/SepLine.gif" />
+							</td>
+						</tr>
+
+						<tr>
+							<td class="alignCenter">
+								<table class="text_1" cellpadding="0" cellspacing="0" width="100%" style="padding-right:10px; padding-left:10px; background-image:url(./images/fondologin.gif);height:360px; width:330px;">
+									<col width="100%" />
+															
+									<tr>
+										<td style="padding-right:10px; padding-left:10px;">
+											<table style="TABLE-LAYOUT: fixed" class="text_1" cellpadding="3" cellspacing="2" width="100%">
+												<col width="50%" />
+												<col width="50%" />
+												<tr>
+													<td colspan="2" class="titulo_1">Usuarios nuevos</td>
+												</tr>
+												<tr>
+													<td colspan="2" class="title_3">¿No est&aacute;s registrado?</td>
+												</tr>
+												<tr>
+													<td colspan="2">Es r&aacute;pido y f&aacute;cil...</td>
+												</tr>
+												<tr>
+													<td>&nbsp;</td>
+													<td class="alignRight">
+														<a name="btnRegistrar" id="btnRegistrar"
+									   						href="javascript:CallNothing();"
+									   						class="Buttons BImg BC_n"
+									   						style="background-image: url(./Images/Buttons/list_n.gif);"
+															onclick="btnRegistrar_Click();"
+															onmouseover="ButtonChangeStyle(this,'OVER');"
+															onmouseout="ButtonChangeStyle(this,'NORMAL');"
+															onfocus="ButtonChangeStyle(this,'OVER');"
+															onblur="ButtonChangeStyle(this,'NORMAL');"
+														>Registrate&nbsp;aqu&iacute;</a>
+													</td>
+												</tr>
+											</table>							
+										</td>
+									</tr>
+			
+									<tr>
+										<td class="alignCenter">
+											<img src="./Images/SepLine.gif" />
+										</td>
+									</tr>
+			
+									<tr>
+										<td>
+											<table style="TABLE-LAYOUT: fixed" class="text_1" cellpadding="3" cellspacing="2" width="100%" srules="all">
+												<col width="50%" />
+												<col width="50%" />
+												
+												<tr>
+													<td colspan="2" class="titulo_1">Usuarios registrados</td>
+												</tr>
+												<tr>
+													<td colspan="2" class="label_r">Tipo de documento:</td>
+												</tr>
+												<tr>
+													<td colspan="2" >
+														<select class="Box" style="width: 100%;" id="selTipoDoc" name="selTipoDoc">
+															{#QRY:NucleusRH.Tipos_Documento.xml#}
+														</select>
+													</td>
+												</tr>
+												<tr>
+													<td colspan="2" class="label_r">N&uacute;mero de documento:</td>
+												</tr>
+												<tr>
+													<td colspan="2"><input id="inpNumDoc" name="inpNumDoc" type="text" class="Box" style="width: 100%;"/></td>
+												</tr>
+												<tr>
+													<td colspan="2" class="label_r">Contraseña:</td>
+												</tr>
+												<tr>
+													<td colspan="2"><input id="inpClave" name="inpClave" type="password" class="Box" style="width: 100%;" onkeypress="inpClave_KPress(event.keyCode);"/></td>
+												</tr>
+												<tr>
+													<td>
+														<a name="btnRecCon" id="btnRecCon"
+															onclick="btnRecCon_Click();"
+															href="javascript:CallNothing();">Recordarme la contraseña</a>
+													</td>
+													<td class="alignRight">
+														<a name="btnIngresar" id="btnIngresar"
+									   						href="javascript:CallNothing();"
+									   						class="Buttons BImg BC_n"
+									   						style="background-image: url(./Images/Buttons/key_go_n.gif);"
+															onclick="btnIngresar_Click();"
+															onmouseover="ButtonChangeStyle(this,'OVER');"
+															onmouseout="ButtonChangeStyle(this,'NORMAL');"
+															onfocus="ButtonChangeStyle(this,'OVER');"
+															onblur="ButtonChangeStyle(this,'NORMAL');"
+														>Ingresar</a>
+													</td>
+												</tr>						
+											</table>
+										</td>
+									</tr>
+					
+								<table>
+
+							</td>
+						</tr>
+						
+						<tr>
+							<td class="alignCenter">
+								<img src="./Images/SepLineB.gif" />
+							</td>
+						</tr>
+																	
+					</table>						
+				</td>
+			</tr>
+		</table>
+	</BODY>
+</HTML>

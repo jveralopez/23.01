@@ -1,0 +1,309 @@
+<html:html xmlns:html="nomad_engine.html" xmlns:qry="nomad_engine.qry" xmlns:xsl="http://www.w3.org/1999/XSL/Transform" name="NucleusRH.Base.Organizacion.Organigrama.rpt" doc="source">
+	<html:query declare="&lt;PARAMETERS oi_clase_org=&quot;2&quot; chkMostrarLeg=&quot;1&quot;/&gt;">
+		<qry:main doc="PARAM">
+			<qry:append-doc name="FILTRO" doc-path="#PARAM:/PARAMETERS"/>
+			<qry:element name="clase-organizativa">
+				<qry:insert-select doc-path="#PARAM:/PARAMETERS" name="qry_clase_organizativa"/>
+			</qry:element>
+		</qry:main>
+		<qry:select doc="PARAM" name="qry_clase_organizativa">
+			<qry:xquery>
+				for $r in sql('
+					SELECT 
+						ORG02_CLASES_ORG.oi_clase_org, 
+						ORG02_CLASES_ORG.d_clase_org,
+						ORG02_CLASES_ORG.c_estado,
+					ORG02_CLASES_ORG.f_desde_vigencia,
+					ORG02_CLASES_ORG.f_hasta_vigencia					
+					FROM 
+						ORG02_CLASES_ORG 
+					WHERE 
+						ORG02_CLASES_ORG.oi_clase_org = {#PARAM:@oi_clase_org}
+				')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:attribute name="d_clase" value="$r/@d_clase_org"/>
+				<qry:attribute name="f_desde_vigencia" value="format_date($r/@f_desde_vigencia, 'dd/mm/yyyy')"/>
+				<qry:attribute name="f_hasta_vigencia" value="format_date($r/@f_hasta_vigencia, 'dd/mm/yyyy')"/>
+				<qry:attribute name="c_estado" value="$r/@c_estado"/>
+				<qry:if test="$r/@c_estado = 'V'">
+					<qry:then>
+						<qry:attribute name="estado" value="'Vigente desde el ' + @f_desde_vigencia"/>
+					</qry:then>
+				</qry:if>
+				<qry:if test="$r/@c_estado = 'R'">
+					<qry:then>
+						<qry:attribute name="estado" value="'Rechazado: ' + @estado"/>
+					</qry:then>
+				</qry:if>
+				<qry:if test="$r/@c_estado = 'P'">
+					<qry:then>
+						<qry:attribute name="estado" value="'Planificado: ' + @estado"/>
+					</qry:then>
+				</qry:if>
+				<qry:if test="$r/@c_estado = 'D'">
+					<qry:then>
+						<qry:attribute name="estado" value="'Discontinuado '+ @estado + ' desde el ' + @f_hasta_vigencia"/>
+					</qry:then>
+				</qry:if>
+				<qry:attribute name="oi_clase_org" value="$r/@oi_clase_org"/>
+				<qry:insert-select doc-path="." name="qry_padre"/>
+			</qry:out>
+		</qry:select>
+		<qry:select doc="PARAM" name="qry_padre">
+			<qry:xquery>
+				for $r in sql('		
+					SELECT ORG02_CLASES_ORG.oi_clase_org, ORG02_CLASES_ORG.oi_estructura_org,
+					ORG01_UNI_ORG.c_unidad_org, ORG01_TIPOS_UNI.c_tipo_uni_org,
+					ORG01_UNI_ORG.d_unidad_org
+					FROM ORG02_CLASES_ORG, ORG02_ESTRUCTURAS, ORG01_UNI_ORG, ORG01_TIPOS_UNI
+					JOIN ORG02_ESTRUCTURAS.oi_estructura INNER ORG02_CLASES_ORG.oi_estructura_org,
+					ORG02_ESTRUCTURAS.oi_unidad_org INNER ORG01_UNI_ORG.oi_unidad_org,
+					ORG01_UNI_ORG.oi_tipo_uni_org INNER ORG01_TIPOS_UNI.oi_tipo_uni_org
+					WHERE ORG02_CLASES_ORG.oi_clase_org = {#PARAM:@oi_clase_org}
+				')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:element name="unidad-organizativa">
+					<qry:attribute name="cui" value="$r/@oi_estructura_org"/>
+					<qry:attribute name="nombre_completo" value="' (' + $r/@c_tipo_uni_org + ') ' + $r/@c_unidad_org +  ' - ' +  $r/@d_unidad_org"/>
+					<qry:attribute name="nombre" value="$r/@d_unidad_org"/>
+					<qry:attribute name="oi_unidad_org" value="$r/@oi_unidad_org"/>
+					<qry:attribute name="oi_clase_org" value="#PARAM:@oi_clase_org"/>
+					<qry:attribute name="oi_estructura_org" value="$r/@oi_estructura_org"/>
+					<qry:element name="personas">
+						<qry:if test="#FILTRO:@chkMostrarLeg = '1'">
+							<qry:then>
+								<qry:insert-select doc-path=".." name="qry_personas"/>
+							</qry:then>
+						</qry:if>
+					</qry:element>
+					<qry:element name="unidades-organizativas">
+						<qry:insert-select doc-path=".." name="qry_unidad_organizativa"/>
+						<qry:insert-select doc-path=".." name="qry_hija"/>
+					</qry:element>
+				</qry:element>
+			</qry:out>
+		</qry:select>
+		<qry:select doc="PARAM" name="qry_personas">
+			<qry:xquery>
+				for $r in sql('
+				SELECT PER01_PERSONAL.d_ape_y_nom, PER02_PERSONAL_EMP.oi_personal_emp, 
+				PER02_PERSONAL_EMP.e_numero_legajo, ORG04_POSICIONES.d_posicion
+				FROM PER02_PERSONAL_EMP, PER01_PERSONAL, ORG04_POSICIONES, ORG02_ESTRUC_PERS
+				JOIN PER02_PERSONAL_EMP.oi_personal INNER PER01_PERSONAL.oi_personal,				
+				PER02_PERSONAL_EMP.oi_posicion_ult LEFT OUTER ORG04_POSICIONES.oi_posicion,
+				PER02_PERSONAL_EMP.oi_personal_emp INNER ORG02_ESTRUC_PERS.oi_personal_emp
+				WHERE ORG02_ESTRUC_PERS.oi_clase_org = {#PARAM:@oi_clase_org}
+				AND ORG02_ESTRUC_PERS.oi_estructura = {#PARAM:@oi_estructura_org}
+				AND PER02_PERSONAL_EMP.oi_indic_activo = 1
+		')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:element name="persona">
+					<qry:attribute name="datos_persona" value="$r/@e_numero_legajo + ' - ' + $r/@d_ape_y_nom + ' - ' + $r/@d_posicion"/>
+					<qry:insert-select doc-path="$r" name="SECURITY"/>
+				</qry:element>
+			</qry:out>
+		</qry:select>
+		<qry:select doc="PARAM" name="qry_unidad_organizativa">
+			<qry:xquery>
+				for $r in sql('		
+				SELECT ORG02_ESTRUCTURAS.oi_estructura as id,
+				ORG01_UNI_ORG.c_unidad_org, ORG01_UNI_ORG.d_unidad_org,
+				ORG01_UNI_ORG.oi_unidad_org
+				FROM ORG02_ESTRUCTURAS, ORG01_UNI_ORG
+				JOIN ORG02_ESTRUCTURAS.oi_unidad_org LEFT OUTER ORG01_UNI_ORG.oi_unidad_org 
+				WHERE ORG02_ESTRUCTURAS.oi_estr_padre = {#PARAM:@oi_estructura_org}				
+				')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:element name="unidad-organizativa">
+					<qry:attribute name="cui" value="$r/@id"/>
+					<qry:attribute name="c_unidad_org" value="$r/@c_unidad_org"/>
+					<qry:attribute name="d_unidad_org" value="$r/@d_unidad_org"/>
+					<qry:attribute name="nombre" value="$r/@d_unidad_org"/>
+					<qry:attribute name="oi_estructura_org" value="$r/@id"/>
+					<qry:attribute name="oi_clase_org" value="#PARAM:@oi_clase_org"/>
+					<qry:attribute name="oi_unidad_org" value="$r/@oi_unidad_org"/>
+					<qry:element name="personas">
+						<qry:if test="#FILTRO:@chkMostrarLeg = '1'">
+							<qry:then>
+								<qry:insert-select doc-path=".." name="qry_personas"/>
+							</qry:then>
+						</qry:if>
+					</qry:element>
+					<qry:element name="unidades-organizativas">
+						<qry:insert-select doc-path=".." name="qry_unidad_organizativa"/>
+						<qry:insert-select doc-path=".." name="qry_hija"/>
+					</qry:element>
+				</qry:element>
+			</qry:out>
+		</qry:select>
+		<qry:select name="qry_hija" doc="PARAM">
+			<qry:xquery>
+				for $r in sql('
+						SELECT 
+							ORG02_CLASES_ORG.oi_clase_org
+						FROM
+							ORG02_CLASES_HIJAS, ORG02_CLASES_ORG
+						JOIN                                 
+							ORG02_CLASES_HIJAS.oi_clase_org INNER ORG02_CLASES_ORG.oi_clase_org
+						WHERE ORG02_CLASES_ORG.c_estado = \'V\'
+							AND	ORG02_CLASES_HIJAS.oi_estructura = {#PARAM:@oi_estructura_org}
+					')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:attribute name="oi_clase_org" value="$r/@oi_clase_org"/>
+				<qry:insert-select doc-path="." name="qry_padre"/>
+			</qry:out>
+		</qry:select>
+		<qry:select doc="PARAM" name="SECURITY">
+			<qry:xquery>
+				for $r in sql('
+				SELECT NMD_SECURITY.policy 
+				FROM NMD_SECURITY 
+				WHERE NMD_SECURITY.class=\'NucleusRH.Base.Personal.LegajoEmpresa.PERSONAL_EMP\' 
+				AND NMD_SECURITY.id={#PARAM:@oi_personal_emp}')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:attribute value="$r/@policy" name="policy"/>
+			</qry:out>
+		</qry:select>
+	</html:query>
+	<html:xslt>
+		<xsl:template match="/">
+			<html>
+				<head>
+					<script languaje="javascript">
+						function collapse(objImg) {
+			  			if (objImg.parentNode.parentNode.nextSibling.style.display=="")
+			  				{objImg.src = "../Images/Reports/plus.gif";
+			  				objImg.parentNode.parentNode.nextSibling.style.display="none";
+			  				}
+			  			else
+			  				{objImg.src = "../Images/Reports/minus.gif";
+			  				objImg.parentNode.parentNode.nextSibling.style.display="" ;
+			  			}
+			  		}
+					</script>
+					<style media="screen">
+						.minus {
+          };
+					</style>
+					<style media="print">
+						.minus {
+	          display:none;
+          };
+					</style>
+				</head>
+				<body bgcolor="#FFFFFF" style="font-size:9;font-family:verdana;">
+					<table style="width:100%;border-collapse: collapse;font-size: 12px;font-family: verdana;" border="0" width="100%">
+						<tr>
+							<td>
+								<b>
+									Organigrama:&#160;
+								</b>
+								<xsl:value-of select="clase-organizativa/@d_clase"/>
+							</td>
+						</tr>
+						<tr>
+							<td>
+								<b>
+									Estado:&#160;
+								</b>
+								<xsl:value-of select="clase-organizativa/@estado"/>
+							</td>
+						</tr>
+					</table>
+					<br/>
+					<table border="0" width="100%" cellpadding="0" cellspacing="0">
+						<xsl:apply-templates select="clase-organizativa/unidad-organizativa"/>
+					</table>
+				</body>
+			</html>
+		</xsl:template>
+		<xsl:template match="unidad-organizativa">
+			<tr>
+				<td class="minus" width="40">
+					<img border="0" src="../Images/Reports/minus.gif" onclick="collapse(this);" width="20" height="20"/>
+				</td>
+				<td width="40">
+					<img border="0" src="../Images/Reports/Organigrama.gif" width="23" height="17"/>
+				</td>
+				<td width="80%" style="font-size:12px;font-weight:bold;">
+					<xsl:value-of select="concat('(',@cui,') ',@nombre)"/>
+				</td>
+				<td align="right" width="200">
+					&#160;
+				</td>
+			</tr>
+			<tr>
+				<td>
+					&#160;
+				</td>
+				<td colspan="3">
+					<table border="0" width="100%" cellpadding="0" cellspacing="0">
+						<xsl:apply-templates select="personas"/>
+						<xsl:apply-templates select="unidades-organizativas"/>
+					</table>
+				</td>
+			</tr>
+		</xsl:template>
+		<xsl:template match="unidades-organizativas">
+			<xsl:for-each select="unidad-organizativa">
+				<tr>
+					<td width="40">
+						<img class="minus" border="0" src="../Images/Reports/minus.gif" onclick="collapse(this);" width="20" height="20"/>
+					</td>
+					<td width="100%" colspan="2">
+						<table width="100%" cellpadding="0" cellspacing="0">
+							<tr>
+								<td width="40">
+									<img border="0" src="../Images/Reports/Organigrama.gif" width="23" height="17"/>
+								</td>
+								<td align="left" width="80%" style="font-size:11px; font-weight:bold;">
+									<xsl:value-of select="concat('(',@cui,') ',@nombre)"/>
+								</td>
+								<td align="right" width="200">
+									&#160;
+								</td>
+							</tr>
+						</table>
+					</td>
+				</tr>
+				<tr>
+					<td style="font-size:1px;">
+						&#160;
+					</td>
+					<td colspan="2">
+						<table width="100%" cellpadding="0" cellspacing="0">
+							<xsl:apply-templates select="personas"/>
+							<xsl:apply-templates select="unidades-organizativas"/>
+							<tr style="display:none;">
+								<td colspan="3">
+									&#160;
+								</td>
+							</tr>
+						</table>
+					</td>
+				</tr>
+			</xsl:for-each>
+		</xsl:template>
+		<xsl:template match="personas">
+			<xsl:for-each select="persona">
+				<tr>
+					<td width="40">
+						<img border="0" src="../Images/Reports/Persona.jpg" width="23" height="17"/>
+					</td>
+					<td align="left" width="80%" style="font-size:10px;">
+						<xsl:value-of select="@datos_persona"/>
+					</td>
+					<td align="right" width="200">
+						&#160;
+					</td>
+				</tr>
+			</xsl:for-each>
+		</xsl:template>
+	</html:xslt>
+</html:html>

@@ -1,0 +1,1078 @@
+<html:html xmlns:html="nomad_engine.html" xmlns:qry="nomad_engine.qry" xmlns:xsl="http://www.w3.org/1999/XSL/Transform" doctype="HTML5" extends="NucleusRH.Base.Evaluacion2.BASE_Evaluacion2.rpt" name="Evaluacion Base 2.0" doc="source">
+	<html:for-each declare="&lt;FILTRO gcustom=&quot;&quot; evento=&quot;611&quot; oi_posicion_new=&quot;&quot; gpers=&quot;&quot; empresa=&quot;&quot; activos=&quot;&quot; nombre=&quot;&quot; documento=&quot;&quot; sexo=&quot;&quot; grupo_sanguineo=&quot;&quot; listlegajos=&quot;&quot; oi_indic_activo=&quot;&quot; egresado=&quot;&quot; oi_forma_pago=&quot;&quot; oi_tipo_personal=&quot;&quot; fecha_desde=&quot;&quot; fecha_hasta=&quot;&quot; oi_centro_costo=&quot;&quot; oi_convenio=&quot;&quot; soloconvenio=&quot;&quot; oi_categoria=&quot;&quot; oi_ubicacion_desde=&quot;&quot; oi_ubicacion_hasta=&quot;&quot; oi_estructura=&quot;&quot; escructura_childs=&quot;&quot; oi_contrato=&quot;&quot; oi_afjp=&quot;&quot; oi_obra_social=&quot;&quot; oi_sindicato=&quot;&quot; l_afiliado_sind=&quot;0&quot; supervisor=&quot;&quot; evaluador=&quot;&quot; estado=&quot;&quot; legID=&quot;&quot; leg_where=&quot;&quot;&gt;&lt;PERSONAS&gt;&lt;ROW VALUES=&quot;14&quot; /&gt;&lt;/PERSONAS&gt;&lt;EVENTOS /&gt;&lt;/FILTRO&gt;">
+		<qry:main doc="SOURCE">
+			<ROWS>
+				<qry:attribute name="timestamp" value="Now()"/>
+				<qry:insert-select name="SQL1" doc-path="#SOURCE:/FILTRO"/>
+			</ROWS>
+		</qry:main>
+		<qry:select doc="SOURCE" name="SQL1">
+			<qry:xquery>
+				for $r in SQL('
+	SELECT
+		E.oi_evaluacion as oi_evaluacion,
+		E.oi_personal_emp as oi_personal_emp  
+	FROM
+		EDD03_EVALUACION as E
+	WHERE                  
+		E.oi_evento = {#SOURCE:@evento} AND  
+		E.oi_personal_emp in ({%=string(#SOURCE:PERSONAS/ROW/@VALUES) %}) 
+')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:attribute name="pos" value="number(@pos)+1"/>
+				<qry:call>
+					<param>
+						<qry:attribute name="oi_evaluacion" value="$r/@oi_evaluacion"/>
+						<qry:attribute name="oi_personal_emp" value="$r/@oi_personal_emp"/>
+						<qry:attribute name="pos" value="../../@pos"/>
+						<qry:attribute name="mode" value="'SHOW'"/>
+					</param>
+				</qry:call>
+			</qry:out>
+		</qry:select>
+	</html:for-each>
+	<html:xslt>
+		<xsl:template match="ROWS">
+			<html>
+				<xsl:attribute name="nmd_timestamp">
+					<xsl:value-of select="@timestamp"/>
+				</xsl:attribute>
+				<head>
+					<xsl:call-template name="STYLE"/>
+				</head>
+				<script>
+					function ShowTooltip(obj)
+{                       
+	var xxx=obj.getElementsByTagName("div");
+	if (xxx)
+	if (xxx.length!=0)
+	if (xxx[0].className=="tooltip")
+	xxx[0].style.display="block";
+}
+function HideTooltip(obj)
+{
+	var xxx=obj.getElementsByTagName("div");
+	if (xxx)
+	if (xxx.length!=0)           
+	if (xxx[0].className=="tooltip")
+	xxx[0].style.display="none";
+}
+				</script>
+				<body>
+					<xsl:apply-templates select="REPORT"/>
+				</body>
+			</html>
+		</xsl:template>
+		<xsl:template match="REPORT">
+			<xsl:if test="preceding-sibling::*">
+				<p style="page-break-after:always;">
+					<br/>
+					<hr class="screen" style="border:1px dotted black;" noshade="true" color="#000000" size="1px" align="center"/>
+				</p>
+			</xsl:if>
+			<div class="PAGE">
+				<xsl:call-template name="HEAD"/>
+				<xsl:apply-templates select="PLANTILLA"/>
+			</div>
+		</xsl:template>
+		<xsl:template match="PLANTILLA[@DEF_d_reporte='ITEM_ESC_COMBO_POND' or @DEF_d_reporte='ITEM_ESC_COMBO']">
+			<xsl:variable name="PLANTILLA" select="."/>
+			<xsl:variable name="EVALUADORES" select="../EVALUADORES"/>
+			<xsl:variable name="ESCALAS" select="../ESCALAS"/>
+			<xsl:variable name="POND" select="@DEF_d_reporte='ITEM_ESC_COMBO_POND'"/>
+			<xsl:if test="@DEF_Show='1'">
+				<xsl:call-template name="SEPARATOR"/>
+				<table class="PLA" id="TBL_{@oi_plantilla}">
+					<tr class="PLA_HEAD">
+						<xsl:call-template name="PLANTILLA_HEAD">
+							<xsl:with-param name="PLANTILLA" select="$PLANTILLA"/>
+							<xsl:with-param name="EVALUADORES" select="$EVALUADORES"/>
+							<xsl:with-param name="POND" select="$POND"/>
+						</xsl:call-template>
+					</tr>
+					<xsl:for-each select="ITEM">
+						<xsl:variable name="ITEM" select="."/>
+						<xsl:variable name="ESCALA" select="$ESCALAS/ESCALA[@oi_escala=$ITEM/@oi_escala]"/>
+						<tr id="TR_O_{@oi_objetivo}">
+							<xsl:call-template name="TD_ITEM_ACTION_DEL">
+								<xsl:with-param name="PLANTILLA" select="$PLANTILLA"/>
+								<xsl:with-param name="ITEM" select="$ITEM/@oi_objetivo"/>
+							</xsl:call-template>
+							<xsl:call-template name="TD_ITEM_LABEL">
+								<xsl:with-param name="PLANTILLA" select="$PLANTILLA"/>
+								<xsl:with-param name="ID" select="concat('MSG_',$ITEM/@oi_objetivo)"/>
+								<xsl:with-param name="TEXT" select="$ITEM/@d_objetivo"/>
+								<xsl:with-param name="TOOLTIP" select="$ITEM/@o_objetivo"/>
+							</xsl:call-template>
+							<xsl:if test="$POND">
+								<xsl:call-template name="TD_ITEM_POND">
+									<xsl:with-param name="PLANTILLA" select="$PLANTILLA"/>
+									<xsl:with-param name="ID" select="concat('POND_',$ITEM/@oi_objetivo)"/>
+									<xsl:with-param name="VALUE" select="$ITEM/@n_ponderacion"/>
+									<xsl:with-param name="DEC" select="$PLANTILLA/@DEF_d_cus3"/>
+								</xsl:call-template>
+							</xsl:if>
+							<xsl:call-template name="TD_ITEM_VALUE_COMBO">
+								<xsl:with-param name="ESCALA" select="$ESCALA"/>
+								<xsl:with-param name="STATUS" select="$PLANTILLA/@DEF_Evaluador"/>
+								<xsl:with-param name="ID" select="concat('OE_',$ITEM/@oi_objetivo)"/>
+								<xsl:with-param name="VALUE" select="$ITEM/@n_resultado"/>
+							</xsl:call-template>
+							<xsl:call-template name="TD_ITEM_VALUE_COMBO">
+								<xsl:with-param name="ESCALA" select="$ESCALA"/>
+								<xsl:with-param name="STATUS" select="$PLANTILLA/@DEF_Evaluado"/>
+								<xsl:with-param name="ID" select="concat('OA_',$ITEM/@oi_objetivo)"/>
+								<xsl:with-param name="VALUE" select="$ITEM/@n_resultado2"/>
+							</xsl:call-template>
+							<xsl:call-template name="TD_ITEM_VALUE_COMBO">
+								<xsl:with-param name="ESCALA" select="$ESCALA"/>
+								<xsl:with-param name="STATUS" select="$PLANTILLA/@DEF_Supervisor"/>
+								<xsl:with-param name="ID" select="concat('OS_',$ITEM/@oi_objetivo)"/>
+								<xsl:with-param name="VALUE" select="$ITEM/@n_resultado3"/>
+							</xsl:call-template>
+						</tr>
+					</xsl:for-each>
+					<xsl:variable name="ESCALA" select="$ESCALAS/ESCALA[@oi_escala=$PLANTILLA/@oi_escala]"/>
+					<tr class="PLA_FOOT">
+						<xsl:call-template name="PLANTILLA_FOOT">
+							<xsl:with-param name="PLANTILLA" select="$PLANTILLA"/>
+							<xsl:with-param name="EVALUADORES" select="$EVALUADORES"/>
+							<xsl:with-param name="POND" select="$POND"/>
+							<xsl:with-param name="ID" select="$PLANTILLA/@oi_plantilla"/>
+							<xsl:with-param name="ESCALA" select="$ESCALA"/>
+							<xsl:with-param name="DEC" select="$PLANTILLA/@DEF_d_cus2"/>
+						</xsl:call-template>
+					</tr>
+				</table>
+				<xsl:call-template name="PLANTILLA_COMENT"/>
+			</xsl:if>
+		</xsl:template>
+		<xsl:template match="PLANTILLA[@DEF_d_reporte='ITEM_ESC_NUM_POND' or @DEF_d_reporte='ITEM_ESC_NUM']">
+			<xsl:variable name="PLANTILLA" select="."/>
+			<xsl:variable name="EVALUADORES" select="../EVALUADORES"/>
+			<xsl:variable name="ESCALAS" select="../ESCALAS"/>
+			<xsl:variable name="POND" select="@DEF_d_reporte='ITEM_ESC_NUM_POND'"/>
+			<xsl:if test="@DEF_Show='1'">
+				<xsl:call-template name="SEPARATOR"/>
+				<table class="PLA" id="TBL_{@oi_plantilla}">
+					<tr class="PLA_HEAD">
+						<xsl:call-template name="PLANTILLA_HEAD">
+							<xsl:with-param name="PLANTILLA" select="$PLANTILLA"/>
+							<xsl:with-param name="EVALUADORES" select="$EVALUADORES"/>
+							<xsl:with-param name="POND" select="$POND"/>
+						</xsl:call-template>
+					</tr>
+					<xsl:for-each select="ITEM">
+						<xsl:variable name="ITEM" select="."/>
+						<xsl:variable name="ESCALA" select="$ESCALAS/ESCALA[@oi_escala=$ITEM/@oi_escala]"/>
+						<tr id="TR_O_{@oi_objetivo}">
+							<xsl:call-template name="TD_ITEM_ACTION_DEL">
+								<xsl:with-param name="PLANTILLA" select="$PLANTILLA"/>
+								<xsl:with-param name="ITEM" select="$ITEM/@oi_objetivo"/>
+							</xsl:call-template>
+							<xsl:call-template name="TD_ITEM_LABEL">
+								<xsl:with-param name="PLANTILLA" select="$PLANTILLA"/>
+								<xsl:with-param name="ID" select="concat('MSG_',$ITEM/@oi_objetivo)"/>
+								<xsl:with-param name="TEXT" select="$ITEM/@d_objetivo"/>
+								<xsl:with-param name="TOOLTIP" select="$ITEM/@o_objetivo"/>
+							</xsl:call-template>
+							<xsl:if test="$POND">
+								<xsl:call-template name="TD_ITEM_POND">
+									<xsl:with-param name="PLANTILLA" select="$PLANTILLA"/>
+									<xsl:with-param name="ID" select="concat('POND_',$ITEM/@oi_objetivo)"/>
+									<xsl:with-param name="VALUE" select="$ITEM/@n_ponderacion"/>
+									<xsl:with-param name="DEC" select="$PLANTILLA/@DEF_d_cus3"/>
+								</xsl:call-template>
+							</xsl:if>
+							<xsl:call-template name="TD_ITEM_VALUE_INPUT">
+								<xsl:with-param name="STATUS" select="$PLANTILLA/@DEF_Evaluador"/>
+								<xsl:with-param name="ID" select="concat('OE_',$ITEM/@oi_objetivo)"/>
+								<xsl:with-param name="VALUE" select="$ITEM/@n_resultado"/>
+								<xsl:with-param name="DEC" select="$PLANTILLA/@DEF_d_cus2"/>
+							</xsl:call-template>
+							<xsl:call-template name="TD_ITEM_VALUE_INPUT">
+								<xsl:with-param name="STATUS" select="$PLANTILLA/@DEF_Evaluado"/>
+								<xsl:with-param name="ID" select="concat('OA_',$ITEM/@oi_objetivo)"/>
+								<xsl:with-param name="VALUE" select="$ITEM/@n_resultado2"/>
+								<xsl:with-param name="DEC" select="$PLANTILLA/@DEF_d_cus2"/>
+							</xsl:call-template>
+							<xsl:call-template name="TD_ITEM_VALUE_INPUT">
+								<xsl:with-param name="STATUS" select="$PLANTILLA/@DEF_Supervisor"/>
+								<xsl:with-param name="ID" select="concat('OS_',$ITEM/@oi_objetivo)"/>
+								<xsl:with-param name="VALUE" select="$ITEM/@n_resultado3"/>
+								<xsl:with-param name="DEC" select="$PLANTILLA/@DEF_d_cus2"/>
+							</xsl:call-template>
+						</tr>
+					</xsl:for-each>
+					<xsl:variable name="ESCALA" select="$ESCALAS/ESCALA[@oi_escala=$PLANTILLA/@oi_escala]"/>
+					<tr class="PLA_FOOT">
+						<xsl:call-template name="PLANTILLA_FOOT">
+							<xsl:with-param name="PLANTILLA" select="$PLANTILLA"/>
+							<xsl:with-param name="EVALUADORES" select="$EVALUADORES"/>
+							<xsl:with-param name="POND" select="$POND"/>
+							<xsl:with-param name="ID" select="$PLANTILLA/@oi_plantilla"/>
+							<xsl:with-param name="ESCALA" select="$ESCALA"/>
+							<xsl:with-param name="DEC" select="$PLANTILLA/@DEF_d_cus2"/>
+						</xsl:call-template>
+					</tr>
+				</table>
+				<xsl:call-template name="PLANTILLA_COMENT"/>
+			</xsl:if>
+		</xsl:template>
+		<xsl:template match="PLANTILLA[@DEF_d_reporte='SUBITEM_ESC_COMBO']">
+			<xsl:variable name="PLANTILLA" select="."/>
+			<xsl:variable name="EVALUADORES" select="../EVALUADORES"/>
+			<xsl:variable name="ESCALAS" select="../ESCALAS"/>
+			<xsl:variable name="POND" select="0"/>
+			<xsl:if test="@DEF_Show='1'">
+				<xsl:call-template name="SEPARATOR"/>
+				<xsl:call-template name="PLANTILLA_TITLE"/>
+				<table class="PLA" id="TBL_{@oi_plantilla}">
+					<xsl:for-each select="ITEM">
+						<xsl:variable name="ITEM" select="."/>
+						<tr id="TR_O_{@oi_objetivo}" class="PLA_HEAD">
+							<xsl:call-template name="PLANTILLA_HEAD">
+								<xsl:with-param name="PLANTILLA" select="$PLANTILLA"/>
+								<xsl:with-param name="EVALUADORES" select="$EVALUADORES"/>
+								<xsl:with-param name="POND" select="$POND"/>
+								<xsl:with-param name="LABEL" select="$ITEM/@d_objetivo"/>
+								<xsl:with-param name="ITEM" select="$ITEM/@oi_objetivo"/>
+							</xsl:call-template>
+						</tr>
+						<xsl:for-each select="SUBITEM">
+							<xsl:variable name="SUBITEM" select="."/>
+							<xsl:variable name="ESCALA" select="$ESCALAS/ESCALA[@oi_escala=$SUBITEM/@oi_escala]"/>
+							<tr id="TR_S_{$ITEM/@oi_objetivo}_{$SUBITEM/@oi_subobjetivo}">
+								<xsl:call-template name="TD_ITEM_ACTION_DEL">
+									<xsl:with-param name="PLANTILLA" select="$PLANTILLA"/>
+									<xsl:with-param name="ITEM" select="$ITEM/@oi_objetivo"/>
+									<xsl:with-param name="SUBITEM" select="$SUBITEM/@oi_subobjetivo"/>
+								</xsl:call-template>
+								<xsl:call-template name="TD_ITEM_LABEL">
+									<xsl:with-param name="PLANTILLA" select="$PLANTILLA"/>
+									<xsl:with-param name="ID" select="concat('MSG_',$ITEM/@oi_objetivo,'_',$SUBITEM/@oi_subobjetivo)"/>
+									<xsl:with-param name="TEXT" select="$SUBITEM/@d_subobjetivo"/>
+									<xsl:with-param name="TOOLTIP" select="$SUBITEM/@o_subobjetivo"/>
+								</xsl:call-template>
+								<xsl:call-template name="TD_ITEM_VALUE_COMBO">
+									<xsl:with-param name="ESCALA" select="$ESCALA"/>
+									<xsl:with-param name="STATUS" select="$PLANTILLA/@DEF_Evaluador"/>
+									<xsl:with-param name="ID" select="concat('OE_',$ITEM/@oi_objetivo,'_',$SUBITEM/@oi_subobjetivo)"/>
+									<xsl:with-param name="VALUE" select="$SUBITEM/@n_resultado"/>
+								</xsl:call-template>
+								<xsl:choose>
+									<xsl:when test="$PLANTILLA/@DEF_Evaluador360='1'">
+										<xsl:variable name="n_resultado" select="$SUBITEM/attribute::*[name() = concat('EVA_n_res_',$EVALUADORES/@oi_evaluador_360)]"/>
+										<xsl:call-template name="TD_ITEM_VALUE_COMBO">
+											<xsl:with-param name="ESCALA" select="$ESCALA"/>
+											<xsl:with-param name="STATUS" select="1"/>
+											<xsl:with-param name="ID" select="concat('O3_',$ITEM/@oi_objetivo,'_',$SUBITEM/@oi_subobjetivo,'_',$EVALUADORES/@oi_evaluador_360)"/>
+											<xsl:with-param name="VALUE" select="$n_resultado"/>
+										</xsl:call-template>
+									</xsl:when>
+									<xsl:when test="$PLANTILLA/@DEF_Evaluador360='2'">
+										<xsl:for-each select="$EVALUADORES/EVALUADOR">
+											<xsl:variable name="EVALUADOR" select="."/>
+											<xsl:variable name="n_resultado" select="$SUBITEM/attribute::*[name() = concat('EVA_n_res_',$EVALUADOR/@oi_personal_emp)]"/>
+											<xsl:call-template name="TD_ITEM_VALUE_COMBO">
+												<xsl:with-param name="ESCALA" select="$ESCALA"/>
+												<xsl:with-param name="STATUS" select="1"/>
+												<xsl:with-param name="ID" select="concat('O3_',$ITEM/@oi_objetivo,'_',$SUBITEM/@oi_subobjetivo,'_',@oi_personal_emp)"/>
+												<xsl:with-param name="VALUE" select="$n_resultado"/>
+											</xsl:call-template>
+										</xsl:for-each>
+									</xsl:when>
+									<xsl:when test="$PLANTILLA/@DEF_Evaluador360='3'">
+										<xsl:variable name="n_resultado" select="$SUBITEM/attribute::*[name() = concat('EVA_n_res_',$EVALUADORES/@oi_evaluador_360)]"/>
+										<xsl:call-template name="TD_ITEM_VALUE_COMBO">
+											<xsl:with-param name="ESCALA" select="$ESCALA"/>
+											<xsl:with-param name="STATUS" select="2"/>
+											<xsl:with-param name="ID" select="concat('O3_',$ITEM/@oi_objetivo,'_',$SUBITEM/@oi_subobjetivo,'_',$EVALUADORES/@oi_evaluador_360)"/>
+											<xsl:with-param name="VALUE" select="$n_resultado"/>
+										</xsl:call-template>
+									</xsl:when>
+								</xsl:choose>
+								<xsl:call-template name="TD_ITEM_VALUE_COMBO">
+									<xsl:with-param name="ESCALA" select="$ESCALA"/>
+									<xsl:with-param name="STATUS" select="$PLANTILLA/@DEF_Evaluado"/>
+									<xsl:with-param name="ID" select="concat('OA_',$ITEM/@oi_objetivo,'_',$SUBITEM/@oi_subobjetivo)"/>
+									<xsl:with-param name="VALUE" select="$SUBITEM/@n_resultado2"/>
+								</xsl:call-template>
+								<xsl:call-template name="TD_ITEM_VALUE_COMBO">
+									<xsl:with-param name="ESCALA" select="$ESCALA"/>
+									<xsl:with-param name="STATUS" select="$PLANTILLA/@DEF_Supervisor"/>
+									<xsl:with-param name="ID" select="concat('OS_',$ITEM/@oi_objetivo,'_',$SUBITEM/@oi_subobjetivo)"/>
+									<xsl:with-param name="VALUE" select="$SUBITEM/@n_resultado3"/>
+								</xsl:call-template>
+							</tr>
+						</xsl:for-each>
+						<xsl:variable name="ESCALA" select="$ESCALAS/ESCALA[@oi_escala=$ITEM/@oi_escala]"/>
+						<tr class="PLA_FOOT" id="TR_OR_{@oi_objetivo}">
+							<xsl:call-template name="PLANTILLA_FOOT">
+								<xsl:with-param name="PLANTILLA" select="$PLANTILLA"/>
+								<xsl:with-param name="EVALUADORES" select="$EVALUADORES"/>
+								<xsl:with-param name="POND" select="$POND"/>
+								<xsl:with-param name="ID" select="concat($PLANTILLA/@oi_plantilla,'_',$ITEM/@oi_objetivo)"/>
+								<xsl:with-param name="LABEL" select="'&#160;'"/>
+								<xsl:with-param name="ESCALA" select="$ESCALA"/>
+								<xsl:with-param name="DEC" select="$PLANTILLA/@DEF_d_cus2"/>
+								<xsl:with-param name="ITEM" select="$ITEM"/>
+							</xsl:call-template>
+						</tr>
+					</xsl:for-each>
+					<xsl:variable name="ESCALA" select="$ESCALAS/ESCALA[@oi_escala=$PLANTILLA/@oi_escala]"/>
+					<tr class="PLA_FOOT">
+						<xsl:call-template name="PLANTILLA_FOOT">
+							<xsl:with-param name="PLANTILLA" select="$PLANTILLA"/>
+							<xsl:with-param name="EVALUADORES" select="$EVALUADORES"/>
+							<xsl:with-param name="POND" select="$POND"/>
+							<xsl:with-param name="ID" select="$PLANTILLA/@oi_plantilla"/>
+							<xsl:with-param name="ESCALA" select="$ESCALA"/>
+							<xsl:with-param name="DEC" select="$PLANTILLA/@DEF_d_cus2"/>
+						</xsl:call-template>
+					</tr>
+				</table>
+				<xsl:call-template name="PLANTILLA_COMENT"/>
+			</xsl:if>
+		</xsl:template>
+		<xsl:template match="PLANTILLA[@DEF_d_reporte='COMENT']">
+			<xsl:if test="@DEF_Show='1' and @DEF_Comentarios!='0'">
+				<xsl:call-template name="SEPARATOR"/>
+				<xsl:call-template name="PLANTILLA_TITLE"/>
+				<xsl:call-template name="PLANTILLA_COMENT"/>
+			</xsl:if>
+		</xsl:template>
+		<xsl:template match="PLANTILLA[@DEF_d_reporte='COMENT_360']">
+			<xsl:variable name="EVALUACION" select=".."/>
+			<xsl:variable name="PLANTILLA" select="."/>
+			<xsl:variable name="EVALUADORES" select="../EVALUADORES"/>
+			<xsl:if test="@DEF_Show='1'">
+				<xsl:call-template name="SEPARATOR"/>
+				<xsl:call-template name="PLANTILLA_TITLE"/>
+				<xsl:choose>
+					<xsl:when test="$PLANTILLA/@DEF_Evaluador360='1'">
+						<table class="PLA_COMENT">
+							<tr>
+								<xsl:call-template name="TD_ITEM_COMMENT">
+									<xsl:with-param name="ID" select="concat('COMENT_',$PLANTILLA/@oi_plantilla,'_',$EVALUADORES/@oi_evaluador_360)"/>
+									<xsl:with-param name="TEXT" select="@EVA_o_plantilla"/>
+									<xsl:with-param name="EDIT" select="1"/>
+								</xsl:call-template>
+							</tr>
+						</table>
+					</xsl:when>
+					<xsl:when test="$PLANTILLA/@DEF_Evaluador360='2'">
+						<table class="PLA_COMENT">
+							<xsl:for-each select="$PLANTILLA/attribute::*[starts-with(name(),'EVA_o_com_')]">
+								<xsl:variable name="COMENT" select="."/>
+								<xsl:variable name="OI" select="substring(name(),11)"/>
+								<tr>
+									<xsl:choose>
+										<xsl:when test="$OI=$EVALUACION/@J_oi_personal_emp">
+											<xsl:if test="$PLANTILLA/@DEF_d_cus1">
+												<xsl:call-template name="TD_ITEM_COMMENT">
+													<xsl:with-param name="ID" select="concat('COMMENT_',$PLANTILLA/@oi_plantilla,'_',$OI)"/>
+													<xsl:with-param name="LABEL" select="'SUPERVISOR'"/>
+													<xsl:with-param name="TEXT" select="$PLANTILLA/@DEF_d_cus1"/>
+													<xsl:with-param name="EDIT" select="1"/>
+												</xsl:call-template>
+											</xsl:if>
+											<xsl:if test="not($PLANTILLA/@DEF_d_cus1)">
+												<xsl:call-template name="TD_ITEM_COMMENT">
+													<xsl:with-param name="ID" select="concat('COMMENT_',$PLANTILLA/@oi_plantilla,'_',$OI)"/>
+													<xsl:with-param name="LABEL" select="'EVALUADOR'"/>
+													<xsl:with-param name="TEXT" select="$COMENT"/>
+													<xsl:with-param name="EDIT" select="1"/>
+												</xsl:call-template>
+											</xsl:if>
+										</xsl:when>
+										<xsl:when test="$OI=$EVALUACION/@E_oi_personal_emp">
+											<xsl:if test="$PLANTILLA/@DEF_d_cus3">
+												<xsl:call-template name="TD_ITEM_COMMENT">
+													<xsl:with-param name="ID" select="concat('COMMENT_',$PLANTILLA/@oi_plantilla,'_',$OI)"/>
+													<xsl:with-param name="LABEL" select="'SUPERVISOR'"/>
+													<xsl:with-param name="TEXT" select="$PLANTILLA/@DEF_d_cus3"/>
+													<xsl:with-param name="EDIT" select="1"/>
+												</xsl:call-template>
+											</xsl:if>
+											<xsl:if test="not($PLANTILLA/@DEF_d_cus3)">
+												<xsl:call-template name="TD_ITEM_COMMENT">
+													<xsl:with-param name="ID" select="concat('COMMENT_',$PLANTILLA/@oi_plantilla,'_',$OI)"/>
+													<xsl:with-param name="LABEL" select="'AUTOEVALUACION'"/>
+													<xsl:with-param name="TEXT" select="$COMENT"/>
+													<xsl:with-param name="EDIT" select="1"/>
+												</xsl:call-template>
+											</xsl:if>
+										</xsl:when>
+										<xsl:when test="$OI=$EVALUACION/@S_oi_personal_emp">
+											<xsl:if test="$PLANTILLA/@DEF_d_cus2">
+												<xsl:call-template name="TD_ITEM_COMMENT">
+													<xsl:with-param name="ID" select="concat('COMMENT_',$PLANTILLA/@oi_plantilla,'_',$OI)"/>
+													<xsl:with-param name="LABEL" select="'SUPERVISOR'"/>
+													<xsl:with-param name="TEXT" select="$PLANTILLA/@DEF_d_cus2"/>
+													<xsl:with-param name="EDIT" select="1"/>
+												</xsl:call-template>
+											</xsl:if>
+											<xsl:if test="not($PLANTILLA/@DEF_d_cus2)">
+												<xsl:call-template name="TD_ITEM_COMMENT">
+													<xsl:with-param name="ID" select="concat('COMMENT_',$PLANTILLA/@oi_plantilla,'_',$OI)"/>
+													<xsl:with-param name="LABEL" select="'SUPERVISOR'"/>
+													<xsl:with-param name="TEXT" select="$COMENT"/>
+													<xsl:with-param name="EDIT" select="1"/>
+												</xsl:call-template>
+											</xsl:if>
+										</xsl:when>
+										<xsl:otherwise>
+											<xsl:call-template name="TD_ITEM_COMMENT">
+												<xsl:with-param name="ID" select="concat('COMMENT_',$PLANTILLA/@oi_plantilla,'_',$OI)"/>
+												<xsl:with-param name="LABEL" select="$EVALUADORES/EVALUADOR[@oi_personal_emp=$OI]/@d_ape_y_nom"/>
+												<xsl:with-param name="TEXT" select="$COMENT"/>
+												<xsl:with-param name="EDIT" select="1"/>
+											</xsl:call-template>
+										</xsl:otherwise>
+									</xsl:choose>
+								</tr>
+							</xsl:for-each>
+						</table>
+					</xsl:when>
+					<xsl:when test="$PLANTILLA/@DEF_Evaluador360='3'">
+						<table class="PLA_COMENT">
+							<tr>
+								<xsl:call-template name="TD_ITEM_COMMENT">
+									<xsl:with-param name="ID" select="concat('COMENT_',$PLANTILLA/@oi_plantilla,'_',$EVALUADORES/@oi_evaluador_360)"/>
+									<xsl:with-param name="TEXT" select="$PLANTILLA/attribute::*[name() = concat('EVA_o_com_',$EVALUADORES/@oi_evaluador_360)]"/>
+									<xsl:with-param name="EDIT" select="2"/>
+								</xsl:call-template>
+							</tr>
+						</table>
+					</xsl:when>
+				</xsl:choose>
+			</xsl:if>
+		</xsl:template>
+		<xsl:template match="PLANTILLA[@DEF_d_reporte='RESUMEN']">
+			<xsl:variable name="PLANTILLA" select="."/>
+			<xsl:variable name="EVALUADORES" select="../EVALUADORES"/>
+			<xsl:variable name="ESCALAS" select="../ESCALAS"/>
+			<xsl:if test="@DEF_Show='1'">
+				<xsl:call-template name="SEPARATOR"/>
+				<table class="PLA">
+					<tr class="PLA_HEAD">
+						<th class="col_label">
+							<xsl:value-of select="$PLANTILLA/@DEF_d_plantilla"/>
+						</th>
+						<xsl:if test="$PLANTILLA/@DEF_Evaluador!='0'">
+							<th class="col_value">
+								<xsl:text>
+									Resultado
+								</xsl:text>
+								<br/>
+								<xsl:text>
+									Evaluador
+								</xsl:text>
+							</th>
+						</xsl:if>
+						<xsl:choose>
+							<xsl:when test="@DEF_Evaluador360='1'">
+								<th class="col_value">
+									<xsl:text>
+										Resultado
+									</xsl:text>
+									<br/>
+									<xsl:text>
+										Evaluador
+									</xsl:text>
+								</th>
+							</xsl:when>
+							<xsl:when test="@DEF_Evaluador360='2'">
+								<xsl:for-each select="$EVALUADORES/EVALUADOR">
+									<th class="col_value">
+										<xsl:text>
+											Resultado
+										</xsl:text>
+										<br/>
+										<xsl:value-of select="@d_ape_y_nom"/>
+									</th>
+								</xsl:for-each>
+							</xsl:when>
+							<xsl:when test="@DEF_Evaluador360='3'">
+								<th class="col_value">
+									<xsl:text>
+										Resultado
+									</xsl:text>
+									<br/>
+									<xsl:text>
+										Evaluador
+									</xsl:text>
+								</th>
+							</xsl:when>
+						</xsl:choose>
+						<xsl:if test="$PLANTILLA/@DEF_Evaluado!='0'">
+							<th class="col_value">
+								<xsl:text>
+									Resultado
+								</xsl:text>
+								<br/>
+								<xsl:text>
+									Autoevaluaci&#243;n
+								</xsl:text>
+							</th>
+						</xsl:if>
+						<xsl:if test="$PLANTILLA/@DEF_Supervisor!='0'">
+							<th class="col_value">
+								<xsl:text>
+									Resultado
+								</xsl:text>
+								<br/>
+								<xsl:text>
+									Supervisor
+								</xsl:text>
+							</th>
+						</xsl:if>
+						<th class="col_pond">
+							Ponderaci&#243;n
+						</th>
+						<xsl:if test="$PLANTILLA/@DEF_Evaluador!='0'">
+							<th class="col_value">
+								<xsl:text>
+									Subtotal
+								</xsl:text>
+								<br/>
+								<xsl:text>
+									Evaluador
+								</xsl:text>
+							</th>
+						</xsl:if>
+						<xsl:choose>
+							<xsl:when test="@DEF_Evaluador360='1'">
+								<th class="col_value">
+									<xsl:text>
+										Subtotal
+									</xsl:text>
+									<br/>
+									<xsl:text>
+										Evaluador
+									</xsl:text>
+								</th>
+							</xsl:when>
+							<xsl:when test="@DEF_Evaluador360='2'">
+								<xsl:for-each select="$EVALUADORES/EVALUADOR">
+									<th class="col_value">
+										<xsl:text>
+											Subtotal
+										</xsl:text>
+										<br/>
+										<xsl:value-of select="@d_ape_y_nom"/>
+									</th>
+								</xsl:for-each>
+							</xsl:when>
+							<xsl:when test="@DEF_Evaluador360='3'">
+								<th class="col_value">
+									<xsl:text>
+										Subtotal
+									</xsl:text>
+									<br/>
+									<xsl:text>
+										Evaluador
+									</xsl:text>
+								</th>
+							</xsl:when>
+						</xsl:choose>
+						<xsl:if test="$PLANTILLA/@DEF_Evaluado!='0'">
+							<th class="col_value">
+								<xsl:text>
+									Subtotal
+								</xsl:text>
+								<br/>
+								<xsl:text>
+									Autoevaluaci&#243;n
+								</xsl:text>
+							</th>
+						</xsl:if>
+						<xsl:if test="$PLANTILLA/@DEF_Supervisor!='0'">
+							<th class="col_value">
+								<xsl:text>
+									Subtotal
+								</xsl:text>
+								<br/>
+								<xsl:text>
+									Supervisor
+								</xsl:text>
+							</th>
+						</xsl:if>
+					</tr>
+					<xsl:variable name="THIS" select="."/>
+					<xsl:for-each select="../PLANTILLA[@DEF_l_mostrar_res='1']">
+						<xsl:variable name="SUB" select="."/>
+						<tr>
+							<td class="col_label">
+								<xsl:value-of select="@DEF_d_plantilla"/>
+							</td>
+							<xsl:if test="$THIS/@DEF_Evaluador!='0'">
+								<xsl:call-template name="TD_ITEM_VALUE_TEXT">
+									<xsl:with-param name="ESCALA" select="$ESCALAS/ESCALA[@oi_escala=$SUB/@oi_escala]"/>
+									<xsl:with-param name="VALUE" select="$SUB/@EVA_n_resultado"/>
+									<xsl:with-param name="DEC" select="$SUB/@DEF_d_cus2"/>
+									<xsl:with-param name="ID" select="concat('PE_',$THIS/@oi_plantilla,'_',$SUB/@oi_plantilla)"/>
+								</xsl:call-template>
+							</xsl:if>
+							<xsl:choose>
+								<xsl:when test="$THIS/@DEF_Evaluador360='1'">
+									<xsl:variable name="n_resultado" select="$SUB/attribute::*[name() = concat('EVA_n_res_',$EVALUADORES/@oi_evaluador_360)]"/>
+									<xsl:call-template name="TD_ITEM_VALUE_TEXT">
+										<xsl:with-param name="ESCALA" select="$ESCALAS/ESCALA[@oi_escala=$SUB/@oi_escala]"/>
+										<xsl:with-param name="VALUE" select="$n_resultado"/>
+										<xsl:with-param name="DEC" select="$SUB/@DEF_d_cus2"/>
+										<xsl:with-param name="ID" select="concat('P3_',$THIS/@oi_plantilla,'_',$SUB/@oi_plantilla,'_',$EVALUADORES/@oi_evaluador_360)"/>
+									</xsl:call-template>
+								</xsl:when>
+								<xsl:when test="$THIS/@DEF_Evaluador360='2'">
+									<xsl:for-each select="$EVALUADORES/EVALUADOR">
+										<xsl:variable name="EVALUADOR" select="."/>
+										<xsl:variable name="n_resultado" select="$SUB/attribute::*[name() = concat('EVA_n_res_',$EVALUADOR/@oi_personal_emp)]"/>
+										<xsl:call-template name="TD_ITEM_VALUE_TEXT">
+											<xsl:with-param name="ESCALA" select="$ESCALAS/ESCALA[@oi_escala=$SUB/@oi_escala]"/>
+											<xsl:with-param name="VALUE" select="$n_resultado"/>
+											<xsl:with-param name="DEC" select="$SUB/@DEF_d_cus2"/>
+											<xsl:with-param name="ID" select="concat('P3_',$THIS/@oi_plantilla,'_',$SUB/@oi_plantilla,'_',$EVALUADOR/@oi_personal_emp)"/>
+										</xsl:call-template>
+									</xsl:for-each>
+								</xsl:when>
+								<xsl:when test="$THIS/@DEF_Evaluador360='3'">
+									<xsl:variable name="n_resultado" select="$SUB/attribute::*[name() = concat('EVA_n_res_',$EVALUADORES/@oi_evaluador_360)]"/>
+									<xsl:call-template name="TD_ITEM_VALUE_TEXT">
+										<xsl:with-param name="ESCALA" select="$ESCALAS/ESCALA[@oi_escala=$SUB/@oi_escala]"/>
+										<xsl:with-param name="VALUE" select="$n_resultado"/>
+										<xsl:with-param name="DEC" select="$SUB/@DEF_d_cus2"/>
+										<xsl:with-param name="ID" select="concat('P3_',$THIS/@oi_plantilla,'_',$SUB/@oi_plantilla,'_',$EVALUADORES/@oi_evaluador_360)"/>
+									</xsl:call-template>
+								</xsl:when>
+							</xsl:choose>
+							<xsl:if test="$THIS/@DEF_Evaluado!='0'">
+								<xsl:call-template name="TD_ITEM_VALUE_TEXT">
+									<xsl:with-param name="ESCALA" select="$ESCALAS/ESCALA[@oi_escala=$SUB/@oi_escala]"/>
+									<xsl:with-param name="VALUE" select="$SUB/@EVA_n_resultado2"/>
+									<xsl:with-param name="DEC" select="$SUB/@DEF_d_cus2"/>
+									<xsl:with-param name="ID" select="concat('PA_',$THIS/@oi_plantilla,'_',$SUB/@oi_plantilla)"/>
+								</xsl:call-template>
+							</xsl:if>
+							<xsl:if test="$THIS/@DEF_Supervisor!='0'">
+								<xsl:call-template name="TD_ITEM_VALUE_TEXT">
+									<xsl:with-param name="ESCALA" select="$ESCALAS/ESCALA[@oi_escala=$SUB/@oi_escala]"/>
+									<xsl:with-param name="VALUE" select="$SUB/@EVA_n_resultado3"/>
+									<xsl:with-param name="DEC" select="$SUB/@DEF_d_cus2"/>
+									<xsl:with-param name="ID" select="concat('PS_',$THIS/@oi_plantilla,'_',$SUB/@oi_plantilla)"/>
+								</xsl:call-template>
+							</xsl:if>
+							<td class="col_pond">
+								<xsl:value-of select="concat(round(100*(@EVA_n_ponderacion div ../@MAXVALUE)),'%')"/>
+							</td>
+							<xsl:variable name="ESCALA_SUB" select="$ESCALAS/ESCALA[@oi_escala=$SUB/@oi_escala]"/>
+							<xsl:variable name="ESCALA_THIS" select="$ESCALAS/ESCALA[@oi_escala=$THIS/../@oi_escala]"/>
+							<xsl:if test="$THIS/@DEF_Evaluador!='0'">
+								<xsl:call-template name="TD_ITEM_VALUE_TEXT2">
+									<xsl:with-param name="ESCALA" select="$ESCALA_THIS"/>
+									<xsl:with-param name="VALUE" select="$ESCALA_THIS/@max * $SUB/@EVA_n_ponderacion * $SUB/@EVA_n_resultado div $ESCALA_SUB/@max div sum($THIS/../PLANTILLA[@DEF_l_mostrar_res='1' and @EVA_n_resultado &gt;= 0 and @DEF_Evaluador!='0']/@EVA_n_ponderacion)"/>
+									<xsl:with-param name="DEC" select="$THIS/@DEF_d_cus1"/>
+									<xsl:with-param name="ID" select="concat('PES_',$THIS/@oi_plantilla,'_',$SUB/@oi_plantilla)"/>
+								</xsl:call-template>
+							</xsl:if>
+							<xsl:choose>
+								<xsl:when test="$THIS/@DEF_Evaluador360='1'">
+									<xsl:variable name="n_resultado" select="$SUB/attribute::*[name() = concat('EVA_n_res_',$EVALUADORES/@oi_evaluador_360)]"/>
+									<xsl:call-template name="TD_ITEM_VALUE_TEXT2">
+										<xsl:with-param name="ESCALA" select="$ESCALA_THIS"/>
+										<xsl:with-param name="VALUE" select="$ESCALA_THIS/@max * $SUB/@EVA_n_ponderacion * $n_resultado div $ESCALA_SUB/@max div sum($THIS/../PLANTILLA[@DEF_l_mostrar_res='1' and (attribute::*[name() = concat('EVA_n_res_',$EVALUADORES/@oi_evaluador_360)])&gt;=0 and @DEF_Evaluador360!='0']/@EVA_n_ponderacion)"/>
+										<xsl:with-param name="DEC" select="$THIS/@DEF_d_cus1"/>
+										<xsl:with-param name="ID" select="concat('P3S_',$THIS/@oi_plantilla,'_',$SUB/@oi_plantilla,'_',$EVALUADORES/@oi_evaluador_360)"/>
+									</xsl:call-template>
+								</xsl:when>
+								<xsl:when test="$THIS/@DEF_Evaluador360='2'">
+									<xsl:for-each select="$EVALUADORES/EVALUADOR">
+										<xsl:variable name="EVALUADOR" select="."/>
+										<xsl:variable name="n_resultado" select="$SUB/attribute::*[name() = concat('EVA_n_res_',$EVALUADOR/@oi_personal_emp)]"/>
+										<xsl:call-template name="TD_ITEM_VALUE_TEXT2">
+											<xsl:with-param name="ESCALA" select="$ESCALA_THIS"/>
+											<xsl:with-param name="VALUE" select="$ESCALA_THIS/@max * $SUB/@EVA_n_ponderacion * $n_resultado div $ESCALA_SUB/@max div sum($THIS/../PLANTILLA[@DEF_l_mostrar_res='1' and (attribute::*[name() = concat('EVA_n_res_',$EVALUADOR/@oi_personal_emp)])&gt;=0 and @DEF_Evaluador360!='0']/@EVA_n_ponderacion)"/>
+											<xsl:with-param name="DEC" select="$THIS/@DEF_d_cus1"/>
+											<xsl:with-param name="ID" select="concat('P3S_',$THIS/@oi_plantilla,'_',$SUB/@oi_plantilla,'_',$EVALUADOR/@oi_personal_emp)"/>
+										</xsl:call-template>
+									</xsl:for-each>
+								</xsl:when>
+								<xsl:when test="$THIS/@DEF_Evaluador360='3'">
+									<xsl:variable name="n_resultado" select="$SUB/attribute::*[name() = concat('EVA_n_res_',$EVALUADORES/@oi_evaluador_360)]"/>
+									<xsl:call-template name="TD_ITEM_VALUE_TEXT2">
+										<xsl:with-param name="ESCALA" select="$ESCALA_THIS"/>
+										<xsl:with-param name="VALUE" select="$ESCALA_THIS/@max * $SUB/@EVA_n_ponderacion * $n_resultado div $ESCALA_SUB/@max div sum($THIS/../PLANTILLA[@DEF_l_mostrar_res='1' and (attribute::*[name() = concat('EVA_n_res_',$EVALUADORES/@oi_evaluador_360)])&gt;=0 and @DEF_Evaluador360!='0']/@EVA_n_ponderacion)"/>
+										<xsl:with-param name="DEC" select="$THIS/@DEF_d_cus1"/>
+										<xsl:with-param name="ID" select="concat('P3S_',$THIS/@oi_plantilla,'_',$SUB/@oi_plantilla,'_',$EVALUADORES/@oi_evaluador_360)"/>
+									</xsl:call-template>
+								</xsl:when>
+							</xsl:choose>
+							<xsl:if test="$THIS/@DEF_Evaluado!='0'">
+								<xsl:call-template name="TD_ITEM_VALUE_TEXT2">
+									<xsl:with-param name="ESCALA" select="$ESCALA_THIS"/>
+									<xsl:with-param name="VALUE" select="$ESCALA_THIS/@max * $SUB/@EVA_n_ponderacion * $SUB/@EVA_n_resultado2 div $ESCALA_SUB/@max div sum($THIS/../PLANTILLA[@DEF_l_mostrar_res='1' and @EVA_n_resultado2 &gt;= 0 and @DEF_Evaluado!='0']/@EVA_n_ponderacion)"/>
+									<xsl:with-param name="DEC" select="$THIS/@DEF_d_cus1"/>
+									<xsl:with-param name="ID" select="concat('PAS_',$THIS/@oi_plantilla,'_',$SUB/@oi_plantilla)"/>
+								</xsl:call-template>
+							</xsl:if>
+							<xsl:if test="$THIS/@DEF_Supervisor!='0'">
+								<xsl:call-template name="TD_ITEM_VALUE_TEXT2">
+									<xsl:with-param name="ESCALA" select="$ESCALA_THIS"/>
+									<xsl:with-param name="VALUE" select="$ESCALA_THIS/@max * $SUB/@EVA_n_ponderacion * $SUB/@EVA_n_resultado3 div $ESCALA_SUB/@max div sum($THIS/../PLANTILLA[@DEF_l_mostrar_res='1' and @EVA_n_resultado3&gt;=0 and @DEF_Supervisor!='0']/@EVA_n_ponderacion)"/>
+									<xsl:with-param name="DEC" select="$THIS/@DEF_d_cus1"/>
+									<xsl:with-param name="ID" select="concat('PSS_',$THIS/@oi_plantilla,'_',$SUB/@oi_plantilla)"/>
+								</xsl:call-template>
+							</xsl:if>
+						</tr>
+					</xsl:for-each>
+					<tr class="PLA_FOOT">
+						<th class="col_label">
+							Total
+						</th>
+						<xsl:if test="@DEF_Evaluador!='0'">
+							<th class="col_value">
+								&#160;
+							</th>
+						</xsl:if>
+						<xsl:choose>
+							<xsl:when test="$THIS/@DEF_Evaluador360='1'">
+								<th class="col_value">
+									&#160;
+								</th>
+							</xsl:when>
+							<xsl:when test="$THIS/@DEF_Evaluador360='2'">
+								<xsl:for-each select="$EVALUADORES/EVALUADOR">
+									<th class="col_value">
+										&#160;
+									</th>
+								</xsl:for-each>
+							</xsl:when>
+							<xsl:when test="$THIS/@DEF_Evaluador360='3'">
+								<th class="col_value">
+									&#160;
+								</th>
+							</xsl:when>
+						</xsl:choose>
+						<xsl:if test="@DEF_Evaluado!='0'">
+							<th class="col_value">
+								&#160;
+							</th>
+						</xsl:if>
+						<xsl:if test="@DEF_Supervisor!='0'">
+							<th class="col_value">
+								&#160;
+							</th>
+						</xsl:if>
+						<th class="col_pond">
+							&#160;
+						</th>
+						<xsl:variable name="ESCALA_THIS" select="$ESCALAS/ESCALA[@oi_escala=$THIS/../@oi_escala]"/>
+						<xsl:if test="@DEF_Evaluador!='0'">
+							<xsl:if test="$THIS/@DEF_Evaluador!='0'">
+								<xsl:call-template name="TD_ITEM_VALUE_TEXT">
+									<xsl:with-param name="ESCALA" select="$ESCALA_THIS"/>
+									<xsl:with-param name="VALUE" select="$THIS/../@n_resultado"/>
+									<xsl:with-param name="DEC" select="$THIS/@DEF_d_cus1"/>
+									<xsl:with-param name="ID" select="concat('TRE_',$THIS/@oi_plantilla)"/>
+								</xsl:call-template>
+							</xsl:if>
+						</xsl:if>
+						<xsl:choose>
+							<xsl:when test="$THIS/@DEF_Evaluador360='1'">
+								<xsl:variable name="n_resultado" select="$THIS/../attribute::*[name() = concat('EVA_n_res_',$EVALUADORES/@oi_evaluador_360)]"/>
+								<xsl:call-template name="TD_ITEM_VALUE_TEXT">
+									<xsl:with-param name="ESCALA" select="$ESCALA_THIS"/>
+									<xsl:with-param name="VALUE" select="$n_resultado"/>
+									<xsl:with-param name="DEC" select="$THIS/@DEF_d_cus1"/>
+									<xsl:with-param name="ID" select="concat('PR3_',$THIS/@oi_plantilla,'_',$EVALUADORES/@oi_evaluador_360)"/>
+								</xsl:call-template>
+							</xsl:when>
+							<xsl:when test="$THIS/@DEF_Evaluador360='2'">
+								<xsl:for-each select="$EVALUADORES/EVALUADOR">
+									<xsl:variable name="EVALUADOR" select="."/>
+									<xsl:variable name="n_resultado" select="$THIS/../attribute::*[name() = concat('EVA_n_res_',$EVALUADOR/@oi_personal_emp)]"/>
+									<xsl:call-template name="TD_ITEM_VALUE_TEXT">
+										<xsl:with-param name="ESCALA" select="$ESCALA_THIS"/>
+										<xsl:with-param name="VALUE" select="$n_resultado"/>
+										<xsl:with-param name="DEC" select="$THIS/@DEF_d_cus1"/>
+										<xsl:with-param name="ID" select="concat('PR3_',$THIS/@oi_plantilla,'_',$EVALUADOR/@oi_personal_emp)"/>
+									</xsl:call-template>
+								</xsl:for-each>
+							</xsl:when>
+							<xsl:when test="$THIS/@DEF_Evaluador360='3'">
+								<xsl:variable name="n_resultado" select="$THIS/../attribute::*[name() = concat('EVA_n_res_',$EVALUADORES/@oi_evaluador_360)]"/>
+								<xsl:call-template name="TD_ITEM_VALUE_TEXT">
+									<xsl:with-param name="ESCALA" select="$ESCALA_THIS"/>
+									<xsl:with-param name="VALUE" select="$n_resultado"/>
+									<xsl:with-param name="DEC" select="$THIS/@DEF_d_cus1"/>
+									<xsl:with-param name="ID" select="concat('PR3_',$THIS/@oi_plantilla,'_',$EVALUADORES/@oi_evaluador_360)"/>
+								</xsl:call-template>
+							</xsl:when>
+						</xsl:choose>
+						<xsl:if test="@DEF_Evaluado!='0'">
+							<xsl:if test="$THIS/@DEF_Evaluador!='0'">
+								<xsl:call-template name="TD_ITEM_VALUE_TEXT">
+									<xsl:with-param name="ESCALA" select="$ESCALA_THIS"/>
+									<xsl:with-param name="VALUE" select="$THIS/../@n_resultado2"/>
+									<xsl:with-param name="DEC" select="$THIS/@DEF_d_cus1"/>
+									<xsl:with-param name="ID" select="concat('TRA_',$THIS/@oi_plantilla)"/>
+								</xsl:call-template>
+							</xsl:if>
+						</xsl:if>
+						<xsl:if test="@DEF_Supervisor!='0'">
+							<xsl:if test="$THIS/@DEF_Evaluador!='0'">
+								<xsl:call-template name="TD_ITEM_VALUE_TEXT">
+									<xsl:with-param name="ESCALA" select="$ESCALA_THIS"/>
+									<xsl:with-param name="VALUE" select="$THIS/../@n_resultado3"/>
+									<xsl:with-param name="DEC" select="$THIS/@DEF_d_cus1"/>
+									<xsl:with-param name="ID" select="concat('TRS_',$THIS/@oi_plantilla)"/>
+								</xsl:call-template>
+							</xsl:if>
+						</xsl:if>
+					</tr>
+				</table>
+				<xsl:call-template name="PLANTILLA_COMENT"/>
+			</xsl:if>
+		</xsl:template>
+		<xsl:template match="PLANTILLA[@DEF_d_reporte='FIRMA']">
+			<xsl:if test="@DEF_Show='1'">
+				<xsl:call-template name="SEPARATOR"/>
+				<xsl:call-template name="PLANTILLA_TITLE"/>
+				<table class="PLA_BODY" CELLPADDING="0" CELLSPACING="0">
+					<tr class="PLA_HEAD">
+						<th>
+							<xsl:if test="@DEF_d_cus1">
+								<xsl:value-of select="@DEF_d_cus1"/>
+							</xsl:if>
+							<xsl:if test="not(@DEF_d_cus1)">
+								EVALUADOR
+							</xsl:if>
+						</th>
+						<th>
+							<xsl:if test="@DEF_d_cus2">
+								<xsl:value-of select="@DEF_d_cus2"/>
+							</xsl:if>
+							<xsl:if test="not(@DEF_d_cus2)">
+								SUPERVISOR
+							</xsl:if>
+						</th>
+						<th>
+							<xsl:if test="@DEF_d_cus3">
+								<xsl:value-of select="@DEF_d_cus3"/>
+							</xsl:if>
+							<xsl:if test="not(@DEF_d_cus3)">
+								EVALUADO
+							</xsl:if>
+						</th>
+					</tr>
+					<tr class="FIRMA">
+						<td>
+							&#160;
+						</td>
+						<td>
+							&#160;
+						</td>
+						<td>
+							&#160;
+						</td>
+					</tr>
+					<tr>
+						<td>
+							<xsl:value-of select="concat('Aclaraci&#243;n: ',../@J_nombre)"/>
+						</td>
+						<td>
+							<xsl:value-of select="concat('Aclaraci&#243;n: ',../@S_nombre)"/>
+						</td>
+						<td>
+							<xsl:value-of select="concat('Aclaraci&#243;n: ',../@E_nombre)"/>
+						</td>
+					</tr>
+					<tr>
+						<td>
+							Fecha:
+						</td>
+						<td>
+							Fecha:
+						</td>
+						<td>
+							Fecha:
+						</td>
+					</tr>
+				</table>
+				<xsl:call-template name="PLANTILLA_COMENT"/>
+			</xsl:if>
+		</xsl:template>
+		<xsl:template match="PLANTILLA[@DEF_d_reporte='ITEM_NOESCALA']">
+			<xsl:variable name="PLANTILLA" select="."/>
+			<xsl:if test="@DEF_Show='1'">
+				<xsl:call-template name="SEPARATOR"/>
+				<xsl:call-template name="PLANTILLA_TITLE"/>
+				<table class="PLA_BODY" id="TBL_{@oi_plantilla}" style="table-layout: fixed;">
+					<tr class="PLA_HEAD">
+						<xsl:if test="@DEF_Edit='1'">
+							<th class="col_action">
+								&#160;
+							</th>
+						</xsl:if>
+						<xsl:if test="@DEF_d_cus1">
+							<th class="col_label">
+								<xsl:value-of select="@DEF_d_cus1"/>
+							</th>
+						</xsl:if>
+						<xsl:if test="@DEF_d_cus2">
+							<th class="col_label">
+								<xsl:value-of select="@DEF_d_cus2"/>
+							</th>
+						</xsl:if>
+						<xsl:if test="@DEF_d_cus3">
+							<th class="col_label">
+								<xsl:value-of select="@DEF_d_cus3"/>
+							</th>
+						</xsl:if>
+						<xsl:if test="@DEF_d_cus4">
+							<th class="col_label">
+								<xsl:value-of select="@DEF_d_cus4"/>
+							</th>
+						</xsl:if>
+						<xsl:if test="@DEF_d_cus5">
+							<th class="col_label">
+								<xsl:value-of select="@DEF_d_cus5"/>
+							</th>
+						</xsl:if>
+					</tr>
+					<xsl:for-each select="ITEM">
+						<xsl:variable name="ITEM" select="."/>
+						<tr id="TR_O_{@oi_objetivo}">
+							<xsl:call-template name="TD_ITEM_ACTION_DEL">
+								<xsl:with-param name="PLANTILLA" select="$PLANTILLA"/>
+								<xsl:with-param name="ITEM" select="$ITEM/@oi_objetivo"/>
+							</xsl:call-template>
+							<xsl:if test="$PLANTILLA/@DEF_d_cus1">
+								<xsl:call-template name="TD_ITEM_COMMENT">
+									<xsl:with-param name="PLANTILLA" select="$PLANTILLA"/>
+									<xsl:with-param name="ID" select="concat('MSG_',$ITEM/@oi_objetivo,'_1')"/>
+									<xsl:with-param name="TEXT" select="$ITEM/@d_cus1"/>
+									<xsl:with-param name="EDIT" select="0"/>
+								</xsl:call-template>
+							</xsl:if>
+							<xsl:if test="$PLANTILLA/@DEF_d_cus2">
+								<xsl:call-template name="TD_ITEM_COMMENT">
+									<xsl:with-param name="PLANTILLA" select="$PLANTILLA"/>
+									<xsl:with-param name="ID" select="concat('MSG_',$ITEM/@oi_objetivo,'_2')"/>
+									<xsl:with-param name="TEXT" select="$ITEM/@d_cus2"/>
+									<xsl:with-param name="EDIT" select="0"/>
+								</xsl:call-template>
+							</xsl:if>
+							<xsl:if test="$PLANTILLA/@DEF_d_cus3">
+								<xsl:call-template name="TD_ITEM_COMMENT">
+									<xsl:with-param name="PLANTILLA" select="$PLANTILLA"/>
+									<xsl:with-param name="ID" select="concat('MSG_',$ITEM/@oi_objetivo,'_3')"/>
+									<xsl:with-param name="TEXT" select="$ITEM/@d_cus3"/>
+									<xsl:with-param name="EDIT" select="0"/>
+								</xsl:call-template>
+							</xsl:if>
+							<xsl:if test="$PLANTILLA/@DEF_d_cus4">
+								<xsl:call-template name="TD_ITEM_COMMENT">
+									<xsl:with-param name="PLANTILLA" select="$PLANTILLA"/>
+									<xsl:with-param name="ID" select="concat('MSG_',$ITEM/@oi_objetivo,'_4')"/>
+									<xsl:with-param name="TEXT" select="$ITEM/@d_cus4"/>
+									<xsl:with-param name="EDIT" select="0"/>
+								</xsl:call-template>
+							</xsl:if>
+							<xsl:if test="$PLANTILLA/@DEF_d_cus5">
+								<xsl:call-template name="TD_ITEM_COMMENT">
+									<xsl:with-param name="PLANTILLA" select="$PLANTILLA"/>
+									<xsl:with-param name="ID" select="concat('MSG_',$ITEM/@oi_objetivo,'_5')"/>
+									<xsl:with-param name="TEXT" select="$ITEM/@d_cus5"/>
+									<xsl:with-param name="EDIT" select="0"/>
+								</xsl:call-template>
+							</xsl:if>
+						</tr>
+					</xsl:for-each>
+				</table>
+				<xsl:call-template name="PLANTILLA_COMENT"/>
+			</xsl:if>
+		</xsl:template>
+		<xsl:template match="PLANTILLA[@DEF_d_reporte='ITEM_ESC_FOR_POND' or @DEF_d_reporte='ITEM_ESC_FOR']">
+			<xsl:variable name="PLANTILLA" select="."/>
+			<xsl:variable name="EVALUADORES" select="../EVALUADORES"/>
+			<xsl:variable name="ESCALAS" select="../ESCALAS"/>
+			<xsl:variable name="POND" select="@DEF_d_reporte='ITEM_ESC_FOR_POND'"/>
+			<xsl:if test="@DEF_Show='1'">
+				<xsl:call-template name="SEPARATOR"/>
+				<table class="PLA" id="TBL_{@oi_plantilla}">
+					<tr class="PLA_HEAD">
+						<xsl:call-template name="PLANTILLA_HEAD">
+							<xsl:with-param name="PLANTILLA" select="$PLANTILLA"/>
+							<xsl:with-param name="EVALUADORES" select="$EVALUADORES"/>
+							<xsl:with-param name="POND" select="$POND"/>
+							<xsl:with-param name="DATOS" select="'1'"/>
+						</xsl:call-template>
+					</tr>
+					<xsl:for-each select="ITEM">
+						<xsl:variable name="ITEM" select="."/>
+						<xsl:variable name="ESCALA" select="$ESCALAS/ESCALA[@oi_escala=$ITEM/@oi_escala]"/>
+						<tr id="TR_O_{@oi_objetivo}">
+							<xsl:call-template name="TD_ITEM_ACTION_DEL">
+								<xsl:with-param name="PLANTILLA" select="$PLANTILLA"/>
+								<xsl:with-param name="ITEM" select="$ITEM/@oi_objetivo"/>
+							</xsl:call-template>
+							<xsl:call-template name="TD_ITEM_LABEL">
+								<xsl:with-param name="PLANTILLA" select="$PLANTILLA"/>
+								<xsl:with-param name="ID" select="concat('MSG_',$ITEM/@oi_objetivo)"/>
+								<xsl:with-param name="TEXT" select="$ITEM/@d_objetivo"/>
+								<xsl:with-param name="TOOLTIP" select="$ITEM/@o_objetivo"/>
+							</xsl:call-template>
+							<xsl:if test="$POND">
+								<xsl:call-template name="TD_ITEM_POND">
+									<xsl:with-param name="PLANTILLA" select="$PLANTILLA"/>
+									<xsl:with-param name="ID" select="concat('POND_',$ITEM/@oi_objetivo)"/>
+									<xsl:with-param name="VALUE" select="$ITEM/@n_ponderacion"/>
+									<xsl:with-param name="DEC" select="$PLANTILLA/@DEF_d_cus3"/>
+								</xsl:call-template>
+							</xsl:if>
+							<xsl:call-template name="TD_TEXT">
+								<xsl:with-param name="PLANTILLA" select="$PLANTILLA"/>
+								<xsl:with-param name="ID" select="$ITEM/@oi_objetivo"/>
+								<xsl:with-param name="VALUE" select="concat($ITEM/@d_cus1, $ITEM/@d_cus2)"/>
+							</xsl:call-template>
+							<xsl:call-template name="TD_ITEM_VALUE_INPUT">
+								<xsl:with-param name="STATUS" select="$PLANTILLA/@DEF_Evaluador"/>
+								<xsl:with-param name="ID" select="concat('OE_',$ITEM/@oi_objetivo)"/>
+								<xsl:with-param name="VALUE" select="$ITEM/@n_resultado"/>
+								<xsl:with-param name="DEC" select="$PLANTILLA/@DEF_d_cus2"/>
+							</xsl:call-template>
+							<xsl:call-template name="TD_ITEM_VALUE_INPUT">
+								<xsl:with-param name="STATUS" select="$PLANTILLA/@DEF_Evaluado"/>
+								<xsl:with-param name="ID" select="concat('OA_',$ITEM/@oi_objetivo)"/>
+								<xsl:with-param name="VALUE" select="$ITEM/@n_resultado2"/>
+								<xsl:with-param name="DEC" select="$PLANTILLA/@DEF_d_cus2"/>
+							</xsl:call-template>
+							<xsl:call-template name="TD_ITEM_VALUE_INPUT">
+								<xsl:with-param name="STATUS" select="$PLANTILLA/@DEF_Supervisor"/>
+								<xsl:with-param name="ID" select="concat('OS_',$ITEM/@oi_objetivo)"/>
+								<xsl:with-param name="VALUE" select="$ITEM/@n_resultado3"/>
+								<xsl:with-param name="DEC" select="$PLANTILLA/@DEF_d_cus2"/>
+							</xsl:call-template>
+						</tr>
+					</xsl:for-each>
+					<xsl:variable name="ESCALA" select="$ESCALAS/ESCALA[@oi_escala=$PLANTILLA/@oi_escala]"/>
+					<tr class="PLA_FOOT">
+						<xsl:call-template name="PLANTILLA_FOOT">
+							<xsl:with-param name="PLANTILLA" select="$PLANTILLA"/>
+							<xsl:with-param name="EVALUADORES" select="$EVALUADORES"/>
+							<xsl:with-param name="POND" select="$POND"/>
+							<xsl:with-param name="ID" select="$PLANTILLA/@oi_plantilla"/>
+							<xsl:with-param name="ESCALA" select="$ESCALA"/>
+							<xsl:with-param name="DEC" select="$PLANTILLA/@DEF_d_cus2"/>
+							<xsl:with-param name="DATOS" select="'1'"/>
+						</xsl:call-template>
+					</tr>
+				</table>
+				<xsl:call-template name="PLANTILLA_COMENT"/>
+			</xsl:if>
+		</xsl:template>
+	</html:xslt>
+</html:html>

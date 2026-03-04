@@ -1,0 +1,76 @@
+<flow:flow xmlns:flow="nomad_engine.flow" xmlns:qry="nomad_engine.qry" xmlns:doc="nomad_engine.doc" description="Flow para acceder  a nucleus doc" default_action="LIST" name="NucleusRH.Base.Configuracion.Kubo.LOGIN.flow">
+	<flow:info label="Flow para responder las acciones sobre las alertas."/>
+	<flow:declare>
+		<qry:define name="QRY_PER">
+			<qry:main doc="SOURCE">
+				<qry:element name="ROW">
+					<qry:attribute name="encontro" value="'0'"/>
+					<qry:insert-select name="qry" doc-path="#SOURCE:."/>
+					<qry:if test="@encontro = '0'">
+						<qry:then>
+							<qry:attribute name="error" value="'El usuario no esta asociado a una persona dentro Nucleus RH. Por favor, comunicarse con el &#225;rea de RRHH.'"/>
+						</qry:then>
+						<qry:else>
+							<qry:if test="@email = ''">
+								<qry:then>
+									<qry:attribute name="encontro" value="'0'"/>
+									<qry:attribute name="error" value="'El usuario no tiene definido un email como principal en su cuenta. Por favor, comunicarse con el &#225;rea de RRHH.'"/>
+								</qry:then>
+								<qry:else>
+									<qry:if test="@cuil = ''">
+										<qry:then>
+											<qry:attribute name="encontro" value="'0'"/>
+											<qry:attribute name="error" value="'La persona dentro de Nucleus RH no tiene definido el cuil. Por favor, comunicarse con el &#225;rea de RRHH.'"/>
+										</qry:then>
+									</qry:if>
+								</qry:else>
+							</qry:if>
+						</qry:else>
+					</qry:if>
+				</qry:element>
+			</qry:main>
+			<qry:select name="qry" doc="SOURCE">
+				<qry:xquery>
+					for $r in SQL('
+				SELECT 
+				PER.c_nro_cuil
+			 
+				FROM
+				PER01_PERSONAL as PER
+				WHERE
+				PER.oi_usuario_sistema={#PROXY:@ETTY}  
+				
+				
+				')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:attribute name="cuil" value="iif($r/@c_nro_cuil!='',concat(substring($r/@c_nro_cuil,0,2),'-',substring($r/@c_nro_cuil,2,8),'-',substring($r/@c_nro_cuil,10,1)),'')"/>
+					<!--<qry:attribute name="email" value="$r/@d_email"/> -->
+					<qry:insert-select name="qry_entidad"/>
+					<qry:attribute name="encontro" value="'1'"/>
+				</qry:out>
+			</qry:select>
+			<qry:select name="qry_entidad" doc="SOURCE">
+				<qry:xquery>
+					for $r in FILE('Nomad\\Base\\Login\\Entidades\\{%=#PROXY:@ETTY%}.ENTIDAD.XML')/ENTIDAD
+				</qry:xquery>
+				<qry:out>
+					<qry:attribute value="$r/MAILS/MAIL[@PRINCIPAL='1']/@EMAIL" name="email"/>
+				</qry:out>
+			</qry:select>
+		</qry:define>
+	</flow:declare>
+	<flow:main doc="SOURCE">
+		<flow:action name="initialize">
+			<doc:load-qry output-doc="SOURCE" qry="QRY_PER"/>
+			<!--<flow:open-form form-class="NucleusRH.Base.Configuracion.Kubo.LOGIN.form" mode="SHOW" doc-path="#SOURCE:"/>-->
+			<flow:call-action eq="1" if="#SOURCE:@encontro" action="LOGIN"/>
+			<flow:exit-flow return-path="#SOURCE:"/>
+		</flow:action>
+		<flow:action name="LOGIN">
+			<flow:exec-method out-type="Nomad.NSystem.Proxy.NomadXML" out-doc="SOURCE" method="LoginUsuario" class="NucleusRH.Base.Configuracion.Kubo.ApiKubo">
+				<flow:param doc-path="#SOURCE:" type="Nomad.NSystem.Proxy.NomadXML" mode="in" name="xmlParam"/>
+			</flow:exec-method>
+		</flow:action>
+	</flow:main>
+</flow:flow>

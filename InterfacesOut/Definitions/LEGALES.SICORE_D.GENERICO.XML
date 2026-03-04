@@ -1,0 +1,115 @@
+<INTERFACE-DEF code="" desc="" entermode="DOS" finalenter="1" xmlns:qry="XXX">
+	<QUERY declare="&lt;DATA interface=&quot;SIJP&quot; c_empresa=&quot;TadeoCz&quot; p_periodo=&quot;200905&quot; /&gt;">
+		<qry:main doc="SOURCE">
+			<qry:element name="DATA">
+				<qry:element name="DETAILS">
+					<!--------------------------------------->
+					<qry:insert-select name="qryParam" doc-path="#SOURCE:/DATA"/>
+					<qry:insert-select name="qryDetail" doc-path="#SOURCE:/DATA"/>
+					<!-- Inserta el registro FINAL solo si existe el registro ----------->
+				</qry:element>
+			</qry:element>
+		</qry:main>
+		<qry:select name="qryParam" doc="PARAM" xmlns:qry="nomad.xquery">
+			<qry:xquery>
+				for $r in SQL('
+select org26.d_valor , org26.c_parametro from org26_parametros as org26 
+						where org26.c_parametro =\'noValidarCerradas\'
+						')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:append-doc doc-path="$r" name="Param_Filtro"/>
+			</qry:out>
+		</qry:select>
+		<qry:select xmlns:qry="nomad.xquery" name="qryDetail" doc="SOURCE">
+			<qry:xquery>
+				for $r in SQL(' select 
+  PE.c_nro_cuil as e_numero_doc,
+PE.d_ape_y_nom as d_razon_social ,  
+PER01_DP.d_calle + \' \'+ PER01_DP.d_piso + \' \'+ PER01_DP.d_departamento   as d_domicilio_fiscal_per ,
+PER01_DP.l_domic_fiscal as domfisc_p ,	
+org03_emp.d_domicilio as d_domicilio_fiscal_org ,
+ORG19_Loc.d_localidad as d_localidad ,
+ORG35_PRO.c_provincia_sicore as d_provincia ,
+PER01_DP.c_postal as   c_postal_Per , 
+ORG19_Loc.c_postal as c_postal_Loc , 
+80 as c_tipo_doc 
+
+
+FROM
+	
+	LIQ97_PERSONAL_EMP as PE,   
+	PER01_PERSONAL as PER, 
+	PER01_DOMIC_PER as PER01_DP, 
+	org03_empresas as org03_emp,
+	Org19_LOCALIDADES as ORG19_Loc 	,
+	ORG35_PROVINCIAS as ORG35_PRO,
+  LIQ20_TOT_LIQ_PER as TLP,
+	LIQ99_LIQUIDACION as LIQ,
+	LIQ93_EMPRESAS as EMP,
+	LIQ96_CONCEPTOS as LCON, 
+	LIQ20_CONC_LIQ_PER as CON,
+	LIQ20_VAR_LIQ_CONC as VAR_LC
+
+JOIN
+	TLP.oi_per_emp_ddo 				 INNER PE.oi_per_emp_ddo
+	, TLP.oi_per_emp_ddo  	 INNER PE.oi_per_emp_ddo 
+	, PER.c_personal  			 INNER PE.c_personal
+	, LIQ.oi_liquidacion_ddo INNER TLP.oi_liquidacion_ddo
+	, LIQ.oi_empresa_ddo     INNER EMP.oi_empresa_ddo
+	, LCON.oi_concepto_ddo   INNER CON.oi_concepto_ddo							
+	, TLP.oi_tot_liq_per     INNER CON.oi_tot_liq_per
+	, CON.oi_conc_liq_per    INNER VAR_LC.oi_conc_liq_per
+	, PER01_DP.oi_personal   INNER PER.oi_personal
+	, org03_emp.c_empresa    INNER EMP.c_empresa
+	, PER01_DP.oi_localidad  INNER ORG19_Loc.oi_localidad   	
+	, ORG19_Loc.oi_provincia INNER ORG35_PRO.oi_provincia   	
+
+
+WHERE LCON.c_concepto = \'99999996\'
+			AND EMP.c_empresa = { #SOURCE:@c_empresa }
+			AND LIQ.e_periodo = { #SOURCE:@p_periodo }
+		{%? (string(#Param_Filtro:@d_valor)!='1') 
+		{% AND LIQ.c_estado = \'F\' %} 
+		{%  %} 
+	%}
+
+			
+			                          
+group by 
+PE.c_nro_cuil ,
+PE.d_ape_y_nom ,  
+PER01_DP.d_calle, 
+PER01_DP.d_piso ,
+PER01_DP.d_departamento   ,
+PER01_DP.l_domic_fiscal    ,
+org03_emp.d_domicilio     ,
+ORG19_Loc.d_localidad     ,
+ORG35_PRO.c_provincia_sicore, 
+PER01_DP.c_postal  ,
+ORG19_Loc.c_postal 
+
+
+
+
+												
+						')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:attribute name="e_numero_doc" value="NMD_FILLLEFT(#SOURCE:@c_nro_documento, ' ', 11, 'L')"/>
+				<qry:attribute name="d_razon_social" value="NMD_FILLLEFT(#SOURCE:@d_razon_social, ' ', 20, 'L')"/>
+				<qry:attribute name="d_domicilio_fiscal" value="NMD_FILLLEFT(#SOURCE:@d_domicilio_fiscal_per, ' ', 20, 'L')"/>
+				<qry:attribute name="d_localidad" value="NMD_FILLLEFT(#SOURCE:@d_localidad, ' ', 20, 'L')"/>
+				<qry:attribute name="d_provincia" value="NMD_FILLLEFT(#SOURCE:@d_provincia, ' ', 2, 'L')"/>
+				<qry:attribute name="c_postal" value="NMD_FILLLEFT(#SOURCE:@c_postal_Per, ' ', 8, 'L')"/>
+				<qry:attribute name="c_tipo_doc" value="NMD_FILLLEFT(#SOURCE:@c_postal_Per, ' ', 2, 'L')"/>
+			</qry:out>
+		</qry:select>
+	</QUERY>
+	<DETAIL>
+		{e_numero_doc}{d_razon_social}{d_domicilio_fiscal}{d_localidad}{d_provincia}{c_postal}{c_tipo_doc}
+	</DETAIL>
+	<MESS>
+		<EMPTY mess="No se encontraron registros."/>
+	</MESS>
+</INTERFACE-DEF>

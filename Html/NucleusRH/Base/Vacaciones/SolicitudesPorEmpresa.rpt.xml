@@ -1,0 +1,155 @@
+<html:html xmlns:html="nomad_engine.html" xmlns:qry="nomad_engine.qry" name="NucleusRH.Base.Vacaciones.SolicitudesPorEmpresa" extends="Nomad.Base.BaseReport.rpt" doc="source">
+	<html:for-each declare="&lt;FILTRO oi_clase_org=&quot;&quot; gcustom=&quot;&quot; oi_empresa=&quot;1&quot; f_desde_solicitud=&quot;20231201&quot; f_hasta_solicitud=&quot;20240326&quot; oi_estado_solic=&quot;2&quot; gpers=&quot;&quot; activos=&quot;1&quot; nombre=&quot;&quot; documento=&quot;&quot; sexo=&quot;&quot; grupo_sanguineo=&quot;&quot; listlegajos=&quot;&quot; oi_indic_activo=&quot;&quot; egresado=&quot;&quot; oi_forma_pago=&quot;&quot; oi_tipo_personal=&quot;&quot; fecha_desde=&quot;&quot; fecha_hasta=&quot;&quot; cb_confidenciales=&quot;&quot; oi_grupo_ccosto=&quot;&quot; oi_centro_costo=&quot;&quot; oi_convenio=&quot;&quot; soloconvenio=&quot;&quot; oi_categoria=&quot;&quot; oi_ubicacion_desde=&quot;&quot; oi_ubicacion_hasta=&quot;&quot; oi_estructura=&quot;&quot; escructura_childs=&quot;&quot; oi_contrato=&quot;&quot; oi_oficina_pago=&quot;&quot; oi_afjp=&quot;&quot; oi_obra_social=&quot;&quot; oi_sindicato=&quot;&quot; l_afiliado_sind=&quot;0&quot; oi_departamento=&quot;&quot; oi_sector=&quot;&quot; legID=&quot;601&quot; leg_where=&quot;&quot; nom_where=&quot;&quot;&gt;&#13;&#10;&lt;PERSONAS&gt;&lt;ROW VALUES=&quot;1,101,302,401,601&quot; /&gt;&lt;/PERSONAS&gt;&#13;&#10;&lt;/FILTRO&gt;">
+		<qry:main doc="PARAM">
+			<qry:append-doc name="FILTRO" doc-path="#PARAM:/FILTRO"/>
+			<REPORT label="Solicitudes por Empresa">
+				<qry:attribute value="format_date(now(),'dd/mm/yyyy HH:MM')" name="date"/>
+				<GROUPS>
+					<GROUP tag="TIT" type="title" noreg="No se encontraron registros.">
+						<COLS>
+							<COL name="empresa" label="Empresa"/>
+							<qry:if test="#PARAM:FILTRO/@f_desde_solicitud!=''">
+								<qry:then>
+									<COL name="f_desde_solicitud" label="Fecha Desde" type="date"/>
+								</qry:then>
+							</qry:if>
+							<qry:if test="#PARAM:FILTRO/@f_hasta_solicitud!=''">
+								<qry:then>
+									<COL name="f_hasta_solicitud" label="Fecha Hasta" type="date"/>
+								</qry:then>
+							</qry:if>
+							<qry:if test="#PARAM:FILTRO/@oi_estado_solic!=''">
+								<qry:then>
+									<COL name="estado" label="Estado"/>
+								</qry:then>
+							</qry:if>
+						</COLS>
+						<GROUP tag="VAC" type="table" noreg="No se encontraron registros.">
+							<COLS>
+								<COL name="legajo" label="Legajo" style="width:10%;"/>
+								<COL name="ape_y_nom" label="Apellido y nombre" style="width:20%;"/>
+								<COL name="f_solicitud" label="Fecha Solicitud" type="date"/>
+								<COL name="f_desde_solicitud" label="Fecha Desde" style="width:10%;text-align:center" type="date"/>
+								<COL name="f_hasta_solicitud" label="Fecha Hasta" style="width:10%;text-align:center" type="date"/>
+								<COL name="d_estado_solic" label="Estado" style="width:10%;text-align:center"/>
+								<COL name="e_dias_solicitud" label="Cantidad D&#237;as" style="width:10%;text-align:center"/>
+								<COL name="observaciones" label="Observaciones" style="width:20%;"/>
+								<COL name="motivo" label="Motivo" style="width:10%;text-align:center"/>
+							</COLS>
+						</GROUP>
+					</GROUP>
+				</GROUPS>
+				<qry:element name="DATA">
+					<TIT qry-orderby="orderby">
+						<qry:attribute name="f_desde_solicitud" value="format_date($PARAM/FILTRO/@f_desde_solicitud, 'dd/mm/yyyy')"/>
+						<qry:attribute name="f_hasta_solicitud" value="format_date($PARAM/FILTRO/@f_hasta_solicitud, 'dd/mm/yyyy')"/>
+						<qry:insert-select doc-path="#PARAM:FILTRO/PERSONAS/ROW" name="QRY_PERSONAS"/>
+						<qry:insert-select doc-path="#PARAM:FILTRO" name="QRY_EMPRESA"/>
+						<qry:insert-select doc-path="#PARAM:FILTRO" name="QRY_ESTADO"/>
+					</TIT>
+				</qry:element>
+			</REPORT>
+		</qry:main>
+		<qry:select doc="PARAM" name="QRY_PERSONAS">
+			<qry:out>
+				<qry:call>
+					<FILTRO>
+						<qry:attribute value="$PARAM/@values" name="values"/>
+						<qry:attribute name="f_desde_solicitud" value="$FILTRO/@f_desde_solicitud"/>
+						<qry:attribute name="f_hasta_solicitud" value="$FILTRO/@f_hasta_solicitud"/>
+						<qry:attribute name="oi_empresa" value="$FILTRO/@oi_empresa"/>
+						<qry:attribute name="oi_estado_solic" value="$FILTRO/@oi_estado_solic"/>
+					</FILTRO>
+				</qry:call>
+			</qry:out>
+		</qry:select>
+		<qry:select name="QRY_EMPRESA" doc="PARAM">
+			<qry:xquery>
+				for $r in sql('
+			SELECT
+				EMP.c_empresa,
+			  EMP.d_empresa
+			FROM               
+			 	ORG03_EMPRESAS AS EMP
+			WHERE
+				EMP.oi_empresa = {#PARAM:@oi_empresa}
+		')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:attribute name="empresa" value="$r/@c_empresa + '-' + $r/@d_empresa"/>
+			</qry:out>
+		</qry:select>
+		<qry:select name="QRY_ESTADO" doc="PARAM">
+			<qry:xquery>
+				for $r in sql('
+			SELECT
+				EST.d_estado_solic
+			FROM               
+			 	VAC02_ESTADOS_SOL AS EST
+			WHERE
+				EST.oi_estado_solic = {#PARAM:@oi_estado_solic}
+		')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:attribute name="estado" value="$r/@d_estado_solic"/>
+			</qry:out>
+		</qry:select>
+	</html:for-each>
+	<html:query declare="&lt;FILTRO oi_estado_solic=&quot;2&quot; oi_empresa=&quot;1&quot; f_hasta_solicitud=&quot;20240326&quot; f_desde_solicitud=&quot;20231201&quot; values=&quot;1,101,302,401,601&quot;/&gt;">
+		<qry:main doc="PARAM">
+			<qry:no-show>
+				<qry:insert-select doc-path="#PARAM:/FILTRO" name="QRY_DATOS"/>
+			</qry:no-show>
+		</qry:main>
+		<qry:select name="QRY_DATOS" doc="PARAM">
+			<qry:xquery>
+				for $r in sql('
+		SELECT 
+			PER02.e_numero_legajo as leg,  
+			PER01.d_ape_y_nom,
+			SOL.oi_personal_emp, 
+			SOL.f_desde_solicitud, 
+			IIFISNULL(SOL.f_interrupcion,SOL.f_hasta_solicitud) AS f_hasta_solicitud,
+			SOL.f_solicitud,
+      		SOL.oi_estado_solic, 
+      		SOL.e_dias_solicitud,
+      		SOL.d_motivo_solic,
+      		SOL.o_solicitud, 
+      		EST.d_estado_solic
+  			FROM                 
+  				PER02_PERSONAL_EMP AS PER02,
+  				PER01_PERSONAL AS PER01,
+  				VAC01_SOLICITUDES AS SOL,
+			VAC02_ESTADOS_SOL AS EST
+		JOIN  
+			PER02.oi_personal INNER PER01.oi_personal, 
+			PER02.oi_personal_emp INNER SOL.oi_personal_emp,
+			SOL.oi_estado_solic LEFT OUTER EST.oi_estado_solic
+		WHERE
+			PER02.oi_personal_emp in ({%=#PARAM:@values%}) 
+			AND SOL.f_desde_solicitud &gt;= {Datetime(#PARAM:@f_desde_solicitud)}
+  				AND SOL.f_hasta_solicitud &lt;= {Datetime(#PARAM:@f_hasta_solicitud)}
+  				{%? (#PARAM:@oi_estado_solic!='') 
+  					{% 	AND EST.oi_estado_solic = {#PARAM:@oi_estado_solic} %}
+  					{%  %}                     
+ 					%}
+	')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:element name="VAC">
+					<qry:attribute name="orderby" value="nmd_fillleft($r/@leg,'0',10)+'_'+$r/@f_desde_solicitud"/>
+					<qry:attribute name="empresa" value="$r/@c_empresa + '-' + $r/@d_empresa"/>
+					<qry:attribute name="legajo" value="$r/@leg"/>
+					<qry:attribute name="ape_y_nom" value="$r/@d_ape_y_nom"/>
+					<qry:attribute name="f_solicitud" value="format_date($r/@f_solicitud, 'dd/mm/yyyy')"/>
+					<qry:attribute name="f_desde_solicitud" value="format_date($r/@f_desde_solicitud, 'dd/mm/yyyy')"/>
+					<qry:attribute name="f_hasta_solicitud" value="format_date($r/@f_hasta_solicitud, 'dd/mm/yyyy')"/>
+					<qry:attribute name="d_estado_solic" value="$r/@d_estado_solic"/>
+					<qry:attribute name="e_dias_solicitud" value="$r/@e_dias_solicitud"/>
+					<qry:attribute name="observaciones" value="$r/@o_solicitud"/>
+					<qry:attribute name="motivo" value="$r/@d_motivo_solic"/>
+				</qry:element>
+			</qry:out>
+		</qry:select>
+	</html:query>
+</html:html>

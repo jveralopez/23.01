@@ -1,0 +1,359 @@
+<form:Form xmlns:form="nomad_engine.form" xmlns:qry="nomad_engine.qry" extends="NucleusRH.Base.Configuracion.Mails.MAIL.MAIN.STD_REG.autoform" default_mode="SHOW" mess="&#191;Est&#225; seguro que desa cancelar la operaci&#243;n?" doc="source" name="NucleusRH.Base.Configuracion.Alertas.MAIL.MAIN.STD_REG.form">
+	<form:Center width="95%">
+		<form:Columns name="main_cols">
+			<form:Column name="main_col">
+				<form:Blank name="main_BB" height="15px"/>
+				<form:Wiki width="100%" nvalue="#source:@WIKITEXT" mail-mode="N" share-mode="N" form-mode="N" flow-mode="N" window-mode="N" goto-mode="N" required="1" enabled="!SHOW" label="Texto a Mostrar" name="WikiText" border="2" height="500px">
+					<form:SButtons>
+						<form:SButton descrip="Imprimir" name="PRINT" img="PRINT">
+							<form:Event action="Print" name="onclick" runat="object"/>
+						</form:SButton>
+						<form:SButton name="EDIT" img="EDIT" descrip="Modificar">
+							<form:Event name="onclick" action="Edit" runat="object"/>
+						</form:SButton>
+					</form:SButtons>
+					<form:Event action="SplitText" name="onload" runat="client"/>
+				</form:Wiki>
+			</form:Column>
+		</form:Columns>
+		<form:Hidden name="AUX">
+			<form:Menu/>
+			<form:Event name="CONTEX_MENU_DEL" action="ImageDelete" runat="client"/>
+			<form:Event name="CONTEX_MENU_ADD_WIKI" action="ImageAdd" runat="client"/>
+			<form:Event name="CONTEX_MENU_CHG_SKIN" action="ImageSkin" runat="client"/>
+			<form:Event name="CONTEX_MENU_CHG_WIKI" action="ImageNomad" runat="client"/>
+		</form:Hidden>
+		<form:Hidden name="AUX2">
+			<form:Menu>
+				<form:Separator label="-" name="sep"/>
+				<form:Item label="Eliminar la Variable" img="NORMAL/cross.gif" name="DEL"/>
+			</form:Menu>
+			<form:Event name="CONTEX_MENU_DEL" action="CodeDelete" runat="client"/>
+			<form:Event name="CONTEX_MENU_ADD" action="CodeAdd" runat="client"/>
+		</form:Hidden>
+	</form:Center>
+	<form:Scripts>
+		///////////////////////////////////////////////////////////////////////////////          
+//EVENTOS
+function CustomOnLoad()
+{
+	OnLoad();             
+	Ctrl("WikiText").OpenImage=OpenImage;   
+	Ctrl("WikiText").OpenCode =OpenCode;   
+	
+	//Concateno los text
+	var WikiTXT="";
+	WikiTXT+=Ctrl("o_text1").GetXValue();
+	WikiTXT+=Ctrl("o_text2").GetXValue();
+	WikiTXT+=Ctrl("o_text3").GetXValue();
+	WikiTXT+=Ctrl("o_text4").GetXValue();
+	Ctrl("WikiText").SetXValue(WikiTXT);
+}
+
+function SplitText()
+{
+	var TextS=new Array();
+	var TextAll=Ctrl("WikiText").GetXValue(); 
+	
+	while (TextAll.length&gt;0)
+	{
+		TextS.push(TextAll.substr(0,3500));
+		TextAll=TextAll.substr(3500);
+	}
+	
+	Ctrl("o_text1").SetXValue(TextS[0]?TextS[0]:"");
+	Ctrl("o_text2").SetXValue(TextS[1]?TextS[1]:"");
+	Ctrl("o_text3").SetXValue(TextS[2]?TextS[2]:"");
+	Ctrl("o_text4").SetXValue(TextS[3]?TextS[3]:"");
+}
+
+
+
+///////////////////////////////////////////////////////////////////////////////          
+//IMAGENES
+var txtDATA;
+
+function OpenImage(URLImage, event, obj)
+{ 
+	if (Ctrl("main").GetMode()=="EDIT" || Ctrl("main").GetMode()=="NEW")
+	{                                 
+		xmlRESULT=GetProxy().SQLService().GetXML(Ctrl("main").getResource("QRY_ADJUNTOS"),"&lt;PARAMS ID=\""+Ctrl("ID").GetXValue()+"\"/&gt;");
+		Ctrl("AUX").ClearContextMenu();
+	
+		//Recorre el xml y crea los items del menu
+		var xmlItem, item=0;
+		for (xmlItem = xmlRESULT.FirstChild(); xmlItem != null; xmlItem = xmlItem.Next()) {
+	
+			if (xmlItem.Name == "ITEM") 
+			{
+				xmlItem.SetAttr("name","I"+item.toString());
+				Ctrl("AUX").AddContextMenu(xmlItem.GetAttr("name"), xmlItem.GetAttr("label"), xmlItem.GetAttr("img"));
+				Ctrl("AUX").SetClientEvent("CONTEX_MENU_I"+item.toString(), "Image"+xmlItem.GetAttr("event"));
+			} else
+				Ctrl("AUX").AddContextMenu("S" + item.toString(), "-", "");
+			item++;
+		}
+	
+		DataTXT=Ctrl("WikiText").DataTXT;        
+		Line =parseInt(obj.getAttribute("wiki-line"  ),10);
+		Start=parseInt(obj.getAttribute("wiki-column"),10);
+		Length=parseInt(obj.getAttribute("wiki-length"),10);
+		
+		Ctrl("AUX").OnContextMenu(event);
+	} 
+} 
+
+//Objeto utilizado para levantar los helpers
+function objForHelp() 
+{
+	this.HelpType;
+	this.m_Parent = Ctrl("main");
+	this.m_Value;
+		 
+	this.processResult = function(pstrResult) 
+	{                                       
+		var MyXML=new NomadXML(pstrResult);
+		var Lineas=DataTXT.split('\n');
+		var txtLine=Lineas[Line];      
+		
+		var BeforeText=(Start&gt;0?txtLine.substr(0,Start):"");
+		var AfterText =txtLine.substr(Start+Length);
+		var MiddleText=txtLine.substr(Start+2,Length-4);
+
+		//Analiso el TEXTO
+		var SpaceBefore="";
+		while (MiddleText.length&gt;0 &amp;&amp; MiddleText.substr(0,1)==" ")	{ SpaceBefore+=" "; MiddleText=MiddleText.substr(1); }
+
+		var SpaceAfter="";
+		while (MiddleText.length&gt;0 &amp;&amp; MiddleText.substr(MiddleText.length-1,1)==" ")	{ SpaceAfter+=" "; MiddleText=MiddleText.substr(0,MiddleText.length-1); }
+		
+		var AditionalData="";
+		if (MiddleText.indexOf("?")&gt;=0)
+		{
+			AditionalData=MiddleText.substr(MiddleText.indexOf("?"));
+			MiddleText=MiddleText.substr(0,MiddleText.indexOf("?"));
+		}
+
+		//Actualizo el TEXTO
+		txtLine=BeforeText+ "{{"+SpaceBefore+"DB:NucleusRH.Base.Configuracion.Archivos.HEAD:"+MyXML.GetAttr("ID")+AditionalData+SpaceAfter+"}}"+ AfterText;
+
+		Lineas[Line]=txtLine;
+		DataTXT=Lineas.join("\n");
+		
+		//Actualizo
+		SetWikiData(DataTXT);
+	}
+	
+	this.SetFocus = function () 
+	{
+	}
+}
+   
+function ImageDEL()
+{         
+	//Actualizo el TEXTO
+	var Lineas=DataTXT.split('\n');
+	var txtLine=Lineas[Line];
+	txtLine=(Start&gt;0?txtLine.substr(0,Start-1):"") + txtLine.substr(Start+Length+1);
+	Lineas[Line]=txtLine;
+	DataTXT=Lineas.join("\n");
+
+	//Actualizo
+	SetWikiData(DataTXT);
+}
+
+function ImageCHG(pObj)
+{ 
+	var it=xmlRESULT.FindElement2("ITEM","name",pObj.ClickContextMenuId);
+
+	//Actualizo el TEXTO
+	var Lineas=DataTXT.split('\n');
+	var txtLine=Lineas[Line];
+	
+	var BeforeText=(Start&gt;0?txtLine.substr(0,Start):"");
+	var AfterText =txtLine.substr(Start+Length);
+	var MiddleText=txtLine.substr(Start+2,Length-4);
+	                        
+	var SpaceBefore="";
+	while (MiddleText.length&gt;0 &amp;&amp; MiddleText.substr(0,1)==" ")	{ SpaceBefore+=" "; MiddleText=MiddleText.substr(1); }
+	
+	var SpaceAfter="";
+	while (MiddleText.length&gt;0 &amp;&amp; MiddleText.substr(MiddleText.length-1,1)==" ")	{ SpaceAfter+=" "; MiddleText=MiddleText.substr(0,MiddleText.length-1); }
+	
+	var AditionalData="";
+	if (MiddleText.indexOf("?")&gt;=0)
+	{
+		AditionalData=MiddleText.substr(MiddleText.indexOf("?"));
+		MiddleText=MiddleText.substr(0,MiddleText.indexOf("?"));
+	}
+	
+	txtLine=BeforeText+"{{"+SpaceBefore+"DB:NucleusRH.Base.Configuracion.Archivos.HEAD:"+it.GetAttr("text")+AditionalData+SpaceAfter+"}}"+AfterText;
+	Lineas[Line]=txtLine;                                                                                                      
+	DataTXT=Lineas.join("\n");
+	
+	//Actualizo
+	SetWikiData(DataTXT);
+}
+
+function ImageADD()
+{
+	var arrParams = new Array();
+	var objHelper = new objForHelp();
+
+	arrParams[0] = "DB";
+	arrParams[1] = "NucleusRH.Base.Configuracion.Archivos.HEAD"; //FileClass
+	arrParams[2] = "nuevo.jpg"; //FileName
+	
+	showBrowse(objHelper, arrParams);
+}
+
+function SetWikiData(txtDATA)
+{
+	//Actualizo el ARCHIVO en el SERVIDOR	
+	Ctrl("WikiText").SetXValue(txtDATA);
+}
+
+
+///////////////////////////////////////////////////////////////////////////////          
+//CODIGO
+var xmlRESULT;
+
+function OpenCode(event, obj)
+{                
+	if (Ctrl("main").GetMode()=="EDIT" || Ctrl("main").GetMode()=="NEW")
+	{                                 
+		var xmlRST=GetProxy().SQLService().GetXML(Ctrl("main").getResource("QRY_VARS"),"&lt;PARAMS ID=\""+Ctrl("oi_subtype_mail").GetXValue()+"\"/&gt;");
+		o_variables=xmlRST.GetAttr("o_variables")
+	
+  		var item=0;
+		Ctrl("AUX2").ClearContextMenu();
+		if (o_variables!="")
+		{
+			xmlRESULT=new NomadXML("ROWS");
+			xmlRST=new NomadXML(o_variables);			
+			xmlRST=xmlRST.FindElement("METADATA");
+			
+			for (var xmlGRP=xmlRST.FirstChild(); xmlGRP!=null; xmlGRP=xmlGRP.Next())
+			{
+				if (item!=0)
+				{
+					Ctrl("AUX2").AddContextMenu("S" + item.toString(), "-", "");
+					item++;
+				}
+				for (var xmlVAR=xmlGRP.FirstChild(); xmlVAR!=null; xmlVAR=xmlVAR.Next())
+				{
+					Ctrl("AUX2").AddContextMenu("I"+item.toString(), xmlGRP.GetAttr("name")+"."+xmlVAR.GetAttr("name"), "NORMAL/script.gif");
+					Ctrl("AUX2").SetClientEvent("CONTEX_MENU_I"+item.toString(), "CodeAdd");
+					
+					xmlaux=xmlRESULT.AddTailElement("ITEM");
+					xmlaux.SetAttr("name", "I"+item.toString());
+					xmlaux.SetAttr("text", xmlGRP.GetAttr("name")+"."+xmlVAR.GetAttr("name"));
+					item++;
+				}
+			}
+		}      
+		
+		if (item!=0)
+		{
+			Ctrl("AUX2").AddContextMenu("S" + item.toString(), "-", "");
+			item++;
+		}
+		
+		Ctrl("AUX2").AddContextMenu("I"+item.toString(), "Eliminar la Variable", "NORMAL/cross.gif");
+		Ctrl("AUX2").SetClientEvent("CONTEX_MENU_I"+item.toString(), "CodeDel");
+		item++;
+	
+		DataTXT=Ctrl("WikiText").DataTXT;        
+		Line =parseInt(obj.getAttribute("wiki-line"  ),10);
+		Start=parseInt(obj.getAttribute("wiki-column"),10);
+		Length=parseInt(obj.getAttribute("wiki-length"),10);
+		
+		Ctrl("AUX2").OnContextMenu(event);
+	} 
+} 
+
+function CodeDel()
+{
+	//Actualizo el TEXTO
+	var Lineas=DataTXT.split('\n');
+	var txtLine=Lineas[Line];
+	txtLine=(Start&gt;0?txtLine.substr(0,Start-1):"") + txtLine.substr(Start+Length+1);
+	Lineas[Line]=txtLine;
+	DataTXT=Lineas.join("\n");
+
+	//Actualizo
+	SetWikiData(DataTXT);
+}
+
+function CodeAdd(pObj)
+{                    
+	var it=xmlRESULT.FindElement2("ITEM","name",pObj.ClickContextMenuId);
+
+	//Actualizo el TEXTO
+	var Lineas=DataTXT.split('\n');
+	var txtLine=Lineas[Line];
+	txtLine=(Start&gt;0?txtLine.substr(0,Start):"") + "{% @"+it.GetAttr("text")+" %}"+ txtLine.substr(Start+Length);
+	Lineas[Line]=txtLine;
+	DataTXT=Lineas.join("\n");
+	
+	//Actualizo
+	SetWikiData(DataTXT);
+}
+	</form:Scripts>
+	<form:Event action="CustomOnLoad" name="OnLoad" runat="client"/>
+	<form:Resources>
+		<form:Resource name="QRY_ADJUNTOS" declare="&lt;PARAMS ID=&quot;1&quot; /&gt;">
+			<qry:main doc="PARAM">
+				<ROW>
+					<ITEM img="NORMAL/images.gif" event="ADD" label="Agregar un Imagen" text="ADD"/>
+					<SEP/>
+					<qry:insert-select doc-path="$PARAM/PARAMS" name="SQL1"/>
+					<SEP/>
+					<ITEM img="NORMAL/cross.gif" event="DEL" label="Eliminar la Imagen" text="DELETE"/>
+				</ROW>
+			</qry:main>
+			<qry:select name="SQL1" doc="PARAM">
+				<qry:xquery>
+					for $r in SQL('
+			select
+				CFG05_IMAGENES.oi_file,
+				CFG05_IMAGENES.d_imagen
+			from
+				CFG05_IMAGENES
+			where
+				CFG05_IMAGENES.oi_mail={$PARAM/@ID}
+			')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<ITEM img="NORMAL/image.gif" event="CHG">
+						<qry:attribute name="label" value="$r/@d_imagen"/>
+						<qry:attribute name="text" value="$r/@oi_file"/>
+					</ITEM>
+				</qry:out>
+			</qry:select>
+		</form:Resource>
+		<form:Resource name="QRY_VARS" declare="&lt;PARAMS ID=&quot;1&quot; /&gt;">
+			<qry:main doc="PARAM">
+				<ROW>
+					<qry:insert-select doc-path="$PARAM/PARAMS" name="SQL1"/>
+				</ROW>
+			</qry:main>
+			<qry:select name="SQL1" doc="PARAM">
+				<qry:xquery>
+					for $r in SQL('
+			select
+				CFG06_SUBTYPES_MAIL.oi_subtype_mail,
+				CFG06_SUBTYPES_MAIL.o_variables
+			from
+				CFG06_SUBTYPES_MAIL
+			where
+				CFG06_SUBTYPES_MAIL.oi_subtype_mail={$PARAM/@ID}
+			')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:attribute name="o_variables" value="$r/@o_variables"/>
+				</qry:out>
+			</qry:select>
+		</form:Resource>
+	</form:Resources>
+</form:Form>

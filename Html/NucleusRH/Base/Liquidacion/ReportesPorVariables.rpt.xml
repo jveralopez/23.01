@@ -1,0 +1,1013 @@
+<html:html xmlns:html="nomad_engine.html" xmlns:qry="nomad_engine.qry" name="NucleusRH.Base.Liquidacion.ReportesPorConceptos" extends="Nomad.Base.BaseReport.rpt" doc="source">
+	<html:query declare="&lt;DATOS salida=&quot;HTML&quot; report=&quot;&quot; e_periodo=&quot;201910&quot; oi_empresa=&quot;8&quot; modo=&quot;HTML&quot; oi_liquidacion=&quot;2648&quot; l_sueldo=&quot;1&quot; l_sujeto=&quot;1&quot; l_nosujeto=&quot;1&quot; l_cuil=&quot;1&quot; l_legajo=&quot;1&quot; l_nombre=&quot;1&quot; l_desc=&quot;1&quot; l_cont=&quot;1&quot; l_totpag=&quot;1&quot; oi_reporte=&quot;101&quot;/&gt;">
+		<qry:main doc="SOURCE">
+			<qry:element name="REPORT">
+				<qry:attribute name="date" value="format_date(Now(),'dd/mm/yyyy HH:MM')"/>
+				<qry:element name="DATOS">
+					<qry:attribute name="oi_liquidacion" value="#SOURCE:DATOS/@oi_liquidacion"/>
+					<qry:attribute name="e_periodo" value="#SOURCE:DATOS/@e_periodo"/>
+					<qry:attribute name="oi_empresa" value="#SOURCE:DATOS/@oi_empresa"/>
+					<qry:insert-select name="QRY_ESTRUCTURA" doc-path="#SOURCE:DATOS"/>
+				</qry:element>
+				<qry:append-doc doc-path="." name="DOCUM"/>
+				<qry:attribute name="label" value="#DOCUM:DATOS/@label"/>
+				<qry:element name="GROUPS">
+					<qry:element name="GROUP">
+						<qry:attribute name="tag" value="'GROUP'"/>
+						<qry:attribute name="type" value="'title'"/>
+						<qry:attribute name="page-break" value="iif(#DOCUM:DATOS/@l_separar='1','1','')"/>
+						<qry:element name="COLS">
+							<COL name="d_empresa" label="Empresa" style="text-align:left;width:100%;font-size:12"/>
+							<COL name="e_periodo" label="Periodo" style="text-align:left;width:100%;font-size:12"/>
+							<qry:insert-select name="liquidacion" doc-path="#DOCUM:DATOS[@oi_liquidacion!='']"/>
+							<qry:insert-select name="AgrupadoCentro" doc-path="#DOCUM:DATOS[@Agrupar='centro']"/>
+							<qry:insert-select name="AgrupadoAfjp" doc-path="#DOCUM:DATOS[@Agrupar='afjp']"/>
+							<qry:insert-select name="AgrupadoSindicato" doc-path="#DOCUM:DATOS[@Agrupar='sindicato']"/>
+							<qry:insert-select name="AgrupadoObra" doc-path="#DOCUM:DATOS[@Agrupar='obra']"/>
+							<qry:insert-select name="AgrupadoCategoria" doc-path="#DOCUM:DATOS[@Agrupar='categ']"/>
+						</qry:element>
+						<qry:element name="GROUP">
+							<qry:attribute name="tag" value="'PER'"/>
+							<qry:attribute name="type" value="'table'"/>
+							<qry:attribute name="style" value="'padding-left:50px'"/>
+							<qry:element name="COLS">
+								<qry:element name="COL">
+									<qry:attribute name="name" value="'contador'"/>
+									<qry:attribute name="label" value="'N&#186;'"/>
+									<qry:attribute name="type" value="'string'"/>
+									<qry:attribute name="nowrap" value="'1'"/>
+								</qry:element>
+								<qry:insert-select name="qry_columnas_fijas" doc-path="#DOCUM:DATOS"/>
+								<qry:insert-select name="qry_columnas" doc-path="#DOCUM:DATOS"/>
+							</qry:element>
+							<qry:element name="FCOLS">
+								<qry:element name="COL">
+									<qry:attribute name="style" value="'text-align:left;'"/>
+								</qry:element>
+								<qry:insert-select name="qry_columnas_aux"/>
+								<qry:insert-select name="qry_columnas_totales" doc-path="#DOCUM:DATOS"/>
+							</qry:element>
+						</qry:element>
+					</qry:element>
+				</qry:element>
+				<qry:element name="DATA">
+					<qry:insert-select name="qry_cabecera" doc-path="#SOURCE:DATOS"/>
+				</qry:element>
+			</qry:element>
+		</qry:main>
+		<qry:select doc="SOURCE" name="qry_cabecera">
+			<qry:xquery>
+				for $r in sql('
+				SELECT 
+{%? (#DOCUM:DATOS/@Agrupar='categ')     {% o18.c_convenio, o18c.c_categoria, 
+                                           o18.d_convenio, o18c.d_categoria, 	   %} {% %} %}
+{%? (#DOCUM:DATOS/@Agrupar='centro')    {% O8.d_centro_costo, O8.d_centro_costo, %} {% %} %}
+{%? (#DOCUM:DATOS/@Agrupar='afjp')      {% P3.c_afjp , P3.d_afjp , 							 %} {% %} %}
+{%? (#DOCUM:DATOS/@Agrupar='sindicato') {% P30.c_sindicato, P30.d_sindicato, 	   %} {% %} %}
+{%? (#DOCUM:DATOS/@Agrupar='obra')      {% P06.c_obra_social, P06.d_obra_social, %} {% %} %}
+L.e_periodo, 
+{%? (#DOCUM:DATOS/@oi_liquidacion!='') {% L.c_liquidacion, L.d_titulo, %} {% %} %}
+O3.c_empresa, O3.d_empresa, O3.oi_empresa
+FROM 
+org03_empresas AS O3
+, LIQ19_LIQUIDACION AS L	
+{%? (#DOCUM:DATOS/@Agrupar='centro')    {% , ORG08_CS_COSTO as O8 			%} {% %} %}
+{%? (#DOCUM:DATOS/@Agrupar='afjp')      {% , PER03_AFJP as P3						%} {% %} %}
+{%? (#DOCUM:DATOS/@Agrupar='sindicato') {% , PER30_SINDICATOS as P30 		%} {% %} %}
+{%? (#DOCUM:DATOS/@Agrupar='obra') 			{% , PER06_OBRAS_SOC as P06 		%} {% %} %}
+{%? (#DOCUM:DATOS/@Agrupar='categ') 		{% , org18_categorias as o18c, 
+                                                     org18_convenios as o18			%} {% %} %}
+
+	JOIN
+	{%? (#DOCUM:DATOS/@Agrupar='categ') {% o18c.oi_convenio INNER o18.oi_convenio, 	%} {% %} %}
+	O3.oi_empresa INNER L.oi_empresa     
+
+WHERE
+O3.oi_empresa =  {#SOURCE:@oi_empresa}
+and
+{%? (#DOCUM:DATOS/@oi_liquidacion!='') {% L.oi_liquidacion = {#DOCUM:DATOS/@oi_liquidacion} %} {% 1 = 1 %} %}
+AND
+{%? (#DOCUM:DATOS/@e_periodo!='') {% L.e_periodo = {#DOCUM:DATOS/@e_periodo} %} {% 1 = 3 %} %}
+group by
+{%? (#DOCUM:DATOS/@Agrupar='categ') {% o18.c_convenio, o18c.c_categoria, o18.d_convenio, o18c.d_categoria,	%} {% %} %}
+{%? (#DOCUM:DATOS/@Agrupar='centro') {% O8.c_centro_costo, O8.d_centro_costo, %} {% %} %}
+{%? (#DOCUM:DATOS/@Agrupar='afjp') {% P3.c_afjp,P3.d_afjp, %} {% %} %}  
+{%? (#DOCUM:DATOS/@Agrupar='sindicato') {% P30.c_sindicato, P30.d_sindicato, %} {% %} %}
+{%? (#DOCUM:DATOS/@Agrupar='obra') {% P06.c_obra_social, P06.d_obra_social, %} {% %} %}			
+O3.c_empresa, O3.d_empresa, O3.oi_empresa, L.e_periodo 
+{%? (#DOCUM:DATOS/@oi_liquidacion!='') {% , L.c_liquidacion, L.d_titulo %} {% %} %}
+			')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:element name="GROUP">
+					<qry:attribute name="oi_empresa" value="$r/@oi_empresa"/>
+					<qry:attribute name="d_empresa" value="$r/@c_empresa + ' - ' + $r/@d_empresa"/>
+					<qry:attribute name="c_centro_costo" value="iif($r/@c_centro_costo!='',$r/@c_centro_costo,'')"/>
+					<qry:attribute name="centro" value="iif($r/@c_centro_costo!='',$r/@c_centro_costo + ' - ' + $r/@d_centro_costo,'')"/>
+					<qry:attribute name="afjp" value="iif($r/@c_afjp!='',$r/@c_afjp + ' - ' + $r/@d_afjp,'')"/>
+					<qry:attribute name="c_afjp" value="iif($r/@c_afjp!='',$r/@c_afjp,'')"/>
+					<qry:attribute name="liquidacion" value="iif($r/@c_liquidacion!='', $r/@c_liquidacion+ ' - ' + $r/@d_titulo,'')"/>
+					<qry:attribute name="sindicato" value="iif($r/@c_sindicato!='',$r/@c_sindicato + ' - ' + $r/@d_sindicato,'')"/>
+					<qry:attribute name="categ" value="iif($r/@c_categoria!='','['+$r/@c_convenio + ' - ' + $r/@c_categoria + ']' + $r/@d_convenio + ' - ' + $r/@d_categoria,'')"/>
+					<qry:attribute name="c_convenio" value="iif($r/@c_convenio!='',$r/@c_convenio,'')"/>
+					<qry:attribute name="c_categoria" value="iif($r/@c_categoria!='',$r/@c_categoria,'')"/>
+					<qry:attribute name="c_sindicato" value="iif($r/@c_sindicato!='',$r/@c_sindicato,'')"/>
+					<qry:attribute name="obra" value="iif($r/@c_obra_social!='',$r/@c_obra_social + ' - ' + $r/@d_obra_social,'')"/>
+					<qry:attribute name="c_obra_social" value="iif($r/@c_obra_social!='',$r/@c_obra_social,'')"/>
+					<qry:attribute name="e_periodo" value="$r/@e_periodo"/>
+					<qry:attribute name="visible" value="'0'"/>
+					<qry:attribute name="contador" value="'1'"/>
+					<qry:attribute name="oi_liquidacion" value="#DOCUM:DATOS/@oi_liquidacion"/>
+					<qry:insert-select name="qry_personas" doc-path="."/>
+					<qry:attribute name="totN0" value="0"/>
+					<qry:attribute name="totN1" value="0"/>
+					<qry:attribute name="totN2" value="0"/>
+					<qry:attribute name="totN3" value="0"/>
+					<qry:attribute name="totN4" value="0"/>
+					<qry:attribute name="totN5" value="0"/>
+					<qry:attribute name="totN6" value="0"/>
+					<qry:attribute name="totN7" value="0"/>
+					<qry:attribute name="totN8" value="0"/>
+					<qry:attribute name="totN9" value="0"/>
+					<qry:attribute name="totF0" value="0"/>
+					<qry:attribute name="totF1" value="0"/>
+					<qry:attribute name="totF2" value="0"/>
+					<qry:attribute name="totF3" value="0"/>
+					<qry:attribute name="totF4" value="0"/>
+					<qry:attribute name="totF5" value="0"/>
+					<qry:attribute name="totF6" value="0"/>
+					<qry:attribute name="totF7" value="0"/>
+					<qry:attribute name="totF8" value="0"/>
+					<qry:attribute name="totF9" value="0"/>
+					<qry:attribute name="totA0" value="0"/>
+					<qry:attribute name="totA1" value="0"/>
+					<qry:attribute name="totA2" value="0"/>
+					<qry:attribute name="totA3" value="0"/>
+					<qry:attribute name="totA4" value="0"/>
+					<qry:attribute name="totA5" value="0"/>
+					<qry:attribute name="totA6" value="0"/>
+					<qry:attribute name="totA7" value="0"/>
+					<qry:attribute name="totA8" value="0"/>
+					<qry:attribute name="totA9" value="0"/>
+					<qry:insert-select name="qry_total" doc-path="."/>
+				</qry:element>
+			</qry:out>
+		</qry:select>
+		<qry:select doc="SOURCE" name="qry_personas">
+			<qry:xquery>
+				for $r in sql('SELECT 
+			P2.e_numero_legajo,	P1.c_nro_cuil, P1.d_ape_y_nom , P2.OI_PERSONAL_EMP	,		
+			O18C.c_convenio, O18.c_categoria, O18C.d_convenio, O18.d_categoria,
+			ORG08_CS_COSTO.c_centro_costo, ORG08_CS_COSTO.d_centro_costo,
+			PER03_AFJP.c_afjp, PER03_AFJP.d_afjp,
+			PER30_SINDICATOS.c_sindicato, PER30_SINDICATOS.d_sindicato,
+			PER06_OBRAS_SOC.c_obra_social, PER06_OBRAS_SOC.d_obra_social
+
+FROM 
+PER02_PERSONAL_EMP AS P2, PER01_PERSONAL AS P1
+, ORG08_CS_COSTO , PER03_AFJP , PER30_SINDICATOS 
+ , PER06_OBRAS_SOC 
+ , ORG18_CATEGORIAS AS O18, ORG18_CONVENIOS AS O18C 
+
+JOIN
+O18.oi_categoria INNER p2.oi_categoria_ult ,
+O18C.oi_convenio INNER O18.oi_convenio ,
+p2.oi_ctro_costo_ult LEFT OUTER ORG08_CS_COSTO.oi_centro_costo ,
+p1.oi_afjp LEFT OUTER PER03_AFJP.oi_afjp ,
+p2.oi_sindicato INNER PER30_SINDICATOS.oi_sindicato ,
+p2.oi_obra_social LEFT OUTER PER06_OBRAS_SOC.oi_obra_social,
+p2.oi_personal INNER p1.oi_personal
+
+where
+p2.oi_empresa = {#SOURCE:@oi_empresa}
+and
+{%? (#SOURCE:@c_centro_costo!='') {% ORG08_CS_COSTO.c_centro_costo = {#SOURCE:@c_centro_costo} %} {% 1 = 1 %} %}
+and
+{%? (#SOURCE:@c_sindicato!='') {% PER30_SINDICATOS.c_sindicato = {#SOURCE:@c_sindicato} %} {% 1 = 1 %} %}
+and
+{%? (#SOURCE:@c_obra_social!='') {% PER06_OBRAS_SOC.c_obra_social = {#SOURCE:@c_obra_social} %} {% 1 = 1 %} %}
+and
+{%? (#SOURCE:@c_afjp!='') {% PER03_AFJP.c_afjp = {#SOURCE:@c_afjp} %} {% 1 = 1 %} %}
+and
+{%? (#SOURCE:@c_categoria!='') {% ORG18_CATEGORIAS.c_categoria = {#SOURCE:@c_categoria} and 
+ORG18_CONVENIOS.c_convenio = {#SOURCE:@c_convenio} %} {% 1 = 1 %} %}
+
+group by 
+P2.OI_PERSONAL_EMP	,	p2.e_numero_legajo,	p1.c_nro_cuil, p1.d_ape_y_nom,
+org08_cs_costo.c_centro_costo, org08_cs_costo.d_centro_costo  , 
+PER03_AFJP.c_afjp , PER03_AFJP.d_afjp , 
+PER30_SINDICATOS.c_sindicato, PER30_SINDICATOS.d_sindicato , 
+PER06_OBRAS_SOC.c_obra_social, PER06_OBRAS_SOC.d_obra_social ,
+O18C.c_convenio, o18c.d_convenio, 
+o18.c_categoria, o18.d_categoria
+ORDER BY e_numero_legajo ASC
+			')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:element name="PER">
+					<qry:attribute name="OI_PERSONAL_EMP" value="$r/@OI_PERSONAL_EMP"/>
+					<qry:attribute name="c_nro_cuil" value="$r/@c_nro_cuil"/>
+					<qry:attribute name="e_numero_legajo" value="$r/@e_numero_legajo"/>
+					<qry:attribute name="d_ape_y_nom" value="$r/@d_ape_y_nom"/>
+					<qry:attribute name="obra" value="$r/@c_obra_social + ' - ' + $r/@d_obra_social"/>
+					<qry:attribute name="afjp" value="$r/@c_afjp + ' - ' + $r/@d_afjp"/>
+					<qry:attribute name="sindicato" value="$r/@c_sindicato + ' - ' + $r/@d_sindicato"/>
+					<qry:attribute name="centro" value="$r/@c_centro_costo + ' - ' + $r/@d_centro_costo"/>
+					<qry:attribute name="categ" value="'['+$r/@c_convenio + ' - ' + $r/@c_categoria + ']' + $r/@d_convenio + ' - ' + $r/@d_categoria"/>
+					<qry:attribute name="oi_empresa" value="#SOURCE:@oi_empresa"/>
+					<qry:attribute name="e_periodo" value="#SOURCE:@e_periodo"/>
+					<qry:attribute name="oi_liquidacion" value="42"/>
+					<!--qry:attribute name="oi_liquidacion" value="#SOURCE:@oi_liquidacion"/-->
+					<qry:attribute name="N0" value="0"/>
+					<qry:attribute name="N1" value="0"/>
+					<qry:attribute name="N2" value="0"/>
+					<qry:attribute name="N3" value="0"/>
+					<qry:attribute name="N4" value="0"/>
+					<qry:attribute name="N5" value="0"/>
+					<qry:attribute name="N6" value="0"/>
+					<qry:attribute name="N7" value="0"/>
+					<qry:attribute name="N8" value="0"/>
+					<qry:attribute name="N9" value="0"/>
+					<qry:attribute name="F0" value="0"/>
+					<qry:attribute name="F1" value="0"/>
+					<qry:attribute name="F2" value="0"/>
+					<qry:attribute name="F3" value="0"/>
+					<qry:attribute name="F4" value="0"/>
+					<qry:attribute name="F5" value="0"/>
+					<qry:attribute name="F6" value="0"/>
+					<qry:attribute name="F7" value="0"/>
+					<qry:attribute name="F8" value="0"/>
+					<qry:attribute name="F9" value="0"/>
+					<qry:attribute name="A0" value="0"/>
+					<qry:attribute name="A1" value="0"/>
+					<qry:attribute name="A2" value="0"/>
+					<qry:attribute name="A3" value="0"/>
+					<qry:attribute name="A4" value="0"/>
+					<qry:attribute name="A5" value="0"/>
+					<qry:attribute name="A6" value="0"/>
+					<qry:attribute name="A7" value="0"/>
+					<qry:attribute name="A8" value="0"/>
+					<qry:attribute name="A9" value="0"/>
+					<qry:attribute name="L0" value="0"/>
+					<qry:attribute name="L1" value="0"/>
+					<qry:attribute name="L2" value="0"/>
+					<qry:attribute name="L3" value="0"/>
+					<qry:attribute name="L4" value="0"/>
+					<qry:attribute name="L5" value="0"/>
+					<qry:attribute name="L6" value="0"/>
+					<qry:attribute name="L7" value="0"/>
+					<qry:attribute name="L8" value="0"/>
+					<qry:attribute name="L9" value="0"/>
+					<qry:attribute name="contador" value="number(../@contador)"/>
+					<qry:append-doc doc-path="." name="TEMP"/>
+					<qry:attribute name="col" value="0"/>
+					<qry:insert-select name="qry_personas_cols_n" doc-path="."/>
+					<qry:attribute name="col" value="0"/>
+					<qry:insert-select name="qry_personas_cols_f" doc-path="."/>
+					<qry:attribute name="col" value="0"/>
+					<qry:insert-select name="qry_personas_cols_a" doc-path="."/>
+					<qry:attribute name="col" value="0"/>
+					<qry:insert-select name="qry_personas_cols_l" doc-path="."/>
+					<qry:attribute name="visible" value="iif(@N0='0' and @N1='0' and @N2='0' and @N3='0' and @N4='0' and @N5='0' and @N6='0' and @N7='0' and @N8='0' and @N9='0',0,1)"/>
+					<qry:attribute name="visible" value="iif(@visible='0' and @F0='0' and @F1='0' and @F2='0' and @F3='0' and @F4='0' and @F5='0' and @F6='0' and @F7='0' and @F8='0' and @F9='0',0,1)"/>
+					<qry:attribute name="visible" value="iif(@visible='0' and @A0='0' and @A1='0' and @A2='0' and @A3='0' and @A4='0' and @A5='0' and @A6='0' and @A7='0' and @A8='0' and @A9='0',0,1)"/>
+					<qry:attribute name="visible" value="iif(@visible='0' and @L0='0' and @L1='0' and @L2='0' and @L3='0' and @L4='0' and @L5='0' and @L6='0' and @L7='0' and @L8='0' and @L9='0',0,1)"/>
+					<qry:attribute name="visible" value="iif(#DOCUM:DATOS/@l_mostrar='1',1,@visible)"/>
+				</qry:element>
+				<qry:attribute name="AUXVIS" value="PER[@e_numero_legajo=$r/@e_numero_legajo]/@visible"/>
+				<qry:attribute name="visible" value="iif(@AUXVIS='1',1,@visible)"/>
+				<qry:attribute name="contador" value="iif(@AUXVIS,@contador+1,@contador)"/>
+			</qry:out>
+		</qry:select>
+		<qry:select doc="SOURCE" name="qry_personas_cols_f">
+			<qry:xquery>
+				for $r in #DOCUM:DATOS/COLS/COL[@AUXILIAR='F']
+			</qry:xquery>
+			<qry:out>
+				<qry:insert-select name="qry_datos_f" doc-path="$r/.[#DOCUM:DATOS/@l_ignorar=0]"/>
+				<qry:insert-select name="qry_datos_fope" doc-path="$r/.[#DOCUM:DATOS/@l_ignorar!=0]"/>
+				<qry:attribute name="F0" value="iif($r/@name='F0',iif(./@col!='', ./@col, 0), ./@F0)"/>
+				<qry:attribute name="F1" value="iif($r/@name='F1',iif(./@col!='', ./@col, 0), ./@F1)"/>
+				<qry:attribute name="F2" value="iif($r/@name='F2',iif(./@col!='', ./@col, 0), ./@F2)"/>
+				<qry:attribute name="F3" value="iif($r/@name='F3',iif(./@col!='', ./@col, 0), ./@F3)"/>
+				<qry:attribute name="F4" value="iif($r/@name='F4',iif(./@col!='', ./@col, 0), ./@F4)"/>
+				<qry:attribute name="F5" value="iif($r/@name='F5',iif(./@col!='', ./@col, 0), ./@F5)"/>
+				<qry:attribute name="F6" value="iif($r/@name='F6',iif(./@col!='', ./@col, 0), ./@F6)"/>
+				<qry:attribute name="F7" value="iif($r/@name='F7',iif(./@col!='', ./@col, 0), ./@F7)"/>
+				<qry:attribute name="F8" value="iif($r/@name='F8',iif(./@col!='', ./@col, 0), ./@F8)"/>
+				<qry:attribute name="F9" value="iif($r/@name='F9',iif(./@col!='', ./@col, 0), ./@F9)"/>
+				<qry:attribute name="col" value="0"/>
+			</qry:out>
+		</qry:select>
+		<qry:select doc="SOURCE" name="qry_datos_f">
+			<qry:xquery>
+				for $r in sql('
+			SELECT 
+				SUM(L.N_VALOR) AS SUMA
+			FROM 
+				LIQ07_VAL_VAREF AS L
+			WHERE
+				L.OI_PERSONAL_EMP = {#TEMP:@OI_PERSONAL_EMP}
+			AND				
+				{%? (string(#SOURCE:FIJAS/VAR/@oi_variable)!='') 
+						{% L.oi_variable in ({%=string(#SOURCE:FIJAS/VAR/@oi_variable) %}) %} 
+						{% 1 = 2 %} 
+				%}
+			group by L.OI_PERSONAL_EMP
+			')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:attribute name="col" value="iif($r/@SUMA &lt; 0,abs(number($r/@SUMA)), $r/@SUMA )"/>
+			</qry:out>
+		</qry:select>
+		<qry:select doc="SOURCE" name="qry_datos_fope">
+			<qry:xquery>
+				for $r in #SOURCE:FIJAS/VAR 
+			')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:insert-select name="qry_datos_fope1" doc-path="$r"/>
+			</qry:out>
+		</qry:select>
+		<qry:select doc="SOURCE" name="qry_datos_fope1">
+			<qry:xquery>
+				for $r in sql('
+			SELECT 
+				SUM(L.N_VALOR) AS SUMA 
+			FROM 
+				LIQ07_VAL_VAREF AS L
+			WHERE
+				L.OI_PERSONAL_EMP = {#TEMP:@OI_PERSONAL_EMP}
+			AND				
+				L.oi_variable = {#SOURCE:@oi_variable}		 
+			')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<!--qry:attribute name="col" value="iif(#SOURCE:@c_operacion='1',number(@col)+1,@col)"/-->
+				<qry:attribute name="col" value="iif(#SOURCE:@c_operacion='1',number(@col) + abs(number($r/@SUMA)) + iif(#SOURCE:@n_valor_adicional!='',#SOURCE:@n_valor_adicional,0),@col)"/>
+				<qry:attribute name="col" value="iif(#SOURCE:@c_operacion='2',number(@col) - abs(number($r/@SUMA)), @col)"/>
+				<qry:attribute name="col" value="iif(#SOURCE:@c_operacion='3',number(@col) + ((abs(number($r/@SUMA)) * iif(#SOURCE:@n_valor_adicional!='',#SOURCE:@n_valor_adicional,0))),@col)"/>
+				<qry:attribute name="col" value="iif(#SOURCE:@c_operacion='4',number(@col) + (abs(number($r/@SUMA)) div iif(#SOURCE:@n_valor_adicional!='',#SOURCE:@n_valor_adicional,1)),@col)"/>
+				<qry:attribute name="col" value="iif(#SOURCE:@c_operacion='5',number(@col) + abs(number($r/@SUMA)),@col)"/>
+				<qry:attribute name="col" value="iif(#SOURCE:@c_operacion='',number(@col) + abs(number($r/@SUMA)),@col)"/>
+			</qry:out>
+		</qry:select>
+		<qry:select doc="SOURCE" name="qry_personas_cols_a">
+			<qry:xquery>
+				for $r in #DOCUM:DATOS/COLS/COL[@AUXILIAR='A']
+			</qry:xquery>
+			<qry:out>
+				<qry:insert-select name="qry_datos_a" doc-path="$r"/>
+				<qry:attribute name="A0" value="iif($r/@name='A0',iif(./@col!='', ./@col, 0), ./@A0)"/>
+				<qry:attribute name="A1" value="iif($r/@name='A1',iif(./@col!='', ./@col, 0), ./@A1)"/>
+				<qry:attribute name="A2" value="iif($r/@name='A2',iif(./@col!='', ./@col, 0), ./@A2)"/>
+				<qry:attribute name="A3" value="iif($r/@name='A3',iif(./@col!='', ./@col, 0), ./@A3)"/>
+				<qry:attribute name="A4" value="iif($r/@name='A4',iif(./@col!='', ./@col, 0), ./@A4)"/>
+				<qry:attribute name="A5" value="iif($r/@name='A5',iif(./@col!='', ./@col, 0), ./@A5)"/>
+				<qry:attribute name="A6" value="iif($r/@name='A6',iif(./@col!='', ./@col, 0), ./@A6)"/>
+				<qry:attribute name="A7" value="iif($r/@name='A7',iif(./@col!='', ./@col, 0), ./@A7)"/>
+				<qry:attribute name="A8" value="iif($r/@name='A8',iif(./@col!='', ./@col, 0), ./@A8)"/>
+				<qry:attribute name="A9" value="iif($r/@name='A9',iif(./@col!='', ./@col, 0), ./@A9)"/>
+				<qry:attribute name="col" value="0"/>
+			</qry:out>
+		</qry:select>
+		<qry:select doc="SOURCE" name="qry_datos_a">
+			<qry:xquery>
+				for $r in sql('
+			SELECT 
+				SUM(L.N_VALOR) AS SUMA
+			FROM 
+				LIQ07_VAL_VAREA AS L
+			WHERE
+				L.OI_PERSONAL_EMP = {#TEMP:@OI_PERSONAL_EMP}
+			AND				
+				{%? (string(#SOURCE:ACUMULADAS/VAR/@oi_variable)!='') 
+						{% L.oi_variable in ({%=string(#SOURCE:ACUMULADAS/VAR/@oi_variable) %}) %} 
+						{% 1 = 2 %} 
+				%}
+			group by L.OI_PERSONAL_EMP
+			')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:attribute name="col" value="iif($r/@SUMA &lt; 0,abs(number($r/@SUMA)), $r/@SUMA )"/>
+			</qry:out>
+		</qry:select>
+		<qry:select doc="SOURCE" name="qry_personas_cols_n">
+			<qry:xquery>
+				for $r in #DOCUM:DATOS/COLS/COL[@AUXILIAR='N']
+			</qry:xquery>
+			<qry:out>
+				<qry:insert-select name="qry_datos_n" doc-path="$r/.[#DOCUM:DATOS/@l_ignorar=0]"/>
+				<qry:insert-select name="qry_datos_nope" doc-path="$r/.[#DOCUM:DATOS/@l_ignorar!=0]"/>
+				<qry:attribute name="N0" value="iif($r/@name='N0',iif(./@col!='', ./@col, 0), ./@N0)"/>
+				<qry:attribute name="N1" value="iif($r/@name='N1',iif(./@col!='', ./@col, 0), ./@N1)"/>
+				<qry:attribute name="N2" value="iif($r/@name='N2',iif(./@col!='', ./@col, 0), ./@N2)"/>
+				<qry:attribute name="N3" value="iif($r/@name='N3',iif(./@col!='', ./@col, 0), ./@N3)"/>
+				<qry:attribute name="N4" value="iif($r/@name='N4',iif(./@col!='', ./@col, 0), ./@N4)"/>
+				<qry:attribute name="N5" value="iif($r/@name='N5',iif(./@col!='', ./@col, 0), ./@N5)"/>
+				<qry:attribute name="N6" value="iif($r/@name='N6',iif(./@col!='', ./@col, 0), ./@N6)"/>
+				<qry:attribute name="N7" value="iif($r/@name='N7',iif(./@col!='', ./@col, 0), ./@N7)"/>
+				<qry:attribute name="N8" value="iif($r/@name='N8',iif(./@col!='', ./@col, 0), ./@N8)"/>
+				<qry:attribute name="N9" value="iif($r/@name='N9',iif(./@col!='', ./@col, 0), ./@N9)"/>
+				<qry:attribute name="col" value="0"/>
+			</qry:out>
+		</qry:select>
+		<qry:select doc="SOURCE" name="qry_personas_cols_l">
+			<qry:xquery>
+				for $r in #DOCUM:DATOS/COLS/COL[@AUXILIAR='L']
+			</qry:xquery>
+			<qry:out>
+				<qry:element name="VAR">
+					<qry:append-doc name="VAR" doc-path="."/>
+					<qry:insert-select name="qry_buscar_variables" doc-path="$r/.[#DOCUM:DATOS/@l_ignorar=0]/LIQUIDADAS/VAR"/>
+					<qry:attribute name="sumar" value="substring-after(@sumar,'+')"/>
+				</qry:element>
+				<qry:insert-select name="qry_datos_l" doc-path="$r/.[#DOCUM:DATOS/@l_ignorar=0]"/>
+				<qry:insert-select name="qry_datos_lope" doc-path="$r/.[#DOCUM:DATOS/@l_ignorar!=0]"/>
+				<qry:attribute name="L0" value="iif($r/@name='L0',iif(./@col!='', ./@col, 0), ./@L0)"/>
+				<qry:attribute name="L1" value="iif($r/@name='L1',iif(./@col!='', ./@col, 0), ./@L1)"/>
+				<qry:attribute name="L2" value="iif($r/@name='L2',iif(./@col!='', ./@col, 0), ./@L2)"/>
+				<qry:attribute name="L3" value="iif($r/@name='L3',iif(./@col!='', ./@col, 0), ./@L3)"/>
+				<qry:attribute name="L4" value="iif($r/@name='L4',iif(./@col!='', ./@col, 0), ./@L4)"/>
+				<qry:attribute name="L5" value="iif($r/@name='L5',iif(./@col!='', ./@col, 0), ./@L5)"/>
+				<qry:attribute name="L6" value="iif($r/@name='L6',iif(./@col!='', ./@col, 0), ./@L6)"/>
+				<qry:attribute name="L7" value="iif($r/@name='L7',iif(./@col!='', ./@col, 0), ./@L7)"/>
+				<qry:attribute name="L8" value="iif($r/@name='L8',iif(./@col!='', ./@col, 0), ./@L8)"/>
+				<qry:attribute name="L9" value="iif($r/@name='L9',iif(./@col!='', ./@col, 0), ./@L9)"/>
+				<qry:attribute name="col" value="0"/>
+			</qry:out>
+		</qry:select>
+		<qry:select doc="SOURCE" name="qry_datos_l">
+			<qry:xquery>
+				for $r in sql('
+SELECT 
+	({%=#VAR:@sumar%}) AS suma 
+FROM 
+	LIQ20_VAR_GR_CONC as V, 
+	LIQ20_TOT_LIQ_PER, 
+	LIQ99_RECIBOS, 
+	LIQ99_LIQUIDACION,
+	LIQ19_EJECUCIONES
+WHERE 
+	V.oi_tot_liq_per = LIQ20_TOT_LIQ_PER.oi_tot_liq_per
+	AND LIQ99_RECIBOS.oi_tot_liq_per = LIQ20_TOT_LIQ_PER.oi_tot_liq_per
+	AND LIQ99_LIQUIDACION.oi_liquidacion_ddo = LIQ99_RECIBOS.oi_liquidacion_ddo
+	AND LIQ19_EJECUCIONES.oi_liquidacion_ddo = LIQ99_LIQUIDACION.oi_liquidacion_ddo
+	AND LIQ99_LIQUIDACION.c_estado = \'F\'  
+	AND V.c_grupo = \'3\'
+	AND
+		{%? (#TEMP:@e_numero_legajo!='') 
+				{% LIQ99_RECIBOS.e_numero_legajo = {#TEMP:@e_numero_legajo} %} 
+				{% 1 = 1 %} 
+		%}
+	AND
+		{%? (#TEMP:@e_periodo!='') 
+				{% LIQ99_LIQUIDACION.e_periodo = {#TEMP:@e_periodo} %} 
+				{% 1 = 2 %} 
+		%}
+		')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:attribute name="col" value="iif($r/@SUMA &lt; 0,abs(number($r/@SUMA)), $r/@SUMA )"/>
+			</qry:out>
+		</qry:select>
+		<qry:select doc="SOURCE" name="qry_datos_n">
+			<qry:xquery>
+				for $r in sql('
+			SELECT 
+				SUM(L.N_VALOR) AS SUMA , Ll.OI_PERSONAL_EMP
+			FROM 
+				LIQ25_VAL_VAREN AS L, LIQ25_PERSONAL_LIQ as Ll
+			JOIN
+				L.oi_personal_liq INNER Ll.oi_personal_liq
+			WHERE
+				Ll.OI_PERSONAL_EMP = {#TEMP:@OI_PERSONAL_EMP}
+   		AND
+				{%? (#TEMP:@oi_liquidacion!='') 
+						{% Ll.oi_liquidacion = {%=#TEMP:@oi_liquidacion%} %} 
+						{% 1 = 1 %} 
+				%}
+			AND				
+				{%? (string(#SOURCE:NOVEDADES/VAR/@oi_variable)!='') 
+						{% L.oi_variable in ({%=string(#SOURCE:NOVEDADES/VAR/@oi_variable) %}) %} 
+						{% 1 = 2 %} 
+				%}
+			group by Ll.OI_PERSONAL_EMP
+			')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:attribute name="col" value="iif($r/@SUMA &lt; 0,abs(number($r/@SUMA)), $r/@SUMA )"/>
+			</qry:out>
+		</qry:select>
+		<qry:select doc="SOURCE" name="qry_datos_nope">
+			<qry:xquery>
+				for $r in #SOURCE:NOVEDADES/VAR 
+			')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:insert-select name="qry_datos_nope1" doc-path="$r"/>
+			</qry:out>
+		</qry:select>
+		<qry:select doc="SOURCE" name="qry_datos_lope">
+			<qry:xquery>
+				for $r in #SOURCE:LIQUIDADAS/VAR 
+			')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:element name="VAR2">
+					<qry:append-doc name="VAR2" doc-path="."/>
+					<qry:insert-select name="qry_buscar_variables" doc-path="$r"/>
+					<qry:attribute name="sumar" value="substring-after(@sumar,'+')"/>
+				</qry:element>
+				<qry:insert-select name="qry_datos_lope1" doc-path="$r"/>
+			</qry:out>
+		</qry:select>
+		<qry:select doc="SOURCE" name="qry_datos_lope1">
+			<qry:xquery>
+				for $r in sql('
+SELECT 
+	({%=#VAR:@sumar%}) AS suma 
+FROM 
+	LIQ20_VAR_GR_CONC as V,
+	LIQ20_TOT_LIQ_PER,  
+	LIQ99_RECIBOS, 
+	LIQ99_LIQUIDACION,
+	LIQ19_EJECUCIONES
+WHERE   
+	V.oi_tot_liq_per = LIQ20_TOT_LIQ_PER.oi_tot_liq_per
+	AND LIQ99_RECIBOS.oi_tot_liq_per = LIQ20_TOT_LIQ_PER.oi_tot_liq_per
+	AND LIQ99_LIQUIDACION.oi_liquidacion_ddo = LIQ99_RECIBOS.oi_liquidacion_ddo
+	AND LIQ19_EJECUCIONES.oi_liquidacion_ddo = LIQ99_LIQUIDACION.oi_liquidacion_ddo
+	AND LIQ99_LIQUIDACION.c_estado = \'F\'  
+	AND V.c_grupo = \'3\'
+	AND
+		{%? (#TEMP:@e_numero_legajo!='') 
+				{% LIQ99_RECIBOS.e_numero_legajo = {#TEMP:@e_numero_legajo} %} 
+				{% 1 = 1 %} 
+		%}
+	AND
+		{%? (#TEMP:@e_periodo!='') 
+				{% LIQ99_LIQUIDACION.e_periodo = {#TEMP:@e_periodo} %} 
+				{% 1 = 2 %} 
+		%}
+	')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<!--qry:attribute name="col" value="iif(#SOURCE:@c_operacion='1',number(@col)+1,@col)"/-->
+				<qry:attribute name="col" value="iif(#SOURCE:@c_operacion='1',number(@col) + abs(number($r/@SUMA)) + iif(#SOURCE:@n_valor_adicional!='',#SOURCE:@n_valor_adicional,0),@col)"/>
+				<qry:attribute name="col" value="iif(#SOURCE:@c_operacion='2',number(@col) - abs(number($r/@SUMA)), @col)"/>
+				<qry:attribute name="col" value="iif(#SOURCE:@c_operacion='3',number(@col) + ((abs(number($r/@SUMA)) * iif(#SOURCE:@n_valor_adicional!='',#SOURCE:@n_valor_adicional,0))),@col)"/>
+				<qry:attribute name="col" value="iif(#SOURCE:@c_operacion='4',number(@col) + (abs(number($r/@SUMA)) div iif(#SOURCE:@n_valor_adicional!='',#SOURCE:@n_valor_adicional,1)),@col)"/>
+				<qry:attribute name="col" value="iif(#SOURCE:@c_operacion='5',number(@col) + abs(number($r/@SUMA)),@col)"/>
+				<qry:attribute name="col" value="iif(#SOURCE:@c_operacion='',number(@col) + abs(number($r/@SUMA)),@col)"/>
+			</qry:out>
+		</qry:select>
+		<qry:select doc="SOURCE" name="qry_datos_nope1">
+			<qry:xquery>
+				for $r in sql('
+			SELECT 
+				SUM(L.N_VALOR) AS SUMA , Ll.OI_PERSONAL_EMP
+			FROM 
+				LIQ25_VAL_VAREN AS L, LIQ25_PERSONAL_LIQ as Ll
+			JOIN
+				L.oi_personal_liq INNER Ll.oi_personal_liq
+			WHERE
+				Ll.OI_PERSONAL_EMP = {#TEMP:@OI_PERSONAL_EMP}
+   		AND
+				{%? (#TEMP:@oi_liquidacion!='') 
+						{% Ll.oi_liquidacion = {#TEMP:@oi_liquidacion} %} 
+						{% 1 = 1 %} 
+				%}
+			AND				
+				L.oi_variable = {#SOURCE:@oi_variable}		 
+				
+			group by Ll.OI_PERSONAL_EMP
+			')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<!--qry:attribute name="col" value="iif(#SOURCE:@c_operacion='1',number(@col)+1,@col)"/-->
+				<qry:attribute name="col" value="iif(#SOURCE:@c_operacion='1',number(@col) + abs(number($r/@SUMA)) + iif(#SOURCE:@n_valor_adicional!='',#SOURCE:@n_valor_adicional,0),@col)"/>
+				<qry:attribute name="col" value="iif(#SOURCE:@c_operacion='2',number(@col) - abs(number($r/@SUMA)), @col)"/>
+				<qry:attribute name="col" value="iif(#SOURCE:@c_operacion='3',number(@col) + ((abs(number($r/@SUMA)) * iif(#SOURCE:@n_valor_adicional!='',#SOURCE:@n_valor_adicional,0))),@col)"/>
+				<qry:attribute name="col" value="iif(#SOURCE:@c_operacion='4',number(@col) + (abs(number($r/@SUMA)) div iif(#SOURCE:@n_valor_adicional!='',#SOURCE:@n_valor_adicional,1)),@col)"/>
+				<qry:attribute name="col" value="iif(#SOURCE:@c_operacion='5',number(@col) + abs(number($r/@SUMA)),@col)"/>
+				<qry:attribute name="col" value="iif(#SOURCE:@c_operacion='',number(@col) + abs(number($r/@SUMA)),@col)"/>
+			</qry:out>
+		</qry:select>
+		<qry:select doc="SOURCE" name="qry_total">
+			<qry:xquery>
+				for $r in #SOURCE:PER
+			</qry:xquery>
+			<qry:out>
+				<qry:attribute name="totN0" value="number(./@totN0) + number($r/@N0)"/>
+				<qry:attribute name="totN1" value="number(./@totN1) + number($r/@N1)"/>
+				<qry:attribute name="totN2" value="number(./@totN2) + number($r/@N2)"/>
+				<qry:attribute name="totN3" value="number(./@totN3) + number($r/@N3)"/>
+				<qry:attribute name="totN4" value="number(./@totN4) + number($r/@N4)"/>
+				<qry:attribute name="totN5" value="number(./@totN5) + number($r/@N5)"/>
+				<qry:attribute name="totN6" value="number(./@totN6) + number($r/@N6)"/>
+				<qry:attribute name="totN7" value="number(./@totN7) + number($r/@N7)"/>
+				<qry:attribute name="totN8" value="number(./@totN8) + number($r/@N8)"/>
+				<qry:attribute name="totN9" value="number(./@totN9) + number($r/@N9)"/>
+				<qry:attribute name="totF0" value="number(./@totF0) + number($r/@F0)"/>
+				<qry:attribute name="totF1" value="number(./@totF1) + number($r/@F1)"/>
+				<qry:attribute name="totF2" value="number(./@totF2) + number($r/@F2)"/>
+				<qry:attribute name="totF3" value="number(./@totF3) + number($r/@F3)"/>
+				<qry:attribute name="totF4" value="number(./@totF4) + number($r/@F4)"/>
+				<qry:attribute name="totF5" value="number(./@totF5) + number($r/@F5)"/>
+				<qry:attribute name="totF6" value="number(./@totF6) + number($r/@F6)"/>
+				<qry:attribute name="totF7" value="number(./@totF7) + number($r/@F7)"/>
+				<qry:attribute name="totF8" value="number(./@totF8) + number($r/@F8)"/>
+				<qry:attribute name="totF9" value="number(./@totF9) + number($r/@F9)"/>
+				<qry:attribute name="totA0" value="number(./@totA0) + number($r/@A0)"/>
+				<qry:attribute name="totA1" value="number(./@totA1) + number($r/@A1)"/>
+				<qry:attribute name="totA2" value="number(./@totA2) + number($r/@A2)"/>
+				<qry:attribute name="totA3" value="number(./@totA3) + number($r/@A3)"/>
+				<qry:attribute name="totA4" value="number(./@totA4) + number($r/@A4)"/>
+				<qry:attribute name="totA5" value="number(./@totA5) + number($r/@A5)"/>
+				<qry:attribute name="totA6" value="number(./@totA6) + number($r/@A6)"/>
+				<qry:attribute name="totA7" value="number(./@totA7) + number($r/@A7)"/>
+				<qry:attribute name="totA8" value="number(./@totA8) + number($r/@A8)"/>
+				<qry:attribute name="totA9" value="number(./@totA9) + number($r/@A9)"/>
+				<qry:attribute name="total" value="Concat('$', FORMAT_NUMBER(./@total_num, 10, 2, '.', ',', ''))"/>
+			</qry:out>
+		</qry:select>
+		<qry:select doc="SOURCE" name="qry_columnas">
+			<qry:xquery>
+				for $r in #SOURCE:COLS/COL
+			</qry:xquery>
+			<qry:out>
+				<qry:element name="COL">
+					<qry:attribute name="name" value="$r/@name"/>
+					<qry:attribute name="label" value="$r/@label"/>
+					<qry:attribute name="style" value="$r/@style"/>
+					<qry:attribute name="type" value="$r/@type"/>
+				</qry:element>
+			</qry:out>
+		</qry:select>
+		<qry:select doc="SOURCE" name="qry_columnas_fijas">
+			<qry:xquery>
+				for $r in #SOURCE:COLUMNAFIJA/COLUMNAFIJA
+			</qry:xquery>
+			<qry:out>
+				<qry:element name="COL">
+					<qry:attribute name="name" value="$r/@name"/>
+					<qry:attribute name="label" value="$r/@label"/>
+					<qry:attribute name="style" value="$r/@style"/>
+					<qry:attribute name="type" value="$r/@type"/>
+					<qry:attribute name="nowrap" value="'1'"/>
+				</qry:element>
+			</qry:out>
+		</qry:select>
+		<qry:select doc="SOURCE" name="qry_columnas_totales">
+			<qry:xquery>
+				for $r in #SOURCE:COLS/COL
+			</qry:xquery>
+			<qry:out>
+				<qry:element name="COL">
+					<qry:attribute name="name" value="'tot'+$r/@name"/>
+					<qry:attribute name="style" value="iif($r/@style!='', $r/@style + ';font-size:12', ';font-size:12')"/>
+					<qry:attribute name="type" value="$r/@type"/>
+				</qry:element>
+			</qry:out>
+		</qry:select>
+		<qry:select doc="SOURCE" name="QRY_ESTRUCTURA">
+			<qry:xquery>
+				for $r in sql('
+SELECT 
+LIQ18_REPORTES_VAR.O_LABEL, 
+LIQ18_REPORTES_VAR.c_agrupacion,
+LIQ18_REPORTES_VAR.l_mostrar, 
+LIQ18_REPORTES_VAR.l_separar,
+LIQ18_REPORTES_VAR.l_ignorar,
+LIQ18_REPORTES_VAR.OI_REPORTE
+FROM LIQ18_REPORTES_VAR
+WHERE LIQ18_REPORTES_VAR.OI_REPORTE = {#SOURCE:@oi_reporte}
+			')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:attribute name="label" value="$r/@O_LABEL"/>
+				<qry:attribute name="Agrupar" value="$r/@c_agrupacion"/>
+				<qry:attribute name="l_mostrar" value="$r/@l_mostrar"/>
+				<qry:attribute name="l_separar" value="$r/@l_separar"/>
+				<qry:attribute name="l_ignorar" value="$r/@l_ignorar"/>
+				<qry:element name="COLUMNAFIJA">
+					<qry:insert-select name="QRY_ESTRUCTURA_COLFIJA" doc-path="$r"/>
+				</qry:element>
+				<qry:element name="COLS">
+					<qry:insert-select name="QE_NOVEDADES" doc-path="$r"/>
+					<qry:insert-select name="QE_FIJAS" doc-path="$r"/>
+					<qry:insert-select name="QE_ACUM" doc-path="$r"/>
+					<qry:insert-select name="QE_LIQUIDADAS" doc-path="$r"/>
+				</qry:element>
+			</qry:out>
+		</qry:select>
+		<qry:select doc="SOURCE" name="QE_NOVEDADES">
+			<qry:xquery>
+				for $r in sql('
+SELECT 
+C.c_columna_nov,
+C.d_columna_nov,
+C.oi_columna_nov,
+C.o_style,
+C.c_tipo,
+C.e_posicion
+FROM LIQ18_COL_NOV as C 
+WHERE C.OI_REPORTE =  {#SOURCE:@oi_reporte}
+order by e_posicion ASC')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:element name="COL">
+					<qry:attribute name="name" value="$r/@c_columna_nov"/>
+					<qry:attribute name="label" value="$r/@d_columna_nov"/>
+					<qry:attribute name="style" value="'text-align:right; mso-number-format:0.00;'"/>
+					<qry:attribute name="style" value="iif($r/@o_style != '', $r/@o_style, ./@style)"/>
+					<qry:attribute name="type" value="'num'"/>
+					<qry:attribute name="type" value="iif($r/@c_tipo!= '', $r/@c_tipo, ./@type)"/>
+					<qry:attribute name="AUXILIAR" value="'N'"/>
+					<qry:element name="NOVEDADES">
+						<qry:insert-select name="QEV_NOVEDADES" doc-path="$r"/>
+					</qry:element>
+				</qry:element>
+			</qry:out>
+		</qry:select>
+		<qry:select doc="SOURCE" name="QEV_NOVEDADES">
+			<qry:xquery>
+				for $r in sql('
+SELECT 
+C.oi_variable,
+C.c_operacion,
+C.n_valor_adicional
+FROM LIQ18_COL_VAR as C
+WHERE 
+C.oi_columna_nov = {#SOURCE:@oi_columna_nov}
+			')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:element name="VAR">
+					<qry:attribute name="oi_variable" value="$r/@oi_variable"/>
+					<qry:attribute name="c_operacion" value="$r/@c_operacion"/>
+					<qry:attribute name="n_valor_adicional" value="$r/@n_valor_adicional"/>
+				</qry:element>
+			</qry:out>
+		</qry:select>
+		<qry:select doc="SOURCE" name="QE_FIJAS">
+			<qry:xquery>
+				for $r in sql('
+SELECT 
+C.c_columna_fija,
+C.d_columna_fija,
+C.oi_columna_fija,
+C.o_style,
+C.c_tipo,
+C.e_posicion
+FROM LIQ18_COL_FIJAS as C 
+WHERE C.OI_REPORTE =  {#SOURCE:@oi_reporte}
+order by e_posicion ASC')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:element name="COL">
+					<qry:attribute name="name" value="$r/@c_columna_fija"/>
+					<qry:attribute name="label" value="$r/@d_columna_fija"/>
+					<qry:attribute name="style" value="'text-align:right; mso-number-format:0.00;'"/>
+					<qry:attribute name="style" value="iif($r/@o_style != '', $r/@o_style, ./@style)"/>
+					<qry:attribute name="type" value="'num'"/>
+					<qry:attribute name="type" value="iif($r/@c_tipo!= '', $r/@c_tipo, ./@type)"/>
+					<qry:attribute name="AUXILIAR" value="'F'"/>
+					<qry:element name="FIJAS">
+						<qry:insert-select name="QEV_FIJAS" doc-path="$r"/>
+					</qry:element>
+				</qry:element>
+			</qry:out>
+		</qry:select>
+		<qry:select doc="SOURCE" name="QEV_FIJAS">
+			<qry:xquery>
+				for $r in sql('
+SELECT 
+C.oi_variable,
+C.c_operacion,
+C.n_valor_adicional
+FROM LIQ18_DATOS_FIJOS as C
+WHERE 
+C.oi_columna_fija = {#SOURCE:@oi_columna_fija}
+			')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:element name="VAR">
+					<qry:attribute name="oi_variable" value="$r/@oi_variable"/>
+					<qry:attribute name="c_operacion" value="$r/@c_operacion"/>
+					<qry:attribute name="n_valor_adicional" value="$r/@n_valor_adicional"/>
+				</qry:element>
+			</qry:out>
+		</qry:select>
+		<qry:select doc="SOURCE" name="QE_ACUM">
+			<qry:xquery>
+				for $r in sql('
+SELECT 
+C.c_columna_acum,
+C.d_columna_acum,
+C.oi_columna_acum,
+C.o_style,
+C.c_tipo,
+C.e_posicion
+FROM LIQ18_COL_ACUM as C 
+WHERE C.OI_REPORTE =  {#SOURCE:@oi_reporte}
+order by e_posicion ASC')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:element name="COL">
+					<qry:attribute name="name" value="$r/@c_columna_acum"/>
+					<qry:attribute name="label" value="$r/@d_columna_acum"/>
+					<qry:attribute name="style" value="'text-align:right; mso-number-format:0.00;'"/>
+					<qry:attribute name="style" value="iif($r/@o_style != '', $r/@o_style, ./@style)"/>
+					<qry:attribute name="type" value="'num'"/>
+					<qry:attribute name="type" value="iif($r/@c_tipo!= '', $r/@c_tipo, ./@type)"/>
+					<qry:attribute name="AUXILIAR" value="'A'"/>
+					<qry:element name="ACUMULADAS">
+						<qry:insert-select name="QEV_ACUM" doc-path="$r"/>
+					</qry:element>
+				</qry:element>
+			</qry:out>
+		</qry:select>
+		<qry:select doc="SOURCE" name="QEV_ACUM">
+			<qry:xquery>
+				for $r in sql('
+SELECT 
+C.oi_variable,
+C.c_operacion,
+C.n_valor_adicional
+FROM LIQ18_ACUM as C
+WHERE 
+C.OI_COLUMNA_acum = {#SOURCE:@OI_COLUMNA_acum}
+			')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:element name="VAR">
+					<qry:attribute name="oi_variable" value="$r/@oi_variable"/>
+					<qry:attribute name="c_operacion" value="$r/@c_operacion"/>
+					<qry:attribute name="n_valor_adicional" value="$r/@n_valor_adicional"/>
+				</qry:element>
+			</qry:out>
+		</qry:select>
+		<qry:select doc="SOURCE" name="QRY_ESTRUCTURA_COLFIJA">
+			<qry:xquery>
+				for $r in sql('
+select 
+c.oi_reporte,
+c.c_columna,
+c.d_columna,
+c.c_tipo, 
+c.o_style,
+c.e_posicion
+from LIQ18_COLFIJAS as c
+WHERE c.OI_REPORTE =  {#SOURCE:@oi_reporte}
+order by e_posicion ASC
+			')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:element name="COLUMNAFIJA">
+					<qry:attribute name="name" value="$r/@c_columna"/>
+					<qry:attribute name="label" value="$r/@d_columna"/>
+					<qry:attribute name="style" value="iif($r/@c_tipo='string','text-align:left;width:50px;font-size:10;',@style)"/>
+					<qry:attribute name="style" value="iif($r/@c_tipo='alfa','text-align:left;width:200px;font-size:10;',@style)"/>
+					<qry:attribute name="style" value="iif($r/@c_tipo='num','text-align:right; mso-number-format:0.00;font-size:10;',@style)"/>
+					<qry:attribute name="style" value="iif($r/@o_style != '', $r/@o_style, @style)"/>
+					<qry:attribute name="type" value="'string'"/>
+					<qry:attribute name="type" value="iif($r/@c_tipo!= '', $r/@c_tipo, ./@type)"/>
+				</qry:element>
+			</qry:out>
+		</qry:select>
+		<qry:select doc="SOURCE" name="qry_columnas_aux">
+			<qry:xquery>
+				for $r in #DOCUM:DATOS/COLUMNAFIJA/COLUMNAFIJA
+			</qry:xquery>
+			<qry:out>
+				<qry:element name="COL">
+					<qry:attribute name="style" value="'text-align:left;'"/>
+				</qry:element>
+			</qry:out>
+		</qry:select>
+		<qry:select doc="SOURCE" name="AgrupadoCentro">
+			<qry:out>
+				<qry:element name="COL">
+					<qry:attribute name="name" value="'centro'"/>
+					<qry:attribute name="label" value="'Centro de Costo'"/>
+					<qry:attribute name="style" value="'text-align:left;width:100%;font-size:12'"/>
+				</qry:element>
+			</qry:out>
+		</qry:select>
+		<qry:select doc="SOURCE" name="AgrupadoAfjp">
+			<qry:out>
+				<qry:element name="COL">
+					<qry:attribute name="name" value="'afjp'"/>
+					<qry:attribute name="label" value="'AFJP'"/>
+					<qry:attribute name="style" value="'text-align:left;width:100%;font-size:12'"/>
+				</qry:element>
+			</qry:out>
+		</qry:select>
+		<qry:select doc="SOURCE" name="AgrupadoSindicato">
+			<qry:out>
+				<qry:element name="COL">
+					<qry:attribute name="name" value="'sindicato'"/>
+					<qry:attribute name="label" value="'Sindicato'"/>
+					<qry:attribute name="style" value="'text-align:left;width:100%;font-size:12'"/>
+				</qry:element>
+			</qry:out>
+		</qry:select>
+		<qry:select doc="SOURCE" name="AgrupadoObra">
+			<qry:out>
+				<qry:element name="COL">
+					<qry:attribute name="name" value="'obra'"/>
+					<qry:attribute name="label" value="'Obra Social'"/>
+					<qry:attribute name="style" value="'text-align:left;width:100%;font-size:12'"/>
+				</qry:element>
+			</qry:out>
+		</qry:select>
+		<qry:select doc="SOURCE" name="AgrupadoCategoria">
+			<qry:out>
+				<qry:element name="COL">
+					<qry:attribute name="name" value="'categ'"/>
+					<qry:attribute name="label" value="'Convenio - Categoria'"/>
+					<qry:attribute name="style" value="'text-align:left;width:100%;font-size:12'"/>
+				</qry:element>
+			</qry:out>
+		</qry:select>
+		<qry:select doc="SOURCE" name="liquidacion">
+			<qry:out>
+				<qry:element name="COL">
+					<qry:attribute name="name" value="'liquidacion'"/>
+					<qry:attribute name="label" value="'Liquidacion'"/>
+					<qry:attribute name="style" value="'text-align:left;width:100%;font-size:12'"/>
+				</qry:element>
+			</qry:out>
+		</qry:select>
+		<qry:select doc="SOURCE" name="QE_LIQUIDADAS">
+			<qry:xquery>
+				for $r in sql('
+SELECT 
+C.c_columna_liq,
+C.d_columna_liq,
+C.oi_columna_liq,
+C.o_style,
+C.c_tipo,
+C.e_posicion
+FROM LIQ18_COL_LIQ as C 
+WHERE C.OI_REPORTE =  {#SOURCE:@oi_reporte}
+order by e_posicion ASC')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:element name="COL">
+					<qry:attribute name="name" value="$r/@c_columna_liq"/>
+					<qry:attribute name="label" value="$r/@d_columna_liq"/>
+					<qry:attribute name="style" value="'text-align:right; mso-number-format:0.00;'"/>
+					<qry:attribute name="style" value="iif($r/@o_style != '', $r/@o_style, ./@style)"/>
+					<qry:attribute name="type" value="'num'"/>
+					<qry:attribute name="type" value="iif($r/@c_tipo!= '', $r/@c_tipo, ./@type)"/>
+					<qry:attribute name="AUXILIAR" value="'L'"/>
+					<qry:element name="LIQUIDADAS">
+						<qry:insert-select name="QEV_LIQUIDADAS" doc-path="$r"/>
+					</qry:element>
+				</qry:element>
+			</qry:out>
+		</qry:select>
+		<qry:select doc="SOURCE" name="QEV_LIQUIDADAS">
+			<qry:xquery>
+				for $r in sql('
+SELECT 
+C.oi_variable,
+C.c_operacion,
+C.n_valor_adicional
+FROM LIQ18_LIQ as C
+WHERE 
+C.oi_columna_liq = {#SOURCE:@oi_columna_liq}
+			')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:element name="VAR">
+					<qry:attribute name="oi_variable" value="$r/@oi_variable"/>
+					<qry:attribute name="c_operacion" value="$r/@c_operacion"/>
+					<qry:attribute name="n_valor_adicional" value="$r/@n_valor_adicional"/>
+				</qry:element>
+			</qry:out>
+		</qry:select>
+		<qry:select name="qry_buscar_variables" doc="SOURCE">
+			<qry:xquery>
+				for $r in SQL('
+			SELECT
+			LIQ31_GRUPO_VAR.c_columna
+			FROM
+			LIQ31_GRUPO_VAR,
+			LIQ31_GRUPOS
+			JOIN
+			LIQ31_GRUPO_VAR.oi_grupo INNER LIQ31_GRUPOS.oi_grupo
+			where 
+			LIQ31_GRUPO_VAR.oi_variable in ({%=#SOURCE:@oi_variable%})
+			and LIQ31_GRUPOS.c_grupo = \'3\'
+			')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:attribute name="sumar" value="concat(@sumar,'+ V.',$r/@c_columna)"/>
+			</qry:out>
+		</qry:select>
+	</html:query>
+</html:html>

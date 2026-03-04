@@ -1,0 +1,482 @@
+<form:Form xmlns:form="nomad_engine.form" xmlns:qry="nomad_engine.qry" default_mode="HELP" doc="SOURCE" name="NucleusRH.Base.Organizacion.Clases_Organizativas.ESTRUCTURA.guia">
+	<form:Scripts>
+		var CLASS_TREE=null;
+
+function LoadChilds(objTree, objGroup)
+{
+	nSQL = GetProxy().SQLService();
+	         
+	var id=objGroup.FullId.split("/"); id=id[id.length-1];
+	if(id==".")
+		id = "";
+	var resultxt=nSQL.Get(Ctrl("main").getResource("qry_estructura"), "&lt;PARAM id=\""+id+"\" /&gt;");
+  objTree.SetXML(objGroup.FullId, resultxt);
+}
+
+function onClick()
+{                                          
+	var fullid=Ctrl("oi_estructura_full").GetXValue();
+	
+	
+	if (CLASS_TREE.GetGroup(fullid) &amp;&amp; fullid!=".") 
+	{
+		var id=fullid.split("/"); 
+		id=id[id.length-1];
+		if (id==".") id="";
+ 
+ 		Ctrl("oi_estructura").SetXValue(id);
+		CtrlEnabled("ACCEPT",true);
+	} else                               
+ 	{
+ 		CtrlEnabled("ACCEPT",false);      
+ 		Ctrl("oi_estructura").SetXValue("");
+ 	}
+}
+
+function onLoad()
+{       
+	nSQL = GetProxy().SQLService();
+	
+	var oi_estructura=Ctrl("oi_estructura").GetXValue();
+	var fullId=(oi_estructura==""?".":nSQL.GetOBJ(Ctrl("main").getResource("qry_find_estructura"), "&lt;PARAM id=\""+oi_estructura+"\" /&gt;").fullId);
+
+	var resultxt=nSQL.Get(Ctrl("main").getResource("qry_clases"), "&lt;PARAM oi_clase_org=\""+Ctrl("oi_clase_org").GetXValue()+"\" /&gt;");
+	CLASS_TREE=clsClientTree("contESTR","oi_estructura_full","CLOCK.ico","folder-close.ico","folder.ico","item.ico",true,LoadChilds,null,onClick,1000);
+	CLASS_TREE.SetXML(null, resultxt);
+	
+	Ctrl("oi_estructura_full").SetXValue(fullId);
+	CLASS_TREE.SetSelectedId(fullId);
+	if(fullId==".") CLASS_TREE.ClickExpGroup(".");
+	
+	//alert(fullId);
+	CLASS_TREE.ClickExpGroup(fullId);
+	onClick();
+}    
+
+function SearchText()
+{                   
+	nSQL = GetProxy().SQLService();
+
+	if (Ctrl("buscar").GetXValue()!='')
+	{
+		var P=new NomadXML("PARAM");
+		P.SetAttr("oi_clase_org", Ctrl("oi_clase_org").GetXValue());
+		P.SetAttr("txt_find", Ctrl("buscar").GetXValue());
+		
+		P=new NomadXML(nSQL.Get(Ctrl("main").getResource("qry_find"), P.ToString()));
+		if (P.GetAttr("mode")!='')
+		{                          
+			Ctrl("oi_estructura_full").SetXValue(P.GetAttr("fullid"))
+			CLASS_TREE.SetSelectedId(P.GetAttr("fullid"));
+			CLASS_TREE.ClickExpGroup(P.GetAttr("fullid"));    
+			onClick();
+		}
+	}
+}
+	</form:Scripts>
+	<form:Title>
+		<form:RowAligner name="title">
+			<form:Row name="row1">
+				<form:Label nowrap="1" style="S3 LCol_w" label="Seleccion de Estructuras Organizativas" name="GEN"/>
+			</form:Row>
+		</form:RowAligner>
+	</form:Title>
+	<form:Center width="100%" height="100%">
+		<form:RowAligner name="buttonlinks">
+			<form:Row name="row_top">
+				<form:TextBox label="Buscar" name="buscar" length="32" xsize="32" ysize="1" descr="Texto a Buscar" required="False">
+					<form:Event runat="client" name="onpressenter" action="SearchText"/>
+					<form:SButtons>
+						<form:SButton descrip="Filtrar los Registros." name="Search" label="Buscar" img="filter">
+							<form:Event runat="client" name="onclick" action="SearchText"/>
+						</form:SButton>
+					</form:SButtons>
+				</form:TextBox>
+			</form:Row>
+		</form:RowAligner>
+		<form:Div border="1" height="90%" width="90%" rheight="80" rwidth="80" borderwidth="2" name="contESTR" label="Estructuras"/>
+		<form:Hidden name="oi_estructura" nvalue="#SOURCE:@id"/>
+		<form:Hidden name="oi_clase_org" nvalue="#SOURCE:@oi_clase_org"/>
+		<form:Hidden name="oi_estructura_full"/>
+	</form:Center>
+	<form:Resources>
+		<form:Resource name="qry:ESTRUCTURA">
+			<qry:main doc="PARAM">
+				<qry:append-doc name="INVAL" doc-path="#PARAM:/PARAM"/>
+				<qry:element name="tree">
+					<qry:element name="groups">
+						<qry:insert-select name="qry_clase_organizativa" doc-path="#PARAM:/PARAM"/>
+					</qry:element>
+				</qry:element>
+			</qry:main>
+			<qry:select name="qry_clase_organizativa" doc="PARAM">
+				<qry:xquery>
+					for $r in sql('
+					SELECT ORG02_CLASES_ORG.oi_estructura_org, 
+					ORG02_CLASES_ORG.d_clase_org 
+					FROM ORG02_CLASES_ORG 
+					WHERE ORG02_CLASES_ORG.c_estado = \'V\'
+					AND	ORG02_CLASES_ORG.oi_clase_org = {#PARAM:@oi_clase_org}
+				')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:element name="group">
+						<qry:attribute value="$r/@oi_estructura_org" name="id"/>
+						<qry:attribute value="#PARAM:@oi_clase_org" name="pid"/>
+						<qry:insert-select name="qry_padre" doc-path="."/>
+					</qry:element>
+				</qry:out>
+			</qry:select>
+			<qry:select name="qry_padre" doc="PARAM">
+				<qry:xquery>
+					for $r in sql('
+					SELECT ORG01_TIPOS_UNI.c_tipo_uni_org, 
+					ORG01_UNI_ORG.c_unidad_org, 
+					ORG01_UNI_ORG.d_unidad_org, 
+					ORG02_ESTRUCTURAS.oi_unidad_org 
+					FROM ORG02_ESTRUCTURAS, ORG01_UNI_ORG, ORG01_TIPOS_UNI 
+					JOIN ORG02_ESTRUCTURAS.oi_unidad_org INNER ORG01_UNI_ORG.oi_unidad_org, 
+					ORG01_UNI_ORG.oi_tipo_uni_org INNER ORG01_TIPOS_UNI.oi_tipo_uni_org
+					WHERE ORG02_ESTRUCTURAS.oi_estructura = {#PARAM:@id} 					
+				')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:attribute type="Nomad.NSystem.String" value="'('+$r/@c_tipo_uni_org+') '+$r/@c_unidad_org+' - '+$r/@d_unidad_org" name="name"/>
+					<qry:attribute value="#PARAM:@id" name="id"/>
+					<qry:attribute value="#PARAM:@pid" name="pid"/>
+					<qry:attribute value="'1'" name="expanded"/>
+					<qry:element name="groups">
+						<qry:insert-select name="qry_unidad_organizativa" doc-path=".."/>
+					</qry:element>
+				</qry:out>
+			</qry:select>
+			<qry:select name="qry_unidad_organizativa" doc="PARAM">
+				<qry:xquery>
+					for $r in sql('
+						SELECT ORG02_ESTRUCTURAS.oi_estructura, 
+						ORG01_TIPOS_UNI.c_tipo_uni_org, 
+						ORG01_UNI_ORG.c_unidad_org, 
+						ORG01_UNI_ORG.d_unidad_org, 
+						ORG02_ESTRUCTURAS.oi_unidad_org 
+						FROM ORG02_ESTRUCTURAS, ORG01_UNI_ORG, ORG01_TIPOS_UNI 
+						JOIN ORG02_ESTRUCTURAS.oi_unidad_org INNER ORG01_UNI_ORG.oi_unidad_org,
+						ORG01_UNI_ORG.oi_tipo_uni_org INNER ORG01_TIPOS_UNI.oi_tipo_uni_org
+						WHERE ORG02_ESTRUCTURAS.oi_estr_padre = {#PARAM:@id} 						
+					')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:element name="group">
+						<qry:attribute type="Nomad.NSystem.String" value="'('+$r/@c_tipo_uni_org+') '+$r/@c_unidad_org+' - '+$r/@d_unidad_org" name="name"/>
+						<qry:attribute value="$r/@oi_estructura" name="id"/>
+						<qry:attribute value="#PARAM:@pid" name="pid"/>
+						<qry:attribute value="iif(#INVAL:@id=$r/@oi_estructura,'1','0')" name="showitem"/>
+						<qry:attribute value="iif(#INVAL:@id=$r/@oi_estructura,'1','0')" name="bold"/>
+						<qry:element name="groups">
+							<qry:insert-select name="qry_unidad_organizativa" doc-path=".."/>
+						</qry:element>
+						<qry:insert-select name="expanded" doc-path="./groups/group[@showitem=1]"/>
+					</qry:element>
+				</qry:out>
+			</qry:select>
+			<qry:select name="expanded" doc="PARAM">
+				<qry:out>
+					<qry:attribute value="1" name="showitem"/>
+					<qry:attribute value="1" name="expanded"/>
+				</qry:out>
+			</qry:select>
+		</form:Resource>
+		<form:Resource name="qry_clases">
+			<qry:main doc="PARAM">
+				<qry:element name="tree">
+					<qry:element name="group">
+						<qry:attribute value="'.'" name="id"/>
+						<qry:attribute value="'Organigramas'" name="label"/>
+						<qry:attribute value="'cabinet-close.ico'" name="imgClose"/>
+						<qry:attribute value="'cabinet.ico'" name="imgOpen"/>
+						<qry:insert-select name="sql1" doc-path="#PARAM:/PARAM"/>
+					</qry:element>
+				</qry:element>
+			</qry:main>
+			<qry:select name="sql1" doc="PARAM">
+				<qry:xquery>
+					for $r in sql('
+					SELECT ORG02_CLASES_ORG.oi_estructura_org, 
+					ORG02_CLASES_ORG.d_clase_org,
+					ORG02_CLASES_ORG.l_automatica,
+					SEC.policy 
+					FROM ORG02_CLASES_ORG,
+					NMD_SECURITY(class=\'NucleusRH.Base.Organizacion.Clases_Organizativas.CLASE_ORG\') as SEC JOIN ORG02_CLASES_ORG.oi_clase_org LEFT OUTER SEC.id  
+					{%? (#PARAM:@oi_clase_org!='') {% WHERE	ORG02_CLASES_ORG.oi_clase_org = {#PARAM:@oi_clase_org} %} {% WHERE ORG02_CLASES_ORG.c_estado = \'V\' %} %}
+				')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:element name="group">
+						<qry:attribute value="$r/@oi_estructura_org" name="id"/>
+						<qry:attribute value="$r/@d_clase_org" name="label"/>
+						<qry:attribute value="'organigrama'+$r/@l_automatica+'.ico'" name="imgClose"/>
+						<qry:attribute value="'organigrama'+$r/@l_automatica+'.ico'" name="imgOpen"/>
+					</qry:element>
+				</qry:out>
+			</qry:select>
+		</form:Resource>
+		<form:Resource declare="&lt;PARAM id=&quot;539&quot; /&gt;" name="qry_estructura">
+			<qry:main doc="PARAM">
+				<qry:element name="tree">
+					<qry:insert-select name="sql1" doc-path="#PARAM:/PARAM"/>
+					<qry:insert-select name="sql2" doc-path="#PARAM:/PARAM"/>
+					<qry:insert-select name="sql3" doc-path="#PARAM:/PARAM"/>
+				</qry:element>
+			</qry:main>
+			<qry:select name="sql1" doc="PARAM">
+				<qry:xquery>
+					for $r in sql('
+						SELECT ORG02_ESTRUCTURAS.oi_estructura, 
+						ORG01_TIPOS_UNI.c_tipo_uni_org, 
+						ORG01_UNI_ORG.c_unidad_org, 
+						ORG01_UNI_ORG.d_unidad_org, 
+						ORG02_ESTRUCTURAS.oi_unidad_org 
+						FROM ORG02_ESTRUCTURAS, ORG01_UNI_ORG, ORG01_TIPOS_UNI 
+						JOIN ORG02_ESTRUCTURAS.oi_unidad_org INNER ORG01_UNI_ORG.oi_unidad_org,
+						ORG01_UNI_ORG.oi_tipo_uni_org INNER ORG01_TIPOS_UNI.oi_tipo_uni_org
+						WHERE ORG02_ESTRUCTURAS.oi_estr_padre = {#PARAM:@id} 					
+					')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:element name="group">
+						<qry:attribute value="$r/@oi_estructura" name="id"/>
+						<qry:if test="$r/@c_tipo_uni_org='FIC'">
+							<qry:then>
+								<qry:attribute value="'Ficticia'" name="label"/>
+								<qry:attribute value="'REP-HIDDEN.ico'" name="imgClose"/>
+								<qry:attribute value="'REP-HIDDEN.ico'" name="imgOpen"/>
+							</qry:then>
+							<qry:else>
+								<qry:attribute value="'['+$r/@c_unidad_org+'] '+$r/@d_unidad_org" name="label"/>
+								<qry:attribute value="'estructura.ico'" name="imgClose"/>
+								<qry:attribute value="'estructura.ico'" name="imgOpen"/>
+							</qry:else>
+						</qry:if>
+					</qry:element>
+				</qry:out>
+			</qry:select>
+			<qry:select name="sql2" doc="PARAM">
+				<qry:xquery>
+					for $r in sql('
+						SELECT 
+							ORG02_CLASES_ORG.oi_estructura_org, 
+							ORG02_CLASES_ORG.d_clase_org,
+							ORG02_CLASES_ORG.l_automatica
+						FROM
+							ORG02_CLASES_HIJAS, ORG02_CLASES_ORG
+						JOIN                                 
+							ORG02_CLASES_HIJAS.oi_clase_org INNER ORG02_CLASES_ORG.oi_clase_org
+						WHERE ORG02_CLASES_ORG.c_estado = \'V\'
+							AND	ORG02_CLASES_HIJAS.oi_estructura = {#PARAM:@id}
+					')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:element name="group">
+						<qry:attribute value="$r/@oi_estructura_org" name="id"/>
+						<qry:attribute value="$r/@d_clase_org" name="label"/>
+						<qry:attribute value="'organigrama'+$r/@l_automatica+'.ico'" name="imgClose"/>
+						<qry:attribute value="'organigrama'+$r/@l_automatica+'.ico'" name="imgOpen"/>
+					</qry:element>
+				</qry:out>
+			</qry:select>
+			<qry:select name="sql3" doc="PARAM">
+				<qry:xquery>
+					for $r in sql('
+						SELECT 
+							ORG02_ESTRUC_PERS.oi_estruc_pers,
+							ORG02_ESTRUC_PERS.l_responsable,
+							PER02_PERSONAL_EMP.e_numero_legajo,
+							PER01_PERSONAL.d_ape_y_nom,
+							ORG03_EMPRESAS.c_empresa
+						FROM 
+							ORG02_ESTRUC_PERS, PER02_PERSONAL_EMP, PER01_PERSONAL, ORG03_EMPRESAS  
+						JOIN 
+							ORG02_ESTRUC_PERS.oi_personal_emp INNER PER02_PERSONAL_EMP.oi_personal_emp,
+							PER02_PERSONAL_EMP.oi_personal INNER PER01_PERSONAL.oi_personal,
+							PER02_PERSONAL_EMP.oi_empresa INNER ORG03_EMPRESAS.oi_empresa
+						WHERE 
+							ORG02_ESTRUC_PERS.oi_estructura = {#PARAM:@id} 					
+						ORDER BY
+							l_responsable DESC, d_ape_y_nom ASC
+					')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:element name="item">
+						<qry:attribute value="$r/@oi_estruc_pers" name="id"/>
+						<qry:attribute value="'['+$r/@c_empresa+'-'+$r/@e_numero_legajo+'] '+$r/@d_ape_y_nom" name="label"/>
+						<qry:attribute value="iif ($r/@l_responsable=1,'user-si.ico','user.ico')" name="img"/>
+					</qry:element>
+				</qry:out>
+			</qry:select>
+		</form:Resource>
+		<form:Resource declare="&lt;PARAM id=&quot;593&quot; /&gt;" name="qry_find_estructura">
+			<qry:main doc="PARAM">
+				<qry:element name="item">
+					<qry:attribute value="#PARAM:/PARAM/@id" name="fullId"/>
+					<qry:insert-select name="sql1" doc-path="#PARAM:/PARAM"/>
+					<qry:attribute value="'.'+./@fullId" name="fullId"/>
+				</qry:element>
+			</qry:main>
+			<qry:select name="sql1" doc="PARAM">
+				<qry:xquery>
+					for $r in sql('
+						SELECT 
+							ORG02_ESTRUCTURAS.oi_estr_padre as id
+						FROM
+							ORG02_ESTRUCTURAS
+						WHERE 
+							ORG02_ESTRUCTURAS.oi_estructura = {#PARAM:@id} 					
+					')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:attribute value="$r/@id+'/'+./@fullId" name="fullId"/>
+					<qry:insert-select name="sql1" doc-path="$r"/>
+				</qry:out>
+			</qry:select>
+		</form:Resource>
+		<form:Resource declare="&lt;PARAM oi_clase_org=&quot;&quot; txt_find=&quot;gerent&quot; /&gt;" name="qry_find">
+			<qry:main doc="PARAM">
+				<qry:append-doc name="PARAMIN" doc-path="#PARAM:/PARAM"/>
+				<qry:element name="item">
+					<qry:insert-select name="sql1" doc-path="#PARAM:/PARAM"/>
+					<qry:if test="@mode=''">
+						<qry:then>
+							<qry:insert-select name="sql2" doc-path="#PARAM:/PARAM"/>
+						</qry:then>
+					</qry:if>
+					<qry:attribute value="'.'+./@fullId" name="fullId"/>
+				</qry:element>
+			</qry:main>
+			<qry:select name="sql1" doc="PARAM">
+				<qry:xquery>
+					for $r in sql(' 
+						MAXSIZE 1
+						SELECT 
+							ORG02_ESTRUC_PERS.oi_estructura,
+							ORG02_ESTRUC_PERS.oi_estruc_pers,
+							ORG02_ESTRUC_PERS.l_responsable,
+							PER02_PERSONAL_EMP.e_numero_legajo,
+							PER01_PERSONAL.d_ape_y_nom,
+							ORG03_EMPRESAS.c_empresa
+						FROM 
+							ORG02_ESTRUC_PERS, PER02_PERSONAL_EMP, PER01_PERSONAL, ORG03_EMPRESAS  
+						JOIN 
+							ORG02_ESTRUC_PERS.oi_personal_emp INNER PER02_PERSONAL_EMP.oi_personal_emp,
+							PER02_PERSONAL_EMP.oi_personal INNER PER01_PERSONAL.oi_personal,
+							PER02_PERSONAL_EMP.oi_empresa INNER ORG03_EMPRESAS.oi_empresa
+						WHERE                                 
+							Contain(ucase(PER01_PERSONAL.d_ape_y_nom),{upper-case($PARAMIN/@txt_find)})
+							{%? ($PARAM/@oi_clase_org!='') {% AND ORG02_ESTRUC_PERS.oi_clase_org = {#PARAM:@oi_clase_org} %} {% %} %}
+						ORDER BY
+							l_responsable DESC, d_ape_y_nom ASC
+					')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:attribute value="$r/@oi_estructura" name="fullId"/>
+					<qry:attribute value="$r/@oi_estructura" name="id"/>
+					<qry:attribute value="'P'" name="mode"/>
+					<qry:insert-select name="sqlFID" doc-path="."/>
+				</qry:out>
+			</qry:select>
+			<qry:select name="sql2" doc="PARAM">
+				<qry:xquery>
+					for $r in sql('
+					SELECT ORG02_CLASES_ORG.oi_estructura_org, 
+					ORG02_CLASES_ORG.c_clase_org,
+					ORG02_CLASES_ORG.d_clase_org,
+					ORG02_CLASES_ORG.l_automatica,
+					SEC.policy 
+					FROM ORG02_CLASES_ORG,
+					NMD_SECURITY(class=\'NucleusRH.Base.Organizacion.Clases_Organizativas.CLASE_ORG\') as SEC JOIN ORG02_CLASES_ORG.oi_clase_org LEFT OUTER SEC.id  
+					WHERE ORG02_CLASES_ORG.c_estado = \'V\'						
+					{%? (#PARAM:@oi_clase_org!='') {% AND	ORG02_CLASES_ORG.oi_clase_org = {#PARAM:@oi_clase_org} %} {% %} %}
+				')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:attribute value="$r/@oi_estructura_org" name="id"/>
+					<qry:if test="@mode=''">
+						<qry:then>
+							<qry:if test="contains(upper-case($r/@d_clase_org), upper-case($PARAMIN/@txt_find)) or contains(upper-case($r/@c_clase_org), upper-case($PARAMIN/@txt_find))">
+								<qry:then>
+									<qry:attribute value="$r/@oi_estructura_org" name="fullId"/>
+									<qry:attribute value="$r/@oi_estructura_org" name="id"/>
+									<qry:attribute value="'E'" name="mode"/>
+									<qry:insert-select name="sqlFID" doc-path="."/>
+								</qry:then>
+								<qry:else>
+									<qry:insert-select name="sql3" doc-path="."/>
+								</qry:else>
+							</qry:if>
+						</qry:then>
+					</qry:if>
+				</qry:out>
+			</qry:select>
+			<qry:select name="sql3" doc="PARAM">
+				<qry:xquery>
+					for $r in sql('
+						SELECT ORG02_ESTRUCTURAS.oi_estructura, 
+						ORG01_TIPOS_UNI.c_tipo_uni_org, 
+						ORG01_UNI_ORG.c_unidad_org, 
+						ORG01_UNI_ORG.d_unidad_org, 
+						ORG02_ESTRUCTURAS.oi_unidad_org 
+						FROM ORG02_ESTRUCTURAS, ORG01_UNI_ORG, ORG01_TIPOS_UNI 
+						JOIN ORG02_ESTRUCTURAS.oi_unidad_org INNER ORG01_UNI_ORG.oi_unidad_org,
+						ORG01_UNI_ORG.oi_tipo_uni_org INNER ORG01_TIPOS_UNI.oi_tipo_uni_org
+						WHERE ORG02_ESTRUCTURAS.oi_estr_padre = {#PARAM:@id} 					
+					')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:attribute value="$r/@oi_estructura" name="id"/>
+					<qry:if test="@mode=''">
+						<qry:then>
+							<qry:if test="contains(upper-case($r/@c_unidad_org), upper-case($PARAMIN/@txt_find)) or contains(upper-case($r/@d_unidad_org), upper-case($PARAMIN/@txt_find))">
+								<qry:then>
+									<qry:attribute value="$r/@oi_estructura" name="fullId"/>
+									<qry:attribute value="$r/@oi_estructura" name="id"/>
+									<qry:attribute value="'E'" name="mode"/>
+									<qry:insert-select name="sqlFID" doc-path="."/>
+								</qry:then>
+								<qry:else>
+									<qry:insert-select name="sql3" doc-path="."/>
+								</qry:else>
+							</qry:if>
+						</qry:then>
+					</qry:if>
+				</qry:out>
+			</qry:select>
+			<qry:select name="sqlFID" doc="PARAM">
+				<qry:xquery>
+					for $r in sql('
+						SELECT 
+							ORG02_ESTRUCTURAS.oi_estr_padre as id
+						FROM
+							ORG02_ESTRUCTURAS
+						WHERE 
+							ORG02_ESTRUCTURAS.oi_estructura = {#PARAM:@id} 					
+					')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:attribute value="$r/@id+'/'+./@fullId" name="fullId"/>
+					<qry:insert-select name="sqlFID" doc-path="$r"/>
+				</qry:out>
+			</qry:select>
+		</form:Resource>
+	</form:Resources>
+	<form:Bottom>
+		<form:RowAligner name="bottom">
+			<form:Row name="rowbottom">
+				<form:Button name="ACCEPT" label="Aceptar" img="OK" descrip="Aceptar" note="Aceptar">
+					<form:Event runat="server" name="onclick" action="ACCEPT"/>
+				</form:Button>
+				<form:Button name="CANCEL" label="Cancelar" img="CANCEL" descrip="Cancelar" note="Cancelar">
+					<form:Event runat="server" name="onclick" action="CANCEL"/>
+				</form:Button>
+			</form:Row>
+		</form:RowAligner>
+	</form:Bottom>
+	<form:Event name="onLoad" action="onLoad" runat="client"/>
+</form:Form>

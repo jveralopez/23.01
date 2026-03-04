@@ -1,0 +1,100 @@
+<flow:flow xmlns:flow="nomad_engine.flow" xmlns:qry="nomad_engine.qry" xmlns:doc="nomad_engine.doc" extends="Nomad.Base.flow" name="NucleusWF.Base.Ejecucion.Formularios.ShowFormulario649.flow">
+	<flow:info label="Soporte para la visualizacion del formulario 649"/>
+	<flow:declare>
+		<qry:define name="QRY_LEGAJO">
+			<qry:main doc="SOURCE">
+				<qry:element name="PER">
+					<qry:attribute name="flag" value="'0'"/>
+					<qry:insert-select name="sql1" doc-path="."/>
+				</qry:element>
+			</qry:main>
+			<qry:select doc="SOURCE" name="sql1">
+				<qry:xquery>
+					for $r in SQL(' 
+	SELECT 
+		PER02_PERSONAL_EMP.oi_personal_emp,
+		PER02_PERSONAL_EMP.e_numero_legajo,
+		PER01_PERSONAL.oi_personal,
+		PER01_PERSONAL.d_ape_y_nom,
+		PER01_PERSONAL.oi_foto, 
+		ORG03_EMPRESAS.oi_empresa,
+		ORG03_EMPRESAS.d_empresa
+		
+	FROM
+		PER02_PERSONAL_EMP, 
+		PER01_PERSONAL,
+		ORG03_EMPRESAS
+	JOIN
+		PER02_PERSONAL_EMP.oi_personal INNER PER01_PERSONAL.oi_personal,
+		PER02_PERSONAL_EMP.oi_empresa INNER ORG03_EMPRESAS.oi_empresa
+	WHERE 
+		PER01_PERSONAL.oi_usuario_sistema = {#PROXY:@etty}
+		AND PER02_PERSONAL_EMP.oi_indic_activo=1			
+')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:attribute name="oi_personal_emp" value="$r/@oi_personal_emp"/>
+					<qry:attribute name="oi_personal" value="$r/@oi_personal"/>
+					<qry:attribute name="legajo" value="$r/@e_numero_legajo"/>
+					<qry:attribute name="nombre" value="$r/@d_ape_y_nom"/>
+					<qry:attribute name="empresa" value="$r/@d_empresa"/>
+					<qry:attribute name="oi_empresa" value="$r/@oi_empresa"/>
+					<qry:attribute name="image" value="$r/@oi_foto"/>
+					<qry:attribute name="flag" value="'1'"/>
+				</qry:out>
+			</qry:select>
+		</qry:define>
+		<doc:define name="LEGAJO"/>
+		<doc:define name="RAIZ">
+			<DATOS>
+				<ROWS nmd-col="1">
+					<ROW id=""/>
+				</ROWS>
+				<DATOS oi_empresa="" salida="HTML" oi_liquidacion="" oi_variable="" report="" gpers="" gcustom="" oi_empresaFIL="" oi_liquidacionFIL="" l_anioAnterior="" activos="1" nombre="" documento="" sexo="" grupo_sanguineo="" listlegajos="" oi_indic_activo="" egresado="" oi_forma_pago="" oi_tipo_personal="" fecha_desde="" fecha_hasta="" oi_centro_costo="" oi_convenio="" soloconvenio="" oi_categoria="" oi_ubicacion_desde="" oi_ubicacion_hasta="" oi_estructura="" escructura_childs="" oi_contrato="" oi_afjp="" oi_obra_social="" oi_sindicato=""/>
+			</DATOS>
+		</doc:define>
+		<doc:define name="CRC"/>
+		<qry:define name="QRY_CRC">
+			<qry:main doc="SOURCE">
+				<qry:element name="CRC">
+					<qry:attribute name="crc" value="nmd_crc(concat('PARAMS:file=',#SOURCE:PARAMS/@r,'|oi_usuario_sistema=',#PROXY:@etty))"/>
+				</qry:element>
+			</qry:main>
+		</qry:define>
+	</flow:declare>
+	<flow:main doc="PARAMIN">
+		<flow:action name="initialize">
+			<doc:load-qry output-doc="LEGAJO" input-doc-path="#LEGAJO:" qry="QRY_LEGAJO"/>
+			<flow:attach-doc doc-path="#LEGAJO:" attach-id="LEGAJO"/>
+			<flow:call-action else="DATA" action="NODATA" eq="0" if="#LEGAJO:@flag"/>
+		</flow:action>
+		<flow:action name="NODATA">
+			<flow:open-form form-class="NucleusWF.Base.Ejecucion.Formularios.NOLEGAJO.form" mode="SHOW" doc-path="#LEGAJO:"/>
+		</flow:action>
+		<flow:action name="DATA">
+			<flow:open-form form-class="NucleusWF.Base.Ejecucion.Formularios.ShowFormulario649.form" mode="FILTER" doc-path="#PARAMIN:"/>
+		</flow:action>
+	</flow:main>
+	<flow:form name="NucleusWF.Base.Ejecucion.Formularios.ShowFormulario649.form:FILTER" mode="FILTER" form-class="NucleusWF.Base.Ejecucion.Formularios.ShowFormulario649.form" doc="SOURCE">
+		<flow:action name="on-open">
+			<flow:attach-doc doc-path="#RAIZ:" attach-id="RAIZ"/>
+			<doc:load-qry output-doc="CRC" input-doc-path="#SOURCE:" qry="QRY_CRC"/>
+		</flow:action>
+		<flow:action name="SALIR">
+			<flow:close-form/>
+		</flow:action>
+		<flow:action name="ACCEPT">
+			<flow:log text-path="#RAIZ:" text="LOG_RAIZ_MS"/>
+			<flow:exec-method method="ExecReportFO" class="Nomad.Base.Report.GeneralReport.REPORT" out-attr-path="#FILTERDATA:@batch-id" out-type="String" priority="5">
+				<flow:param value="NucleusRH.Base.Liquidacion.LiquidacionIGDesde2024.LiquidacionIGDesde2024.rpt" name="report-name" mode="in" type="Nomad.NSystem.String"/>
+				<flow:param doc-path="#RAIZ:" type="Nomad.NSystem.Proxy.NomadXML" mode="in" name="report-param"/>
+			</flow:exec-method>
+			<flow:open-form doc-path="#FILTERDATA:" mode="BATCH" form-class="Nomad.base.batch.report.form"/>
+		</flow:action>
+	</flow:form>
+	<flow:form name="NucleusWF.Base.Ejecucion.Formularios.NOLEGAJO.form:SHOW" form-class="NucleusWF.Base.Ejecucion.Formularios.NOLEGAJO.form" mode="SHOW" doc="SOURCE">
+		<flow:action name="BACK">
+			<flow:close-form/>
+		</flow:action>
+	</flow:form>
+</flow:flow>

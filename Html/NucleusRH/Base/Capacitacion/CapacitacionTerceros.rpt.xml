@@ -1,0 +1,111 @@
+<html:html xmlns:html="nomad_engine.html" xmlns:qry="nomad_engine.qry" name="NucleusRH.Base.Capacitacion.CapacitacionPersonal" extends="Nomad.Base.BaseReport.rpt" doc="source">
+	<html:query declare="&lt;FILTRO oi_curso=&quot;5782&quot; f_desde=&quot;20130101&quot; f_hasta=&quot;20130430&quot;&gt;&#13;&#10;&#9;&lt;DICTADOS&gt;&#13;&#10;&#9;&#9;&lt;DICTADO id=&quot;6180&quot; /&gt;&#13;&#10;&#9;&lt;/DICTADOS&gt;&#13;&#10;&lt;/FILTRO&gt;">
+		<qry:main doc="PARAM">
+			<qry:append-doc name="FILTRO" doc-path="#PARAM:/FILTRO"/>
+			<REPORT label="Terceros Capacitados" style="width:100%">
+				<qry:attribute value="format_date(now(),'dd/mm/yyyy HH:MM')" name="date"/>
+				<GROUPS>
+					<GROUP tag="REP" type="title">
+						<COLS>
+							<COL name="f_desde" label="Fecha Desde" type="date"/>
+							<COL name="f_hasta" label="Fecha Hasta" type="date"/>
+							<COL name="curso" label="Curso"/>
+						</COLS>
+						<GROUP tag="TER" type="table" noreg="No se encontraron registros">
+							<COLS>
+								<COL name="tercero" label="Legajo" style="width:25%"/>
+								<COL name="empresa" label="Empresa" style="width:25%"/>
+								<COL name="c_curso" label="C&#243;digo" style="width:10%;"/>
+								<COL name="d_curso" label="Descripci&#243;n" style="width:30%;"/>
+								<COL name="f_inicio" label="Inicio" style="text-align:center" type="date"/>
+								<COL name="f_fin" label="Fin" style="text-align:center" type="date"/>
+							</COLS>
+						</GROUP>
+					</GROUP>
+				</GROUPS>
+				<qry:element name="DATA">
+					<qry:element name="REP">
+						<qry:attribute value="format_date(#FILTRO:@f_desde, 'dd/mm/yyyy')" name="f_desde"/>
+						<qry:attribute value="format_date(#FILTRO:@f_hasta, 'dd/mm/yyyy')" name="f_hasta"/>
+						<qry:if test="#FILTRO:@oi_curso!=''">
+							<qry:then>
+								<qry:insert-select doc-path="#FILTRO:" name="QRY_CURSO"/>
+							</qry:then>
+						</qry:if>
+						<qry:insert-select doc-path="#FILTRO:" name="QRY_TERCEROS"/>
+					</qry:element>
+				</qry:element>
+			</REPORT>
+		</qry:main>
+		<qry:select doc="PARAM" name="QRY_TERCEROS">
+			<qry:xquery>
+				for $r in sql('
+				SELECT 					
+					CYD17_TERCEROS.oi_tercero,
+					CYD01_CURSOS.c_curso,
+					CYD01_CURSOS.d_curso,
+					CYD17_TERCEROS.c_tercero,
+					CYD17_TERCEROS.d_ape_y_nom,
+					CYD17_TERCEROS.d_empresa,
+					CYD02_DICTADOS.f_inicio,
+					CYD02_DICTADOS.f_fin
+				FROM 
+					CYD17_TERCEROS,
+					CYD02_INSCRIPTOS,
+					CYD01_CURSOS,
+					CYD02_DICTADOS
+				JOIN
+					CYD17_TERCEROS.oi_tercero INNER CYD02_INSCRIPTOS.oi_tercero,
+					CYD02_DICTADOS.oi_dictado INNER CYD02_INSCRIPTOS.oi_dictado,
+					CYD02_DICTADOS.oi_curso INNER CYD01_CURSOS.oi_curso
+				WHERE 1 = 1
+				{%? (#FILTRO:@f_desde!='') 
+					{% AND CYD02_DICTADOS.f_inicio &gt;= {Datetime(#FILTRO:@f_desde)} %} 
+					{%  %} 
+				%}
+				{%? (#FILTRO:@f_hasta!='') 
+					{% AND CYD02_DICTADOS.f_fin &lt; {Datetime(Number(Datetime(#FILTRO:@f_hasta))+1)} %} 
+					{%  %} 
+				%}					
+				{%? (#FILTRO:@oi_curso!='') 
+					{% AND CYD01_CURSOS.oi_curso = {#FILTRO:@oi_curso} %} 
+					{%  %} 
+				%}
+				{%? (string(#FILTRO:DICTADOS/DICTADO/@id)!='') 
+					{% AND CYD02_DICTADOS.oi_dictado in ({%=string(#FILTRO:DICTADOS/DICTADO/@id)%}) %} 
+					{%  %} 
+				%}					
+				ORDER BY 
+					c_tercero ASC, f_inicio ASC
+			')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:element name="TER">
+					<qry:attribute value="$r/@oi_tercero" name="oi_tercero"/>
+					<qry:attribute value="$r/@c_tercero + ' - ' + $r/@d_ape_y_nom" name="tercero"/>
+					<qry:attribute value="$r/@c_curso" name="c_curso"/>
+					<qry:attribute value="$r/@d_curso" name="d_curso"/>
+					<qry:attribute value="$r/@d_empresa" name="empresa"/>
+					<qry:attribute value="format_date($r/@f_inicio, 'dd/mm/yyyy')" name="f_inicio"/>
+					<qry:attribute value="format_date($r/@f_fin, 'dd/mm/yyyy')" name="f_fin"/>
+				</qry:element>
+			</qry:out>
+		</qry:select>
+		<qry:select name="QRY_CURSO" doc="PARAM">
+			<qry:xquery>
+				for $r in sql('
+				SELECT
+					CYD01_CURSOS.c_curso,
+					CYD01_CURSOS.d_curso
+				FROM 
+					CYD01_CURSOS
+				WHERE 
+					CYD01_CURSOS.oi_curso = {#FILTRO:@oi_curso}
+			')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:attribute value="$r/@c_curso + ' - ' + $r/@d_curso" name="curso"/>
+			</qry:out>
+		</qry:select>
+	</html:query>
+</html:html>

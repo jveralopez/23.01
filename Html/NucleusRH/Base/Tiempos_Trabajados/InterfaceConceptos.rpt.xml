@@ -1,0 +1,56 @@
+<html:html xmlns:html="nomad_engine.html" xmlns:qry="nomad_engine.qry" name="NucleusRH.Base.Tiempos_Trabajados.ConceptosCalculados" extends="Nomad.Base.BaseReport.rpt" doc="source">
+	<html:query declare="&lt;FILTRO oi_liquidacion=&quot;1&quot;/&gt;&#13;&#10;">
+		<qry:main doc="PARAM">
+			<qry:append-doc name="FILTRO" doc-path="#PARAM:/FILTRO"/>
+			<REPORT label="Conceptos Calculados" style="width:40%" marco="0">
+				<GROUPS>
+					<GROUP tag="CONC" type="table">
+						<COLS>
+							<COL name="e_numero_legajo" label="Legajo" style="width:30%"/>
+							<COL name="c_externo" label="C&#243;digo" style="width:15%;"/>
+							<COL name="valor" label="Valor" style="text-align:right"/>
+						</COLS>
+					</GROUP>
+				</GROUPS>
+				<qry:element name="DATA">
+					<qry:insert-select doc-path="#FILTRO:" name="QRY_CONCEPTOS"/>
+				</qry:element>
+			</REPORT>
+		</qry:main>
+		<qry:select doc="PARAM" name="QRY_CONCEPTOS">
+			<qry:xquery>
+				for $r in sql('
+				SELECT 					
+					TTA10_LIQUIDACPERS.oi_liquidacionpers,					
+					TTA15_CONCEPTOS.c_externo,					
+					SUM(TTA10_CONC_PER.n_valor) as n_valor,										
+					PER02_PERSONAL_EMP.e_numero_legajo
+				FROM 
+					TTA10_CONC_PER, 
+					TTA10_LIQUIDACPERS, 
+					TTA15_CONCEPTOS,
+					PER02_PERSONAL_EMP					
+				JOIN 
+					TTA10_CONC_PER.oi_liquidacionpers INNER TTA10_LIQUIDACPERS.oi_liquidacionpers,
+					TTA10_CONC_PER.oi_concepto INNER TTA15_CONCEPTOS.oi_concepto,
+					TTA10_LIQUIDACPERS.oi_personal_emp INNER PER02_PERSONAL_EMP.oi_personal_emp
+				WHERE 
+					TTA10_LIQUIDACPERS.oi_liquidacion = {#PARAM:@oi_liquidacion} AND
+					TTA15_CONCEPTOS.e_mostrar != 0										
+				GROUP BY            					
+					TTA10_LIQUIDACPERS.oi_liquidacionpers,					
+					TTA15_CONCEPTOS.c_externo,					
+					PER02_PERSONAL_EMP.e_numero_legajo					
+			')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:element name="CONC">
+					<qry:attribute value="$r/@oi_liquidacionpers" name="oi_liquidacionpers"/>
+					<qry:attribute value="$r/@e_numero_legajo" name="e_numero_legajo"/>
+					<qry:attribute value="$r/@c_externo" name="c_externo"/>
+					<qry:attribute value="$r/@n_valor" name="valor"/>
+				</qry:element>
+			</qry:out>
+		</qry:select>
+	</html:query>
+</html:html>

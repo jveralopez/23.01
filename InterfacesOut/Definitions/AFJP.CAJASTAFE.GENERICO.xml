@@ -1,0 +1,150 @@
+<INTERFACE-DEF xmlns:qry="nomad_engine.qry" code="" desc="" entermode="DOS" finalenter="1">
+	<QUERY declare="&lt;DATA oi_afjp=&quot;1&quot; interface=&quot;CAJASTAFE&quot; c_empresa=&quot;TadeoCz&quot; p_periodo=&quot;200804&quot; /&gt;">
+		<qry:main doc="SOURCE">
+			<qry:element name="DATA">
+				<qry:element name="DETAILS">
+					<qry:element name="VAR">
+						<qry:append-doc name="VAR" doc-path="."/>
+						<qry:insert-select name="qry_variables"/>
+						<qry:attribute name="hts:delete" value="1"/>
+						<qry:attribute name="c_columnas" value="substring-after(@c_columnas,',')"/>
+					</qry:element>
+					<qry:element doc-path="ROW">
+						<qry:append-doc name="ROW" doc-path="."/>
+					<qry:insert-select name="qryDetail" doc-path="#SOURCE:DATA"/>
+						<qry:attribute name="hts:delete" value="1"/>
+				</qry:element>
+					<qry:insert-select name="qry_format" doc-path="#ROW:"/>
+			</qry:element>
+			</qry:element>
+		</qry:main>
+		<qry:select name="qryDetail" doc="SOURCE">
+			<qry:xquery>
+				for $r in SQL('
+						SELECT
+						PE.e_numero_legajo,
+						max(PE.c_tipo_documento) as c_tipo_documento,
+						max(PE.c_nro_documento) as c_nro_documento,
+						max(PE.c_sexo) as c_sexo,
+						max(PE.f_nacim) as f_nacim,
+						max(PE.d_ape_y_nom) as d_ape_y_nom,
+						max(PE.c_categoria_ult) as c_categoria_ult,
+						max(PE.c_tipo_personal)as c_tipo_personal,
+						max(PER.f_desde_afjp) as f_desde_afpj,
+						max(PE.c_estado_civil) as c_estado_civil,
+						max(NAC.d_nacionalidad) as d_nacionalidad,
+						max(TLP.oi_per_emp_ddo) as oi_per_emp_ddo,
+						max(TLP.oi_tot_liq_per) as oi_tot_liq_per,
+						max(PE.c_nro_cuil) as c_nro_cuil,
+						max(PE.c_personal) as c_personal,
+						max(EMP.c_actividad) as c_actividad,
+						max(PE.c_obra_social) as c_obra_social,
+						max(TLP.n_totasig) as n_totasig,
+						max(TLP.n_totsret) as n_totsret,
+						{%=#VAR:@c_columnas%}						
+						FROM
+						LIQ20_TOT_LIQ_PER as TLP,
+						LIQ97_PERSONAL_EMP as PE,   
+						PER01_PERSONAL as PER, 
+						LIQ99_LIQUIDACION as LIQ,    
+						LIQ99_RECIBOS as LIQREC,
+						LIQ93_EMPRESAS as EMP,
+						LIQ20_VAR_GR_CONC as V,
+						ORG12_NACIONALID as NAC,
+						LIQ19_EJECUCIONES as EJE
+						
+						JOIN
+						TLP.oi_per_emp_ddo INNER PE.oi_per_emp_ddo,
+						PER.c_personal INNER PE.c_personal,
+						LIQ.oi_liquidacion_ddo INNER LIQREC.oi_liquidacion_ddo,
+						LIQREC.oi_tot_liq_per INNER TLP.oi_tot_liq_per,
+						LIQ.oi_empresa_ddo INNER EMP.oi_empresa_ddo,	
+						TLP.oi_tot_liq_per INNER V.oi_tot_liq_per,
+						PER.oi_nacionalidad LEFT OUTER NAC.oi_nacionalidad,
+						LIQ.oi_liquidacion_ddo INNER EJE.oi_liquidacion_ddo
+						
+						WHERE
+						EMP.c_empresa = {#SOURCE:@c_empresa}
+						AND LIQ.e_periodo = {#SOURCE:@p_periodo}
+						AND LIQ.c_estado = \'F\'  
+						AND V.c_grupo = \'4\'
+						{%? (string(#SOURCE:LIQS/LIQ/@id)!='') {% AND EJE.oi_liquidacion in ({%=string(#SOURCE:LIQS/LIQ/@id)%}) %} {% %} %}
+						GROUP BY
+						PE.e_numero_legajo
+						ORDER BY 
+						c_personal ASC,
+						oi_tot_liq_per ASC
+														
+						')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:insert-element doc-path="$r"/>
+			</qry:out>
+		</qry:select>
+		<qry:select name="qry_format" doc="SOURCE">
+			<qry:xquery>
+				for $r in #SOURCE:ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:element name="DETAIL">
+					<qry:attribute name="rowdesc" value="$r/@d_ape_y_nom"/>
+					<qry:attribute name="c_tipo_documento" value="IIF($r/@c_tipo_documento = 'LE', '1', IIF($r/@c_tipo_documento = 'LC', '2', IIF($r/@c_tipo_documento = 'DNI', '3', '4')))"/>
+					<qry:attribute name="c_nro_documento" value="NMD_FILLLEFT($r/@c_nro_documento, '0', 8, 'R')"/>
+					<qry:attribute name="c_sexo" value="IIF($r/@c_sexo = 'M', '1', '2')"/>
+					<qry:attribute name="f_nacim" value="format_date(datetime($r/@f_nacim), 'yymmdd')"/>
+					<qry:attribute name="d_ape_y_nom" value="NMD_FILLRIGHT(#r/@d_ape_y_nom, ' ', 28, 'L')"/>
+					<qry:attribute name="c_categoria_ult" value="NMD_FILLLEFT($r/@c_categoria_ult, '0', 5, 'R')"/>
+					<qry:attribute name="c_tipo_personal" value="IIF($r/@c_tipo_personal = '1', 'P', IIF($r/@c_tipo_personal = '2', 'P', IIF($r/@c_tipo_personal = '3', 'T', IIF($r/@c_tipo_personal = '', 'T', IIF($r/@c_tipo_personal = '5', 'T', IIF($r/@c_tipo_personal = '8', 'T', 'P'))))))"/>
+					<qry:attribute name="f_desde_afjp" value="IIF($r/@f_desde_afjp!='', format_date(datetime($r/@f_desde_afjp), 'yymmdd'), '000000')"/>
+					<qry:attribute name="meses_afjp" value="(number(substring(string(now()), 4, 2)) - 1 + number(substring(string(now()), 0, 4)) * 12) - (number(substring($r/@f_desde_afjp, 4, 2)) - 1 + number(substring($r/@f_desde_afjp, 0, 4)) * 12)"/>
+					<qry:attribute name="meses_afjp" value="IIF(number(substring($r/@f_desde_afjp, 6, 2)) &lt; number(substring(now(), 6, 2)), ./@meses_afjp, number(./@meses_afjp) - 1)"/>
+					<qry:attribute name="anios_afjp" value="IIF($r/@f_desde_afjp!='', NMD_FILLLEFT(substring_before(number(./@meses_afjp) div 12, '.'), '0', 2, 'R'), '00')"/>
+					<qry:attribute name="meses_afjp" value="IIF($r/@f_desde_afjp!='', NMD_FILLLEFT(substring_before(./@meses_afjp mod 12, '.'), '0', 2, 'R'), '00')"/>
+					<qry:attribute name="c_estado_civil" value="NMD_FILLLEFT($r/@c_estado_civil, '0', 1, 'R')"/>
+					<qry:attribute name="c_estado_civil" value="IIF($r/@c_estado_civil = 'SOL', '1', ./@c_estado_civil)"/>
+					<qry:attribute name="c_estado_civil" value="IIF($r/@c_estado_civil = 'CAS', '2', ./@c_estado_civil)"/>
+					<qry:attribute name="c_estado_civil" value="IIF($r/@c_estado_civil = 'DIV', '5', ./@c_estado_civil)"/>
+					<qry:attribute name="c_estado_civil" value="IIF($r/@c_estado_civil = 'SEP', '4', ./@c_estado_civil)"/>
+					<qry:attribute name="c_estado_civil" value="IIF($r/@c_estado_civil = 'VIU', '3', ./@c_estado_civil)"/>
+					<qry:attribute name="c_estado_civil" value="IIF($r/@c_estado_civil = 'CON', '6', ./@c_estado_civil)"/>
+					<qry:attribute name="d_nacionalidad" value="NMD_FILLRIGHT($r/@d_nacionalidad, ' ', 10, 'R')"/>
+					<qry:attribute name="vs_cajaremun" value="FORMAT_NUMBER($r/@vs_cajaremun, 9, 2, '', '', '0')"/>
+					<qry:attribute name="vs_cajanoremun" value="FORMAT_NUMBER($r/@vs_cajanoremun, 9, 2, '', '', '0')"/>
+					<qry:attribute name="vs_cajaasig" value="FORMAT_NUMBER(ABS($r/@vs_cajaasig), 9, 2, '', '', '0')"/>
+					<qry:attribute name="vs_cajaimporte" value="FORMAT_NUMBER(ABS($r/@vs_cajaimporte), 6, 2, '', '', '0')"/>
+					<qry:attribute name="vs_cajaporcen" value="NMD_FILLRIGHT(FORMAT_NUMBER($r/@vs_cajaporcen, 1, 2, '', '', '0'), ' ', 3, 'R')"/>
+					<qry:attribute name="vs_cajapersonal" value="FORMAT_NUMBER(ABS($r/@vs_cajapersonal), 9, 2, '', '', '0')"/>
+					<qry:attribute name="vs_cajaaporte" value="FORMAT_NUMBER($r/@vs_cajaaporte, 9, 2, '', '', '0')"/>
+				</qry:element>
+			</qry:out>
+		</qry:select>
+		<qry:select name="qry_variables" doc="SOURCE">
+			<qry:xquery>
+				for $r in SQL('			
+			SELECT         
+			LIQ09_VARIABLES.c_variable,
+			LIQ31_GRUPO_VAR.c_columna
+			FROM
+			LIQ31_GRUPOS,
+			LIQ31_GRUPO_VAR,
+			LIQ09_VARIABLES
+			JOIN
+			LIQ31_GRUPOS.oi_grupo INNER LIQ31_GRUPO_VAR.oi_grupo,
+			LIQ09_VARIABLES.oi_variable INNER LIQ31_GRUPO_VAR.oi_variable
+			WHERE
+			LIQ31_GRUPOS.c_grupo =\'4\'
+			
+			')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:attribute name="c_columnas" value="concat(@c_columnas,',sum(V.',$r/@c_columna,') as ',$r/@c_variable)"/>
+			</qry:out>
+		</qry:select>
+	</QUERY>
+	<DETAIL>
+		{c_tipo_documento:1}{c_nro_documento:8}0{c_sexo:1}{f_nacim:6}00{d_ape_y_nom:28}30{space(20)}0000000000{c_categoria_ult:5}{anios_afjp:2}{meses_afjp:2}{c_tipo_personal:1}{f_desde_afjp:6}{c_estado_civil:1}{d_nacionalidad:10}{vs_cajaremun:11}{vs_cajanoremun:11}{vs_cajaasig:11}00000000000{vs_cajaimporte:8}{vs_cajaporcen:3}{vs_cajapersonal:11}{vs_cajaaporte:11}00000000000{space(104)}0
+	</DETAIL>
+	<MESS>
+		<EMPTY mess="No se encontraron registros. Por favor valide que los legajos est&#233;n asociados a la AFJP correcta."/>
+	</MESS>
+</INTERFACE-DEF>

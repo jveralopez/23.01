@@ -1,0 +1,8 @@
+ALTER TABLE POS01_ESTUDIOS_CV
+ALTER COLUMN f_ini_estudio datetime null
+
+ALTER TABLE POS01_ESTUDIOS_CV
+ADD e_anio_ini int null
+
+ALTER TABLE POS01_ESTUDIOS_CV
+ADD e_anio_fin int null

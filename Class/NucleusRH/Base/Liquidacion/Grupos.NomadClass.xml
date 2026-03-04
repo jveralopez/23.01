@@ -1,0 +1,548 @@
+<class-package xmlns:qry="nomad_engine.qry" DDOBase="NucleusRH\Base\Liquidacion" root-class="GRUPO" name="Grupos" meta-class="DB" languaje="SP">
+	<class attr-desc="d_grupo" attr-code="c_grupo" description="Grupos de variables" label="Grupo de variables" access="direct" size="M" name="GRUPO">
+		<meta-properties>
+			<db-properties generate="true" desc-column="d_grupo" code-column="c_grupo" tracking-changes="false" access-mode="new-edit-delete" optimistic-lock="version" table="LIQ31_GRUPOS"/>
+		</meta-properties>
+		<attribute label="Id grupo" type="Nomad.NSystem.Int" name="id" manual="1">
+			<meta-properties>
+				<db-properties tracking-changes="yes" generator="secuence" unique="true" updatable="false" insertable="true" versionable="false" id="true" nullable="false" type="int" column="oi_grupo"/>
+			</meta-properties>
+		</attribute>
+		<attribute inList="true" label="Codigo de Grupo" type="Nomad.NSystem.String" name="c_grupo" manual="1">
+			<meta-properties>
+				<db-properties tracking-changes="yes" generator="none" unique="false" updatable="true" insertable="true" versionable="false" nullable="false" id="false" type="varchar(30)" column="c_grupo"/>
+			</meta-properties>
+		</attribute>
+		<attribute inList="true" label="Descripcion Grupo" type="Nomad.NSystem.String" name="d_grupo" manual="1">
+			<meta-properties>
+				<db-properties tracking-changes="yes" generator="none" unique="false" updatable="true" insertable="true" versionable="false" nullable="false" id="false" type="varchar(100)" column="d_grupo"/>
+			</meta-properties>
+		</attribute>
+		<assosiation class="GRUPO_VAR" label="Variables del grupo" type="composition" name="GRUPO_VAR" manual="1">
+			<meta-properties>
+				<db-properties cascade="delete" not-found="exception" optimistic-lock="true" not-null="true" unique="true" insert="false" update="false" from-column="oi_grupo"/>
+			</meta-properties>
+			<multiplicity to="*" from="1">
+				<db-properties to-column="oi_grupo"/>
+			</multiplicity>
+		</assosiation>
+		<resource name="INFO_IDS">
+			<qry:main doc="SOURCE">
+				<ROWS>
+					<qry:append-doc name="FILTER" doc-path="#SOURCE:/DATA"/>
+					<qry:insert-select name="IDS"/>
+				</ROWS>
+			</qry:main>
+			<qry:select name="IDS">
+				<qry:xquery>
+					for $r in SQL('{%? (#FILTER:@LEN='') {% %} {% maxsize {%=#FILTER:@LEN %} %} %}
+SELECT 
+  LIQ31_GRUPOS.oi_grupo as ID, 
+  LIQ31_GRUPOS.c_grupo as COD, 
+  LIQ31_GRUPOS.d_grupo as DES
+{%?($FILTER/@order!='') {% ,LIQ31_GRUPOS.{%=$FILTER/@order %} as COL_ORDER %} {% %} %}
+FROM 
+  LIQ31_GRUPOS
+WHERE 1=1
+
+{%?($FILTER/@search!='')
+ {% and (contain(ucase(DES),{upper-case($FILTER/@search)}) or contain(ucase(COD),{upper-case($FILTER/@search)})) %}
+ {% %}
+%}
+
+{%?($FILTER/@order!='')
+  {% order by COL_ORDER {%=iif($FILTER/@asc='1','asc','desc') %} %}
+  {% %}
+%}
+')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:attribute name="count" value="$r/../@CNT"/>
+					<qry:attribute name="total" value="$r/../@CNT"/>
+					<ROW>
+						<qry:attribute value="$r/@ID" name="id"/>
+					</ROW>
+				</qry:out>
+			</qry:select>
+		</resource>
+		<resource name="INFO_IDS_LIST">
+			<qry:main doc="SOURCE">
+				<ROWS>
+					<qry:if test="#SOURCE:/PARAM/@IDS!=''">
+						<qry:then>
+							<qry:insert-select name="SQL1" doc-path="#SOURCE:/PARAM"/>
+						</qry:then>
+					</qry:if>
+				</ROWS>
+			</qry:main>
+			<qry:select doc="PARAM" name="sql1">
+				<qry:xquery>
+					for $r in SQL('SELECT 
+  LIQ31_GRUPOS.oi_grupo as ID, 
+  LIQ31_GRUPOS.c_grupo as COD, 
+  LIQ31_GRUPOS.d_grupo as DES, 
+  LIQ31_GRUPOS.c_grupo as c_grupo, 
+  LIQ31_GRUPOS.d_grupo as d_grupo
+FROM 
+  LIQ31_GRUPOS
+WHERE 
+LIQ31_GRUPOS.oi_grupo in ({%=$PARAM/@IDS %})
+  
+')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<ROW>
+						<qry:attribute value="$r/@ID" name="id"/>
+						<qry:attribute value="$r/@COD+'-'+$r/@DES" name="descr"/>
+						<qry:attribute name="c_grupo" value="$r/@c_grupo"/>
+						<qry:attribute name="d_grupo" value="$r/@d_grupo"/>
+					</ROW>
+				</qry:out>
+			</qry:select>
+		</resource>
+		<key msg="Clave por grupo" name="AK_GRUPO_01" manual="1">
+			<key-attr name="c_grupo"/>
+		</key>
+		<resource name="INFO">
+			<qry:main doc="SOURCE">
+				<ROWS>
+					<qry:insert-select name="NucleusRH.Base.Liquidacion.Grupos.GRUPO.QUERY" doc-path="#SOURCE:."/>
+				</ROWS>
+			</qry:main>
+			<qry:select name="NucleusRH.Base.Liquidacion.Grupos.GRUPO.QUERY" doc="SOURCE">
+				<qry:xquery>
+					for $r in SQL('{%? (#SOURCE:@START='') {% %} {% fromrow {%=#SOURCE:@START %} %} %}
+{%? (#SOURCE:@LEN='') {% %} {% maxsize {%=#SOURCE:@LEN %} %} %}
+SELECT 
+  LIQ31_GRUPOS.oi_grupo as ID, 
+  LIQ31_GRUPOS.c_grupo as COD, 
+  LIQ31_GRUPOS.d_grupo as DES
+FROM 
+  LIQ31_GRUPOS
+WHERE 1=1
+{%? (#SOURCE:@OI_FIND='') {% %} {% and ID={#SOURCE:@OI_FIND} %} %}
+{%? (#SOURCE:@TXT_FIND='') {% %} {% and (contain(ucase(DES),{upper-case(#SOURCE:@TXT_FIND)}) or contain(ucase(COD),{upper-case(#SOURCE:@TXT_FIND)})) %} %}
+{%? (#SOURCE:@WHERE='') {% %} {% and {%=#SOURCE:@WHERE %} %} %}
+{%? (#SOURCE:@ORDERBY='') {% order by COD asc %} {%  order by {%=#SOURCE:@ORDERBY %} asc %} %}
+')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<ROW>
+						<qry:attribute name="ID" value="$r/@id"/>
+						<qry:attribute name="COD" value="$r/@COD"/>
+						<qry:attribute name="DES" value="$r/@DES"/>
+					</ROW>
+				</qry:out>
+			</qry:select>
+		</resource>
+		<resource include="true" name="QRY_GRUPOS_VAR">
+			<qry:include mode="EXTERN" name="NucleusRH.Base.Liquidacion.GRUPO_VAR.query"/>
+			<qry:main name="main" doc="SOURCE">
+				<qry:insert-select name="qry_grupo"/>
+			</qry:main>
+		</resource>
+		<method modifier="static" access="public" label="Migra los grupos y variables iniciales" name="MigrarGruposVariables">
+			<meta-properties>
+				<dotnet11-properties type="lib"/>
+			</meta-properties>
+			<arguments/>
+		</method>
+		<method modifier="static" access="public" label="Migrar datos de version vieja a nueva tabla" name="MigrarDatosVariables">
+			<meta-properties>
+				<dotnet11-properties type="lib"/>
+			</meta-properties>
+			<arguments>
+				<argument type="Nomad.NSystem.String" pass="byval" name="oi_liquidacion"/>
+				<argument name="e_periodo_desde" type="Nomad.NSystem.Int" pass="byval"/>
+				<argument type="Nomad.NSystem.Int" pass="byval" name="e_periodo_hasta"/>
+			</arguments>
+		</method>
+		<resource declare="&lt;ROW oi_tot_liq_per=&quot;213363&quot;/&gt;&#13;&#10;&#9;" name="QRY_DATOS">
+			<qry:main doc="SOURCE" name="main">
+				<qry:element name="ROWS">
+					<qry:insert-select name="qry_datos" doc-path="#SOURCE:."/>
+				</qry:element>
+			</qry:main>
+			<qry:select name="qry_datos" doc="SOURCE">
+				<qry:xquery>
+					for $r in SQL('
+			
+			SELECT
+			LIQ20_VAR_LIQ_CONC.c_variable,
+			LIQ20_VAR_LIQ_CONC.n_valor_s,
+			LIQ20_TOT_LIQ_PER.oi_tot_liq_per
+			FROM
+			LIQ19_EJECUCIONES,
+			LIQ99_LIQUIDACION,
+			LIQ99_RECIBOS,
+			LIQ20_TOT_LIQ_PER,
+			LIQ20_CONC_LIQ_PER,
+			LIQ20_VAR_LIQ_CONC
+			JOIN 
+			LIQ19_EJECUCIONES.oi_liquidacion_ddo INNER LIQ99_LIQUIDACION.oi_liquidacion_ddo,
+			LIQ99_LIQUIDACION.oi_liquidacion_ddo INNER LIQ99_RECIBOS.oi_liquidacion_ddo,
+			LIQ99_RECIBOS.oi_tot_liq_per INNER LIQ20_TOT_LIQ_PER.oi_tot_liq_per,
+			LIQ20_CONC_LIQ_PER.oi_tot_liq_per INNER LIQ20_TOT_LIQ_PER.oi_tot_liq_per,
+			LIQ20_VAR_LIQ_CONC.oi_conc_liq_per INNER LIQ20_CONC_LIQ_PER.oi_conc_liq_per
+			where 
+			LIQ20_TOT_LIQ_PER.oi_tot_liq_per in ({%=#SOURCE:@oi_tot_liq_per%}) 
+			and LIQ99_LIQUIDACION.c_estado = \'F\'
+			order by oi_tot_liq_per asc
+			')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:insert-element doc-path="$r"/>
+				</qry:out>
+			</qry:select>
+		</resource>
+		<resource declare="&lt;DATA oi_liquidacion='3007' /&gt;" name="QRY_PLANTILLA">
+			<qry:main name="main" doc="SOURCE">
+				<qry:element name="ROWS">
+					<!--<qry:element name="P">
+				<qry:attribute name="hts:delete" value="0"/>
+				<qry:append-doc name="P" doc-path="."/>  -->
+					<qry:insert-select name="qry_grupo"/>
+					<!--</qry:element>  -->
+					<!--<qry:element name="ois">
+			<qry:insert-select name="qry_contar_recibos" doc-path="#SOURCE:."/>
+		</qry:element>  -->
+				</qry:element>
+			</qry:main>
+			<qry:select name="qry_grupo">
+				<qry:xquery>
+					for $r in SQL('
+			SELECT               
+			LIQ31_GRUPOS.oi_grupo,
+			LIQ31_GRUPOS.c_grupo	
+			FROM 
+			LIQ31_GRUPOS
+			
+			')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:element name="VAR_GR_CONC">
+						<qry:attribute name="c_grupo" value="$r/@c_grupo"/>
+						<qry:attribute name="nmd-status" value="'~i,'"/>
+						<qry:attribute name="id" value="'%1'"/>
+						<qry:attribute name="vacio" value="'0'"/>
+						<qry:insert-select name="qry_variable" doc-path="$r"/>
+						<qry:if test="@vacio='0'">
+							<qry:then>
+								<qry:attribute name="hts:delete" value="1"/>
+							</qry:then>
+						</qry:if>
+					</qry:element>
+				</qry:out>
+			</qry:select>
+			<qry:select name="qry_variable" doc="SOURCE">
+				<qry:xquery>
+					for $r in SQL('
+			SELECT                   
+			LIQ09_VARIABLES.c_variable,
+			LIQ31_GRUPO_VAR.c_columna
+			FROM
+			LIQ31_GRUPO_VAR,
+			LIQ09_VARIABLES
+			JOIN
+			LIQ31_GRUPO_VAR.oi_variable INNER LIQ09_VARIABLES.oi_variable
+			WHERE
+			LIQ31_GRUPO_VAR.oi_grupo = {#SOURCE:@oi_grupo}
+	
+			')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:attribute name-calc="$r/@c_columna" value="$r/@c_variable"/>
+					<qry:attribute name="vacio" value="'1'"/>
+				</qry:out>
+			</qry:select>
+			<qry:select name="qry_contar_recibos" doc="SOURCE">
+				<qry:xquery>
+					for $r in SQL('
+			SELECT
+			LIQ20_TOT_LIQ_PER.oi_tot_liq_per
+			FROM
+			LIQ19_EJECUCIONES,
+			LIQ99_LIQUIDACION,
+			LIQ99_RECIBOS,
+			LIQ20_TOT_LIQ_PER
+			JOIN 
+			LIQ19_EJECUCIONES.oi_liquidacion_ddo INNER LIQ99_LIQUIDACION.oi_liquidacion_ddo,
+			LIQ99_LIQUIDACION.oi_liquidacion_ddo INNER LIQ99_RECIBOS.oi_liquidacion_ddo,
+			LIQ99_RECIBOS.oi_tot_liq_per INNER LIQ20_TOT_LIQ_PER.oi_tot_liq_per
+			where 
+			LIQ19_EJECUCIONES.oi_liquidacion = {#SOURCE:@oi_liquidacion} 
+			and LIQ99_LIQUIDACION.c_estado = \'F\'   
+			 
+			')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:element name="ROW">
+						<qry:attribute name="oi_tot_liq_per" value="$r/@oi_tot_liq_per"/>
+					</qry:element>
+				</qry:out>
+			</qry:select>
+		</resource>
+		<resource declare="&lt;DATA oi_liquidacion = '' e_periodo_desde='201901' e_periodo_hasta = '201905' /&gt;" name="QRY_LIQ">
+			<qry:main doc="SOURCE" name="main">
+				<qry:element name="ROWS">
+					<qry:insert-select name="sql1" doc-path="#SOURCE:."/>
+				</qry:element>
+			</qry:main>
+			<qry:select doc="SOURCE" name="sql1">
+				<qry:xquery>
+					for $r in SQL('
+			SELECT
+			LIQ19_LIQUIDACION.oi_liquidacion,
+			LIQ19_LIQUIDACION.c_liquidacion
+			FROM
+			LIQ19_LIQUIDACION
+			WHERE
+			LIQ19_LIQUIDACION.c_estado = \'C\'
+			and LIQ19_LIQUIDACION.e_periodo &gt;= {#SOURCE:@e_periodo_desde}
+			and LIQ19_LIQUIDACION.e_periodo &lt;= {#SOURCE:@e_periodo_hasta}
+			{%?(#SOURCE:@oi_liquidacion!='') {% and LIQ19_LIQUIDACION.oi_liquidacion = {%= #SOURCE:@oi_liquidacion%} %} {% %} %}
+
+			')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:insert-element doc-path="$r"/>
+				</qry:out>
+			</qry:select>
+		</resource>
+		<resource declare="&lt;DATA oi_liquidacion=&quot;3007&quot; /&gt;" include="true" name="QRY_RECIBOS">
+			<qry:main doc="SOURCE" name="main">
+				<qry:element name="ROWS">
+					<qry:element name="REC">
+						<qry:append-doc name="REC" doc-path="."/>
+						<qry:insert-select name="sql1" doc-path="#SOURCE:."/>
+						<qry:attribute name="hts:delete" value="0"/>
+					</qry:element>
+					<qry:insert-select name="qry_split"/>
+				</qry:element>
+			</qry:main>
+			<qry:select doc="SOURCE" name="sql1">
+				<qry:xquery>
+					for $r in SQL('
+			SELECT
+			LIQ20_TOT_LIQ_PER.oi_tot_liq_per
+			FROM
+			LIQ19_EJECUCIONES,
+			LIQ99_LIQUIDACION,
+			LIQ99_RECIBOS,
+			LIQ20_TOT_LIQ_PER
+			JOIN 
+			LIQ19_EJECUCIONES.oi_liquidacion_ddo INNER LIQ99_LIQUIDACION.oi_liquidacion_ddo,
+			LIQ99_LIQUIDACION.oi_liquidacion_ddo INNER LIQ99_RECIBOS.oi_liquidacion_ddo,
+			LIQ99_RECIBOS.oi_tot_liq_per INNER LIQ20_TOT_LIQ_PER.oi_tot_liq_per
+			where 
+			LIQ19_EJECUCIONES.oi_liquidacion = {#SOURCE:@oi_liquidacion} 
+			and LIQ99_LIQUIDACION.c_estado = \'F\'
+			
+			')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:insert-element doc-path="$r"/>
+				</qry:out>
+			</qry:select>
+			<qry:select name="qry_split">
+				<qry:xquery>
+					for $r in SPLIT('25;{%=$REC/ROW/@oi_tot_liq_per%}')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:insert-element doc-path="$r"/>
+				</qry:out>
+			</qry:select>
+		</resource>
+	</class>
+	<class attr-desc="c_columna" attr-code="oi_grupo" description="grupo de variables" label="grupo variables" access="direct" size="M" name="GRUPO_VAR">
+		<meta-properties>
+			<db-properties generate="true" desc-column="oi_grupo_var" code-column="oi_grupo_var" tracking-changes="false" access-mode="new-edit-delete" optimistic-lock="version" table="LIQ31_GRUPO_VAR"/>
+		</meta-properties>
+		<attribute inList="true" label="id grupo variable" type="Nomad.NSystem.Int" name="id" manual="1">
+			<meta-properties>
+				<db-properties generator="secuence" tracking-changes="yes" unique="true" updatable="false" insertable="true" versionable="false" nullable="false" id="true" type="int" column="oi_grupo_var"/>
+			</meta-properties>
+		</attribute>
+		<attribute inList="true" label="grupo" type="Nomad.NSystem.Int" name="oi_grupo" manual="1">
+			<meta-properties>
+				<db-properties tracking-changes="yes" generator="none" unique="false" updatable="true" insertable="true" versionable="false" nullable="false" id="false" type="int" column="oi_grupo"/>
+			</meta-properties>
+		</attribute>
+		<attribute inList="true" label="codigo de columna" type="Nomad.NSystem.String" name="c_columna" manual="1">
+			<meta-properties>
+				<db-properties tracking-changes="yes" generator="none" unique="false" updatable="true" insertable="true" versionable="false" nullable="false" id="false" type="varchar(30)" column="c_columna"/>
+			</meta-properties>
+		</attribute>
+		<assosiation inList="true" label="variable" readonly="false" null="false" class="NucleusRH.Base.Liquidacion.Variables.VARIABLE" type="aggregation" name="oi_variable" manual="1">
+			<meta-properties>
+				<db-properties not-found="exception" cascade="none" unique="false" updatable="true" versionable="false" insertable="true" nullable="false" from-column="oi_variable"/>
+			</meta-properties>
+			<multiplicity to="1" from="1..*">
+				<db-properties to-column="oi_variable"/>
+			</multiplicity>
+		</assosiation>
+		<resource declare="&lt;DATA search=&quot;ap&quot;/&gt;" include="true" name="INFO_IDS">
+			<qry:main doc="SOURCE">
+				<ROWS>
+					<qry:append-doc name="FILTER" doc-path="#SOURCE:/DATA"/>
+					<qry:insert-select name="IDS"/>
+				</ROWS>
+			</qry:main>
+			<qry:select name="IDS">
+				<qry:xquery>
+					for $r in SQL('{%? (#FILTER:@LEN='') {% %} {% maxsize {%=#FILTER:@LEN %} %} %}
+SELECT 
+  LIQ31_GRUPO_VAR.oi_grupo_var as ID, 
+  LIQ31_GRUPO_VAR.oi_grupo as COD, 
+  LIQ31_GRUPO_VAR.c_columna as DES, 
+  LIQ31_GRUPO_VAR.oi_grupo as PAR,
+  LIQ09_VARIABLES.c_variable as CODVAR,
+  LIQ09_VARIABLES.d_variable as DESVAR
+  
+{%?($FILTER/@order!='') {% ,LIQ31_GRUPO_VAR.{%=$FILTER/@order %} as COL_ORDER %} {% %} %}
+FROM 
+  LIQ31_GRUPO_VAR,                
+  LIQ09_VARIABLES 
+JOIN
+  LIQ31_GRUPO_VAR.oi_variable inner LIQ09_VARIABLES.oi_variable                
+WHERE 1=1
+
+{%?($FILTER/@parent!='') {% and PAR={$FILTER/@parent} %} {% %} %}
+
+{%?($FILTER/@search!='')
+ {% and (contain(ucase(DES),{upper-case($FILTER/@search)}) or contain(ucase(COD),{upper-case($FILTER/@search)}) or contain(ucase(CODVAR),{upper-case($FILTER/@search)}) or contain(ucase(DESVAR),{upper-case($FILTER/@search)})) %}
+ {% %}
+%}
+
+{%?($FILTER/@order!='')
+  {% order by COL_ORDER {%=iif($FILTER/@asc='1','asc','desc') %} %}
+  {% %}
+%}
+  
+
+')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:attribute name="count" value="$r/../@CNT"/>
+					<qry:attribute name="total" value="$r/../@CNT"/>
+					<ROW>
+						<qry:attribute value="$r/@ID" name="id"/>
+					</ROW>
+				</qry:out>
+			</qry:select>
+		</resource>
+		<resource name="INFO_IDS_LIST">
+			<qry:main doc="SOURCE">
+				<ROWS>
+					<qry:if test="#SOURCE:/PARAM/@IDS!=''">
+						<qry:then>
+							<qry:insert-select name="SQL1" doc-path="#SOURCE:/PARAM"/>
+						</qry:then>
+					</qry:if>
+				</ROWS>
+			</qry:main>
+			<qry:select doc="PARAM" name="sql1">
+				<qry:xquery>
+					for $r in SQL('SELECT 
+  LIQ31_GRUPO_VAR.oi_grupo_var as ID, 
+  LIQ31_GRUPO_VAR.oi_grupo as COD, 
+  LIQ31_GRUPO_VAR.c_columna as DES, 
+  LIQ31_GRUPO_VAR.oi_grupo as oi_grupo, 
+  LIQ31_GRUPO_VAR.c_columna as c_columna,   
+  LIQ09_VARIABLES.c_variable as COD_oi_variable,
+  LIQ09_VARIABLES.d_variable as DES_oi_variable, 
+  LIQ31_GRUPOS.c_grupo,
+  LIQ31_GRUPOS.d_grupo
+FROM 
+  LIQ31_GRUPO_VAR, 
+  LIQ09_VARIABLES,
+  LIQ31_GRUPOS
+JOIN 
+  LIQ31_GRUPO_VAR.oi_variable LEFT OUTER LIQ09_VARIABLES.oi_variable,
+  LIQ31_GRUPO_VAR.oi_grupo LEFT OUTER  LIQ31_GRUPOS.oi_grupo
+WHERE 
+LIQ31_GRUPO_VAR.oi_grupo_var in ({%=$PARAM/@IDS %})
+')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<ROW>
+						<qry:attribute value="$r/@ID" name="id"/>
+						<qry:attribute name="id" value="$r/@id"/>
+						<qry:attribute value="$r/@c_grupo+'-'+$r/@d_grupo" name="descr"/>
+						<qry:attribute name="oi_grupo" value="concat('[',$r/@c_grupo,'] ',$r/@d_grupo)"/>
+						<qry:attribute name="c_columna" value="$r/@c_columna"/>
+						<qry:attribute name="oi_variable" value="concat('[',$r/@COD_oi_variable,'] ',$r/@DES_oi_variable)"/>
+					</ROW>
+				</qry:out>
+			</qry:select>
+		</resource>
+		<resource declare="&lt;DATA oi_grupo='1'/&gt;" name="QRY_COLUMNAS">
+			<qry:main name="main" doc="SOURCE">
+				<qry:element name="ROWS">
+					<qry:insert-select name="sql1" doc-path="#SOURCE:."/>
+				</qry:element>
+			</qry:main>
+			<qry:select name="sql1" doc="SOURCE">
+				<qry:out>
+					<qry:element name="USO">
+						<qry:append-doc name="USO" doc-path="."/>
+						<qry:insert-select name="qry_usado" doc-path="#SOURCE:"/>
+						<qry:attribute name="hts:delete" value="1"/>
+					</qry:element>
+					<qry:element name="TODO">
+						<qry:append-doc name="TODO" doc-path="."/>
+						<qry:insert-select name="sql2"/>
+						<qry:attribute name="hts:delete" value="1"/>
+					</qry:element>
+					<qry:insert-select name="qry_final"/>
+				</qry:out>
+			</qry:select>
+			<qry:select name="sql2">
+				<qry:xquery>
+					for $r in SECUENCE('int,1,100,1')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:element name="option">
+						<qry:attribute value="concat('n_valor_',$r/@value)" name="value"/>
+						<qry:attribute value="concat('n_valor_',$r/@value)" name="text"/>
+					</qry:element>
+				</qry:out>
+			</qry:select>
+			<qry:select name="qry_usado" doc="SOURCE">
+				<qry:xquery>
+					for $r in SQL('
+			SELECT
+			V.c_columna
+			FROM
+			LIQ31_GRUPO_VAR as V
+			WHERE
+			V.oi_grupo = {#SOURCE:@PARENT}
+			')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:insert-element doc-path="$r"/>
+				</qry:out>
+			</qry:select>
+			<qry:select name="qry_final">
+				<qry:xquery>
+					for $r in #TODO:option
+				</qry:xquery>
+				<qry:out>
+					<qry:if test="#USO:ROW[@c_columna = $r/@value]/@c_columna =''">
+						<qry:then>
+							<qry:insert-element doc-path="$r"/>
+						</qry:then>
+					</qry:if>
+				</qry:out>
+			</qry:select>
+		</resource>
+		<key msg="para un grupo, variable y nombre de columna no se pueden repetir" name="AK_GRUPOVARCOL_01" manual="1">
+			<key-attr name="oi_grupo"/>
+			<key-attr name="oi_variable"/>
+		</key>
+		<key name="AK_GRUPOCOL_01" msg="Por grupo no repiten las columnas" manual="1">
+			<key-attr name="oi_grupo"/>
+			<key-attr name="c_columna"/>
+		</key>
+	</class>
+</class-package>

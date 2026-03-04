@@ -1,0 +1,172 @@
+<html:html xmlns:html="nomad_engine.html" xmlns:qry="nomad_engine.qry" extends="Nomad.Base.BaseReport.rpt" name="NucleusRH.Base.Vacaciones.CuentaCorrienteVacaciones" doc="source">
+	<html:query declare="&lt;PARAMETERS orden=&quot;Asc&quot; l_detallada=&quot;1&quot; oi_convenio=&quot;1&quot; f_ingreso=&quot;20070815&quot; oi_empresa=&quot;196&quot; oi_personal_emp=&quot;13947&quot; e_antiguedad=&quot;4&quot; e_saldo=&quot;4&quot; /&gt;">
+		<qry:main doc="SOURCE">
+			<REPORT marco="0" title="0" label="" style="width:100%">
+				<GROUPS>
+					<GROUP tag="PER" type="title" noreg="No se encontraron per&#237;odos generados para el legajo">
+						<COLS>
+							<COL name="c_periodo" label="Periodo"/>
+							<COL name="e_dias_gen" label="Vacaciones Generadas"/>
+							<COL name="e_dias_aprobados" label="Vacaciones Aprobadas"/>
+							<COL name="e_dias_liquidados" label="Vacaciones Liquidadas"/>
+							<COL name="e_dias_interrumpidos" label="Vacaciones Interrumpidas"/>
+						</COLS>
+						<GROUP style="width:40%" tag="SOL" type="table" label="Solicitudes" noreg="No se encontraron solicitudes para el per&#237;odo">
+							<COLS>
+								<COL name="f_desde" label="Desde" style="text-align:center" type="date"/>
+								<COL name="f_hasta" label="Hasta" style="text-align:center" type="date"/>
+								<COL name="d_estado_solic" label="Estado" style="text-align:center"/>
+								<COL name="e_cant_dias" label="D&#237;as" style="text-align:right"/>
+								<COL name="e_dias_bonif" label="D&#237;as Bonificados" style="text-align:right;width:10%"/>
+							</COLS>
+						</GROUP>
+					</GROUP>
+				</GROUPS>
+				<qry:element name="DATA">
+					<qry:insert-select doc-path="#SOURCE:PARAMETERS" name="qry_periodos"/>
+				</qry:element>
+			</REPORT>
+		</qry:main>
+		<qry:select name="qry_periodos" doc="SOURCE">
+			<qry:xquery>
+				for $r in sql(' 
+			   SELECT
+			   	VAC01_CTA_CTE_VAC.oi_personal_emp, 
+			   	VAC01_CTA_CTE_VAC.oi_periodo, 
+			   	VAC01_CTA_CTE_VAC.e_dias_gen,
+			   	VAC04_PERIODOS.c_periodo, 
+					VAC04_PERIODOS.f_desde_periodo 
+			   FROM
+			   	VAC01_CTA_CTE_VAC, 
+			   	VAC04_PERIODOS 
+			   JOIN
+			   	VAC01_CTA_CTE_VAC.oi_periodo INNER VAC04_PERIODOS.oi_periodo
+			   WHERE
+					VAC01_CTA_CTE_VAC.oi_personal_emp = {#SOURCE:@oi_personal_emp}
+			   ORDER BY 
+			   	{%? (#SOURCE:@orden!='')	{% f_desde_periodo {%=#SOURCE:@orden%} %} {% f_desde_periodo ASC %} %}
+			')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:element name="PER">
+					<qry:attribute name="oi_personal_emp" value="$r/@oi_personal_emp"/>
+					<qry:attribute name="oi_periodo" value="$r/@oi_periodo"/>
+					<qry:attribute name="c_periodo" value="$r/@c_periodo"/>
+					<qry:attribute name="e_dias_gen" value="$r/@e_dias_gen"/>
+					<qry:attribute name="l_detallada" value="#SOURCE:@l_detallada"/>
+					<qry:insert-select doc-path="$r" name="qry_dias_aprobados"/>
+					<qry:insert-select doc-path="$r" name="qry_dias_liquidados"/>
+					<qry:insert-select doc-path="$r" name="qry_dias_interrumpidos"/>
+					<qry:insert-select doc-path="." name="qry_l_detallada"/>
+				</qry:element>
+			</qry:out>
+		</qry:select>
+		<qry:select name="qry_dias_aprobados" doc="SOURCE">
+			<qry:xquery>
+				for $r in sql('     
+				SELECT 
+					SUM (VAC01_SOLIC_PER.e_cant_dias) AS e_dias_aprobados
+				FROM 
+					VAC01_SOLIC_PER, 
+					VAC01_SOLICITUDES,
+					VAC02_ESTADOS_SOL
+				JOIN
+					VAC01_SOLICITUDES.oi_solicitud INNER VAC01_SOLIC_PER.oi_solicitud,
+					VAC01_SOLICITUDES.oi_estado_solic INNER VAC02_ESTADOS_SOL.oi_estado_solic
+				WHERE 
+					VAC01_SOLICITUDES.oi_personal_emp = {#SOURCE:@oi_personal_emp}
+					AND VAC01_SOLIC_PER.oi_periodo = {#SOURCE:@oi_periodo}				
+          AND VAC02_ESTADOS_SOL.c_estado_solic = \'A\'				  
+			')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:attribute name="e_dias_aprobados" value="iif($r/@e_dias_aprobados!='', $r/@e_dias_aprobados, '0')"/>
+			</qry:out>
+		</qry:select>
+		<qry:select name="qry_dias_liquidados" doc="SOURCE">
+			<qry:xquery>
+				for $r in sql('     
+				SELECT 
+				SUM (VAC01_SOLIC_PER.e_cant_dias) AS e_dias_liquidados
+				FROM 
+					VAC01_SOLIC_PER, 
+					VAC01_SOLICITUDES,
+					VAC02_ESTADOS_SOL
+				JOIN
+					VAC01_SOLICITUDES.oi_solicitud INNER VAC01_SOLIC_PER.oi_solicitud,
+					VAC01_SOLICITUDES.oi_estado_solic INNER VAC02_ESTADOS_SOL.oi_estado_solic
+				WHERE
+					VAC01_SOLICITUDES.oi_personal_emp = {#SOURCE:@oi_personal_emp}
+					AND VAC01_SOLIC_PER.oi_periodo = {#SOURCE:@oi_periodo}
+					AND VAC02_ESTADOS_SOL.c_estado_solic = \'L\'
+			')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:attribute name="e_dias_liquidados" value="iif($r/@e_dias_liquidados!='', $r/@e_dias_liquidados, '0')"/>
+			</qry:out>
+		</qry:select>
+		<qry:select name="qry_dias_interrumpidos" doc="SOURCE">
+			<qry:xquery>
+				for $r in sql('     
+				SELECT 
+				SUM (VAC01_SOLIC_PER.e_cant_dias) AS e_dias_interrumpidos
+				FROM 
+					VAC01_SOLIC_PER, 
+					VAC01_SOLICITUDES,
+					VAC02_ESTADOS_SOL
+				JOIN
+					VAC01_SOLICITUDES.oi_solicitud INNER VAC01_SOLIC_PER.oi_solicitud,
+					VAC01_SOLICITUDES.oi_estado_solic INNER VAC02_ESTADOS_SOL.oi_estado_solic
+				WHERE
+					VAC01_SOLICITUDES.oi_personal_emp = {#SOURCE:@oi_personal_emp}
+					AND VAC01_SOLIC_PER.oi_periodo = {#SOURCE:@oi_periodo}
+					AND VAC02_ESTADOS_SOL.c_estado_solic = \'I\'
+			')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:attribute name="e_dias_interrumpidos" value="iif($r/@e_dias_interrumpidos!='', $r/@e_dias_interrumpidos, '0')"/>
+			</qry:out>
+		</qry:select>
+		<qry:select name="qry_l_detallada" doc="SOURCE">
+			<qry:xquery>
+				for $r in #SOURCE:.[@l_detallada ='1']
+			</qry:xquery>
+			<qry:out>
+				<qry:insert-select doc-path="$r" name="qry_detalle"/>
+			</qry:out>
+		</qry:select>
+		<qry:select name="qry_detalle" doc="SOURCE">
+			<qry:xquery>
+				for $r in sql('     
+				SELECT 
+					VAC01_SOLIC_PER.f_desde,
+					VAC01_SOLIC_PER.f_hasta, 
+					VAC01_SOLIC_PER.e_cant_dias, 
+					VAC01_SOLICITUDES.e_dias_bonif, 
+					VAC02_ESTADOS_SOL.d_estado_solic
+				FROM 
+					VAC01_SOLIC_PER, 
+					VAC01_SOLICITUDES, 
+					VAC02_ESTADOS_SOL
+				JOIN
+					VAC01_SOLICITUDES.oi_estado_solic INNER VAC02_ESTADOS_SOL.oi_estado_solic,
+					VAC01_SOLICITUDES.oi_solicitud INNER VAC01_SOLIC_PER.oi_solicitud
+				WHERE 
+					VAC01_SOLICITUDES.oi_personal_emp = {#SOURCE:@oi_personal_emp}
+					AND VAC01_SOLIC_PER.oi_periodo = {#SOURCE:@oi_periodo}
+					AND VAC02_ESTADOS_SOL.c_estado_solic IN (\'A\', \'L\', \'I\')
+				ORDER BY f_desde DESC
+			')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:element name="SOL">
+					<qry:attribute name="f_desde" value="format_date($r/@f_desde,'dd/mm/yyyy')"/>
+					<qry:attribute name="f_hasta" value="format_date($r/@f_hasta,'dd/mm/yyyy')"/>
+					<qry:attribute name="e_cant_dias" value="$r/@e_cant_dias"/>
+					<qry:attribute name="e_dias_bonif" value="$r/@e_dias_bonif"/>
+					<qry:attribute name="d_estado_solic" value="$r/@d_estado_solic"/>
+				</qry:element>
+			</qry:out>
+		</qry:select>
+	</html:query>
+</html:html>

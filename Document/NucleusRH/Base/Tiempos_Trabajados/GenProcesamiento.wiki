@@ -1,0 +1,185 @@
+====== Procesamiento de horas ======
+El objetivo del procesamiento de horas es computar los tiempos trabajados y las ausencias dentro de un rango para un grupo de personas. El cálculo se realiza comparando la [[wiki:NucleusRH.Base.Tiempos_Trabajados.EsperanzaPer|esperanza de la persona]] contra las fichadas realizadas. Este proceso requiere que todas las fichadas hayan sido [[wiki:NucleusRH.Base.Tiempos_Trabajados.VerificarFichadas|verificadas]] y sean válidas, ya que la existencia de errores imposibilita el correcto recuento.
+
+Mediante el Procesamiento, se calcula para cada Legajo la Cantidad de Horas Trabajadas por cada Tipo de Hora (Normales, Extras, Ausencias, etc.), teniendo en cuenta Esperanza Horaria, Fichadas, Tolerancias y demás parámetros utilizados por este Proceso.
+
+El procesamiento tiene la opción de ejecutarse en forma "parcial". Esto es útil en casos donde se quiere correr el procesamiento aún cuando no estén todas las fichadas incorporadas al sistema, ya sea porque falta ingresarlas o porque se necesita ejecutar antes de la fecha fin. De esta manera, si la última fichada es de entrada, no se tomará en cuenta para el cálculo de las horas (pero si para la validación anterior) porque el sistema supone que el empleado ha entrado a su puesto de trabajo pero todavía no ha salido.
+
+Para ejecutar el procesamiento, debe seguir los siguientes pasos:
+
+  - Acceder al módulo **Tiempos Trabajados**, en la sección **Procesos**, entrar a la opción Administrar Procesamiento de Horas.
+  - Presionar directamente el botón **Agregar** para agregar un nuevo procesamiento. Ingrese los datos obligatorios (indicados en negrita), Código, Descripción, Fecha inicio, Fecha fin. Seleccione empresa si desea procesar las horas para una empresa determinada. Recuerde siempre ingresar un Código y Descripción con nombres relevantes para que sea fácil de identificar; por ejemplo, si desea procesar horas para Septiembre para los legajos mensuales, poner como código Septiembre2010_mensual y descripción Septiembre 2010 Mensuales. Si desea procesar para la primera quincena, indique como código Septiembre2010_1qna; la descripción sería Septiembre 2010 1° Quincena.
+  - A partir de proceso creado en el punto anterior, seleccione, dentro de Acciones, la opción Administrar Legajos. Desde este formulario, indique bajo la lista Legajos Incluidos, aquellos que desee incluir en dicho procesamiento. Luego presione el botón **Guardar**
+  - Luego, presione Procesar, dentro de Acciones. Presione el botón **Ejecutar**. Tenga en cuenta que podrá ejecutar el proceso sólo para algunos legajos indicados en Legajos Filtrados.
+
+==== Validación previa ====
+Para agilizar los tiempos de proceso se realizará para cada legajo una validación sencilla de las fichadas antes de comenzar con el cálculo de las horas. En caso de encontrarse alguna inconsistencia con las fichadas no se procesará al legajo y se continuará con el siguiente.
+
+Los errores comunes que suelen detectarse en esta instancia generalmente son:
+  * Fichadas que fueron marcadas como "Erróneas" en alguna validación que se haya ejecutado previamente.
+  * Fichadas de tipo "Indefinida", es decir, que no sea ni de entrada o salida.
+  * Encontrar dos fichadas consecutivas del mismo (dos entradas o dos salidas seguidas).
+
+A los legajos no procesados por problemas de fichadas se les deberá verificar las fichadas para luego ser procesados correctamente. En caso de encontrarse este tipo de problema se indicará en la pantalla de logs del procesamiento de horas.
+
+==== Tolerancias ====
+
+El procesamiento no utiliza la fecha/hora de las fichadas tal cual están grabadas en base de datos, sino que les aplica ciertos "redondeos" para evitar fraccionamientos innecesarios al contabilizar las horas. Cada [[wiki:NucleusRH.Base.Tiempos_Trabajados.Tipo_Horas|tipo de hora]] cuenta con atributos especiales que //parametrizan// este redondeo. Los atributos utilizados son:
+  * **Tolerancia previa ingreso**
+  * **Tolerancia posterior ingreso**
+  * **Tolerancia previa egreso**
+  * **Tolerancia posterior egreso**
+Estos atributos influyen al momento de tomar la fecha/hora de la fichada y se utilizan para generar rangos en los cuales si la fichada cae dentro será "llevada" hacia la fecha/hora esperada como se si hubiera marcado en la hora exacta.
+
+En los siguientes gráficos se muestra un ejemplo de como se aplican las tolerancias. La hora de entrada es a las 8:00 y las tolerancias son:
+  * **Tolerancia previa ingreso**: 15 minutos
+  * **Tolerancia posterior ingreso**: 10 minutos
+Según las tolerancias se genera un rango que inicia a las 7:45 (8:00 menos 15 minutos) y finaliza a las 8:10 (8:00 más 10 minutos).
+
+|Se realiza una fichada a las 7:50, y como está dentro del rango se toma como que la fichada fué a las 8:00. |{{wiki:Imagenes/AplicarTolerancias.jpg}}|
+|Se realiza una fichada a las 7:40, es decir, 5 minutos por fuera del alcance del rango. Esta fichada se contabilizará desde las 7:40 porque las fichadas fuera del rango se toman sin modificaciones.|{{wiki:Imagenes/AplicarTolerancias2.jpg}}|
+
+==== Cálculo de horas trabajadas ====
+
+El cálculo se realiza sumando la cantidad de minutos entre una fichada de entrada y una de salida. Este resultado puede fraccionarse en los distintos tipos de horas dentro de ese rango.
+
+Si la fichada se realiza después de terminar un tipo de hora, esos minutos serán contabilizados como "excedente".
+
+En los siguientes ejemplos se muestra el caso en que la persona tiene que entrar a las 8 y salir a las 17. Las tolerancias son:
+  * **Tolerancia previa ingreso**: 15 minutos
+  * **Tolerancia posterior ingreso**: 10 minutos
+  * **Tolerancia previa egreso**: 10 minutos
+  * **Tolerancia posterior egreso**: 15 minutos
+
+|**Fichada entrada**: 8:00 (7:50)\\ **Fichada salida**: 17:00 (17:12)\\ **Total horas verde**: 9:00||
+|**Fichada entrada**: 8:00 (7:50)\\ **Fichada salida**: 17:00 (17:12)\\ **Total horas verde**: 5:00\\ **Total horas celeste**: 4:00||
+|**Fichada entrada**: 8:00 (7:50)\\ **Fichada salida**: 17:30\\ **Total horas verde**: 9:00\\ **Total horas excedente**: 0:30||
+
+==== Cálculo de horas ausentes ====
+
+Se toman las horas **obligatorias** en las cuales no se realizaron fichadas o aquellas fracciones de hora que se encuentran por fuera de la fichada.
+
+Las horas ausentes pueden sumarizarse en el tipo de hora predefinido para las ausencias o en otro tipo de hora.
+
+Los siguientes ejemplos muestran como se calculan las horas ausentes.
+
+|**Fichada entrada**: 8:25\\ **Fichada salida**: 17:30\\ **Total horas verde**: 8:35\\ **Total horas ausente**: 0:25\\ **Total horas excedente**: 0:30|{{wiki:Imagenes/CalculoHoras4.jpg}}|
+|**Fichada entrada**: 14:15\\ **Fichada salida**: 18:40\\ **Total horas celeste**: 3:45\\ **Total horas ausente**: 5:15\\ **Total horas excedente**: 1:40|{{wiki:Imagenes/CalculoHoras5.jpg}}|
+
+==== Redondeos y fragmentaciones ====
+
+Una vez obtenida la cantidad de horas trabajadas, se las somete a redondeos y fraccionamientos para prescindir de pequeñas diferencias que pueden resultar insignificantes, e incluso, molestas.
+
+A diferencia de las horas trabajadas, la cantidad de horas ausentes no sufre este tipo de redondeos.
+
+Existen 3 [[wiki:NucleusRH.Base.Tiempos_Trabajados.Parametros|parámetros]] que modifican la cantidad final:
+
+  * MinMinutosLiq
+  * MinMinutosHora
+  * RedondeoA
+
+Primero se aplica el parámetro **MinMinutosLiq** que delimita la cantidad mínima de minutos a ser contabilizados. Si los minutos trabajados no supera el mínimo no será contabilizado.
+
+Ejemplo:
+  * MinMinutosLiq cargado con 15 minutos.
+
+^Horas trabajadas^Resultado^Razón^
+|2:25 hrs (145 min)|145 minutos|La cantidad **total** de minutos trabajados supera los 15 indicados en el parámetro|
+|0:11 hrs (11 min)|0 minutos|La cantidad **total** de minutos trabajados NO supera los 15 indicados en el parámetro|
+
+En segunda instancia se aplica **MinMinutosHora** o **RedondeoA**, uno de los dos parámetros pero no ambos. Si se le asignó valor al parámetro MinMinutosHora no se aplica RedondeoA.
+
+El parámetro **MinMinutosHora** se aplica redondeando la cantidad mínima de minutos en una hora. Solo se toman las horas completas y los minutos que superen la cantidad mínima. Si los minutos sobrantes a la hora entera no superan la cantidad mínima serán desechados.
+
+Ejemplo:
+  * MinMinutosHora cargado con 15 minutos.
+
+^Horas trabajadas^Resultado^Razón^
+|2:25 hrs (145 min)|145 minutos|La cantidad de minutos supera los 15 indicados en el parámetro|
+|2:10 hrs (130 min)|120 minutos|La cantidad de minutos NO supera los 15 indicados en el parámetro|
+
+El parámetro **RedondeoA** indica el fraccionamiento a emplear. El modo de aplicación es dividir los minutos trabajados en fracciones del tamaño indicado por el parámetro, luego se toman los fragmentos completos, desperdiciando el resto.
+
+Ejemplo:
+  * RedondeoA cargado con 15 minutos.
+
+^Horas trabajadas^Resultado^Razón^
+|2:45 hrs (165 min)|165 minutos|El resultado de 165 dividido 15 es 11. La cantidad a tomar es de 11 multiplicado por 15|
+|2:48 hrs (168 min)|165 minutos|El resultado de 168 dividido 15 es 11,2. La cantidad a tomar es de 11 multiplicado por 15|
+
+===== Descripción técnica =====
+
+Cada persona indicada se procesará individualmente y finalmente se marcará el Procesamiento con estado //procesado//.
+
+Para cada persona se procesará de la siguiente manera:
+
+==== Verificación sencilla de fichadas ====
+
+La verificación sencilla realiza las mismas validaciones que se efectúan en el paso 1 de la verificación de fichadas.
+==== Generación de la cadena de hitos ====
+
+En caso de que la verificación sencilla de fichadas resulte correcta se recupera la esperanza para el rango de la liquidación y luego se genera una cadena de hitos representando los eventos principales obtenidos desde la esperanza.
+
+Los HITOS pueden ser de tipo esperanza o inicio de día. Los de esperanza indican el comienzo o el fin de un tipo de hora. Los de día son marcas o banderas que agrupan los hitos de tipo esperanza indicando que pertenecen a un mismo día.
+
+==== Calcular las fechas "rango" para las fichadas ====
+
+El cálculo de las fechas para la obtención de fichadas es importante dado que indican el rango desde/hasta a utilizar para recuperar las fichadas precisas.
+
+Como primera instancia se toman las fichadas cuya fecha sea:
+  * Mayor e igual a la fecha **inicio del procesamiento** (a las 0 horas)
+  * Menor a la fecha **fin del procesamiento mas un día** (a las 0 horas)
+
+Es decir, para computar todas las fichadas de ENERO se toma el rango: mayor e igual al 31 de diciembre y menor al 1<sup>ero</sup> de febrero.
+
+Pero esta fecha puede variar según los rangos laborales que tenga cada persona, ya que si un período laboral, de los días cercanos a las fechas inicio o fin del procesamiento, sobrepasa las 0 horas se marcará esa fecha/hora como uno de los extremos del rango de procesamiento.
+
+Pueden ocurrir tres casos para cada fecha del rango. Se ejemplifican en el siguiente gráfico:
+
+{{wiki:Imagenes/RangosFichadasPro.jpg}}
+
+En el ejemplo se muestran dos días, el 31 que NO PERTENECE al rango del procesamiento y el 1<sup>ero</sup> que SI PERTENECE. Suponiendo que se debe calcular la fecha //desde// del rango que comienza el día 1<sup>ero</sup>.
+
+  * **Caso número 1**. Ningún período laboral traspasa las 0 horas. Entonces se tomarán las fichadas mayores al día 1<sup>ero</sup> a las 0 horas.
+  * **Caso número 2**. El período laboral del 31 (no perteneciente al procesamiento) traspasa las 0 horas llegando, incluso, hasta las 2:00 am. del día siguiente. Se tomarán para el procesamiento todas las fichadas mayores o igual a las 2:00 am. del día 1<sup>ero</sup>.
+  * **Caso número 3**. El período laboral del 1<sup>ero</sup> comienza a las 21:30 pm. del día anterior. Se tomarán para el procesamiento todas las fichadas mayores o igual a las 21:30 pm. del día 31.
+
+Este cálculo se realiza tanto para determinar con exactitud la fecha/hora inicio del procesamiento, como también, para la de la fecha fin.
+
+==== Agregar las fichadas a la cadena de hitos ====
+
+A la cadena de hitos se les intercala las fichadas. En este paso se les aplica las tolerancias procediendo de la forma explicada anteriormente.
+
+==== Cómputo de horas trabajadas y ausencias ====
+
+El cómputo se realiza recorriendo la cadena de hitos. Existen tres tipos de hitos: **Inicio de día**, **Esperanza** y **Fichada**.
+
+Mientras se recorren los hitos se los identifica y según el tipo de hito se contabilizan horas trabajadas o ausencias.
+
+Los hitos de tipo **Inicio de día** indican a que fecha se computarán las horas.
+
+Los hitos de tipo **Esperanza** indica a que tipo de horas se contabilizarán las horas.
+
+Los hitos de tipo **Fichada** "inician" el contador de Horas trabajadas.
+
+La contabilización opera de la siguiente manera:
+{{ wiki:Imagenes/ComputoHoras.jpg }}
+
+Si la primer fichada es de Salida se toma como que el empleado ya está trabajando. Se le contabilizarán las horas desde el comienzo de la esperanza.
+
+==== Grabar procesamiento por persona ====
+
+Siguiendo la estructura del DDO de procesamiento/personas para cada persona se graba el procesamiento.
+
+Antes de persistirlo en base de datos se le calculan los Francos/Compensatorios.
+
+Luego de completar estos últimos pasos se dispara el método Post-Procesar-Persona (evePostLiquidarPersona).
+
+==== Llamadas a eventos ====
+
+La siguiente lista de eventos son los llamados dentro del procesamiento de horas:
+  - evePostCloseDay: Se llama cada vez que se termina de calcular las horas para un día. Se pasa como parámetro el día en cuestión (LIQUIDACJOR).
+  - evePreSave: Se llama antes de persistir el DDO en la base de datos. Se pasa como parámetro el procesamiento para la persona (LIQUIDACPER).
+  - evePostLiquidarPersona: Se llama después de persistir el DDO en la base de datos. Se pasa como parámetro el procesamiento para la persona (LIQUIDACPER).
+
+

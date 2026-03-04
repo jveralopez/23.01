@@ -1,0 +1,151 @@
+<flow:flow xmlns:flow="nomad_engine.flow" xmlns:qry="nomad_engine.qry" xmlns:doc="nomad_engine.doc" default_action="initialize" extends="NucleusRH.Base.Gestion_de_Postulantes.Agendas.autoflow" name="Agenda.flow">
+	<flow:info label="Flow para NucleusRH.Base.Gestion_de_Postulantes.Reclutados"/>
+	<flow:declare>
+		<qry:define declare="&lt;FILTRO value=&quot;1&quot; f_dia_desde=&quot;20070101&quot; f_dia_hasta=&quot;20080101&quot; oi_evaluador=&quot;2&quot; /&gt;" name="FILTER">
+			<qry:main doc="SOURCE">
+				<qry:element name="ROWS">
+					<qry:insert-select name="sql1" doc-path="#SOURCE:FILTRO"/>
+				</qry:element>
+			</qry:main>
+			<qry:select doc="SOURCE" name="sql1">
+				<qry:xquery>
+					for $r in sql('
+			SELECT 
+	SEL12_AGENDA.oi_agenda, 
+	SEL12_AGENDA.oi_evaluador, 
+	SEL12_AGENDA.f_dia, 
+	SEL12_AGENDA.t_nota 
+FROM 	
+	SEL12_AGENDA
+WHERE
+	SEL12_AGENDA.oi_evaluador = {#SOURCE:@oi_evaluador}
+	{%? (#SOURCE:@f_dia_hasta!='')	{% and SEL12_AGENDA.f_dia &lt;= {#SOURCE:@f_dia_hasta} %} {% %} %} 
+	{%? (#SOURCE:@f_dia_desde!='')	{% and SEL12_AGENDA.f_dia &gt;= {#SOURCE:@f_dia_desde} %} {% %} %}
+		')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:element name="ROW">
+						<qry:attribute name="policy" value="$r/@policy"/>
+						<qry:attribute name="id" value="$r/@oi_agenda"/>
+					</qry:element>
+				</qry:out>
+			</qry:select>
+		</qry:define>
+		<qry:define declare="&lt;FILTRO oi_evaluador=&quot;1&quot; oi_empresa=&quot;9&quot; oi_reclutado=&quot;117&quot; c_estado=&quot;&quot; /&gt;" name="LIST">
+			<qry:main doc="SOURCE">
+				<qry:element name="ROWS">
+					<qry:insert-select name="sql1" doc-path="#SOURCE:FILTRO"/>
+				</qry:element>
+			</qry:main>
+			<qry:select doc="SOURCE" name="sql1">
+				<qry:xquery>
+					for $r in sql('
+					SELECT 
+	SEL12_AGENDA.oi_agenda, 
+	SEL12_AGENDA.oi_evaluador, 
+	SEL12_AGENDA.f_dia, 
+	SEL12_AGENDA.t_nota 
+FROM 	
+	SEL12_AGENDA
+WHERE
+	SEL12_AGENDA.oi_evaluador = {#SOURCE:@oi_evaluador}
+	{%? (#SOURCE:@f_dia_hasta!='')	{% and SEL12_AGENDA.f_dia &lt;= {#SOURCE:@f_dia_hasta} %} {% %} %} 
+	{%? (#SOURCE:@f_dia_desde!='')	{% and SEL12_AGENDA.f_dia &gt;= {#SOURCE:@f_dia_desde} %} {% %} %}
+			')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:element name="ROW">
+						<qry:attribute name="policy" value="$r/@policy"/>
+						<qry:attribute name="id" value="$r/@oi_agenda"/>
+						<qry:attribute name="oi_evaluador" value="$r/@oi_evaluador"/>
+						<qry:attribute name="f_dia" value="$r/@f_dia"/>
+						<qry:attribute name="t_nota" value="$r/@t_nota"/>
+					</qry:element>
+				</qry:out>
+			</qry:select>
+		</qry:define>
+		<qry:define name="LIST:NucleusRH.Base.Gestion_de_Postulantes.Agendas.EXA_CITA">
+			<qry:include name="NucleusRH.Base.Gestion_de_Postulantes.Reclutados.EXA_REC.INFO"/>
+			<qry:main doc="PARAM" maxdeep="2">
+				<qry:element name="ROWS">
+					<qry:insert-select doc-path="#PARAM:./EXA_CITA[substring_before(@nmd-status,',')!='~d' and substring_before(@nmd-status,',')!='~x']" name="sql1"/>
+				</qry:element>
+			</qry:main>
+			<qry:select doc="PARAM" name="sql1">
+				<qry:xquery>
+					for $r in #PARAM:
+				</qry:xquery>
+				<qry:out>
+					<qry:element name="ROW">
+						<qry:attribute name="id" value="$r/@id"/>
+						<qry:attribute name="CODE" value="$r/@CODE"/>
+						<qry:attribute name="TEXT" value="$r/@TEXT"/>
+						<qry:if test="$r/oi_exa_rec/@value!=''">
+							<qry:then>
+								<qry:element name="oi_exa_rec">
+									<qry:attribute name="OI_FIND" value="$r/oi_exa_rec/@value"/>
+									<qry:insert-select name="NucleusRH.Base.Gestion_de_Postulantes.Reclutados.EXA_REC.QUERY" doc-path="."/>
+								</qry:element>
+								<qry:attribute name="oi_exa_rec" value="'['+oi_exa_rec/ROW/@COD+'] '+oi_exa_rec/ROW/@DES"/>
+							</qry:then>
+						</qry:if>
+					</qry:element>
+				</qry:out>
+			</qry:select>
+		</qry:define>
+		<doc:define name="FILTERDATA">
+			<FILTRO/>
+		</doc:define>
+	</flow:declare>
+	<flow:main doc="SOURCE">
+		<flow:action name="initialize">
+			<flow:open-form doc-path="#FILTERDATA:" mode="FILTER" form-class="NucleusRH.Base.Gestion_de_Postulantes.Agendas.AGENDA.filter.form"/>
+		</flow:action>
+	</flow:main>
+	<flow:form parent-doc="PARENTSOURCE" extends="NucleusRH.Base.Gestion_de_Postulantes.Agendas.AGENDA.filter.autoform:FILTER" doc="SOURCE" name="NucleusRH.Base.Gestion_de_Postulantes.Agendas.AGENDA.filter.form:FILTER" form-class="NucleusRH.Base.Gestion_de_Postulantes.Agendas.AGENDA.filter.form" mode="FILTER">
+		<flow:action name="FILTER">
+			<doc:load-qry input-doc-path="#FILTERDATA:" output-doc="QRY" qry="FILTER"/>
+			<flow:log text-path="#FILTERDATA:" text="ppo"/>
+			<flow:call-action action="Save-FILTER"/>
+			<flow:call-action action="open-flow-SHOW"/>
+		</flow:action>
+		<flow:action name="on-show"/>
+	</flow:form>
+	<flow:group Name="EXA_CITA">
+		<flow:form extends="NucleusRH.Base.Gestion_de_Postulantes.Agendas.EXA_CITA.noreg.autoform:SHOW" parent-doc="PARENTSOURCE" doc="SOURCE" name="NucleusRH.Base.Gestion_de_Postulantes.Agendas.EXA_CITA.noreg.form:SHOW" form-class="NucleusRH.Base.Gestion_de_Postulantes.Agendas.EXA_CITA.noreg.autoform" mode="SHOW">
+			<flow:action name="open-flow-SHOW">
+				<flow:open-form iter-index="#PARENTSOURCE:EXA_CITA/@id" parent-doc-path="#PARENTSOURCE:" doc-path="#PARENTSOURCE:" mode="SHOW" form-class="NucleusRH.Base.Gestion_de_Postulantes.Agendas.EXA_CITA.form"/>
+			</flow:action>
+			<flow:action name="open-flow-LIST">
+				<flow:open-form iter-index="#PARENTSOURCE:EXA_CITA/@id" parent-doc-path="#PARENTSOURCE:" doc-path="#PARENTSOURCE:" mode="LIST" form-class="NucleusRH.Base.Gestion_de_Postulantes.Agendas.EXA_CITA.form"/>
+			</flow:action>
+		</flow:form>
+		<flow:form extends="NucleusRH.Base.Gestion_de_Postulantes.Agendas.EXA_CITA.autoform:SHOW" doc-path="/EXA_CITA[@id='{#iter-cursor:@value}']" parent-doc="PARENTSOURCE" doc="SOURCE" name="NucleusRH.Base.Gestion_de_Postulantes.Agendas.EXA_CITA.form:SHOW" form-class="NucleusRH.Base.Gestion_de_Postulantes.Agendas.EXA_CITA.form" mode="SHOW"/>
+		<flow:form extends="NucleusRH.Base.Gestion_de_Postulantes.Agendas.EXA_CITA.autoform:LIST" doc-path="/EXA_CITA[@id='{#iter-cursor:@value}']" parent-doc="PARENTSOURCE" doc="SOURCE" name="NucleusRH.Base.Gestion_de_Postulantes.Agendas.EXA_CITA.form:LIST" form-class="NucleusRH.Base.Gestion_de_Postulantes.Agendas.EXA_CITA.form" mode="LIST"/>
+		<flow:form extends="NucleusRH.Base.Gestion_de_Postulantes.Agendas.EXA_CITA.autoform:LIST_EDIT" doc-path="/EXA_CITA[@id='{#iter-cursor:@value}']" parent-doc="PARENTSOURCE" doc="SOURCE" name="NucleusRH.Base.Gestion_de_Postulantes.Agendas.EXA_CITA.form:LIST_EDIT" form-class="NucleusRH.Base.Gestion_de_Postulantes.Agendas.EXA_CITA.form" mode="LIST_EDIT">
+			<flow:action name="open-flow-ADD">
+				<flow:open-form parent-doc-path="#PARENTSOURCE:" doc-path="#NEWDDO:" mode="NEW" form-class="NucleusRH.Base.Gestion_de_Postulantes.Agendas.EXA_CITA.form"/>
+			</flow:action>
+			<flow:action name="open-flow-LIST">
+				<flow:open-form iter-index="#PARENTSOURCE:EXA_CITA/@id" parent-doc-path="#PARENTSOURCE:" doc-path="#PARENTSOURCE:" mode="LIST_EDIT" form-class="NucleusRH.Base.Gestion_de_Postulantes.Agendas.EXA_CITA.form"/>
+			</flow:action>
+		</flow:form>
+		<flow:form extends="NucleusRH.Base.Gestion_de_Postulantes.Agendas.EXA_CITA.noreg.autoform:EDIT" parent-doc="PARENTSOURCE" doc="SOURCE" name="NucleusRH.Base.Gestion_de_Postulantes.Agendas.EXA_CITA.noreg.form:EDIT" form-class="NucleusRH.Base.Gestion_de_Postulantes.Agendas.EXA_CITA.noreg.autoform" mode="EDIT">
+			<flow:action name="open-flow-EDIT">
+				<flow:open-form iter-index="#PARENTSOURCE:EXA_CITA/@id" parent-doc-path="#PARENTSOURCE:" doc-path="#PARENTSOURCE:" mode="EDIT" form-class="NucleusRH.Base.Gestion_de_Postulantes.Agendas.EXA_CITA.form"/>
+			</flow:action>
+			<flow:action name="open-flow-ADD">
+				<flow:open-form parent-doc-path="#PARENTSOURCE:" doc-path="#NEWDDO:" mode="NEW" form-class="NucleusRH.Base.Gestion_de_Postulantes.Agendas.EXA_CITA.form"/>
+			</flow:action>
+			<flow:action name="open-flow-LIST">
+				<flow:open-form iter-index="#PARENTSOURCE:EXA_CITA/@id" parent-doc-path="#PARENTSOURCE:" doc-path="#PARENTSOURCE:" mode="LIST_EDIT" form-class="NucleusRH.Base.Gestion_de_Postulantes.Agendas.EXA_CITA.form"/>
+			</flow:action>
+		</flow:form>
+		<flow:form extends="NucleusRH.Base.Gestion_de_Postulantes.Agendas.EXA_CITA.autoform:EDIT" doc-path="/EXA_CITA[@id='{#iter-cursor:@value}']" parent-doc="PARENTSOURCE" doc="SOURCE" name="NucleusRH.Base.Gestion_de_Postulantes.Agendas.EXA_CITA.form:EDIT" form-class="NucleusRH.Base.Gestion_de_Postulantes.Agendas.EXA_CITA.form" mode="EDIT">
+			<flow:action name="open-flow-ADD">
+				<flow:open-form parent-doc-path="#PARENTSOURCE:" doc-path="#NEWDDO:" mode="NEW" form-class="NucleusRH.Base.Gestion_de_Postulantes.Agendas.EXA_CITA.form"/>
+			</flow:action>
+		</flow:form>
+		<flow:form extends="NucleusRH.Base.Gestion_de_Postulantes.Agendas.EXA_CITA.autoform:NEW" parent-doc="PARENTSOURCE" doc="SOURCE" name="NucleusRH.Base.Gestion_de_Postulantes.Agendas.EXA_CITA.form:NEW" form-class="NucleusRH.Base.Gestion_de_Postulantes.Agendas.EXA_CITA.form" mode="NEW"/>
+	</flow:group>
+</flow:flow>

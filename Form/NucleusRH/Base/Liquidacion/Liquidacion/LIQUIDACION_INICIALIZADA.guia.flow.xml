@@ -1,0 +1,306 @@
+<flow:flow extends="NucleusRH.Base.Liquidacion.Liquidacion.LIQUIDACION.guia.autoflow" name="NucleusRH.Base.Liquidacion.Liquidacion.LIQUIDACION_INICIALIZADA.guia" default_action="HELP" xmlns:flow="nomad_engine.form" xmlns:qry="nomad_engine.form" xmlns:doc="nomad_engine.form">
+	<flow:info label="Flow guia para NucleusRH.Base.Liquidacion.Liquidacion.LIQUIDACION"/>
+	<flow:main doc="SOURCE"/>
+	<flow:declare>
+		<qry:define name="X2C">
+			<qry:main doc="SOURCE">
+				<qry:element name="ROW">
+					<qry:insert-select doc-path="#SOURCE:" name="RS1"/>
+				</qry:element>
+			</qry:main>
+			<qry:select doc="SOURCE" name="RS1">
+				<qry:xquery>
+					for $r in SQL('
+			SELECT
+				liq19.oi_liquidacion as ID,
+				liq19.c_liquidacion as CODE,
+				liq19.d_titulo as TEXT,
+				liq19.oi_empresa as PID
+			FROM
+				LIQ19_LIQUIDACION as liq19
+			WHERE
+				liq19.oi_liquidacion={#SOURCE:helper-mess/@ID}
+			and
+				liq19.c_estado=\'I\'
+		')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:attribute type="Nomad.NSystem.Int" value="$r/@ID" name="id"/>
+					<qry:attribute type="Nomad.NSystem.Int" value="$r/@ID" name="value"/>
+					<qry:attribute type="Nomad.NSystem.String" value="$r/@CODE" name="code"/>
+					<qry:attribute type="Nomad.NSystem.String" value="$r/@TEXT" name="text"/>
+					<qry:attribute type="Nomad.NSystem.Int" value="$r/@PID" name="PID"/>
+					<qry:insert-select doc-path="." name="RS2"/>
+				</qry:out>
+			</qry:select>
+			<qry:select doc="SOURCE" name="RS2">
+				<qry:xquery>
+					for $r in SQL('
+			SELECT
+				org03.oi_empresa as ID,
+				org03.c_empresa as CODE,
+				org03.d_empresa as TEXT
+			FROM
+				ORG03_EMPRESAS as org03
+			WHERE
+				org03.oi_empresa={#SOURCE:@PID}
+		')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:attribute type="Nomad.NSystem.String" value="$r/@CODE+'-'+#SOURCE:@CODE" name="code"/>
+					<qry:attribute type="Nomad.NSystem.String" value="$r/@TEXT+'-'+#SOURCE:@TEXT" name="text"/>
+				</qry:out>
+			</qry:select>
+		</qry:define>
+		<qry:define name="C2X">
+			<qry:main doc="SOURCE">
+				<qry:append-doc doc-path="#SOURCE:helper-mess" name="INDOC"/>
+				<qry:element name="ROW">
+					<qry:insert-select doc-path="#SOURCE:" name="RS1"/>
+				</qry:element>
+			</qry:main>
+			<qry:select doc="SOURCE" name="RS1">
+				<qry:xquery>
+					for $r in SQL('
+			SELECT
+				org03.oi_empresa as ID,
+				org03.c_empresa as CODE,
+				org03.d_empresa as TEXT
+			FROM
+				ORG03_EMPRESAS as org03
+			WHERE
+				org03.c_empresa={substring_before(#INDOC:@CODE,\'-\')}
+		')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:attribute type="Nomad.NSystem.String" value="substring_after(#INDOC:@CODE,'-')" name="SUB_SEARCH"/>
+					<qry:attribute type="Nomad.NSystem.String" value="$r/@ID" name="PARENTID"/>
+					<qry:attribute type="Nomad.NSystem.String" value="$r/@CODE" name="code"/>
+					<qry:attribute type="Nomad.NSystem.String" value="$r/@TEXT" name="text"/>
+					<qry:insert-select doc-path="$r" name="SECURITY_EMPRESA"/>
+					<qry:insert-select doc-path="." name="RS2"/>
+				</qry:out>
+			</qry:select>
+			<qry:select doc="PARAM" name="SECURITY_EMPRESA">
+				<qry:xquery>
+					for $r in SQL('
+			select
+				n.policy
+			from
+				NMD_SECURITY as n
+			where
+				n.class=\'NucleusRH.Base.Organizacion.Empresas.EMPRESA\'
+			and
+				n.id={#PARAM:@id}
+		')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:attribute value="$r/@policy" name="policy"/>
+				</qry:out>
+			</qry:select>
+			<qry:select doc="SOURCE" name="RS2">
+				<qry:xquery>
+					for $r in SQL('
+			SELECT
+				liq19.oi_liquidacion as ID,
+				liq19.c_liquidacion as CODE,
+				liq19.d_titulo as TEXT
+			FROM
+				LIQ19_LIQUIDACION as liq19
+			WHERE
+				liq19.c_liquidacion={substring_before(#SOURCE:@SUB_SEARCH,\'-\')}
+			AND
+				liq19.oi_empresa={#SOURCE:@PARENTID}
+			and
+				liq19.c_estado=\'I\'
+		')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:attribute type="Nomad.NSystem.String" value="''" name="SUB_SEARCH"/>
+					<qry:attribute type="Nomad.NSystem.String" value="''" name="PARENTID"/>
+					<qry:attribute type="Nomad.NSystem.Int" value="$r/@ID" name="id"/>
+					<qry:attribute type="Nomad.NSystem.Int" value="$r/@ID" name="value"/>
+					<qry:attribute type="Nomad.NSystem.String" value="#SOURCE:@CODE+'-'+$r/@CODE" name="code"/>
+					<qry:attribute type="Nomad.NSystem.String" value="#SOURCE:@TEXT+'-'+$r/@TEXT" name="text"/>
+					<qry:insert-select doc-path="$r" name="SECURITY_LIQUIDACION"/>
+				</qry:out>
+			</qry:select>
+			<qry:select doc="PARAM" name="SECURITY_LIQUIDACION">
+				<qry:xquery>
+					for $r in SQL('
+			select
+				n.policy
+			from
+				NMD_SECURITY as n
+			where
+				n.class=\'NucleusRH.Base.Liquidacion.Liquidacion.LIQUIDACION\'
+			and
+				n.id={#PARAM:@id}
+		')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:attribute value="$r/@policy" name="policy"/>
+				</qry:out>
+			</qry:select>
+		</qry:define>
+		<qry:define name="HELP">
+			<qry:main doc="SOURCE">
+				<qry:element name="ROW">
+					<qry:attribute type="Nomad.NSystem.Int" value="#SOURCE:ROW/@PARENTID" name="PARENTID"/>
+					<qry:attribute type="Nomad.NSystem.String" value="#SOURCE:ROW/@CODE" name="CODE"/>
+					<qry:attribute type="Nomad.NSystem.String" value="#SOURCE:ROW/@TEXT" name="TEXT"/>
+					<qry:insert-select doc-path="." name="RS2"/>
+					<qry:element name="ROWS">
+						<qry:insert-select doc-path=".." name="RS1"/>
+					</qry:element>
+				</qry:element>
+			</qry:main>
+			<qry:select doc="SOURCE" name="RS2">
+				<qry:xquery>
+					for $r in SQL('
+			SELECT
+				org03.oi_empresa as ID,
+				org03.c_empresa as CODE,
+				org03.d_empresa as TEXT
+			FROM
+				ORG03_EMPRESAS as org03
+			WHERE
+				org03.oi_empresa={#SOURCE:@PARENTID}')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:attribute type="Nomad.NSystem.String" value="$r/@CODE" name="code"/>
+					<qry:attribute type="Nomad.NSystem.String" value="$r/@TEXT" name="text"/>
+				</qry:out>
+			</qry:select>
+			<qry:select doc="SOURCE" name="RS1">
+				<qry:xquery>
+					for $r in SQL('
+			SELECT
+				liq19.oi_liquidacion as ID,
+				liq19.c_liquidacion as CODE,
+				liq19.d_titulo as TEXT
+			FROM
+				LIQ19_LIQUIDACION as liq19
+			WHERE
+				liq19.oi_empresa={#SOURCE:@PARENTID}
+			and
+				liq19.c_estado=\'I\'')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:element name="ROW">
+						<qry:attribute type="Nomad.NSystem.Int" value="$r/@ID" name="id"/>
+						<qry:attribute type="Nomad.NSystem.Int" value="$r/@ID" name="value"/>
+						<qry:attribute type="Nomad.NSystem.String" value="$r/@CODE" name="code1"/>
+						<qry:attribute type="Nomad.NSystem.String" value="$r/@TEXT" name="text1"/>
+						<qry:attribute type="Nomad.NSystem.String" value="#SOURCE:@CODE+'-'+$r/@CODE" name="code"/>
+						<qry:attribute type="Nomad.NSystem.String" value="#SOURCE:@TEXT+'-'+$r/@TEXT" name="text"/>
+						<qry:insert-select doc-path="$r" name="SECURITY_LIQUIDACION"/>
+					</qry:element>
+				</qry:out>
+			</qry:select>
+			<qry:select doc="PARAM" name="SECURITY_LIQUIDACION">
+				<qry:xquery>
+					for $r in SQL('
+			select
+				n.policy
+			from
+				NMD_SECURITY as n
+			where
+				n.class=\'NucleusRH.Base.Liquidacion.Liquidacion.LIQUIDACION\' 
+			and
+				n.id={#PARAM:@id}')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:attribute value="$r/@policy" name="policy"/>
+				</qry:out>
+			</qry:select>
+		</qry:define>
+		<qry:define name="PRELOAD">
+			<qry:main doc="SOURCE">
+				<qry:element name="ROW">
+					<qry:insert-select doc-path="#SOURCE:helper-mess" name="RS2"/>
+					<qry:insert-select doc-path="." name="RS3"/>
+					<qry:element name="ROWS">
+						<qry:insert-select doc-path=".." name="RS1"/>
+					</qry:element>
+				</qry:element>
+			</qry:main>
+			<qry:select doc="SOURCE" name="RS3">
+				<qry:xquery>
+					for $r in SQl('
+			SELECT
+				org03.oi_empresa as ID,
+				org03.c_empresa as CODE,
+				org03.d_empresa as TEXT
+			FROM
+				ORG03_EMPRESAS as org03
+			WHERE
+				org03.oi_empresa={#SOURCE:@PARENTID}
+		')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:attribute type="Nomad.NSystem.String" value="$r/@CODE" name="code"/>
+					<qry:attribute type="Nomad.NSystem.String" value="$r/@TEXT" name="text"/>
+				</qry:out>
+			</qry:select>
+			<qry:select doc="SOURCE" name="RS2">
+				<qry:xquery>
+					for $r in SQL('
+			select
+				liq19.oi_empresa
+			from
+				LIQ19_LIQUIDACION as liq19
+			where
+				liq19.oi_liquidacion={#SOURCE:@ID}
+			and
+				liq19.c_estado=\'I\' ')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:attribute type="Nomad.NSystem.Int" value="$r/@oi_empresa" name="PARENTID"/>
+				</qry:out>
+			</qry:select>
+			<qry:select doc="SOURCE" name="RS1">
+				<qry:xquery>
+					for $r in SQL('
+			SELECT
+				liq19.oi_liquidacion as ID,
+				liq19.c_liquidacion as CODE,
+				liq19.d_titulo as TEXT
+			FROM
+				LIQ19_LIQUIDACION as liq19
+			WHERE
+				liq19.oi_empresa={#SOURCE:@PARENTID}
+			and
+				liq19.c_estado=\'I\' ')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:element name="ROW">
+						<qry:attribute type="Nomad.NSystem.Int" value="$r/@ID" name="id"/>
+						<qry:attribute type="Nomad.NSystem.Int" value="$r/@ID" name="value"/>
+						<qry:attribute type="Nomad.NSystem.String" value="$r/@CODE" name="code1"/>
+						<qry:attribute type="Nomad.NSystem.String" value="$r/@TEXT" name="text1"/>
+						<qry:attribute type="Nomad.NSystem.String" value="#SOURCE:@CODE+'-'+$r/@CODE" name="code"/>
+						<qry:attribute type="Nomad.NSystem.String" value="#SOURCE:@TEXT+'-'+$r/@TEXT" name="text"/>
+						<qry:insert-select doc-path="$r" name="SECURITY_LIQUIDACION"/>
+					</qry:element>
+				</qry:out>
+			</qry:select>
+			<qry:select doc="PARAM" name="SECURITY_LIQUIDACION">
+				<qry:xquery>
+					for $r in SQL('
+			select
+				n.policy
+			from
+				NMD_SECURITY as n
+			where
+				n.class=\'NucleusRH.Base.Liquidacion.Liquidacion.LIQUIDACION\' 
+			and 
+				n.id={#PARAM:@id}')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:attribute value="$r/@policy" name="policy"/>
+				</qry:out>
+			</qry:select>
+		</qry:define>
+	</flow:declare>
+</flow:flow>

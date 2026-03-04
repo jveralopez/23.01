@@ -1,0 +1,487 @@
+<html:html xmlns:html="nomad_engine.html" xmlns:qry="nomad_engine.qry" xmlns:xsl="http://www.w3.org/1999/XSL/Transform" name="NucleusWF.Base.Ejecucion.WF_DatosPersonales.rpt" doc="source" extends="NucleusWF.Base.Ejecucion.BaseInicioWF.rpt">
+	<html:query declare="&lt;PARAMS oi_usuario_sistema=&quot;masosa&quot; workflow=&quot;datos_personales&quot;/&gt;">
+		<qry:include name="NucleusRH.Base.Personal.Legajo.PERSONAL.QRY_INICIO_WFs"/>
+		<qry:main doc="SOURCE">
+			<qry:append-doc name="FILTER" doc-path="#SOURCE:PARAMS"/>
+			<qry:element name="REPORTE">
+				<qry:attribute name="workflow" value="#FILTER:@workflow"/>
+				<qry:element name="PERSONAS">
+					<qry:insert-select name="qry_DatosPersonales" doc-path="#SOURCE:PARAMS"/>
+				</qry:element>
+				<qry:element name="DATOS_PERSONALES">
+					<qry:insert-select name="qry_Personales"/>
+					<qry:insert-select name="qry_Referenciales"/>
+					<qry:insert-select name="qry_Uniformes"/>
+				</qry:element>
+			</qry:element>
+		</qry:main>
+		<qry:select name="qry_Personales" doc="">
+			<qry:xquery>
+				for $r in SQL('
+				SELECT
+					PER.c_nro_cuil, PER.d_apellido_materno, PER.c_sexo, GS.c_grupo_sanguineo,
+					NE.d_nivel_estudio, PER.d_email, PER.te_celular
+				FROM
+					PER01_PERSONAL as PER,
+					PER10_GRUPOS_SANG as GS,
+					PER12_NIVELES_EST as NE
+				JOIN
+					PER.oi_grupo_sanguineo LEFT GS.oi_grupo_sanguineo,
+					PER.oi_nivel_estudio LEFT NE.oi_nivel_estudio
+				WHERE
+					PER.oi_usuario_sistema = {#FILTER:@oi_usuario_sistema}
+				')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:element name="PERSONALES">
+					<qry:attribute name="cuil" value="iif($r/@c_nro_cuil = '','-',$r/@c_nro_cuil)"/>
+					<qry:attribute name="ape_mat" value="iif($r/@d_apellido_materno = '','-',$r/@d_apellido_materno)"/>
+					<qry:switch test="$r/@c_sexo">
+						<qry:case value="M">
+							<qry:attribute name="sexo" value="'Masculino'"/>
+						</qry:case>
+						<qry:case value="F">
+							<qry:attribute name="sexo" value="'Femenino'"/>
+						</qry:case>
+					</qry:switch>
+					<qry:attribute name="g_sanguineo" value="iif($r/@c_grupo_sanguineo = '','-',$r/@c_grupo_sanguineo)"/>
+					<qry:attribute name="n_estudio" value="iif($r/@d_nivel_estudio = '','-',$r/@d_nivel_estudio)"/>
+					<qry:attribute name="email" value="iif($r/@d_email = '','-',$r/@d_email)"/>
+					<qry:attribute name="celular" value="iif($r/@te_celular = '','-',$r/@te_celular)"/>
+				</qry:element>
+			</qry:out>
+		</qry:select>
+		<qry:select name="qry_Referenciales">
+			<qry:xquery>
+				for $r in SQL('
+		 	SELECT
+		 		PER.f_nacim, LOC.d_localidad as loc_nac, PRO.d_provincia as pro_nac, PAIS.d_pais as pais_nac, NAC.d_nacionalidad,
+		 		IDI.d_idioma, EC.d_estado_civil, PER.f_casamiento, PER.f_ingreso_pais,
+		 		LOC_RES.d_localidad as loc_res, PRO_RES.d_provincia as pro_res, PAIS_RES.d_pais as pais_res 
+		 	FROM
+		 		PER01_PERSONAL as PER,
+		 		ORG19_LOCALIDADES as LOC,
+		 		ORG35_PROVINCIAS as PRO,
+		 		ORG35_PAISES as PAIS,
+		 		ORG12_NACIONALID as NAC,
+		 		ORG20_IDIOMAS as IDI,
+		 		ORG22_EST_CIVIL as EC,
+		 		ORG19_LOCALIDADES as LOC_RES,
+		 		ORG35_PROVINCIAS as PRO_RES,
+		 		ORG35_PAISES as PAIS_RES
+		 	JOIN
+		 		PER.oi_local_nacim LEFT LOC.oi_localidad,
+		 		LOC.oi_provincia LEFT PRO.oi_provincia,
+		 		PRO.oi_pais LEFT PAIS.oi_pais,
+		 		PER.oi_nacionalidad LEFT NAC.oi_nacionalidad,
+		 		PER.oi_idioma LEFT IDI.oi_idioma,
+		 		PER.oi_estado_civil LEFT EC.oi_estado_civil,
+		 		PER.oi_localidad LEFT LOC_RES.oi_localidad,
+		 		LOC_RES.oi_provincia LEFT PRO_RES.oi_provincia,
+		 		PRO_RES.oi_pais LEFT PAIS_RES.oi_pais
+		 	WHERE
+		 		PER.oi_usuario_sistema = {#FILTER:@oi_usuario_sistema}	
+			')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:element name="REFERENCIALES">
+					<qry:attribute name="f_nacimiento" value="iif($r/@f_nacim = '','-',format-date($r/@f_nacim,'dd/mm/yyyy'))"/>
+					<qry:attribute name="loc_nac" value="iif($r/@loc_nac = '','-',$r/@loc_nac)"/>
+					<qry:attribute name="pro_nac" value="iif($r/@pro_nac = '','-',$r/@pro_nac)"/>
+					<qry:attribute name="pais_nac" value="iif($r/@pais_nac = '','-',$r/@pais_nac)"/>
+					<qry:attribute name="nacionalidad" value="iif($r/@d_nacionalidad = '','-',$r/@d_nacionalidad)"/>
+					<qry:attribute name="idioma" value="iif($r/@d_idioma = '','-',$r/@d_idioma)"/>
+					<qry:attribute name="e_civil" value="iif($r/@d_estado_civil = '','-',$r/@d_estado_civil)"/>
+					<qry:attribute name="f_casamiento" value="iif($r/@f_casamiento = '','-',format-date($r/@f_casamiento,'dd/mm/yyyy'))"/>
+					<qry:attribute name="f_ing_pais" value="iif($r/@f_ingreso_pais = '','-',format-date($r/@f_ingreso_pais,'dd/mm/yyyy'))"/>
+					<qry:attribute name="loc_res" value="iif($r/@loc_res = '','-',$r/@loc_res)"/>
+					<qry:attribute name="pro_res" value="iif($r/@pro_res = '','-',$r/@pro_res)"/>
+					<qry:attribute name="pais_res" value="iif($r/@pais_res = '','-',$r/@pais_res)"/>
+				</qry:element>
+			</qry:out>
+		</qry:select>
+		<qry:select name="qry_Uniformes" doc="">
+			<qry:xquery>
+				for $r in SQL('
+			SELECT
+				PER.c_nro_camisa,
+				PER.c_nro_pantalon,
+				PER.c_nro_calzado,
+				PER.c_nro_chomba,
+				PER.c_nro_buzo,
+				PER.c_nro_campera
+			FROM
+				PER01_PERSONAL as PER
+			WHERE
+				PER.oi_usuario_sistema = {#FILTER:@oi_usuario_sistema}		
+			')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:element name="UNIFORMES">
+					<qry:attribute name="t_camisa" value="iif($r/@c_nro_camisa = '','-',$r/@c_nro_camisa)"/>
+					<qry:attribute name="t_pantalon" value="iif($r/@c_nro_pantalon = '','-',$r/@c_nro_pantalon)"/>
+					<qry:attribute name="t_calzado" value="iif($r/@c_nro_calzado = '','-',$r/@c_nro_calzado)"/>
+					<qry:attribute name="t_chomba" value="iif($r/@c_nro_chomba = '','-',$r/@c_nro_chomba)"/>
+					<qry:attribute name="t_buzo" value="iif($r/@c_nro_buzo = '','-',$r/@c_nro_buzo)"/>
+					<qry:attribute name="t_campera" value="iif($r/@c_nro_campera = '','-',$r/@c_nro_campera)"/>
+				</qry:element>
+			</qry:out>
+		</qry:select>
+	</html:query>
+	<html:xslt>
+		<xsl:template match="PERSONALES">
+			<div class="row">
+				<div class="col-md-6">
+					<form class="form-horizontal form-datos-personales">
+						<div class="form-group">
+							<label class="control-label">
+								CUIT/CUIL:
+							</label>
+							<div>
+								<p class="form-control-static">
+									<xsl:value-of select="@cuil"/>
+								</p>
+							</div>
+						</div>
+						<div class="form-group">
+							<label class="control-label">
+								Sexo:
+							</label>
+							<div>
+								<p class="form-control-static">
+									<xsl:value-of select="@sexo"/>
+								</p>
+							</div>
+						</div>
+						<div class="form-group">
+							<label class="control-label">
+								Email:
+							</label>
+							<div>
+								<p class="form-control-static">
+									<xsl:value-of select="@email"/>
+								</p>
+							</div>
+						</div>
+						<div class="form-group">
+							<label class="control-label">
+								Celular:
+							</label>
+							<div>
+								<p class="form-control-static">
+									<xsl:value-of select="@celular"/>
+								</p>
+							</div>
+						</div>
+					</form>
+				</div>
+				<div class="col-md-6">
+					<form class="form-horizontal form-datos-personales">
+						<div class="form-group">
+							<label class="control-label">
+								Nivel de Estudio:
+							</label>
+							<div>
+								<p class="form-control-static">
+									<xsl:value-of select="@n_estudio"/>
+								</p>
+							</div>
+						</div>
+						<div class="form-group">
+							<label class="control-label">
+								Grupo Sangu&#237;neo:
+							</label>
+							<div>
+								<p class="form-control-static">
+									<xsl:value-of select="@g_sanguineo"/>
+								</p>
+							</div>
+						</div>
+						<div class="form-group">
+							<label class="control-label">
+								Apellido Materno:
+							</label>
+							<div>
+								<p class="form-control-static">
+									<xsl:value-of select="@ape_mat"/>
+								</p>
+							</div>
+						</div>
+					</form>
+				</div>
+			</div>
+		</xsl:template>
+		<xsl:template match="REFERENCIALES">
+			<div class="row">
+				<div class="col-md-6">
+					<form class="form-horizontal form-datos-personales">
+						<div class="form-group">
+							<label class="control-label">
+								Fecha De Nacimiento:
+							</label>
+							<div>
+								<p class="form-control-static">
+									<xsl:value-of select="@f_nacimiento"/>
+								</p>
+							</div>
+						</div>
+						<div class="form-group">
+							<label class="control-label">
+								Pa&#237;s Nacimiento:
+							</label>
+							<div>
+								<p class="form-control-static">
+									<xsl:value-of select="@pais_nac"/>
+								</p>
+							</div>
+						</div>
+						<div class="form-group">
+							<label class="control-label">
+								Provincia Nacimiento:
+							</label>
+							<div>
+								<p class="form-control-static">
+									<xsl:value-of select="@pro_nac"/>
+								</p>
+							</div>
+						</div>
+						<div class="form-group">
+							<label class="control-label">
+								Localidad Nacimiento:
+							</label>
+							<div>
+								<p class="form-control-static">
+									<xsl:value-of select="@loc_nac"/>
+								</p>
+							</div>
+						</div>
+						<div class="form-group">
+							<label class="control-label">
+								Nacionalidad:
+							</label>
+							<div>
+								<p class="form-control-static">
+									<xsl:value-of select="@nacionalidad"/>
+								</p>
+							</div>
+						</div>
+						<div class="form-group">
+							<label class="control-label">
+								Idioma:
+							</label>
+							<div>
+								<p class="form-control-static">
+									<xsl:value-of select="@idioma"/>
+								</p>
+							</div>
+						</div>
+					</form>
+				</div>
+				<div class="col-md-6">
+					<form class="form-horizontal form-datos-personales">
+						<div class="form-group">
+							<label class="control-label">
+								Estado Civil:
+							</label>
+							<div>
+								<p class="form-control-static">
+									<xsl:value-of select="@e_civil"/>
+								</p>
+							</div>
+						</div>
+						<div class="form-group">
+							<label class="control-label">
+								Fecha de Casamiento:
+							</label>
+							<div>
+								<p class="form-control-static">
+									<xsl:value-of select="@f_casamiento"/>
+								</p>
+							</div>
+						</div>
+						<div class="form-group">
+							<label class="control-label">
+								Fecha Ingreso Pa&#237;s:
+							</label>
+							<div>
+								<p class="form-control-static">
+									<xsl:value-of select="@f_ing_pais"/>
+								</p>
+							</div>
+						</div>
+						<div class="form-group">
+							<label class="control-label">
+								Pa&#237;s Residencia:
+							</label>
+							<div>
+								<p class="form-control-static">
+									<xsl:value-of select="@pais_res"/>
+								</p>
+							</div>
+						</div>
+						<div class="form-group">
+							<label class="control-label">
+								Provincia Residencia:
+							</label>
+							<div>
+								<p class="form-control-static">
+									<xsl:value-of select="@pro_res"/>
+								</p>
+							</div>
+						</div>
+						<div class="form-group">
+							<label class="control-label">
+								Localidad Residencia:
+							</label>
+							<div>
+								<p class="form-control-static">
+									<xsl:value-of select="@loc_res"/>
+								</p>
+							</div>
+						</div>
+					</form>
+				</div>
+			</div>
+		</xsl:template>
+		<xsl:template match="UNIFORMES">
+			<div class="row">
+				<div class="col-md-6">
+					<form class="form-horizontal form-datos-personales">
+						<div class="form-group">
+							<label class="control-label">
+								Talle Camisa:
+							</label>
+							<div>
+								<p class="form-control-static">
+									<xsl:value-of select="@t_camisa"/>
+								</p>
+							</div>
+						</div>
+						<div class="form-group">
+							<label class="control-label">
+								Talle Pantal&#243;n:
+							</label>
+							<div>
+								<p class="form-control-static">
+									<xsl:value-of select="@t_pantalon"/>
+								</p>
+							</div>
+						</div>
+						<div class="form-group">
+							<label class="control-label">
+								Talle Calzado:
+							</label>
+							<div>
+								<p class="form-control-static">
+									<xsl:value-of select="@t_calzado"/>
+								</p>
+							</div>
+						</div>
+					</form>
+				</div>
+				<div class="col-md-6">
+					<form class="form-horizontal form-datos-personales">
+						<div class="form-group">
+							<label class="control-label">
+								Talle Chomba:
+							</label>
+							<div>
+								<p class="form-control-static">
+									<xsl:value-of select="@t_chomba"/>
+								</p>
+							</div>
+						</div>
+						<div class="form-group">
+							<label class="control-label">
+								Talle Buzo:
+							</label>
+							<div>
+								<p class="form-control-static">
+									<xsl:value-of select="@t_buzo"/>
+								</p>
+							</div>
+						</div>
+						<div class="form-group">
+							<label class="control-label">
+								Talle Camepera:
+							</label>
+							<div>
+								<p class="form-control-static">
+									<xsl:value-of select="@t_campera"/>
+								</p>
+							</div>
+						</div>
+					</form>
+				</div>
+			</div>
+		</xsl:template>
+		<xsl:template match="DATOS_PERSONALES">
+			<a id="btn-personales" class="btn btn-primary btns-datos-personales" role="button" data-toggle="collapse" href="#collapsePersonales" aria-expanded="true" aria-controls="collapsePersonales">
+				Personales
+			</a>
+			<div class="collapse in" id="collapsePersonales">
+				<div class="well divContent-datos-personales">
+					<xsl:apply-templates select="PERSONALES"/>
+				</div>
+			</div>
+			<a class="btn btn-primary btns-datos-personales" role="button" data-toggle="collapse" href="#collapseReferenciales" aria-expanded="true" aria-controls="collapseReferenciales">
+				Referenciales
+			</a>
+			<div class="collapse in" id="collapseReferenciales">
+				<div class="well divContent-datos-personales">
+					<xsl:apply-templates select="REFERENCIALES"/>
+				</div>
+			</div>
+			<a class="btn btn-primary btns-datos-personales" role="button" data-toggle="collapse" href="#collapseUniformes" aria-expanded="true" aria-controls="collapseUniformes">
+				Uniformes
+			</a>
+			<div class="collapse in" id="collapseUniformes">
+				<div class="well divContent-datos-personales">
+					<xsl:apply-templates select="UNIFORMES"/>
+				</div>
+			</div>
+		</xsl:template>
+		<xsl:template name="BODY_CUSTOM">
+			<div class="row wfDatosPersonales">
+				<xsl:apply-templates select="DATOS_PERSONALES"/>
+			</div>
+		</xsl:template>
+		<xsl:template name="JAVASCRIPT_CUSTOM">
+			<script type="text/javascript">
+				//
+			</script>
+		</xsl:template>
+		<xsl:template name="CSS_CUSTOM">
+			#btn-personales{
+		margin-top: 10px;
+	}
+	
+	.btns-datos-personales{
+		width: 100%;
+	    text-align: left;
+		font-weight: 600;
+		margin-top: 1px;
+	}
+	
+	.divContent-datos-personales{
+		margin-bottom: 2px!important;
+		padding: 0px 19px;
+	
+	}
+	
+	form.form-datos-personales div label{
+		margin-right: 7px;
+		float: left;
+	}
+	
+	form.form-datos-personales div.form-group{
+		margin-bottom: 0px;
+		margin-left: 0px;
+	}
+	
+	.form-horizontal.form-datos-personales{
+		margin-bottom: 0px;
+	}
+		</xsl:template>
+	</html:xslt>
+</html:html>

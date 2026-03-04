@@ -1,0 +1,134 @@
+<flow:flow xmlns:flow="nomad_engine.flow" xmlns:doc="nomad_engine.doc" xmlns:qry="nomad_engine.qry" extends="Nomad.Base.flow" name="NucleusRH.Base.Liquidacion.Legajo.carga_masiva.flow" default_action="initialize">
+	<flow:info label="Flow para Nomad.Base.Liquidacion.Liquidacion">
+		Flow para NucleusRH.Base.Liquidacion.Liquidacion
+	</flow:info>
+	<flow:declare>
+		<doc:define name="FILTERDATA">
+			<FILTRO oi_empresa="">
+				<LEGAJOS/>
+			</FILTRO>
+		</doc:define>
+		<doc:define name="ANTICIPO">
+			<ROWS>
+				<ROW/>
+			</ROWS>
+		</doc:define>
+		<doc:define name="PERSONALES">
+			<ROWS>
+				<ROW oi_personal_emp=""/>
+			</ROWS>
+		</doc:define>
+		<qry:define declare="&lt;FILTRO oi_empresa=&quot;&quot; f_solicitud=&quot;20080821&quot; f_anticipo=&quot;20080821&quot; n_importe=&quot;200.00&quot; e_cant_cuotas=&quot;1&quot; e_periodo=&quot;200806&quot; e_quincena=&quot;&quot; l_liquida=&quot;1&quot; fp_cargaanticipos=&quot;1&quot; EMPRESA=&quot;1&quot; c_estado=&quot;O&quot; fp_cargaanticipo=&quot;&quot;&gt;&lt;LEGAJOS /&gt;&lt;/FILTRO&gt;" name="qry:dato_fijo">
+			<qry:main doc="SOURCE">
+				<qry:element name="FILTRO">
+					<qry:insert-select doc-path="#SOURCE:FILTRO" name="QRY1"/>
+					<qry:element name="LEGAJOS">
+						<qry:insert-select doc-path="#SOURCE:FILTRO" name="QRY2"/>
+					</qry:element>
+				</qry:element>
+			</qry:main>
+			<qry:select doc="SOURCE" name="QRY2">
+				<qry:xquery>
+					for $r in sql('
+				SELECT
+					PER02_PERSONAL_EMP.oi_personal_emp
+				FROM
+					liq07_val_varef,
+					liq09_variables, 
+					PER02_PERSONAL_EMP
+				WHERE 
+					liq07_val_varef.n_valor = 1 AND
+					PER02_PERSONAL_EMP.oi_personal_emp = liq07_val_varef.oi_personal_emp AND
+					PER02_PERSONAL_EMP.oi_empresa = {#SOURCE:@EMPRESA} AND
+					liq09_variables.oi_variable = liq07_val_varef.oi_variable AND
+					liq09_variables.c_variable = \'fp_cargaanticipo\' 
+        	')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:element name="LEGAJO">
+						<qry:attribute name="id" value="$r/@oi_personal_emp"/>
+					</qry:element>
+				</qry:out>
+			</qry:select>
+			<qry:select doc="SOURCE" name="QRY1">
+				<qry:xquery>
+					for $r in #SOURCE:
+				</qry:xquery>
+				<qry:out>
+					<qry:attribute name="f_solicitud" value="$r/@f_solicitud"/>
+					<qry:attribute name="f_anticipo" value="$r/@f_anticipo"/>
+					<qry:attribute name="n_importe" value="$r/@n_importe"/>
+					<qry:attribute name="e_cant_cuotas" value="$r/@e_cant_cuotas"/>
+					<qry:attribute name="e_periodo" value="$r/@e_periodo"/>
+					<qry:attribute name="e_quincena" value="$r/@e_quincena"/>
+					<qry:attribute name="l_liquida" value="$r/@l_liquida"/>
+					<qry:attribute name="c_estado" value="$r/@c_estado"/>
+				</qry:out>
+			</qry:select>
+		</qry:define>
+		<doc:define name="SOURCE">
+			<FILTRO oi_empresa="">
+				<LEGAJOS/>
+			</FILTRO>
+		</doc:define>
+	</flow:declare>
+	<flow:main doc="SOURCE">
+		<flow:action name="initialize">
+			<flow:open-form doc-path="#FILTERDATA:" form-class="NucleusRH.Base.Liquidacion.Legajo.Legajo.CARGA_MASIVA.form" mode="EDIT"/>
+		</flow:action>
+	</flow:main>
+	<flow:group name="CARGA_MASIVA">
+		<flow:form form-class="NucleusRH.Base.Liquidacion.Legajo.Legajo.CARGA_MASIVA.form" name="NucleusRH.Base.Liquidacion.Legajo.Legajo.CARGA_MASIVA.form:EDIT" parent-doc="PARENTSOURCE" mode="EDIT" doc="SOURCE">
+			<flow:action name="BACK">
+				<flow:close-form/>
+			</flow:action>
+			<flow:action name="SAVE">
+				<flow:log text-path="#SOURCE:" text="logsave"/>
+				<flow:call-action if="#SOURCE:@fp_cargaanticipos" else="ASIGN" action="DATO_FIJO" eq="1"/>
+				<flow:log text-path="#ANTICIPO:" text="logsave1"/>
+				<flow:log text-path="#PERSONALES:" text="logsave3"/>
+				<flow:exec-method priority="6" out-type="String" out-attr-path="#BATCHDOC:@batch-id" class="NucleusRH.Base.Liquidacion.Legajo_Liquidacion.PERSONAL_EMP" method="GuardarCargaMasiva">
+					<flow:param name="paramANTICIPOS" doc="ANTICIPO" type="Nomad.NSystem.Object" mode="in"/>
+					<flow:param doc="PERSONALES" type="Nomad.NSystem.Object" mode="in" name="paramPER"/>
+				</flow:exec-method>
+				<flow:open-form doc-path="#BATCHDOC:" mode="BATCH" form-class="nomad.base.batchtolist.form"/>
+			</flow:action>
+			<flow:action name="on-show"/>
+			<flow:action name="ASIGN">
+				<flow:log text-path="#SOURCE:" text="logasign"/>
+				<doc:assign-mapping dir-apply="a-&gt;b" a-doc="SOURCE" b-doc="ANTICIPO">
+					<map docB="B" docA="A">
+						<link B="#B:ROW/@oi_tipo_anticipo" A="#A:@oi_tipo_anticipo"/>
+						<link B="#B:ROW/@f_solicitud" A="#A:@f_solicitud"/>
+						<link B="#B:ROW/@f_anticipo" A="#A:@f_anticipo"/>
+						<link B="#B:ROW/@n_importe" A="#A:@n_importe"/>
+						<link B="#B:ROW/@e_cant_cuotas" A="#A:@e_cant_cuotas"/>
+						<link B="#B:ROW/@e_periodo" A="#A:@e_periodo"/>
+						<link B="#B:ROW/@e_quincena" A="#A:@e_quincena"/>
+						<link B="#B:ROW/@l_liquida" A="#A:@l_liquida"/>
+						<link B="#B:ROW/@c_estado" A="#A:@c_estado"/>
+					</map>
+				</doc:assign-mapping>
+				<doc:assign-mapping dir-apply="a-&gt;b" a-doc="SOURCE" b-doc="PERSONALES">
+					<map docB="B" docA="A">
+						<submap path-docB="#B:" path-docA="#A:LEGAJOS">
+							<map docB="B" docA="A">
+								<link B="#B:@oi_personal_emp" A="#A:@id"/>
+							</map>
+							<ProtoA/>
+							<ProtoB>
+								<ROW oi_personal_emp=""/>
+							</ProtoB>
+						</submap>
+					</map>
+				</doc:assign-mapping>
+			</flow:action>
+			<flow:action name="DATO_FIJO">
+				<flow:log text="logqry" text-path="#SOURCE:"/>
+				<doc:load-qry output-doc="SOURCE" input-doc-path="#SOURCE:" qry="qry:dato_fijo"/>
+				<flow:log text="logqryres" text-path="#SOURCE:"/>
+				<flow:call-action action="ASIGN"/>
+			</flow:action>
+		</flow:form>
+	</flow:group>
+</flow:flow>

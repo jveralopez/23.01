@@ -1,0 +1,585 @@
+<form:Form xmlns:form="nomad_engine.form" xmlns:qry="nomad_engine.qry" default_mode="DEBUG" mess="&#191;Est&#225; seguro que desa cancelar la operaci&#243;n?" doc="source" name="NucleusRH.Base.Tiempos_Trabajados.Turnos.TURNODET">
+	<form:Title width="90%">
+		<form:RowAligner name="ralTitle">
+			<form:Row name="row1">
+				<form:Label nowrap="1" align="center" visible="NEW" style="S3 LCol_w" label="Crear Detalle de Turnos" name="GEN_NEW"/>
+				<form:Label nowrap="1" align="center" visible="EDIT|DEBUG" style="S3 LCol_w" label="Modificar Detalle de Turnos" name="GEN_EDIT"/>
+				<form:Label nowrap="1" align="center" visible="DELETE" style="S3 LCol_w" label="Eliminar Detalle de Turnos" name="GEN_DEL"/>
+				<form:Label nowrap="1" align="center" visible="SHOW|LIST|LIST_EDIT" style="S3 LCol_w" label="Consultar Detalle de Turnos" name="GEN_SHOW"/>
+				<form:Label nvalue="#DDO:@descr" dynamic="1" nowrap="1" align="right" style="S3 LCol_w" name="ti_01"/>
+			</form:Row>
+		</form:RowAligner>
+	</form:Title>
+	<form:Center width="100%" height="100%">
+		<form:Hidden xsize="80" label="NRM" name="NRM"/>
+		<form:Hidden xsize="80" label="DOM" name="DOM"/>
+		<form:Hidden xsize="80" label="FER" name="FER"/>
+		<form:Hidden xsize="80" label="DYF" name="DYF"/>
+		<form:Hidden xsize="80" label="RES" name="RES"/>
+		<form:Hidden xsize="80" label="NOL" name="NOL"/>
+		<form:Columns width="990px" height="200px" name="cols1">
+			<form:Column width="100%" height="100%" name="col1" separation="2" align="left" valign="top">
+				<form:Div height="210px" width="100%" border="0" rheight="35" label="Detalles del Turno" rwidth="95" name="CONT_TURNO">
+					<form:SButtons>
+						<form:SButton descrip="Inicio de dia" label="Inicio de dia" img="prev" name="LEFT">
+							<form:Event action="MoveLeft" name="OnClick" runat="client"/>
+						</form:SButton>
+						<form:SButton name="RIGHT" descrip="Inicio de dia" label="Inicio de dia" img="next">
+							<form:Event action="MoveRight" name="OnClick" runat="client"/>
+						</form:SButton>
+					</form:SButtons>
+				</form:Div>
+			</form:Column>
+		</form:Columns>
+		<form:Div height="300px" border="2" width="50%" borderwidth="2" rheight="35" rwidth="45" label="Referencias de Horas" name="CONT_REFER">
+			<form:SButtons>
+				<form:SButton descrip="Mostrar Definicion de Tipo de Hora." label="Mostrar Definicion del Tipo de Hora." img="search" name="SHOW" visible="EDIT|DEBUG">
+					<form:Event action="ShowTipoHora" name="OnClick" runat="client"/>
+				</form:SButton>
+				<form:SButton descrip="ABM de Tipo de Hora." label="ABM de Tipo de Hora." img="properties" name="LIST">
+					<form:Event action="ABMTiposHora" name="OnClick" runat="client"/>
+				</form:SButton>
+			</form:SButtons>
+		</form:Div>
+	</form:Center>
+	<form:Bottom>
+		<form:RowAligner name="buttonlinks">
+			<form:Row name="row1">
+				<form:Button startvalidate="1" visible="EDIT|DEBUG" descrip="" img="OK" label="Aceptar" name="Aceptar">
+					<form:Event action="CheckDef" name="onvalidate" runat="client"/>
+					<form:Event runat="server" action="SAVE" name="onclick"/>
+				</form:Button>
+				<form:Button visible="EDIT|DEBUG" note="" descrip="" img="CANCEL" label="Cancelar" name="Cancelar">
+					<form:Event action="BACK" name="onclick" runat="server"/>
+				</form:Button>
+				<form:Button visible="!EDIT" note="" descrip="" img="BACK" label="Volver" name="Volver">
+					<form:Event action="BACK" name="onclick" runat="server"/>
+				</form:Button>
+			</form:Row>
+		</form:RowAligner>
+	</form:Bottom>
+	<form:Scripts>
+		var MyOBJ;
+var MyHOR;
+var MyHORSEL="";
+var ETimeStart=0;
+
+
+function ObtenerTiposHoras()
+{ 
+var proxy;
+var TIPOSHORA;
+var retval;
+var t;
+
+proxy=new NomadProxy();
+TIPOSHORA=proxy.SQLService().GetOBJ(Ctrl("main").getResource("TIPOS_DE_HORAS"),"");
+
+retval=new Array();
+if (Ctrl("main").GetMode()=="EDIT" || Ctrl("main").GetMode()=="DEBUG")
+{
+	retval[""]=new Object();
+	retval[""].id   ="";
+	retval[""].label="Eliminar";
+	retval[""].color="";
+}
+
+for (t=0; t&lt;TIPOSHORA.Child.length; t++)
+	retval[TIPOSHORA.Child[t].id.toString()]=TIPOSHORA.Child[t];
+	
+return retval;
+}
+
+function DrawReference(arr, ContainerName, KeySelect)
+{                         
+var HTMLoutput="", key;
+var TrgObj=document.getElementById(ContainerName);
+
+HTMLoutput+="&lt;TABLE style='width:100%;height:100%cursor:default;font-family:arial;font-size:10px;font-weight:bold;color:#000000;background-color:#F0F0D0;' &gt;";
+for (key in arr)
+{      
+	 
+	if (arr[key].color=="")
+		HTMLoutput+="&lt;TR style='height:20px;"+(key==KeySelect?"background-color:#F0F0A0;":"")+"' &gt;"
+		           +"&lt;TD onclick='SetHorario(\""+key+"\");' style='border-bottom:1px dotted #808080;' &gt;&lt;img src='../images/HelperPage/cancel_n.gif' /&gt;&lt;/TD&gt;"
+		           +"&lt;TD onclick='SetHorario(\""+key+"\");' style='border-bottom:1px dotted #808080;' &gt;"+arr[key].label+"&lt;/TD&gt;"
+		           +"&lt;/TR&gt;";
+	else
+		HTMLoutput+="&lt;TR style='height:20px;"+(key==KeySelect?"background-color:#F0F0A0;":"")+"' &gt;"
+		           +"&lt;TD onclick='SetHorario(\""+key+"\");' style='border-bottom:1px dotted #808080;width:30px;font-size:1px;' &gt;&lt;div style='padding:0px;height:12px;border-left:2px solid #"+arr[key].color+";border-right:2px solid #"+arr[key].color+";' &gt;&lt;div style='position:relative;top:4px;height:4px;width:100%;background-color:#"+arr[key].color+";' &gt;&lt;/div&gt;&lt;/div&gt;&lt;/TD&gt;"
+		           +"&lt;TD onclick='SetHorario(\""+key+"\");' style='border-bottom:1px dotted #808080;' &gt;"+arr[key].label+"&lt;/TD&gt;"
+		           +"&lt;/TR&gt;";
+}
+HTMLoutput+="&lt;/TABLE&gt;";
+
+TrgObj.innerHTML=HTMLoutput;
+}      
+
+function SetHorario(myId)
+{
+if (Ctrl("main").GetMode()!="EDIT" &amp;&amp; Ctrl("main").GetMode()!="DEBUG") return;
+
+MyHORSEL=myId;
+DrawReference(MyHOR, "CONT_REFER", MyHORSEL);
+
+if (MyHORSEL=="")
+	MyOBJ.SelectStyle("000000","BAR");
+else
+	MyOBJ.SelectStyle(MyHOR[MyHORSEL].color,"TIME");
+
+}  
+
+function CalculateMinMax()
+{ 
+var min=2960, max=-1300, MyHORS, d, MyNewHORS, pos, he, hs;
+var DAY="NRM|DOM|FER|DYF|NOL".split("|");
+
+for (var d=0; d&lt;5; d++)
+{
+	MyHORS=Ctrl(DAY[d]).GetXValue();
+	if (MyHORS=="") continue;
+	
+	MyNewHORS=MyHORS.split("|");
+	
+ 	pos=1;
+	while (pos&lt;MyNewHORS.length) 
+	{                                 
+	  if (MyNewHORS[pos]!="")
+	  {
+			he=parseInt(MyNewHORS[pos-1],10);
+			hs=parseInt(MyNewHORS[pos+1],10);
+			
+			if (he&lt;min) min=he;
+			if (he&gt;max) max=he;
+			if (hs&lt;min) min=hs;
+			if (hs&gt;max) max=hs;
+		}
+		
+		pos+=2;
+	}
+}      
+
+retval=new Object();
+retval.Min=min;
+retval.Max=max;   
+
+return retval; 
+}
+
+function MoveLeft()
+{
+if (ETimeStart&lt;=-23) return;
+
+var obj=CalculateMinMax();
+if (obj.Max&gt;(24+ETimeStart-1)*60) return;
+
+ETimeStart--;
+MyOBJ.SetAxisTime(ETimeStart*60, (25+ETimeStart)*60 , 60, 10, 3);
+MyOBJ.Draw();
+}
+
+function MoveRight()
+{                   
+if (ETimeStart&gt;= 23) return;
+
+var obj=CalculateMinMax();
+if (obj.Min&lt;(ETimeStart+1)*60) return;
+
+
+ETimeStart++;
+MyOBJ.SetAxisTime(ETimeStart*60, (25+ETimeStart)*60 , 60, 10, 3);
+MyOBJ.Draw();
+}
+
+function Initialize()
+{
+var e_min=1440*2, e_max=-1440;
+
+MyOBJ=HTMLTimeBarSelected("CONT_TURNO","",AddTurno,null);
+
+MyOBJ.SetAxisMode("SERIE/TIME");
+MyOBJ.SetAxisTime(ETimeStart*60, (25+ETimeStart)*60 , 60, 10, 3);
+
+MyOBJ.AddSerie("NRM","Habil");
+MyOBJ.AddSerie("DOM","Domingo");
+MyOBJ.AddSerie("FER","Feriado");
+MyOBJ.AddSerie("DYF","Dom+Fer");
+MyOBJ.AddSerie("NOL","No Laborable");
+
+MyOBJ.Draw();               
+
+if (Ctrl("main").GetMode()=="EDIT" || Ctrl("main").GetMode()=="DEBUG") 
+{
+	MyOBJ.EditStart();           
+	MyOBJ.SelectStyle("000000","BAR");
+}
+
+
+MyHOR=ObtenerTiposHoras();
+DrawReference(MyHOR, "CONT_REFER", MyHORSEL);
+
+if (Ctrl("main").GetMode()=="DEBUG") 
+	str=Ctrl("main").getResource("DEBUG");
+else
+	str=DOM2String(Ctrl("main").GetLastDoc("RS"));
+
+var X=new nomadDOM(str);
+
+for (var t=0; t&lt;X.Child.length; t++)
+{    
+	if (X.Child[t]["nmd-status"])
+	{                  
+		if (X.Child[t]["nmd-status"].substr(0,3)=="~d,") continue;
+		if (X.Child[t]["nmd-status"].substr(0,3)=="~x,") continue;
+	}				
+	
+	if (parseInt(X.Child[t].e_hora_inicio)&lt;parseInt(e_min)) e_min=X.Child[t].e_hora_inicio;		
+	if (parseInt(X.Child[t].e_hora_inicio)&gt;parseInt(e_max)) e_max=X.Child[t].e_hora_inicio;
+	if (parseInt(X.Child[t].e_hora_fin)   &lt;parseInt(e_min)) e_min=X.Child[t].e_hora_fin;
+	if (parseInt(X.Child[t].e_hora_fin)   &gt;parseInt(e_max)) e_max=X.Child[t].e_hora_fin;
+			
+	AddTurnoString("NRM", X.Child[t].e_hora_inicio, X.Child[t].e_hora_fin, X.Child[t].oi_tipo_hs_norm.value);
+	AddTurnoString("DOM", X.Child[t].e_hora_inicio, X.Child[t].e_hora_fin, X.Child[t].oi_tipo_hs_dom.value);
+	AddTurnoString("FER", X.Child[t].e_hora_inicio, X.Child[t].e_hora_fin, X.Child[t].oi_tipo_hs_fer.value);
+	AddTurnoString("DYF", X.Child[t].e_hora_inicio, X.Child[t].e_hora_fin, X.Child[t].oi_tipo_hs_domfer.value);
+	AddTurnoString("NOL", X.Child[t].e_hora_inicio, X.Child[t].e_hora_fin, X.Child[t].oi_tipo_hs_nolab.value);
+
+} 
+
+DrawTurno(MyOBJ, "NRM");
+DrawTurno(MyOBJ, "DOM");
+DrawTurno(MyOBJ, "FER");
+DrawTurno(MyOBJ, "DYF");   
+DrawTurno(MyOBJ, "NOL");
+		
+while (e_min&lt;ETimeStart*60) ETimeStart--;
+while (e_max&gt;(24+ETimeStart)*60) ETimeStart++;
+
+MyOBJ.SetAxisTime(ETimeStart*60, (25+ETimeStart)*60 , 60, 10, 3);
+MyOBJ.Draw();
+}
+
+function DrawTurno(obj, fecha)
+{  
+var MyHORS, MyNewHORS;
+
+//Simplifico	
+MyNewHORS=new Array();
+MyHORS=Ctrl(fecha).GetXValue();
+if (MyHORS=="") MyHORS=(-24*60)+"||"+(1440+24*60);
+MyHORS=MyHORS.split("|");
+
+ 	pos=0;
+while (pos&lt;MyHORS.length) 
+{                     
+	if ((pos==0) || (MyHORS.length==pos+1) || (MyHORS[pos+1]!=MyNewHORS[MyNewHORS.length-1]))
+	{
+		MyNewHORS[MyNewHORS.length]=MyHORS[pos];
+		if (pos+1&lt;MyHORS.length) MyNewHORS[MyNewHORS.length]=MyHORS[pos+1];
+	}
+	pos+=2;
+}
+Ctrl(fecha).SetXValue(MyNewHORS.join("|"));
+
+//Limpio
+obj.ClearValue(fecha);
+
+//Agrego los Horarios	
+ 	pos=1;
+while (pos&lt;MyNewHORS.length) 
+{     
+	he=parseInt(MyNewHORS[pos-1],10)
+	hs=parseInt(MyNewHORS[pos+1],10)
+	MyHorID=MyNewHORS[pos];         
+	MyHOR2=MyHOR[MyHorID];
+	
+	if (MyHorID!="")      
+	{     
+		if (MyHOR2)
+			obj.SetValue(fecha,he,hs,MyHOR[MyHorID].label,MyHOR[MyHorID].color,MyHOR[MyHorID].color,MyHOR[MyHorID].label+" desde "+int2time(he)+" a "+int2time(hs));
+		else
+			obj.SetValue(fecha,he,hs,"Desconocido","000000","000000","Desconocido desde "+int2time(he)+" a "+int2time(hs));
+	}
+	pos+=2;
+}
+                  
+//Dibujo                  
+obj.ReDraw(fecha);
+}
+
+function AddTurnoString(fecha, he, hs, tipo)
+{
+var  MyHORS, MyNewHORS;            
+
+if (he==hs) return;      
+
+MyNewHORS=new Array();
+MyHORS=Ctrl(fecha).GetXValue();
+if (MyHORS=="") MyHORS=(-24*60)+"||"+(1440+24*60);
+MyHORS=MyHORS.split("|");
+
+pos=0;
+                        
+//Pego todos los anteriores a la hora de Inicio		                        
+while ( parseInt(MyHORS[pos],10)&lt;he &amp;&amp; pos&lt;MyHORS.length) 
+{
+	MyNewHORS[MyNewHORS.length]=MyHORS[pos];
+	if (pos+1&lt;MyHORS.length) MyNewHORS[MyNewHORS.length]=MyHORS[pos+1];
+	
+	pos+=2;
+}       
+
+//Pego el Inicio
+MyNewHORS[MyNewHORS.length]=he.toString();
+MyNewHORS[MyNewHORS.length]=tipo;
+
+//Ignoro todos los horarios menores de HS
+while ( parseInt(MyHORS[pos],10)&lt;=hs &amp;&amp; pos&lt;MyHORS.length) 
+	pos+=2;                       
+	
+//Pego el Final
+MyNewHORS[MyNewHORS.length]=hs.toString();
+if (pos&lt;MyHORS.length) MyNewHORS[MyNewHORS.length]=MyHORS[pos-1];
+
+//Pego todos los HORARIOS que sobran		                        
+while (pos&lt;MyHORS.length) 
+{
+	MyNewHORS[MyNewHORS.length]=MyHORS[pos];
+	if (pos+1&lt;MyHORS.length) MyNewHORS[MyNewHORS.length]=MyHORS[pos+1];
+	pos+=2;
+}       
+
+Ctrl(fecha).SetXValue(MyNewHORS.join("|"));
+}
+
+
+function AddTurno(obj, fecha, he, hs)
+{
+//Agregar Turno
+AddTurnoString(fecha, he, hs, MyHORSEL);
+
+//Dibujo el Turno
+if (obj!=null) DrawTurno(obj, fecha);
+}         
+
+
+function CombinarTurno(he, hs, fecid, tipo)
+{
+var MyHORS, MyNewHORS, MyArrHor, pos;
+
+MyNewHORS=new Array();
+MyHORS=Ctrl("RES").GetXValue();
+if (MyHORS=="") MyHORS=(-24*60)+"|,,,,|"+(1440+24*60);
+MyHORS=MyHORS.split("|");
+
+pos=0;
+                        
+//Pego todos los anteriores a la hora de Inicio		                        
+while ( parseInt(MyHORS[pos],10)&lt;he &amp;&amp; pos&lt;MyHORS.length) 
+{
+	MyNewHORS[MyNewHORS.length]=MyHORS[pos];
+	if (pos+1&lt;MyHORS.length) MyNewHORS[MyNewHORS.length]=MyHORS[pos+1];
+	
+	pos+=2;
+}                        
+
+if (parseInt(MyHORS[pos],10)!=he)
+{
+	//Pego el Inicio
+	MyNewHORS[MyNewHORS.length]=he.toString();
+
+	//Modifico la Hora
+	MyArrHor=(pos==0?new Array(5):MyHORS[pos-1].split(","));
+	MyArrHor[fecid]=tipo;
+	MyNewHORS[MyNewHORS.length]=MyArrHor.join(",");
+} 
+
+//Pego todos los que son internos
+while ( parseInt(MyHORS[pos],10)&lt;hs &amp;&amp; pos&lt;MyHORS.length) 
+{
+	MyNewHORS[MyNewHORS.length]=MyHORS[pos];
+	if (pos+1&lt;MyHORS.length) 
+	{
+		//Modifico la Hora
+		MyArrHor=MyHORS[pos+1].split(",");
+		MyArrHor[fecid]=tipo;
+		MyNewHORS[MyNewHORS.length]=MyArrHor.join(",");
+	}
+	
+	pos+=2;
+}
+	
+//Ignoro todos los horarios menores de HS
+while ( parseInt(MyHORS[pos],10)&lt;=hs &amp;&amp; pos&lt;MyHORS.length) 
+	pos+=2;                       
+
+//Pego el Final
+MyNewHORS[MyNewHORS.length]=hs.toString();
+if (pos&lt;MyHORS.length) MyNewHORS[MyNewHORS.length]=MyHORS[pos-1];
+                          
+                          
+//Pego todos los HORARIOS que sobran		                        
+while (pos&lt;MyHORS.length) 
+{
+	MyNewHORS[MyNewHORS.length]=MyHORS[pos];
+	if (pos+1&lt;MyHORS.length) MyNewHORS[MyNewHORS.length]=MyHORS[pos+1];
+	pos+=2;
+}
+
+Ctrl("RES").SetXValue(MyNewHORS.join("|"));
+}
+
+
+function CheckDef(MyCTRL)
+{                 
+var first, last;
+var t, d, id, pos, MyDeff, retval=true;
+var DAY="NRM|DOM|FER|DYF|NOL".split("|");
+ 
+MyDeff=new Array(888);
+for (t=0; t&lt;MyDeff.length; t++) MyDeff[t]=0;
+
+
+last =-1440;
+first= 1440;
+
+//Agrego los Horarios
+Ctrl("RES").SetXValue("");
+for (d=0; d&lt;5; d++)
+{
+	id=Math.pow(2,d);
+	MyHORS=Ctrl(DAY[d]).GetXValue();
+	if (MyHORS=="") MyHORS=(-24*60)+"||"+(1440+24*60);
+	MyNewHORS=MyHORS.split("|");
+	
+ 	pos=1;
+	while (pos&lt;MyNewHORS.length) 
+	{     
+		he=(parseInt(MyNewHORS[pos-1],10)-(-24*60))/5;
+		hs=(parseInt(MyNewHORS[pos+1],10)-(-24*60))/5;
+		MyHorID=MyNewHORS[pos];         
+                                     
+		if (MyHorID!="")
+			for(t=he; t&lt;hs; t++)
+			{
+				MyDeff[t]|=id;
+				if (t&gt;last) last=t;
+				if (t&lt;first) first=t;
+			}
+				
+		CombinarTurno(parseInt(MyNewHORS[pos-1],10),parseInt(MyNewHORS[pos+1],10),d,MyHorID);
+		pos+=2;
+	}
+} 
+if (last-first &gt;= 288)
+{
+	MyCTRL.SetError("La definicion del turno no puede superar las 24hs");
+	return false;
+}
+
+for (d=0; d&lt;5; d++)
+{
+	id=Math.pow(2,d);
+	DrawTurno(MyOBJ, DAY[d]);
+	
+	for (t=0; t&lt;MyDeff.length; t++)
+		if (((MyDeff[t] &amp; id) ==0) &amp;&amp; (MyDeff[t]!=0))
+		{
+			MyOBJ.SetValue(
+				DAY[d],
+				(-24*60)+t*5,
+				(-24*60)+(t+1)*5,
+				"SIN DEFINIR",
+				"C00000",
+				"C00000",
+				"Horario SIN DEFINIR"
+			);
+			
+			retval=false;
+		}
+	
+	MyOBJ.ReDraw(DAY[d]);
+}
+
+if (!retval) MyCTRL.SetError("Existen rangos sin especificar");
+return retval;
+}
+
+function ABMTiposHora()
+{
+openNewFlowWait(
+	"NucleusRH.Base.Tiempos_Trabajados.Tipos_Horas.flow",
+	"initialize",
+	"",
+	new ObjTipoHora(),
+	"L"
+);
+}
+
+function ShowTipoHora()
+{
+if (MyHORSEL=="") return;
+openNewFlowWait(
+	"NucleusRH.Base.Tiempos_Trabajados.Tipos_Horas.flow",
+	"SHOW",
+	"&lt;ROWS&gt;&lt;ROW id=\""+MyHORSEL+"\" /&gt;&lt;/ROWS&gt;",
+	new ObjTipoHora(),
+	"L"
+);
+}
+
+function ObjTipoHora()
+{                 
+this.processResult=function(xmlstring)
+{
+	//Horarios	
+	MyHORSEL="";   
+	MyHOR=ObtenerTiposHoras();
+	DrawReference(MyHOR, "CONT_REFER", MyHORSEL);
+}
+}
+	</form:Scripts>
+	<form:Event action="Initialize" name="OnLoad" runat="client"/>
+	<form:Resources>
+		<form:Resource name="TIPOS_DE_HORAS">
+			<qry:main>
+				<qry:element name="ROWS">
+					<qry:insert-select name="SQL1"/>
+				</qry:element>
+			</qry:main>
+			<qry:select name="SQL1">
+				<qry:xquery>
+					for $r in SQL('
+select 
+t.c_color, 
+t.oi_tipohora, 
+t.d_tipohora 
+from 
+TTA01_TIPOHORAS as t
+where               
+t.l_def_turno=1
+order by d_tipohora asc
+')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:element name="ROW">
+						<qry:attribute name="id" value="$r/@oi_tipohora"/>
+						<qry:attribute name="color" value="$r/@c_color"/>
+						<qry:attribute name="label" value="$r/@d_tipohora"/>
+					</qry:element>
+				</qry:out>
+			</qry:select>
+		</form:Resource>
+		<form:Resource name="DEBUG">
+			<TURNOS_DET nmd-col="1">
+				<TURNODET descr="[0412] 04 a 12 - [240] 240" e_hora_fin="720" e_hora_inicio="240" oi_turno="27" id="46">
+					<oi_tipo_hs_norm value="1000" nmd-agr="1"/>
+					<oi_tipo_hs_dom value="1002" nmd-agr="1"/>
+					<oi_tipo_hs_fer value="1002" nmd-agr="1"/>
+					<oi_tipo_hs_domfer value="1002" nmd-agr="1"/>
+					<oi_tipo_hs_nolab value="1002" nmd-agr="1"/>
+				</TURNODET>
+			</TURNOS_DET>
+		</form:Resource>
+	</form:Resources>
+</form:Form>

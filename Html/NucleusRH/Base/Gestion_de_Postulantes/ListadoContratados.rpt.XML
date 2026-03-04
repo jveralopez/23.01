@@ -1,0 +1,402 @@
+<html:html xmlns:html="nomad_engine.html" xmlns:qry="nomad_engine.qry" xmlns:xsl="http://www.w3.org/1999/XSL/Transform" doc="source" name="NucleusRH.Base.Liquidacion.NovedadesLiquidacion">
+	<html:query declare="&lt;FILTRO f_desde=&quot;20100111&quot; oi_empresa=&quot;9&quot; oi_req=&quot;12&quot; oi_referencia=&quot;12&quot;&gt;&lt;REQS /&gt;&lt;REFERENCIAS /&gt;&lt;/FILTRO&gt;">
+		<qry:main doc="SOURCE">
+			<qry:append-doc name="FILTRO" doc-path="#SOURCE:FILTRO"/>
+			<qry:element name="DATOS">
+				<qry:attribute name="f_informe" value="format_date(now(),'dd/mm/yyyy HH:MM')"/>
+				<qry:attribute name="f_desde" value="format_date(#SOURCE:FILTRO/@f_desde,'dd/mm/yyyy')"/>
+				<qry:attribute name="f_hasta" value="format_date(#SOURCE:FILTRO/@f_hasta,'dd/mm/yyyy')"/>
+				<qry:element name="PERSONAS">
+					<qry:insert-select doc-path="#SOURCE:FILTRO" name="Contratados"/>
+				</qry:element>
+			</qry:element>
+		</qry:main>
+		<qry:select name="Contratados" doc="SOURCE">
+			<qry:xquery>
+				for $r in sql(' 
+				SELECT 
+					SEL13_RECLUTADOS.oi_reclutado,   
+					SEL13_RECLUTADOS.c_reclutado, 
+					SEL13_RECLUTADOS.oi_postulante, 
+					SEL13_RECLUTADOS.oi_personal_emp, 
+					SEL13_RECLUTADOS.f_contratacion,
+					ORG03_EMPRESAS.c_empresa, 
+					ORG03_EMPRESAS.d_empresa, 
+					SEL02_REFERENCIAS.oi_puesto, 
+					SEL02_REFERENCIAS.oi_posicion
+				FROM
+					SEL13_RECLUTADOS, 
+					SEL02_REFERENCIAS, 
+					SEL02_REQ, 
+					ORG03_EMPRESAS
+				JOIN
+				  SEL13_RECLUTADOS.oi_referencia INNER  SEL02_REFERENCIAS.oi_referencia,
+					SEL02_REQ.oi_req INNER SEL02_REFERENCIAS.oi_req,
+					ORG03_EMPRESAS.oi_empresa INNER SEL02_REQ.oi_empresa
+				WHERE
+					SEL13_RECLUTADOS.c_estado = \'C\'
+					{%? (#FILTRO:@oi_empresa!='') {% AND SEL02_REQ.oi_empresa = {%= #FILTRO:@oi_empresa %}  %} {% %} %}
+					{%? (#SOURCE:@oi_req!='') {% AND SEL02_REQ.oi_req = {%= #FILTRO:@oi_req %} %} {%  %} %}
+					{%? (#SOURCE:@oi_referencia!='') {% AND SEL02_REFERENCIAS.oi_referencia = {%= #FILTRO:@oi_referencia %} %} {%  %} %}
+					{%? (#FILTRO:@f_desde!='') {% AND SEL13_RECLUTADOS.f_contratacion &gt;= {DateTime(#FILTRO:@f_desde)}  %} {% %} %}
+					{%? (#FILTRO:@f_hasta!='') {% AND SEL13_RECLUTADOS.f_contratacion &lt;= {DateTime(#FILTRO:@f_hasta)}  %} {% %} %}                                     
+				ORDER BY 
+					{%? (#SOURCE:@ATRIB_ORDEN1!='') {% {%=#SOURCE:@ATRIB_ORDEN1%} {%=#SOURCE:@ORDEN1 %}, %} {% %} %} 
+					oi_reclutado ASC
+			')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:element name="PERSONA">
+					<qry:attribute name="oi_reclutado" value="$r/@oi_reclutado"/>
+					<qry:attribute name="c_reclutado" value="$r/@c_reclutado"/>
+					<qry:attribute name="auxiliar" value="iif($r/@oi_postulante!='',1,0)"/>
+					<qry:attribute name="oi_postulante" value="$r/@oi_postulante"/>
+					<qry:attribute name="oi_personal_emp" value="$r/@oi_personal_emp"/>
+					<qry:attribute name="f_contratacion" value="format_date($r/@f_contratacion,'dd/mm/yyyy')"/>
+					<qry:attribute name="empresa" value="$r/@c_empresa + ' - ' + $r/@d_empresa"/>
+					<qry:insert-select doc-path=".[@auxiliar='1']" name="APELLIDO_Y_NOMBRE_POS"/>
+					<qry:insert-select doc-path=".[@auxiliar='0']" name="APELLIDO_Y_NOMBRE_PER"/>
+					<qry:insert-select doc-path="$r/.[@OI_PUESTO != '']" name="SELECT_PUESTO"/>
+					<qry:insert-select doc-path="$r/.[@oi_Posicion != '']" name="SELECT_POSICION"/>
+				</qry:element>
+			</qry:out>
+		</qry:select>
+		<qry:select name="APELLIDO_Y_NOMBRE_POS" doc="SOURCE">
+			<qry:xquery>
+				for $r in sql('
+					SELECT
+	        	SEL01_POSTULANTE.d_postulante, 
+	        	SEL01_POSTULANTE.oi_foto, 
+	        	PER19_IMAGENES.o_imagen
+	        FROM 
+	        	SEL01_POSTULANTE, 
+	        	PER19_IMAGENES
+	        JOIN
+	        	SEL01_POSTULANTE.oi_foto LEFT OUTER PER19_IMAGENES.oi_imagen_per
+	        WHERE                                 
+	        	SEL01_POSTULANTE.oi_postulante = {%= #SOURCE:@oi_postulante %}
+	        ')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:attribute name="d_ape_y_nom" value="$r/@d_postulante"/>
+				<qry:attribute name="ORIGEN" value="'POSTULANTE'"/>
+				<qry:attribute name="oi_imagen_per" value="iif($r/@oi_foto!='','./NomadFile.aspx?mode=DB&amp;class=NucleusRH.Base.Personal.Imagenes.HEAD&amp;height=100&amp;id='+$r/@oi_foto,'no')"/>
+			</qry:out>
+		</qry:select>
+		<qry:select name="APELLIDO_Y_NOMBRE_PER" doc="SOURCE">
+			<qry:xquery>
+				for $r in sql('
+					SELECT
+	        	PER01_PERSONAL.d_ape_y_nom,
+	        	PER01_PERSONAL.oi_foto,
+	        	PER19_IMAGENES.o_imagen 
+	        FROM 
+	        	PER01_PERSONAL, 
+	        	PER02_PERSONAL_EMP,
+	        	PER19_IMAGENES
+	        JOIN
+	        	PER01_PERSONAL.oi_personal INNER PER02_PERSONAL_EMP.oi_personal,
+	        	PER01_PERSONAL.oi_foto LEFT OUTER PER19_IMAGENES.oi_imagen_per
+	        WHERE
+	        	PER02_PERSONAL_EMP.oi_personal_emp = {%= #SOURCE:@oi_personal_emp%}
+	       ')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:attribute name="d_ape_y_nom" value="$r/@d_ape_y_nom"/>
+				<qry:attribute name="ORIGEN" value="'INTERNO'"/>
+				<qry:attribute name="oi_imagen_per" value="iif($r/@oi_foto!='','./NomadFile.aspx?mode=DB&amp;class=NucleusRH.Base.Personal.Imagenes.HEAD&amp;height=100&amp;id='+$r/@oi_foto,'no')"/>
+			</qry:out>
+		</qry:select>
+		<qry:select name="SELECT_PUESTO" doc="SOURCE">
+			<qry:xquery>
+				for $r in sql('
+					select 
+						ORG04_PUESTOS.c_puesto,
+						ORG04_PUESTOS.d_puesto
+					FROM 
+						ORG04_PUESTOS
+					WHERE 
+						ORG04_PUESTOS.oi_puesto = {%= #SOURCE:@oi_puesto %} 
+				')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:attribute name="c_puesto" value="$r/@c_puesto"/>
+				<qry:attribute name="d_puesto" value="$r/@d_puesto"/>
+			</qry:out>
+		</qry:select>
+		<qry:select name="SELECT_POSICION" doc="SOURCE">
+			<qry:xquery>
+				for $r in sql('
+					SELECT
+						ORG04_POSICIONES.c_posicion,
+						ORG04_POSICIONES.d_posicion
+					FROM 
+						ORG04_POSICIONES
+					WHERE 
+						ORG04_POSICIONES.oi_posicion = {%= #SOURCE:@oi_posicion %} 
+				')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:attribute name="c_posicion" value="$r/@c_posicion"/>
+				<qry:attribute name="d_posicion" value="$r/@d_posicion"/>
+			</qry:out>
+		</qry:select>
+	</html:query>
+	<html:xslt>
+		<xsl:template match="/DATOS">
+			<html>
+				<head>
+					<meta http-equiv="Content-Type" content="text/html; charset=utf-8"/>
+					<style media="screen">
+						body {
+          font-family:verdana;
+          font-weight:normal;
+          background-color:#B0B0B0;
+          font-size:11px;
+          width:100%;
+          margin:30px;}
+
+          .title {
+          font-size:15px;
+          font-weight:bold;}
+
+          .table_table_style {
+          border: none;
+          border-collapse: collapse;
+          background-color:#FFFFFF;
+          font-size: 11px;
+          font-family: verdana;
+          width:100%;}
+
+          .table_title_style {
+          border:none;
+          font-family:verdana;
+          background-color:#FFFFFF;
+          font-size:12px;
+          font-weight:normal;
+          width:100%;}
+
+          .group_td {
+          padding-left:30px; }
+
+          .coll_img {
+          padding:0px; margin:0px;
+          font-weight:bold;
+          text-align:center;
+          cursor:pointer;
+          border:1px solid black;
+          font-size:8px;
+          width:12px;
+          height:12px;}
+
+          .table_span_style {
+          font-weight:bold;
+
+          }
+
+          tfoot {
+          font-weight:bold;
+          }
+
+          .stitle {
+          width:100%;
+          background-color:#FFFFFF;
+          }
+          
+          .divmarco {
+          border:solid 1px #555555;
+          border-top:solid 2px #555555;
+          border-right:solid 8px #555555;
+          background-color:white;
+          margin:0px; 
+          padding:20px;
+          width:100%;
+          height:100%}
+ 
+          .scontent {
+          width:100%;
+          aheight:100%;
+          background-color:#FFFFFF; }
+					</style>
+					<style media="print">
+						body {
+					font-family:verdana;
+					font-weight:normal; 
+					background-color:white; 
+					font-size:8pt;
+					width:20cm;}
+					
+					.titulo {
+					font-size:11pt;
+					font-weight:bold;}
+					
+					.table_table_style {
+					border: none; 
+					border-collapse: collapse; 
+					font-size: 8pt; 
+					font-family: verdana;
+					width:100%;}
+					
+					.table_title_style {
+					border:none; 
+					font-family:verdana;
+					font-size:9pt;
+					font-weight:normal;
+					width:100%;}
+					
+					.table_span_style {
+					font-weight:bold;
+					}
+					
+					.group_td {
+					padding-left:30px; }
+					
+					.coll_img {
+					display:none;}
+					
+					.stitle {
+					background-color:#FFFFFF; 
+					border:none;}
+					
+					.scontent {
+					background-color:#FFFFFF; 
+					border:none;}
+					</style>
+					<style media="all">
+						.table_table_style td {
+					border: solid 1px black; 
+					padding-left: 3px; 
+					padding-right: 3px;
+					text-align: left;}
+					
+					.table_table_style td#num{
+					mso-number-format:0.00;
+					text-align:right;}
+					
+					.table_table_style th {
+					border:solid 1px black;
+					background-color:#BBBBBB; 
+					border-bottom:solid 2px black;
+					padding-left: 3px; 
+					padding-right: 3px;
+					text-align: center;}
+					
+					.table_title_style span#label {
+					font-weight: bold; }
+					</style>
+				</head>
+				<body bgcolor="#F6F6F1">
+					<div class="divmarco">
+						<table width="100%" class="stitle" border="0" style="">
+							<tr>
+								<th style="text-align:left;"/>
+								<th style="text-align:right; font-size:10pt; font-weight:normal;">
+									<span style="font-weight:bold;">
+										Fecha de Emisi&#243;n:&#160;
+									</span>
+									<xsl:value-of select="@f_informe"/>
+								</th>
+							</tr>
+							<tr>
+								<th colspan="2">
+									Listado de Contratados
+								</th>
+							</tr>
+						</table>
+						<xsl:if test="@f_desde!=''">
+							<table class="table_title_style" border="0">
+								<thead style="display: table-header-group;">
+									<tr>
+										<td nowrap="1" style="">
+											<span id="label">
+												Fecha Desde:&#160;
+											</span>
+											<xsl:value-of select="@f_desde"/>
+										</td>
+									</tr>
+									<tr>
+										<td nowrap="1" style="">
+											<span id="label">
+												Fecha Hasta:&#160;
+											</span>
+											<xsl:value-of select="@f_hasta"/>
+										</td>
+									</tr>
+								</thead>
+							</table>
+						</xsl:if>
+						<table class="table_title_style" border="0">
+							<xsl:apply-templates select="PERSONAS"/>
+						</table>
+					</div>
+				</body>
+			</html>
+		</xsl:template>
+		<xsl:template match="PERSONAS">
+			<xsl:for-each select="PERSONA">
+				<tr>
+					<td align="center" style="border:solid 1px black;">
+						<img height="100px">
+							<xsl:choose>
+								<xsl:when test="@oi_imagen_per = 'no'">
+									<xsl:attribute name="src">
+										<xsl:value-of select="'Images/Reports/defaultimg.JPG'"/>
+									</xsl:attribute>
+								</xsl:when>
+								<xsl:otherwise>
+									<xsl:attribute name="src">
+										<xsl:value-of select="@oi_imagen_per"/>
+									</xsl:attribute>
+								</xsl:otherwise>
+							</xsl:choose>
+						</img>
+					</td>
+					<td width="100%" style="border:solid 1px black;">
+						<b>
+							Codigo:&#160;
+						</b>
+						<xsl:value-of select="@c_reclutado"/>
+						<br/>
+						<b>
+							Apellido y Nombre:&#160;
+						</b>
+						<xsl:value-of select="@d_ape_y_nom"/>
+						<br/>
+						<b>
+							Empresa:&#160;
+						</b>
+						<xsl:value-of select="@empresa"/>
+						<br/>
+						<b>
+							Fecha de Contrataci&#243;n:&#160;
+						</b>
+						<xsl:value-of select="@f_contratacion"/>
+						<br/>
+						<xsl:if test="@c_puesto">
+							<b>
+								Puesto:&#160;
+							</b>
+							<xsl:value-of select="@c_puesto"/>
+							<xsl:text>
+								-
+							</xsl:text>
+							<xsl:value-of select="@d_puesto"/>
+							<br/>
+						</xsl:if>
+						<xsl:if test="@c_posicion">
+							<b>
+								Puesto:&#160;
+							</b>
+							<xsl:value-of select="@c_posicion"/>
+							<xsl:text>
+								-
+							</xsl:text>
+							<xsl:value-of select="@d_posicion"/>
+							<br/>
+						</xsl:if>
+					</td>
+				</tr>
+			</xsl:for-each>
+		</xsl:template>
+	</html:xslt>
+</html:html>

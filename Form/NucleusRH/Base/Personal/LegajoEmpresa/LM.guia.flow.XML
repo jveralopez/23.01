@@ -1,0 +1,125 @@
+<flow:flow xmlns:doc="nomad_engine.form" xmlns:qry="nomad_engine.form" xmlns:flow="nomad_engine.form" name="NucleusRH.Base.Personal.LegajoEmpresa.guia">
+	<flow:main doc="SOURCE">
+		<flow:action name="HELP">
+			<doc:load-qry output-doc="RS" input-doc-path="#SOURCE:" qry="HELP"/>
+			<flow:open-form parent-doc-path="#SOURCE:" doc-path="#RS:" mode="SHOW" form-class="NucleusRH.Base.Personal.LegajoEmpresa.LM.guia.form"/>
+		</flow:action>
+	</flow:main>
+	<flow:declare>
+		<doc:define name="RS"/>
+		<doc:define name="OUT"/>
+		<qry:define name="HELP">
+			<qry:main doc="SOURCE">
+				<qry:element name="ROWS">
+					<qry:insert-select name="RS1" doc-path="#SOURCE:"/>
+					<qry:insert-select name="RS2" doc-path="#SOURCE:"/>
+				</qry:element>
+			</qry:main>
+			<qry:select doc="SOURCE" name="RS1">
+				<qry:xquery>
+					for $r in sql('
+		      SELECT PER02_PERSONAL_EMP.oi_personal_emp, PER02_PERSONAL_EMP.e_numero_legajo, 
+		      PER01_PERSONAL.d_ape_y_nom
+		      FROM PER01_PERSONAL, PER02_PERSONAL_EMP
+		      JOIN PER01_PERSONAL.oi_personal INNER PER02_PERSONAL_EMP.oi_personal
+		      WHERE  
+		      {%? (string(#SOURCE:helper-mess/ROWS/ROW/@oi_personal_emp)!='') 
+			        {%  PER02_PERSONAL_EMP.oi_personal_emp in ({%=string(#SOURCE:helper-mess/ROWS/ROW/@oi_personal_emp) %}) %} 
+			        {% 1 = 2 %} 
+		      %}        
+       ')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:element name="ROW">
+						<qry:attribute type="Nomad.NSystem.Int" value="$r/@oi_personal_emp" name="id"/>
+						<qry:attribute type="Nomad.NSystem.Int" value="$r/@oi_personal_emp" name="value"/>
+						<qry:attribute type="Nomad.NSystem.String" value="$r/@e_numero_legajo" name="code"/>
+						<qry:attribute type="Nomad.NSystem.String" value="$r/@d_ape_y_nom" name="text"/>
+						<qry:attribute type="Nomad.NSystem.Boolean" value="1" name="check"/>
+						<qry:insert-select doc-path="." name="SECURITY_RS1"/>
+					</qry:element>
+				</qry:out>
+			</qry:select>
+			<qry:select doc="PARAM" name="SECURITY_RS1">
+				<qry:xquery>
+					for $r in sql('
+				SELECT NMD_SECURITY.policy 
+				FROM NMD_SECURITY 
+				WHERE NMD_SECURITY.class=\'NucleusRH.Base.Personal.LegajoEmpresa.PERSONAL_EMP\' 
+				AND NMD_SECURITY.id={#PARAM:@id}
+			')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:attribute value="$r/@policy" name="policy"/>
+				</qry:out>
+			</qry:select>
+			<qry:select doc="SOURCE" name="RS2">
+				<qry:xquery>
+					for $r in sql('
+					SELECT PER02_PERSONAL_EMP.oi_personal_emp, PER02_PERSONAL_EMP.e_numero_legajo, 
+					PER01_PERSONAL.d_ape_y_nom 
+					FROM PER01_PERSONAL, PER02_PERSONAL_EMP
+					JOIN PER01_PERSONAL.oi_personal INNER PER02_PERSONAL_EMP.oi_personal
+					WHERE  
+	        {%? (string(#SOURCE:helper-mess/ROWS/ROW/@oi_personal_emp)!='') 
+	        		{%  PER02_PERSONAL_EMPoi_personal_emp not in ({%=string(#SOURCE:helper-mess/ROWS/ROW/@oi_personal_emp) %}) %} 
+	        		{% 1 = 1 %}
+	        %}         
+       ')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:element name="ROW">
+						<qry:attribute type="Nomad.NSystem.Int" value="$r/@oi_personal_emp" name="id"/>
+						<qry:attribute type="Nomad.NSystem.Int" value="$r/@oi_personal_emp" name="value"/>
+						<qry:attribute type="Nomad.NSystem.String" value="$r/@e_numero_legajo" name="code"/>
+						<qry:attribute type="Nomad.NSystem.String" value="$r/@d_ape_y_nom" name="text"/>
+						<qry:attribute type="Nomad.NSystem.Boolean" value="0" name="check"/>
+						<qry:insert-select doc-path="." name="SECURITY_RS2"/>
+					</qry:element>
+				</qry:out>
+			</qry:select>
+			<qry:select doc="PARAM" name="SECURITY_RS2">
+				<qry:xquery>
+					for $r in sql('
+				SELECT NMD_SECURITY.policy 
+				FROM NMD_SECURITY 
+				WHERE NMD_SECURITY.class=\'NucleusRH.Base.Personal.LegajoEmpresa.PERSONAL_EMP\' 
+				AND NMD_SECURITY.id={#PARAM:@id}
+			')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:attribute value="$r/@policy" name="policy"/>
+				</qry:out>
+			</qry:select>
+		</qry:define>
+		<qry:define name="PRUEBA">
+			<qry:main doc="SOURCE">
+				<qry:element name="helper-mess">
+					<qry:element name="rows">
+						<qry:insert-select name="RS1" doc-path="#SOURCE:"/>
+					</qry:element>
+				</qry:element>
+			</qry:main>
+			<qry:select doc="SOURCE" name="RS1">
+				<qry:xquery>
+					for $r in #SOURCE:ROWS/ROW[@check=1]
+				</qry:xquery>
+				<qry:out>
+					<qry:element name="row">
+						<qry:attribute type="Nomad.NSystem.Int" value="$r/@id" name="oi_personal_emp"/>
+					</qry:element>
+				</qry:out>
+			</qry:select>
+		</qry:define>
+	</flow:declare>
+	<flow:form name="NucleusRH.Base.Personal.LegajoEmpresa.LM.guia.form:SHOW" parent-doc="INVAL" doc="SOURCE" mode="SHOW" form-class="NucleusRH.Base.Personal.LegajoEmpresa.LM.guia.form">
+		<flow:action name="on-show"/>
+		<flow:action name="ACCEPT">
+			<doc:load-qry output-doc="OUT" input-doc-path="#SOURCE:" qry="PRUEBA"/>
+			<flow:exit-flow return-path="#OUT:"/>
+		</flow:action>
+		<flow:action name="CANCEL">
+			<flow:close-form/>
+		</flow:action>
+	</flow:form>
+</flow:flow>

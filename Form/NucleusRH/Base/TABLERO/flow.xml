@@ -1,0 +1,95 @@
+<flow:flow default_action="initialize" extends="Nomad.Base.flow" xmlns:doc="nomad_engine.doc" xmlns:qry="nomad_engine.qry" xmlns:flow="nomad_engine.flow" name="NucleusRH.Base.Tablero">
+	<flow:info label="Flow para NucleusRH.Base.Tiempos_Trabajados.Tipos_Horas"/>
+	<flow:declare>
+		<qry:define name="FILTER">
+			<qry:main>
+				<qry:element name="ROWS">
+					<qry:insert-select name="sql1"/>
+				</qry:element>
+			</qry:main>
+			<qry:select doc="PARAM" name="sql1">
+				<qry:xquery>
+					for $r in table('SELECT TTA01_TIPOHORAS.oi_tipohora oi_tipohora FROM TTA01_TIPOHORAS ORDER BY TTA01_TIPOHORAS.oi_tipohora ASC')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:element name="ROW">
+						<qry:attribute name="id" value="$r/@oi_tipohora" type="Nomad.NSystem.Int"/>
+						<qry:insert-select doc-path="." name="SECURITY"/>
+					</qry:element>
+				</qry:out>
+			</qry:select>
+			<qry:select doc="PARAM" name="SECURITY">
+				<qry:xquery>
+					for $r in table('select policy from NMD_SECURITY where class=\'NucleusRH.Base.Tiempos_Trabajados.Tipos_Horas.TIPOHORA\' and id={#PARAM:@id}')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:attribute value="$r/@policy" name="policy"/>
+				</qry:out>
+			</qry:select>
+		</qry:define>
+		<qry:define name="qryXmlReport">
+			<qry:main doc="SOURCE">
+				<qry:element name="datos">
+					<qry:element name="ROWS">
+						<qry:insert-select name="sql-row" doc-path="#SOURCE:ROWS/ROW"/>
+					</qry:element>
+					<qry:attribute value="''" name="report"/>
+					<qry:attribute value="#SOURCE:@Row_Cubo" name="Row_Cubo"/>
+				</qry:element>
+			</qry:main>
+			<qry:select doc="ROW" name="sql-row">
+				<qry:out>
+					<qry:element name="ROW">
+						<qry:attribute name="Posicion" value="#ROW:@Posicion"/>
+						<qry:attribute name="NombreDia" value="#ROW:@NombreDia"/>
+						<qry:attribute name="Dia" value="format_date(#ROW:@Dia,'dd/mm/yyyy')"/>
+						<qry:attribute name="Hora_Entrada" value="#ROW:@Hora_Entrada"/>
+						<qry:attribute name="Hora_Salida" value="#ROW:@Hora_Salida"/>
+						<qry:attribute name="Hora" value="#ROW:@Hora"/>
+						<qry:attribute name="Escuadra" value="#ROW:@Escuadra"/>
+						<qry:attribute name="UnidadOrg" value="#ROW:@UnidadOrg"/>
+						<qry:attribute value="#ROW:@Row_Cubo" name="Row_Cubo"/>
+					</qry:element>
+				</qry:out>
+			</qry:select>
+		</qry:define>
+		<doc:define name="DocReport"/>
+		<doc:define name="DocRowCubo"/>
+	</flow:declare>
+	<flow:main doc="SOURCE">
+		<flow:action name="initialize">
+			<flow:open-form form-class="NucleusRH.Base.Tablero.filter.form" doc-path="#SOURCE:" mode="FILTER"/>
+		</flow:action>
+		<flow:action name="ini_Puestos">
+			<doc:set-attribute to-attr-path="#DocRowCubo:@Row_Cubo" from-value="Puestos"/>
+			<flow:open-form form-class="NucleusRH.Base.Tablero.filter.form" doc-path="#SOURCE:" mode="FILTER"/>
+		</flow:action>
+		<flow:action name="ini_Sindicatos">
+			<doc:set-attribute from-value="Sindicatos" to-attr-path="#DocRowCubo:@Row_Cubo"/>
+			<flow:open-form form-class="NucleusRH.Base.Tablero.filter.form" doc-path="#SOURCE:" mode="FILTER"/>
+		</flow:action>
+		<flow:action name="ini_EstadosCivil">
+			<doc:set-attribute from-value="Estados Civil" to-attr-path="#DocRowCubo:@Row_Cubo"/>
+			<flow:open-form form-class="NucleusRH.Base.Tablero.filter.form" doc-path="#SOURCE:" mode="FILTER"/>
+		</flow:action>
+	</flow:main>
+	<flow:form form-class="NucleusRH.Base.Tablero.filter.form" name="NucleusRH.Base.Tablero.filter.form:FILTER" parent-doc="PARENTSOURCE" doc="SOURCE" mode="FILTER">
+		<flow:action name="on-show">
+			<doc:load-qry qry="qryXmlReport" input-doc-path="#SOURCE:" output-doc="DocReport"/>
+			<flow:log text-path="#DocReport:" text="losTablero"/>
+			<doc:set-attribute from-attr-path="#DocRowCubo:@Row_Cubo" to-attr-path="#DocReport:@Row_Cubo"/>
+			<flow:log text-path="#DocReport:" text="losTablero2"/>
+			<flow:html-gen out-file-path="#DocReport:@report" input-doc-path="#DocReport:" template-file="NucleusRH.Base.Tablero.PantallaRPT.rpt"/>
+			<flow:open-form doc-path="#DocReport:" mode="SHOW" form-class="NucleusRH.Base.Tablero.PantallaRPT.form"/>
+		</flow:action>
+		<flow:action name="After-Back">
+			<flow:exit-flow return-path="#SOURCE:"/>
+		</flow:action>
+	</flow:form>
+	<flow:form doc="SOURCE" mode="SHOW" parent-doc="PARENTSOURCE" form-class="NucleusRH.Base.Tablero.PantallaRPT.form" name="NucleusRH.Base.Tablero.PantallaRPT.form:SHOW">
+		<flow:action name="BACK">
+			<flow:log text="sale_log"/>
+			<flow:exit-flow return-path="#SOURCE:"/>
+		</flow:action>
+	</flow:form>
+</flow:flow>

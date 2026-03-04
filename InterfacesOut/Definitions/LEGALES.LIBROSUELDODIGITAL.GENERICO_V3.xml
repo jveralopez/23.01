@@ -1,0 +1,319 @@
+<INTERFACE-DEF xmlns:qry="nomad_engine.qry" desc="" entermode="DOS" finalenter="0">
+	<QUERY declare="&#13;&#10;&lt;DATA oi_empresa=&quot;1&quot; e_periodo=&quot;202002&quot; interface=&quot;LSDIG&quot; oi_liquidacion=&quot;2102&quot; nroLiquidacion=&quot;1&quot;&gt;&lt;LIQS/&gt;&lt;/DATA&gt;&#13;&#10;">
+		<qry:main doc="SOURCE">
+			<qry:append-doc name="PARAMIN" doc-path="#SOURCE:DATA"/>
+			<qry:element name="XXX">
+				<qry:element name="HEAD">
+					<qry:attribute name="cant_reg" value="'000000'"/>
+					<qry:insert-select name="qry_head"/>
+				</qry:element>
+				<qry:element name="DETAILS">
+					<qry:append-doc name="DETAILS" doc-path="."/>
+					<qry:insert-select name="qry_liquidaciones_genera"/>
+					<qry:insert-select name="qryPersonas" doc-path="."/>
+					<qry:insert-select name="qryPersonasInterface"/>
+					<qry:attribute name="cant" value="fill-left(count(./DETAIL3[@hts:delete != 1]),'0',6)"/>
+					<qry:insert-select name="pegar_cantidad" doc-path="#DETAILS:" to-element="../HEAD"/>
+				</qry:element>
+			</qry:element>
+		</qry:main>
+		<qry:select name="qry_head">
+			<qry:xquery>
+				for $r in SQL('
+			select ORG03_EMPRESAS.c_cuit,
+			LIQ19_LIQUIDACION.e_periodo 
+			FROM
+			ORG03_EMPRESAS,
+			LIQ19_LIQUIDACION
+			JOIN 
+			ORG03_EMPRESAS.oi_empresa INNER LIQ19_LIQUIDACION.oi_empresa 
+			where LIQ19_LIQUIDACION.oi_empresa = {#PARAMIN:@oi_empresa}                   
+			and LIQ19_LIQUIDACION.oi_liquidacion = {#PARAMIN:@oi_liquidacion}
+			')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:attribute name="c_cuit" value="translate($r/@c_cuit,'-','')"/>
+				<qry:attribute name="e_periodo" value="$r/@e_periodo"/>
+				<qry:attribute name="nro_liquidacion" value="fill-left(#PARAMIN:@nroLiquidacion,'0',5)"/>
+			</qry:out>
+		</qry:select>
+		<qry:select name="qry_liquidaciones_genera">
+			<qry:xquery>
+				for $r in SQL('
+			SELECT LIQ19_LIQUIDACION.oi_liq_genera
+			from
+			LIQ19_LIQUIDACION
+			WHERE 
+			LIQ19_LIQUIDACION.oi_liquidacion = {#PARAMIN:@oi_liquidacion} 
+			')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:attribute name="oi_liq_genera" value="$r/@oi_liq_genera"/>
+			</qry:out>
+		</qry:select>
+		<qry:select name="qryPersonas" doc="SOURCE">
+			<qry:xquery>
+				for $r in SQL(' 
+				SELECT 
+					LIQ97_PERSONAL_EMP.c_personal AS c_personal,
+					LIQ97_PERSONAL_EMP.c_nro_cuil AS c_nro_cuil,
+					LIQ97_PERSONAL_EMP.d_ape_y_nom AS d_ape_y_nom, 
+					LIQ97_PERSONAL_EMP.e_numero_legajo AS e_numero_legajo,  
+					LIQ97_PERSONAL_EMP.c_cbu AS c_cbu,   
+					LIQ99_LIQUIDACION.f_pago,
+					LIQ20_TOT_LIQ_PER.oi_tot_liq_per,
+					PER01_PERSONAL.d_apellido,
+					PER01_PERSONAL.d_nombres,
+					LIQ97_PERSONAL_EMP.c_forma_pago,
+					LIQ17_ZONAS_SIJP.c_zona_sijp
+				FROM 
+					LIQ99_LIQUIDACION, 
+					LIQ97_PERSONAL_EMP,
+					LIQ99_RECIBOS,
+					LIQ20_TOT_LIQ_PER,
+					PER01_PERSONAL,
+					LIQ19_LIQUIDACION,
+					ORG03_EMPRESAS,
+					ORG03_UBICACIONES,
+					LIQ15_UBICACIONES,
+					LIQ17_ZONAS_SIJP
+				JOIN           
+				 	LIQ97_PERSONAL_EMP.c_personal INNER PER01_PERSONAL.c_personal,
+					LIQ97_PERSONAL_EMP.oi_per_emp_ddo INNER LIQ20_TOT_LIQ_PER.oi_per_emp_ddo,
+					LIQ99_LIQUIDACION.oi_liquidacion_ddo INNER LIQ99_RECIBOS.oi_liquidacion_ddo,
+					LIQ99_RECIBOS.oi_tot_liq_per INNER LIQ20_TOT_LIQ_PER.oi_tot_liq_per,
+					LIQ99_LIQUIDACION.c_liquidacion INNER LIQ19_LIQUIDACION.c_liquidacion,
+					LIQ99_LIQUIDACION.c_empresa INNER ORG03_EMPRESAS.c_empresa,
+						ORG03_UBICACIONES.c_ubicacion INNER LIQ97_PERSONAL_EMP.c_ubicacion,
+					LIQ15_UBICACIONES.oi_ubicacion INNER  ORG03_UBICACIONES.oi_ubicacion,
+					LIQ17_ZONAS_SIJP.oi_zona_sijp INNER LIQ15_UBICACIONES.oi_zona_sijp,
+					ORG03_EMPRESAS.oi_empresa INNER LIQ15_UBICACIONES.oi_empresa
+		
+				WHERE 
+					LIQ99_LIQUIDACION.c_estado = \'F\'
+					AND LIQ19_LIQUIDACION.oi_liquidacion = { #SOURCE:@oi_liq_genera}
+					AND ORG03_EMPRESAS.oi_empresa = {#PARAMIN:@oi_empresa}
+				ORDER BY 
+					c_personal ASC, 
+					oi_tot_liq_per ASC																		
+			')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:element name="DETAIL">
+					<qry:attribute name="c_zona_sijp" value="$r/@c_zona_sijp"/>
+					<qry:attribute name="tipo2" value="'02'"/>
+					<qry:attribute name="c_nro_cuil" value="translate($r/@c_nro_cuil,'-','')"/>
+					<qry:attribute name="c_nro_original" value="$r/@c_nro_cuil"/>
+					<qry:attribute name="cuil" value="$r/@c_nro_cuil"/>
+					<qry:attribute name="e_numero_legajo" value="FILL-LEFT($r/@e_numero_legajo,'0',10)"/>
+					<qry:attribute name="d_revista" value="FILL-LEFT(' ',' ',50)"/>
+					<qry:attribute name="f_rubrica" value="FILL-LEFT(' ',' ',8)"/>
+					<qry:attribute name="c_cbu" value="iif(($r/@c_forma_pago = '1' or $r/@c_forma_pago = '2' or $r/@c_forma_pago = '3'),fill-left(normalize-space($r/@c_cbu),' ',22),fill-left(normalize-space($r/@c_cbu),'0',22)) "/>
+					<qry:attribute name="f_pago" value="$r/@f_pago"/>
+					<qry:attribute name="c_forma_pago" value="iif($r/@c_forma_pago = '2','1',iif($r/@c_forma_pago = '3','2','3'))"/>
+					<qry:attribute name="oi_tot_liq_per" value="$r/@oi_tot_liq_per"/>
+					<qry:element name="DET">
+						<qry:insert-select name="QRY_DETALLE" doc-path="$r"/>
+						<qry:attribute name="hts:delete" value="1"/>
+					</qry:element>
+					<qry:if test="count(./DET/DETAIL2) = 0">
+						<qry:then>
+							<qry:attribute name="hts:delete" value="1"/>
+						</qry:then>
+					</qry:if>
+				</qry:element>
+				<qry:insert-element doc-path="./DETAIL[@c_nro_original = $r/@c_nro_cuil]/DET/DETAIL2"/>
+				<qry:attribute name="c_nro_cuil" value="translate($r/@c_nro_cuil,'-','')"/>
+			</qry:out>
+		</qry:select>
+		<qry:select doc="PARAM" name="QRY_DETALLE">
+			<qry:xquery>
+				for $r in sql('
+SELECT 
+CLP.oi_conc_liq_per,
+CON.c_concepto, 
+CON.d_concepto, 
+CON.e_secuencia,	
+CLP.n_valor AS valor,
+CLP.n_cantidad AS cantidad,
+CON.c_tipo_concepto, 
+T.e_orden,
+E.c_equivalencia,
+E.l_informa
+FROM 
+LIQ20_TOT_LIQ_PER AS TLP, 
+liq20_conc_liq_per AS CLP, 
+liq96_conceptos AS CON, 
+LIQ14_CONCEPTOS AS C, 
+LIQ12_TIPOS_CONC AS T,
+liq14_equivalencia as E
+JOIN
+TLP.oi_tot_liq_per INNER CLP.oi_tot_liq_per,
+CON.oi_concepto_ddo INNER CLP.oi_concepto_ddo,
+C.c_concepto INNER CON.c_concepto,
+C.oi_tipo_concepto INNER T.oi_tipo_concepto,
+C.oi_concepto LEFT OUTER E.oi_concepto 
+WHERE
+TLP.oi_tot_liq_per = {#PARAM:@oi_tot_liq_per}	 AND 
+T.l_nolistado = 0  and
+CLP.n_valor != 0 and 
+CON.ca_fig_recibo != \'N\' 
+ORDER BY
+	e_orden ASC, 
+	c_concepto ASC')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:element name="DETAIL2">
+					<qry:attribute name="c_nro_cuil" value="translate(../../@c_nro_cuil,'-','')"/>
+					<qry:attribute name="tipo3" value="'03'"/>
+					<qry:if test="$r/@c_equivalencia !='' and $r/@l_informa!='1' ">
+						<qry:then>
+							<qry:attribute name="c_concepto" value="fill-left($r/@c_equivalencia,'0',10)"/>
+						</qry:then>
+						<qry:else>
+							<qry:attribute name="c_concepto" value="fill-left($r/@c_concepto,'0',10)"/>
+						</qry:else>
+					</qry:if>
+					<qry:attribute value="iif(string-length(substring-before(abs($r/@cantidad),'.')) &lt;=3,fill-left(FORMAT_NUMBER(abs($r/@cantidad), 3, 2, '', '', '0'),0,5),'00000')" name="cantidad"/>
+					<qry:attribute value="fill-left(FORMAT_NUMBER(ABS($r/@valor), 13, 2, '', '', '0'),'0',15)" name="importe"/>
+					<qry:attribute name="deb_cred" value="iif(substring($r/@valor,0,1) = '-','D','C')"/>
+					<qry:attribute name="e_periodo_ajuste" value="fill-left(' ',' ',6)"/>
+				</qry:element>
+			</qry:out>
+		</qry:select>
+		<qry:select name="qryPersonasInterface">
+			<qry:xquery>
+				for $r in SQL(' 
+ 		
+ select
+  max(LIQ20_TOT_LIQ_PER.oi_tot_liq_per) oi_tot_liq_per,
+  LIQ97_PERSONAL_EMP.c_nro_cuil as  c_nro_cuil
+   from
+  liq19_ejecuciones,
+  LIQ99_RECIBOS,
+  LIQ20_TOT_LIQ_PER,
+  LIQ97_PERSONAL_EMP
+  JOIN
+
+    LIQ99_RECIBOS.oi_liquidacion_ddo inner liq19_ejecuciones.oi_liquidacion_ddo,
+    LIQ20_TOT_LIQ_PER.oi_tot_liq_per inner LIQ99_RECIBOS.oi_tot_liq_per,
+   LIQ97_PERSONAL_EMP.oi_per_emp_ddo inner LIQ20_TOT_LIQ_PER.oi_per_emp_ddo
+  where liq19_ejecuciones.oi_liquidacion = {#PARAMIN:@oi_liquidacion}	
+  GROUP BY LIQ97_PERSONAL_EMP.c_nro_cuil
+ 																	
+			')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:element name="DETAIL3">
+					<qry:append-doc name="DETAIL3" doc-path="."/>
+					<qry:attribute name="tipo4" value="'04'"/>
+					<qry:attribute name="c_nro_cuil" value="NMD_REPLACE($r/@c_nro_cuil, '-', '')"/>
+					<qry:attribute name="c_zona_sijp" value="../DETAIL[@c_nro_original = $r/@c_nro_cuil]/@c_zona_sijp"/>
+					<qry:insert-select name="qryDetailSicoss" doc-path="$r"/>
+					<qry:insert-select name="qryFinal" doc-path="."/>
+					<qry:if test="count(../DETAIL[@c_nro_original = $r/@c_nro_cuil and @hts:delete = 1])!=0">
+						<qry:then>
+							<qry:attribute name="hts:delete" value="1"/>
+						</qry:then>
+					</qry:if>
+				</qry:element>
+				<!--<qry:insert-select name="pegar_cantidad" doc-path="$r" to-element="../HEAD"/>-->
+				<qry:insert-select name="pegar_tope" doc-path="#DETAIL3:" to-element="./DETAIL[@cuil = $r/@c_nro_cuil]"/>
+			</qry:out>
+		</qry:select>
+		<qry:select name="qryDetailSicoss" doc="SOURCE">
+			<qry:xquery>
+				for $r in SQL('
+			SELECT 
+				LIQ96_CONCEPTOS.c_concepto, 
+				LIQ20_CONC_LIQ_PER.n_valor
+			FROM 
+				LIQ20_CONC_LIQ_PER, 
+				LIQ96_CONCEPTOS
+			JOIN
+				LIQ20_CONC_LIQ_PER.oi_concepto_ddo INNER LIQ96_CONCEPTOS.oi_concepto_ddo
+			WHERE
+				LIQ20_CONC_LIQ_PER.oi_tot_liq_per = {#SOURCE:@oi_tot_liq_per}
+		')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:attribute name-calc="'C_'+$r/@c_concepto" value="$r/@n_valor"/>
+			</qry:out>
+		</qry:select>
+		<qry:select name="qryFinal" doc="SOURCE">
+			<qry:out>
+				<qry:attribute name="Conyuge" value="FILL-lEFT(#SOURCE:@C_70000500,'0',1)"/>
+				<qry:attribute name="CantidadHijos" value="FORMAT_NUMBER(abs(#SOURCE:@C_70000600), 2, 0, '', '', '0')"/>
+				<qry:attribute name="Convencionado" value="FORMAT_NUMBER(#SOURCE:@C_70004500, 1, 0, '', '', '0')"/>
+				<qry:attribute name="SeguroColectivoVidaObligatorio" value="IIF(#SOURCE:@C_70005900 = '1', '1', '0')"/>
+				<qry:attribute name="CorrespondeReduccion" value="FORMAT_NUMBER(#SOURCE:@C_70002700, 1, 0, '', '', '0')"/>
+				<qry:attribute name="TipoEmpresa" value="NMD_FILLLEFT(#SOURCE:/@C_70002900, ' ', 1, 'R')"/>
+				<qry:attribute name="TipoOperacion" value="FORMAT_NUMBER(#SOURCE:@C_70004700, 1, 0, '', '', '0')"/>
+				<qry:attribute name="Situacion" value="FORMAT_NUMBER(#SOURCE:@C_70000700, 2, 0, '', '', '0')"/>
+				<qry:attribute name="Condicion" value="FORMAT_NUMBER(#SOURCE:@C_70000800, 2, 0, '', '', '0')"/>
+				<qry:attribute name="Actividad" value="FORMAT_NUMBER(#SOURCE:@C_70000900, 3, 0, '', '', '0')"/>
+				<qry:attribute name="ModalidadContratacion" value="FORMAT_NUMBER(#SOURCE:@C_70001200, 3, 0, '', '', '0')"/>
+				<qry:attribute name="Siniestrado" value="FORMAT_NUMBER(#SOURCE:@C_70002600, 2, 0, '', '', '0')"/>
+				<qry:attribute name="Zona" value="FILL_LEFT(#SOURCE:@c_zona_sijp,' ',2)"/>
+				<qry:attribute name="SituacionRevista1" value="FORMAT_NUMBER(#SOURCE:@C_70003200, 2, 0, '', '', '0')"/>
+				<qry:attribute name="DiasSituacionRevista1" value="FORMAT_NUMBER(#SOURCE:@C_70003300, 2, 0, '', '', '0')"/>
+				<qry:attribute name="SituacionRevista2" value="FORMAT_NUMBER(#SOURCE:@C_70003400, 2, 0, '', '', '0')"/>
+				<qry:attribute name="DiasSituacionRevista2" value="FORMAT_NUMBER(#SOURCE:@C_70003500, 2, 0, '', '', '0')"/>
+				<qry:attribute name="SituacionRevista3" value="FORMAT_NUMBER(#SOURCE:@C_70003600, 2, 0, '', '', '0')"/>
+				<qry:attribute name="DiasSituacionRevista3" value="FORMAT_NUMBER(#SOURCE:@C_70003700, 2, 0, '', '', '0')"/>
+				<qry:attribute name="CantidadDiasTrabajados" value="FORMAT_NUMBER(abs(#SOURCE:@C_70004300), 2, 0, '', '', '0')"/>
+				<qry:attribute name="HorasTrabajadas" value="FORMAT_NUMBER(#SOURCE:@C_70005800, 3, 0, '', '', '0')"/>
+				<qry:attribute name="PorcentajeAporteAdicionalSS" value="FORMAT_NUMBER(#SOURCE:@C_70001100, 3, 2, '', '', '0')"/>
+				<qry:attribute name="ContribucionTareaDiferencial" value="FORMAT_NUMBER(#SOURCE:@C_70005700, 3, 2, '', '', '0')"/>
+				<qry:attribute name="CodigoObraSocial" value="FORMAT_NUMBER(#SOURCE:@C_70001300, 6, 0, '', '', '0')"/>
+				<qry:attribute name="CantidadAdherentes" value="FORMAT_NUMBER(abs(#SOURCE:@C_70001400), 2, 0, '', '', '0')"/>
+				<qry:attribute name="AporteAdicionalOS" value="FORMAT_NUMBER(#SOURCE:@C_70003000, 13, 2, '', '', '0')"/>
+				<qry:attribute name="ImporteAdicionalOS" value="FORMAT_NUMBER(#SOURCE:@C_70001900, 13, 2, '', '', '0')"/>
+				<qry:attribute name="LRT" value="FORMAT_NUMBER(#SOURCE:@C_70002800, 13, 2, '', '', '0')"/>
+				<qry:attribute name="Maternidad" value="FORMAT_NUMBER(#SOURCE:@C_70005400, 13, 2, '', '', '0')"/>
+				<qry:attribute name="RemuneracionTotal" value="FORMAT_NUMBER(#SOURCE:@C_70001500, 13, 2, '', '', '0')"/>
+				<qry:attribute name="RemuneracionImponible1" value="FORMAT_NUMBER(#SOURCE:@C_70001600, 13, 2, '', '', '0')"/>
+				<qry:attribute name="RemuneracionImponible2" value="FORMAT_NUMBER(#SOURCE:@C_70002300, 13, 2, '', '', '0')"/>
+				<qry:attribute name="RemuneracionImponible3" value="FORMAT_NUMBER(#SOURCE:@C_70002400, 13, 2, '', '', '0')"/>
+				<qry:attribute name="RemuneracionImponible4" value="FORMAT_NUMBER(#SOURCE:@C_70002500, 13, 2, '', '', '0')"/>
+				<qry:attribute name="RemuneracionImponible5" value="FORMAT_NUMBER(#SOURCE:@C_70004400, 13, 2, '', '', '0')"/>
+				<qry:attribute name="RemuneracionImponible6" value="FORMAT_NUMBER(#SOURCE:@C_70004600, 13, 2, '', '', '0')"/>
+				<qry:attribute name="RemuneracionImponible7" value="FORMAT_NUMBER(#SOURCE:@C_70005100, 13, 2, '', '', '0')"/>
+				<qry:attribute name="RemuneracionImponible8" value="FORMAT_NUMBER(#SOURCE:@C_70005000, 13, 2, '', '', '0')"/>
+				<qry:attribute name="RemuneracionImponible9" value="FORMAT_NUMBER(#SOURCE:@C_70005600, 13, 2, '', '', '0')"/>
+				<qry:attribute name="RemuneracionImponible10" value="FORMAT_NUMBER(#SOURCE:@C_70005601, 13, 2, '', '', '0')"/>
+				<qry:attribute name="CantTope" value="FILL-LEFT(abs(#SOURCE:@C_70006100),'0',3)"/>
+				<qry:attribute name="basecalcaporteos" value="FORMAT_NUMBER(#SOURCE:@C_70006200, 13, 2, '', '', '0')"/>
+				<qry:attribute name="basecalcos" value="FORMAT_NUMBER(#SOURCE:@C_70006300, 13, 2, '', '', '0')"/>
+				<qry:attribute name="ImporteRetraer" value="FORMAT_NUMBER(#SOURCE:@C_70006000, 13, 2, '', '', '0')"/>
+				<qry:attribute name="basecalcdiffaos" value="FORMAT_NUMBER(#SOURCE:@C_70006400, 13, 2, '', '', '0')"/>
+				<qry:attribute name="basecalcdiffcos" value="FORMAT_NUMBER(#SOURCE:@C_70006500, 13, 2, '', '', '0')"/>
+			</qry:out>
+		</qry:select>
+		<qry:select name="pegar_cantidad" doc="SOURCE">
+			<qry:out>
+				<qry:attribute name="cant_reg" value="#SOURCE:@cant"/>
+			</qry:out>
+		</qry:select>
+		<qry:select name="pegar_tope" doc="SOURCE">
+			<qry:out>
+				<qry:attribute name="d_liquidados" value="#SOURCE:@CantTope"/>
+			</qry:out>
+		</qry:select>
+	</QUERY>
+	<HEAD>
+		01{c_cuit:11}SJ{e_periodo:6}M{nro_liquidacion:5}30{cant_reg:6}
+	</HEAD>
+	<DETAIL>
+		{tipo2:2}{c_nro_cuil:11}{e_numero_legajo:10}{d_revista:50}{c_cbu:22}{d_liquidados:3}{f_pago:8}{f_rubrica:8}{c_forma_pago:1}
+	</DETAIL>
+	<DETAIL2>
+		{tipo3:2}{c_nro_cuil:11}{c_concepto:10}{cantidad:5}${importe:15}{deb_cred:1}{e_periodo_ajuste:6}
+	</DETAIL2>
+	<DETAIL3>
+		{tipo4:2}{c_nro_cuil:11}{Conyuge:1}{CantidadHijos:2}{Convencionado:1}{SeguroColectivoVidaObligatorio:1}{CorrespondeReduccion:1}{TipoEmpresa:1}{TipoOperacion:1}{Situacion:2}{Condicion:2}{Actividad:3}{ModalidadContratacion:3}{Siniestrado:2}{Zona:2}{SituacionRevista1:2}{DiasSituacionRevista1:2}{SituacionRevista2:2}{DiasSituacionRevista2:2}{SituacionRevista3:2}{DiasSituacionRevista3:2}{CantidadDiasTrabajados:2}{HorasTrabajadas:3}{PorcentajeAporteAdicionalSS:5}{ContribucionTareaDiferencial:5}{CodigoObraSocial:6}{CantidadAdherentes:2}{AporteAdicionalOS:15}{ImporteAdicionalOS:15}{basecalcaporteos:15}{basecalcos:15}{LRT:15}{Maternidad:15}{RemuneracionTotal:15}{RemuneracionImponible1:15}{RemuneracionImponible2:15}{RemuneracionImponible3:15}{RemuneracionImponible4:15}{RemuneracionImponible5:15}{RemuneracionImponible6:15}{RemuneracionImponible7:15}{RemuneracionImponible8:15}{RemuneracionImponible9:15}{basecalcdiffaos:15}{basecalcdiffcos:15}{RemuneracionImponible10:15}{ImporteRetraer:15}
+	</DETAIL3>
+	<MESS>
+		<EMPTY mess="No se encontraron registros."/>
+	</MESS>
+</INTERFACE-DEF>

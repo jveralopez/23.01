@@ -1,0 +1,186 @@
+<html:html xmlns:html="nomad_engine.html" xmlns:qry="nomad_engine.qry" extends="Nomad.Base.BaseReport.rpt" doc="source" name="NucleusRH.Base.Personal.Planilla_asistencia">
+	<html:query declare="&lt;DATOS oi_dictado=&quot;6180&quot; f_desde=&quot;&quot; f_hasta=&quot;&quot; report=&quot;&quot; /&gt;">
+		<qry:main doc="SOURCE">
+			<qry:append-doc name="PARAMIN" doc-path="#SOURCE:DATOS"/>
+			<REPORT label="Planilla de Control de Asistencia">
+				<qry:attribute value="format_date(now(), 'dd/mm/yyyy HH:MM')" name="date"/>
+				<GROUPS>
+					<GROUP tag="DIC" type="title">
+						<COLS>
+							<COL name="dictado" label="T&#237;tulo"/>
+							<COL name="f_desde" label="Fecha Inicio" type="date"/>
+							<COL name="f_hasta" label="Fecha Fin" type="date"/>
+							<COL name="lugar_dictado" label="Lugar de Dictado" style="padding-bottom:15px;"/>
+						</COLS>
+						<GROUP tag="ROW" style="width:0px" type="hor_table">
+							<STYLES>
+								<STYLE name="head"/>
+								<STYLE name="head_h" style="font-weight:bold;background-color:#BBBBBB;"/>
+								<STYLE name="detail" style="width:120px;border:none"/>
+								<STYLE name="result" style="text-align:center;font-weight:bold;"/>
+								<STYLE name="extra" style="border:none;"/>
+							</STYLES>
+						</GROUP>
+					</GROUP>
+				</GROUPS>
+				<qry:element name="DATA">
+					<qry:insert-select name="QRY_DICTADOS" doc-path="#PARAMIN:"/>
+				</qry:element>
+			</REPORT>
+		</qry:main>
+		<qry:select doc="PARAM" name="QRY_DICTADOS">
+			<qry:xquery>
+				for $r in sql('
+				SELECT 
+					CYD01_CURSOS.oi_curso,
+					CYD01_CURSOS.c_curso,
+					CYD01_CURSOS.d_curso,
+					CYD02_DICTADOS.oi_dictado,
+					CYD02_DICTADOS.d_dictado,
+					CYD02_DICTADOS.f_inicio,
+					CYD02_DICTADOS.f_fin,
+					CYD09_LUGARES_DICT.c_lugar_dictado,
+					CYD09_LUGARES_DICT.d_lugar_dictado
+				FROM 
+					CYD02_DICTADOS, 
+					CYD01_CURSOS, 
+					CYD09_LUGARES_DICT
+				JOIN 
+					CYD02_DICTADOS.oi_lugar_dictado LEFT OUTER CYD09_LUGARES_DICT.oi_lugar_dictado,
+					CYD02_DICTADOS.oi_curso INNER CYD01_CURSOS.oi_curso
+				WHERE	
+					CYD02_DICTADOS.oi_dictado = {#PARAMIN:@oi_dictado}			  		
+		')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:element name="DIC">
+					<qry:attribute value="$r/@oi_curso" name="oi_curso"/>
+					<qry:attribute value="$r/@c_curso + ' - ' + $r/@d_curso" name="curso"/>
+					<qry:attribute value="$r/@oi_dictado" name="oi_dictado"/>
+					<qry:attribute value="$r/@d_dictado" name="dictado"/>
+					<qry:attribute value="format_date($r/@f_inicio, 'dd/mm/yyyy')" name="f_desde"/>
+					<qry:attribute value="format_date($r/@f_fin, 'dd/mm/yyyy')" name="f_hasta"/>
+					<qry:attribute value="$r/@c_lugar_dictado + ' - ' + $r/@d_lugar_dictado" name="lugar_dictado"/>
+					<ROW>
+						<COL>
+							<qry:attribute value="'head_h'" name="class"/>
+							<qry:attribute value="'Asistente'" name="value"/>
+						</COL>
+						<qry:insert-select doc-path="$r" name="QRY_CLASES"/>
+					</ROW>
+					<qry:insert-select doc-path="$r" name="QRY_INSCRIPTOS"/>
+				</qry:element>
+			</qry:out>
+		</qry:select>
+		<qry:select doc="PARAM" name="QRY_CLASES">
+			<qry:xquery>
+				for $r in sql('
+				SELECT CYD02_CLASES_DICT.f_fecha_hora_ini
+				FROM CYD02_CLASES_DICT
+				WHERE CYD02_CLASES_DICT.oi_dictado = {#PARAMIN:@oi_dictado}				
+				{%?(#PARAMIN:@f_hasta!='') 
+				{% AND CYD02_CLASES_DICT.f_fecha_hora_ini &lt;= {DateTime(Number(DateTime(#PARAMIN:@f_hasta))+1)} %}
+				{% %}
+				%}
+				{%?(#PARAMIN:@f_desde!='') 
+				{% AND CYD02_CLASES_DICT.f_fecha_hora_ini &gt;= {DateTime(#PARAMIN:@f_desde)} %}
+				{% %}
+				%}
+				ORDER BY f_fecha_hora_ini ASC 
+			')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:element name="COL">
+					<qry:attribute value="'head_h'" name="class"/>
+					<qry:attribute value="format_date($r/@f_fecha_hora_ini, 'dd/mm/yyyy')" name="value" type="date"/>
+				</qry:element>
+			</qry:out>
+		</qry:select>
+		<qry:select doc="PARAM" name="QRY_INSCRIPTOS">
+			<qry:xquery>
+				for $r in sql('
+				SELECT 
+					CYD02_INSCRIPTOS.oi_inscripto,
+					CYD02_INSCRIPTOS.c_estado,
+					CYD02_INSCRIPTOS.f_estado,
+					CYD02_INSCRIPTOS.c_estado_aprob,
+					CYD02_INSCRIPTOS.n_asistencia,
+					CYD17_TERCEROS.c_tercero as code,
+					CYD17_TERCEROS.d_ape_y_nom,
+					\'\' as c_empresa
+				FROM 
+					CYD02_INSCRIPTOS, 
+					CYD17_TERCEROS
+				JOIN
+					CYD02_INSCRIPTOS.oi_tercero INNER CYD17_TERCEROS.oi_tercero
+				WHERE
+					CYD02_INSCRIPTOS.oi_dictado = {#PARAM:@oi_dictado}
+				UNION
+				SELECT 
+					INS.oi_inscripto,
+					INS.c_estado,
+					INS.f_estado,
+					INS.c_estado_aprob,
+					INS.n_asistencia,
+					UCASE(PER02_PERSONAL_EMP.e_numero_legajo) as code,
+					PER01_PERSONAL.d_ape_y_nom,
+					ORG03_EMPRESAS.c_empresa
+				FROM 
+					CYD02_INSCRIPTOS as INS, 
+					PER02_PERSONAL_EMP, 
+					PER01_PERSONAL,
+					ORG03_EMPRESAS
+				JOIN 
+					INS.oi_personal_emp INNER PER02_PERSONAL_EMP.oi_personal_emp,
+					PER02_PERSONAL_EMP.oi_personal INNER PER01_PERSONAL.oi_personal,
+					PER02_PERSONAL_EMP.oi_empresa INNER ORG03_EMPRESAS.oi_empresa
+				WHERE 
+					INS.oi_dictado = {#PARAM:@oi_dictado}
+				ORDER BY code ASC   				              
+			')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:element name="ROW">
+					<qry:element name="COL">
+						<qry:attribute value="'head'" name="class"/>
+						<qry:if test="$r/@c_empresa != ''">
+							<qry:then>
+								<qry:attribute value="'(' + $r/@c_empresa + ' - ' + $r/@code + ') ' + $r/@d_ape_y_nom" name="value"/>
+							</qry:then>
+							<qry:else>
+								<qry:attribute value="'(' + $r/@code + ') ' + $r/@d_ape_y_nom" name="value"/>
+							</qry:else>
+						</qry:if>
+					</qry:element>
+					<qry:attribute value="$r/@oi_inscripto" name="oi_inscripto"/>
+					<qry:attribute value="#PARAM:@oi_dictado" name="oi_dictado"/>
+					<qry:insert-select doc-path="." name="QRY_INS_CLASE"/>
+				</qry:element>
+				<qry:attribute value="1" name="visible"/>
+			</qry:out>
+		</qry:select>
+		<qry:select doc="PARAM" name="QRY_INS_CLASE">
+			<qry:xquery>
+				for $r in sql('
+				SELECT CYD02_CLASES_DICT.oi_clase_dictado,
+				{%=#PARAM:@oi_inscripto%} as oi_inscripto 
+				FROM CYD02_CLASES_DICT
+				WHERE CYD02_CLASES_DICT.oi_dictado = {#PARAM:@oi_dictado} 				 
+				{%?(#PARAMIN:@f_hasta!='') 
+				{% AND CYD02_CLASES_DICT.f_fecha_hora_ini &lt;= {DateTime(Number(DateTime(#PARAMIN:@f_hasta))+1)} %}
+				{% %}
+				%}
+				{%?(#PARAMIN:@f_desde!='') 
+				{% AND CYD02_CLASES_DICT.f_fecha_hora_ini &gt;= {DateTime(#PARAMIN:@f_desde)} %}
+				{% %}
+				%}
+		')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:element name="COL">
+					<qry:attribute value="'text-align:center;'" name="style"/>
+				</qry:element>
+			</qry:out>
+		</qry:select>
+	</html:query>
+</html:html>

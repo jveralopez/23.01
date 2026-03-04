@@ -1,0 +1,248 @@
+<flow:flow xmlns:flow="nomad_engine.flow" xmlns:qry="nomad_engine.qry" xmlns:doc="nomad_engine.doc" extends="NucleusRH.Base.Legales.Monedas.autoflow" name="NucleusRH.Base.Legales.Monedas">
+	<flow:info label="Flow para NucleusRH.Base.Legales.Monedas"/>
+	<flow:declare>
+		<qry:define name="FILTER">
+			<qry:main maxdeep="2">
+				<qry:element name="ROWS">
+					<qry:insert-select name="sql1"/>
+				</qry:element>
+			</qry:main>
+			<qry:select doc="PARAM" name="sql1">
+				<qry:xquery>
+					for $r in sql('SELECT t0.oi_moneda as oi_moneda, SEC.policy FROM LEG38_MONEDAS as t0,NMD_SECURITY(class=\'NucleusRH.Base.Legales.Monedas.MONEDA\') as SEC JOIN t0.oi_moneda LEFT OUTER SEC.id  ORDER BY oi_moneda asc')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:element name="ROW">
+						<qry:attribute name="policy" value="$r/@policy"/>
+						<qry:attribute name="id" value="$r/@oi_moneda"/>
+					</qry:element>
+				</qry:out>
+			</qry:select>
+		</qry:define>
+		<qry:define name="LIST">
+			<qry:main maxdeep="2">
+				<qry:element name="ROWS">
+					<qry:insert-select name="sql1"/>
+				</qry:element>
+			</qry:main>
+			<qry:select doc="PARAM" name="sql1">
+				<qry:xquery>
+					for $r in sql('
+			SELECT 
+				t0.oi_moneda as oi_moneda, 
+				t0.d_moneda as d_moneda, 
+				t0.c_simbolo as c_simbolo, 
+				SEC.policy, 
+				t0.oi_moneda as CODE, 
+				t0.d_moneda as TEXT,
+				VALOR.d_valor
+			FROM 
+				LEG38_MONEDAS as t0,
+				NMD_SECURITY(class=\'NucleusRH.Base.Legales.Monedas.MONEDA\') as SEC,
+				(	SELECT                           
+						PAR.d_valor
+					FROM 
+						ORG26_PARAMETROS as PAR
+					WHERE
+						PAR.c_modulo = \'LEG\' AND
+						PAR.c_parametro = \'DefaultMoneda\') as VALOR
+			JOIN 
+				t0.oi_moneda LEFT OUTER SEC.id ,
+				t0.oi_moneda LEFT OUTER VALOR.d_valor	
+			ORDER BY 
+				oi_moneda asc')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:element name="ROW">
+						<qry:attribute name="policy" value="$r/@policy"/>
+						<qry:attribute name="id" value="$r/@oi_moneda"/>
+						<qry:attribute name="d_moneda" value="$r/@d_moneda"/>
+						<qry:attribute name="c_simbolo" value="$r/@c_simbolo"/>
+						<qry:attribute name="CODE" value="$r/@CODE"/>
+						<qry:attribute name="TEXT" value="$r/@TEXT"/>
+						<qry:attribute name="l_default" value="iif($r/@d_valor='',0,1)"/>
+					</qry:element>
+				</qry:out>
+			</qry:select>
+		</qry:define>
+		<doc:define name="PARAMETRO">
+			<ROW oi_parametro="444"/>
+		</doc:define>
+		<doc:define class="NucleusRH.Base.Organizacion.Parametros.PARAMETRO" name="DDO-PARAMETRO"/>
+		<qry:define name="SetDefault">
+			<qry:main maxdeep="2" doc="SOURCE">
+				<qry:element name="ROW">
+					<qry:attribute name="oi_parametro" value="444"/>
+					<qry:attribute name="l_default" value="0"/>
+					<qry:insert-select doc-path="#SOURCE:MONEDA" name="sql1"/>
+				</qry:element>
+			</qry:main>
+			<qry:select doc="PARAM" name="sql1">
+				<qry:xquery>
+					for $r in sql('
+			SELECT                           
+				PAR.d_valor
+			FROM 
+				ORG26_PARAMETROS as PAR
+			WHERE
+				PAR.c_modulo = \'LEG\' AND
+				PAR.c_parametro = \'DefaultMoneda\' AND
+				PAR.d_valor = {#PARAM:@id} 
+			')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:attribute name="l_default" value="iif($r/@d_valor='',0,1)"/>
+				</qry:out>
+			</qry:select>
+		</qry:define>
+	</flow:declare>
+	<flow:main doc="SOURCE">
+		<flow:action name="initialize">
+			<flow:open-form doc-path="#SOURCE:" mode="FILTER" form-class="NucleusRH.Base.Legales.Monedas.MONEDA.filter.autoform"/>
+		</flow:action>
+	</flow:main>
+	<flow:group Name="MONEDA">
+		<flow:form extends="FILTER:FILTER" parent-doc="PARENTSOURCE" doc="SOURCE" name="NucleusRH.Base.Legales.Monedas.MONEDA.filter.autoform:FILTER" form-class="NucleusRH.Base.Legales.Monedas.MONEDA.filter.autoform" mode="FILTER">
+			<flow:action name="on-show">
+				<flow:call-action action="inits-DDO"/>
+				<flow:close-form/>
+				<flow:call-action action="FILTER"/>
+			</flow:action>
+			<flow:action name="inits-DDO">
+				<doc:new-object doc="DDO" class="NucleusRH.Base.Legales.Monedas.MONEDA"/>
+				<doc:new-object doc="NEWDDOROOT" class="NucleusRH.Base.Legales.Monedas.MONEDA"/>
+			</flow:action>
+			<flow:action name="new-DDO">
+				<doc:new-object doc="NEWDDOROOT" class="NucleusRH.Base.Legales.Monedas.MONEDA"/>
+			</flow:action>
+			<flow:action name="open-flow-SHOW">
+				<flow:open-form iter-index="#QRY:ROW/@id" parent-doc-path="#QRY:" doc-path="#DDO:" mode="EDIT" form-class="NucleusRH.Base.Legales.Monedas.MONEDA.noreg.autoform"/>
+			</flow:action>
+			<flow:action name="open-flow-ADD">
+				<flow:open-form doc-path="#NEWDDOROOT:" mode="NEW" form-class="NucleusRH.Base.Legales.Monedas.MONEDA.form"/>
+			</flow:action>
+			<flow:action name="open-flow-LIST">
+				<flow:open-form iter-index="#QRY:ROW/@id" parent-doc-path="#QRY:" doc-path="#DDO:" mode="SHOW" form-class="NucleusRH.Base.Legales.Monedas.MONEDA.form"/>
+			</flow:action>
+			<flow:action name="Load-FILTER">
+				<flow:load-user-data doc="FILTERDATA" name="FILTER-NucleusRH.Base.Legales.Monedas.MONEDA"/>
+			</flow:action>
+			<flow:action name="Save-FILTER">
+				<flow:save-user-data doc-path="#FILTERDATA:" name="FILTER-NucleusRH.Base.Legales.Monedas.MONEDA"/>
+			</flow:action>
+		</flow:form>
+		<flow:form extends="CLASSROOT:NOREG:EDIT" parent-doc="PARENTSOURCE" doc="SOURCE" name="NucleusRH.Base.Legales.Monedas.MONEDA.noreg.autoform:EDIT" form-class="NucleusRH.Base.Legales.Monedas.MONEDA.noreg.autoform" mode="EDIT">
+			<flow:action name="new-DDO">
+				<doc:new-object doc="NEWDDOROOT" class="NucleusRH.Base.Legales.Monedas.MONEDA"/>
+			</flow:action>
+			<flow:action name="load-DDO">
+				<doc:load-object id-path="#QRY:ROW[1]/@id" class="NucleusRH.Base.Legales.Monedas.MONEDA" doc="DDO"/>
+			</flow:action>
+			<flow:action name="open-flow-SHOW">
+				<flow:open-form iter-index="#QRY:ROW/@id" parent-doc-path="#QRY:" doc-path="#DDO:" mode="SHOW" form-class="NucleusRH.Base.Legales.Monedas.MONEDA.form"/>
+			</flow:action>
+			<flow:action name="open-flow-ADD">
+				<flow:open-form doc-path="#NEWDDOROOT:" mode="NEW" form-class="NucleusRH.Base.Legales.Monedas.MONEDA.form"/>
+			</flow:action>
+			<flow:action name="open-flow-LIST">
+				<flow:open-form iter-index="#QRY_LIST:ROW/@id" parent-doc-path="#QRY_LIST:" doc-path="#DDO:" mode="LIST" form-class="NucleusRH.Base.Legales.Monedas.MONEDA.form"/>
+			</flow:action>
+			<flow:action name="on-move-iterator">
+				<flow:call-action action="load-DDO"/>
+				<flow:call-action action="goto-list"/>
+			</flow:action>
+		</flow:form>
+		<flow:form extends="NucleusRH.Base.Legales.Monedas.MONEDA.autoform:SHOW" parent-doc="PARENTSOURCE" doc="SOURCE" name="NucleusRH.Base.Legales.Monedas.MONEDA.form:SHOW" form-class="NucleusRH.Base.Legales.Monedas.MONEDA.form" mode="SHOW">
+			<flow:action name="new-DDO">
+				<doc:new-object doc="NEWDDOROOT" class="NucleusRH.Base.Legales.Monedas.MONEDA"/>
+			</flow:action>
+			<flow:action name="load-DDO">
+				<doc:load-object id-path="#iter-cursor:@value" class="NucleusRH.Base.Legales.Monedas.MONEDA" doc="DDO"/>
+				<doc:load-object id-path="#PARAMETRO:@oi_parametro" class="NucleusRH.Base.Organizacion.Parametros.PARAMETRO" doc="DDO-PARAMETRO"/>
+				<flow:call-action else="UNCHECK-DEFAULT" action="CHECK-DEFAULT" eq="#DDO-PARAMETRO:@d_valor" if="#DDO:@id"/>
+			</flow:action>
+			<flow:action name="save-DDO">
+				<doc:save-object class="NucleusRH.Base.Legales.Monedas.MONEDA" doc="DDO"/>
+			</flow:action>
+			<flow:action name="delete-DDO">
+				<doc:delete-object doc-path="#DDO:" class="NucleusRH.Base.Legales.Monedas.MONEDA" doc="DDO"/>
+				<doc:save-object class="NucleusRH.Base.Legales.Monedas.MONEDA" doc="DDO"/>
+			</flow:action>
+			<flow:action name="open-flow-EDIT">
+				<flow:open-form doc-path="#DDO:" mode="EDIT" form-class="NucleusRH.Base.Legales.Monedas.MONEDA.form"/>
+			</flow:action>
+			<flow:action name="open-flow-ADD">
+				<flow:open-form doc-path="#NEWDDOROOT:" mode="NEW" form-class="NucleusRH.Base.Legales.Monedas.MONEDA.form"/>
+			</flow:action>
+			<flow:action name="CHECK-DEFAULT">
+				<doc:set-attribute from-value="1" to-attr-path="#PARAMETRO:@l_default"/>
+			</flow:action>
+			<flow:action name="UNCHECK-DEFAULT">
+				<doc:set-attribute from-value="0" to-attr-path="#PARAMETRO:@l_default"/>
+			</flow:action>
+		</flow:form>
+		<flow:form extends="NucleusRH.Base.Legales.Monedas.MONEDA.autoform:LIST" parent-doc="PARENTSOURCE" doc="SOURCE" name="NucleusRH.Base.Legales.Monedas.MONEDA.form:LIST" form-class="NucleusRH.Base.Legales.Monedas.MONEDA.form" mode="LIST">
+			<flow:action name="new-DDO">
+				<doc:new-object doc="NEWDDOROOT" class="NucleusRH.Base.Legales.Monedas.MONEDA"/>
+				<doc:set-attribute from-value="0" to-attr-path="#PARAMETRO:@l_default"/>
+			</flow:action>
+			<flow:action name="load-DDO">
+				<doc:load-object id-path="#FORM:ctrl[@id='LIST']/@xval" class="NucleusRH.Base.Legales.Monedas.MONEDA" doc="DDO"/>
+				<flow:log text-path="#DDO:" text="logDDO"/>
+				<doc:load-qry output-doc="PARAMETRO" input-doc-path="#DDO:" qry="SetDefault"/>
+			</flow:action>
+			<flow:action name="save-DDO">
+				<doc:save-object class="NucleusRH.Base.Legales.Monedas.MONEDA" doc="DDO"/>
+			</flow:action>
+			<flow:action name="delete-DDO">
+				<doc:delete-object doc-path="#DDO:" class="NucleusRH.Base.Legales.Monedas.MONEDA" doc="DDO"/>
+				<doc:save-object class="NucleusRH.Base.Legales.Monedas.MONEDA" doc="DDO"/>
+			</flow:action>
+			<flow:action name="open-flow-EDIT">
+				<flow:open-form doc-path="#DDO:" mode="EDIT" form-class="NucleusRH.Base.Legales.Monedas.MONEDA.form"/>
+			</flow:action>
+			<flow:action name="open-flow-ADD">
+				<flow:open-form doc-path="#NEWDDOROOT:" mode="NEW" form-class="NucleusRH.Base.Legales.Monedas.MONEDA.form"/>
+			</flow:action>
+		</flow:form>
+		<flow:form extends="NucleusRH.Base.Legales.Monedas.MONEDA.autoform:EDIT" parent-doc="PARENTSOURCE" doc="SOURCE" name="NucleusRH.Base.Legales.Monedas.MONEDA.form:EDIT" form-class="NucleusRH.Base.Legales.Monedas.MONEDA.form" mode="EDIT">
+			<flow:action name="save-DDO">
+				<doc:save-object class="NucleusRH.Base.Legales.Monedas.MONEDA" doc="DDO"/>
+				<flow:log text="logPARAMETRO" text-path="#PARAMETRO:"/>
+				<flow:call-action else="DEL-PARAMETRO" eq="1" if="#PARAMETRO:@l_default" action="SAVE-PARAMETRO"/>
+			</flow:action>
+			<flow:action name="delete-DDO">
+				<doc:delete-object doc-path="#DDO:" class="NucleusRH.Base.Legales.Monedas.MONEDA" doc="DDO"/>
+				<doc:save-object class="NucleusRH.Base.Legales.Monedas.MONEDA" doc="DDO"/>
+			</flow:action>
+			<flow:action name="SAVE-PARAMETRO">
+				<doc:load-object id-path="#PARAMETRO:@oi_parametro" class="NucleusRH.Base.Organizacion.Parametros.PARAMETRO" doc="DDO-PARAMETRO"/>
+				<doc:set-attribute from-attr-path="#DDO:@id" to-attr-path="#DDO-PARAMETRO:@d_valor"/>
+				<doc:save-object class="NucleusRH.Base.Organizacion.Parametros.PARAMETRO" doc="DDO-PARAMETRO"/>
+			</flow:action>
+			<flow:action name="on-show">
+				<doc:set-attribute to-attr-path="#PARAMETRO:@hidden" from-attr-path="#PARAMETRO:@l_default"/>
+			</flow:action>
+			<flow:action name="DEL-PARAMETRO">
+				<flow:call-action action="DELETE-PARAMETRO" eq="1" if="#PARAMETRO:@hidden"/>
+			</flow:action>
+			<flow:action name="DELETE-PARAMETRO">
+				<doc:load-object id-path="#PARAMETRO:@oi_parametro" class="NucleusRH.Base.Organizacion.Parametros.PARAMETRO" doc="DDO-PARAMETRO"/>
+				<doc:set-attribute from-value="" to-attr-path="#DDO-PARAMETRO:@d_valor"/>
+				<doc:save-object class="NucleusRH.Base.Organizacion.Parametros.PARAMETRO" doc="DDO-PARAMETRO"/>
+			</flow:action>
+		</flow:form>
+		<flow:form extends="NucleusRH.Base.Legales.Monedas.MONEDA.autoform:NEW" parent-doc="PARENTSOURCE" doc="SOURCE" name="NucleusRH.Base.Legales.Monedas.MONEDA.form:NEW" form-class="NucleusRH.Base.Legales.Monedas.MONEDA.form" mode="NEW">
+			<flow:action name="save-DDO">
+				<doc:save-object class="NucleusRH.Base.Legales.Monedas.MONEDA" doc="NEWDDOROOT"/>
+				<doc:load-object id-path="#NEWDDOROOT:@id" class="NucleusRH.Base.Legales.Monedas.MONEDA" doc="DDO"/>
+				<flow:call-action eq="1" if="#PARAMETRO:@l_default" action="SAVE-PARAMETRO"/>
+			</flow:action>
+			<flow:action name="SAVE-PARAMETRO">
+				<doc:load-object id-path="#PARAMETRO:@oi_parametro" class="NucleusRH.Base.Organizacion.Parametros.PARAMETRO" doc="DDO-PARAMETRO"/>
+				<doc:set-attribute from-attr-path="#DDO:@id" to-attr-path="#DDO-PARAMETRO:@d_valor"/>
+				<doc:save-object class="NucleusRH.Base.Organizacion.Parametros.PARAMETRO" doc="DDO-PARAMETRO"/>
+			</flow:action>
+		</flow:form>
+	</flow:group>
+</flow:flow>

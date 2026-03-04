@@ -1,0 +1,269 @@
+<flow:flow xmlns:flow="nomad_engine.flow" xmlns:doc="nomad_engine.doc" xmlns:qry="nomad_engine.qry" default_action="initialize" extends="NucleusRH.Base.Liquidacion.Personal_Liquidacion.autoflow" name="NucleusRH.Base.Liquidacion.Personal_Liquidacion">
+	<flow:declare>
+		<doc:define name="FILTERDATA">
+			<DATOS oi_liquidacion="" oi_empresa="">
+				<PERSONAS/>
+			</DATOS>
+		</doc:define>
+		<doc:define class="NucleusRH.Base.Liquidacion.Liquidacion.LIQUIDACION" name="DDO_LIQ"/>
+		<doc:define name="DOCTEMP"/>
+		<qry:define declare="&lt;DATOS oi_liquidacion=&quot;1&quot; e_numero_legajo_d=&quot;&quot; e_numero_legajo_h=&quot;&quot; /&gt;" name="FILTER">
+			<qry:main maxdeep="2" doc="SOURCE">
+				<qry:element name="ROWS">
+					<qry:insert-select name="sql1" doc-path="#SOURCE:DATOS"/>
+				</qry:element>
+			</qry:main>
+			<qry:select doc="PARAM" name="sql1">
+				<qry:xquery>
+					for $r in sql('
+			SELECT t0.oi_personal_liq as oi_personal_liq
+			FROM LIQ25_PERSONAL_LIQ as t0, per02_personal_emp as p02
+			JOIN t0.oi_personal_emp INNER p02.oi_personal_emp
+			WHERE t0.oi_liquidacion = {#PARAM:@oi_liquidacion} and			
+			{%? (#PARAM:@e_numero_legajo_d!='')	{% p02.e_numero_legajo &gt;= {%=#PARAM:@e_numero_legajo_d %} and %} {% %} %}
+			{%? (#PARAM:@e_numero_legajo_h!='')	{% p02.e_numero_legajo &lt;= {%=#PARAM:@e_numero_legajo_h %} and %} {% %} %}
+			1 = 1
+			ORDER BY oi_personal_liq asc')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:element name="ROW">
+						<qry:attribute name="id" value="$r/@oi_personal_liq"/>
+					</qry:element>
+				</qry:out>
+			</qry:select>
+		</qry:define>
+		<qry:define declare="&lt;DATOS oi_liquidacion=&quot;85&quot; e_numero_legajo_h =&quot;&quot;/&gt;" name="LIST">
+			<qry:main maxdeep="2" doc="SOURCE">
+				<qry:element name="ROWS">
+					<qry:insert-select name="sql1" doc-path="#SOURCE:DATOS"/>
+				</qry:element>
+			</qry:main>
+			<qry:select doc="PARAM" name="sql1">
+				<qry:xquery>
+					for $r in sql('SELECT 
+			t0.oi_personal_liq as oi_personal_liq, 
+			t0.oi_personal_liq as CODE, 
+			t0.oi_personal_liq as TEXT, 
+			t0.oi_personal_emp as oi_personal_emp              
+			FROM LIQ25_PERSONAL_LIQ as t0, per02_personal_emp as p02
+			JOIN t0.oi_personal_emp INNER p02.oi_personal_emp
+			WHERE t0.oi_liquidacion = {#PARAM:@oi_liquidacion} and			
+			{%? (#PARAM:@e_numero_legajo_d!='')	{% p02.e_numero_legajo &gt;= {%=#PARAM:@e_numero_legajo_d %} and %} {% %} %}
+			{%? (#PARAM:@e_numero_legajo_h!='')	{% p02.e_numero_legajo &lt;= {%=#PARAM:@e_numero_legajo_h %} and %} {% %} %}
+			1 = 1
+			ORDER BY oi_personal_liq asc')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:element name="ROW">
+						<qry:attribute name="policy" value="$r/@policy"/>
+						<qry:attribute name="id" value="$r/@oi_personal_liq"/>
+						<qry:attribute name="CODE" value="$r/@CODE"/>
+						<qry:attribute name="TEXT" value="$r/@TEXT"/>
+						<qry:attribute name="oi_personal_emp" value="$r/@oi_personal_emp"/>
+						<qry:insert-select doc-path="." name="QRY_LEGAJO"/>
+						<qry:insert-select doc-path="." name="FIND-PER-DESCR"/>
+					</qry:element>
+				</qry:out>
+			</qry:select>
+			<qry:select doc="PARAM" name="QRY_LEGAJO">
+				<qry:xquery>
+					for $r in sql('
+			SELECT PER02_PERSONAL_EMP.e_numero_legajo, PER01_PERSONAL.d_ape_y_nom
+			FROM PER02_PERSONAL_EMP, PER01_PERSONAL
+			JOIN PER02_PERSONAL_EMP.oi_personal INNER PER01_PERSONAL.oi_personal
+			WHERE	PER02_PERSONAL_EMP.oi_personal_emp = {#PARAM:@oi_personal_emp}
+			')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:attribute value="$r/@e_numero_legajo" name="e_numero_legajo"/>
+					<qry:attribute value="$r/@d_ape_y_nom" name="d_ape_y_nom"/>
+				</qry:out>
+			</qry:select>
+			<qry:select doc="PARAM" name="FIND-PER-DESCR">
+				<qry:xquery>
+					for $r in Table('select 
+			e_numero_legajo COD
+			, d_ape_y_nom DES 
+			FROM 
+			Per02_personal_emp, per01_personal , liq25_personal_liq
+			where 
+			Per02_personal_emp.oi_personal =  per01_personal.oi_personal and
+			Per02_personal_emp.oi_personal_emp = liq25_personal_liq.oi_personal_emp and 
+			liq25_personal_liq.oi_personal_liq ={#PARAM:@id}')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:attribute value="'['+$r/@COD + '] ' + $r/@DES" name="descr"/>
+				</qry:out>
+			</qry:select>
+		</qry:define>
+		<qry:define declare="&lt;DATOS oi_liquidacion=&quot;85&quot; e_numero_legajo_d=&quot;&quot; e_numero_legajo_h=&quot;&quot; /&gt;" name="FILTER_REPORTE">
+			<qry:main maxdeep="2" doc="SOURCE">
+				<qry:element name="ROWS">
+					<qry:insert-select name="sql1" doc-path="#SOURCE:ID"/>
+				</qry:element>
+			</qry:main>
+			<qry:select doc="PARAM" name="sql1">
+				<qry:xquery>
+					for $r in sql('
+			SELECT 
+				t0.oi_personal_liq as oi_personal_liq
+			FROM 
+				LIQ25_PERSONAL_LIQ as t0, 
+				per02_personal_emp as p02
+			JOIN 
+				t0.oi_personal_emp INNER p02.oi_personal_emp
+			WHERE 
+				t0.oi_personal_liq = {#PARAM:@oi_personal_liq} 
+			')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:element name="ROW">
+						<qry:attribute name="id" value="$r/@oi_personal_liq"/>
+						<qry:insert-select doc-path="." name="FIND-PER-DESCR"/>
+					</qry:element>
+				</qry:out>
+			</qry:select>
+			<qry:select doc="PARAM" name="FIND-PER-DESCR">
+				<qry:xquery>
+					for $r in Table('select 
+			e_numero_legajo COD
+			, d_ape_y_nom DES 
+			FROM 
+			Per02_personal_emp, per01_personal , liq25_personal_liq
+			where 
+			Per02_personal_emp.oi_personal =  per01_personal.oi_personal and
+			Per02_personal_emp.oi_personal_emp = liq25_personal_liq.oi_personal_emp and 
+			liq25_personal_liq.oi_personal_liq ={#PARAM:@id} and  			
+			1 = 1')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:attribute value="'['+$r/@COD + '] ' + $r/@DES" name="descr"/>
+				</qry:out>
+			</qry:select>
+		</qry:define>
+		<qry:define name="QRY_LIQ" declare="&lt;DATOS oi_liquidacion=&quot;1&quot; e_numero_legajo_d=&quot;&quot; e_numero_legajo_h=&quot;&quot; /&gt;">
+			<qry:main maxdeep="2" doc="SOURCE">
+				<qry:element name="ROW">
+					<qry:insert-select name="sql1" doc-path="#SOURCE:DATOS"/>
+				</qry:element>
+			</qry:main>
+			<qry:select doc="PARAM" name="sql1">
+				<qry:xquery>
+					for $r in sql('
+			SELECT 
+				L.c_estado
+			FROM 
+				LIQ19_LIQUIDACION as L
+			WHERE 
+				L.oi_liquidacion = {#PARAM:@oi_liquidacion} 
+				')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:attribute name="c_estado" value="$r/@c_estado"/>
+				</qry:out>
+			</qry:select>
+		</qry:define>
+		<doc:define name="LIQ_STATUS"/>
+		<doc:define name="AUX"/>
+	</flow:declare>
+	<flow:main doc="SOURCE">
+		<flow:action name="initialize">
+			<flow:open-form doc-path="#FILTERDATA:" mode="FILTER" form-class="NucleusRH.Base.Liquidacion.Personal_Liquidacion.PERSONAL_LIQ.filter.form"/>
+		</flow:action>
+		<flow:action name="initialize_liq">
+			<flow:load-user-data name="FILTER_NucleusRH.Base.Liquidacion.Personal_Liquidacion" doc="AUX"/>
+			<doc:load-object class="NucleusRH.Base.Liquidacion.Liquidacion.LIQUIDACION" id-path="#SOURCE:@oi" doc="DDO_LIQ"/>
+			<flow:call-action eq="#DDO_LIQ:@id" if="#AUX:@oi_liquidacion" action="LOAD"/>
+			<doc:set-attribute from-attr-path="#DDO_LIQ:@id" to-attr-path="#FILTERDATA:@oi_liquidacion"/>
+			<doc:set-attribute from-attr-path="#DDO_LIQ:oi_empresa/@value" to-attr-path="#FILTERDATA:@oi_empresa"/>
+			<flow:open-form form-class="NucleusRH.Base.Liquidacion.Personal_Liquidacion.PERSONAL_LIQ_LISTA.form" doc-path="#FILTERDATA:" iter-index="#QRY:ROW/@id" mode="LIST"/>
+		</flow:action>
+		<flow:action name="initializeReporte">
+			<doc:load-qry qry="FILTER_REPORTE" output-doc="QRY" input-doc-path="#SOURCE:"/>
+			<flow:log text-path="#SOURCE:" text="ppo"/>
+			<doc:new-object class="NucleusRH.Base.Liquidacion.Personal_Liquidacion.PERSONAL_LIQ" doc="DDO"/>
+			<doc:load-object id-path="#SOURCE:@oi_personal_liq" class="NucleusRH.Base.Liquidacion.Personal_Liquidacion.PERSONAL_LIQ" doc="DDO"/>
+			<flow:log text-path="#DDO:" text="ppo1"/>
+			<flow:open-form mode="REPORTE" iter-index="#QRY:ROW/@id" parent-doc-path="#QRY:" doc-path="#DDO:" form-class="NucleusRH.Base.Liquidacion.Personal_Liquidacion.PERSONAL_LIQ.form"/>
+		</flow:action>
+		<flow:action name="LOAD">
+			<flow:load-user-data doc="FILTERDATA" name="FILTER_NucleusRH.Base.Liquidacion.Personal_Liquidacion"/>
+		</flow:action>
+	</flow:main>
+	<flow:form extends="NucleusRH.Base.Liquidacion.Personal_Liquidacion.PERSONAL_LIQ.filter.autoform:FILTER" parent-doc="PARENTSOURCE" doc="SOURCE" name="NucleusRH.Base.Liquidacion.Personal_Liquidacion.PERSONAL_LIQ.filter.form:FILTER" form-class="NucleusRH.Base.Liquidacion.Personal_Liquidacion.PERSONAL_LIQ.filter.form" mode="FILTER">
+		<flow:action name="on-show"/>
+		<flow:action name="FILTER">
+			<flow:call-action action="Save-FILTER"/>
+			<flow:open-form form-class="NucleusRH.Base.Liquidacion.Personal_Liquidacion.PERSONAL_LIQ_LISTA.form" doc-path="#FILTERDATA:" mode="LIST"/>
+		</flow:action>
+		<flow:action name="Load-FILTER">
+			<flow:load-user-data name="FILTER-NucleusRH.Base.Liquidacion.Personal_Liquidacion.PERSONAL_LIQ2" doc="FILTERDATA"/>
+		</flow:action>
+		<flow:action name="Save-FILTER">
+			<flow:save-user-data name="FILTER-NucleusRH.Base.Liquidacion.Personal_Liquidacion.PERSONAL_LIQ2" doc-path="#FILTERDATA:"/>
+		</flow:action>
+	</flow:form>
+	<flow:form name="NucleusRH.Base.Liquidacion.Personal_Liquidacion.PERSONAL_LIQ_LISTA.form:LIST" form-class="NucleusRH.Base.Liquidacion.Personal_Liquidacion.PERSONAL_LIQ_LISTA.form" parent-doc="PARENTSOURCE" doc="SOURCE" mode="LIST">
+		<flow:action name="on-open"/>
+		<flow:action name="on-empty-iterator"/>
+		<flow:action name="on-show">
+			<doc:load-qry output-doc="LIQ_STATUS" qry="QRY_LIQ" input-doc-path="#SOURCE:"/>
+		</flow:action>
+		<flow:action name="load-DDO">
+			<doc:new-object doc="DDO" class="NucleusRH.Base.Liquidacion.Personal_Liquidacion.PERSONAL_LIQ"/>
+			<doc:load-object id-path="#SOURCE:@oi_personal_liq" class="NucleusRH.Base.Liquidacion.Personal_Liquidacion.PERSONAL_LIQ" doc="DDO"/>
+		</flow:action>
+		<flow:action name="After-Change"/>
+		<flow:action name="After-Back"/>
+		<flow:action name="After-Cancel"/>
+		<flow:action name="CALL:CONC_MAN_PER">
+			<flow:call-action action="load-DDO"/>
+			<flow:open-form iter-index="#DDO:CONC_MAN_PER/CONC_MAN_PER/@id" parent-doc-path="#DDO:CONC_MAN_PER" doc-path="#DDO:CONC_MAN_PER" mode="SHOW" form-class="NucleusRH.Base.Liquidacion.Personal_Liquidacion.CONC_MAN_PER.noreg.autoform"/>
+		</flow:action>
+		<flow:action name="CALL:VAL_VAREN">
+			<flow:call-action action="load-DDO"/>
+			<flow:open-form iter-index="#DDO:VAL_VAREN/VAL_VAREN/@id" parent-doc-path="#DDO:VAL_VAREN" doc-path="#DDO:VAL_VAREN" mode="SHOW" form-class="NucleusRH.Base.Liquidacion.Personal_Liquidacion.VAL_VAREN.noreg.autoform"/>
+		</flow:action>
+		<flow:action name="CALL:VAL_VARPN">
+			<flow:call-action action="load-DDO"/>
+			<flow:open-form iter-index="#DDO:VAL_VARPN/VAL_VARPN/@id" parent-doc-path="#DDO:VAL_VARPN" doc-path="#DDO:VAL_VARPN" mode="SHOW" form-class="NucleusRH.Base.Liquidacion.Personal_Liquidacion.VAL_VARPN.noreg.autoform"/>
+		</flow:action>
+		<flow:action name="BACK">
+			<flow:save-user-data name="FILTER_NucleusRH.Base.Liquidacion.Personal_Liquidacion" doc-path="#FILTERDATA:"/>
+			<flow:close-form/>
+		</flow:action>
+		<flow:action name="PARENT"/>
+	</flow:form>
+	<flow:form extends="NucleusRH.Base.Liquidacion.Personal_Liquidacion.PERSONAL_LIQ.autoform:SHOW" parent-doc="PARENTSOURCE" doc="SOURCE" name="NucleusRH.Base.Liquidacion.Personal_Liquidacion.PERSONAL_LIQ.form:SHOW" form-class="NucleusRH.Base.Liquidacion.Personal_Liquidacion.PERSONAL_LIQ.form" mode="SHOW">
+		<flow:action name="open-flow-EDIT">
+			<flow:open-form doc-path="#DDO:" mode="EDIT" form-class="NucleusRH.Base.Liquidacion.Personal_Liquidacion.PERSONAL_LIQ.form"/>
+		</flow:action>
+		<flow:action name="REFRESH">
+			<flow:call-action action="After-Change"/>
+		</flow:action>
+	</flow:form>
+	<flow:form extends="NucleusRH.Base.Liquidacion.Personal_Liquidacion.PERSONAL_LIQ.autoform:LIST" parent-doc="PARENTSOURCE" doc="SOURCE" name="NucleusRH.Base.Liquidacion.Personal_Liquidacion.PERSONAL_LIQ.form:LIST" form-class="NucleusRH.Base.Liquidacion.Personal_Liquidacion.PERSONAL_LIQ.form" mode="LIST">
+		<flow:action name="open-flow-EDIT">
+			<flow:open-form doc-path="#DDO:" mode="EDIT" form-class="NucleusRH.Base.Liquidacion.Personal_Liquidacion.PERSONAL_LIQ.form"/>
+		</flow:action>
+		<flow:action name="REFRESH">
+			<flow:call-action action="on-show"/>
+		</flow:action>
+		<flow:action name="on-open"/>
+		<flow:action name="on-empty-iterator"/>
+		<flow:action name="on-show">
+			<doc:new-object class="NucleusRH.Base.Liquidacion.Personal_Liquidacion.PERSONAL_LIQ" doc="DDO"/>
+		</flow:action>
+		<flow:action name="load-DDO">
+			<doc:load-object id-path="#FORM:ctrl[@id='oi']/@xval" class="NucleusRH.Base.Liquidacion.Personal_Liquidacion.PERSONAL_LIQ" doc="DDO"/>
+		</flow:action>
+		<flow:action name="After-Change"/>
+		<flow:action name="After-Back"/>
+	</flow:form>
+	<flow:form extends="NucleusRH.Base.Liquidacion.Personal_Liquidacion.PERSONAL_LIQ.autoform:EDIT" parent-doc="PARENTSOURCE" doc="SOURCE" name="NucleusRH.Base.Liquidacion.Personal_Liquidacion.PERSONAL_LIQ.form:EDIT" form-class="NucleusRH.Base.Liquidacion.Personal_Liquidacion.PERSONAL_LIQ.form" mode="EDIT">
+		<flow:action name="CALL:VAL_VAREN">
+			<flow:open-form iter-index="#SOURCE:VAL_VAREN/VAL_VAREN/@id" parent-doc-path="#SOURCE:VAL_VAREN" doc-path="#SOURCE:VAL_VAREN" mode="SHOW" form-class="NucleusRH.Base.Liquidacion.Personal_Liquidacion.VAL_VAREN.noreg.autoform"/>
+		</flow:action>
+	</flow:form>
+	<flow:form extends="NucleusRH.Base.Liquidacion.Personal_Liquidacion.PERSONAL_LIQ.form:SHOW" name="NucleusRH.Base.Liquidacion.Personal_Liquidacion.PERSONAL_LIQ.form:REPORTE" mode="REPORTE" parent-doc="PARENTSOURCE" doc="SOURCE" form-class="NucleusRH.Base.Liquidacion.Personal_Liquidacion.PERSONAL_LIQ.form"/>
+</flow:flow>

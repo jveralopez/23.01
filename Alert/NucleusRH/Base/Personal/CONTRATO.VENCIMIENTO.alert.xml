@@ -1,0 +1,217 @@
+<ALERT xmlns:qry="nomad_engine.qry" name="CONTRATO.VENCIMIENTO.alert" label="Vencimiento de Contrato">
+	<PARAMS>
+		<PARAM label="Cantidad de d&#237;as al vencimiento" name="CantDias" type="int" req="1"/>
+		<PARAM type="string" label="C&#243;digo de Empresa" name="CodEmp" req="0"/>
+		<PARAM label="C&#243;digo de Tipo de Contrato" type="string" req="0" name="TipoCont"/>
+	</PARAMS>
+	<QRY declare="&lt;PARAMS CantDias=&quot;40&quot; CodEmp=&quot;&quot; TipoCont=&quot;&quot;/&gt;">
+		<qry:main doc="PARAMS">
+			<qry:append-doc name="PARAMIN" doc-path="$PARAMS/PARAMS"/>
+			<qry:element name="ROWS">
+				<qry:attribute name="FDESDE" value="now-date()"/>
+				<qry:attribute name="FHASTA" value="now-date() + #PARAMIN:@CantDias"/>
+				<qry:if test="#PARAMIN:@CodEmp!=''">
+					<qry:then>
+						<qry:attribute name="CODEMP" value="upper-case(#PARAMIN:@CodEmp)"/>
+					</qry:then>
+				</qry:if>
+				<qry:if test="#PARAMIN:@TipoCont!=''">
+					<qry:then>
+						<qry:attribute name="TIPOCONT" value="upper-case(#PARAMIN:@TipoCont)"/>
+					</qry:then>
+				</qry:if>
+				<qry:insert-select name="QRY_COUNT" doc-path="."/>
+				<qry:if test="@CANTIDAD!=0">
+					<qry:then>
+						<TODOS>
+							<qry:attribute name="FDESDE" value="now-date()"/>
+							<qry:attribute name="FHASTA" value="now-date() + #PARAMIN:@CantDias"/>
+							<qry:if test="#PARAMIN:@CodEmp!=''">
+								<qry:then>
+									<qry:attribute name="CODEMP" value="upper-case(#PARAMIN:@CodEmp)"/>
+								</qry:then>
+							</qry:if>
+							<qry:if test="#PARAMIN:@TipoCont!=''">
+								<qry:then>
+									<qry:attribute name="TIPOCONT" value="upper-case(#PARAMIN:@TipoCont)"/>
+								</qry:then>
+							</qry:if>
+							<qry:insert-select name="QRY_VENC_CONTRATO" doc-path="."/>
+						</TODOS>
+					</qry:then>
+				</qry:if>
+			</qry:element>
+		</qry:main>
+		<qry:select doc="PARAM" name="QRY_VENC_CONTRATO">
+			<qry:xquery>
+				for $r in sql('
+			SELECT
+				PER02_PERSONAL_EMP.e_numero_legajo,
+				PER01_PERSONAL.d_nombres,
+				PER01_PERSONAL.d_apellido,
+				PER01_PERSONAL.d_ape_y_nom,
+				PER01_PERSONAL.c_nro_documento,
+				PER20_TIPOS_DOC.c_tipo_documento,
+				PER20_TIPOS_DOC.d_tipo_documento,
+				PER01_PERSONAL.d_email,
+				PER01_PERSONAL.oi_usuario_sistema,
+				ORG03_EMPRESAS.c_empresa,
+				ORG03_EMPRESAS.d_empresa,
+				PER02_PERSONAL_EMP.f_inicio_contrato,
+				PER02_PERSONAL_EMP.f_fin_contrato,
+				PER28_TIPOS_CONTR.d_tipo_contrato,
+				ORG19_LOCALIDADES.d_localidad
+				
+				
+			FROM
+				PER01_PERSONAL,
+				PER02_PERSONAL_EMP,
+				PER20_TIPOS_DOC,
+				PER28_CONTRATOS,
+				PER28_TIPOS_CONTR,
+				ORG03_EMPRESAS,
+				ORG19_LOCALIDADES	
+				
+			JOIN 
+				ORG03_EMPRESAS.oi_empresa INNER PER02_PERSONAL_EMP.oi_empresa,
+				PER01_PERSONAL.oi_personal INNER PER02_PERSONAL_EMP.oi_personal,
+				PER02_PERSONAL_EMP.oi_contrato INNER PER28_CONTRATOS.oi_contrato,
+				PER28_CONTRATOS.oi_tipo_contrato INNER PER28_TIPOS_CONTR.oi_tipo_contrato,
+				PER01_PERSONAL.oi_tipo_documento INNER PER20_TIPOS_DOC.oi_tipo_documento,
+				PER01_PERSONAL.oi_localidad LEFT OUTER ORG19_LOCALIDADES.oi_localidad
+				
+			WHERE
+
+				PER02_PERSONAL_EMP.f_fin_contrato &lt;= {Datetime(#PARAM:@FHASTA)}  AND
+				PER02_PERSONAL_EMP.f_fin_contrato &gt;= {Datetime(#PARAM:@FDESDE)}  AND
+                PER02_PERSONAL_EMP.oi_indic_activo = 1
+
+				{%? (#PARAM:@CODEMP!='')
+				{% AND ORG03_EMPRESAS.c_empresa = {#PARAM:@CODEMP}  %}  {% %}        
+				%}    
+				
+				{%? (#PARAM:@TIPOCONT!='')
+				{% AND PER28_TIPOS_CONTR.c_tipo_contrato = {#PARAM:@TIPOCONT}  %}  {% %}        
+				%}                    
+				
+				
+				
+			ORDER BY 
+				d_empresa ASC,
+				d_ape_y_nom ASC,
+				f_fin_contrato ASC
+		')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:element name="EMP">
+					<qry:attribute name="LEGAJO" value="$r/@e_numero_legajo"/>
+					<qry:attribute name="NOMBRE" value="$r/@d_nombres"/>
+					<qry:attribute name="APELLIDO" value="$r/@d_apellido"/>
+					<qry:attribute name="APEYNOM" value="$r/@d_ape_y_nom"/>
+					<qry:attribute name="CODEMPRESA" value="$r/@c_empresa"/>
+					<qry:attribute name="DESCEMPRESA" value="$r/@d_empresa"/>
+					<qry:attribute name="CODDOC" value="$r/@d_tipo_documento"/>
+					<qry:attribute name="NRODOC" value="$r/@c_nro_documento"/>
+					<qry:attribute name="TIPODOC" value="$r/@c_tipo_documento"/>
+					<qry:attribute name="MAIL" value="$r/@d_email"/>
+					<qry:attribute name="FECHAINI" value="$r/@f_inicio_contrato"/>
+					<qry:attribute name="FECHAFIN" value="$r/@f_fin_contrato"/>
+					<qry:attribute name="TIPOCONTRATO" value="$r/@d_tipo_contrato"/>
+					<qry:attribute name="LOCALIDAD" value="iif($r/@d_localidad!='',$r/@d_localidad,'-')"/>
+					<qry:insert-select name="sql1" doc-path="$r"/>
+				</qry:element>
+			</qry:out>
+		</qry:select>
+		<qry:select doc="PARAM" name="sql1">
+			<qry:xquery>
+				for $r in file('Nomad\\Base\\Login\\Entidades\\{%=#PARAM:@oi_usuario_sistema%}.ENTIDAD.XML')/ENTIDAD
+			</qry:xquery>
+			<qry:out>
+				<qry:attribute name="MAIL" value="nmd-replace(string($r/MAILS/MAIL[@PRINCIPAL=1]/@EMAIL),',',';')"/>
+			</qry:out>
+		</qry:select>
+		<qry:select doc="PARAM" name="QRY_COUNT">
+			<qry:xquery>
+				for $r in sql('
+			SELECT
+				COUNT(PER02_PERSONAL_EMP.oi_personal_emp) as cantidad
+				
+			FROM
+				PER01_PERSONAL,
+				PER02_PERSONAL_EMP,
+				PER20_TIPOS_DOC,
+				PER28_CONTRATOS,
+				PER28_TIPOS_CONTR,
+				ORG03_EMPRESAS	
+				
+			JOIN 
+				ORG03_EMPRESAS.oi_empresa INNER PER02_PERSONAL_EMP.oi_empresa,
+				PER01_PERSONAL.oi_personal INNER PER02_PERSONAL_EMP.oi_personal,
+				PER02_PERSONAL_EMP.oi_contrato INNER PER28_CONTRATOS.oi_contrato,
+				PER28_CONTRATOS.oi_tipo_contrato INNER PER28_TIPOS_CONTR.oi_tipo_contrato,
+				PER01_PERSONAL.oi_tipo_documento INNER PER20_TIPOS_DOC.oi_tipo_documento
+				
+			WHERE
+
+			   	PER02_PERSONAL_EMP.f_fin_contrato &lt;= {Datetime(#PARAM:@FHASTA)}  AND
+				PER02_PERSONAL_EMP.f_fin_contrato &gt;= {Datetime(#PARAM:@FDESDE)}  AND
+                PER02_PERSONAL_EMP.oi_indic_activo = 1
+
+				{%? (#PARAM:@CODEMP!='')
+				{% AND ORG03_EMPRESAS.c_empresa = {#PARAM:@CODEMP}  %}  {% %}        
+				%}    
+				
+				{%? (#PARAM:@TIPOCONT!='')
+				{% AND PER28_TIPOS_CONTR.c_tipo_contrato = {#PARAM:@TIPOCONT}  %}  {% %}        
+				%}                    
+				
+				
+				
+			
+		')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:attribute name="CANTIDAD" value="$r/@cantidad"/>
+			</qry:out>
+		</qry:select>
+	</QRY>
+	<MAILS>
+		<MAIL suject="[Alertas NucleusRH] Vencimiento de Contrato" group="EMP">
+			Estimado/a {% @EMP.NOMBRE %},
+
+RECURSOS HUMANOS le informa que el d&#237;a {% @EMP.FECHAFIN %} vence su contrato de tipo {% @EMP.TIPOCONTRATO %} con la empresa {% @EMP.DESCEMPRESA %}.
+      
+**Atte.**
+
+**&#193;rea de Recursos Humanos.**
+		</MAIL>
+		<MAIL suject="[Alertas NucleusRH] Vencimiento de Contrato" group="TODOS">
+			**Los siguientes legajos est&#225;n pr&#243;ximos al vencimiento de su contrato:**
+        
+         
+^Empresa			^Legajo			^Tipo y Nro. Documento			^Tipo Contrato			^Fecha Inicio Contrato     ^Fecha Fin Contrato ^  
+{%FOR-EACH EMP%}| {% @EMP.DESCEMPRESA %}  |[{% @EMP.LEGAJO %}] {% @EMP.APEYNOM %}  |[{% @EMP.TIPODOC %}] {% @EMP.NRODOC %}  | {% @EMP.TIPOCONTRATO %} |{% @EMP.FECHAINI %}|{% @EMP.FECHAFIN %}|
+{%END EMP%}
+		</MAIL>
+	</MAILS>
+	<GROUPS>
+		<GROUP label="Por Empleado" name="EMP">
+			<FIELD type="int" label="Legajo" name="LEGAJO"/>
+			<FIELD label="Nombres de la Persona" name="NOMBRE" type="string"/>
+			<FIELD label="Apellido de la Persona" name="APELLIDO" type="string"/>
+			<FIELD type="string" label="Apellido y Nombre" name="APEYNOM"/>
+			<FIELD type="string" label="C&#243;digo Empresa" name="CODEMPRESA"/>
+			<FIELD type="string" label="Descripci&#243;n Empresa" name="DESCEMPRESA"/>
+			<FIELD type="string" label="Documento" name="CODDOC"/>
+			<FIELD type="string" label="Nro. Documento" name="NRODOC"/>
+			<FIELD type="string" label="Tipo Documento" name="TIPODOC"/>
+			<FIELD label="E-Mail" type="string" name="MAIL"/>
+			<FIELD type="date" label="Inicio Contrato" name="FECHAINI"/>
+			<FIELD type="date" label="Fin Contrato" name="FECHAFIN"/>
+			<FIELD name="TIPOCONTRATO" type="string" label="Tipo de Contrato"/>
+			<FIELD label="Localidad de Residencia" name="LOCALIDAD" type="string"/>
+		</GROUP>
+		<GROUP label="Sin Agrupar" name="TODOS"/>
+	</GROUPS>
+	<ENUMS/>
+</ALERT>

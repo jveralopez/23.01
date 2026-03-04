@@ -1,0 +1,185 @@
+<html:html xmlns:html="nomad_engine.html" xmlns:qry="nomad_engine.qry" extends="Nomad.Base.BaseReport.rpt" doc="source" name="NucleusRH.Base.Liquidacion.Listadoanticipos">
+	<html:query declare="&lt;DATOS oi_empresa=&quot;1&quot; f_desde_anticipo=&quot;&quot; f_hasta_anticipo=&quot;&quot; c_estado=&quot;&quot; oi_tipo_anticipo=&quot;1&quot;&gt;&#13;&#10;&#13;&#10;&lt;/DATOS&gt;">
+		<qry:main doc="SOURCE">
+			<qry:append-doc name="PARAMIN" doc-path="#SOURCE:DATOS"/>
+			<REPORT label="LISTADO DE ANTICIPOS">
+				<qry:attribute name="date" value="format_date(Now(),'dd/mm/yyyy HH:MM')"/>
+				<GROUPS>
+					<GROUP tag="EMP" type="title">
+						<COLS>
+							<COL name="d_empresa" label="Empresa" style="font-size:12px;font-weight:bold;padding-top:15px;"/>
+							<COL name="f_desde_anticipo" label="Fecha Desde Anticipo" style="font-size:12px;font-weight:bold;" type="date"/>
+							<COL name="f_hasta_anticipo" label="Fecha Hasta Anticipo" style="font-size:12px;font-weight:bold;" type="date"/>
+							<COL name="c_estado" label="Estado" style="font-size:12px;font-weight:bold;">
+								<OPT value="Solicitado" id="S"/>
+								<OPT value="Otorgado" id="O"/>
+								<OPT value="Liquidado" id="L"/>
+								<OPT value="Descontado" id="D"/>
+								<OPT value="Finalizado" id="F"/>
+								<OPT value="Cancelado" id="C"/>
+								<OPT value="Rechazado" id="R"/>
+							</COL>
+						</COLS>
+						<GROUP tag="PER" style="padding-left:50px; padding-top:10px;" type="title">
+							<COLS>
+								<COL name="e_numero_legajo" label="Legajo" style="width:100%;"/>
+								<COL name="d_ape_y_nom" label="Apellido y Nombre" style="width:100%;"/>
+								<COL name="n_tot_otor" label="Total anticipos otorgados" style="width:100%;" type="num"/>
+							</COLS>
+							<GROUP tag="ANT" label="Anticipos" style="padding-left:50px; padding-top:10px; font-weight:bold; font-size:12px" type="table_parent">
+								<COLS>
+									<COL name="d_tipo_anticipo" label="Tipo" style="width:20%;"/>
+									<COL name="f_anticipo" label="Fecha" style="width:20%; text-align:center;" type="date"/>
+									<COL name="n_importe" label="Monto" style="width:20%;" type="num"/>
+									<COL name="c_estado" label="Estado" style="text-align:center; width:15%;">
+										<OPT value="Solicitado" id="S"/>
+										<OPT value="Otorgado" id="O"/>
+										<OPT value="Liquidado" id="L"/>
+										<OPT value="Descontado" id="D"/>
+										<OPT value="Finalizado" id="F"/>
+										<OPT value="Cancelado" id="C"/>
+										<OPT value="Rechazado" id="R"/>
+									</COL>
+									<COL name="e_cant_cuotas" label="Cant Cuotas" style="text-align:center; width:15%;"/>
+								</COLS>
+								<GROUP tag="DESC" style="padding-right:0px;width:80%;" type="table">
+									<COLS>
+										<COL name="e_cuota" label="Nro Cuota" style="width:15%;text-align:center;"/>
+										<COL name="n_importe" label="Importe" style="width:30%;" type="num"/>
+										<COL name="f_descuento" label="Fecha Descuento" style="text-align:center; width:30%;" type="date"/>
+										<COL name="c_estado" label="Estado" style="text-align:center; width:15%;">
+											<OPT value="Programada" id="P"/>
+											<OPT value="Descontada" id="D"/>
+										</COL>
+									</COLS>
+								</GROUP>
+							</GROUP>
+						</GROUP>
+					</GROUP>
+				</GROUPS>
+				<qry:element name="DATA">
+					<qry:element name="EMP">
+						<qry:insert-select name="qry_cabecera"/>
+						<qry:insert-select name="qry_personas"/>
+					</qry:element>
+				</qry:element>
+			</REPORT>
+		</qry:main>
+		<qry:select doc="SOURCE" name="qry_cabecera">
+			<qry:xquery>
+				for $r in sql('
+			SELECT ORG03_EMPRESAS.c_empresa, ORG03_EMPRESAS.d_empresa
+			FROM ORG03_EMPRESAS
+			WHERE ORG03_EMPRESAS.oi_empresa = {#PARAMIN:@oi_empresa}
+		')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:attribute value="$r/@c_empresa" name="c_empresa"/>
+				<qry:attribute value="$r/@d_empresa" name="d_empresa"/>
+				<qry:attribute value="#PARAMIN:@c_estado" name="c_estado"/>
+				<qry:attribute value="format_date(#PARAMIN:@f_desde_anticipo, 'dd/mm/yyyy')" name="f_desde_anticipo"/>
+				<qry:attribute value="format_date(#PARAMIN:@f_hasta_anticipo, 'dd/mm/yyyy')" name="f_hasta_anticipo"/>
+			</qry:out>
+		</qry:select>
+		<qry:select doc="SOURCE" name="qry_personas">
+			<qry:xquery>
+				for $r in sql('
+		SELECT 
+		PER02_PERSONAL_EMP.oi_personal_emp, PER02_PERSONAL_EMP.e_numero_legajo, PER01_PERSONAL.d_ape_y_nom
+		
+		FROM 
+		PER01_PERSONAL, PER02_PERSONAL_EMP, LIQ07_ANTICIPOS, LIQ07_DESC_ANTI
+		
+		JOIN
+		PER01_PERSONAL.oi_personal INNER PER02_PERSONAL_EMP.oi_personal,
+		PER02_PERSONAL_EMP.oi_personal_emp INNER LIQ07_ANTICIPOS.oi_personal_emp,
+		LIQ07_ANTICIPOS.oi_anticipo LEFT OUTER LIQ07_DESC_ANTI.oi_anticipo
+		
+		WHERE
+		PER02_PERSONAL_EMP.oi_empresa = {#PARAMIN:@oi_empresa}
+		{%?(#PARAMIN:@f_desde_anticipo!='') {% AND LIQ07_ANTICIPOS.f_anticipo &gt;= {DateTime(#PARAMIN:@f_desde_anticipo)} %} {% %} %}
+		{%?(#PARAMIN:@f_hasta_anticipo!='') {% AND LIQ07_ANTICIPOS.f_anticipo &lt;= {DateTime(#PARAMIN:@f_hasta_anticipo)} %} {% %} %}
+		{%?(#PARAMIN:@c_estado!='') {% AND LIQ07_ANTICIPOS.c_estado = {#PARAMIN:@c_estado} %} {% %} %}
+  		{%?(#PARAMIN:@oi_tipo_anticipo!='') {% AND LIQ07_ANTICIPOS.oi_tipo_anticipo = {#PARAMIN:@oi_tipo_anticipo} %} {% %} %}
+		{%?(string(#PARAMIN:PERSONAS/PERSONA/@id)!='') {% AND PER02_PERSONAL_EMP.oi_personal_emp in ({%=string(#PARAMIN:PERSONAS/PERSONA/@id) %}) %} {%  %} %}
+		 
+		GROUP BY PER02_PERSONAL_EMP.oi_personal_emp, PER02_PERSONAL_EMP.e_numero_legajo, PER01_PERSONAL.d_ape_y_nom
+						
+	')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:element name="PER">
+					<qry:attribute type="Nomad.NSystem.Int" value="$r/@oi_personal_emp" name="oi_personal_emp"/>
+					<qry:attribute type="Nomad.NSystem.Int" value="$r/@e_numero_legajo" name="e_numero_legajo"/>
+					<qry:attribute type="Nomad.NSystem.Int" value="$r/@e_numero_legajo + ' - ' +$r/@d_ape_y_nom" name="d_ape_y_nom"/>
+					<qry:attribute value="'0'" name="n_tot_otor"/>
+					<qry:insert-select name="qry_anticipos" doc-path="."/>
+				</qry:element>
+			</qry:out>
+		</qry:select>
+		<qry:select doc="SOURCE" name="qry_anticipos">
+			<qry:xquery>
+				for $r in sql('
+SELECT 
+LIQ07_ANTICIPOS.oi_anticipo, LIQ07_ANTICIPOS.f_solicitud, LIQ07_ANTICIPOS.f_anticipo, 
+LIQ07_ANTICIPOS.n_importe, LIQ07_ANTICIPOS.e_cant_cuotas, LIQ07_ANTICIPOS.c_estado,
+LIQ07_ANTICIPOS.e_periodo,
+LIQ33_TIPO_ANTICIPOS.d_tipo_anticipo
+
+FROM 
+LIQ07_ANTICIPOS, LIQ33_TIPO_ANTICIPOS
+JOIN
+LIQ07_ANTICIPOS.oi_tipo_anticipo LEFT OUTER LIQ33_TIPO_ANTICIPOS.oi_tipo_anticipo
+
+
+WHERE 
+LIQ07_ANTICIPOS.oi_personal_emp = {#SOURCE:@oi_personal_emp}
+{%?(#PARAMIN:@f_desde_anticipo!='') {% AND LIQ07_ANTICIPOS.f_anticipo &gt; {DateTime(#PARAMIN:@f_desde_anticipo)} %} {% %} %}
+{%?(#PARAMIN:@f_hasta_anticipo!='') {% AND LIQ07_ANTICIPOS.f_anticipo &lt;= {DateTime(#PARAMIN:@f_hasta_anticipo)} %} {% %} %}
+{%?(#PARAMIN:@c_estado!='') {% AND LIQ07_ANTICIPOS.c_estado = {#PARAMIN:@c_estado} %} {% %} %}
+{%?(#PARAMIN:@oi_tipo_anticipo!='') {% AND LIQ07_ANTICIPOS.oi_tipo_anticipo = {#PARAMIN:@oi_tipo_anticipo} %} {% %} %}
+         				
+ORDER BY f_anticipo ASC
+')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:element name="ANT">
+					<qry:attribute value="$r/@d_tipo_anticipo" name="d_tipo_anticipo"/>
+					<qry:attribute value="format_date($r/@f_solicitud,'dd/mm/yyyy')" name="f_solicitud"/>
+					<qry:attribute value="format_date($r/@f_anticipo,'dd/mm/yyyy')" name="f_anticipo"/>
+					<qry:attribute value="substring($r/@e_periodo,0,4) + '/' + substring($r/@e_periodo,4,2)" name="e_periodo"/>
+					<qry:attribute value="$r/@e_cant_cuotas" name="e_cant_cuotas"/>
+					<qry:attribute value="$r/@oi_anticipo" name="oi_anticipo"/>
+					<qry:attribute value="$r/@c_estado" name="c_estado"/>
+					<qry:attribute value="$r/@n_importe" name="n_importe"/>
+					<qry:insert-select name="qry_descuentos" doc-path="."/>
+				</qry:element>
+				<qry:insert-select name="sumarOtorg" doc-path="$r/.[@c_estado='O']"/>
+			</qry:out>
+		</qry:select>
+		<qry:select doc="SOURCE" name="sumarOtorg">
+			<qry:out>
+				<qry:attribute value="number(@n_tot_otor) + number(#SOURCE:@n_importe)" name="n_tot_otor"/>
+				<qry:attribute value="6556" name="e_cant_cuotas"/>
+			</qry:out>
+		</qry:select>
+		<qry:select doc="SOURCE" name="qry_descuentos">
+			<qry:xquery>
+				for $r in sql('
+			SELECT LIQ07_DESC_ANTI.e_cuota, LIQ07_DESC_ANTI.f_descuento, LIQ07_DESC_ANTI.n_importe, LIQ07_DESC_ANTI.c_estado
+			FROM LIQ07_DESC_ANTI
+			WHERE LIQ07_DESC_ANTI.oi_anticipo = {#SOURCE:@oi_anticipo}
+			ORDER BY e_cuota ASC
+		')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:element name="DESC">
+					<qry:attribute value="$r/@e_cuota" name="e_cuota"/>
+					<qry:attribute value="$r/@n_importe" name="n_importe"/>
+					<qry:attribute value="format_date($r/@f_descuento,'dd/mm/yyyy')" name="f_descuento"/>
+					<qry:attribute value="$r/@c_estado" name="c_estado"/>
+				</qry:element>
+			</qry:out>
+		</qry:select>
+	</html:query>
+</html:html>

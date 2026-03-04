@@ -1,0 +1,95 @@
+<form:Form xmlns:form="nomad_engine.form" xmlns:qry="nomad_engine.qry" doc="source" name="NucleusRH.Base.Sanciones.Reportes.Notificacion.filter.form">
+	<form:Title>
+		<form:Label label="002 - Notificaci&#243;n de Sanci&#243;n" name="lbl" style="S3 LCol_w" visible=""/>
+	</form:Title>
+	<form:Center>
+		<form:Blank name="b20" width="100%" visible=""/>
+		<form:ComboBox queryname2="NucleusRH.Base.Organizacion.Empresas.EMPRESA.INFO" label="Empresa - Legajo" queryname1="NucleusRH.Base.Personal.LegajoEmpresa.PERSONAL_EMP.INFO" xsize="30" mode="QRY" required="1" nvalue="#source:@oi_personal_emp" name="oi_personal_emp">
+			<form:Event action="RELOAD" name="onchange" runat="client"/>
+		</form:ComboBox>
+		<form:Blank name="b30" width="100%" visible=""/>
+		<form:Blank name="b40" width="100%" visible=""/>
+		<form:Blank name="b50" width="100%" visible=""/>
+		<form:ListView width="750px" rows="10" docname="RS" name="LIST">
+			<form:LVColumns>
+				<form:LVColumn name="f_fechahora_sanc" width="50px" additional="dd/mm/yyyy" type="datetime" label="Fecha Sanci&#243;n" attrname="f_fechahora_sanc"/>
+				<form:LVColumn attrname="d_motivo_sancion" name="d_motivo_sancion" width="50px" type="string" label="Motivo"/>
+				<form:LVColumn additional="&lt;OPTS&gt;&lt;OPT value=&quot;P&quot; text=&quot;Pendiente&quot; /&gt;&lt;OPT value=&quot;A&quot; text=&quot;Aceptada&quot; /&gt;&lt;OPT value=&quot;R&quot; text=&quot;Rechazada&quot; /&gt;&lt;OPT value=&quot;C&quot; text=&quot;Cancelada&quot; /&gt;&lt;/OPTS&gt;" align="left" sorteable="1" width="50px" type="enum" label="Estado" attrname="c_estado" name="c_estado"/>
+			</form:LVColumns>
+			<form:LVColumn additional="&lt;OPTS&gt;&lt;OPT value=&quot;P&quot; text=&quot;Pendiente&quot; /&gt;&lt;OPT value=&quot;A&quot; text=&quot;Aceptada&quot; /&gt;&lt;OPT value=&quot;R&quot; text=&quot;Rechazada&quot; /&gt;&lt;OPT value=&quot;C&quot; text=&quot;Cancelada&quot; /&gt;&lt;/OPTS&gt;" align="left" sorteable="1" width="50px" type="enum" label="Estado" attrname="c_estado" name="c_estado"/>
+		</form:ListView>
+	</form:Center>
+	<form:Bottom>
+		<form:RowAligner name="botonera" columns="3">
+			<form:Row name="fila6">
+				<form:Button startvalidate="1" enabled="" visible="" img="ok" name="btnEjecutar" label="Aceptar" note="Ejecuta" descrip="">
+					<form:Event name="onvalidate" action="valSancion" runat="client"/>
+					<form:Event action="ACCEPT" name="onclick" runat="server"/>
+				</form:Button>
+				<form:Button enabled="" visible="" name="btnVolver" label="Volver" img="back" note="" descrip="">
+					<form:Event action="BACK" name="onclick" runat="server"/>
+				</form:Button>
+			</form:Row>
+		</form:RowAligner>
+	</form:Bottom>
+	<form:Event action="RELOAD" name="reload" runat="server"/>
+	<form:Scripts>
+		function valSancion(me)
+{
+	if (Ctrl('LIST').RowsCount() == 0)
+	{
+		me.SetError('No hay niguna sanci&#243;n seleccionada');
+		return false;
+	}
+	return true;
+}
+
+function RELOAD()
+{	
+	var MyRows;
+	var PARAM = "&lt;DATOS oi_personal_emp=\""+Ctrl('oi_personal_emp').GetXValue()+"\" /&gt;";		
+	MyRows=GetProxy().SQLService().GetXML(Ctrl("main").getResource("QRY_SANCIONES"), PARAM)
+		
+	Ctrl("LIST").processResult(MyRows.ToString());	
+}
+	</form:Scripts>
+	<form:Resources>
+		<form:Resource declare="&lt;DATOS oi_personal_emp=&quot;11581&quot;/&gt;" name="QRY_SANCIONES">
+			<qry:main doc="PARAM">
+				<qry:element name="ROWS">
+					<qry:insert-select name="qry1" doc-path="#PARAM:DATOS"/>
+				</qry:element>
+			</qry:main>
+			<qry:select name="qry1" doc="PARAM">
+				<qry:xquery>
+					for $r in sql('
+				SELECT 
+					SAN03_SANCION_PER.oi_sancion_per, 
+					SAN03_SANCION_PER.f_fechahora_sanc, 
+					SAN01_MOTIVOS_SANC.d_motivo_sancion,
+					SAN03_SANCION_PER.c_estado
+				FROM 
+					SAN03_SANCION_PER,
+					SAN01_MOTIVOS_SANC,
+					SAN02_SANCIONES
+				JOIN
+					SAN03_SANCION_PER.oi_motivo_sancion INNER SAN01_MOTIVOS_SANC.oi_motivo_sancion,
+					SAN03_SANCION_PER.oi_sancion INNER SAN02_SANCIONES.oi_sancion
+				WHERE 
+					SAN03_SANCION_PER.oi_personal_emp = {#PARAM:@oi_personal_emp}
+					AND SAN02_SANCIONES.l_notificacion = \'1\' 
+					AND SAN03_SANCION_PER.c_estado != \'L\'
+			')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:element name="ROW">
+						<qry:attribute name="id" value="$r/@oi_sancion_per"/>
+						<qry:attribute name="f_fechahora_sanc" value="$r/@f_fechahora_sanc"/>
+						<qry:attribute name="d_motivo_sancion" value="$r/@d_motivo_sancion"/>
+						<qry:attribute name="c_estado" value="$r/@c_estado"/>
+					</qry:element>
+				</qry:out>
+			</qry:select>
+		</form:Resource>
+	</form:Resources>
+</form:Form>

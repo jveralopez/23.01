@@ -1,0 +1,165 @@
+<html:html xmlns:html="nomad_engine.html" xmlns:qry="nomad_engine.qry" extends="Nomad.Base.BaseReport.rpt" doc="source" name="NucleusRH.Base.Liquidacion.NovedadesLiquidacion">
+	<html:query declare="&lt;DATOS &#13;&#10;&#9;oi_empresa=&quot;&quot; &#13;&#10;&#9;salida=&quot;HTML&quot; &#13;&#10;&#9;oi_liquidacion=&quot;42&quot; &#13;&#10;&#9;oi_variable=&quot;&quot; &#13;&#10;&#9;report=&quot;&quot;&gt;&#13;&#10;&#13;&#10;      &lt;ROWS nmd-col=&quot;1&quot;&gt;&#13;&#10;          &lt;!--ROW id=&quot;1350&quot; /&gt;&#13;&#10;          &lt;ROW id=&quot;1&quot; /&gt;&#13;&#10;          &lt;ROW id=&quot;2&quot; /&gt;&#13;&#10;          &lt;ROW id=&quot;4&quot; /--&gt;&#13;&#10;      &lt;/ROWS&gt;&#13;&#10;&lt;/DATOS&gt;">
+		<qry:main doc="SOURCE">
+			<qry:append-doc name="PARAMIN" doc-path="#SOURCE:DATOS"/>
+			<REPORT label="Beneficios de las Posiciones">
+				<qry:attribute name="date" value="format_date(Now(),'dd/mm/yyyy HH:MM')"/>
+				<GROUPS>
+					<GROUP tag="TIPOS" type="title">
+						<COLS>
+							<COL name="tipo_benef" label="Tipo de Beneficio"/>
+						</COLS>
+						<GROUP tag="BENEFICIOS" style="padding-left:50px;" type="title" noreg="No se encontraron registros para los filtros seleccionados.">
+							<COLS>
+								<COL name="c_beneficio" label="Beneficio" style=""/>
+							</COLS>
+							<GROUP tag="POS" style="padding-left:50px;" type="table" noreg="No se encontraron registros para los filtros seleccionados.">
+								<COLS>
+									<COL name="empresa" label="Empresa" style="width:20%;"/>
+									<COL name="puesto" label="Puesto" style="width:20%;"/>
+									<COL name="posicion" label="Posici&#243;n" style="width:20%;"/>
+									<COL name="categoria" label="Categor&#237;a" style="width:15%;"/>
+									<COL name="nivel_sal" label="Nivel Salarial" style="width:15%;"/>
+									<COL name="valor" label="Valor" type="num" style="width:10%;"/>
+								</COLS>
+							</GROUP>
+						</GROUP>
+					</GROUP>
+				</GROUPS>
+				<qry:element name="DATA">
+					<qry:insert-select name="qry_cabecera"/>
+				</qry:element>
+			</REPORT>
+		</qry:main>
+		<qry:select name="qry_cabecera" doc="SOURCE">
+			<qry:xquery>
+				for $r in sql('
+				SELECT
+	ORG10_TIPOS_BENEF.oi_tipo_benef,
+	ORG10_TIPOS_BENEF.c_tipo_benef,
+	ORG10_TIPOS_BENEF.d_tipo_benef
+FROM
+	ORG10_TIPOS_BENEF as ORG10_TIPOS_BENEF
+				where 1=1
+				{%? (#PARAMIN:@oi_tipo_benef!='')	{% AND ORG10_TIPOS_BENEF.oi_tipo_benef = {%= #PARAMIN:@oi_tipo_benef %} %} {% %} %}
+				ORDER BY c_tipo_benef ASC
+			')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:element name="TIPOS">
+					<qry:attribute name="hts:delete" value="1"/>
+					<qry:attribute name="tipo_benef" value="$r/@c_tipo_benef + ' - ' + $r/@d_tipo_benef" type="Nomad.NSystem.String"/>
+					<qry:insert-select doc-path="$r" name="qry_bene"/>
+				</qry:element>
+			</qry:out>
+		</qry:select>
+		<qry:select name="qry_bene" doc="SOURCE">
+			<qry:xquery>
+				for $r in sql(' 
+SELECT
+  ORG23_BENEFICIOS.oi_beneficio,
+  ORG23_BENEFICIOS.c_beneficio,
+  ORG23_BENEFICIOS.d_beneficio
+FROM
+  ORG23_BENEFICIOS as ORG23_BENEFICIOS
+where
+  ORG23_BENEFICIOS.oi_tipo_benef = {#SOURCE:@oi_tipo_benef} 
+  {%? (#PARAMIN:@oi_beneficio!='') {% AND ORG23_BENEFICIOS.oi_beneficio = {%= #PARAMIN:@oi_beneficio %} %} {% %} %}
+ORDER BY 
+  c_beneficio ASC
+				
+				')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:element name="BENEFICIOS">
+					<qry:attribute name="c_beneficio" value="$r/@c_beneficio + ' - ' + $r/@d_beneficio" type="Nomad.NSystem.Int"/>
+					<qry:attribute name="hts:delete" value="1"/>
+					<qry:insert-select doc-path="$r" name="qry_pos"/>
+				</qry:element>
+				<qry:attribute name="hts:delete" value="0"/>
+			</qry:out>
+		</qry:select>
+		<qry:select name="qry_pos" doc="SOURCE">
+			<qry:xquery>
+				for $r in sql(' 
+SELECT
+  ORG03_EMPRESAS.c_empresa, ORG03_EMPRESAS.d_empresa, 
+  ORG04_POSICIONES.oi_posicion, ORG04_POSICIONES.c_posicion, ORG04_POSICIONES.d_posicion,
+  ORG04_PUESTOS.c_puesto, ORG04_PUESTOS.d_puesto,
+  ORG04_PUESTO_BENEF.n_valor_total AS valor, 
+  ORG04_POSICIONES.oi_categoria, ORG04_POSICIONES.oi_nivel_sal
+FROM
+  ORG04_POSICIONES, ORG04_PUESTOS, ORG04_PUESTO_BENEF, ORG03_EMPRESAS
+JOIN
+  ORG04_POSICIONES.oi_puesto INNER ORG04_PUESTOS.oi_puesto,
+  ORG04_PUESTOS.oi_puesto INNER ORG04_PUESTO_BENEF.oi_puesto,
+  ORG04_PUESTOS.oi_empresa INNER ORG03_EMPRESAS.oi_empresa
+WHERE
+  ORG04_PUESTO_BENEF.oi_beneficio = {#SOURCE:@oi_beneficio} AND
+  ORG04_POSICIONES.oi_posicion NOT IN (SELECT ORG04_POSIC_BENEF.oi_posicion FROM ORG04_POSIC_BENEF WHERE ORG04_POSIC_BENEF.oi_beneficio = {%=#SOURCE:@oi_beneficio%})
+
+UNION
+
+SELECT
+	EMP.c_empresa, EMP.d_empresa, 
+	POS.oi_posicion, POS.c_posicion, POS.d_posicion,
+  PUE.c_puesto, PUE.d_puesto,
+  ORG04_POSIC_BENEF.n_valor_total AS valor,
+  POS.oi_categoria, POS.oi_nivel_sal
+FROM
+  ORG04_POSICIONES AS POS, ORG04_POSIC_BENEF, ORG04_PUESTOS AS PUE, ORG03_EMPRESAS AS EMP
+JOIN
+  POS.oi_posicion INNER ORG04_POSIC_BENEF.oi_posicion,
+  POS.oi_puesto INNER PUE.oi_puesto,
+  PUE.oi_empresa INNER EMP.oi_empresa
+WHERE
+  ORG04_POSIC_BENEF.oi_beneficio = {#SOURCE:@oi_beneficio}
+
+			')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:element name="POS">
+					<qry:attribute name="empresa" value="$r/@c_empresa + ' - ' + $r/@d_empresa"/>
+					<qry:attribute name="oi_posicion" value="$r/@oi_posicion"/>
+					<qry:attribute name="posicion" value="$r/@c_posicion + ' - ' + $r/@d_posicion"/>
+					<qry:attribute name="puesto" value="$r/@c_puesto + ' - ' + $r/@d_puesto"/>
+					<qry:attribute name="oi_categoria" value="$r/@oi_categoria"/>
+					<qry:insert-select name="qry_categoria" doc-path="."/>
+					<qry:attribute name="oi_nivel_sal" value="$r/@oi_nivel_sal"/>
+					<qry:insert-select name="qry_nivel_sal" doc-path="."/>
+					<qry:attribute name="valor" value="$r/@valor"/>
+				</qry:element>
+				<qry:attribute name="hts:delete" value="0"/>
+			</qry:out>
+		</qry:select>
+		<qry:select name="qry_categoria" doc="SOURCE">
+			<qry:xquery>
+				for $r in sql(' 
+SELECT
+	ORG18_CONVENIOS.c_convenio, ORG18_CONVENIOS.d_convenio,
+	ORG18_CATEGORIAS.c_categoria, ORG18_CATEGORIAS.d_categoria
+FROM
+	ORG18_CONVENIOS, ORG18_CATEGORIAS
+JOIN
+  ORG18_CONVENIOS.oi_convenio INNER ORG18_CATEGORIAS.oi_convenio
+WHERE ORG18_CATEGORIAS.oi_categoria = {#SOURCE:@oi_categoria}
+				')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:attribute name="categoria" value="$r/@c_categoria + ' - ' + $r/@d_categoria"/>
+			</qry:out>
+		</qry:select>
+		<qry:select name="qry_nivel_sal" doc="SOURCE">
+			<qry:xquery>
+				for $r in sql(' 
+SELECT ORG17_NIVELES_SAL.c_nivel_sal, ORG17_NIVELES_SAL.d_nivel_sal 
+FROM ORG17_NIVELES_SAL
+WHERE ORG17_NIVELES_SAL.oi_nivel_sal = {#SOURCE:@oi_nivel_sal}
+				')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:attribute name="nivel_sal" value="$r/@c_nivel_sal + ' - ' + $r/@d_nivel_sal"/>
+			</qry:out>
+		</qry:select>
+	</html:query>
+</html:html>

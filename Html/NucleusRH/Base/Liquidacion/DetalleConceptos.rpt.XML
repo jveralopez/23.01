@@ -1,0 +1,179 @@
+<html:html xmlns:html="nomad_engine.html" xmlns:qry="nomad_engine.qry" extends="Nomad.Base.BaseReport.rpt" doc="source" name="NucleusRH.Base.Liquidacion.DetalleConceptos">
+	<html:query declare="&lt;DATOS &#13;&#10;&#9;report=&quot;&quot; &#13;&#10;&#9;e_periodo=&quot;&quot; &#13;&#10;&#9;c_empresa=&quot;TadeoCz&quot; &#13;&#10;&#9;oi_liquidacion=&quot;362&quot; &#13;&#10;&#9;oi_tipo_concepto=&quot;1&quot; &#13;&#10;&#9;l_simulacion=&quot;0&quot;&#13;&#10;&#9;c_concepto=&quot;0002&quot;&gt;&lt;OSS /&gt;&lt;/DATOS&gt;">
+		<qry:main doc="SOURCE">
+			<qry:append-doc name="PARAMIN" doc-path="#SOURCE:DATOS"/>
+			<REPORT label="TOTALES POR CONCEPTO (DETALLE)">
+				<qry:attribute name="date" value="format_date(Now(),'dd/mm/yyyy HH:MM')"/>
+				<GROUPS>
+					<GROUP tag="TCONC" type="title" noreg="No se encontraron registros para los filtros seleccionados.">
+						<COLS>
+							<COL name="d_empresa" label="Empresa" align="left" width="10"/>
+							<COL name="d_liquidacion" label="Liquidaci&#243;n" align="left" width="10"/>
+							<COL name="d_tipo_concepto" label="Tipo de Concepto" align="left" width="10"/>
+						</COLS>
+						<GROUP tag="CONC" style="padding-left:50px" type="title_collapse" noreg="No se encontraron registros para los filtros seleccionados.">
+							<COLS>
+								<COL name="d_concepto" label="Concepto" align="left" width="10"/>
+							</COLS>
+							<GROUP tag="PER" style="padding-left:50px" type="table" noreg="No se encontraron registros para los filtros seleccionados.">
+								<COLS>
+									<COL name="e_numero_legajo" label="Legajo" style="width:10%"/>
+									<COL name="d_ape_y_nom" label="Apellido y Nombre" style="width:50%"/>
+									<COL name="n_cantidad" label="Cantidad" style="width:20%;" type="num"/>
+									<COL name="n_valor" label="Valor" style="width:20%;" type="num"/>
+								</COLS>
+								<FCOLS>
+									<COL/>
+									<COL label="Total" style="text-align:RIGHT; font-weight: bold"/>
+									<COL name="cant_format" style="font-weight: bold; text-align:right;" type="num"/>
+									<COL name="valor_format" style="font-weight: bold; text-align:right;" type="num"/>
+								</FCOLS>
+							</GROUP>
+						</GROUP>
+					</GROUP>
+				</GROUPS>
+				<qry:element name="DATA">
+					<qry:attribute name="hts:delete" value="'1'"/>
+					<qry:insert-select name="qry_tipos_conc"/>
+				</qry:element>
+			</REPORT>
+		</qry:main>
+		<qry:select doc="SOURCE" name="qry_cabecera">
+			<qry:xquery>
+				for $r in sql('
+				SELECT 
+					LIQ93_EMPRESAS.d_empresa, 
+					LIQ99_LIQUIDACION.c_liquidacion, 
+					LIQ99_LIQUIDACION.d_titulo
+				FROM 
+					LIQ93_EMPRESAS, 
+					LIQ99_LIQUIDACION,
+					LIQ19_LIQUIDACION,
+					LIQ19_EJECUCIONES
+				JOIN 
+					LIQ93_EMPRESAS.oi_empresa_ddo INNER LIQ99_LIQUIDACION.oi_empresa_ddo,
+					LIQ99_LIQUIDACION.oi_liquidacion_ddo INNER LIQ19_EJECUCIONES.oi_liquidacion_ddo,
+					LIQ19_LIQUIDACION.oi_liquidacion INNER LIQ19_EJECUCIONES.oi_liquidacion
+					
+				WHERE 
+					LIQ99_LIQUIDACION.oi_liquidacion_ddo = {#PARAMIN:@oi_liquidacion}
+					{%? (#PARAMIN:@l_simulacion!='')	{% AND LIQ19_LIQUIDACION.l_simulacion = {%= #PARAMIN:@l_simulacion %} %} {% %} %}
+			')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:attribute name="d_empresa" value="$r/@d_empresa" type="Nomad.NSystem.String"/>
+				<qry:attribute name="d_liquidacion" value="$r/@c_liquidacion + ' - ' + $r/@d_titulo" type="Nomad.NSystem.String"/>
+				<qry:attribute name="hts:delete" value="'0'"/>
+			</qry:out>
+		</qry:select>
+		<qry:select doc="SOURCE" name="qry_tipos_conc">
+			<qry:xquery>
+				for $r in sql('
+				SELECT LIQ12_TIPOS_CONC.c_tipo_concepto, LIQ12_TIPOS_CONC.d_tipo_concepto
+				FROM LIQ12_TIPOS_CONC
+				WHERE LIQ12_TIPOS_CONC.oi_tipo_concepto = {#PARAMIN:@oi_tipo_concepto}
+			')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:element name="TCONC">
+					<qry:attribute name="hts:delete" value="'1'"/>
+					<qry:insert-select name="qry_cabecera"/>
+					<qry:attribute name="c_tipo_concepto" value="$r/@c_tipo_concepto" type="Nomad.NSystem.String"/>
+					<qry:attribute name="d_tipo_concepto" value="$r/@d_tipo_concepto" type="Nomad.NSystem.String"/>
+					<qry:insert-select doc-path="." name="qry_coneptos"/>
+				</qry:element>
+				<qry:attribute name="hts:delete" value="'0'"/>
+			</qry:out>
+		</qry:select>
+		<qry:select doc="SOURCE" name="qry_coneptos">
+			<qry:xquery>
+				for $r in sql('
+				SELECT
+				LIQ96_CONCEPTOS.c_concepto, LIQ96_CONCEPTOS.d_concepto
+
+				FROM 
+					LIQ99_RECIBOS, 
+					LIQ20_CONC_LIQ_PER, 
+					LIQ96_CONCEPTOS,
+					LIQ19_LIQUIDACION,
+					LIQ19_EJECUCIONES
+				JOIN
+					LIQ99_RECIBOS.oi_tot_liq_per INNER LIQ20_CONC_LIQ_PER.oi_tot_liq_per,
+					LIQ20_CONC_LIQ_PER.oi_concepto_ddo INNER LIQ96_CONCEPTOS.oi_concepto_ddo,
+					LIQ99_RECIBOS.oi_liquidacion_ddo INNER LIQ19_EJECUCIONES.oi_liquidacion_ddo,
+					LIQ19_LIQUIDACION.oi_liquidacion INNER LIQ19_EJECUCIONES.oi_liquidacion
+
+				WHERE
+					LIQ20_CONC_LIQ_PER.n_valor != \'0\' AND
+					LIQ99_RECIBOS.oi_liquidacion_ddo = {#PARAMIN:@oi_liquidacion} AND				
+					LIQ96_CONCEPTOS.c_tipo_concepto = {#SOURCE:@c_tipo_concepto}
+					{%? (#PARAMIN:@c_concepto!='') {% AND LIQ96_CONCEPTOS.c_concepto = {#PARAMIN:@c_concepto} %} {% %} %}
+					{%? (#PARAMIN:@l_simulacion!='')	{% AND LIQ19_LIQUIDACION.l_simulacion = {%= #PARAMIN:@l_simulacion %} %} {% %} %}
+
+				GROUP BY
+				LIQ96_CONCEPTOS.c_concepto, LIQ96_CONCEPTOS.d_concepto
+				
+				ORDER BY
+				d_concepto ASC
+
+			')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:element name="CONC">
+					<qry:attribute name="c_concepto" value="$r/@c_concepto" type="Nomad.NSystem.String"/>
+					<qry:attribute name="d_concepto" value="$r/@d_concepto" type="Nomad.NSystem.String"/>
+					<qry:insert-select doc-path="." name="qry_persona"/>
+				</qry:element>
+			</qry:out>
+		</qry:select>
+		<qry:select doc="SOURCE" name="qry_persona">
+			<qry:xquery>
+				for $r in sql('
+				SELECT 
+				LIQ97_PERSONAL_EMP.e_numero_legajo,
+				LIQ20_CONC_LIQ_PER.n_valor, LIQ20_CONC_LIQ_PER.n_cantidad, 
+				LIQ97_PERSONAL_EMP.c_nro_cuil, LIQ97_PERSONAL_EMP.d_ape_y_nom
+				
+				FROM 
+					LIQ20_TOT_LIQ_PER, 
+					LIQ99_RECIBOS, 
+					LIQ97_PERSONAL_EMP, 
+					LIQ20_CONC_LIQ_PER,
+					LIQ96_CONCEPTOS,
+					LIQ19_LIQUIDACION,
+					LIQ19_EJECUCIONES
+				
+				JOIN
+					LIQ20_TOT_LIQ_PER.oi_tot_liq_per INNER LIQ99_RECIBOS.oi_tot_liq_per,
+					LIQ20_TOT_LIQ_PER.oi_per_emp_ddo INNER LIQ97_PERSONAL_EMP.oi_per_emp_ddo,
+					LIQ99_RECIBOS.oi_tot_liq_per INNER LIQ20_CONC_LIQ_PER.oi_tot_liq_per,
+					LIQ20_CONC_LIQ_PER.oi_concepto_ddo INNER LIQ96_CONCEPTOS.oi_concepto_ddo,
+					LIQ99_RECIBOS.oi_liquidacion_ddo INNER LIQ19_EJECUCIONES.oi_liquidacion_ddo,
+					LIQ19_LIQUIDACION.oi_liquidacion INNER LIQ19_EJECUCIONES.oi_liquidacion
+				
+				WHERE
+					LIQ20_CONC_LIQ_PER.n_valor != \'0.00\' AND
+					LIQ99_RECIBOS.oi_liquidacion_ddo = {#PARAMIN:@oi_liquidacion} AND
+					LIQ96_CONCEPTOS.c_concepto = {#SOURCE:@c_concepto}
+					{%? (#PARAMIN:@l_simulacion!='')	{% AND LIQ19_LIQUIDACION.l_simulacion = {%= #PARAMIN:@l_simulacion %} %} {% %} %}
+				
+				ORDER BY e_numero_legajo ASC
+				
+			')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:attribute name="total_cant" value="number(./@total_cant) + number($r/@n_cantidad)"/>
+				<qry:attribute name="total_valor" value="number(./@total_valor) + number($r/@n_valor)"/>
+				<qry:attribute name="cant_format" value="./@total_cant"/>
+				<qry:attribute name="valor_format" value="./@total_valor"/>
+				<qry:element name="PER">
+					<qry:attribute value="$r/@e_numero_legajo" name="e_numero_legajo"/>
+					<qry:attribute value="$r/@n_cantidad" name="n_cantidad"/>
+					<qry:attribute value="$r/@n_valor" name="n_valor"/>
+					<qry:attribute value="$r/@c_nro_cuil" name="c_nro_cuil"/>
+					<qry:attribute value="$r/@d_ape_y_nom" name="d_ape_y_nom"/>
+				</qry:element>
+			</qry:out>
+		</qry:select>
+	</html:query>
+</html:html>

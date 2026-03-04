@@ -1,0 +1,168 @@
+<html:html xmlns:html="nomad_engine.html" xmlns:qry="nomad_engine.qry" extends="Nomad.Base.BaseReport.rpt" name="NucleusRH.Base.Liquidacion.LegajosPorEmpresa" doc="source">
+	<html:query declare="&lt;DATOS salida=&quot;HTML&quot; oi_liquidacion=&quot;51&quot; oi_concepto=&quot;7992402&quot;&gt;&lt;ROWS /&gt;&lt;/DATOS&gt;">
+		<qry:main doc="PARAM">
+			<qry:append-doc name="FILTRO" doc-path="#PARAM:DATOS"/>
+			<REPORT label="Reportes de conceptos de Interfaz">
+				<qry:attribute name="date" value="format_date(Now(),'dd/mm/yyyy HH:MM')"/>
+				<GROUPS>
+					<GROUP tag="LIQ" type="title">
+						<COLS>
+							<COL name="empresa" label="Empresa"/>
+							<COL name="liquidacion" label="Liquidacion"/>
+							<COL name="concepto" label="Concepto"/>
+						</COLS>
+						<GROUP tag="PER" type="table">
+							<COLS>
+								<COL name="e_numero_legajo" label="Legajo" style="width:10%"/>
+								<COL name="d_ape_y_nom" nowrap="1" label="Apellido y Nombre" style=" width:25%"/>
+								<qry:insert-select doc-path="#PARAM:DATOS" name="qry_columnas"/>
+							</COLS>
+						</GROUP>
+					</GROUP>
+				</GROUPS>
+				<qry:element name="DATA">
+					<qry:insert-select doc-path="#PARAM:DATOS" name="QRY_EMPRESA"/>
+				</qry:element>
+			</REPORT>
+		</qry:main>
+		<qry:select doc="PARAM" name="qry_columnas">
+			<qry:xquery>
+				for $r in sql('
+				 SELECT 
+	LIQ09_VARIABLES.c_variable
+	, LIQ09_VARIABLES.n_valor
+	, LIQ09_VARIABLES.o_variable 
+FROM 
+	LIQ14_CONC_VAR
+	, LIQ09_VARIABLES
+JOIN 
+	LIQ09_VARIABLES.oi_variable INNER LIQ14_CONC_VAR.oi_variable
+WHERE	
+	LIQ14_CONC_VAR.oi_concepto = {#FILTRO:@oi_concepto}
+ORDER BY n_valor ASC
+				')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:element name="COL">
+					<qry:attribute name="name" value="$r/@c_variable"/>
+					<!--qry:attribute name="label" value="substring_after(substring_before($r/@o_variable, ']]'), '[[')"/-->
+					<qry:attribute name="label" value="iif(@label='',$r/@c_variable,@label)"/>
+					<qry:attribute name="style" value=""/>
+					<qry:attribute name="type" value="'num'"/>
+					<qry:attribute name="nowrap" value=""/>
+				</qry:element>
+			</qry:out>
+		</qry:select>
+		<qry:select doc="PARAM" name="QRY_EMPRESA">
+			<qry:xquery>
+				for $r in sql('
+				 SELECT 
+ 	O03.c_empresa
+ 	, O03.d_empresa
+ 	, L19.c_liquidacion
+ 	, L19.d_titulo
+ 	, L19.e_periodo
+ 	, L99.oi_liquidacion_ddo
+ FROM 
+ 	LIQ19_LIQUIDACION AS L19 
+ 	, ORG03_EMPRESAS AS O03
+ 	, LIQ19_EJECUCIONES AS E19
+ 	, LIQ99_LIQUIDACION AS L99
+JOIN 
+ 	L19.oi_liquidacion INNER E19.oi_liquidacion
+ 	, L19.oi_empresa INNER O03.oi_empresa
+ 	, E19.oi_liquidacion_ddo INNER L99.oi_liquidacion_ddo	
+WHERE
+ 	L19.oi_liquidacion = {#FILTRO:@oi_liquidacion}
+ 	AND L99.c_estado = \'F\'
+				')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:element name="LIQ">
+					<qry:attribute name="empresa" value="$r/@c_empresa + ' - ' +$r/@d_empresa"/>
+					<qry:attribute name="liquidacion" value="$r/@c_liquidacion + ' - ' +$r/@d_titulo"/>
+					<qry:attribute name="e_periodo" value="$r/@e_periodo"/>
+					<qry:insert-select doc-path="#FILTRO:" name="qry_concepto"/>
+					<qry:insert-select doc-path="$r" name="qry_personas"/>
+				</qry:element>
+			</qry:out>
+		</qry:select>
+		<qry:select doc="PARAM" name="qry_personas">
+			<qry:xquery>
+				for $r in sql('		
+					SELECT 
+   L97.e_numero_legajo
+   , L97.d_ape_y_nom 
+   , L20.oi_tot_liq_per
+FROM 
+   LIQ99_RECIBOS AS L99
+   , LIQ20_TOT_LIQ_PER AS L20
+   , LIQ97_PERSONAL_EMP AS L97
+JOIN
+   L99.oi_tot_liq_per INNER L20.oi_tot_liq_per
+   , L20.oi_per_emp_ddo INNER L97.oi_per_emp_ddo
+WHERE
+   L99.oi_liquidacion_ddo = {#PARAM:@oi_liquidacion_ddo}
+				')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:element name="PER">
+					<qry:attribute name="e_numero_legajo" value="$r/@e_numero_legajo"/>
+					<qry:attribute name="d_ape_y_nom" value="$r/@d_ape_y_nom"/>
+					<qry:insert-select doc-path="$r" name="qry_variables"/>
+				</qry:element>
+			</qry:out>
+		</qry:select>
+		<qry:select doc="PARAM" name="qry_variables">
+			<qry:xquery>
+				for $r in sql('		
+					SELECT
+	O.oi_cab_conc_ddo
+	, V.c_variable
+	, G.d_variable
+	, V.n_valor_s
+	 
+FROM
+	LIQ20_VAR_LIQ_CONC AS V
+	, LIQ20_CONC_LIQ_PER AS C
+	, LIQ96_CONCEPTOS AS O
+	, LIQ09_VARIABLES AS G
+	
+JOIN 
+	V.oi_conc_liq_per INNER C.oi_conc_liq_per
+	, C.oi_concepto_ddo INNER O.oi_concepto_ddo
+	, V.c_variable INNER G.c_variable
+WHERE
+O.c_concepto = {#CODIGOCON:@c_concepto}
+AND C.oi_tot_liq_per = {#PARAM:@oi_tot_liq_per}
+				')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:element name="attr">
+					<qry:attribute name="name" value="$r/@c_variable"/>
+					<qry:attribute name="val" value="$r/@n_valor_s"/>
+				</qry:element>
+			</qry:out>
+		</qry:select>
+		<qry:select doc="PARAM" name="qry_concepto">
+			<qry:xquery>
+				for $r in sql('		
+					SELECT
+	l.oi_concepto
+	, l.c_concepto
+	, l.d_concepto	 
+FROM
+	LIQ14_CONCEPTOS as l
+WHERE
+l.oi_concepto = {#PARAM:@oi_concepto}
+				')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:attribute name="concepto" value="'[' + $r/@c_concepto + '] - ' + $r/@d_concepto"/>
+				<qry:append-doc name="CODIGOCON" doc-path="$r"/>
+				<!--qry:insert-element name="ww" doc-path="#CODIGOCON:"/-->
+				<qry:attribute name="concepgto" value="#CODIGOCON:@c_concepto"/>
+			</qry:out>
+		</qry:select>
+	</html:query>
+</html:html>

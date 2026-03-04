@@ -1,0 +1,361 @@
+<html:html xmlns:html="nomad_engine.html" xmlns:qry="nomad_engine.qry" name="NucleusRH.Base.Liquidacion.ListadoDefinicionesContables" extends="Nomad.Base.BaseReport.rpt" doc="source">
+	<html:query declare="&lt;DATA  oi_def_cont=&quot;1&quot;/&gt;">
+		<qry:main doc="SOURCE">
+			<REPORT style="width:80%" label="Reporte de Definici&#243;n Contable">
+				<qry:attribute value="format_date(now(),'dd/mm/yyyy HH:MM')" name="date"/>
+				<GROUPS>
+					<GROUP style="width:100%" type="title" tag="TIPE">
+						<COLS>
+							<COL style="font-size:14px" label="Definici&#243;n Contable" name="def_cont"/>
+						</COLS>
+						<GROUP style="width:100%" type="title" tag="ASIENTO" noreg="No se encontraron Asientos Contables.">
+							<COLS>
+								<COL style="font-size:14px" name="titulo"/>
+								<COL label="Secuencia" name="e_secuencia"/>
+								<COL label="C&#243;digo" name="c_asiento_con"/>
+								<COL label="Descripci&#243;n" name="d_asiento_con"/>
+							</COLS>
+							<GROUP style="width:100%" type="title" tag="CUENTA" noreg="No se encontraron Cuentas Contables.">
+								<COLS>
+									<COL style="font-size:14px" name="titulo"/>
+									<COL label="C&#243;digo" name="c_cuenta_contable"/>
+									<COL label="Descripci&#243;n" name="d_cuenta_contable"/>
+									<COL label="Debe/Haber" name="ca_debe_haber"/>
+									<COL label="Operador" name="ca_operador"/>
+									<COL label="Secuencia" name="e_secuencia"/>
+									<COL style="padding-bottom:10px" label="Distribuye Por" name="c_distribucion"/>
+								</COLS>
+								<GROUP style="width:100%" type="table-title" label="Tipos de Conceptos Operaci&#243;n" tag="TIPOCONCEPTO" noreg="No se encontraron Tipos de Concepto Operaci&#243;n.">
+									<COLS>
+										<COL style="text-align:center" label="Tipo Concepto" name="d_tipo_concepto"/>
+										<COL style="text-align:center" label="Operaci&#243;n" name="c_operacion"/>
+									</COLS>
+								</GROUP>
+								<GROUP style="width:100%" type="table-title" label="Conceptos Operaci&#243;n" tag="CONCEPTO" noreg="No se encontraron Conceptos Operaci&#243;n.">
+									<COLS>
+										<COL style="text-align:center" label="Concepto" name="d_concepto"/>
+										<COL style="text-align:center" label="Operaci&#243;n" name="c_operacion"/>
+									</COLS>
+								</GROUP>
+								<GROUP style="width:100%" type="table-title" label="Grupos de Centros de Costo" tag="GRUPOCC" noreg="No se encontraron Grupos de Centros de Costos.">
+									<COLS>
+										<COL style="text-align:center" label="Grupo Centro de Costo" name="d_grupo_ccosto"/>
+										<COL style="text-align:center" label="Incluir/Excluir" name="l_excluir"/>
+									</COLS>
+								</GROUP>
+								<GROUP style="width:100%" type="table-title" label="Centros de Costo" tag="CENTROCOSTO" noreg="No se encontraron Centros de Costos.">
+									<COLS>
+										<COL style="text-align:center" label="Centro de Costo" name="d_centro_costo"/>
+										<COL style="text-align:center" label="Incluir/Excluir" name="l_excluir"/>
+									</COLS>
+								</GROUP>
+								<GROUP style="width:100%" type="table-title" label="Convenios" tag="CONVENIO" noreg="No se encontraron Convenios.">
+									<COLS>
+										<COL style="text-align:center" label="Convenio" name="d_convenio"/>
+										<COL style="text-align:center" label="Incluir/Excluir" name="l_excluir"/>
+									</COLS>
+								</GROUP>
+							</GROUP>
+						</GROUP>
+					</GROUP>
+				</GROUPS>
+				<DATA>
+					<qry:insert-select name="qryDefinicionesContables" doc-path="$SOURCE"/>
+				</DATA>
+			</REPORT>
+		</qry:main>
+		<qry:select name="qryDefinicionesContables" doc="PARAM">
+			<qry:xquery>
+				for $r in SQL('
+SELECT dc.oi_def_cont, dc.c_def_cont, dc.d_def_cont
+FROM LIQ29_DEF_CONT as dc
+					
+WHERE 1=1 
+					
+{%? ($PARAM/DATA/@oi_def_cont = '') {%  %} {% 
+ AND dc.oi_def_cont = {$PARAM/DATA/@oi_def_cont} %} 
+	%}
+					
+			
+					')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<TIPE>
+					<qry:attribute name="def_cont" value="$r/@c_def_cont+' - '+$r/@d_def_cont"/>
+					<qry:insert-select name="qryAsientos" doc-path="$r"/>
+				</TIPE>
+			</qry:out>
+		</qry:select>
+		<qry:select name="qryAsientos" doc="PARAM">
+			<qry:xquery>
+				for $r in SQL('
+SELECT 	ac.e_secuencia,
+		ac.c_asiento_con, 
+		ac.d_asiento_con,
+		ac.oi_asiento_con
+
+FROM 
+LIQ29_ASIENTOS_CON as ac
+
+WHERE ac.oi_def_cont = {#PARAM:@oi_def_cont}
+
+ORDER BY  e_secuencia ASC 
+
+ 
+
+					')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<ASIENTO>
+					<qry:attribute name="titulo" value="'Asiento Contable'"/>
+					<qry:attribute name="e_secuencia" value="$r/@e_secuencia"/>
+					<qry:attribute name="c_asiento_con" value="$r/@c_asiento_con"/>
+					<qry:attribute name="d_asiento_con" value="$r/@d_asiento_con"/>
+					<qry:insert-select name="qryCuentas" doc-path="$r"/>
+				</ASIENTO>
+			</qry:out>
+		</qry:select>
+		<qry:select name="qryCuentas" doc="PARAM">
+			<qry:xquery>
+				for $r in SQL('
+SELECT 	cc.c_cuenta_contable,
+		cc.d_cuenta_contable, 
+		cc.ca_debe_haber,
+		cc.ca_operador,
+		cc.e_secuencia,
+		cc.c_distribucion,
+		cc.oi_cuenta_contable
+
+FROM 
+LIQ29_CUENTAS_CON AS cc
+
+WHERE cc.oi_asiento_con = {#PARAM:@oi_asiento_con}
+
+ORDER BY  e_secuencia ASC 
+
+					')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<CUENTA>
+					<qry:attribute name="titulo" value="'Cuentas Contable'"/>
+					<qry:attribute name="e_secuencia" value="$r/@e_secuencia"/>
+					<qry:attribute name="c_cuenta_contable" value="$r/@c_cuenta_contable"/>
+					<qry:attribute name="d_cuenta_contable" value="$r/@d_cuenta_contable"/>
+					<qry:if test="$r/@ca_debe_haber='H'">
+						<qry:then>
+							<qry:attribute name="ca_debe_haber" value="'Haber'"/>
+						</qry:then>
+					</qry:if>
+					<qry:if test="$r/@ca_debe_haber='D'">
+						<qry:then>
+							<qry:attribute name="ca_debe_haber" value="'Debe'"/>
+						</qry:then>
+					</qry:if>
+					<qry:if test="$r/@ca_operador='+'">
+						<qry:then>
+							<qry:attribute name="ca_operador" value="'Suma'"/>
+						</qry:then>
+						<qry:else>
+							<qry:attribute name="ca_operador" value="'Resta'"/>
+						</qry:else>
+					</qry:if>
+					<qry:if test="$r/@c_distribucion='CC'">
+						<qry:then>
+							<qry:attribute name="c_distribucion" value="'Centro de Costos'"/>
+						</qry:then>
+					</qry:if>
+					<qry:if test="$r/@c_distribucion='GCC'">
+						<qry:then>
+							<qry:attribute name="c_distribucion" value="'Grupo de Centros de Costos'"/>
+						</qry:then>
+					</qry:if>
+					<qry:insert-select name="qryTipoConceptoOperacion" doc-path="$r"/>
+					<qry:insert-select name="qryConceptoOperacion" doc-path="$r"/>
+					<qry:insert-select name="qryGrupoCentroCosto" doc-path="$r"/>
+					<qry:insert-select name="qryCentroCosto" doc-path="$r"/>
+					<qry:insert-select name="qryConvenio" doc-path="$r"/>
+				</CUENTA>
+			</qry:out>
+		</qry:select>
+		<qry:select name="qryTipoConceptoOperacion" doc="PARAM">
+			<qry:xquery>
+				for $r in SQL('
+SELECT 	tc.d_tipo_concepto,
+		tc.c_tipo_concepto,
+		ctc.c_operacion
+
+FROM 
+LIQ29_CUENTAS_TC AS ctc,
+LIQ12_TIPOS_CONC AS tc
+
+JOIN
+ctc.oi_tipo_concepto INNER tc.oi_tipo_concepto
+
+WHERE ctc.oi_cuenta_contable = {#PARAM:@oi_cuenta_contable}
+
+ORDER BY  c_tipo_concepto ASC 
+
+					')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<TIPOCONCEPTO>
+					<qry:attribute name="d_tipo_concepto" value="$r/@c_tipo_concepto+' - '+$r/@d_tipo_concepto"/>
+					<qry:if test="$r/@c_operacion='+'">
+						<qry:then>
+							<qry:attribute name="c_operacion" value="'Suma'"/>
+						</qry:then>
+						<qry:else>
+							<qry:attribute name="c_operacion" value="'Resta'"/>
+						</qry:else>
+					</qry:if>
+				</TIPOCONCEPTO>
+			</qry:out>
+		</qry:select>
+		<qry:select name="qryConceptoOperacion" doc="PARAM">
+			<qry:xquery>
+				for $r in SQL('
+SELECT 	c.c_concepto,
+		c.d_concepto,
+		cc.c_operacion
+
+FROM 
+LIQ29_CUENTAS_CPT AS cc,
+LIQ14_CONCEPTOS AS c
+
+JOIN
+cc.oi_concepto INNER c.oi_concepto
+
+WHERE cc.oi_cuenta_contable = {#PARAM:@oi_cuenta_contable}
+
+ORDER BY  c_concepto ASC 
+
+					')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<CONCEPTO>
+					<qry:attribute name="d_concepto" value="$r/@c_concepto+' - '+$r/@d_concepto"/>
+					<qry:if test="$r/@c_operacion='+'">
+						<qry:then>
+							<qry:attribute name="c_operacion" value="'Suma'"/>
+						</qry:then>
+						<qry:else>
+							<qry:attribute name="c_operacion" value="'Resta'"/>
+						</qry:else>
+					</qry:if>
+				</CONCEPTO>
+			</qry:out>
+		</qry:select>
+		<qry:select name="qryGrupoCentroCosto" doc="PARAM">
+			<qry:xquery>
+				for $r in SQL('
+SELECT 	gcc.c_grupo_ccosto,
+		gcc.d_grupo_ccosto,
+		cc.l_excluir_gccos
+
+FROM 
+LIQ29_CUENTAS_CON AS cc,
+LIQ29_CUENTAS_GCC AS cgc,
+ORG09_GR_CCOSTO AS gcc
+
+
+JOIN
+cc.oi_cuenta_contable INNER cgc.oi_cuenta_contable,
+cgc.oi_grupo_ccosto  INNER gcc.oi_grupo_ccosto
+
+WHERE cc.oi_cuenta_contable = {#PARAM:@oi_cuenta_contable}
+
+ORDER BY  c_grupo_ccosto ASC 
+
+					')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<GRUPOCC>
+					<qry:attribute name="d_grupo_ccosto" value="$r/@c_grupo_ccosto+'-'+$r/@d_grupo_ccosto"/>
+					<qry:if test="$r/@l_excluir_gccos='1'">
+						<qry:then>
+							<qry:attribute name="l_excluir" value="'Excluir'"/>
+						</qry:then>
+						<qry:else>
+							<qry:attribute name="l_excluir" value="'Incluir'"/>
+						</qry:else>
+					</qry:if>
+				</GRUPOCC>
+			</qry:out>
+		</qry:select>
+		<qry:select name="qryCentroCosto" doc="PARAM">
+			<qry:xquery>
+				for $r in SQL('
+SELECT 	c.c_centro_costo,
+		c.d_centro_costo,
+		cc.l_excluir_ccos
+
+FROM 
+LIQ29_CUENTAS_CON AS cc,
+LIQ29_CUENTAS_CC AS ccc,
+ORG08_CS_COSTO AS c
+
+
+JOIN
+cc.oi_cuenta_contable INNER ccc.oi_cuenta_contable,
+ccc.oi_centro_costo  INNER c.oi_centro_costo
+
+WHERE cc.oi_cuenta_contable = {#PARAM:@oi_cuenta_contable}
+
+ORDER BY c_centro_costo ASC  
+
+					')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<CENTROCOSTO>
+					<qry:attribute name="d_centro_costo" value="$r/@c_centro_costo+' - '+$r/@d_centro_costo"/>
+					<qry:if test="$r/@l_excluir_ccos='1'">
+						<qry:then>
+							<qry:attribute name="l_excluir" value="'Excluir'"/>
+						</qry:then>
+						<qry:else>
+							<qry:attribute name="l_excluir" value="'Incluir'"/>
+						</qry:else>
+					</qry:if>
+				</CENTROCOSTO>
+			</qry:out>
+		</qry:select>
+		<qry:select name="qryConvenio" doc="PARAM">
+			<qry:xquery>
+				for $r in SQL('
+		SELECT 	
+		conv.c_convenio,
+		conv.d_convenio,
+		cc.l_excluir_conv
+
+		FROM 
+		LIQ29_CUENTAS_CON AS cc,
+		LIQ29_CUENTAS_CONV AS cconv,
+		ORG18_CONVENIOS AS conv
+
+
+		JOIN
+		cc.oi_cuenta_contable INNER cconv.oi_cuenta_contable,
+		cconv.oi_convenio  INNER conv.oi_convenio
+
+		WHERE cc.oi_cuenta_contable = {#PARAM:@oi_cuenta_contable}
+
+		ORDER BY c_convenio ASC  
+
+					')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<CONVENIO>
+					<qry:attribute name="d_convenio" value="$r/@c_convenio+' - '+$r/@d_convenio"/>
+					<qry:if test="$r/@l_excluir_ccos='1'">
+						<qry:then>
+							<qry:attribute name="l_excluir" value="'Excluir'"/>
+						</qry:then>
+						<qry:else>
+							<qry:attribute name="l_excluir" value="'Incluir'"/>
+						</qry:else>
+					</qry:if>
+				</CONVENIO>
+			</qry:out>
+		</qry:select>
+	</html:query>
+</html:html>

@@ -1,0 +1,124 @@
+<flow:flow xmlns:flow="nomad_engine.flow" xmlns:doc="nomad_engine.doc" xmlns:qry="nomad_engine.qry" name="NucleusRH.Base.Personal.Interfaces.Fotos.flow" extends="Nomad.Base.flow" description="Flow para la carga de Fotos del Personal." default_action="initialize">
+	<flow:info label="Flow para la carga de Fotos del Personal."/>
+	<flow:declare>
+		<doc:define name="DATOS">
+			<DOC/>
+		</doc:define>
+		<doc:define name="DATOSQRY">
+			<DOC/>
+		</doc:define>
+		<qry:define name="QRY_Parametros">
+			<qry:main doc="PARAM">
+				<qry:element name="PARAMETROS">
+					<qry:insert-select name="qryMain"/>
+				</qry:element>
+			</qry:main>
+			<qry:select name="qryMain">
+				<qry:xquery>
+					for $f in sql('
+
+            SELECT 
+    			p.c_parametro,
+				p.d_valor
+                    
+			FROM
+				ORG26_Parametros as p
+
+            WHERE
+				p.c_modulo = \'PER\'
+				AND p.c_parametro in (\'pathFotos\')
+
+                ')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:element name="PARAMETRO">
+						<qry:attribute name="c_parametro" value="$f/@c_parametro"/>
+						<qry:attribute name="d_valor" value="$f/@d_valor"/>
+					</qry:element>
+				</qry:out>
+			</qry:select>
+		</qry:define>
+		<qry:define name="QRY_COUNT_Parametros">
+			<qry:main doc="SOURCE">
+				<qry:element name="PARAMETROS">
+					<qry:insert-select doc-path="#SOURCE:" name="qryMain"/>
+				</qry:element>
+			</qry:main>
+			<qry:select name="qryMain" doc="SOURCE">
+				<qry:xquery>
+					for $f in sql('
+        
+        SELECT 
+    			Count(ORG26_Parametros.oi_parametro) as CNT
+				FROM
+					ORG26_Parametros
+	      WHERE
+					ORG26_Parametros.c_modulo = \'PER\'
+					AND ORG26_Parametros.c_parametro in (\'pathFotos\')
+					
+				')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:element name="ROW">
+						<qry:attribute value="number(@COUNT)+number($f/@CNT)" name="COUNT"/>
+					</qry:element>
+				</qry:out>
+			</qry:select>
+		</qry:define>
+		<doc:define name="COUNT_DATOSQRY"/>
+	</flow:declare>
+	<flow:main doc="SOURCE">
+		<flow:action name="initialize">
+			<flow:load-user-data name="Int_EntradaFotos" doc="DATOS"/>
+			<!--doc:load-qry qry="QRY_Parametros" output-doc="DATOSQRY"/-->
+			<!--flow:call-action if="#DATOSQRY:" eq="&quot;&quot;" else="iniEntradaFotos" action="message"/-->
+			<!--doc:set-attribute from-attr-path="#DATOSQRY:PARAMETRO[@c_parametro='pathFotos']/@d_valor" to-attr-path="#DATOS:@path"/-->
+			<doc:load-qry qry="QRY_Parametros" output-doc="DATOSQRY"/>
+			<doc:set-attribute from-attr-path="#DATOSQRY:PARAMETRO[@c_parametro='pathFotos']/@d_valor" to-attr-path="#DATOS:@path"/>
+			<flow:open-form doc-path="#DATOS:" form-class="NucleusRH.Base.Personal.Interfaces.Fotos.EntradaFotos.form" mode="EDIT"/>
+		</flow:action>
+		<flow:action name="control">
+			<doc:load-qry output-doc="COUNT_DATOSQRY" qry="QRY_COUNT_Parametros"/>
+			<flow:call-action action="initialize_noreg" else="initialize" if="#COUNT_DATOSQRY:ROW/@COUNT" eq="0"/>
+		</flow:action>
+		<flow:action name="initialize_noreg">
+			<flow:open-form mode="noreg" doc-path="#SOURCE:" form-class="NucleusRH.Base.Personal.Interfaces.Fotos.EntradaFotos.form"/>
+		</flow:action>
+	</flow:main>
+	<flow:group name="SeleccionArchivo">
+		<flow:form form-class="NucleusRH.Base.Personal.Interfaces.Fotos.EntradaFotos.form" name="NucleusRH.Base.Personal.Interfaces.Fotos.EntradaFotos.form" doc="SOURCE" mode="EDIT">
+			<flow:action name="on-show">
+				<doc:load-qry output-doc="COUNT_DATOSQRY" qry="QRY_COUNT_Parametros"/>
+				<!--flow:call-action if="#DATOSQRY:" eq="&quot;&quot;" else="iniEntradaFotos" action="message"/-->
+				<flow:log text-path="#COUNT_DATOSQRY:ROW/@COUNT" text="LuchoCOUNT_DATOSQRY"/>
+				<flow:call-action if="#COUNT_DATOSQRY:ROW/@COUNT" action="MSG" else="SET" eq="0"/>
+			</flow:action>
+			<flow:action name="VOLVER">
+				<flow:exit-flow return-path="#SOURCE:"/>
+			</flow:action>
+			<flow:action name="EJECUTAR">
+				<flow:save-user-data doc-path="#SOURCE:" name="Int_EntradaFotos"/>
+				<flow:exec-method class="NucleusRH.Base.Personal.Legajo.PERSONAL" out-attr-path="#SOURCE:@batch-id" priority="5" method="Importar">
+					<flow:param attr-path="#SOURCE:@path" name="path" type="Nomad.NSystem.String" mode="in"/>
+					<flow:param attr-path="#SOURCE:@reemplaza" type="Nomad.NSystem.Boolean" mode="in" name="reemplaza"/>
+				</flow:exec-method>
+				<flow:open-form doc-path="#SOURCE:" mode="BATCH" form-class="nomad.base.batchtolist.form"/>
+			</flow:action>
+			<flow:action name="MSG">
+				<flow:message message="Para poder ejecutar la importaci&#243;n de fotos primero debe cargarse el par&#225;metro pathFotos"/>
+			</flow:action>
+			<flow:action name="SET">
+				<doc:load-qry qry="QRY_Parametros" output-doc="DATOSQRY"/>
+				<doc:set-attribute from-attr-path="#DATOSQRY:PARAMETRO[@c_parametro='pathFotos']/@d_valor" to-attr-path="#DATOS:@path"/>
+			</flow:action>
+		</flow:form>
+		<flow:form name="NucleusRH.Base.Personal.Interfaces.Fotos.EntradaFotos.form:noreg" mode="noreg" form-class="NucleusRH.Base.Personal.Interfaces.Fotos.EntradaFotos.form" doc="SOURCE">
+			<flow:action name="on-show">
+				<flow:message message="Para poder ejecutar la importaci&#243;n de fotos primero se debe cargar el par&#225;metro pathFotos"/>
+			</flow:action>
+			<flow:action name="VOLVER">
+				<flow:exit-flow return-path="#SOURCE:"/>
+			</flow:action>
+		</flow:form>
+	</flow:group>
+</flow:flow>

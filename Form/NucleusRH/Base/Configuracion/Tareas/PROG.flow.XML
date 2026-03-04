@@ -1,0 +1,124 @@
+<flow:flow xmlns:flow="nomad_engine.flow" xmlns:qry="nomad_engine.qry" xmlns:doc="nomad_engine.doc" extends="NucleusRH.Base.Configuracion.Progs.PROG.MAIN.STD.flow" name="NucleusRH.Base.Configuracion.Tareas.PROG.flow" description="Flow para responder las acciones sobre las tareas." default_action="LIST">
+	<flow:info label="Flow para responder las acciones sobre las tareas."/>
+	<flow:declare>
+		<qry:define declare="&lt;DATA PARENT=&quot;301&quot; /&gt;" name="QRY_FIND">
+			<qry:main doc="SOURCE">
+				<DATA>
+					<qry:insert-select name="SQL1" doc-path="#SOURCE:."/>
+				</DATA>
+			</qry:main>
+			<qry:select name="SQL1" doc="SOURCE">
+				<qry:xquery>
+					for $r in SQL('
+select 
+	A.oi_prog 
+from 
+	CFG09_TAREAS as A
+where 
+	A.oi_tarea={$SOURCE/@PARENT}
+
+')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:attribute name="ID" value="$r/@oi_prog"/>
+				</qry:out>
+			</qry:select>
+		</qry:define>
+		<qry:define declare="&lt;DATA PARENT=&quot;83&quot; GRAND=&quot;4&quot; /&gt;" name="EJECT2BATCH">
+			<qry:main doc="SOURCE">
+				<VALUE type="IFO">
+					<qry:insert-select name="SQL1" doc-path="$SOURCE/*"/>
+				</VALUE>
+			</qry:main>
+			<qry:select doc="SOURCE" name="SQL1">
+				<qry:xquery>
+					for $r in SQL('
+			select            
+				cfg09_ejecuciones.d_log
+			from
+				cfg09_ejecuciones
+			where
+			  cfg09_ejecuciones.oi_ejecucion={$SOURCE/@PARENT}
+			')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:attribute name="batch-id" value="$r/@d_log"/>
+				</qry:out>
+			</qry:select>
+		</qry:define>
+		<doc:define name="BATCH">
+			<VALUE type="IFO" batch-id=""/>
+		</doc:define>
+		<qry:define declare="&lt;DATA PARENT=&quot;4&quot; /&gt;" name="TASK2BATCH">
+			<qry:main doc="SOURCE">
+				<VALUE type="IFO">
+					<qry:insert-select name="SQL1" doc-path="$SOURCE/*"/>
+				</VALUE>
+			</qry:main>
+			<qry:select doc="SOURCE" name="SQL1">
+				<qry:xquery>
+					for $r in SQL('
+select 
+	E1.d_log
+from 
+	CFG09_EJECUCIONES as E1,
+  (select max(E2.f_ejecucion) as f_ejecucion, E2.oi_tarea from CFG09_EJECUCIONES as E2 group by E2.oi_tarea) as E3
+join
+	E1.oi_tarea inner E3.oi_tarea,
+	E1.f_ejecucion inner E3.f_ejecucion
+where
+E1.oi_tarea={$SOURCE/@PARENT}
+			')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:attribute name="batch-id" value="$r/@d_log"/>
+				</qry:out>
+			</qry:select>
+		</qry:define>
+	</flow:declare>
+	<flow:main doc="SOURCE">
+		<flow:action name="SHOW">
+			<doc:load-qry input-doc-path="#SOURCE:" qry="QRY_FIND" output-doc="SELECT"/>
+			<flow:open-form form-class="NucleusRH.Base.Configuracion.Progs.PROG.MAIN.STD_REG.autoform" mode="SHOW" parent-doc-path="#SOURCE:" doc-path="#SELECT:"/>
+		</flow:action>
+		<flow:action name="EDIT">
+			<doc:load-qry input-doc-path="#SOURCE:" qry="QRY_FIND" output-doc="SELECT"/>
+			<flow:open-form form-class="NucleusRH.Base.Configuracion.Progs.PROG.MAIN.STD_REG.autoform" mode="EDIT" parent-doc-path="#SOURCE:" doc-path="#SELECT:"/>
+		</flow:action>
+		<flow:action name="ACTIVAR">
+			<doc:load-qry input-doc-path="#SOURCE:" qry="QRY_FIND" output-doc="SELECT"/>
+			<flow:exec-method class="NucleusRH.Base.Configuracion.Progs.PROG" method="Activate">
+				<flow:param attr-path="#SELECT:@ID" name="pOI" mode="in" type="Nomad.NSystem.String"/>
+			</flow:exec-method>
+			<flow:exit-flow return-path="#SOURCE:"/>
+		</flow:action>
+		<flow:action name="DETENER">
+			<doc:load-qry input-doc-path="#SOURCE:" qry="QRY_FIND" output-doc="SELECT"/>
+			<flow:exec-method method="Inactivate" class="NucleusRH.Base.Configuracion.Progs.PROG">
+				<flow:param attr-path="#SELECT:@ID" name="pOI" mode="in" type="Nomad.NSystem.String"/>
+			</flow:exec-method>
+			<flow:exit-flow return-path="#SOURCE:"/>
+		</flow:action>
+		<flow:action name="TEST">
+			<doc:load-qry input-doc-path="#SOURCE:" qry="QRY_FIND" output-doc="SELECT"/>
+			<flow:exec-method method="Execute" class="NucleusRH.Base.Configuracion.Progs.PROG">
+				<flow:param attr-path="#SELECT:@ID" name="pOI" mode="in" type="Nomad.NSystem.String"/>
+			</flow:exec-method>
+			<flow:exit-flow return-path="#SOURCE:"/>
+		</flow:action>
+		<flow:action name="LOG_TASK">
+			<doc:load-qry input-doc-path="#SOURCE:" qry="TASK2BATCH" output-doc="BATCH"/>
+			<flow:open-form form-class="nomad.base.wikibatch.form" mode="BATCH" parent-doc-path="#SOURCE:" doc-path="#BATCH:"/>
+		</flow:action>
+		<flow:action name="LOG_EJEC">
+			<doc:load-qry input-doc-path="#SOURCE:" qry="EJECT2BATCH" output-doc="BATCH"/>
+			<flow:open-form form-class="nomad.base.wikibatch.form" mode="BATCH" parent-doc-path="#SOURCE:" doc-path="#BATCH:"/>
+		</flow:action>
+	</flow:main>
+	<flow:form name="nomad.base.wikibatch.form:BATCH" form-class="nomad.base.wikibatch.form" mode="BATCH" doc="SOURCE">
+		<flow:action name="on-show"/>
+		<flow:action name="EXIT">
+			<flow:exit-flow return-path="#SOURCE:"/>
+		</flow:action>
+	</flow:form>
+</flow:flow>

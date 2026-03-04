@@ -1,0 +1,132 @@
+<form:Form xmlns:form="nomad_engine.form" xmlns:qry="nomad_engine.qry" extends="NucleusRH.Base.Tiempos_Trabajados.Personal.NOVEDAD.MAIN.STD_REG.autoform" default_mode="NEW" mess="&#191;Est&#225; seguro que desa cancelar la operaci&#243;n?" doc="source" name="NucleusRH.Base.Tiempos_Trabajados.Personal.NOVEDAD.MAIN.STD_REG.form">
+	<form:Scripts>
+		function PosOnLoad()
+{
+	if (Ctrl('main').GetMode()=='NEW')
+  {
+  	Ctrl('oi_empresa').SetXValue('');
+  	Ctrl('oi_terminal').SetXValue('');
+  	Ctrl('horainicio').SetXValue('');
+  	Ctrl('horafin').SetXValue('');
+  
+  	var nSQL = GetProxy().SQLService();
+	  var xmlParam = new NomadXML('DATA');	  
+		var objResult = nSQL.GetOBJ(Ctrl("main").getResource("QRY_MIN_TERMINAL"), xmlParam.ToString());		
+		Ctrl('oi_terminal').SetXValue(objResult.oi_terminal);
+  }
+
+	if (Ctrl('main').GetMode()=='SHOW' || Ctrl('main').GetMode()=='EDIT')
+  {
+    //Conversion de cantidad de minutos al formato HHMMSS
+    var minutos = Number(Ctrl('e_horainicio').GetXValue());
+    var MM = minutos % 60;
+    var HH = (minutos - MM)/60;
+    if (HH &gt;= 24) HH = HH - 24;
+    Ctrl('horainicio').SetXValue(pad2(HH)+pad2(MM)+'00');
+
+		//Conversion de cantidad de minutos al formato HHMMSS    
+    minutos = Number(Ctrl('e_horafin').GetXValue());
+    MM = minutos % 60;
+    HH = (minutos - MM)/60;
+    if (HH &gt;= 24) HH = HH - 24;
+    Ctrl('horafin').SetXValue(pad2(HH)+pad2(MM)+'00');
+    
+    //Obtener Empresa
+    var nSQL = GetProxy().SQLService();
+	  var xmlParam = new NomadXML('PARAM');
+	  xmlParam.SetAttr('oi_personal_emp', Ctrl('oi_personal_emp').GetXValue());	  
+		var objResult = nSQL.GetOBJ(Ctrl("main").getResource('QRY_EMPRESA'), xmlParam.ToString());		
+		Ctrl('oi_empresa').SetXValue(objResult.oi_empresa);
+  }	
+}
+
+function pad2(number)
+{
+   return (number &lt; 10 ? '0' : '') + number;
+}
+
+function terminal_onchange()
+{
+	if (Ctrl('main').GetMode()=='NEW' &amp;&amp; Ctrl('oi_terminal').GetXValue() != '')
+	{
+	  var nSQL = GetProxy().SQLService();
+	  var xmlParam = new NomadXML('DATA');
+	  xmlParam.SetAttr('oi_terminal', Ctrl('oi_terminal').GetXValue());
+		var objResult = nSQL.GetOBJ(Ctrl("main").getResource("QRY_ESTRUCTURA"), xmlParam.ToString());		
+		Ctrl('oi_estructura').SetXValue(objResult.oi_estructura);
+	}
+}
+	</form:Scripts>
+	<form:Resources>
+		<form:Resource declare="&lt;DATA oi_terminal=&quot;1&quot;/&gt;" name="QRY_ESTRUCTURA">
+			<qry:main name="main" doc="SOURCE">
+				<ESTRUCTURA>
+					<qry:insert-select name="get_estructura" doc-path="#SOURCE:."/>
+				</ESTRUCTURA>
+			</qry:main>
+			<qry:select name="get_estructura" doc="PARAM">
+				<qry:xquery>
+					for $r in SQL('
+			
+			SELECT
+				TTA05_TERMINALES.oi_estructura
+			FROM
+				TTA05_TERMINALES
+			WHERE
+				TTA05_TERMINALES.oi_terminal = {$PARAM/@oi_terminal}
+				
+			')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:attribute name="oi_estructura" value="$r/@oi_estructura"/>
+				</qry:out>
+			</qry:select>
+		</form:Resource>
+		<form:Resource name="QRY_MIN_TERMINAL">
+			<qry:main name="main" doc="SOURCE">
+				<TERMINAL>
+					<qry:insert-select name="get_min_terminal" doc-path="#SOURCE:."/>
+				</TERMINAL>
+			</qry:main>
+			<qry:select name="get_min_terminal" doc="PARAM">
+				<qry:xquery>
+					for $r in SQL('
+			
+			SELECT
+				MIN(TTA05_TERMINALES.oi_terminal) AS min
+			FROM
+				TTA05_TERMINALES
+				
+			')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:attribute name="oi_terminal" value="$r/@min"/>
+				</qry:out>
+			</qry:select>
+		</form:Resource>
+		<form:Resource name="QRY_EMPRESA">
+			<qry:main doc="SOURCE">
+				<qry:element name="EMPRESA">
+					<qry:insert-select name="sql1" doc-path="#SOURCE:."/>
+				</qry:element>
+			</qry:main>
+			<qry:select name="sql1" doc="PARAM">
+				<qry:xquery>
+					for $r in SQL('
+			
+			SELECT
+				PER02_PERSONAL_EMP.oi_empresa
+			FROM
+				PER02_PERSONAL_EMP
+			WHERE
+				PER02_PERSONAL_EMP.oi_personal_emp = {$PARAM/@oi_personal_emp}
+							
+			')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:attribute name="oi_empresa" value="$r/@oi_empresa"/>
+				</qry:out>
+			</qry:select>
+		</form:Resource>
+	</form:Resources>
+</form:Form>

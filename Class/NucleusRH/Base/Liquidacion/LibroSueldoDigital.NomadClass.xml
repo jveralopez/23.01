@@ -1,0 +1,165 @@
+<class-package xmlns:qry="nomad_engine.qry" DDOBase="NucleusRH\Base\Liquidacion" root-class="LSD" name="LibroSueldoDigital" meta-class="DB" languaje="SP">
+	<class description="Libro de Sueldos Digitales" label="Libro de Sueldo Digital" access="direct" size="M" name="LSD">
+		<meta-properties/>
+		<method label="ProcesarInterfaceLSD" modifier="static" access="public" name="ProcesarInterfaceLSD">
+			<meta-properties>
+				<dotnet11-properties type="lib"/>
+			</meta-properties>
+			<arguments>
+				<argument type="Nomad.NSystem.String" pass="byval" name="interfaceTIPO"/>
+				<argument pass="byval" type="Nomad.NSystem.String" name="interdaceID"/>
+				<argument class="Nomad.NSystem.Document.NmdXmlDocument" pass="byval" type="Nomad.NSystem.Object" name="parametros"/>
+			</arguments>
+		</method>
+		<resource declare="&lt;PARAM oi_empresa=&quot;1&quot; e_periodo=&quot;202407&quot; oi_tipo_liq=&quot;7&quot; c_juris_afip=&quot;&quot; centralizado=&quot;1&quot;/&gt;" include="true" description="Recupera las liqudaciones agrupadas por jurisdicci&#243;n" name="INT_LIQUIDACION_LSD">
+			<qry:main doc="SOURCE">
+				<qry:element name="ROWS">
+					<qry:if test="#SOURCE:./@centralizado = '1'">
+						<qry:then>
+							<qry:insert-select name="QRY_DATOSJURIS" doc-path="#SOURCE:."/>
+						</qry:then>
+					</qry:if>
+					<qry:insert-select doc-path="#SOURCE:." name="QRY_LIQUIDACIONES_JURIS"/>
+				</qry:element>
+			</qry:main>
+			<qry:select name="QRY_LIQUIDACIONES_JURIS" doc="PARAM">
+				<qry:xquery>
+					for $r in SQL('
+
+				SELECT
+					count(LIQ97_PERSONAL_EMP.e_numero_legajo) as cantidad,
+          LIQ19_LIQUIDACION.oi_liquidacion, 
+          LIQ19_LIQUIDACION.c_liquidacion,
+          LIQ19_LIQUIDACION.d_titulo,
+          ORG03_EMPRESAS.c_empresa,
+          LIQ19_LIQUIDACION.oi_liq_genera,
+          LIQ99_LIQUIDACION.oi_liquidacion_ddo,
+		  LIQ19_LIQUIDACION.c_estado as c_estado,
+          LIQ19_LIQUIDACION.f_cierre as f_cierre
+          
+          {%? (#PARAM:@centralizado='1') 
+          {% %} 
+          {% ,ORG36_JURIS_AFIP.c_juris_afip
+             ,ORG36_JURIS_AFIP.d_juris_afip %} 
+          %}
+				FROM          
+					LIQ99_LIQUIDACION, 
+					LIQ97_PERSONAL_EMP,
+					LIQ99_RECIBOS,
+					LIQ20_TOT_LIQ_PER,
+					PER01_PERSONAL,
+					LIQ19_LIQUIDACION,
+					LIQ19_EJECUCIONES,
+					ORG03_EMPRESAS,
+					ORG03_UBICACIONES,
+					{%? (#PARAM:@centralizado='1') {% %} {% ORG36_JURIS_AFIP, %} %}
+					NMD_SECURITY(class=\'NucleusRH.Base.Liquidacion.Liquidacion.LIQUIDACION\') as SEC
+					
+				JOIN           
+					LIQ19_LIQUIDACION.oi_liquidacion INNER LIQ19_EJECUCIONES.oi_liquidacion,
+					LIQ99_LIQUIDACION.oi_liquidacion_ddo INNER LIQ19_EJECUCIONES.oi_liquidacion_ddo,					
+				 	LIQ97_PERSONAL_EMP.c_personal INNER PER01_PERSONAL.c_personal,
+					LIQ97_PERSONAL_EMP.oi_per_emp_ddo INNER LIQ20_TOT_LIQ_PER.oi_per_emp_ddo,
+					LIQ99_LIQUIDACION.oi_liquidacion_ddo INNER LIQ99_RECIBOS.oi_liquidacion_ddo,
+					LIQ99_RECIBOS.oi_tot_liq_per INNER LIQ20_TOT_LIQ_PER.oi_tot_liq_per,
+					LIQ99_LIQUIDACION.c_empresa INNER ORG03_EMPRESAS.c_empresa,
+					LIQ97_PERSONAL_EMP.c_ubicacion INNER ORG03_UBICACIONES.c_ubicacion,
+					ORG03_EMPRESAS.oi_empresa INNER ORG03_UBICACIONES.oi_empresa,
+                    
+					{%? (#PARAM:@centralizado='1') 
+					{% %}
+					{% ORG03_UBICACIONES.oi_juris_afip LEFT OUTER ORG36_JURIS_AFIP.oi_juris_afip, %} %}
+					
+					LIQ19_LIQUIDACION.oi_liquidacion LEFT OUTER SEC.id
+					
+				WHERE 
+					LIQ99_LIQUIDACION.c_estado = \'F\'
+					AND LIQ19_LIQUIDACION.oi_tipo_liq =\'7\'
+					AND LIQ19_LIQUIDACION.e_periodo = {#PARAM:@e_periodo}
+					AND ORG03_EMPRESAS.oi_empresa = {#PARAM:@oi_empresa}
+					
+				GROUP BY
+					LIQ19_LIQUIDACION.oi_liquidacion,
+					LIQ19_LIQUIDACION.c_liquidacion,
+					LIQ19_LIQUIDACION.d_titulo,
+					ORG03_EMPRESAS.c_empresa,
+					LIQ19_LIQUIDACION.oi_liq_genera,
+					LIQ99_LIQUIDACION.oi_liquidacion_ddo,
+					LIQ19_LIQUIDACION.c_estado,
+                    LIQ19_LIQUIDACION.f_cierre
+					
+          {%? (#PARAM:@centralizado='1') 
+          {% %} 
+          {% ,ORG36_JURIS_AFIP.c_juris_afip
+             ,ORG36_JURIS_AFIP.d_juris_afip %} 
+          %}
+
+ 	       ORDER BY
+				f_cierre ASC
+
+						       
+		')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:element name="ROW">
+						<qry:attribute value="$r/@oi_liquidacion" name="oi_liquidacion"/>
+						<qry:attribute value="$r/@c_liquidacion" name="c_liquidacion"/>
+						<qry:attribute value="$r/@d_titulo" name="d_titulo"/>
+						<qry:attribute value="$r/@c_empresa" name="c_empresa"/>
+						<qry:attribute value="$r/@oi_liq_genera" name="oi_liq_genera"/>
+						<qry:attribute value="$r/@cantidad" name="cantidad"/>
+						<qry:attribute value="$r/@c_estado" name="c_estado"/>
+						<qry:attribute value="$r/@policy" name="policy"/>
+						<qry:insert-select name="QRY_DATOSLIQGENERA" doc-path="."/>
+						<qry:if test="#PARAM:@centralizado = '1'">
+							<qry:then>
+								<qry:attribute value="../@c_juris_afip" name="c_juris_afip"/>
+								<qry:attribute value="../@d_juris_afip" name="d_juris_afip"/>
+							</qry:then>
+							<qry:else>
+								<qry:attribute value="$r/@c_juris_afip" name="c_juris_afip"/>
+								<qry:attribute value="$r/@d_juris_afip" name="d_juris_afip"/>
+							</qry:else>
+						</qry:if>
+					</qry:element>
+				</qry:out>
+			</qry:select>
+			<qry:select doc="PARAM" name="QRY_DATOSLIQGENERA">
+				<qry:xquery>
+					for $r in SQL('
+
+		SELECT 
+			LIQ19GEN.c_liquidacion as c_liq_genera,
+			LIQ19GEN.d_titulo as d_liq_genera
+		FROM
+			LIQ19_LIQUIDACION as LIQ19GEN
+    WHERE 
+      LIQ19GEN.oi_liquidacion = {#PARAM:@oi_liq_genera} 
+			
+			')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:attribute name="c_liq_genera" value="$r/@c_liq_genera"/>
+					<qry:attribute name="d_liq_genera" value="$r/@d_liq_genera"/>
+				</qry:out>
+			</qry:select>
+			<qry:select doc="PARAM" name="QRY_DATOSJURIS">
+				<qry:xquery>
+					for $r in SQL('
+			SELECT
+				ORG36_JURIS_AFIP.c_juris_afip,
+        ORG36_JURIS_AFIP.d_juris_afip
+			FROM 
+				ORG36_JURIS_AFIP
+			WHERE
+				ORG36_JURIS_AFIP.c_juris_afip = {#PARAM:@c_juris_afip}
+			')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:attribute name="c_juris_afip" value="$r/@c_juris_afip"/>
+					<qry:attribute name="d_juris_afip" value="$r/@d_juris_afip"/>
+				</qry:out>
+			</qry:select>
+		</resource>
+	</class>
+</class-package>

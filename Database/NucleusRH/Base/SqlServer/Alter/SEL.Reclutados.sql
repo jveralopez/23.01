@@ -1,0 +1,13 @@
+--arregla el problema de referenciar a un heredado
+ALTER TABLE [dbo].[SEL13_RECLUTADOS] DROP CONSTRAINT [FK_SEL13_RECLUTADOS_SEL09_PERSONAL]
+
+GO
+
+ALTER TABLE [dbo].[SEL13_RECLUTADOS] ADD CONSTRAINT [FK_SEL13_RECLUTADOS_SEL09_PERSONAL] FOREIGN KEY 
+	(
+		[oi_personal_emp]
+	) REFERENCES [PER02_PERSONAL_EMP] (
+		[oi_personal_emp]
+	)
+GO
+

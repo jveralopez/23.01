@@ -1,0 +1,646 @@
+<form:Form xmlns:form="nomad_engine.form" xmlns:qry="nomad_engine.qry" default_mode="SHOW" mess="&#191;Est&#225; seguro que desa cancelar la operaci&#243;n?" extends="NucleusRH.Base.Liquidacion.Liquidacion.LIQUIDACION.autoform" name="NucleusRH.Base.Liquidacion.Liquidacion.LIQUIDACION.form" doc="source">
+	<form:Event runat="client" name="onload" action="validarLoad"/>
+	<form:Event name="CALL:VAL_VARGN" action="CALL:VAL_VARGN" runat="extern">
+		<form:helpper action="initialize" name="NucleusRH.Base.Liquidacion.Variables.VariablesNoLiquidacion.flow" clientaction="refresh">
+			<DATA oi="{oi.XValue}"/>
+		</form:helpper>
+	</form:Event>
+	<form:Event action="REFRESH" name="REFRESH" runat="server"/>
+	<form:Scripts>
+		function ClientSAVE()
+{                    
+  var GOOK = true;   
+  
+  //realiza validaciones para determinar si se puede o no avazar con el SAVE
+  
+  //si la liquidaci&#243;n est&#225; (A - Abierta) se permite editar el tipo de interfaz, pero manualmente NO se debe poder eletir el tipo (7- Interfaces AFIP) 
+ 	var bolEstCon = Ctrl('c_estado').GetXValue() == "A";
+ 	  
+	if(Ctrl('main').GetMode() == "NEW" || bolEstCon)
+	{       
+			var tipoLiq = Ctrl('oi_tipo_liq').GetXValue(); 
+			                   
+			if (tipoLiq == "7")
+			{   
+				GOOK = false;
+				alert('No es posible dar de alta en forma manual liquidaciones de tipo (7- Interfaces AFIP). Se debe utilizar la opci&#243;n (Generar Interface LSD) desde una liquidaci&#243;n cerrada.');
+			}
+			
+			var codigoLiq = Ctrl('c_liquidacion').GetXValue();
+			 
+			var regex = new RegExp(/^[A-Za-z0-9_]+$/g);
+ 
+			var resultado = regex.test(codigoLiq);
+			
+			if (resultado == false)
+			{   
+				GOOK = false;
+				alert('En el campo "Codigo" solo se permiten letras, numeros y guion bajo.');
+			}
+			
+	}
+	
+	if (GOOK)
+	{
+		Ctrl("main").DoEvent("SAVE");
+	}
+	
+	
+	
+}
+
+function Find()
+{
+	Ctrl("LIST").filter("",Ctrl("iter_search").GetCValue());
+	validarLoad();
+}
+
+function cambiarRetro(pobjRetro) {
+	CtrlEnabled('e_periodo_ret', (pobjRetro.GetCValue() == "1") );
+	Ctrl('e_periodo_ret').SetCValue("");
+}
+
+function validarLoad() {
+
+	//if (Ctrl('l_simulacion').GetCValue() == 1)
+		//CtrlEnabled('CERRAR', false);
+	
+	var c_estado;
+	if (Ctrl('LIST')) 
+		c_estado = Ctrl('LIST').GetSelectAttrValue("c_estado");
+	else 
+		c_estado = Ctrl('c_estado').GetXValue();
+	
+	switch (c_estado)
+	{
+		case "C":
+			CtrlEnabled('INICIALIZAR', false);
+			CtrlEnabled('PROCESAR', false);
+			CtrlEnabled('Editar', false);
+			CtrlEnabled('CERRAR', false);
+			CtrlEnabled('Borrar', false);  
+			CtrlEnabled('VAL_VARGN_EDIT',false);
+			CtrlEnabled('PERSONAS', true);  
+			CtrlEnabled('GEN_INT',LiquidacionInterface());
+			break;
+
+		case "A":
+			CtrlEnabled('INICIALIZAR', true);
+			CtrlEnabled('PROCESAR', false);
+			CtrlEnabled('Editar', true);
+			CtrlEnabled('CERRAR', false);
+			CtrlEnabled('Borrar', true);
+			CtrlEnabled('VAL_VARGN_EDIT', true);
+			CtrlEnabled('PERSONAS', false); 
+			CtrlEnabled('GEN_INT',false);
+			break;
+
+		default:
+			CtrlEnabled('INICIALIZAR', true);
+			CtrlEnabled('PROCESAR', true);
+			CtrlEnabled('CERRAR', true);
+			CtrlEnabled('Editar', true);
+			CtrlEnabled('Borrar', false);
+			CtrlEnabled('VAL_VARGN_EDIT', true);
+			CtrlEnabled('PERSONAS', true);  
+			CtrlEnabled('GEN_INT',false);
+			break;
+	}
+	
+	if (Ctrl('main').GetMode() != "LIST")
+	{
+		var bolEstCon;
+		       
+		bolEstCon = Ctrl('c_estado').GetXValue() == "A";
+		
+		//CtrlEnabled('f_liquidacion', bolEstCon);
+		CtrlEnabled('oi_tipo_liq', bolEstCon);
+		CtrlEnabled('c_clase', bolEstCon);
+		//CtrlEnabled('e_quincena', bolEstCon);
+		//CtrlEnabled('e_periodo', bolEstCon);
+		//CtrlEnabled('f_pago', bolEstCon);
+		//CtrlEnabled('l_retroactivo', bolEstCon);
+		//CtrlEnabled('e_periodo_ret', bolEstCon); 
+		quincenaValidar();      
+	   
+	} 
+	 
+}    
+	    
+function LiquidacionInterface()
+{     
+	var valor;  
+	var oi_liq_genero;
+	if (Ctrl('LIST')) 
+	{
+		valor = Ctrl('LIST').GetSelectAttrValue("oi_tipo_liq");
+		oi_liq_genero = Ctrl('LIST').GetSelectAttrValue("oi_liq_genero");
+	}
+	else
+	{
+		valor = Ctrl('oi_tipo_liq').GetXValue(); 
+		oi_liq_genero = Ctrl('oi_liq_genero').GetXValue(); 
+	}
+
+	return (valor != "7" &amp;&amp; valor != "6" &amp;&amp; oi_liq_genero == "");
+}                    
+                         
+   
+
+function cambiarPeriodo() { 
+	
+		
+		var strFLiq = Ctrl('f_liquidacion').GetXValue();
+		
+		if (strFLiq != "")
+			Ctrl('e_periodo').SetXValue(strFLiq.substr(0,6));
+		
+	
+}
+			
+function cambiarClase() {
+	if (Ctrl('c_clase').GetXValue() == "M")
+	{
+		CtrlEnabled('e_quincena', false);
+		Ctrl('e_quincena').SetXValue('');
+	}
+	else
+	{
+		CtrlEnabled('e_quincena', true);
+	}
+}				
+
+function fLiq_fPago(myThis) {
+	if (Ctrl('f_liquidacion').GetCValue() != "") {
+		
+		if (Ctrl('f_pago').GetCValue() != "") {
+			
+			if (Ctrl('f_pago').GetXValue() &lt; Ctrl('f_liquidacion').GetXValue()) {	
+		  
+		  		myThis.SetError('La Fecha de Pago debe ser posterior o igual a la Fecha de Liquidacion.');
+				return false;
+			
+			} else 
+				return true;
+			
+		} else 
+			return true;
+	} else 
+		return true;
+}
+				
+
+function quincenaValidar(myThis) {
+	
+	if (Ctrl('c_clase').GetXValue() == "M") {
+		Ctrl('e_quincena').SetXValue('');
+		CtrlEnabled('e_quincena', false);
+	}
+	
+	if (Ctrl('c_clase').GetXValue() == "Q") {
+	
+		if (Ctrl('e_quincena').GetXValue() == "") {
+		  	myThis.SetError('Es necesario ingresar una quincena.');
+			return false;
+		
+		} else
+			return true;
+	} else
+		return true;
+}	
+				
+function retroValidar(myThis) {
+	if (Ctrl('l_retroactivo').GetCValue() == "1") {
+		if (Ctrl('e_periodo_ret').GetCValue() == "") {
+		  	myThis.SetError('Es necesario ingresar el Periodo Retroactivo.');
+			return false;
+
+		} else
+			return true;
+	
+	} else
+		return true;
+}			
+				
+function validate () {
+	return Ctrl('main').Validate();
+}
+
+function set_oi() {
+	if (Ctrl('LIST'))
+		Ctrl('oi').SetXValue(Ctrl('LIST').GetXValue());
+	else
+		Ctrl('oi').SetXValue(Ctrl('oi_ddo').GetXValue());	
+}
+                       
+function CALL_VAL_VARGN() {
+	set_oi();
+	Ctrl('main').DoEvent('CALL:VAL_VARGN');
+}
+
+function CALL_PERSONAS() {
+	set_oi();
+	openNewFlowWait("NucleusRH.Base.Liquidacion.Personal_Liquidacion.flow","initialize_liq","&lt;DATA oi=\"" + Ctrl('oi').GetXValue() + "\" /&gt;",new ObjtectResult(),"L");
+}
+
+function refresh() {
+	Ctrl('main').DoEvent('REFRESH');
+}
+
+function ObjtectResult()
+{        
+	this.processResult= function(xmlin)
+											{
+											}
+}
+
+//Navegabilidad a Legajo Empresa
+function verLegajo()
+{     
+	var np = new NomadProxy("", ut);
+	var nSQL = np.SQLService();
+	var oisPersonalEmp="";
+	var cantLegajos;  
+	                           
+	if(Ctrl("main").GetMode()=="LIST")        
+		{
+		var xmlLEGAJOS = nSQL.GetXML(Ctrl("main").getResource("QRY_LEGAJO"), "&lt;PARAM oi_liquidacion=\""+Ctrl("LIST").GetSelectAttrValue("id")+"\" /&gt;");
+		cantLegajos=Ctrl("LIST").GetSelectAttrValue("cant");
+		} 
+	else
+		{
+		var xmlLEGAJOS = nSQL.GetXML(Ctrl("main").getResource("QRY_LEGAJO"), "&lt;PARAM oi_liquidacion=\""+Ctrl("oi_ddo").GetXValue()+"\" /&gt;"); 
+		cantLegajos=Ctrl("cantidad").GetXValue();
+		} 
+    
+    //Arma un string con el id de los Legajos que trajo el query
+	for (legajo = xmlLEGAJOS.FirstChild(); legajo != null; legajo = legajo.Next()) 
+		{
+			if (legajo.Name == "LEGAJO") 
+			{          
+				if(oisPersonalEmp=="")
+					oisPersonalEmp=legajo.GetAttr("id");
+				else
+					oisPersonalEmp=oisPersonalEmp+","+legajo.GetAttr("id");
+			}
+		}                 
+	 
+	 if(cantLegajos!=0)
+	 {
+	 	//Pasa a Legajo Empresa con los Legajos Filtrados en oisPersonalEmp
+		if(oisPersonalEmp!="")
+			getFormInMain("NucleusRH.Base.Personal.LegajoEmpresa.flow", "ORGANIGRAMA",  "&lt;LEGAJO VALUE=\""+oisPersonalEmp+"\" /&gt;", false);
+		else
+			alert("No tiene permisos de usuario para ver los Legajos de esta Liquidaci&#243;n");
+	 }
+	 else
+	 	alert("No existen Legajos Empresa asignados a esta Liquidaci&#243;n"); 
+		 
+}
+
+//Navegabilidad a Legajo Liquidacion
+function verLiquidacion()
+{    
+	var np = new NomadProxy("", ut);
+	var nSQL = np.SQLService();
+	var oisPersonalEmp="";
+	var cantLegajos; 
+	
+	if(Ctrl("main").GetMode()=="LIST")
+		{ 
+		var xmlLEGAJOS = nSQL.GetXML(Ctrl("main").getResource("QRY_LEGAJO"), "&lt;PARAM oi_liquidacion=\""+Ctrl("LIST").GetSelectAttrValue("id")+"\" /&gt;"); 
+		cantLegajos=Ctrl("LIST").GetSelectAttrValue("cant");
+		}
+	else 
+		{
+		var xmlLEGAJOS = nSQL.GetXML(Ctrl("main").getResource("QRY_LEGAJO"), "&lt;PARAM oi_liquidacion=\""+Ctrl("oi_ddo").GetXValue()+"\" /&gt;"); 
+		cantLegajos=Ctrl("cantidad").GetXValue();
+		}                                       
+	
+	//Arma un string con el id de los Legajos que trajo el query
+	for (legajo = xmlLEGAJOS.FirstChild(); legajo != null; legajo = legajo.Next()) 
+		{
+			if (legajo.Name == "LEGAJO") 
+			{          
+				if(oisPersonalEmp=="")
+					oisPersonalEmp=legajo.GetAttr("id");
+				else
+					oisPersonalEmp=oisPersonalEmp+","+legajo.GetAttr("id");
+			}
+		} 
+		
+	if(cantLegajos!=0)
+	 {
+	 	//Pasa a Legajo Liquidaci&#243;n con los Legajos Filtrados en oisPersonalEmp
+		if(oisPersonalEmp!="")
+			getFormInMain("NucleusRH.Base.Liquidacion.Legajo.flow", "filterLegajos",  "&lt;LEGAJO VALUE=\""+oisPersonalEmp+"\" /&gt;", false);
+		else
+			alert("No tiene permisos de usuario para ver los Legajos de esta Liquidaci&#243;n");
+	 }
+	 else
+	 	alert("No existen Legajos Liquidaci&#243;n asignados a esta Liquidaci&#243;n");
+	 
+}
+
+//Navegabilidad a Empresa     
+function verEmpresa()
+{         
+	if(Ctrl("main").GetMode()=="LIST")
+		getFormInMain("NucleusRH.Base.Organizacion.Empresas.NAV.flow", "filter",  "&lt;EMPRESA VALUE=\""+Ctrl("LIST").GetSelectAttrValue("oi_empresa")+"\" /&gt;", false);
+	else
+		getFormInMain("NucleusRH.Base.Organizacion.Empresas.NAV.flow", "filter",  "&lt;EMPRESA VALUE=\""+Ctrl("oi_empresa").GetXValue()+"\" /&gt;", false);
+}               
+
+
+function GEN_INT_CLICK()
+{
+	 if(confirm("&#191;Estas seguro que desea generar la interface para Libro de Sueldo Digital?"))
+	 	Ctrl("GEN_INT").DoEvent("GEN_INT_CLICK");
+	 else
+	 	return false;
+}
+	</form:Scripts>
+	<form:Right width="200 px">
+		<form:VGroup visible="0" name="vgChildsLIQUIDACION" width="95%" collapse="1" label="Dependencias">
+			<form:Link visible="0" name="novporEmpresa" label="Novedades por Empresa" allowimg="1">
+				<form:Event runat="server" name="onclick" action="CALL:NOV_EMPRESAS"/>
+			</form:Link>
+			<form:Link visible="0" name="novPorVariable" label="Novedades por Legajo" allowimg="1">
+				<form:Event runat="server" name="onclick" action="CALL:NOV_VARIABLE"/>
+			</form:Link>
+			<form:Link visible="0" name="errores" label="Errores" allowimg="1">
+				<form:Event runat="server" name="onclick" action="CALL:ERRORES"/>
+			</form:Link>
+			<form:Link visible="0" name="perIni" label="Personas Inicializadas" allowimg="1">
+				<form:Event runat="server" name="onclick" action="CALL:PerIni"/>
+			</form:Link>
+		</form:VGroup>
+		<form:VGroup width="100%" name="vgChildsLIQUIDACION1" label="Dependencias" collapse="1">
+			<form:Link visible="SHOW|EDIT|LIST" allowimg="1" policy="NucleusRH/Base/Liquidacion/Liquidacion/VAL_VARGN/READ" descrip="Valores de los variables de Generales Novedad" label="Datos de Novedad" name="VAL_VARGN">
+				<form:Event policy="NucleusRH/Base/Liquidacion/Liquidacion/VAL_VARGN/EDIT" action="CALL:VAL_VARGN" name="onclick" runat="server"/>
+			</form:Link>
+			<form:Link label="Ejecuciones de la Liquidaci&#243;n" visible="SHOW|LIST|EDIT" allowimg="1" policy="NucleusRH/Base/Liquidacion/Liquidacion/EJECUCION/READ" descrip="Guarda todas las Ejecuciones de la Liquidacion" name="EJECUCIONES">
+				<form:Event policy="NucleusRH/Base/Liquidacion/Liquidacion/EJECUCION/EDIT" action="CALL:EJECUCION" name="onclick" runat="server"/>
+			</form:Link>
+		</form:VGroup>
+		<form:Blank name="blank1"/>
+		<form:VGroup visible="SHOW|LIST" width="100%" name="vgActionsLIQUIDACION" label="Acciones" collapse="1">
+			<form:Link visible="SHOW|LIST" policy="NucleusRH/Base/Liquidacion/Liquidacion/INICIALIZAR" allowimg="1" name="INICIALIZAR" label="Incluir / Excluir Legajos">
+				<form:Event runat="server" name="onclick" action="INI_CLICK"/>
+			</form:Link>
+			<form:Link label="Editar Datos de Novedad" policy="NucleusRH/Base/Liquidacion/Liquidacion/VAL_VARGN/EDIT" name="VAL_VARGN_EDIT" allowimg="1" descrip="Valores de datos de Novedad para la Liquidaci&#243;n">
+				<form:Event action="CALL_VAL_VARGN" runat="client" name="onclick"/>
+			</form:Link>
+			<form:Link visible="SHOW|LIST" policy="NucleusRH/Base/Liquidacion/Liquidacion/EJECUTAR" allowimg="1" name="PROCESAR" label="Procesar">
+				<form:Event runat="server" name="onclick" action="EJECUTAR_CLICK"/>
+			</form:Link>
+			<form:Link visible="SHOW|LIST" label="Administrar Legajos" name="PERSONAS" allowimg="1" descrip="Legajos inicializados en la liquidaci&#243;n">
+				<form:Event action="CALL_PERSONAS" runat="client" name="onclick"/>
+			</form:Link>
+			<form:Link visible="SHOW|LIST" policy="NucleusRH/Base/Liquidacion/Liquidacion/CERRAR" allowimg="1" name="CERRAR" label="Cerrar">
+				<form:Event runat="server" name="onclick" action="CERRAR_CLICK"/>
+			</form:Link>
+			<form:Link label="Generar Interface LSD" name="GEN_INT" visible="SHOW|LIST" policy="NucleusRH/Base/Liquidacion/Liquidacion/CERRAR" allowimg="1">
+				<form:Event action="GEN_INT_CLICK" runat="client" name="onclick"/>
+				<form:Event name="GEN_INT_CLICK" action="GEN_INT_CLICK" runat="server"/>
+			</form:Link>
+		</form:VGroup>
+		<form:Blank name="blank2"/>
+		<form:VGroup label="Navegabilidad" width="100%" name="vgNavegabilidad" collapse="1">
+			<form:Link descrip="Navega hacia los Legajos Empresa asociados a la Liquidaci&#243;n" label="Legajo Empresa" policy="NucleusRH/Base/Personal/LegajoEmpresa/CATEGORIA_PER/READ" allowimg="1" name="LEGAJO">
+				<form:Event action="verLegajo" policy="NucleusRH/Base/Personal/LegajoEmpresa/CATEGORIA_PER/EDIT" name="onclick" runat="client"/>
+			</form:Link>
+			<form:Link descrip="Navega hacia los Legajos Liquidaci&#243;n asociados a la Liquidaci&#243;n" label="Legajo Liquidaci&#243;n" name="LIQUIDACION" policy="NucleusRH/Base/Personal/LegajoEmpresa/CCOSTO_PER/READ" allowimg="1">
+				<form:Event action="verLiquidacion" policy="NucleusRH/Base/Personal/LegajoEmpresa/CCOSTO_PER/EDIT" name="onclick" runat="client"/>
+			</form:Link>
+			<form:Link label="Datos de Empresa" descrip="Navega hacia la Empresa asociada a la Liquidaci&#243;n" policy="NucleusRH/Base/Personal/LegajoEmpresa/CCOSTO_PER/READ" allowimg="1" name="EMPRESA">
+				<form:Event action="verEmpresa" policy="NucleusRH/Base/Personal/LegajoEmpresa/CCOSTO_PER/EDIT" name="onclick" runat="client"/>
+			</form:Link>
+		</form:VGroup>
+	</form:Right>
+	<form:Center width="95%">
+		<form:Columns visible="0" name="main_columnsLIQUIDACION">
+			<form:Column name="main_columnsLIQUIDACIONcolumn1"/>
+		</form:Columns>
+		<form:Blank visible="NEW|EDIT" name="blancoSeparador" width="100%"/>
+		<form:Columns visible="SHOW|NEW|EDIT" name="main_columnsLIQUIDACION1">
+			<form:Column name="COL1">
+				<form:RowAligner name="aaa">
+					<form:Row name="aaa">
+						<form:ComboBox queryname1="NucleusRH.Base.Liquidacion.Empresa_Liquidacion.EMPRESA.INFO" xsize="40" mode="QRY" required="1" enabled="NEW" label="Empresa" nvalue="#source:oi_empresa/@value" name="oi_empresa"/>
+					</form:Row>
+					<form:Row name="aadd">
+						<form:TextBox required="1" enabled="NEW" ysize="1" xsize="25" length="25" label="C&#243;digo" nvalue="#source:@c_liquidacion" name="c_liquidacion"/>
+					</form:Row>
+					<form:Row name="aa">
+						<form:TextBox required="1" enabled="NEW|EDIT" descr="Descripcion de la liquidacion" ysize="1" xsize="50" length="100" label="T&#237;tulo de la Liquidaci&#243;n" nvalue="#source:@d_titulo" name="d_titulo"/>
+						<form:Blank width="25px" name="aaa"/>
+						<form:TextBox visible="!NEW" xsize="10" label="Cantidad de Legajos" enabled="0" nvalue="#CANT:@cant" name="cantidad"/>
+					</form:Row>
+					<form:Row name="row_confidencial">
+						<form:CheckBox enabled="NEW" required="1" name="l_confidencial" label="Liquidacion confidencial" nvalue="#source:@l_confidencial"/>
+					</form:Row>
+				</form:RowAligner>
+			</form:Column>
+		</form:Columns>
+		<form:Tab visible="SHOW|NEW|EDIT" descrip="" note="" name="tabLiq">
+			<form:Panels>
+				<form:Panel selected="1" label="Datos Principales" name="Liquida">
+					<form:Columns name="cols_principal">
+						<form:Column name="col1" separation="2" align="center" valign="top">
+							<form:DateTime enabled="0" visible="!NEW&amp;!EDIT" pattern="YYYYMM" required="1" mask="dd/mm/yyyy" label="Per&#237;odo" nvalue="#source:@e_periodo" name="e_periodo"/>
+							<form:Hidden visible="NEW|EDIT" label="Per&#237;odo (AAAAMM)" required="0" mask="###.###.##0" xsize="12" nvalue="#source:@e_periodo" name="e_periodo"/>
+							<form:DateTime pattern="YYYYMMDD" required="1" enabled="NEW|EDIT" mask="dd/mm/yyyy" label="Fecha de Liquidaci&#243;n" nvalue="#source:@f_liquidacion" name="f_liquidacion">
+								<form:SButtons>
+									<form:SButton visible="EDIT|NEW" img="Calendar" label="Calendar" name="Calendar">
+										<form:Event action="SHOW_HELPER" name="onclick" runat="client"/>
+									</form:SButton>
+								</form:SButtons>
+								<form:Event runat="client" name="onchange" action="cambiarPeriodo"/>
+							</form:DateTime>
+							<form:ComboBox queryname1="NucleusRH.Base.Liquidacion.Tipo_de_Liquidacion.TIPO_LIQ.INFO" xsize="40" mode="QRY" required="1" enabled="NEW|EDIT" label="Tipo Liquidaci&#243;n" nvalue="#source:oi_tipo_liq/@value" name="oi_tipo_liq"/>
+							<form:CheckBox enabled="NEW|EDIT" required="1" label="Liquidaci&#243;n de Ajuste" nvalue="#source:@l_ajuste" name="l_ajuste"/>
+							<form:ComboBox visible="!NEW&amp;!EDIT" nvalue="#source:@c_estado" xsize="40" mode="OPT" required="1" enabled="0" label="Estado" name="c_estado">
+								<options>
+									<option text="Abierta" value="A"/>
+									<option text="Inicializada" value="I"/>
+									<option text="Cerrada" value="C"/>
+								</options>
+							</form:ComboBox>
+							<form:Hidden required="0" nvalue="#source:@c_estado" visible="NEW|EDIT" name="c_estado"/>
+							<form:ComboBox xsize="40" mode="OPT" required="1" enabled="NEW|EDIT" label="Clase de Liquidaci&#243;n" nvalue="#source:@c_clase" name="c_clase">
+								<options>
+									<option text="Mensual" value="M"/>
+									<option text="Quincenal" value="Q"/>
+								</options>
+								<form:Event runat="client" name="onchange" action="cambiarClase"/>
+							</form:ComboBox>
+							<form:ComboBox xsize="40" mode="OPT" required="0" enabled="NEW|EDIT" descr="Quincena" label="Quincena" nvalue="#source:@e_quincena" name="e_quincena">
+								<options>
+									<option text="1ra Quincena" value="1"/>
+									<option text="2da Quincena" value="2"/>
+								</options>
+								<form:Event runat="client" name="onvalidate" action="quincenaValidar"/>
+							</form:ComboBox>
+							<form:DateTime pattern="YYYYMMDD" required="1" enabled="NEW|EDIT" mask="dd/mm/yyyy" label="Fecha de Pago" nvalue="#source:@f_pago" name="f_pago">
+								<form:SButtons>
+									<form:SButton visible="EDIT|NEW" img="Calendar" label="Calendar" name="Calendar">
+										<form:Event action="SHOW_HELPER" name="onclick" runat="client"/>
+									</form:SButton>
+								</form:SButtons>
+								<form:Event runat="client" name="onvalidate" action="fLiq_fPago"/>
+							</form:DateTime>
+							<form:CheckBox visible="0" required="0" enabled="NEW|EDIT" label="Retroactivos" nvalue="#source:@l_retroactivo" name="l_retroactivo">
+								<form:Event runat="client" name="onchange" action="cambiarRetro"/>
+							</form:CheckBox>
+							<form:NumberBox visible="0" required="0" enabled="NEW|EDIT" mask="###.###.##0" xsize="12" label="Per&#237;odo Retroactivo" nvalue="#source:@e_periodo_ret" name="e_periodo_ret">
+								<form:Event runat="client" name="onvalidate" action="retroValidar"/>
+							</form:NumberBox>
+							<form:CheckBox visible="0" required="0" enabled="NEW|EDIT" descr="Indica si la liquidacion va a ser utilizada para simulacion." label="Se Utiliza para Simulacion?" nvalue="#source:@l_simulacion" name="l_simulacion"/>
+							<form:CheckBox visible="0" required="0" enabled="NEW|EDIT" label="Generar informaci&#243;n adicional" nvalue="#source:@l_debug" name="l_debug"/>
+							<form:Hidden name="oi_liq_genero" nvalue="#source:@oi_liq_genero"/>
+						</form:Column>
+					</form:Columns>
+				</form:Panel>
+				<form:Panel selected="1" label="Datos Adicionales" name="Liq">
+					<form:Columns name="cols_adicional">
+						<form:Column name="col2" separation="2" align="center" valign="top">
+							<form:ComboBox label="Forma de Pago" queryname1="NucleusRH.Base.Personal.Formas_Pago.FORMA_PAGO.INFO" xsize="40" mode="QRY" required="0" enabled="NEW|EDIT" nvalue="#source:oi_forma_pago/@value" name="oi_forma_pago"/>
+							<form:ComboBox label="Banco de Ultimo Dep&#243;sito Jubilaci&#243;n" queryname1="NucleusRH.Base.Liquidacion.Bancos.BANCO.INFO" xsize="40" mode="QRY" required="0" enabled="NEW|EDIT" nvalue="#source:oi_banco/@value" name="oi_banco"/>
+							<form:TextBox label="Mes de Ultimo Dep&#243;sito Jubilaci&#243;n" required="0" enabled="NEW|EDIT" ysize="1" xsize="30" length="30" nvalue="#source:@c_mes_deposito" name="c_mes_deposito"/>
+							<form:DateTime label="Fecha de Ultimo Dep&#243;sito Jubilaci&#243;n" name="f_deposito" nvalue="#source:@f_deposito" mask="dd/mm/yyyy" enabled="NEW|EDIT" required="0" pattern="YYYYMMDD">
+								<form:SButtons>
+									<form:SButton visible="EDIT|NEW" name="Calendar" label="Calendar" img="Calendar">
+										<form:Event runat="client" name="onclick" action="SHOW_HELPER"/>
+									</form:SButton>
+								</form:SButtons>
+							</form:DateTime>
+							<form:DateTime pattern="YYYYMMDD" required="0" enabled="NEW|EDIT" mask="dd/mm/yyyy" label="Fecha emision del F. 649" nvalue="#source:@f_f649" name="f_f649">
+								<form:SButtons>
+									<form:SButton visible="EDIT|NEW" img="Calendar" label="Calendar" name="Calendar">
+										<form:Event action="SHOW_HELPER" name="onclick" runat="client"/>
+									</form:SButton>
+								</form:SButtons>
+							</form:DateTime>
+							<form:DateTime visible="0" pattern="YYYYMMDD" required="0" enabled="NEW|EDIT" mask="dd/mm/yyyy" label="Fecha Valor para el pase Contable" nvalue="#source:@f_valor" name="f_valor">
+								<form:SButtons>
+									<form:SButton visible="EDIT|NEW" img="Calendar" label="Calendar" name="Calendar">
+										<form:Event action="SHOW_HELPER" name="onclick" runat="client"/>
+									</form:SButton>
+								</form:SButtons>
+							</form:DateTime>
+							<form:DateTime pattern="YYYYMMDD" required="0" enabled="0" mask="dd/mm/yyyy" label="Fecha de Cierre" nvalue="#source:@f_cierre" name="f_cierre"/>
+							<form:TextBox required="0" enabled="NEW|EDIT" ysize="4" xsize="50" length="1000" label="Observaciones" nvalue="#source:@o_liquidacion" name="o_liquidacion"/>
+							<form:TextBox required="0" enabled="NEW|EDIT" ysize="14" xsize="50" length="4000" label="Leyenda a imprimir en el recibo" nvalue="#source:@t_leyenda" name="t_leyenda"/>
+						</form:Column>
+					</form:Columns>
+				</form:Panel>
+			</form:Panels>
+		</form:Tab>
+		<form:Hidden name="oi"/>
+		<form:Hidden nvalue="#DDO:@id" name="oi_ddo"/>
+		<form:ListView visible="LIST|LIST_EDIT" name="LIST" paging="1" rows="-250" docname="RS">
+			<form:LVColumns>
+				<form:LVColumn additional="&lt;fk action=&quot;X2C&quot; flow=&quot;NucleusRH.Base.Liquidacion.Empresa_Liquidacion.EMPRESA.guia.autoflow&quot; /&gt;" align="left" sorteable="1" width="50px" type="fk" label="Empresa" attrname="oi_empresa" name="oi_empresa"/>
+				<form:LVColumn align="left" sorteable="1" width="100px" type="string" label="C&#243;digo" attrname="c_liquidacion" name="c_liquidacion"/>
+				<form:LVColumn align="left" sorteable="1" descr="Descripcion de la liquidacion" width="100px" type="string" label="T&#237;tulo" attrname="d_titulo" name="d_titulo"/>
+				<form:LVColumn align="center" type="string" sorteable="1" descr="Periodo" width="50px" label="Periodo" attrname="periodo" name="periodo"/>
+				<form:LVColumn visible="0" additional="Listas/check.ico|Listas/uncheck.ico" align="center" sorteable="1" width="20px" type="bool" label="Ajuste?" attrname="l_ajuste" name="l_ajuste"/>
+				<form:LVColumn additional="&lt;combo action=&quot;COMBO&quot; flow=&quot;NucleusRH.Base.Liquidacion.Liquidacion.LIQUIDACION.c_estado.combo.autoflow&quot; /&gt;" align="left" sorteable="1" width="50px" type="combo" label="Estado" attrname="c_estado" name="c_estado"/>
+				<form:LVColumn attrname="cant" type="number" width="15px" sorteable="1" align="right" label="Legajos" name="cant" additional="###,###,##0"/>
+				<form:LVColumn visible="0" additional="&lt;combo action=&quot;COMBO&quot; flow=&quot;NucleusRH.Base.Liquidacion.Tipo_de_Liquidacion.TIPO_LIQ.Combo.autoflow&quot; /&gt;" align="left" sorteable="1" width="50px" type="combo" label="Tipo Liquidaci&#243;n" attrname="oi_tipo_liq" name="oi_tipo_liq"/>
+				<form:LVColumn visible="0" additional="dd/mm/yyyy" align="center" sorteable="1" width="50px" type="datetime" label="Fecha de Liquidaci&#243;n" attrname="f_liquidacion" name="f_liquidacion"/>
+				<form:LVColumn visible="0" additional="&lt;combo action=&quot;COMBO&quot; flow=&quot;NucleusRH.Base.Liquidacion.Liquidacion.LIQUIDACION.c_clase.combo.autoflow&quot; /&gt;" align="left" sorteable="1" width="50px" type="combo" label="Clase" attrname="c_clase" name="c_clase"/>
+				<form:LVColumn visible="0" additional="&lt;combo action=&quot;COMBO&quot; flow=&quot;NucleusRH.Base.Liquidacion.Liquidacion.LIQUIDACION.e_quincena.combo.autoflow&quot; /&gt;" align="left" sorteable="1" descr="Quincena" width="50px" type="combo" label="Quincena" attrname="e_quincena" name="e_quincena"/>
+				<form:LVColumn visible="0" additional="dd/mm/yyyy" align="center" sorteable="1" width="50px" type="datetime" label="Cierre" attrname="f_cierre" name="f_cierre"/>
+				<form:LVColumn visible="0" additional="dd/mm/yyyy" align="center" sorteable="1" width="50px" type="datetime" label="Fecha emision del F. 649" attrname="f_f649" name="f_f649"/>
+				<form:LVColumn type="number" visible="0" name="oi_liq_genero" attrname="oi_liq_genero"/>
+			</form:LVColumns>
+			<form:Event action="validarLoad" name="onclick" runat="client"/>
+		</form:ListView>
+	</form:Center>
+	<form:Bottom>
+		<form:RowAligner name="buttonlinks11" columns="5">
+			<form:Row name="row1">
+				<form:Button name="SAVE" label="Guardar" img="save" descrip="Guardar los Cambios en la Base de Datos" startvalidate="1" note="Guardar los Cambios en la Base de Datos" visible="NEW|EDIT">
+					<form:Event action="ClientSAVE" runat="client" name="onclick"/>
+				</form:Button>
+				<form:Button name="CANCEL" label="Cancelar" img="cancel" descrip="Cancelar la operacion" note="Cancela la operacion sobre el formulario" visible="NEW|EDIT">
+					<form:Event runat="server" name="onclick" action="CANCEL"/>
+				</form:Button>
+				<form:Button visible="SHOW|LIST" name="Agregar" label="Agregar" img="new" descrip="" note="">
+					<form:Event runat="server" name="onclick" action="ADD"/>
+				</form:Button>
+				<form:Button visible="SHOW|LIST" name="Editar" label="Modificar" img="edit" descrip="" note="">
+					<form:Event runat="server" name="onclick" action="EDIT"/>
+				</form:Button>
+				<form:Button visible="SHOW|LIST|EDIT" mess="&#191;Seguro que desea eliminar la Liquidaci&#243;n?" label="Eliminar" name="Borrar" img="del" descrip="" note="">
+					<form:Event action="DELETE" runat="server" name="onclick"/>
+				</form:Button>
+				<form:Button visible="SHOW|LIST" name="Volver" label="Volver" img="back" descrip="" note="">
+					<form:Event runat="server" name="onclick" action="BACK"/>
+				</form:Button>
+			</form:Row>
+		</form:RowAligner>
+		<form:RowAligner visible="0" name="buttonlinks">
+			<form:Row name="row1">
+				<form:Button policy="NucleusRH/Base/Liquidacion/Liquidacion/EDIT" visible="SHOW|LIST" descrip="Modificar el Registro" img="edit" label="Modificar" name="EDIT">
+					<form:Event action="EDIT" name="onclick" runat="server"/>
+				</form:Button>
+				<form:Button policy="NucleusRH/Base/Liquidacion/Liquidacion/NEW" visible="SHOW|LIST" descrip="Agregar un Registro" img="new" label="Agregar" name="ADD">
+					<form:Event action="ADD" name="onclick" runat="server"/>
+				</form:Button>
+				<form:Button mess="&#191;Est&#225; seguro que desa eliminar el registro?" policy="NucleusRH/Base/Liquidacion/Liquidacion/DELETE" visible="SHOW|LIST|EDIT|DELETE" descrip="Eliminar un Registro" img="del" label="Eliminar" name="DELETE">
+					<form:Event action="DELETE" name="onclick" runat="server"/>
+				</form:Button>
+				<form:Button policy="NucleusRH/Base/Liquidacion/Liquidacion/SECURITY" visible="SHOW|LIST" descrip="Propiedades del Registro" img="lock" label="Seguridad" name="ADMIN">
+					<form:Event action="ADMIN" name="onclick" runat="server"/>
+				</form:Button>
+			</form:Row>
+		</form:RowAligner>
+	</form:Bottom>
+	<form:Resources>
+		<form:Resource name="QRY_LEGAJO" declare="&lt;PARAM oi_liquidacion=&quot;91&quot;/&gt;">
+			<qry:main doc="SOURCE">
+				<qry:element name="LEGAJOS">
+					<qry:insert-select name="RS1" doc-path="#SOURCE:PARAM"/>
+				</qry:element>
+			</qry:main>
+			<qry:select name="RS1" doc="SOURCE">
+				<qry:xquery>
+					for $r in sql('
+				SELECT 
+					LIQ25_PERSONAL_LIQ.oi_personal_emp
+				FROM 
+					LIQ19_LIQUIDACION,
+					LIQ25_PERSONAL_LIQ
+				JOIN
+					LIQ19_LIQUIDACION.oi_liquidacion INNER LIQ25_PERSONAL_LIQ.oi_liquidacion
+				WHERE 
+					LIQ19_LIQUIDACION.oi_liquidacion = {#SOURCE:@oi_liquidacion} 
+      ')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<LEGAJO>
+						<qry:attribute name="id" value="$r/@oi_personal_emp"/>
+						<qry:insert-select name="SECURITY" doc-path="."/>
+					</LEGAJO>
+				</qry:out>
+			</qry:select>
+			<qry:select doc="PARAM" name="SECURITY">
+				<qry:xquery>
+					for $r in sql('
+				SELECT NMD_SECURITY.policy 
+				FROM NMD_SECURITY 
+				WHERE NMD_SECURITY.class=\'NucleusRH.Base.Personal.LegajoEmpresa.PERSONAL_EMP\' 
+				AND NMD_SECURITY.id={#PARAM:@id}
+			')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:attribute value="$r/@policy" name="policy"/>
+				</qry:out>
+			</qry:select>
+		</form:Resource>
+	</form:Resources>
+	<form:Event action="SAVE" name="SAVE" runat="server"/>
+</form:Form>

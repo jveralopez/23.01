@@ -1,0 +1,130 @@
+<flow:flow xmlns:flow="nomad_engine.flow" xmlns:doc="nomad_engine.doc" xmlns:qry="nomad_engine.qry" name="NucleusRH.Base.Gestion_de_Postulantes.Trayectoria_Postulante.flow" extends="Nomad.Base.flow" default_action="initialize">
+	<flow:info label="Flow para la carga de comentarios POR PERSONA."/>
+	<flow:declare>
+		<doc:define name="FILTERDATA"/>
+		<doc:define name="RS"/>
+		<qry:define declare="&lt;DATA oi_postulante=&quot;8&quot; /&gt;" name="GetTrayectoria">
+			<qry:main doc="PARAM">
+				<qry:element name="ROWS">
+					<qry:insert-select name="TITLE" doc-path="#PARAM:DATA"/>
+				</qry:element>
+			</qry:main>
+			<qry:select doc="PARAM" name="TITLE">
+				<qry:xquery>
+					for $r in sql('
+				SELECT 
+					REF.oi_referencia,
+					REF.d_referencia, 
+					REF.f_inicio,
+					REC.c_estado, 
+					REC.f_reclutamiento, 
+					REC.f_seleccion, 
+					REC.f_contratacion,
+					REC.f_rankeo, 
+					REC.f_descartado,  
+					REC.d_reclutado, 
+					MOT.d_mot_autoex
+				from 
+					SEL13_RECLUTADOS AS REC, 
+					SEL02_REFERENCIAS AS REF,
+					SEL16_MOT_AUTOEX AS MOT
+				JOIN
+					REC.oi_referencia INNER REF.oi_referencia,
+					REC.oi_mot_autoex LEFT OUTER MOT.oi_mot_autoex
+        WHERE
+					REC.oi_postulante = {#PARAM:@oi_postulante}
+				ORDER BY 
+					f_inicio ASC
+				')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:element name="ROW">
+						<qry:attribute value="$r/@oi_referencia" name="id"/>
+						<qry:attribute value="$r/@oi_postulante" name="oi_postulante"/>
+						<qry:attribute name="estado" value="$r/@c_estado"/>
+						<qry:switch test="$r/@c_estado">
+							<qry:case value="R">
+								<qry:attribute name="estado" value="'Reclutado'"/>
+								<qry:attribute name="f_estado" value="$r/@f_reclutamiento"/>
+							</qry:case>
+							<qry:case value="N">
+								<qry:attribute name="estado" value="'Rankeado'"/>
+								<qry:attribute name="f_estado" value="$r/@f_rankeo"/>
+							</qry:case>
+							<qry:case value="S">
+								<qry:attribute name="estado" value="'Seleccionado'"/>
+								<qry:attribute name="f_estado" value="$r/@f_seleccion"/>
+							</qry:case>
+							<qry:case value="C">
+								<qry:attribute name="estado" value="'Contratado'"/>
+								<qry:attribute name="f_estado" value="$r/@f_contratacion"/>
+							</qry:case>
+							<qry:default>
+								<qry:attribute name="estado" value="'Descartado'"/>
+								<qry:attribute name="f_estado" value="$r/@f_descartado"/>
+							</qry:default>
+						</qry:switch>
+						<qry:attribute name="d_referencia" value="$r/@d_referencia"/>
+						<qry:attribute name="d_mot_autoex" value="$r/@d_mot_autoex"/>
+					</qry:element>
+				</qry:out>
+			</qry:select>
+		</qry:define>
+		<doc:define name="NADA"/>
+		<doc:define name="TRAY"/>
+		<qry:define declare="&lt;DATA oi_postulante=&quot;8&quot; /&gt;" name="GetTitulo">
+			<qry:main doc="PARAM">
+				<qry:element name="ROWS">
+					<qry:attribute value="'Trayectoria del Postulante'" name="value"/>
+					<!--qry:insert-select name="TITLE" doc-path="#PARAM:DATA"/-->
+				</qry:element>
+			</qry:main>
+			<qry:select doc="PARAM" name="TITLE">
+				<qry:xquery>
+					for $r in sql('
+				SELECT 
+					REF.oi_referencia,
+					REF.d_referencia, 
+					REC.c_estado, 
+					REC.f_reclutamiento, 
+					REC.f_seleccion, 
+					REC.f_contratacion,
+					REC.f_rankeo, 
+					REC.f_descartado,  
+					REC.d_reclutado, 
+					MOT.d_mot_autoex
+				from 
+					SEL13_RECLUTADOS AS REC, 
+					SEL02_REFERENCIAS AS REF,
+					SEL16_MOT_AUTOEX AS MOT
+				JOIN
+					REC.oi_referencia INNER REF.oi_referencia,
+					REC.oi_mot_autoex LEFT OUTER MOT.oi_mot_autoex
+        WHERE
+					REC.oi_postulante = {#PARAM:@oi_postulante}
+					
+				')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:attribute value="'Trayectoria de [' + $r/@d_reclutado + ']'" name="value"/>
+				</qry:out>
+			</qry:select>
+		</qry:define>
+		<doc:define name="TIT"/>
+	</flow:declare>
+	<flow:main doc="SOURCE">
+		<flow:action name="initialize">
+			<doc:load-qry output-doc="TRAY" qry="GetTrayectoria" input-doc-path="#SOURCE:"/>
+			<doc:load-qry output-doc="TIT" qry="GetTitulo" input-doc-path="#SOURCE:"/>
+			<flow:open-form parent-doc-path="#TIT:" doc-path="#TRAY:" form-class="NucleusRH.Base.Gestion_de_Postulantes.Trayectoria_Postulante.form" mode="SHOW"/>
+		</flow:action>
+	</flow:main>
+	<flow:form form-class="NucleusRH.Base.Gestion_de_Postulantes.Trayectoria_Postulante.form" name="NucleusRH.Base.Gestion_de_Postulantes.Trayectoria_Postulante.form" mode="SHOW" doc="SOURCE">
+		<flow:action name="CANCEL">
+			<flow:exit-flow return-path="#NADA:"/>
+		</flow:action>
+		<flow:action name="on-show">
+			<flow:attach-doc doc-path="#TRAY:" attach-id="RS"/>
+		</flow:action>
+	</flow:form>
+</flow:flow>

@@ -1,0 +1,166 @@
+<templates>
+	<template-STD name="MAIN">
+		<cfg eve-validate="NucleusRH.Base.Liquidacion.SubgrupoLSD.SUBGRUPO.ValidarCodigo" add="1" filter="1"/>
+	</template-STD>
+	<template-STD_LIST name="MAIN">
+		<cfg list-resource="INFO_IDS_LIST_ABM" maxreg="100" autoload="1" search="1" lock="0" del="1" edit="1" add="1" id-resource="INFO_IDS">
+			<col label="Codigo LSD inicial" name="e_lsd_inicial" show="number_0"/>
+			<col label="Codigo LSD final" show="number_0" name="e_lsd_final"/>
+			<col label="Subgrupo" name="d_subgrupo" show="string_short"/>
+		</cfg>
+		<scripts>
+			function LoadList(force)
+{
+  var proxy=GetProxy(); //as NomadProxy
+  var param=new NomadXML("DATA");
+  var lst=Ctrl("LIST");
+
+  var max=CFG.GetAttrInt("maxreg");
+  if (isNaN(max)) max=0;
+
+  if (force || Ctrl("VALUES").GetXValue()=="*" || Ctrl("VALUES").GetXValue()=="" )
+  {
+  param.SetAttr("parent" ,Ctrl("PARENT").GetXValue());
+  param.SetAttr("order"  ,Ctrl("ORDER").GetXValue().substr(1));
+  param.SetAttr("asc"    ,Ctrl("ORDER").GetXValue().substr(0,1)=="+"?"1":"0");
+  if (Ctrl("BUSCAR")) 
+  	if (isNaN(Ctrl("BUSCAR").GetXValue())) param.SetAttr("stringSearch" ,Ctrl("BUSCAR").GetXValue());
+  	else param.SetAttr("numberSearch" ,Ctrl("BUSCAR").GetXValue());
+  if (max&gt;0) param.SetAttr("LEN",max);
+
+  //Agrego los Parametros Adicionales
+  for (cur=CFG.FirstChild(); cur!=null; cur=cur.Next())
+  {
+  	if (Ctrl(cur.GetAttr("name")))
+  		param.SetAttr(cur.GetAttr("name"), Ctrl(cur.GetAttr("name")).GetXValue());
+
+	//Faltan algunos Parametros  		
+  	if (cur.GetAttrBool("req") &amp;&amp; Ctrl(cur.GetAttr("name")).GetXValue()=="")
+  	{
+	  Ctrl("VALUES").SetXValue("");
+	  Ctrl("LIST_REG").SetXValue("Especifique alg&#250;n criterio de b&#250;squeda.");
+	  
+		//Limpio todo
+	  lst.IDs=new Array();
+	  lst.SetXValue("");          
+
+		//Mensaje Inicial de la Lista
+		lst.MsgEmply="Especifique alg&#250;n criterio de b&#250;squeda...";
+		lst.ResetSQL();
+  		return;
+  	}
+  }
+
+  //Cargo el RS
+  if(CFG.GetAttr("METHOD")!="")
+  {
+    var ca=proxy.RPCService();
+    ca.AddParam(new NomadRPCParamOut("OUT", "Nomad.NSystem.Object", "Nomad.NSystem.Proxy.NomadXML"));
+
+    //Lista de Parametros
+    var p=0;
+    var mecfg=new NomadXML(Ctrl("main").getResource("QRY_IDS_METHOD"));
+    for (cur=mecfg.FirstChild(); cur!=null; cur=cur.Next())
+    {
+      switch(cur.GetAttr("value").split(":")[0])
+      {
+        case "ctrl":
+          p++;
+          ca.AddParam(new NomadRPCParam("P"+p, "IN", Ctrl(cur.GetAttr("value").substr(5)).GetXValue(), "String"));
+          break;
+        case "const":
+          p++;
+          ca.AddParam(new NomadRPCParam("P"+p, "IN", cur.GetAttr("value").substr(6), "String"));
+          break;
+        default:
+          if (cur.GetAttr("value")!="")
+          {
+            p++;
+            ca.AddParam(new NomadRPCParam("P"+p, "IN", cur.GetAttr("value"), "String"));
+          }
+          break;
+      }
+    }
+
+    ca.Execute(CFG.GetAttr("METHOD").split(":")[0],CFG.GetAttr("METHOD").split(":")[1]);
+    RS=new NomadXML(ca.GetParam("OUT").Data);
+  } else
+  {
+    RS=proxy.SQLService().GetXML(Ctrl("main").getResource("QRY_IDS"), param.ToString());
+  }
+
+  //Actualizo el Label
+  var total=RS.GetAttrInt("total"); if (isNaN(total)) total=0;
+  var count=RS.GetAttrInt("count"); if (isNaN(count)) count=0;
+
+
+//Limpio la Lista
+  lst.IDs=new Array();
+
+  //Genero la Lista de IDS                                
+  var found=false;
+  for (var cur=RS.FirstChild(); cur!=null; cur=cur.Next())
+  	if (max==0 || lst.IDs.length&lt;max)
+  	{
+    	lst.IDs.push(cur.GetAttr("id"));
+    	if (cur.GetAttr("id")==lst.GetXValue()) found=true;
+    }
+
+  Ctrl("VALUES").SetXValue(lst.IDs.length&gt;100 ? "*" : lst.IDs.join("|"))
+  } else
+  {
+//Cargo la Lista
+  lst.IDs=Ctrl("VALUES").GetXValue().split("|");
+  count=lst.IDs.length
+  }
+
+  if (max&gt;0 &amp;&amp; count&gt;=max)
+  {                      
+  	if (count==max)
+  		Ctrl("LIST_REG").SetXValue("Primeros "+max+" registros");
+  	else                                                      
+  		Ctrl("LIST_REG").SetXValue("ERROR AL MOSTRAR LA CANTIDAD DE REGISTROS ("+max+"!="+count+")");
+  } else            
+  if (count==0)
+  {
+  	Ctrl("LIST_REG").SetXValue("No hay registros");
+  } else
+  {
+  	Ctrl("LIST_REG").SetXValue(count + " registros");
+  }
+
+
+  lst.MsgEmply="No hay registros";
+  if (!found) lst.SetXValue("");
+  lst.ResetSQL();
+}
+		</scripts>
+	</template-STD_LIST>
+	<template-STD_REG name="MAIN">
+		<cfg del="1" edit="1" add="1">
+			<ctrl enable="NEW|EDIT" req="1" onchange="controlMayor" show="number_0" label="Codigo LSD inicial" name="e_lsd_inicial"/>
+			<ctrl enable="NEW|EDIT" req="1" onchange="controlMayor" show="number_0" label="Codigo LSD final" name="e_lsd_final"/>
+			<ctrl enable="NEW|EDIT" req="1" show="string_med" label="Subgrupo" name="d_subgrupo"/>
+			<ctrl visible="0" show="number_0" label="oi_subgrupo" name="id"/>
+		</cfg>
+		<scripts>
+			function controlMayor(me)
+{
+	if(parseInt(Ctrl('e_lsd_inicial').GetCValue())&gt;=parseInt(Ctrl('e_lsd_final').GetCValue()))
+	{ 
+		if(me.m_ID=='e_lsd_final')
+		{
+			alert("El c&#243;digo LSD final debe ser mayor al inicial");
+			Ctrl('e_lsd_final').SetCValue("");
+			
+		}
+		else
+		{ 
+			alert("El c&#243;digo LSD inicial debe ser menor al final");
+			Ctrl('e_lsd_inicial').SetCValue("");
+		}
+	}
+}
+		</scripts>
+	</template-STD_REG>
+</templates>

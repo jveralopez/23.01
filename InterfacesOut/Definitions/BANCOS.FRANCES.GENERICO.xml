@@ -1,0 +1,173 @@
+<INTERFACE-DEF xmlns:qry="nomad_engine.qry" code="" desc="" entermode="DOS" finalenter="1">
+	<QUERY declare="&lt;DATA oi_empresa=&quot;1&quot; oi_banco=&quot;1&quot; f_acreditacion=&quot;20090230&quot;&gt;&#13;&#10;&#9;&lt;LIQS&gt;&#13;&#10;&#9;&#9;&lt;LIQ oi_liquidacion=&quot;8&quot;/&gt;&#13;&#10;&#9;&lt;/LIQS&gt;&#13;&#10;&lt;/DATA&gt;">
+		<qry:main doc="SOURCE">
+			<qry:element name="DATA">
+				<qry:insert-select name="qryHeadFoot" doc-path="#SOURCE:DATA"/>
+				<qry:element name="DETAILS">
+					<qry:insert-select name="qryDetail" doc-path="#SOURCE:DATA"/>
+				</qry:element>
+			</qry:element>
+		</qry:main>
+		<qry:select name="qryHeadFoot" doc="SOURCE">
+			<qry:xquery>
+				for $r in SQL('
+					SELECT
+						EB.c_convenio,
+						EB.d_cuenta,
+						LIQ22_BANCOS_SUCUR.c_suc_bancaria,
+						ORG03_EMPRESAS.d_empresa
+					FROM
+						LIQ15_EMPRESA_BCOS as EB,
+						LIQ22_BANCOS, LIQ22_BANCOS_SUCUR, ORG03_EMPRESAS
+					JOIN
+						EB.oi_banco INNER LIQ22_BANCOS.oi_banco,
+						LIQ22_BANCOS.oi_banco INNER LIQ22_BANCOS_SUCUR.oi_banco,
+						EB.oi_empresa INNER ORG03_EMPRESAS.oi_empresa
+					WHERE
+						EB.oi_empresa = {#SOURCE:@oi_empresa} AND
+						EB.oi_banco = {#SOURCE:@oi_banco} AND
+						LIQ22_BANCOS_SUCUR.oi_sucursal = {#SOURCE:@oi_sucursal}
+				')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:element name="HEAD">
+					<qry:attribute name="c_convenio" value="FILL_LEFT($r/@c_convenio, '0', 5)"/>
+					<qry:attribute name="f_creacion" value="format_date(now(), 'yyyymmdd')"/>
+					<qry:attribute name="d_empresa" value="$r/@d_empresa"/>
+					<qry:attribute name="cta_debito" value="FILL_LEFT(TRANSLATE($r/@d_cuenta, '-', ''), '0', 10)"/>
+					<qry:attribute name="c_suc_bancaria" value="FILL_LEFT($r/@c_suc_bancaria, '0', 4)"/>
+					<qry:attribute name="f_proceso" value="format_date(now(), 'yyyymmdd')"/>
+					<qry:attribute name="f_acreditacion" value="format_date(#SOURCE:@f_acreditacion, 'yyyymmdd')"/>
+					<qry:attribute name="cod_servicio" value="'HABERES'"/>
+				</qry:element>
+				<qry:element name="FOOT">
+					<qry:attribute name="c_convenio" value="../HEAD/@c_convenio"/>
+					<qry:attribute name="nro_emp" value="../HEAD/@nro_emp"/>
+					<qry:attribute name="n_registros" value="../HEAD/@n_registros"/>
+					<qry:insert-select name="qryHeadTot" doc-path="#SOURCE:"/>
+				</qry:element>
+			</qry:out>
+		</qry:select>
+		<qry:select name="qryHeadTot" doc="SOURCE">
+			<qry:xquery>
+				for $r in SQL('
+					SELECT
+						sum(LIQ20_TOT_LIQ_PER.n_totpag) as total, 
+						count(LIQ20_TOT_LIQ_PER.n_totpag) as cantidad
+FROM         
+	LIQ15_EMPRESA_BCOS ,
+	LIQ15_EMPRESAS ,
+	ORG03_EMPRESAS, 
+	LIQ22_BANCOS ,
+	LIQ22_BANCOS_SUCUR ,
+	LIQ99_RECIBOS ,
+	LIQ20_TOT_LIQ_PER ,
+	LIQ97_PERSONAL_EMP ,
+	LIQ93_EMPRESAS ,
+	LIQ99_LIQUIDACION,
+	LIQ19_EJECUCIONES ,
+	LIQ19_LIQUIDACION , 
+	PER31_FORMAS_PAGO
+JOIN
+	LIQ15_EMPRESA_BCOS.oi_empresa 				INNER LIQ15_EMPRESAS.oi_empresa  ,
+	LIQ15_EMPRESAS.oi_empresa 						INNER ORG03_EMPRESAS.oi_empresa  ,
+	LIQ15_EMPRESA_BCOS.oi_banco			 			INNER LIQ22_BANCOS.oi_banco  ,
+	LIQ22_BANCOS.oi_banco 								INNER LIQ22_BANCOS_SUCUR.oi_banco  ,
+	LIQ20_TOT_LIQ_PER.oi_per_emp_ddo		 	INNER LIQ97_PERSONAL_EMP.oi_per_emp_ddo  ,
+	LIQ99_RECIBOS.oi_tot_liq_per 					INNER LIQ20_TOT_LIQ_PER.oi_tot_liq_per  ,
+	LIQ93_EMPRESAS.oi_empresa_ddo 				INNER LIQ99_LIQUIDACION.oi_empresa_ddo ,
+	LIQ99_RECIBOS.oi_liquidacion_ddo 			INNER LIQ99_LIQUIDACION.oi_liquidacion_ddo ,
+	ORG03_EMPRESAS.c_empresa 							INNER LIQ93_EMPRESAS.c_empresa  ,
+	LIQ99_LIQUIDACION.oi_liquidacion_ddo 	INNER LIQ19_EJECUCIONES.oi_liquidacion_ddo  ,
+	LIQ19_EJECUCIONES.oi_liquidacion 			INNER LIQ19_LIQUIDACION.oi_liquidacion ,
+	LIQ22_BANCOS_SUCUR.c_sucursal 				INNER LIQ97_PERSONAL_EMP.c_sucursal  , 
+	LIQ22_BANCOS.c_banco 									INNER LIQ97_PERSONAL_EMP.c_banco,
+	PER31_FORMAS_PAGO.c_forma_pago	 			INNER LIQ20_TOT_LIQ_PER.c_forma_pago
+					WHERE
+						LIQ99_LIQUIDACION.c_estado = \'F\' and
+						LIQ22_BANCOS.oi_banco = {#SOURCE:@oi_banco}
+						AND LIQ19_LIQUIDACION.oi_liquidacion IN ({%= STRING(#SOURCE:LIQS/LIQ/@oi_liquidacion) %})
+				    AND PER31_FORMAS_PAGO.l_banco = 1
+				    AND LIQ20_TOT_LIQ_PER.n_totpag &gt; 0
+				')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:attribute name="total" value="FORMAT_NUMBER($r/@total, 13, 2, '', '', '0')"/>
+				<qry:attribute name="cantidad" value="FORMAT_NUMBER($r/@cantidad, 8, 0, '', '', '0')"/>
+				<qry:attribute name="cant_total" value="FORMAT_NUMBER(number(./@cantidad)*4+2, 10, 0, '', '', '0')"/>
+			</qry:out>
+		</qry:select>
+		<qry:select name="qryDetail" doc="SOURCE">
+			<qry:xquery>
+				for $r in SQL('
+					SELECT
+						LIQ20_TOT_LIQ_PER.n_totpag, LIQ97_PERSONAL_EMP.d_ape_y_nom, 
+						LIQ97_PERSONAL_EMP.c_cta_bancaria, LIQ97_PERSONAL_EMP.e_numero_legajo,
+						LIQ19_LIQUIDACION.d_titulo, LIQ97_PERSONAL_EMP.c_cbu
+FROM         
+	LIQ15_EMPRESA_BCOS ,
+	LIQ15_EMPRESAS ,
+	ORG03_EMPRESAS, 
+	LIQ22_BANCOS ,
+	LIQ22_BANCOS_SUCUR ,
+	LIQ99_RECIBOS ,
+	LIQ20_TOT_LIQ_PER ,
+	LIQ97_PERSONAL_EMP ,
+	LIQ93_EMPRESAS ,
+	LIQ99_LIQUIDACION,
+	LIQ19_EJECUCIONES ,
+	LIQ19_LIQUIDACION , 
+	PER31_FORMAS_PAGO
+JOIN
+	LIQ15_EMPRESA_BCOS.oi_empresa 				INNER LIQ15_EMPRESAS.oi_empresa  ,
+	LIQ15_EMPRESAS.oi_empresa 						INNER ORG03_EMPRESAS.oi_empresa  ,
+	LIQ15_EMPRESA_BCOS.oi_banco			 			INNER LIQ22_BANCOS.oi_banco  ,
+	LIQ22_BANCOS.oi_banco 								INNER LIQ22_BANCOS_SUCUR.oi_banco  ,
+	LIQ20_TOT_LIQ_PER.oi_per_emp_ddo		 	INNER LIQ97_PERSONAL_EMP.oi_per_emp_ddo  ,
+	LIQ99_RECIBOS.oi_tot_liq_per 					INNER LIQ20_TOT_LIQ_PER.oi_tot_liq_per  ,
+	LIQ93_EMPRESAS.oi_empresa_ddo 				INNER LIQ99_LIQUIDACION.oi_empresa_ddo ,
+	LIQ99_RECIBOS.oi_liquidacion_ddo 			INNER LIQ99_LIQUIDACION.oi_liquidacion_ddo ,
+	ORG03_EMPRESAS.c_empresa 							INNER LIQ93_EMPRESAS.c_empresa  ,
+	LIQ99_LIQUIDACION.oi_liquidacion_ddo 	INNER LIQ19_EJECUCIONES.oi_liquidacion_ddo  ,
+	LIQ19_EJECUCIONES.oi_liquidacion 			INNER LIQ19_LIQUIDACION.oi_liquidacion ,
+	LIQ22_BANCOS_SUCUR.c_sucursal 				INNER LIQ97_PERSONAL_EMP.c_sucursal  , 
+	LIQ22_BANCOS.c_banco 									INNER LIQ97_PERSONAL_EMP.c_banco,
+	PER31_FORMAS_PAGO.c_forma_pago	 			INNER LIQ20_TOT_LIQ_PER.c_forma_pago
+					WHERE
+						LIQ99_LIQUIDACION.c_estado = \'F\' and
+						LIQ22_BANCOS.oi_banco = {%= #SOURCE:@oi_banco %}
+						AND LIQ19_LIQUIDACION.oi_liquidacion IN ({%= STRING(#SOURCE:LIQS/LIQ/@oi_liquidacion) %})
+				    AND PER31_FORMAS_PAGO.l_banco = 1
+				    AND LIQ20_TOT_LIQ_PER.n_totpag &gt; 0
+				  ORDER BY e_numero_legajo ASC
+				')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:element name="DETAIL">
+					<qry:attribute name="c_convenio" value="../../HEAD/@c_convenio"/>
+					<qry:attribute name="e_numero_legajo" value="FILL_LEFT($r/@e_numero_legajo, '0', 18)"/>
+					<qry:attribute name="d_ape_y_nom" value="$r/@d_ape_y_nom"/>
+					<qry:attribute name="d_titulo" value="FILL_RIGHT($r/@d_titulo, ' ', 40)"/>
+					<qry:attribute name="monto" value="FORMAT_NUMBER($r/@n_totpag, 13, 2, '', '', '0')"/>
+					<qry:attribute name="cbu" value="$r/@c_cbu"/>
+					<qry:attribute name="f_vencimiento" value="format_date(#SOURCE:@f_acreditacion, 'yyyymmdd')"/>
+				</qry:element>
+			</qry:out>
+		</qry:select>
+	</QUERY>
+	<HEAD>
+		2110{c_convenio:5}{f_creacion:8}{f_proceso:8}0017{c_suc_bancaria:4}{cta_debito:10}{cod_servicio:10+}ARS0SUELDOS.TXT {d_empresa:36+}20{space(141)}
+	</HEAD>
+	<DETAIL>
+		2210{c_convenio:5}{space(2)}{e_numero_legajo:22+}1{cbu:22+}0000000000{monto:15}000000{f_vencimiento:8}{nro_factura:15+}{space(140)}
+2220{c_convenio:5}{space(2)}{e_numero_legajo:22+}{d_ape_y_nom:36+}{d_domicilio:72+}{space(109)}
+2230{c_convenio:5}{space(2)}{e_numero_legajo:22+}{d_localidad:36+}{d_provincia:36+}{c_postal:36+}{space(109)}
+2240{c_convenio:5}{space(2)}{e_numero_legajo:22+}{d_titulo:40}{space(177)}
+	</DETAIL>
+	<FOOT>
+		2910{c_convenio:5}{total:15}{cantidad:8}{cant_total:10}{space(208)}
+	</FOOT>
+	<MESS>
+		<EMPTY mess="No se encontraron registros. Por favor valide que los legajos estest&#233;n asociados al banco correcto y que las liquidaciones del per&#237;odo est&#233;n cerradas."/>
+	</MESS>
+</INTERFACE-DEF>

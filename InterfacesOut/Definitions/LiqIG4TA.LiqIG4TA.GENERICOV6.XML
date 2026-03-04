@@ -1,0 +1,473 @@
+<INTERFACE-DEF xmlns:qry="nomad_engine.qry" code="" desc="" entermode="DOS" finalenter="1">
+	<QUERY declare="&lt;DATOS&gt;&#13;&#10;&#9;&lt;ROWS nmd-col=&quot;1&quot;&gt;&#13;&#10;&#9;&#9;&lt;ROW id=&quot;1&quot;/&gt;&#13;&#10;&#9;&#9;&lt;ROW id=&quot;101&quot;/&gt;&#13;&#10;&#9;&#9;&lt;ROW id=&quot;201&quot;/&gt;&#13;&#10;&#9;&#9;&lt;ROW id=&quot;302&quot;/&gt;&#13;&#10;&#9;&#9;&lt;ROW id=&quot;401&quot;/&gt;&#13;&#10;&#9;&#9;&lt;ROW id=&quot;501&quot;/&gt;&#13;&#10;&#9;&lt;/ROWS&gt;&#13;&#10;&#9;&lt;DATOS oi_empresa=&quot;1&quot; salida=&quot;HTML&quot; oi_liquidacion=&quot;1202&quot; oi_variable=&quot;&quot; report=&quot;&quot; gpers=&quot;&quot; gcustom=&quot;&quot; oi_empresaFIL=&quot;1&quot; tipo_liq=&quot;1&quot; oi_liquidacionFIL=&quot;1202&quot; inter=&quot;V5.0.21&quot; secuencia=&quot;0&quot; l_anioAnterior=&quot;1&quot; f_liq_hasta=&quot;20230131&quot; nombreArchivo=&quot;F1357.30111111115.20220000.0000.txt&quot; activos=&quot;&quot; nombre=&quot;&quot; documento=&quot;&quot; sexo=&quot;&quot; grupo_sanguineo=&quot;&quot; listlegajos=&quot;&quot; oi_indic_activo=&quot;&quot; egresado=&quot;&quot; oi_forma_pago=&quot;&quot; oi_tipo_personal=&quot;&quot; fecha_desde=&quot;&quot; fecha_hasta=&quot;&quot; cb_confidenciales=&quot;&quot; oi_grupo_ccosto=&quot;&quot; oi_centro_costo=&quot;&quot; oi_convenio=&quot;&quot; soloconvenio=&quot;&quot; oi_categoria=&quot;&quot; oi_ubicacion_desde=&quot;&quot; oi_ubicacion_hasta=&quot;&quot; oi_estructura=&quot;&quot; escructura_childs=&quot;&quot; oi_contrato=&quot;&quot; oi_afjp=&quot;&quot; oi_obra_social=&quot;&quot; oi_sindicato=&quot;&quot; l_afiliado_sind=&quot;&quot; oi_departamento=&quot;&quot; oi_sector=&quot;&quot; rpt=&quot;0&quot;/&gt;&#13;&#10;&lt;/DATOS&gt;">
+		<qry:include mode="CLASS" name="NucleusRH.Base.Liquidacion.Liquidacion.LIQUIDACION.QRY_IG"/>
+		<qry:main name="main" doc="SOURCE">
+			<qry:append-doc doc-path="#SOURCE:DATOS/DATOS" name="PARAM"/>
+			<qry:append-doc doc-path="#SOURCE:DATOS" name="PARAM2"/>
+			<DATA>
+				<DATOS>
+					<GRUPO>
+						<qry:append-doc name="GRUPO" doc-path="."/>
+						<qry:insert-select name="qry_def_variables_grupos" doc-path="#PARAM:"/>
+						<qry:attribute name="c_columnas" value="substring-after(@c_columnas,',')"/>
+						<qry:attribute name="hts:delete" value="1"/>
+					</GRUPO>
+					<GRUPOANT>
+						<qry:append-doc name="GRUPOANT" doc-path="."/>
+						<qry:insert-select name="qry_def_variables_grupos_ant" doc-path="#PARAM:"/>
+						<qry:attribute name="c_columnas" value="substring-after(@c_columnas,',')"/>
+						<qry:attribute name="hts:delete" value="1"/>
+					</GRUPOANT>
+					<!--<qry:attribute name="hts:delete" value="1"/>-->
+					<qry:insert-select doc-path="#PARAM:" name="qry_cabecera"/>
+					<qry:append-doc name="PARAM3" doc-path="."/>
+				</DATOS>
+				<qry:element name="HEAD">
+					<qry:attribute name="cuit" value="nmd-replace(#PARAM3:@c_cuit,'-','')"/>
+					<qry:attribute name="F1357CodImpuesto" value="'0000'"/>
+					<qry:attribute name="F1357CodConcepto" value="'000'"/>
+					<qry:attribute name="F1357NroForm" value="'0000'"/>
+					<qry:attribute name="F1357VerSistema" value="'00000'"/>
+					<qry:insert-select name="qry_parametros_f1357"/>
+					<qry:insert-select doc-path="#PARAM:" name="qry_periodo"/>
+					<qry:attribute name="secuencia" value="'00'"/>
+					<qry:if test="#PARAM:@secuencia!=''">
+						<qry:then>
+							<qry:attribute name="secuencia" value="nmd-fillleft(#PARAM:@secuencia,'0',2)"/>
+						</qry:then>
+					</qry:if>
+					<qry:attribute name="tipo_liq" value="nmd-fillleft(#PARAM:@tipo_liq,'0',1)"/>
+					<qry:if test="#PARAM:@tipo_liq='1.1'">
+						<qry:then>
+							<qry:attribute name="tipo_liq" value="'1'"/>
+						</qry:then>
+					</qry:if>
+				</qry:element>
+				<DETAILS>
+					<qry:attribute name="F1357IngresosMaximos" value="'0'"/>
+					<qry:if test="not(#PARAM:@tipo_liq='2') and not(#PARAM:@tipo_liq='3')">
+						<qry:then>
+							<qry:insert-select name="qry_ingresos_filtro"/>
+						</qry:then>
+					</qry:if>
+					<qry:insert-select doc-path="#PARAM3:" name="qry_detalle"/>
+				</DETAILS>
+			</DATA>
+		</qry:main>
+		<qry:select name="qry_periodo" doc="PARAM">
+			<qry:xquery>
+				for $r in SQL('
+		SELECT   
+			GetYear(L.f_pago) as anio,
+			P.e_periodo
+		FROM 
+			LIQ19_EJECUCIONES AS E, 
+			LIQ99_LIQUIDACION AS L,
+			LIQ19_LIQUIDACION AS P
+		JOIN
+		E.oi_liquidacion_ddo INNER L.oi_liquidacion_ddo,
+		E.oi_liquidacion INNER P.oi_liquidacion
+		
+		WHERE													
+			E.oi_liquidacion = {#PARAM:@oi_liquidacionFIL}
+			AND L.c_estado = \'F\'
+		')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:if test="(#PARAM:@tipo_liq='1' or #PARAM:@tipo_liq='4') and #PARAM:@l_anioAnterior='1'">
+					<qry:then>
+						<qry:attribute name="periodo" value="nmd-fillright(number($r/@anio) - 1,'0',6)"/>
+					</qry:then>
+					<qry:else>
+						<qry:attribute name="periodo" value="$r/@e_periodo"/>
+					</qry:else>
+				</qry:if>
+			</qry:out>
+		</qry:select>
+		<qry:select name="qry_parametros_f1357">
+			<qry:xquery>
+				for $r in SQL('
+		SELECT 
+			ORG26_PARAMETROS.c_parametro, 
+			ORG26_PARAMETROS.d_valor 
+		FROM
+			ORG26_PARAMETROS
+		WHERE 
+			ORG26_PARAMETROS.d_clase = \'LIQ\'
+			AND ORG26_PARAMETROS.c_modulo = \'LIQ\'
+			AND ORG26_PARAMETROS.c_parametro in (\'F1357CodImpuesto\',\'F1357CodConcepto\',\'F1357NroForm\',\'F1357VerSistema\')
+		')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:switch test="$r/@c_parametro">
+					<qry:case value="F1357CodImpuesto">
+						<qry:attribute name="F1357CodImpuesto" value="nmd-fillleft($r/@d_valor,'0',4)"/>
+					</qry:case>
+					<qry:case value="F1357CodConcepto">
+						<qry:attribute name="F1357CodConcepto" value="nmd-fillleft($r/@d_valor,'0',3)"/>
+					</qry:case>
+					<qry:case value="F1357NroForm">
+						<qry:attribute name="F1357NroForm" value="nmd-fillleft($r/@d_valor,'0',4)"/>
+					</qry:case>
+					<qry:case value="F1357VerSistema">
+						<qry:attribute name="F1357VerSistema" value="nmd-fillleft($r/@d_valor,'0',5)"/>
+					</qry:case>
+				</qry:switch>
+			</qry:out>
+		</qry:select>
+		<qry:select name="qry_detalle" doc="PARAM">
+			<qry:xquery>
+				for $r in #PARAM:L
+			</qry:xquery>
+			<qry:out>
+				<qry:element name="DETAIL">
+					<qry:if test="number($r/@n_tot63)&gt;=number(../@F1357IngresosMaximos)">
+						<qry:then>
+							<qry:insert-select name="qry_reg02" doc-path="$r"/>
+							<qry:insert-select name="qry_reg03" doc-path="$r"/>
+							<qry:insert-select name="qry_reg04" doc-path="$r"/>
+							<qry:insert-select name="qry_reg05" doc-path="$r"/>
+							<qry:insert-select name="qry_reg06" doc-path="$r"/>
+						</qry:then>
+						<qry:else>
+							<qry:attribute name="hts:delete" value="1"/>
+						</qry:else>
+					</qry:if>
+				</qry:element>
+			</qry:out>
+		</qry:select>
+		<qry:select name="qry_reg02" doc="PARAM">
+			<qry:out>
+				<qry:attribute name="cuil" value="nmd-replace($PARAM/@c_cuil,'-','')"/>
+				<qry:attribute name="ano_d" value="substring($PARAM/@f_desde,6,4)"/>
+				<qry:attribute name="mes_d" value="substring($PARAM/@f_desde,3,2)"/>
+				<qry:attribute name="dia_d" value="substring($PARAM/@f_desde,0,2)"/>
+				<qry:attribute name="per_desde" value="@ano_d+@mes_d+@dia_d"/>
+				<qry:attribute name="ano_h" value="substring($PARAM/@f_hasta,6,4)"/>
+				<qry:attribute name="mes_h" value="substring($PARAM/@f_hasta,3,2)"/>
+				<qry:attribute name="dia_h" value="substring($PARAM/@f_hasta,0,2)"/>
+				<qry:attribute name="per_hasta" value="@ano_h+@mes_h+@dia_h"/>
+				<!--<qry:insert-select doc-path="." name="qry_calcular_meses"/>-->
+				<qry:attribute name="cant_meses" value="number(@mes_h)-number(@mes_d)+1"/>
+				<qry:attribute name="cant_meses" value="nmd-fillleft(@cant_meses,'0',2)"/>
+				<qry:attribute name="n_tot69" value="0"/>
+				<qry:if test="number($PARAM/@n_tot69)=0 or number($PARAM/@n_tot69)=1">
+					<qry:then>
+						<qry:attribute name="n_tot69" value="1"/>
+					</qry:then>
+				</qry:if>
+				<qry:if test="number($PARAM/@n_tot69)=1.22">
+					<qry:then>
+						<qry:attribute name="n_tot69" value="2"/>
+					</qry:then>
+				</qry:if>
+				<qry:if test="number($PARAM/@n_tot69)=6">
+					<qry:then>
+						<qry:attribute name="n_tot69" value="3"/>
+					</qry:then>
+				</qry:if>
+				<qry:attribute name="n_tot70" value="0"/>
+				<qry:if test="number($PARAM/@n_tot70)=1">
+					<qry:then>
+						<qry:attribute name="n_tot70" value="1"/>
+					</qry:then>
+				</qry:if>
+				<qry:attribute name="n_tot97" value="0"/>
+				<qry:if test="number($PARAM/@n_tot97)=1">
+					<qry:then>
+						<qry:attribute name="n_tot97" value="1"/>
+					</qry:then>
+				</qry:if>
+				<qry:attribute name="n_tot100" value="0"/>
+				<qry:if test="number($PARAM/@n_tot100)=1">
+					<qry:then>
+						<qry:attribute name="n_tot100" value="1"/>
+					</qry:then>
+				</qry:if>
+				<qry:attribute name="n_tot129" value="abs($PARAM/@n_tot129)"/>
+				<qry:attribute name="n_tot130" value="abs($PARAM/@n_tot130)"/>
+				<qry:attribute name="n_tot140" value="abs($PARAM/@n_tot140)"/>
+			</qry:out>
+		</qry:select>
+		<qry:select name="qry_reg03" doc="PARAM">
+			<qry:out>
+				<qry:attribute name="n_tot1" value="FORMAT_NUMBER(abs($PARAM/@n_tot1), 13, 2, '', '', '0')"/>
+				<qry:attribute name="n_tot36" value="FORMAT_NUMBER(abs($PARAM/@n_tot36), 13, 2, '', '', '0')"/>
+				<qry:attribute name="n_tot37" value="FORMAT_NUMBER(abs($PARAM/@n_tot37), 13, 2, '', '', '0')"/>
+				<qry:attribute name="n_tot38" value="FORMAT_NUMBER(abs($PARAM/@n_tot38), 13, 2, '', '', '0')"/>
+				<qry:attribute name="n_tot46" value="FORMAT_NUMBER(abs($PARAM/@n_tot46), 13, 2, '', '', '0')"/>
+				<qry:attribute name="n_tot47" value="FORMAT_NUMBER(abs($PARAM/@n_tot47), 13, 2, '', '', '0')"/>
+				<qry:attribute name="n_tot48" value="FORMAT_NUMBER(abs($PARAM/@n_tot48), 13, 2, '', '', '0')"/>
+				<qry:attribute name="n_tot2" value="FORMAT_NUMBER(abs($PARAM/@n_tot2), 13, 2, '', '', '0')"/>
+				<qry:attribute name="n_tot3" value="FORMAT_NUMBER(abs($PARAM/@n_tot3), 13, 2, '', '', '0')"/>
+				<qry:attribute name="n_tot49" value="FORMAT_NUMBER(abs($PARAM/@n_tot49), 13, 2, '', '', '0')"/>
+				<qry:attribute name="n_tot50" value="FORMAT_NUMBER(abs($PARAM/@n_tot50), 13, 2, '', '', '0')"/>
+				<qry:attribute name="n_tot4" value="FORMAT_NUMBER(abs($PARAM/@n_tot4), 13, 2, '', '', '0')"/>
+				<qry:attribute name="n_tot51" value="FORMAT_NUMBER(abs($PARAM/@n_tot51), 13, 2, '', '', '0')"/>
+				<qry:attribute name="n_tot52" value="FORMAT_NUMBER(abs($PARAM/@n_tot52), 13, 2, '', '', '0')"/>
+				<qry:attribute name="n_tot53" value="FORMAT_NUMBER(abs($PARAM/@n_tot53), 13, 2, '', '', '0')"/>
+				<qry:attribute name="n_tot54" value="FORMAT_NUMBER(abs($PARAM/@n_tot54), 13, 2, '', '', '0')"/>
+				<qry:attribute name="n_tot55" value="FORMAT_NUMBER(abs($PARAM/@n_tot55), 13, 2, '', '', '0')"/>
+				<qry:attribute name="n_tot56" value="FORMAT_NUMBER(abs($PARAM/@n_tot56), 13, 2, '', '', '0')"/>
+				<qry:attribute name="n_tot57" value="FORMAT_NUMBER(abs($PARAM/@n_tot57), 13, 2, '', '', '0')"/>
+				<qry:attribute name="n_tot58" value="FORMAT_NUMBER(abs($PARAM/@n_tot58), 13, 2, '', '', '0')"/>
+				<qry:attribute name="n_tot59" value="FORMAT_NUMBER(abs($PARAM/@n_tot59), 13, 2, '', '', '0')"/>
+				<qry:attribute name="n_tot60" value="FORMAT_NUMBER(abs($PARAM/@n_tot60), 13, 2, '', '', '0')"/>
+				<qry:attribute name="n_tot61" value="FORMAT_NUMBER(abs($PARAM/@n_tot61), 13, 2, '', '', '0')"/>
+				<qry:attribute name="n_tot62" value="FORMAT_NUMBER(abs($PARAM/@n_tot62), 13, 2, '', '', '0')"/>
+				<qry:attribute name="n_tot63" value="FORMAT_NUMBER(abs($PARAM/@n_tot63), 15, 2, '', '', '0')"/>
+				<qry:attribute name="n_tot74" value="FORMAT_NUMBER(abs($PARAM/@n_tot74), 13, 2, '', '', '0')"/>
+				<qry:attribute name="n_tot75" value="FORMAT_NUMBER(abs($PARAM/@n_tot75), 13, 2, '', '', '0')"/>
+				<qry:attribute name="n_tot76" value="FORMAT_NUMBER(abs($PARAM/@n_tot76), 13, 2, '', '', '0')"/>
+				<qry:attribute name="n_tot77" value="FORMAT_NUMBER(abs($PARAM/@n_tot77), 13, 2, '', '', '0')"/>
+				<qry:attribute name="n_tot78" value="FORMAT_NUMBER(abs($PARAM/@n_tot78), 13, 2, '', '', '0')"/>
+				<qry:attribute name="n_tot79" value="FORMAT_NUMBER(abs($PARAM/@n_tot79), 13, 2, '', '', '0')"/>
+				<qry:attribute name="n_tot80" value="FORMAT_NUMBER(abs($PARAM/@n_tot80), 13, 2, '', '', '0')"/>
+				<qry:attribute name="n_tot81" value="FORMAT_NUMBER(abs($PARAM/@n_tot81), 13, 2, '', '', '0')"/>
+				<qry:attribute name="n_tot82" value="FORMAT_NUMBER(abs($PARAM/@n_tot82), 13, 2, '', '', '0')"/>
+				<qry:attribute name="n_tot83" value="FORMAT_NUMBER(abs($PARAM/@n_tot83), 13, 2, '', '', '0')"/>
+				<qry:attribute name="n_tot98" value="FORMAT_NUMBER(abs($PARAM/@n_tot98), 13, 2, '', '', '0')"/>
+				<qry:attribute name="n_tot99" value="FORMAT_NUMBER(abs($PARAM/@n_tot99), 13, 2, '', '', '0')"/>
+				<qry:attribute name="n_tot108" value="FORMAT_NUMBER(abs($PARAM/@n_tot108), 13, 2, '', '', '0')"/>
+				<qry:attribute name="n_tot109" value="FORMAT_NUMBER(abs($PARAM/@n_tot109), 13, 2, '', '', '0')"/>
+				<qry:attribute name="n_tot110" value="FORMAT_NUMBER(abs($PARAM/@n_tot110), 13, 2, '', '', '0')"/>
+				<qry:attribute name="n_tot111" value="FORMAT_NUMBER(abs($PARAM/@n_tot111), 13, 2, '', '', '0')"/>
+				<qry:attribute name="n_tot112" value="FORMAT_NUMBER(abs($PARAM/@n_tot112), 13, 2, '', '', '0')"/>
+				<qry:attribute name="n_tot113" value="FORMAT_NUMBER(abs($PARAM/@n_tot113), 13, 2, '', '', '0')"/>
+				<qry:attribute name="n_tot114" value="FORMAT_NUMBER(abs($PARAM/@n_tot114), 13, 2, '', '', '0')"/>
+				<qry:attribute name="n_tot115" value="FORMAT_NUMBER(abs($PARAM/@n_tot115), 13, 2, '', '', '0')"/>
+				<qry:attribute name="n_tot116" value="FORMAT_NUMBER(abs($PARAM/@n_tot116), 13, 2, '', '', '0')"/>
+				<qry:attribute name="n_tot117" value="FORMAT_NUMBER(abs($PARAM/@n_tot117), 13, 2, '', '', '0')"/>
+				<qry:attribute name="n_tot118" value="FORMAT_NUMBER(abs($PARAM/@n_tot118), 13, 2, '', '', '0')"/>
+				<qry:attribute name="n_tot119" value="FORMAT_NUMBER(abs($PARAM/@n_tot119), 13, 2, '', '', '0')"/>
+				<qry:attribute name="n_tot120" value="FORMAT_NUMBER(abs($PARAM/@n_tot120), 13, 2, '', '', '0')"/>
+				<qry:attribute name="n_tot121" value="FORMAT_NUMBER(abs($PARAM/@n_tot121), 13, 2, '', '', '0')"/>
+				<qry:attribute name="n_tot122" value="FORMAT_NUMBER(abs($PARAM/@n_tot122), 13, 2, '', '', '0')"/>
+				<qry:attribute name="n_tot123" value="FORMAT_NUMBER(abs($PARAM/@n_tot123), 13, 2, '', '', '0')"/>
+			</qry:out>
+		</qry:select>
+		<qry:select name="qry_reg04" doc="PARAM">
+			<qry:out>
+				<qry:attribute name="n_tot6" value="FORMAT_NUMBER(abs($PARAM/@n_tot6), 13, 2, '', '', '0')"/>
+				<qry:attribute name="n_tot9" value="FORMAT_NUMBER(abs($PARAM/@n_tot9), 13, 2, '', '', '0')"/>
+				<qry:attribute name="n_tot7" value="FORMAT_NUMBER(abs($PARAM/@n_tot7), 13, 2, '', '', '0')"/>
+				<qry:attribute name="n_tot10" value="FORMAT_NUMBER(abs($PARAM/@n_tot10), 13, 2, '', '', '0')"/>
+				<qry:attribute name="n_tot8" value="FORMAT_NUMBER(abs($PARAM/@n_tot8), 13, 2, '', '', '0')"/>
+				<qry:attribute name="n_tot11" value="FORMAT_NUMBER(abs($PARAM/@n_tot11), 13, 2, '', '', '0')"/>
+				<qry:attribute name="n_tot12" value="FORMAT_NUMBER(abs($PARAM/@n_tot12), 13, 2, '', '', '0')"/>
+				<qry:attribute name="n_tot13" value="FORMAT_NUMBER(abs($PARAM/@n_tot13), 13, 2, '', '', '0')"/>
+				<qry:attribute name="n_tot64" value="FORMAT_NUMBER(abs($PARAM/@n_tot64), 13, 2, '', '', '0')"/>
+				<qry:attribute name="n_tot65" value="FORMAT_NUMBER(abs($PARAM/@n_tot65), 13, 2, '', '', '0')"/>
+				<qry:attribute name="n_tot66" value="FORMAT_NUMBER(abs($PARAM/@n_tot66), 13, 2, '', '', '0')"/>
+				<qry:attribute name="n_tot14" value="FORMAT_NUMBER(abs($PARAM/@n_tot14), 13, 2, '', '', '0')"/>
+				<qry:attribute name="n_tot15" value="FORMAT_NUMBER(abs($PARAM/@n_tot15), 13, 2, '', '', '0')"/>
+				<qry:attribute name="n_tot16" value="FORMAT_NUMBER(abs($PARAM/@n_tot16), 13, 2, '', '', '0')"/>
+				<qry:attribute name="n_tot17" value="FORMAT_NUMBER(abs($PARAM/@n_tot17), 13, 2, '', '', '0')"/>
+				<qry:attribute name="n_tot18" value="FORMAT_NUMBER(abs($PARAM/@n_tot18), 13, 2, '', '', '0')"/>
+				<qry:attribute name="n_tot19" value="FORMAT_NUMBER(abs($PARAM/@n_tot19), 13, 2, '', '', '0')"/>
+				<qry:attribute name="n_tot20" value="FORMAT_NUMBER(abs($PARAM/@n_tot20), 13, 2, '', '', '0')"/>
+				<qry:attribute name="n_tot22" value="FORMAT_NUMBER(abs($PARAM/@n_tot22), 13, 2, '', '', '0')"/>
+				<qry:attribute name="n_tot40" value="FORMAT_NUMBER(abs($PARAM/@n_tot40), 13, 2, '', '', '0')"/>
+				<qry:attribute name="n_tot21" value="FORMAT_NUMBER(abs($PARAM/@n_tot21), 13, 2, '', '', '0')"/>
+				<qry:attribute name="n_tot41" value="FORMAT_NUMBER(abs($PARAM/@n_tot41), 13, 2, '', '', '0')"/>
+				<qry:attribute name="n_tot67" value="FORMAT_NUMBER(abs($PARAM/@n_tot67), 13, 2, '', '', '0')"/>
+				<qry:attribute name="n_tot42" value="FORMAT_NUMBER(abs($PARAM/@n_tot42), 13, 2, '', '', '0')"/>
+				<qry:attribute name="n_tot23" value="FORMAT_NUMBER(abs($PARAM/@n_tot23), 15, 2, '', '', '0')"/>
+				<qry:attribute name="n_tot91" value="FORMAT_NUMBER(abs($PARAM/@n_tot91), 13, 2, '', '', '0')"/>
+				<qry:attribute name="n_tot92" value="FORMAT_NUMBER(abs(number($PARAM/@n_tot92) + number($PARAM/@n_tot93)), 13, 2, '', '', '0')"/>
+				<qry:attribute name="n_tot89" value="FORMAT_NUMBER(abs($PARAM/@n_tot89), 13, 2, '', '', '0')"/>
+				<qry:attribute name="n_tot90" value="FORMAT_NUMBER(abs($PARAM/@n_tot90), 13, 2, '', '', '0')"/>
+				<qry:attribute name="n_tot141" value="FORMAT_NUMBER(abs($PARAM/@n_tot141), 13, 2, '', '', '0')"/>
+			</qry:out>
+		</qry:select>
+		<qry:select name="qry_reg05" doc="PARAM">
+			<qry:out>
+				<qry:attribute name="n_tot24" value="FORMAT_NUMBER(abs($PARAM/@n_tot24), 13, 2, '', '', '0')"/>
+				<qry:attribute name="n_tot25" value="FORMAT_NUMBER(abs($PARAM/@n_tot25), 13, 2, '', '', '0')"/>
+				<qry:attribute name="n_tot45" value="FORMAT_NUMBER(abs($PARAM/@n_tot45), 13, 2, '', '', '0')"/>
+				<qry:attribute name="n_tot27" value="FORMAT_NUMBER(abs($PARAM/@n_tot27), 13, 2, '', '', '0')"/>
+				<qry:attribute name="n_tot68" value="nmd-fillleft(nmd-replace(substring(abs($PARAM/@n_tot68),0,2),'.',''),'0',2)"/>
+				<qry:attribute name="n_tot28" value="FORMAT_NUMBER(abs($PARAM/@n_tot28), 13, 2, '', '', '0')"/>
+				<qry:attribute name="n_tot160" value="FORMAT_NUMBER(abs($PARAM/@n_tot160), 13, 2, '', '', '0')"/>
+				<qry:attribute name="n_tot26" value="FORMAT_NUMBER(abs($PARAM/@n_tot26), 13, 2, '', '', '0')"/>
+				<qry:attribute name="n_tot30" value="FORMAT_NUMBER(abs($PARAM/@n_tot30), 13, 2, '', '', '0')"/>
+				<qry:attribute name="n_tot84" value="FORMAT_NUMBER('0', 13, 2, '', '', '0')"/>
+				<qry:attribute name="n_tot85" value="FORMAT_NUMBER(abs($PARAM/@n_tot85), 13, 2, '', '', '0')"/>
+				<qry:attribute name="n_tot86" value="FORMAT_NUMBER(abs($PARAM/@n_tot86), 13, 2, '', '', '0')"/>
+				<qry:attribute name="n_tot31" value="fill-left(iif(round($PARAM/@n_tot31 * 1000) mod 10 &gt;= 5 ,floor((round($PARAM/@n_tot31 * 1000) + 5) div 10),floor(round($PARAM/@n_tot31 * 1000) div 10)),'0',15)"/>
+				<qry:attribute name="n_tot124" value="FORMAT_NUMBER(abs($PARAM/@n_tot124), 2, 0, '', '', '0')"/>
+				<qry:attribute name="n_tot131" value="FORMAT_NUMBER(abs($PARAM/@n_tot131), 13, 2, '', '', '0')"/>
+				<qry:attribute name="n_tot125" value="FORMAT_NUMBER(abs($PARAM/@n_tot125), 13, 2, '', '', '0')"/>
+				<qry:attribute name="n_tot126" value="FORMAT_NUMBER(abs($PARAM/@n_tot126), 13, 2, '', '', '0')"/>
+				<qry:attribute name="n_tot142" value="FORMAT_NUMBER(abs($PARAM/@n_tot142), 2, 0, '', '', '0')"/>
+				<qry:attribute name="n_tot143" value="FORMAT_NUMBER(abs($PARAM/@n_tot143), 2, 0, '', '', '0')"/>
+				<qry:attribute name="n_tot144" value="FORMAT_NUMBER(abs($PARAM/@n_tot144), 2, 0, '', '', '0')"/>
+				<qry:attribute name="n_tot145" value="FORMAT_NUMBER(abs($PARAM/@n_tot145), 2, 0, '', '', '0')"/>
+			</qry:out>
+		</qry:select>
+		<qry:select name="qry_reg06" doc="PARAM">
+			<qry:out>
+				<qry:if test="abs(number($PARAM/@n_tot43))=0">
+					<qry:then>
+						<qry:attribute name="n_tot43" value="1"/>
+					</qry:then>
+				</qry:if>
+				<qry:if test="abs(number($PARAM/@n_tot43))=5">
+					<qry:then>
+						<qry:attribute name="n_tot43" value="1"/>
+					</qry:then>
+				</qry:if>
+				<qry:if test="abs(number($PARAM/@n_tot43))=9">
+					<qry:then>
+						<qry:attribute name="n_tot43" value="2"/>
+					</qry:then>
+				</qry:if>
+				<qry:if test="abs(number($PARAM/@n_tot43))=12">
+					<qry:then>
+						<qry:attribute name="n_tot43" value="3"/>
+					</qry:then>
+				</qry:if>
+				<qry:if test="abs(number($PARAM/@n_tot43))=15">
+					<qry:then>
+						<qry:attribute name="n_tot43" value="4"/>
+					</qry:then>
+				</qry:if>
+				<qry:if test="abs(number($PARAM/@n_tot43))=19">
+					<qry:then>
+						<qry:attribute name="n_tot43" value="5"/>
+					</qry:then>
+				</qry:if>
+				<qry:if test="abs(number($PARAM/@n_tot43))=23">
+					<qry:then>
+						<qry:attribute name="n_tot43" value="6"/>
+					</qry:then>
+				</qry:if>
+				<qry:if test="abs(number($PARAM/@n_tot43))=27">
+					<qry:then>
+						<qry:attribute name="n_tot43" value="7"/>
+					</qry:then>
+				</qry:if>
+				<qry:if test="abs(number($PARAM/@n_tot43))=31">
+					<qry:then>
+						<qry:attribute name="n_tot43" value="8"/>
+					</qry:then>
+				</qry:if>
+				<qry:if test="abs(number($PARAM/@n_tot43))=35">
+					<qry:then>
+						<qry:attribute name="n_tot43" value="9"/>
+					</qry:then>
+				</qry:if>
+				<qry:if test="abs(number($PARAM/@n_tot44))=0">
+					<qry:then>
+						<qry:attribute name="n_tot44" value="@n_tot43"/>
+					</qry:then>
+				</qry:if>
+				<qry:if test="abs(number($PARAM/@n_tot44))=5">
+					<qry:then>
+						<qry:attribute name="n_tot44" value="1"/>
+					</qry:then>
+				</qry:if>
+				<qry:if test="abs(number($PARAM/@n_tot44))=9">
+					<qry:then>
+						<qry:attribute name="n_tot44" value="2"/>
+					</qry:then>
+				</qry:if>
+				<qry:if test="abs(number($PARAM/@n_tot44))=12">
+					<qry:then>
+						<qry:attribute name="n_tot44" value="3"/>
+					</qry:then>
+				</qry:if>
+				<qry:if test="abs(number($PARAM/@n_tot44))=15">
+					<qry:then>
+						<qry:attribute name="n_tot44" value="4"/>
+					</qry:then>
+				</qry:if>
+				<qry:if test="abs(number($PARAM/@n_tot44))=19">
+					<qry:then>
+						<qry:attribute name="n_tot44" value="5"/>
+					</qry:then>
+				</qry:if>
+				<qry:if test="abs(number($PARAM/@n_tot44))=23">
+					<qry:then>
+						<qry:attribute name="n_tot44" value="6"/>
+					</qry:then>
+				</qry:if>
+				<qry:if test="abs(number($PARAM/@n_tot44))=27">
+					<qry:then>
+						<qry:attribute name="n_tot44" value="7"/>
+					</qry:then>
+				</qry:if>
+				<qry:if test="abs(number($PARAM/@n_tot44))=31">
+					<qry:then>
+						<qry:attribute name="n_tot44" value="8"/>
+					</qry:then>
+				</qry:if>
+				<qry:if test="abs(number($PARAM/@n_tot44))=35">
+					<qry:then>
+						<qry:attribute name="n_tot44" value="9"/>
+					</qry:then>
+				</qry:if>
+				<qry:attribute name="n_tot32" value="FORMAT_NUMBER(abs($PARAM/@n_tot32), 13, 2, '', '', '0')"/>
+				<qry:attribute name="n_tot33" value="FORMAT_NUMBER(abs($PARAM/@n_tot33), 13, 2, '', '', '0')"/>
+				<qry:attribute name="n_tot34" value="FORMAT_NUMBER(abs($PARAM/@n_tot34), 13, 2, '', '', '0')"/>
+				<qry:attribute name="n_tot35" value="FILL_LEFT(FORMAT_NUMBER($PARAM/@n_tot35, '', 2, '', '', '0'), '0', 15)"/>
+				<qry:attribute name="n_tot94bis" value="FORMAT_NUMBER(abs(number($PARAM/@n_tot34) + number($PARAM/@n_tot94) + number($PARAM/@n_tot95) + number($PARAM/@n_tot96) + number($PARAM/@n_tot101) + number($PARAM/@n_tot102) + number($PARAM/@n_tot103) + number($PARAM/@n_tot104) + number($PARAM/@n_tot105) + number($PARAM/@n_tot106) + number($PARAM/@n_tot107)), 13, 2, '', '', '0')"/>
+				<qry:attribute name="n_tot94" value="FORMAT_NUMBER(abs($PARAM/@n_tot94), 13, 2, '', '', '0')"/>
+				<qry:attribute name="n_tot95" value="FORMAT_NUMBER(abs($PARAM/@n_tot95), 13, 2, '', '', '0')"/>
+				<qry:attribute name="n_tot96" value="FORMAT_NUMBER(abs($PARAM/@n_tot96), 13, 2, '', '', '0')"/>
+				<qry:attribute name="n_tot101" value="FORMAT_NUMBER(abs($PARAM/@n_tot101), 13, 2, '', '', '0')"/>
+				<qry:attribute name="n_tot102" value="FORMAT_NUMBER(abs($PARAM/@n_tot102), 13, 2, '', '', '0')"/>
+				<qry:attribute name="n_tot103" value="FORMAT_NUMBER(abs($PARAM/@n_tot103), 13, 2, '', '', '0')"/>
+				<qry:attribute name="n_tot104" value="FORMAT_NUMBER(abs($PARAM/@n_tot104), 13, 2, '', '', '0')"/>
+				<qry:attribute name="n_tot105" value="FORMAT_NUMBER(abs($PARAM/@n_tot105), 13, 2, '', '', '0')"/>
+				<qry:attribute name="n_tot106" value="FORMAT_NUMBER(abs($PARAM/@n_tot106), 13, 2, '', '', '0')"/>
+				<qry:attribute name="n_tot107" value="FORMAT_NUMBER(abs($PARAM/@n_tot107), 13, 2, '', '', '0')"/>
+			</qry:out>
+		</qry:select>
+		<qry:select name="qry_calcular_meses" doc="PARAM">
+			<qry:out>
+				<qry:attribute name="dias_resta" value="1"/>
+				<qry:if test="number(#PARAM:@dia_h)-number(#PARAM:@dia_d)&gt;0">
+					<qry:then>
+						<qry:attribute name="dias_resta" value="0"/>
+					</qry:then>
+				</qry:if>
+				<qry:attribute name="cant_meses" value="(number(#PARAM:@anio_h)-number(#PARAM:@anio_d))*12"/>
+				<qry:attribute name="cant_meses" value="number(@cant_meses)+number(#PARAM:@mes_h)-number(#PARAM:@mes_d)"/>
+				<qry:attribute name="cant_meses" value="number(@cant_meses)-number(@dias_resta)"/>
+				<qry:attribute name="cant_meses" value="nmd-fillleft(@cant_meses,'0',2)"/>
+			</qry:out>
+		</qry:select>
+		<qry:select name="qry_ingresos_filtro">
+			<qry:xquery>
+				for $r in SQL('
+		SELECT 
+			ORG26_PARAMETROS.c_parametro, 
+			ORG26_PARAMETROS.d_valor 
+		FROM
+			ORG26_PARAMETROS
+		WHERE 
+			ORG26_PARAMETROS.d_clase = \'LIQ\'
+			AND ORG26_PARAMETROS.c_modulo = \'LIQ\'
+			AND ORG26_PARAMETROS.c_parametro in (\'F1357IngresosMaximos\')
+		')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:attribute name="F1357IngresosMaximos" value="$r/@d_valor"/>
+			</qry:out>
+		</qry:select>
+	</QUERY>
+	<HEAD>
+		01{cuit:11}{periodo:6}{secuencia:2}{F1357CodImpuesto:4}{F1357CodConcepto:3}{F1357NroForm:4}{tipo_liq:1}{F1357VerSistema:5}
+	</HEAD>
+	<DETAIL>
+		02{cuil:11}{per_desde:8}{per_hasta:8}{cant_meses:2}{n_tot69:1}{n_tot70:1}{n_tot97:1}{n_tot100:1}{n_tot129:1}{n_tot130:1}{n_tot140:1}
+03{cuil:11}{n_tot1:15}{n_tot36:15}{n_tot37:15}{n_tot38:15}{n_tot46:15}{n_tot47:15}{n_tot48:15}{n_tot2:15}{n_tot3:15}{n_tot49:15}{n_tot50:15}{n_tot4:15}{n_tot51:15}{n_tot52:15}{n_tot53:15}{n_tot54:15}{n_tot55:15}{n_tot56:15}{n_tot57:15}{n_tot58:15}{n_tot59:15}{n_tot60:15}{n_tot61:15}{n_tot62:15}{n_tot63:17}{n_tot74:15}{n_tot75:15}{n_tot76:15}{n_tot77:15}{n_tot78:15}{n_tot79:15}{n_tot80:15}{n_tot81:15}{n_tot82:15}{n_tot83:15}{n_tot98:15}{n_tot99:15}{n_tot108:15}{n_tot109:15}{n_tot110:15}{n_tot111:15}{n_tot112:15}{n_tot113:15}{n_tot115:15}{n_tot114:15}{n_tot116:15}{n_tot117:15}{n_tot118:15}{n_tot119:15}{n_tot120:15}{n_tot121:15}{n_tot123:15}{n_tot122:15}
+04{cuil:11}{n_tot6:15}{n_tot9:15}{n_tot7:15}{n_tot10:15}{n_tot8:15}{n_tot11:15}{n_tot12:15}{n_tot13:15}{n_tot64:15}{n_tot65:15}{n_tot66:15}{n_tot14:15}{n_tot15:15}{n_tot16:15}{n_tot17:15}{n_tot18:15}{n_tot19:15}{n_tot20:15}{n_tot22:15}{n_tot40:15}{n_tot21:15}{n_tot41:15}{n_tot67:15}{n_tot42:15}{n_tot23:17}{n_tot91:15}{n_tot92:15}{n_tot89:15}{n_tot90:15}{n_tot141:15}
+05{cuil:11}{n_tot24:15}{n_tot25:15}{n_tot45:15}{n_tot27:15}{n_tot68:2}{n_tot160:15}{n_tot26:15}{n_tot30:15}{n_tot84:15}{n_tot85:15}{n_tot86:15}{n_tot31:15}{n_tot124:2}{n_tot131:15}{n_tot125:15}{n_tot126:15}{n_tot142:2}{n_tot143:2}{n_tot144:2}{n_tot145:2}
+06{cuil:11}{n_tot43:1}{n_tot44:1}{n_tot32:15}{n_tot33:15}{n_tot34:15}{n_tot35:15}{n_tot94bis:15}{n_tot94:15}{n_tot95:15}{n_tot96:15}{n_tot101:15}{n_tot102:15}{n_tot103:15}{n_tot104:15}{n_tot105:15}{n_tot106:15}{n_tot107:15}
+	</DETAIL>
+	<!--<MESS>
+<EMPTY mess="No se encontraron registros"/>
+</MESS>-->
+</INTERFACE-DEF>

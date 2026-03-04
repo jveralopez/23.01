@@ -1,0 +1,68 @@
+<flow:flow xmlns:flow="nomad_engine.flow" xmlns:doc="nomad_engine.doc" xmlns:qry="nomad_engine.qry" default_action="initialize" extends="Nomad.Base.flow" name="Nomad.Base.Liquidacion.Liquidacion">
+	<flow:info label="Flow para Nomad.Base.Liquidacion.Liquidacion">
+		Flow para Nomad.Base.Liquidacion.Liquidacion
+	</flow:info>
+	<flow:declare>
+		<doc:define name="FILTERDATA">
+			<DATA>
+				<ROWS/>
+			</DATA>
+		</doc:define>
+		<qry:define name="qry_interfaces">
+			<qry:main doc="SOURCE">
+				<qry:element name="options">
+					<qry:insert-select name="SQL1"/>
+				</qry:element>
+			</qry:main>
+			<qry:select name="SQL1">
+				<qry:xquery>
+					for $r in FILEIO('INTERFACE-DEF\\liquidaciones.def.xml')/INTERFACE-TYPE/INTERFACE
+				</qry:xquery>
+				<qry:out>
+					<qry:element name="option">
+						<qry:attribute value="$r/@code" name="value"/>
+						<qry:attribute value="$r/@desc" name="text"/>
+					</qry:element>
+				</qry:out>
+			</qry:select>
+		</qry:define>
+		<doc:define name="INTERFACES">
+			<ROWS/>
+		</doc:define>
+	</flow:declare>
+	<flow:main doc="SOURCE">
+		<flow:action name="initialize">
+			<flow:load-user-data name="NucleusRH.Base.Liquidacion.Interface.GeneralesLiquidacion" doc="FILTERDATA"/>
+			<flow:open-form form-class="NucleusRH.Base.Liquidacion.Interface.GeneralesLiquidacion.form" doc-path="#FILTERDATA:" mode="SHOW"/>
+		</flow:action>
+	</flow:main>
+	<flow:form form-class="NucleusRH.Base.Liquidacion.Interface.GeneralesLiquidacion.form" name="NucleusRH.Base.Liquidacion.Interface.GeneralesLiquidacion.form:EDIT" mode="SHOW" doc="SOURCE">
+		<flow:action name="FILTER">
+			<flow:save-user-data name="NucleusRH.Base.Liquidacion.Interface.GeneralesLiquidacion" doc-path="#FILTERDATA:"/>
+			<flow:exec-method method="InterfaceSalida" class="NucleusRH.Base.Liquidacion.Liquidacion.LIQUIDACION" out-attr-path="#BATCHDOC:@batch-id" out-type="String" priority="9">
+				<flow:param value="LIQUIDACIONES" mode="in" name="interfaceTIPO" type="Nomad.NSystem.String"/>
+				<flow:param attr-path="#SOURCE:@interface" mode="in" type="Nomad.NSystem.String" name="interdaceID"/>
+				<flow:param doc-path="#FILTERDATA:" type="Nomad.NSystem.Object" mode="in" name="parametros"/>
+			</flow:exec-method>
+			<flow:open-form mode="BATCH" form-class="NucleusRH.Base.Liquidacion.Interface.Sindicatos.download.form" doc-path="#BATCHDOC:"/>
+		</flow:action>
+		<flow:action name="BACK">
+			<flow:close-form/>
+		</flow:action>
+		<flow:action name="on-show">
+			<doc:load-qry output-doc="INTERFACES" qry="qry_interfaces"/>
+			<flow:attach-doc doc-path="#INTERFACES:" attach-id="RS"/>
+		</flow:action>
+	</flow:form>
+	<flow:form name="NucleusRH.Base.Liquidacion.Interface.Sindicatos.download.form:BATCH" mode="BATCH" form-class="NucleusRH.Base.Liquidacion.Interface.Sindicatos.download.form" doc="SOURCE">
+		<flow:action name="on-show"/>
+		<flow:action name="EXIT">
+			<flow:exit-flow return-path="#SOURCE:"/>
+		</flow:action>
+		<flow:action name="download">
+			<flow:close-form/>
+			<flow:open-form form-class="NucleusRH.Base.Liquidacion.Interface.Sindicatos.download.form" mode="DOWNLOAD" parent-doc-path="#SOURCE:" doc-path="#SOURCE:"/>
+		</flow:action>
+	</flow:form>
+	<flow:form name="NucleusRH.Base.Liquidacion.Interface.Sindicatos.download.form:DOWNLOAD" mode="DOWNLOAD" extends="Nomad.Base.Batch.Download.form:DOWNLOAD" form-class="NucleusRH.Base.Liquidacion.Interface.Sindicatos.download.form" doc="SOURCE"/>
+</flow:flow>

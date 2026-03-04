@@ -1,0 +1,89 @@
+<html:html xmlns:html="nomad_engine.html" xmlns:qry="nomad_engine.qry" name="NucleusRH.Base.Organizacion.DepartamentosSectores" extends="Nomad.Base.BaseReport.rpt" doc="source">
+	<html:query declare="&lt;FILTRO oi_empresa=&quot;1&quot;&gt;&lt;ROWS/&gt;&lt;CONV/&gt;&lt;/FILTRO&gt;">
+		<qry:main doc="PARAM">
+			<qry:append-doc name="FILTRO" doc-path="#PARAM:."/>
+			<REPORT label="Listado de Departamentos - Sectores">
+				<qry:attribute value="format_date(now(),'dd/mm/yyyy HH:MM')" name="date"/>
+				<GROUPS>
+					<GROUP tag="EMPRESA" type="title">
+						<COLS>
+							<COL name="empresa" label="Empresa"/>
+						</COLS>
+						<GROUP tag="DEPARTAMENTO" type="title">
+							<COLS>
+								<COL name="departamento" label="Departamento"/>
+							</COLS>
+							<GROUP tag="SECTOR" label="Sectores" type="table">
+								<COLS>
+									<COL name="c_sector" label="C&#243;digo Sector" style="width:15%" nowrap="1"/>
+									<COL name="d_sector" label="Descripci&#243;n Sector" style="width:35%" nowrap="1"/>
+								</COLS>
+							</GROUP>
+						</GROUP>
+					</GROUP>
+				</GROUPS>
+				<qry:element name="DATA">
+					<qry:insert-select name="qry_empresa" doc-path="#PARAM:."/>
+				</qry:element>
+			</REPORT>
+		</qry:main>
+		<qry:select doc="PARAM" name="QRY_DEPARTAMENTO">
+			<qry:xquery>
+				for $r in sql('
+				SELECT 
+				  ORG51_DEPARTAMENTOS.oi_departamento,
+				  ORG51_DEPARTAMENTOS.c_departamento,
+					ORG51_DEPARTAMENTOS.d_departamento
+				FROM 
+					ORG51_DEPARTAMENTOS
+				WHERE
+					ORG51_DEPARTAMENTOS.oi_empresa = {#PARAM:@oi_empresa}
+			')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:element name="DEPARTAMENTO">
+					<qry:attribute name="departamento" value="$r/@c_departamento + ' - ' + $r/@d_departamento"/>
+					<qry:insert-select doc-path="$r" name="QRY_SECTORES"/>
+				</qry:element>
+			</qry:out>
+		</qry:select>
+		<qry:select doc="PARAM" name="QRY_SECTORES">
+			<qry:xquery>
+				for $r in sql('		
+					SELECT 
+					  ORG51_SECTORES.c_sector, 
+					  ORG51_SECTORES.d_sector
+					 FROM
+						ORG51_SECTORES							 
+					WHERE
+						ORG51_SECTORES.oi_departamento ={#PARAM:@oi_departamento} 		 
+				')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:element name="SECTOR">
+					<qry:attribute name="c_sector" value="$r/@c_sector"/>
+					<qry:attribute name="d_sector" value="$r/@d_sector"/>
+				</qry:element>
+			</qry:out>
+		</qry:select>
+		<qry:select name="qry_empresa" doc="SOURCE">
+			<qry:xquery>
+				for $r in SQL('
+			SELECT ORG03_EMPRESAS.c_empresa,
+			ORG03_EMPRESAS.d_empresa
+			FROM 
+			ORG03_EMPRESAS
+			WHERE
+			ORG03_EMPRESAS.oi_empresa = {#SOURCE:@oi_empresa}
+			
+			')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:element name="EMPRESA">
+					<qry:attribute name="empresa" value="concat($r/@c_empresa,' - ',$r/@d_empresa)"/>
+					<qry:insert-select doc-path="#SOURCE:." name="QRY_DEPARTAMENTO"/>
+				</qry:element>
+			</qry:out>
+		</qry:select>
+	</html:query>
+</html:html>

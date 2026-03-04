@@ -1,0 +1,80 @@
+<INTERFACE-DEF xmlns:qry="nomad_engine.qry" finalenter="1" entermode="DOS">
+	<QUERY declare=" &lt;DATA oi_empresa=&quot;1&quot; oi_banco=&quot;1&quot; oi_sucursal=&quot;&quot; f_acreditacion=&quot;20111101&quot; f_vencimiento=&quot;&quot; interface=&quot;STANDARDBANK&quot;&gt;&#13;&#10;  &lt;LIQS&gt;&#13;&#10;    &lt;LIQ oi_liquidacion=&quot;27&quot; /&gt;&#13;&#10;  &lt;/LIQS&gt;&#13;&#10;&lt;/DATA&gt;&#13;&#10;">
+		<qry:main doc="SOURCE">
+			<qry:element name="DATA">
+				<qry:element name="DETAILS">
+					<qry:insert-select doc-path="#SOURCE:/DATA" name="SQL1"/>
+				</qry:element>
+			</qry:element>
+		</qry:main>
+		<qry:select doc="SOURCE" name="SQL1">
+			<qry:xquery>
+				for $r in SQL('
+					SELECT           						
+						PE.c_personal,
+						SUM(TLP.n_totpag) AS n_totpag,						
+						MAX(PE.c_cta_bancaria) as c_cta_bancaria,
+						MAX(PE.c_cbu) as c_cbu,
+						MAX(PE.c_tipo_documento) as c_tipo_documento,
+						MAX(PE.c_nro_documento) as c_nro_documento,
+						MAX(PE.d_ape_y_nom) as d_ape_y_nom
+					FROM			
+						LIQ20_TOT_LIQ_PER as TLP,
+						LIQ99_RECIBOS as REC,
+						LIQ97_PERSONAL_EMP as PE,
+						LIQ99_LIQUIDACION as LIQ,
+						LIQ19_EJECUCIONES as EJ,
+						PER31_FORMAS_PAGO as FP,
+						LIQ22_BANCOS as BAN						
+					JOIN
+						LIQ.oi_liquidacion_ddo INNER REC.oi_liquidacion_ddo,
+						REC.oi_tot_liq_per INNER TLP.oi_tot_liq_per,
+						TLP.oi_per_emp_ddo INNER PE.oi_per_emp_ddo,
+						LIQ.oi_liquidacion_ddo INNER EJ.oi_liquidacion_ddo,
+						FP.c_forma_pago INNER TLP.c_forma_pago,
+						BAN.c_banco INNER PE.c_banco						
+					WHERE 
+						LIQ.c_estado = \'F\'																		
+						AND BAN.oi_banco = {#SOURCE:@oi_banco}
+						AND EJ.oi_liquidacion IN ({%= STRING(#SOURCE:LIQS/LIQ/@oi_liquidacion) %})
+				    AND FP.l_banco = 1
+				    AND TLP.n_totpag &gt; 0
+			    GROUP BY
+						PE.c_personal
+				 ')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:element name="DETAIL">
+					<qry:attribute name="c_cta_bancaria" value="SUBSTRING(FILL_LEFT($r/@c_cta_bancaria,  '0', 20), 0, 20)"/>
+					<qry:attribute name="c_cbu" value="SUBSTRING(FILL_LEFT($r/@c_cbu,  '0', 22), 0, 22)"/>
+					<qry:attribute name="n_totpag" value="SUBSTRING(FILL_LEFT(Number($r/@n_totpag)*100, '0', 17), 0, 17)"/>
+					<qry:attribute name="d_ape_y_nom" value="SUBSTRING(FILL_RIGHT($r/@d_ape_y_nom,  ' ', 32), 0, 32)"/>
+					<qry:if test="$r/@c_tipo_documento = 'CI'">
+						<qry:then>
+							<qry:attribute name="c_tipo_documento" value="'1'"/>
+						</qry:then>
+					</qry:if>
+					<qry:if test="$r/@c_tipo_documento = 'LC'">
+						<qry:then>
+							<qry:attribute name="c_tipo_documento" value="'2'"/>
+						</qry:then>
+					</qry:if>
+					<qry:if test="$r/@c_tipo_documento = 'LE'">
+						<qry:then>
+							<qry:attribute name="c_tipo_documento" value="'3'"/>
+						</qry:then>
+					</qry:if>
+					<qry:if test="$r/@c_tipo_documento = 'DNI'">
+						<qry:then>
+							<qry:attribute name="c_tipo_documento" value="'4'"/>
+						</qry:then>
+					</qry:if>
+					<qry:attribute name="c_nro_documento" value="SUBSTRING(FILL_LEFT($r/@c_nro_documento,  '0', 11), 0, 11)"/>
+				</qry:element>
+			</qry:out>
+		</qry:select>
+	</QUERY>
+	<DETAIL>
+		0015A{c_cta_bancaria:20}{c_cbu:22}{d_ape_y_nom:32}1{n_totpag:17}{c_tipo_documento:1}{c_nro_documento:11}
+	</DETAIL>
+</INTERFACE-DEF>

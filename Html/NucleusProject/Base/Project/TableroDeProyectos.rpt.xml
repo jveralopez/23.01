@@ -1,0 +1,404 @@
+<html:html xmlns:html="nomad_engine.html" xmlns:qry="nomad_engine.qry" name="NucleusRH.Base.Project.TableroDeProyectos.rpt" extends="Nomad.Base.BaseReport.rpt" xtends="Nomad.Base.BaseReport.rpt" doc="source">
+	<html:query declare="&lt;DATA f_inicio_desde=&quot;&quot; f_inicio_hasta=&quot;&quot; f_fin_desde=&quot;&quot; f_fin_hasta=&quot;&quot; c_proyecto=&quot;01test&quot; d_proyecto=&quot;&quot; oi_recurso=&quot;&quot; oi_cliente=&quot;&quot; selected=&quot;1&quot; EST_IDs=&quot;&quot; TPROYS_IDs=&quot;&quot;&gt;&#13;&#10;&#9;&lt;ROWS /&gt;&#13;&#10;&#9;&lt;EST nmd-col=&quot;1&quot;/&gt;&#13;&#10;&#9;&lt;TPROYS nmd-col=&quot;1&quot;/&gt;&#13;&#10;&lt;/DATA&gt;&#13;&#10;">
+		<qry:include name="NucleusProject.Base.Project.Proyectos.PROYECTO.INFO"/>
+		<qry:include name="NucleusProject.Base.Project.Recursos.RECURSO.INFO"/>
+		<qry:include name="NucleusProject.Base.Project.UnidadesTiempo.UNIDAD_TIEMPO.INFO"/>
+		<qry:include name="NucleusRH.Base.Organizacion.Centros_de_Costos.CENTRO_COSTO.INFO"/>
+		<qry:include name="NucleusProject.Base.Project.Solicitudes.SOLICITUD.INFO"/>
+		<qry:main doc="SOURCE">
+			<REPORT label="Tablero de Proyectos" style="width:90%;">
+				<qry:attribute name="date" value="format_date(Now(),'dd/mm/yyyy HH:MM')"/>
+				<GROUPS>
+					<GROUP tag="PROYECTO" style="padding-left:0px" type="table" noreg="No se encontraron registros para los filtros seleccionados.">
+						<COLS>
+							<COL name="proyecto" label="Proyecto" style=""/>
+							<COL name="oi_proyecto_parent" label="Proyecto Padre" style=""/>
+							<COL name="descripcion" label="Descripci&#243;n" style=""/>
+							<COL name="cliente" label="Cliente" style=""/>
+							<COL name="c_estado" label="Estado" align="left" style="">
+								<OPT value="Inicializado" id="I"/>
+								<OPT value="Asignar Personas" id="AP"/>
+								<OPT value="Trabajando" id="T"/>
+								<OPT value="Pausado" id="P"/>
+								<OPT value="Finalizado" id="F"/>
+								<OPT value="Anulado" id="A"/>
+								<OPT value="Bloqueado" id="L"/>
+							</COL>
+							<COL name="oi_solicitud" label="Solicitudes" style=""/>
+							<COL name="oi_centro_costo" label="&#193;rea" style=""/>
+							<COL name="d_sponsor" label="Sponsor" style=""/>
+							<COL name="oi_recurso" label="L&#237;der de Proyecto" style=""/>
+							<COL name="f_inicio_est" label="Fecha inicio estimada" type="date" style=""/>
+							<COL name="f_fin_est" label="Fecha fin estimada" style="" type="date"/>
+							<COL name="e_estimado" label="Tiempo estimado (en hs)" style=""/>
+							<COL name="duracion_dias" label="Duraci&#243;n estimada en d&#237;as h&#225;biles" style=""/>
+							<COL name="alerta" label="Alerta" style="">
+								<OPT value="Verde" id="V"/>
+								<OPT value="Amarillo" id="A"/>
+								<OPT value="Rojo" id="R"/>
+							</COL>
+							<COL name="avance" label="&#218;ltimo informe de avance" style=""/>
+							<COL name="o_avance" label="Descripci&#243;n informe de avance" style=""/>
+							<COL name="f_inicio" label="Fecha inicio real" type="date" style=""/>
+							<COL name="f_fin" label="Fecha fin real" type="date" style=""/>
+							<COL name="f_acta" label="Fecha producci&#243;n" type="date" style=""/>
+							<COL name="hs_insumidas" label="Tiempo imputado (en hs)" style="" align="left"/>
+							<COL name="dif_dias_f_fin" label="Diferencia en d&#237;as respecto a fecha de fin estimada" style="" align="left"/>
+							<COL name="dif_tiempos" label="Horas de esfuerzo respecto al tiempo estimado" style="" align="left"/>
+						</COLS>
+						<!--Tareas del proyecto y sub-proyectos, las dejo para verificar los calculos de las horas insumidas-->
+						<!--GROUP label="Tareas" tag="TAREA" style="padding-left:0px" type="table" noreg="No se encontraron registros para los filtros seleccionados.">
+<COLS>
+<COL name="proyecto" label="Proyecto" align="left" style=""/>
+<COL name="c_tarea" label="Codigo" align="left" style=""/>
+<COL name="d_tarea" label="Descripcion" align="left" style=""/>
+<COL name="hs_estimadas" label="Hs. Estimadas" style="" align="left"/>
+<COL name="hs_insumidas" label="Hs. Imputadas" style="" align="left"/>
+</COLS>
+</GROUP-->
+					</GROUP>
+				</GROUPS>
+				<qry:element name="DATA">
+					<qry:insert-select name="PROYECTO" doc-path="#SOURCE:DATA"/>
+				</qry:element>
+			</REPORT>
+		</qry:main>
+		<qry:select name="PROYECTO" doc="SOURCE">
+			<qry:xquery>
+				for $r in SQL(' 
+SELECT   
+  	t0.oi_proyecto, 
+	t0.c_proyecto, 
+  	t0.d_proyecto, 
+  	t0.o_descripcion,
+	t0.f_inicio,
+	t0.f_fin,
+	t0.oi_recurso,
+	t0.oi_cliente,
+	t0.c_estado,
+	t0.oi_tipo_proyecto,
+	t0.f_inicio_est, 
+	t0.f_fin_est, 
+	t0.f_acta , 
+	t0.e_estimado, 
+	t0.d_sponsor, 
+	t0.c_proyecto as CODE, 
+	t0.d_proyecto as TEXT, 
+	t0.oi_proyecto_parent as oi_proyecto_parent, 
+	t0.oi_unidad_tiempo as oi_unidad_tiempo, 
+	t0.oi_centro_costo as oi_centro_costo,
+	put1.e_minutos
+		
+FROM 
+PRY01_PROYECTOS as t0, 
+PRY03_UND_TIEMPO AS put1
+
+JOIN
+t0.oi_unidad_tiempo LEFT OUTER put1.oi_unidad_tiempo
+
+WHERE   
+1=1 
+{%? (#SOURCE:@oi_proyecto!='') {% AND t0.oi_proyecto IN ({%=#SOURCE:@oi_proyecto%})  %} {%  %} %} 
+{%? (#SOURCE:@f_inicio_hasta!='') {% AND t0.f_inicio &lt;= {#SOURCE:@f_inicio_hasta} %} {% %} %}
+{%? (#SOURCE:@f_inicio_desde!='') {% AND t0.f_inicio &gt;= {#SOURCE:@f_inicio_desde} %} {% %} %}
+{%? (#SOURCE:@f_fin_hasta!='') {% AND t0.f_fin &lt;= {#SOURCE:@f_fin_hasta} %} {% %} %}
+{%? (#SOURCE:@f_fin_desde!='') {% AND t0.f_fin &gt;= {#SOURCE:@f_fin_desde} %} {% %} %}
+{%? (string(#SOURCE:@c_proyecto)!='') {% AND CONTAIN(t0.c_proyecto,{#SOURCE:@c_proyecto}) %} {% %} %}
+{%? (string(#SOURCE:@d_proyecto)!='') {% AND CONTAIN(t0.d_proyecto,{#SOURCE:@d_proyecto}) %} {% %} %}
+{%? (string(#SOURCE:@oi_recurso)!='') {% AND t0.oi_recurso = {#SOURCE:@oi_recurso} %} {% %} %}
+{%? (string(#SOURCE:@oi_cliente)!='') {% AND t0.oi_cliente = {#SOURCE:@oi_cliente} %} {% %} %}
+{%? (#SOURCE:@EST_IDs!='') {% AND t0.c_estado {%=#SOURCE:@EST_IDs%} %} {%  %} %} 
+{%? (#SOURCE:@TPROYS_IDs!='') {% AND t0.oi_tipo_proyecto {%=#SOURCE:@TPROYS_IDs%} %} {%  %} %}
+	
+')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<PROYECTO>
+					<qry:insert-select name="ESFUERZO" doc-path="$r"/>
+					<qry:if test="$r/@oi_proyecto_parent!=''">
+						<qry:then>
+							<qry:element name="oi_proyecto_parent">
+								<qry:attribute name="OI_FIND" value="$r/@oi_proyecto_parent"/>
+								<qry:insert-select name="NucleusProject.Base.Project.Proyectos.PROYECTO.QUERY" doc-path="."/>
+							</qry:element>
+							<qry:attribute name="oi_proyecto_parent" value="'['+oi_proyecto_parent/ROW/@COD+'] '+oi_proyecto_parent/ROW/@DES"/>
+						</qry:then>
+					</qry:if>
+					<qry:attribute name="proyecto" value="'[' + $r/@c_proyecto + '] ' + $r/@d_proyecto"/>
+					<qry:attribute name="descripcion" value="$r/@o_descripcion"/>
+					<qry:insert-select name="CLIENTE" doc-path="$r"/>
+					<qry:attribute name="c_estado" value="$r/@c_estado"/>
+					<qry:element name="solicitud">
+						<qry:attribute name="oi_proyecto" value="$r/@oi_proyecto"/>
+						<qry:insert-select name="Solicitudes" doc-path="."/>
+					</qry:element>
+					<qry:attribute name="oi_solicitud" value="solicitud/ROW/@solicitud"/>
+					<qry:if test="$r/@oi_centro_costo!=''">
+						<qry:then>
+							<qry:element name="oi_centro_costo">
+								<qry:attribute name="OI_FIND" value="$r/@oi_centro_costo"/>
+								<qry:insert-select name="NucleusRH.Base.Organizacion.Centros_de_Costos.CENTRO_COSTO.QUERY" doc-path="."/>
+							</qry:element>
+							<qry:attribute name="oi_centro_costo" value="'['+oi_centro_costo/ROW/@COD+'] '+oi_centro_costo/ROW/@DES"/>
+						</qry:then>
+					</qry:if>
+					<qry:attribute name="d_sponsor" value="$r/@d_sponsor"/>
+					<qry:if test="$r/@oi_recurso!=''">
+						<qry:then>
+							<qry:element name="oi_recurso">
+								<qry:attribute name="OI_FIND" value="$r/@oi_recurso"/>
+								<qry:insert-select name="NucleusProject.Base.Project.Recursos.RECURSO.QUERY" doc-path="."/>
+							</qry:element>
+							<qry:attribute name="oi_recurso" value="'['+oi_recurso/ROW/@COD+'] '+oi_recurso/ROW/@DES"/>
+						</qry:then>
+					</qry:if>
+					<qry:attribute name="f_inicio_est" value="format-date($r/@f_inicio_est, 'dd/mm/yyyy')"/>
+					<qry:attribute name="f_fin_est" value="format-date($r/@f_fin_est, 'dd/mm/yyyy')"/>
+					<qry:if test="$r/@oi_unidad_tiempo!=''">
+						<qry:then>
+							<qry:attribute name="e_estimado" value="format-number((number($r/@e_estimado) * number($r/@e_minutos)) div 60,0,2,',','','')"/>
+						</qry:then>
+					</qry:if>
+					<qry:attribute name="duracion_dias" value="floor((number(datetime($r/@f_fin_est) - datetime($r/@f_inicio_est))+1) div 7 * 5)"/>
+					<qry:if test="$r/@f_inicio_est=''">
+						<qry:then>
+							<qry:attribute name="duracion_dias" value="-"/>
+						</qry:then>
+					</qry:if>
+					<qry:if test="$r/@f_fin_est=''">
+						<qry:then>
+							<qry:attribute name="duracion_dias" value="-"/>
+						</qry:then>
+					</qry:if>
+					<qry:element name="avance">
+						<qry:attribute name="oi_proyecto" value="$r/@oi_proyecto"/>
+						<qry:insert-select name="Avances" doc-path="."/>
+					</qry:element>
+					<qry:attribute name="alerta" value="avance/ROW/@c_estado_avance"/>
+					<qry:attribute name="avance" value="avance/ROW/@f_avance+' - '+avance/ROW/@c_recurso"/>
+					<qry:attribute name="o_avance" value="avance/ROW/@o_avance"/>
+					<qry:attribute name="f_inicio" value="format-date($r/@f_inicio, 'dd/mm/yyyy')"/>
+					<qry:attribute name="f_fin" value="format-date($r/@f_fin, 'dd/mm/yyyy')"/>
+					<qry:attribute name="f_acta" value="format-date($r/@f_acta, 'dd/mm/yyyy')"/>
+					<qry:attribute name="dif_dias_f_fin" value="floor(number(datetime($r/@f_fin) - datetime($r/@f_fin_est)))"/>
+					<qry:if test="$r/@f_fin=''">
+						<qry:then>
+							<qry:attribute name="dif_dias_f_fin" value="-"/>
+						</qry:then>
+					</qry:if>
+					<qry:if test="$r/@f_fin_est=''">
+						<qry:then>
+							<qry:attribute name="dif_dias_f_fin" value="-"/>
+						</qry:then>
+					</qry:if>
+					<qry:insert-select name="TAREAS" doc-path="$r"/>
+					<qry:insert-select name="PROY_TAREA" doc-path="$r"/>
+					<qry:attribute name="dif_tiempos" value="format-number(number(format-number(@hs_insumidas,0,2,'.','',''))-number(($r/@e_estimado * $r/@e_minutos) div 60),0,2,',','','')"/>
+					<qry:attribute name="hs_insumidas" value="format-number(@hs_insumidas,0,2,',','','')"/>
+				</PROYECTO>
+			</qry:out>
+		</qry:select>
+		<qry:select doc="SOURCE" name="PROY_TAREA">
+			<qry:xquery>
+				for $r in SQL('SELECT
+PRY01_PROYECTOS.c_proyecto 
+, PRY01_PROYECTOS.d_proyecto
+, PRY01_PROYECTOS.oi_proyecto
+FROM PRY01_PROYECTOS 
+WHERE PRY01_PROYECTOS.oi_proyecto_parent = {#SOURCE:@oi_proyecto}
+	
+')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:insert-select doc-path="$r" name="TAREAS"/>
+				<qry:insert-select doc-path="$r" name="ESFUERZO"/>
+				<qry:insert-select doc-path="$r" name="PROY_TAREA"/>
+			</qry:out>
+		</qry:select>
+		<qry:select doc="SOURCE" name="TAREAS">
+			<qry:xquery>
+				for $r in SQL('SELECT 
+PRY02_TAREAS.oi_tarea			
+, PRY02_TAREAS.c_tarea
+, PRY02_TAREAS.d_tarea
+, PRY02_TAREAS.c_estado
+, PRY02_TAREAS.o_tarea
+, PRY02_TAREAS.f_inicio
+, PRY02_TAREAS.f_fin_est 
+, PRY02_TAREAS.e_estimado
+, PRY03_UND_TIEMPO.e_minutos 
+FROM 
+PRY02_TAREAS,
+PRY03_UND_TIEMPO 
+JOIN   
+PRY02_TAREAS.oi_unidad_tiempo INNER PRY03_UND_TIEMPO.oi_unidad_tiempo
+WHERE PRY02_TAREAS.oi_proyecto = {#SOURCE:@oi_proyecto} 
+
+')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<TAREA>
+					<qry:attribute name="proyecto" value="'[' + #SOURCE:@c_proyecto + '] ' + #SOURCE:@d_proyecto"/>
+					<qry:attribute name="c_tarea" value="$r/@c_tarea"/>
+					<qry:attribute name="d_tarea" value="$r/@d_tarea"/>
+					<qry:attribute name="hs_estimadas" value="(number($r/@e_estimado) * number($r/@e_minutos)) div 60"/>
+					<qry:insert-select name="TRABAJO" doc-path="$r"/>
+				</TAREA>
+			</qry:out>
+		</qry:select>
+		<qry:select doc="SOURCE" name="ESFUERZO">
+			<qry:xquery>
+				for $r in SQL('
+SELECT 
+	PRY02_TAREAS.e_estimado,
+	PRY02_TAREAS.oi_tarea,
+	PRY03_UND_TIEMPO.e_minutos
+FROM 
+	PRY01_PROYECTOS,
+	PRY02_TAREAS,
+	PRY03_UND_TIEMPO  
+JOIN
+	PRY01_PROYECTOS.oi_proyecto INNER PRY02_TAREAS.oi_proyecto,
+	PRY02_TAREAS.oi_unidad_tiempo INNER PRY03_UND_TIEMPO.oi_unidad_tiempo
+WHERE 
+	PRY01_PROYECTOS.oi_proyecto = {#SOURCE:@oi_proyecto}  	
+')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:attribute name="hs_estimadas" value="@hs_estimadas + (number($r/@e_estimado) * number($r/@e_minutos)) div 60"/>
+				<qry:insert-select doc-path="$r" name="TRABAJO"/>
+			</qry:out>
+		</qry:select>
+		<qry:select name="TRABAJO" doc="PARAM">
+			<qry:xquery>
+				for $r in SQL('	
+SELECT 
+	PRY04_TRABAJOS.e_duracion,
+	PRY03_UND_TIEMPO.e_minutos
+FROM 
+	PRY04_TRABAJOS,
+	PRY03_UND_TIEMPO
+JOIN
+	PRY04_TRABAJOS.oi_unidad_tiempo INNER PRY03_UND_TIEMPO.oi_unidad_tiempo
+WHERE
+	PRY04_TRABAJOS.oi_tarea = {#PARAM:@oi_tarea}	
+')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:attribute name="hs_insumidas" value="@hs_insumidas + (number($r/@e_duracion) * number($r/@e_minutos)) div 60"/>
+			</qry:out>
+		</qry:select>
+		<qry:select name="Avances" doc="PARAM">
+			<qry:xquery>
+				for $r in SQL('
+			SELECT 
+		  PRY01_AVANCES.oi_avance as ID, 
+		  PRY01_AVANCES.oi_proyecto as PRY, 
+		  PRY01_AVANCES.o_avance as DES,
+		  PRY01_AVANCES.f_avance as f_avance, 
+		  PRY01_AVANCES.c_estado as c_estado,
+		  PRY01_AVANCES.oi_recurso as oi_recurso,  
+	    PRY05_RECURSOS.c_recurso as c_recurso,
+      PER01_PERSONAL.d_ape_y_nom as nomb_y_ape
+
+	
+		FROM  
+		PRY01_AVANCES,
+		PRY05_RECURSOS,
+    PER01_PERSONAL 
+    
+  join      
+  PRY01_AVANCES.oi_recurso inner PRY05_RECURSOS.oi_recurso, 
+  PRY05_RECURSOS.OI_PERSONAL inner PER01_PERSONAL.OI_PERSONAL
+		
+		WHERE    
+		PRY01_AVANCES.oi_proyecto = {$PARAM/@oi_proyecto}
+		AND PRY01_AVANCES.f_avance IN 
+									(
+								  select MAX(PRY01_AVANCES.f_avance) as fecha
+								  FROM PRY01_AVANCES  
+								  WHERE PRY01_AVANCES.oi_proyecto = {%=$PARAM/@oi_proyecto%}
+		  						) 		  
+		
+')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:element name="ROW">
+					<qry:attribute value="$r/@ID" name="id"/>
+					<qry:attribute value="$r/@DES" name="o_avance"/>
+					<qry:attribute value="format-date($r/@f_avance, 'dd/mm/yyyy')" name="f_avance"/>
+					<qry:attribute value="$r/@c_estado" name="c_estado_avance"/>
+					<qry:attribute value="'['+$r/@c_recurso+']'+' '+$r/@nomb_y_ape" name="c_recurso"/>
+				</qry:element>
+			</qry:out>
+		</qry:select>
+		<qry:select name="Solicitudes" doc="PARAM">
+			<qry:xquery>
+				for $r in SQL('
+		SELECT 
+		 s.oi_solicitud as ID, 
+		 s.c_solicitud as COD,
+		 s.d_solicitud as DES,
+		 s.f_solicitud  as f_solicitud,
+		 s.c_formulario as c_formulario,
+		 s.o_detalle  as o_detalle
+
+	
+FROM   
+PRY01_SOLICITUD as  sa, 
+PRY01_PROYECTOS as p, 
+PRY07_SOLICITUDES as s 
+
+    
+JOIN   
+ sa.oi_proyecto INNER p.oi_proyecto, 
+ sa.oi_solicitud INNER s.oi_solicitud
+		
+		WHERE    
+		p.oi_proyecto = {$PARAM/@oi_proyecto}
+		  
+		
+')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:element name="ROW">
+					<qry:attribute value="$r/@ID" name="id"/>
+					<qry:attribute value="$r/@COD" name="c_solicitud"/>
+					<qry:attribute value="$r/@DES" name="d_solicitud"/>
+					<qry:attribute value="format-date($r/@f_solicitud, 'dd/mm/yyyy')" name="f_avance"/>
+					<qry:attribute value="$r/@c_formulario" name="c_formulario"/>
+					<qry:attribute value="$r/@o_detalle" name="o_detalle"/>
+					<qry:attribute value="'N&#186; '+$r/@COD+' - '+format-date($r/@f_solicitud, 'dd/mm/yyyy')+'- Cod formulario: '+$r/@c_formulario" name="solicitud"/>
+				</qry:element>
+			</qry:out>
+		</qry:select>
+		<qry:select name="CLIENTE" doc="PARAM">
+			<qry:xquery>
+				for $r in SQL('	
+SELECT 
+	pc.d_nom_cliente AS d_nom_cliente,
+	pc.c_cliente AS c_cliente
+
+FROM 
+	PRY01_PROYECTOS AS pp, 
+    PRY08_CLIENTES AS pc
+JOIN
+
+	pp.oi_cliente LEFT OUTER pc.oi_cliente 
+
+WHERE
+	pp.oi_proyecto = {#PARAM:@oi_proyecto}
+')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:attribute value="$r/@d_nom_cliente" name="d_nom_cliente"/>
+				<qry:attribute value="$r/@c_cliente" name="c_cliente"/>
+				<qry:if test="$r/@d_nom_cliente!='' AND $r/@c_cliente!=''">
+					<qry:then>
+						<qry:attribute value="concat('[',$r/@c_cliente,'] ',$r/@d_nom_cliente)" name="cliente"/>
+					</qry:then>
+				</qry:if>
+			</qry:out>
+		</qry:select>
+	</html:query>
+</html:html>

@@ -1,0 +1,73 @@
+<flow:flow xmlns:flow="nomad_engine.flow" xmlns:doc="nomad_engine.doc" xmlns:qry="nomad_engine.qry" default_action="initialize" name="NucleusRH.Base.Personal.Reportes.CCLicencias" extends="Nomad.base.HTML_XLS.flow">
+	<flow:info label="why"/>
+	<flow:declare>
+		<doc:define name="FILTERDATA">
+			<FILTRO>
+				<LIC/>
+			</FILTRO>
+		</doc:define>
+		<doc:define name="LIC"/>
+		<qry:define name="QRY_LIC">
+			<qry:main doc="SOURCE">
+				<qry:element name="ROWS">
+					<qry:insert-select name="LIC"/>
+				</qry:element>
+			</qry:main>
+			<qry:select name="LIC" doc="">
+				<qry:xquery>
+					for $r in SQL('			
+					SELECT 
+						PER16_LICENCIAS.oi_licencia as id,
+						PER16_LICENCIAS.c_licencia,
+						PER16_LICENCIAS.d_licencia as des
+					FROM 
+						PER16_LICENCIAS
+					ORDER BY 
+						c_licencia ASC
+			')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:element name="ROW">
+						<qry:attribute value="$r/@id" name="id"/>
+						<qry:attribute value="$r/@des" name="des"/>
+					</qry:element>
+				</qry:out>
+			</qry:select>
+		</qry:define>
+	</flow:declare>
+	<flow:main doc="SOURCE">
+		<flow:action name="initialize">
+			<doc:load-qry qry="QRY_LIC" output-doc="LIC"/>
+			<flow:open-form doc-path="#FILTERDATA:" form-class="NucleusRH.Base.Personal.Reportes.CCLicencias.filter.form" mode="FILTER"/>
+		</flow:action>
+	</flow:main>
+	<flow:form name="NucleusRH.Base.Personal.Reportes.CCLicencias.filter.form:FILTER" form-class="NucleusRH.Base.Personal.Reportes.CCLicencias.filter.form" mode="FILTER" doc="SOURCE">
+		<flow:action name="ACCEPT">
+			<flow:call-action action="Save-FILTER"/>
+			<flow:exec-method method="ExecReportHTML" out-attr-path="#BATCHDOC:@batch-id" priority="9" class="Nomad.Base.Report.GeneralReport.REPORT">
+				<flow:param value="NucleusRH.Base.Personal.CCLicencias.rpt" type="Nomad.NSystem.String" mode="in" name="ReportName"/>
+				<flow:param doc-path="#FILTERDATA:" name="paramIN" type="Nomad.NSystem.Proxy.NomadXML" mode="in"/>
+			</flow:exec-method>
+			<doc:set-attribute from-value="111 - Cuenta Corriente de Licencias" to-attr-path="#BATCHDOC:@title"/>
+			<flow:open-form form-class="Nomad.base.HTML_XLS.form" parent-doc-path="#SOURCE:" mode="SHOW" doc-path="#BATCHDOC:"/>
+		</flow:action>
+		<flow:action name="Save-FILTER">
+			<flow:save-user-data doc-path="#FILTERDATA:" name="FILTER-NucleusRH.Base.Personal.Reportes.CCLicencias"/>
+		</flow:action>
+		<flow:action name="Load-FILTER">
+			<flow:load-user-data doc="FILTERDATA" name="FILTER-NucleusRH.Base.Personal.Reportes.CCLicencias"/>
+		</flow:action>
+		<flow:action name="on-open">
+			<flow:attach-doc attach-id="LIC" doc-path="#LIC:"/>
+			<flow:call-action action="Load-FILTER"/>
+		</flow:action>
+		<flow:action name="BACK">
+			<flow:close-form/>
+		</flow:action>
+	</flow:form>
+	<flow:form form-class="Nomad.base.HTML_XLS.form" name="Nomad.base.HTML_XLS.form:SHOW" mode="SHOW" doc="SOURCE">
+		<flow:action name="BACK">
+			<flow:close-form next-action="on-open"/>
+		</flow:action>
+	</flow:form>
+</flow:flow>

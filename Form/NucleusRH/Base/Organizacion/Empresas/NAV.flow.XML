@@ -1,0 +1,143 @@
+<flow:flow xmlns:flow="nomad_engine.flow" xmlns:doc="nomad_engine.doc" xmlns:qry="nomad_engine.qry" extends="NucleusRH.Base.Organizacion.Empresas.flow" name="NucleusRH.Base.Organizacion.Empresas">
+	<flow:info label="Flow para NucleusRH.Base.Organizacion.Empresas"/>
+	<flow:declare>
+		<doc:define name="FILTERDATA">
+			<EMPRESA value=""/>
+		</doc:define>
+		<qry:define declare="&lt;EMPRESA value=&quot;2&quot; /&gt;" name="FILTER">
+			<qry:main doc="PARAM" maxdeep="2">
+				<qry:element name="ROWS">
+					<qry:insert-select name="sql1" doc-path="#PARAM:EMPRESA"/>
+				</qry:element>
+			</qry:main>
+			<qry:select doc="PARAM" name="sql1">
+				<qry:xquery>
+					for $r in sql('     
+				
+						SELECT  
+							t0.oi_empresa as oi_empresa, 
+							SEC.policy 
+						FROM 
+							ORG03_EMPRESAS as t0,
+							NMD_SECURITY(class=\'NucleusRH.Base.Organizacion.Empresas.EMPRESA\') as SEC 
+						JOIN 
+							t0.oi_empresa LEFT OUTER SEC.id  
+						WHERE                             
+							{%? (#PARAM:@value!='') {%  t0.oi_empresa={#PARAM:@value}  %} {% 1=2 %} %}   
+						ORDER BY 
+							oi_empresa asc  
+							
+						  ')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:element name="ROW">
+						<qry:attribute name="policy" value="$r/@policy"/>
+						<qry:attribute name="id" value="$r/@oi_empresa"/>
+					</qry:element>
+				</qry:out>
+			</qry:select>
+		</qry:define>
+		<qry:define declare="&lt;EMPRESA value=&quot;2&quot; /&gt;" name="LIST">
+			<qry:include name="NucleusRH.Base.Personal.ART.ART.INFO"/>
+			<qry:include name="NucleusRH.Base.Personal.LegajoEmpresa.PERSONAL_EMP.INFO"/>
+			<qry:include name="NucleusRH.Base.Organizacion.Localidades.LOCALIDAD.INFO"/>
+			<qry:include name="NucleusRH.Base.Organizacion.Actividades.ACTIVIDAD.INFO"/>
+			<qry:include name="NucleusRH.Base.Organizacion.Seguros_Vida.SEGURO_VIDA.INFO"/>
+			<qry:main doc="PARAM" maxdeep="2">
+				<qry:element name="ROWS">
+					<qry:insert-select name="sql1" doc-path="#PARAM:EMPRESA"/>
+				</qry:element>
+			</qry:main>
+			<qry:select doc="PARAM" name="sql1">
+				<qry:xquery>
+					for $r in sql('
+							SELECT 
+								t0.oi_empresa as oi_empresa, 
+								t0.c_empresa as c_empresa, 
+								t0.d_empresa as d_empresa, 
+								t0.d_ingreso_bruto as d_ingreso_bruto, 
+								t0.d_imp_gan as d_imp_gan, SEC.policy, 
+								t0.c_empresa as CODE, 
+								t0.d_empresa as TEXT, 
+								t0.oi_seguro_vida as oi_seguro_vida 
+							FROM 
+								ORG03_EMPRESAS as t0,
+								NMD_SECURITY(class=\'NucleusRH.Base.Organizacion.Empresas.EMPRESA\') as SEC 
+							JOIN 
+								t0.oi_empresa LEFT OUTER SEC.id 
+							WHERE                             
+								{%? (#PARAM:@value!='') {%  t0.oi_empresa={#PARAM:@value}  %} {% 1=2 %} %}   
+							ORDER BY 
+								oi_empresa asc')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:element name="ROW">
+						<qry:attribute name="policy" value="$r/@policy"/>
+						<qry:attribute name="id" value="$r/@oi_empresa"/>
+						<qry:attribute name="c_empresa" value="$r/@c_empresa"/>
+						<qry:attribute name="d_empresa" value="$r/@d_empresa"/>
+						<qry:attribute name="d_ingreso_bruto" value="$r/@d_ingreso_bruto"/>
+						<qry:attribute name="d_imp_gan" value="$r/@d_imp_gan"/>
+						<qry:attribute name="CODE" value="$r/@CODE"/>
+						<qry:attribute name="TEXT" value="$r/@TEXT"/>
+						<qry:if test="$r/@oi_seguro_vida!=''">
+							<qry:then>
+								<qry:element name="oi_seguro_vida">
+									<qry:attribute name="OI_FIND" value="$r/@oi_seguro_vida"/>
+									<qry:insert-select name="NucleusRH.Base.Organizacion.Seguros_Vida.SEGURO_VIDA.QUERY" doc-path="."/>
+								</qry:element>
+								<qry:attribute name="oi_seguro_vida" value="'['+oi_seguro_vida/ROW/@COD+'] '+oi_seguro_vida/ROW/@DES"/>
+							</qry:then>
+						</qry:if>
+					</qry:element>
+				</qry:out>
+			</qry:select>
+		</qry:define>
+	</flow:declare>
+	<flow:main doc="SOURCE">
+		<flow:action name="filter">
+			<doc:set-attribute from-attr-path="#SOURCE:@VALUE" to-attr-path="#FILTERDATA:@value"/>
+			<doc:load-qry input-doc-path="#FILTERDATA:" output-doc="QRY" qry="FILTER"/>
+			<doc:new-object doc="DDO" class="NucleusRH.Base.Organizacion.Empresas.EMPRESA"/>
+			<flow:open-form mode="EDIT" form-class="NucleusRH.Base.Organizacion.Empresas.EMPRESA.noreg.autoform" iter-index="#QRY:ROW/@id" parent-doc-path="#QRY:" doc-path="#DDO:"/>
+		</flow:action>
+	</flow:main>
+	<flow:group Name="EMPRESA">
+		<flow:form name="NucleusRH.Base.Organizacion.Empresas.EMPRESA.form:SHOW" extends="NucleusRH.Base.Organizacion.Empresas.EMPRESA.autoform:SHOW" form-class="NucleusRH.Base.Organizacion.Empresas.EMPRESA.form" mode="SHOW" parent-doc="PARENTSOURCE" doc="SOURCE">
+			<flow:action name="After-Change">
+				<doc:load-qry input-doc-path="#FILTERDATA:" output-doc="QRY" qry="FILTER"/>
+				<doc:iter-refresh/>
+				<doc:load-object id-path="#iter-cursor:@value" class="NucleusRH.Base.Organizacion.Empresas.EMPRESA" doc="DDO"/>
+			</flow:action>
+			<flow:action name="ADD">
+				<doc:new-object doc="NEWDDOROOT" class="NucleusRH.Base.Organizacion.Empresas.EMPRESA"/>
+				<flow:open-form doc-path="#NEWDDOROOT:" mode="NEW" form-class="NucleusRH.Base.Organizacion.Empresas.EMPRESA.form"/>
+			</flow:action>
+			<flow:action name="EDIT">
+				<flow:open-form doc-path="#DDO:" mode="EDIT" form-class="NucleusRH.Base.Organizacion.Empresas.EMPRESA.form"/>
+			</flow:action>
+			<flow:action name="DELETE">
+				<doc:delete-object doc-path="#DDO:" class="NucleusRH.Base.Organizacion.Empresas.EMPRESA" doc="DDO"/>
+				<doc:save-object class="NucleusRH.Base.Organizacion.Empresas.EMPRESA" doc="DDO"/>
+				<flow:exec-method method="Borrar_Empresa" this-doc="DDO"/>
+				<doc:load-qry output-doc="QRY" input-doc-path="#FILTERDATA:" qry="FILTER"/>
+				<doc:iter-refresh/>
+			</flow:action>
+		</flow:form>
+		<flow:form name="NucleusRH.Base.Organizacion.Empresas.EMPRESA.noreg.form:EDIT" form-class="NucleusRH.Base.Organizacion.Empresas.EMPRESA.noreg.autoform" extends="NucleusRH.Base.Organizacion.Empresas.EMPRESA.noreg.autoform:EDIT" parent-doc="PARENTSOURCE" doc="SOURCE" mode="EDIT">
+			<flow:action name="open-flow-ADD">
+				<flow:open-form doc-path="#NEWDDOROOT:" mode="NEW" form-class="NucleusRH.Base.Organizacion.Empresas.EMPRESA.form"/>
+			</flow:action>
+			<flow:action name="open-flow-LIST">
+				<flow:open-form iter-index="#QRY_LIST:ROW/@id" parent-doc-path="#QRY_LIST:" doc-path="#DDO:" mode="LIST" form-class="NucleusRH.Base.Organizacion.Empresas.EMPRESA.form"/>
+			</flow:action>
+			<flow:action name="open-flow-SHOW">
+				<flow:open-form iter-index="#QRY:ROW/@id" parent-doc-path="#QRY:" doc-path="#DDO:" mode="SHOW" form-class="NucleusRH.Base.Organizacion.Empresas.EMPRESA.form"/>
+			</flow:action>
+			<flow:action name="on-move-iterator">
+				<flow:call-action action="load-DDO"/>
+				<flow:call-action action="goto-show"/>
+			</flow:action>
+		</flow:form>
+	</flow:group>
+</flow:flow>

@@ -1,0 +1,232 @@
+<flow:flow xmlns:flow="nomad_engine.flow" xmlns:doc="nomad_engine.doc" xmlns:qry="nomad_engine.qry" name="NucleusRH.Base.Tiempos_Trabajados.AdministracionFC.Administrar.flow" default_action="initialize" extends="Nomad.Base.flow">
+	<flow:declare>
+		<doc:define name="FILTERDATA">
+			<FILTRO>
+				<ROWS/>
+			</FILTRO>
+		</doc:define>
+		<qry:define declare="&lt;FILTRO gcustom=&quot;&quot; f_desde=&quot;20160101&quot; f_hasta=&quot;20160801&quot; gpers=&quot;&quot; empresa=&quot;3&quot; activos=&quot;&quot; nombre=&quot;&quot; documento=&quot;&quot; sexo=&quot;&quot; grupo_sanguineo=&quot;&quot; listlegajos=&quot;&quot; oi_indic_activo=&quot;&quot; egresado=&quot;&quot; oi_forma_pago=&quot;&quot; oi_tipo_personal=&quot;&quot; fecha_desde=&quot;&quot; fecha_hasta=&quot;&quot; oi_centro_costo=&quot;&quot; oi_convenio=&quot;&quot; soloconvenio=&quot;&quot; oi_categoria=&quot;&quot; oi_ubicacion_desde=&quot;&quot; oi_ubicacion_hasta=&quot;&quot; oi_estructura=&quot;&quot; escructura_childs=&quot;&quot; oi_contrato=&quot;&quot; oi_afjp=&quot;&quot; oi_obra_social=&quot;&quot; oi_sindicato=&quot;&quot; l_afiliado_sind=&quot;0&quot; legajo_reloj_desde=&quot;&quot; legajo_reloj_hasta=&quot;&quot; chksinreloj=&quot;&quot; tarjeta_desde=&quot;&quot; tarjeta_hasta=&quot;&quot; chksintarjeta=&quot;&quot; oi_horario=&quot;&quot; oi_escuadra=&quot;&quot; tipo=&quot;&quot; oi_grupo_horario=&quot;&quot; fecha_vencimiento=&quot;20160330&quot;&gt;&lt;ROWS nmd-col=&quot;1&quot;&gt;&lt;ROW id=&quot;107&quot; /&gt;&lt;/ROWS&gt;&lt;/FILTRO&gt;&#13;&#10;" name="LIST">
+			<qry:main doc="SOURCE" maxdeep="2">
+				<qry:element name="ROWS">
+					<qry:insert-select name="sql1" doc-path="#SOURCE:"/>
+				</qry:element>
+			</qry:main>
+			<qry:select doc="SOURCE" name="sql1">
+				<qry:xquery>
+					for $r in sql('   
+			
+					SELECT 		
+						TTA20_REGISTRO_FC.oi_personal_emp,
+						PER02_PERSONAL_EMP.e_numero_legajo,
+						PER01_PERSONAL.d_ape_y_nom,
+						ORG03_EMPRESAS.c_empresa,
+						ORG03_EMPRESAS.d_empresa
+					FROM 
+						TTA20_REGISTRO_FC,
+						PER02_PERSONAL_EMP,
+						PER01_PERSONAL,
+						ORG03_EMPRESAS
+					JOIN
+					    TTA20_REGISTRO_FC.oi_personal_emp INNER PER02_PERSONAL_EMP.oi_personal_emp,
+					    PER02_PERSONAL_EMP.oi_personal INNER PER01_PERSONAL.oi_personal,
+					    PER02_PERSONAL_EMP.oi_empresa INNER ORG03_EMPRESAS.oi_empresa
+					WHERE 
+						TTA20_REGISTRO_FC.l_aprob=1     
+						AND TTA20_REGISTRO_FC.n_saldo &gt; 0
+						AND TTA20_REGISTRO_FC.oi_personal_emp in ({%=string(#SOURCE:FILTRO/ROWS/ROW/@id) %})
+						{%? (#SOURCE:FILTRO/@fecha_vencimiento = '') {% %} {% AND TTA20_REGISTRO_FC.f_registro_fc &gt;= {Datetime(#SOURCE:FILTRO/@fecha_vencimiento)} %} %}					
+                    GROUP BY 
+                    	TTA20_REGISTRO_FC.oi_personal_emp,
+						PER02_PERSONAL_EMP.e_numero_legajo,
+						PER01_PERSONAL.d_ape_y_nom,
+						ORG03_EMPRESAS.c_empresa,
+						ORG03_EMPRESAS.d_empresa
+						
+     	')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:element name="ROW">
+						<qry:attribute value="$r/@oi_personal_emp" name="id"/>
+						<qry:attribute value="concat('[',$r/@e_numero_legajo,'] ',$r/@d_ape_y_nom)" name="legajo"/>
+						<qry:attribute value="concat('[',$r/@c_empresa,'] ',$r/@d_empresa)" name="empresa"/>
+					</qry:element>
+				</qry:out>
+			</qry:select>
+		</qry:define>
+		<doc:define name="QRY_LIST"/>
+		<doc:define name="DOC">
+			<DOC>
+				<COMPENSACIONES/>
+			</DOC>
+		</doc:define>
+		<qry:define declare="&lt;DOC oi_personal_emp=&quot;8&quot; fecha_vencimiento=&quot;20160703&quot;&gt;&lt;/DOC&gt;" name="LIST_BANCOS">
+			<qry:main doc="SOURCE" maxdeep="2">
+				<qry:element name="ROWS">
+					<qry:insert-select name="sql1" doc-path="#SOURCE:DOC"/>
+				</qry:element>
+			</qry:main>
+			<qry:select doc="SOURCE" name="sql1">
+				<qry:xquery>
+					for $r in sql('   
+			
+					SELECT 		      
+						TTA21_BANCO_HORA.oi_banco_hora,
+						TTA21_BANCO_HORA.c_banco_hora,
+						TTA21_BANCO_HORA.d_banco_hora,
+						SUM(TTA20_REGISTRO_FC.n_saldo) as n_saldo
+					FROM 
+						TTA20_REGISTRO_FC,
+						TTA21_BANCO_HORA
+					JOIN
+						TTA21_BANCO_HORA.oi_banco_hora INNER TTA20_REGISTRO_FC.oi_banco_hora
+					WHERE 
+						TTA20_REGISTRO_FC.l_aprob=1
+						AND TTA20_REGISTRO_FC.n_saldo &gt; 0
+						AND TTA20_REGISTRO_FC.oi_personal_emp = {#SOURCE:@oi_personal_emp}
+						{%? (#SOURCE:@fecha_vencimiento = '') {% %} {% AND TTA20_REGISTRO_FC.f_registro_fc &gt;= {Datetime(#SOURCE:@fecha_vencimiento)} %} %}	
+					GROUP BY
+						TTA21_BANCO_HORA.oi_banco_hora,
+						TTA21_BANCO_HORA.c_banco_hora,
+						TTA21_BANCO_HORA.d_banco_hora		
+						
+     	')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:element name="ROW">
+						<qry:attribute value="$r/@oi_banco_hora" name="id"/>
+						<qry:attribute value="concat('[',$r/@c_banco_hora,'] ',$r/@d_banco_hora)" name="banco_hora"/>
+						<qry:attribute value="$r/@n_saldo" name="n_saldo"/>
+					</qry:element>
+				</qry:out>
+			</qry:select>
+		</qry:define>
+		<doc:define name="QRY_LIST_BANCOS"/>
+		<doc:define name="QRY_COUNT"/>
+		<qry:define declare="&lt;FILTRO gcustom=&quot;&quot; f_desde=&quot;20160101&quot; f_hasta=&quot;20160801&quot; gpers=&quot;&quot; empresa=&quot;3&quot; activos=&quot;&quot; nombre=&quot;&quot; documento=&quot;&quot; sexo=&quot;&quot; grupo_sanguineo=&quot;&quot; listlegajos=&quot;&quot; oi_indic_activo=&quot;&quot; egresado=&quot;&quot; oi_forma_pago=&quot;&quot; oi_tipo_personal=&quot;&quot; fecha_desde=&quot;&quot; fecha_hasta=&quot;&quot; oi_centro_costo=&quot;&quot; oi_convenio=&quot;&quot; soloconvenio=&quot;&quot; oi_categoria=&quot;&quot; oi_ubicacion_desde=&quot;&quot; oi_ubicacion_hasta=&quot;&quot; oi_estructura=&quot;&quot; escructura_childs=&quot;&quot; oi_contrato=&quot;&quot; oi_afjp=&quot;&quot; oi_obra_social=&quot;&quot; oi_sindicato=&quot;&quot; l_afiliado_sind=&quot;0&quot; legajo_reloj_desde=&quot;&quot; legajo_reloj_hasta=&quot;&quot; chksinreloj=&quot;&quot; tarjeta_desde=&quot;&quot; tarjeta_hasta=&quot;&quot; chksintarjeta=&quot;&quot; oi_horario=&quot;&quot; oi_escuadra=&quot;&quot; tipo=&quot;&quot; oi_grupo_horario=&quot;&quot; fecha_vencimiento=&quot;20160330&quot;&gt;&lt;ROWS nmd-col=&quot;1&quot;&gt;&lt;ROW id=&quot;107&quot; /&gt;&lt;/ROWS&gt;&lt;/FILTRO&gt;&#13;&#10;" name="COUNT">
+			<qry:main doc="SOURCE" maxdeep="2">
+				<qry:element name="RESULT">
+					<qry:insert-select name="sql1" doc-path="#SOURCE:"/>
+				</qry:element>
+			</qry:main>
+			<qry:select doc="SOURCE" name="sql1">
+				<qry:xquery>
+					for $r in sql('   
+			
+					SELECT 		
+						COUNT(TTA20_REGISTRO_FC.oi_registro_fc) as count
+					FROM 
+						TTA20_REGISTRO_FC,
+						PER02_PERSONAL_EMP,
+						PER01_PERSONAL,
+						ORG03_EMPRESAS
+					JOIN
+					    TTA20_REGISTRO_FC.oi_personal_emp INNER PER02_PERSONAL_EMP.oi_personal_emp,
+					    PER02_PERSONAL_EMP.oi_personal INNER PER01_PERSONAL.oi_personal,
+					    PER02_PERSONAL_EMP.oi_empresa INNER ORG03_EMPRESAS.oi_empresa
+					WHERE 
+						TTA20_REGISTRO_FC.l_aprob=1     
+						AND TTA20_REGISTRO_FC.n_saldo &gt; 0
+						AND TTA20_REGISTRO_FC.oi_personal_emp in ({%=string(#SOURCE:FILTRO/ROWS/ROW/@id) %})
+						{%? (#SOURCE:FILTRO/@fecha_vencimiento = '') {% %} {% AND TTA20_REGISTRO_FC.f_registro_fc &gt;= {Datetime(#SOURCE:FILTRO/@fecha_vencimiento)} %} %}					
+               
+						
+     	')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:attribute name="count" value="$r/@count"/>
+				</qry:out>
+			</qry:select>
+		</qry:define>
+		<qry:define name="VENCIMIENTO">
+			<qry:main doc="SOURCE">
+				<qry:element name="VENCIMIENTO">
+					<qry:insert-select name="VencimientoFC"/>
+				</qry:element>
+			</qry:main>
+			<qry:select name="VencimientoFC">
+				<qry:xquery>
+					for $r in sql('
+				SELECT 
+					ORG26_PARAMETROS.oi_parametro, 
+					ORG26_PARAMETROS.d_valor,
+					ADDMONTHS(NOW(),STRING2NUMBER(ORG26_PARAMETROS.d_valor)*(-1)) as fecha
+				FROM 
+					ORG26_PARAMETROS
+				WHERE 
+					ORG26_PARAMETROS.c_parametro = \'VencimientoFC\'
+				')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:attribute name="fecha_vencimiento" value="substring($r/@fecha,0,8)"/>
+				</qry:out>
+			</qry:select>
+		</qry:define>
+		<doc:define name="F_VENCIMIENTO"/>
+	</flow:declare>
+	<flow:main doc="SOURCE">
+		<flow:action name="initialize">
+			<flow:open-form form-class="NucleusRH.Base.Tiempos_Trabajados.AdministracionFC.Administrar.filter.form" doc-path="#FILTERDATA:" mode="FILTER"/>
+		</flow:action>
+	</flow:main>
+	<flow:form form-class="NucleusRH.Base.Tiempos_Trabajados.AdministracionFC.Administrar.filter.form" name="NucleusRH.Base.Tiempos_Trabajados.AdministracionFC.Administrar.filter.form:FILTER" parent-doc="PARENTSOURCE" doc="SOURCE" mode="FILTER">
+		<flow:action name="Save-FILTER">
+			<flow:save-user-data name="FILTER-NucleusRH.Base.Tiempos_Trabajados.AdministracionFC.Administrar" doc-path="#FILTERDATA:"/>
+		</flow:action>
+		<flow:action name="Load-FILTER">
+			<flow:load-user-data name="FILTER-NucleusRH.Base.Tiempos_Trabajados.AdministracionFC.Administrar" doc="FILTERDATA"/>
+			<flow:attach-doc attach-id="ARRB" doc-path="#FILTERDATA:ROWS"/>
+		</flow:action>
+		<flow:action name="ACCEPT">
+			<flow:log text-path="#FILTERDATA:" text="logAngel"/>
+			<flow:call-action action="Save-FILTER"/>
+			<doc:load-qry input-doc-path="#FILTERDATA:" output-doc="QRY_LIST" qry="LIST"/>
+			<doc:load-qry output-doc="QRY_COUNT" qry="COUNT" input-doc-path="#FILTERDATA:"/>
+			<flow:call-action eq="0" action="noreg" if="#QRY_COUNT:@count" else="open-flow-LIST"/>
+		</flow:action>
+		<flow:action name="on-show">
+			<doc:load-qry output-doc="F_VENCIMIENTO" qry="VENCIMIENTO"/>
+			<doc:set-attribute from-attr-path="#F_VENCIMIENTO:@fecha_vencimiento" to-attr-path="#DOC:@fecha_vencimiento"/>
+			<doc:set-attribute to-attr-path="#SOURCE:@fecha_vencimiento" from-attr-path="#F_VENCIMIENTO:@fecha_vencimiento"/>
+			<flow:call-action action="Load-FILTER"/>
+		</flow:action>
+		<flow:action name="BACK">
+			<flow:close-form/>
+		</flow:action>
+		<flow:action name="open-flow-LIST">
+			<doc:set-attribute to-attr-path="#DOC:@oi_personal_emp" from-attr-path="#QRY_LIST:ROW/@id"/>
+			<flow:open-form form-class="NucleusRH.Base.Tiempos_Trabajados.AdministracionFC.Administrar.form" iter-index="#QRY_LIST:ROW/@id" parent-doc-path="#QRY_LIST:" doc-path="#DOC:" mode="LIST"/>
+		</flow:action>
+		<flow:action name="noreg">
+			<flow:open-form form-class="NucleusRH.Base.Tiempos_Trabajados.AdministracionFC.Administrar.noreg.form" doc-path="#SOURCE:" mode="EDIT"/>
+		</flow:action>
+	</flow:form>
+	<flow:form form-class="NucleusRH.Base.Tiempos_Trabajados.AdministracionFC.Administrar.form" name="NucleusRH.Base.Tiempos_Trabajados.AdministracionFC.Administrar.form:LIST" parent-doc="PARENTSOURCE" doc="SOURCE" mode="LIST">
+		<flow:action name="CANCEL">
+			<flow:close-form next-action="on-show"/>
+		</flow:action>
+		<flow:action name="SAVE">
+			<flow:log text-path="#DOC:COMPENSACIONES" text="log_diane_doc"/>
+			<flow:exec-method method="AdministrarFC" priority="3" out-attr-path="#BATCHDOC:@batch-id" class="NucleusRH.Base.Tiempos_Trabajados.AdministracionFC.REGISTRO_FC">
+				<flow:param doc-path="#DOC:COMPENSACIONES" name="solicitados" type="Nomad.NSystem.Proxy.NomadXML" mode="in"/>
+			</flow:exec-method>
+			<flow:open-form form-class="nomad.base.batchtolist.form" mode="BATCH" doc-path="#BATCHDOC:"/>
+		</flow:action>
+		<flow:action name="on-show">
+			<doc:load-qry output-doc="QRY_LIST_BANCOS" qry="LIST_BANCOS" input-doc-path="#DOC:"/>
+			<flow:attach-doc attach-id="RS" doc-path="#QRY_LIST:"/>
+			<flow:attach-doc doc-path="#QRY_LIST_BANCOS:" attach-id="RS_BANCOS"/>
+			<doc:set-attribute from-attr-path="#QRY_LIST_BANCOS:ROW/@id" to-attr-path="#DOC:@oi_banco_hora"/>
+		</flow:action>
+		<flow:action name="CargarLista">
+			<doc:load-qry output-doc="QRY_LIST_BANCOS" qry="LIST_BANCOS" input-doc-path="#DOC:"/>
+			<flow:attach-doc attach-id="RS" doc-path="#QRY_LIST:"/>
+			<flow:attach-doc doc-path="#QRY_LIST_BANCOS:" attach-id="RS_BANCOS"/>
+			<doc:set-attribute from-attr-path="#QRY_LIST_BANCOS:ROW/@id" to-attr-path="#DOC:@oi_banco_hora"/>
+		</flow:action>
+	</flow:form>
+	<flow:form form-class="NucleusRH.Base.Tiempos_Trabajados.AdministracionFC.Administrar.noreg.form" name="NucleusRH.Base.Tiempos_Trabajados.AdministracionFC.Administrar.noreg.form:EDIT" mode="EDIT" doc="SOURCE">
+		<flow:action name="BACK">
+			<flow:close-form next-action="on-show"/>
+		</flow:action>
+	</flow:form>
+</flow:flow>

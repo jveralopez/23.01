@@ -1,0 +1,149 @@
+<ALERT xmlns:qry="nomad_engine.qry" label="Alerta por cantidad de horas" name="CANT.HORAS.alert">
+	<PARAMS>
+		<PARAM label="Rango de Horas M&#237;nimo" name="vMIN" type="int" req="1"/>
+		<PARAM label="Rango de Horas M&#225;ximo" name="vMAX" type="int" req="1"/>
+		<PARAM name="Concepto" type="string" req="0" label="Conceptos"/>
+	</PARAMS>
+	<QRY declare="&lt;PARAMS vMAX=&quot;30&quot; vMIN=&quot;0&quot; Concepto=&quot;EXT50;EXT100&quot;/&gt;">
+		<qry:include name="Nomad.Base.Login.Entidades.ENTIDAD.INFO"/>
+		<qry:main doc="PARAMS">
+			<qry:append-doc name="PARAMIN" doc-path="$PARAMS/PARAMS"/>
+			<qry:element name="ROWS">
+				<RRHH>
+					<qry:attribute name="Concepto" value="#PARAMIN:@Concepto"/>
+					<qry:attribute name="vMIN" value="#PARAMIN:@vMIN"/>
+					<qry:attribute name="vMAX" value="#PARAMIN:@vMAX"/>
+					<qry:insert-select name="QRY_CANT_HORAS" doc-path="."/>
+				</RRHH>
+			</qry:element>
+		</qry:main>
+		<qry:select doc="PARAM" name="QRY_CANT_HORAS">
+			<qry:xquery>
+				for $r in sql('
+
+                               SELECT 
+                                               PER02_PERSONAL_EMP.e_numero_legajo,
+                                               MAX(PER01_PERSONAL.oi_usuario_sistema) AS oi_usuario_sistema,
+                                               MAX(PER01_PERSONAL.d_ape_y_nom) AS d_ape_y_nom,
+                                               MAX(PER01_PERSONAL.d_email) AS d_email,                                                
+                                               MAX(TTA15_CONCEPTOS.c_concepto) AS c_concepto,
+                                               MAX(TTA15_CONCEPTOS.d_concepto) AS d_concepto,
+                                               SUM(TTA10_CONC_PER.n_valor) AS n_valor,
+                                               MAX(TTA09_LIQUIDACION.d_liquidacion) AS d_liquidacion
+                               FROM 
+                                               TTA15_CONCEPTOS, 
+                                               TTA10_CONC_PER,   
+                                               TTA09_LIQUIDACION,
+                                               TTA10_LIQUIDACPERS,
+                                               PER02_PERSONAL_EMP,
+                                               PER01_PERSONAL
+                               JOIN
+                                               TTA15_CONCEPTOS.oi_concepto INNER TTA10_CONC_PER.oi_concepto,
+                                               TTA09_LIQUIDACION.oi_liquidacion INNER TTA10_LIQUIDACPERS.oi_liquidacion,
+                                               TTA10_CONC_PER.oi_liquidacionpers INNER TTA10_LIQUIDACPERS.oi_liquidacionpers,
+                                               TTA10_LIQUIDACPERS.oi_personal_emp INNER PER02_PERSONAL_EMP.oi_personal_emp,
+                                               PER02_PERSONAL_EMP.oi_personal INNER PER01_PERSONAL.oi_personal
+                               WHERE                             
+                                               TTA09_LIQUIDACION.f_fechainicio &lt;= now() AND
+                                               TTA09_LIQUIDACION.f_fechafin &gt;= now() AND
+                                               (TTA09_LIQUIDACION.c_estado = \'pro\' OR TTA09_LIQUIDACION.c_estado = \'pro\')
+                                               {%? (#PARAM:@Concepto='') 
+                                                               {% %} 
+                                                               {% and (contain(\';\'||{#PARAM:@Concepto}||\';\',\';\'||TTA15_CONCEPTOS.c_concepto||\';\')) 
+                                                               %} %}   
+                               GROUP BY 
+                                               PER02_PERSONAL_EMP.e_numero_legajo                                                                      
+                               ORDER BY
+                                e_numero_legajo ASC
+                               ')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:if test="#PARAM:@vMIN !=''">
+					<qry:then>
+						<qry:if test="number($r/@n_valor) &lt;= number(#PARAM:@vMIN)">
+							<qry:then>
+								<qry:insert-select name="sql2" doc-path="$r"/>
+							</qry:then>
+							<qry:else/>
+						</qry:if>
+					</qry:then>
+					<qry:else/>
+				</qry:if>
+				<qry:if test="#PARAM:@vMAX !=''">
+					<qry:then>
+						<qry:if test="number($r/@n_valor) &gt;= number(#PARAM:@vMAX)">
+							<qry:then>
+								<qry:insert-select name="sql2" doc-path="$r"/>
+							</qry:then>
+							<qry:else/>
+						</qry:if>
+					</qry:then>
+					<qry:else/>
+				</qry:if>
+				<qry:attribute name="CANTCONC" value="@CANTCONC + number($r/@n_valor)"/>
+				<qry:attribute name="PERIODO" value="$r/@d_liquidacion"/>
+			</qry:out>
+		</qry:select>
+		<qry:select doc="PARAM" name="sql2">
+			<qry:out>
+				<qry:element name="EMP">
+					<qry:attribute name="LEGAJO" value="$PARAM/@e_numero_legajo"/>
+					<qry:attribute name="NOMBRE" value="$PARAM/@d_ape_y_nom"/>
+					<qry:attribute name="CONC" value="$PARAM/@d_concepto"/>
+					<qry:attribute name="CANT" value="number($PARAM/@n_valor)"/>
+					<qry:attribute name="MAIL" value="nmd-replace(string($PARAM/@d_email),',',';')"/>
+					<qry:attribute name="HORASMAX" value="#PARAMIN:@vMAX"/>
+					<qry:attribute name="HORASMIN" value="#PARAMIN:@vMIN"/>
+					<qry:if test="@MAIL =''">
+						<qry:then>
+							<qry:insert-select name="sql1" doc-path="$PARAM"/>
+						</qry:then>
+					</qry:if>
+				</qry:element>
+			</qry:out>
+		</qry:select>
+		<qry:select doc="PARAM" name="sql1">
+			<qry:xquery>
+				for $r in file('Nomad\\Base\\Login\\Entidades\\{%=#PARAM:@oi_usuario_sistema%}.ENTIDAD.XML')/ENTIDAD
+			</qry:xquery>
+			<qry:out>
+				<qry:attribute name="MAIL" value="nmd-replace(string($r/MAILS/MAIL[@PRINCIPAL=1]/@EMAIL),',',';')"/>
+			</qry:out>
+		</qry:select>
+	</QRY>
+	<MAILS>
+		<MAIL suject="Horas Trabajadas - {% @RRHH.PERIODO %}" group="EMP">
+			RECURSOS HUMANOS te informa que  para el per&#237;odo se te han computado 
+  {%  @EMP.CANT %} Horas - {% @EMP.CONC %}.        
+Por favor comun&#237;cate con nosotros para analizar la situaci&#243;n.
+&#193;rea de Recursos Humanos.
+		</MAIL>
+		<MAIL suject="Horas Trabajadas - {% @RRHH.PERIODO %}" group="RRHH">
+			**Los siguientes legajos han generado cantidad fuera de lo pre establecido**                                                                              
+
+^Legajo              ^Concepto              ^Cantidad    ^
+
+{%FOR-EACH EMP%}|[{% @EMP.LEGAJO %}] {% @EMP.NOMBRE %}  |{% @EMP.CONC %}  |{% @EMP.CANT %}  Horas|
+
+{%END EMP%}
+		</MAIL>
+	</MAILS>
+	<GROUPS>
+		<GROUP name="EMP" label="Por Empleado">
+			<FIELD name="LEGAJO" label="Legajo" type="string"/>
+			<FIELD name="NOMBRE" label="Apellido y Nombre" type="string"/>
+			<FIELD label="Concepto" name="CONC" type="string"/>
+			<FIELD label="Cantidad" name="CANT" type="double"/>
+			<FIELD name="PERIODO" label="Per&#237;odo" type="date"/>
+			<FIELD name="MAIL" label="E-Mail" type="string"/>
+			<FIELD type="double" label="Horas M&#225;ximas" name="HORASMAX"/>
+			<FIELD type="double" label="Horas M&#237;nimas" name="HORASMIN"/>
+		</GROUP>
+		<GROUP name="RRHH" label="Por RRHH">
+			<FIELD name="CANTCONC" label="Cantidad Concepto" type="int"/>
+			<FIELD type="string" name="DESCCONC" label="Descripci&#243;n Concepto"/>
+			<FIELD type="string" name="PERIODO" label="Per&#237;odo"/>
+		</GROUP>
+	</GROUPS>
+	<ENUMS/>
+</ALERT>

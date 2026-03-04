@@ -1,0 +1,1355 @@
+<html:html xmlns:html="nomad_engine.html" xmlns:qry="nomad_engine.qry" xmlns:xsl="http://www.w3.org/1999/XSL/Transform" name="Evaluacion Base" doc="source">
+	<html:for-each declare="&lt;FILTRO gpers=&quot;&quot; empresa=&quot;&quot; evento=&quot;6&quot; activos=&quot;&quot; nombre=&quot;&quot; documento=&quot;&quot; sexo=&quot;&quot; grupo_sanguineo=&quot;&quot; &#13;&#10;&#9;&#9;&#9;&#9;legajo_desde=&quot;&quot; legajo_hasta=&quot;&quot; oi_indic_activo=&quot;&quot; egresado=&quot;&quot; oi_forma_pago=&quot;&quot; oi_tipo_personal=&quot;&quot; &#13;&#10;&#9;&#9;&#9;&#9;oi_centro_costo=&quot;&quot; oi_categoria=&quot;&quot; oi_ubicacion=&quot;&quot; oi_estructura=&quot;&quot; escructura_childs=&quot;&quot; oi_afjp=&quot;&quot; &#13;&#10;&#9;&#9;&#9;&#9;oi_obra_social=&quot;&quot; oi_sindicato=&quot;&quot; supervisor=&quot;&quot; evaluador=&quot;&quot;&gt;&#13;&#10;&#9;&lt;PERSONAS&gt;&#13;&#10;    &lt;ROW VALUES=&quot;3&quot; /&gt;&#13;&#10;  &lt;/PERSONAS&gt;&#13;&#10;&lt;/FILTRO&gt;&#13;&#10;">
+		<qry:main doc="SOURCE">
+			<ROWS>
+				<qry:attribute name="timestamp" value="Now()"/>
+				<qry:insert-select name="SQL1" doc-path="#SOURCE:/FILTRO"/>
+			</ROWS>
+		</qry:main>
+		<qry:select doc="SOURCE" name="SQL1">
+			<qry:xquery>
+				for $r in SQL('
+			SELECT
+				E.oi_evaluacion as oi_evaluacion 
+			FROM
+				EDD03_EVALUACION as E
+			WHERE                  
+				E.oi_evento = {#SOURCE:@evento} AND  
+				E.oi_personal_emp in ({%=string(#SOURCE:PERSONAS/ROW/@VALUES) %}) 
+		')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:attribute name="pos" value="number(@pos)+1"/>
+				<qry:call>
+					<param>
+						<qry:attribute name="oi_evaluacion" value="$r/@oi_evaluacion"/>
+						<qry:attribute name="pos" value="../../@pos"/>
+					</param>
+				</qry:call>
+			</qry:out>
+		</qry:select>
+	</html:for-each>
+	<html:query declare="&lt;param oi_evaluacion=&quot;14&quot; /&gt;" name="qry_report">
+		<qry:main doc="SOURCE">
+			<REPORT>
+				<qry:attribute name="pos" value="#SOURCE:/param/@pos"/>
+				<qry:attribute name="ut" value="#PROXY:@token"/>
+				<qry:insert-select name="REPORT" doc-path="#SOURCE:/param"/>
+			</REPORT>
+		</qry:main>
+		<qry:select doc="SOURCE" name="REPORT">
+			<qry:xquery>
+				for $r in SQL('
+				SELECT           
+					EV.c_evento as EV_c_evento,
+					EV.d_evento as EV_d_evento,
+					EV.f_desde as EV_f_desde,
+					EV.f_desde as EV_f_hasta,
+					EV.f_cierre as EV_f_cierre,
+					EV.o_evento as EV_o_evento,
+					EV.d_cus1 as EV_a,
+					EV.d_cus2 as EV_d_cus2,
+					EV.d_cus3 as EV_d_cus3,
+					EV.d_cus4 as EV_d_cus4,
+					EV.d_cus5 as EV_d_cus5,
+					EV.oi_escala,
+					E.oi_evaluacion,
+					TE.c_tipo_eval,
+					TE.d_tipo_eval,
+					E.c_estado,
+					E.o_evaluado,
+					E.o_evaluador,
+					E.f_evaluacion,
+					E.n_resultado,
+					E.d_cus1,
+					E.d_cus2,
+					E.d_cus3,
+					E.d_cus4,
+					E.d_cus5,
+					
+					LE.codemp as E_codemp,
+					LE.empresa as E_empresa,
+					LE.fingreso as E_fingreso,
+					LE.foto as E_foto,
+					LE.legajo as E_legajo,
+					LE.nombre as E_nombre,
+					LU.d_unidad_org as E_unidad,
+					LP.d_posicion as E_posicion,    
+					
+					EE.codemp as J_codemp,
+					EE.empresa as J_empresa,
+					EE.fingreso as J_fingreso,
+					EE.legajo as J_legajo,
+					EE.nombre as J_nombre,
+					EU.d_unidad_org as J_unidad,
+					EP.d_posicion as J_posicion,    
+					
+					SE.codemp as S_codemp,
+					SE.empresa as S_empresa,
+					SE.fingreso as S_fingreso,
+					SE.legajo as S_legajo,
+					SE.nombre as S_nombre,
+					SU.d_unidad_org as S_unidad,
+					SP.d_posicion as S_posicion
+
+				FROM             
+					EDD02_EVENTOS as EV,
+					EDD03_EVALUACION as E,   
+					EDD01_TIPOS_EVAL as TE,
+					ORG01_UNI_ORG as LU,
+					ORG01_UNI_ORG as EU,
+					ORG01_UNI_ORG as SU,    
+					
+					ORG04_POSICIONES as LP,
+					ORG04_POSICIONES as EP,
+					ORG04_POSICIONES as SP,
+
+					(select
+						L1.oi_empresa      as oi_empresa,
+						E1.c_empresa       as codemp,
+						E1.d_empresa       as empresa,
+						L1.oi_personal_emp as oi_personal_emp,
+						L1.f_ingreso       as fingreso,
+						L1.e_numero_legajo as legajo,
+						H1.d_ape_y_nom     as nombre,
+						H1.oi_foto         as foto
+					from
+						PER02_PERSONAL_EMP as L1,
+						ORG03_EMPRESAS     as E1,
+						PER01_PERSONAL     as H1
+					join
+						E1.oi_empresa inner L1.oi_empresa,
+						L1.oi_personal inner H1.oi_personal) as LE,
+					
+					(select
+						L1.oi_empresa      as oi_empresa,
+						E1.c_empresa       as codemp,
+						E1.d_empresa       as empresa,
+						L1.oi_personal_emp as oi_personal_emp,
+						L1.f_ingreso       as fingreso,
+						L1.e_numero_legajo as legajo,
+						H1.d_ape_y_nom     as nombre,
+						H1.oi_foto         as foto
+					from
+						PER02_PERSONAL_EMP as L1,
+						ORG03_EMPRESAS     as E1,
+						PER01_PERSONAL     as H1
+					join
+						E1.oi_empresa inner L1.oi_empresa,
+						L1.oi_personal inner H1.oi_personal) as EE,
+
+					(select
+						L1.oi_empresa      as oi_empresa,
+						E1.c_empresa       as codemp,
+						E1.d_empresa       as empresa,
+						L1.oi_personal_emp as oi_personal_emp,
+						L1.f_ingreso       as fingreso,
+						L1.e_numero_legajo as legajo,
+						H1.d_ape_y_nom     as nombre,
+						H1.oi_foto         as foto
+					from
+						PER02_PERSONAL_EMP as L1,
+						ORG03_EMPRESAS     as E1,
+						PER01_PERSONAL     as H1
+					join
+						E1.oi_empresa inner L1.oi_empresa,
+						L1.oi_personal inner H1.oi_personal) as SE
+
+				join
+					EV.oi_evento inner E.oi_evento,
+					E.oi_personal_emp inner LE.oi_personal_emp,
+					E.oi_evaluador inner EE.oi_personal_emp,
+					E.oi_supervisor left outer SE.oi_personal_emp,
+					E.oi_uni_evaluado left outer LU.oi_unidad_org,
+					E.oi_uni_evaluador left outer EU.oi_unidad_org,
+					E.oi_uni_supervisor left outer SU.oi_unidad_org,
+					E.oi_pos_evaluado left outer LP.oi_posicion,
+					E.oi_pos_evaluador left outer EP.oi_posicion,
+					E.oi_pos_supervisor left outer SP.oi_posicion,
+          EV.oi_tipo_eval inner TE.oi_tipo_eval
+				WHERE            
+					E.oi_evaluacion={#SOURCE:@oi_evaluacion}
+			')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:attribute name="EV_c_evento" value="$r/@EV_c_evento"/>
+				<qry:attribute name="EV_d_evento" value="$r/@EV_d_evento"/>
+				<qry:attribute value="format_date($r/@EV_f_desde,'dd/mm/yyyy')" name="EV_f_desde"/>
+				<qry:attribute value="format_date($r/@EV_f_hasta,'dd/mm/yyyy')" name="EV_f_hasta"/>
+				<qry:attribute value="format_date($r/@EV_f_cierre,'dd/mm/yyyy')" name="EV_f_cierre"/>
+				<qry:attribute name="EV_o_evento" value="$r/@EV_o_evento"/>
+				<qry:attribute name="EV_d_cus1" value="$r/@EV_d_cus1"/>
+				<qry:attribute name="EV_d_cus2" value="$r/@EV_d_cus2"/>
+				<qry:attribute name="EV_d_cus3" value="$r/@EV_d_cus3"/>
+				<qry:attribute name="EV_d_cus4" value="$r/@EV_d_cus4"/>
+				<qry:attribute name="EV_d_cus5" value="$r/@EV_d_cus5"/>
+				<qry:attribute name="oi_evaluacion" value="$r/@oi_evaluacion"/>
+				<qry:attribute value="format_date($r/@E_ingreso,'dd/mm/yyyy')" name="E_ingreso"/>
+				<qry:attribute name="E_foto" value="$r/@E_foto"/>
+				<qry:attribute name="E_text" value="iif($r/@E_nombre='','','['+$r/@E_codemp+'-'+$r/@E_legajo+'] '+$r/@E_nombre+' ('+$r/@E_empresa+')')"/>
+				<qry:attribute name="E_unidad" value="$r/@E_unidad"/>
+				<qry:attribute name="E_posicion" value="$r/@E_posicion"/>
+				<qry:attribute name="J_text" value="iif($r/@J_nombre='','','['+$r/@J_codemp+'-'+$r/@J_legajo+'] '+$r/@J_nombre+' ('+$r/@J_empresa+')')"/>
+				<qry:attribute name="J_unidad" value="$r/@J_unidad"/>
+				<qry:attribute name="J_posicion" value="$r/@J_posicion"/>
+				<qry:attribute name="S_text" value="iif($r/@S_nombre='','','['+$r/@S_codemp+'-'+$r/@S_legajo+'] '+$r/@S_nombre+' ('+$r/@S_empresa+')')"/>
+				<qry:attribute name="S_unidad" value="$r/@S_unidad"/>
+				<qry:attribute name="S_posicion" value="$r/@S_posicion"/>
+				<qry:switch test="$r/@c_estado">
+					<qry:case value="AB">
+						<qry:attribute name="c_estado" value="'Abierta'"/>
+					</qry:case>
+					<qry:case value="HA">
+						<qry:attribute name="c_estado" value="'Habilitada'"/>
+					</qry:case>
+					<qry:case value="EV">
+						<qry:attribute name="c_estado" value="'Evaluada'"/>
+					</qry:case>
+					<qry:case value="CO">
+						<qry:attribute name="c_estado" value="'Confirmada'"/>
+					</qry:case>
+					<qry:case value="AP">
+						<qry:attribute name="c_estado" value="'Aprobada'"/>
+					</qry:case>
+					<qry:case value="RZ">
+						<qry:attribute name="c_estado" value="'Rechazada'"/>
+					</qry:case>
+					<qry:case value="AN">
+						<qry:attribute name="c_estado" value="'Anulada'"/>
+					</qry:case>
+					<qry:default>
+						<qry:attribute name="c_estado" value="'Cerrada'"/>
+					</qry:default>
+				</qry:switch>
+				<qry:attribute name="o_evaluado" value="$r/@o_evaluado"/>
+				<qry:attribute name="o_evaluador" value="$r/@o_evaluador"/>
+				<qry:attribute value="format_date($r/@f_evaluacion,'dd/mm/yyyy')" name="f_evaluacion"/>
+				<qry:attribute name="n_resultado" value="$r/@n_resultado"/>
+				<qry:attribute name="d_cus1" value="$r/@d_cus1"/>
+				<qry:attribute name="d_cus2" value="$r/@d_cus2"/>
+				<qry:attribute name="d_cus3" value="$r/@d_cus3"/>
+				<qry:attribute name="d_cus4" value="$r/@d_cus4"/>
+				<qry:attribute name="d_cus5" value="$r/@d_cus5"/>
+				<qry:attribute name="c_tipo_eval" value="$r/@c_tipo_eval"/>
+				<qry:attribute name="d_tipo_eval" value="$r/@d_tipo_eval"/>
+				<qry:attribute name="empresa" value="$r/@J_empresa"/>
+				<qry:attribute name="EM_c_empresa" value="$r/@EM_c_empresa"/>
+				<qry:attribute name="EM_d_empresa" value="$r/@EM_d_empresa"/>
+				<qry:attribute name="EM_oi_logotipo" value="$r/@EM_oi_logotipo"/>
+				<qry:insert-select name="ESCALA" doc-path="$r"/>
+				<qry:insert-select name="PLANTILLAS" doc-path="$r"/>
+			</qry:out>
+		</qry:select>
+		<qry:select name="PLANTILLAS" doc="SOURCE">
+			<qry:xquery>
+				for $r in SQL('
+select 
+	EVA.oi_plantilla,
+	EVA.n_ponderacion as EVA_n_ponderacion,
+	EVA.n_resultado as EVA_n_resultado,  
+	EVA.o_plantilla as EVA_o_plantilla,    
+	EVA.d_cus1 as EVA_d_cus1,
+	EVA.d_cus2 as EVA_d_cus2,
+	EVA.d_cus3 as EVA_d_cus3,
+	EVA.d_cus4 as EVA_d_cus4,
+	EVA.d_cus5 as EVA_d_cus5,
+	EVE.n_ponderacion as EVE_n_ponderacion,
+	EVE.oi_escala,
+	EVE.d_cus1 as EVE_d_cus1,
+	EVE.d_cus2 as EVE_d_cus2,
+	EVE.d_cus3 as EVE_d_cus3,
+	EVE.d_cus4 as EVE_d_cus4,
+	EVE.d_cus5 as EVE_d_cus5,
+	DEF.d_reporte as DEF_d_reporte,
+	DEF.c_plantilla as DEF_c_plantilla,
+	DEF.d_plantilla as DEF_d_plantilla,
+	DEF.o_plantilla as DEF_o_plantilla,
+	DEF.l_mostrar_res as DEF_l_mostrar_res,        
+	DEF.n_ponderacion as DEF_n_ponderacion,
+	DEF.d_cus1 as DEF_d_cus1,
+	DEF.d_cus2 as DEF_d_cus2,
+	DEF.d_cus3 as DEF_d_cus3,
+	DEF.d_cus4 as DEF_d_cus4,
+	DEF.d_cus5 as DEF_d_cus5,
+	DEF.e_orden
+from 
+	EDD03_PLANTILLAS as EVA,  
+	EDD02_PLANTILLAS as EVE,
+	EDD01_PLANTILLAS as DEF
+where
+	EVA.oi_plantilla_eve=EVE.oi_plantilla and
+	EVE.oi_plantilla_def=DEF.oi_plantilla and
+	EVA.oi_evaluacion={#SOURCE:@oi_evaluacion}
+order by         
+	e_orden asc, oi_plantilla asc 
+
+')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:attribute name="MAXVALUE" value="number(@MAXVALUE)+iif($r/@DEF_l_mostrar_res='1',number($r/@EVA_n_ponderacion),0)"/>
+				<PLANTILLA>
+					<qry:attribute name="oi_plantilla" value="$r/@oi_plantilla"/>
+					<qry:attribute name="EVA_n_ponderacion" value="$r/@EVA_n_ponderacion"/>
+					<qry:attribute name="EVA_o_plantilla" value="$r/@EVA_o_plantilla"/>
+					<qry:attribute name="EVA_n_resultado" value="$r/@EVA_n_resultado"/>
+					<qry:attribute name="EVA_d_cus1" value="$r/@EVA_d_cus1"/>
+					<qry:attribute name="EVA_d_cus2" value="$r/@EVA_d_cus2"/>
+					<qry:attribute name="EVA_d_cus3" value="$r/@EVA_d_cus3"/>
+					<qry:attribute name="EVA_d_cus4" value="$r/@EVA_d_cus4"/>
+					<qry:attribute name="EVA_d_cus5" value="$r/@EVA_d_cus5"/>
+					<qry:attribute name="EVE_n_ponderacion" value="$r/@EVE_n_ponderacion"/>
+					<qry:attribute name="EVE_o_plantilla" value="$r/@EVE_o_plantilla"/>
+					<qry:attribute name="EVE_d_cus1" value="$r/@EVE_d_cus1"/>
+					<qry:attribute name="EVE_d_cus2" value="$r/@EVE_d_cus2"/>
+					<qry:attribute name="EVE_d_cus3" value="$r/@EVE_d_cus3"/>
+					<qry:attribute name="EVE_d_cus4" value="$r/@EVE_d_cus4"/>
+					<qry:attribute name="EVE_d_cus5" value="$r/@EVE_d_cus5"/>
+					<qry:attribute name="DEF_d_reporte" value="$r/@DEF_d_reporte"/>
+					<qry:attribute name="DEF_c_plantilla" value="$r/@DEF_c_plantilla"/>
+					<qry:attribute name="DEF_o_plantilla" value="$r/@DEF_o_plantilla"/>
+					<qry:attribute name="DEF_d_plantilla" value="$r/@DEF_d_plantilla"/>
+					<qry:attribute name="DEF_n_ponderacion" value="$r/@DEF_n_ponderacion"/>
+					<qry:attribute name="DEF_l_mostrar_res" value="$r/@DEF_l_mostrar_res"/>
+					<qry:attribute name="DEF_d_cus1" value="$r/@DEF_d_cus1"/>
+					<qry:attribute name="DEF_d_cus2" value="$r/@DEF_d_cus2"/>
+					<qry:attribute name="DEF_d_cus3" value="$r/@DEF_d_cus3"/>
+					<qry:attribute name="DEF_d_cus4" value="$r/@DEF_d_cus4"/>
+					<qry:attribute name="DEF_d_cus5" value="$r/@DEF_d_cus5"/>
+					<qry:insert-select name="OBJETIVOS" doc-path="$r"/>
+					<qry:insert-select name="ESCALA" doc-path="$r"/>
+				</PLANTILLA>
+			</qry:out>
+		</qry:select>
+		<qry:select doc="SOURCE" name="OBJETIVOS">
+			<qry:xquery>
+				for $r in SQL('
+select
+	OBJ.oi_objetivo,
+	OBJ.c_objetivo,
+	OBJ.d_objetivo,
+	OBJ.oi_escala,
+	OBJ.n_ponderacion,
+	OBJ.n_resultado,
+	OBJ.o_objetivo,
+	OBJ.d_cus1,
+	OBJ.d_cus2,
+	OBJ.d_cus3,
+	OBJ.d_cus4,
+	OBJ.d_cus5
+from
+	EDD03_OBJETIVOS as OBJ
+where
+	OBJ.oi_plantilla={#SOURCE:@oi_plantilla}
+order by
+	oi_objetivo ASC
+')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<ITEM>
+					<qry:attribute name="oi_objetivo" value="$r/@oi_objetivo"/>
+					<qry:attribute name="c_objetivo" value="$r/@c_objetivo"/>
+					<qry:attribute name="d_objetivo" value="$r/@d_objetivo"/>
+					<qry:attribute name="oi_escala" value="$r/@oi_escala"/>
+					<qry:attribute value="iif($r/@n_ponderacion='',1,$r/@n_ponderacion)" name="n_ponderacion"/>
+					<qry:attribute name="n_resultado" value="$r/@n_resultado"/>
+					<qry:attribute name="o_objetivo" value="$r/@o_objetivo"/>
+					<qry:attribute name="d_cus1" value="$r/@d_cus1"/>
+					<qry:attribute name="d_cus2" value="$r/@d_cus2"/>
+					<qry:attribute name="d_cus3" value="$r/@d_cus3"/>
+					<qry:attribute name="d_cus4" value="$r/@d_cus4"/>
+					<qry:attribute name="d_cus5" value="$r/@d_cus5"/>
+					<qry:insert-select name="SUBOBJETIVOS" doc-path="$r"/>
+					<qry:insert-select name="ESCALA" doc-path="$r"/>
+				</ITEM>
+			</qry:out>
+		</qry:select>
+		<qry:select doc="SOURCE" name="SUBOBJETIVOS">
+			<qry:xquery>
+				for $r in SQL('
+select
+	SUB.oi_subobjetivo,
+	SUB.c_subobjetivo,
+	SUB.d_subobjetivo,
+	SUB.o_subobjetivo,
+	SUB.oi_escala,
+	SUB.n_ponderacion,
+	SUB.d_cus1,
+	SUB.d_cus2,
+	SUB.d_cus3,
+	SUB.d_cus4,
+	SUB.d_cus5
+from
+	EDD03_SUBOBJETIVOS as SUB
+where
+	SUB.oi_objetivo={#SOURCE:@oi_objetivo}
+order by
+	oi_subobjetivo ASC
+')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<SUBITEM>
+					<qry:attribute name="oi_subobjetivo" value="$r/@oi_subobjetivo"/>
+					<qry:attribute name="c_subobjetivo" value="$r/@c_subobjetivo"/>
+					<qry:attribute name="d_subobjetivo" value="$r/@d_subobjetivo"/>
+					<qry:attribute name="o_subobjetivo" value="$r/@o_subobjetivo"/>
+					<qry:attribute name="oi_escala" value="$r/@oi_escala"/>
+					<qry:attribute name="n_ponderacion" value="$r/@n_ponderacion"/>
+					<qry:attribute name="d_cus1" value="$r/@d_cus1"/>
+					<qry:attribute name="d_cus2" value="$r/@d_cus2"/>
+					<qry:attribute name="d_cus3" value="$r/@d_cus3"/>
+					<qry:attribute name="d_cus4" value="$r/@d_cus4"/>
+					<qry:attribute name="d_cus5" value="$r/@d_cus5"/>
+					<qry:insert-select name="ESCALA" doc-path="$r"/>
+				</SUBITEM>
+			</qry:out>
+		</qry:select>
+		<qry:select name="ESCALA" doc="SOURCE">
+			<qry:out>
+				<qry:attribute name="ESC_min_val" value="0"/>
+				<qry:attribute name="ESC_max_val" value="0"/>
+				<qry:insert-select name="ESCALA_QRY" doc-path="#SOURCE:"/>
+			</qry:out>
+		</qry:select>
+		<qry:select name="ESCALA_QRY" doc="SOURCE">
+			<qry:xquery>
+				for $r in SQL('
+select 
+	ESC.oi_escala as oi_escala, 
+	ESC.c_escala as c_escala, 
+	ESC.d_escala as d_escala, 
+	min(VAL.n_val_desde) as ESC_min_val,
+	max(VAL.n_val_hasta) as ESC_max_val
+from 
+	org29_escalas as ESC,
+	org29_val_escalas as VAL
+where
+	ESC.oi_escala=VAL.oi_escala and
+	ESC.oi_escala={#SOURCE:@oi_escala}
+group by
+	ESC.oi_escala, ESC.c_escala, ESC.d_escala
+')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:attribute name="ESC_c_escala" value="$r/@c_escala"/>
+				<qry:attribute name="ESC_d_escala" value="$r/@d_escala"/>
+				<qry:attribute name="ESC_min_val" value="$r/@ESC_min_val"/>
+				<qry:attribute name="ESC_max_val" value="$r/@ESC_max_val"/>
+			</qry:out>
+		</qry:select>
+	</html:query>
+	<html:xslt>
+		<xsl:template match="ROWS">
+			<html>
+				<xsl:attribute name="nmd_timestamp">
+					<xsl:value-of select="@timestamp"/>
+				</xsl:attribute>
+				<head>
+					<style media="print">
+						BODY
+						{
+							background-color: #FFFFFF;
+							
+							font-size: 6pt;
+							font-family: Verdana;
+							color: #000000;
+						}
+						.CABECERA
+						{
+							border-collapse:collapse;
+							background-color: #FFFFFF;
+							
+							font-size: 8pt;
+							font-family: Verdana;
+							color: #000000;
+							
+							width:100%;
+							border:2pt solid black;
+						}
+						.CABECERA TH
+						{
+							font-weight: bold;
+							text-align:left;     
+							border:1pt solid black;
+						}
+						.CABECERA TD
+						{
+							font-weight: normal;
+							text-align:left;       
+							border:1pt solid black;
+						}
+						.CABECERA_TITLE
+						{
+							background-color: #FFFFFF;
+
+							font-size: 10pt;  
+							font-family: Verdana;
+							color: #000000;
+							text-align:center;
+							
+							width:100%;
+							border:2pt solid black;    
+							
+							padding-top:2pt;
+							padding-bottom:2pt;
+							
+						}
+						.PLANTILLA
+						{
+							border-collapse:collapse;
+							background-color: #FFFFFF;
+
+							font-size: 8pt;  
+							font-family: Verdana;
+							color: #000000;
+							text-align:left;
+							
+							width:100%;
+							border:2pt solid black;
+						}         
+						.FIRMA
+						{
+							height:40pt
+						}
+						.PLANTILLA_TITLE
+						{
+							background-color: #DDDDDD;
+
+							font-size: 8pt;  
+							text-align:center;
+							
+							border:1pt solid black;
+							padding-top:2pt;
+							padding-bottom:2pt;
+							padding-left:5pt;
+							padding-right:5pt;
+						}
+						.PLANTILLA_SUBTITLE
+						{
+							background-color: #DDDDDD;
+
+							font-size: 8pt;  
+							text-align:center;
+							
+							border:1pt solid black;
+							padding-top:2pt;
+							padding-bottom:2pt;
+							padding-left:5pt;
+							padding-right:5pt;
+						}
+						.PLANTILLA TD
+						{
+							text-align:center;
+							border:1pt solid black;
+							padding-left:5pt;
+							padding-right:5pt;
+						}
+						TEXTAREA
+						{
+							background-color: #FFFFFF;
+							
+							width:100%;
+							height:100%;
+
+							font-size: 8pt;  
+							font-family: Verdana;
+							color: #000000;    
+							
+							border:none;
+							overflow:hidden;
+							resize:vertical;
+						}
+						.SEPARACION
+						{
+							background-color: #808080;
+
+							font-size: 8pt;  
+							font-family: Verdana;
+							color: #000000;
+							text-align:center;
+							
+							width:100%;
+							border-left:2pt solid black;
+							border-right:2pt solid black;
+						}         
+						.screen
+						{      
+							display:none;
+						}
+						.STARTS
+						{
+							table-layout:fixed;
+							font-size:10px;    
+							border-collapse:collapse;
+							padding:0px;
+							margin:0px;
+							
+							width:80px;
+							height:16px;
+							
+							background-image:url(./Images/Reports/estrellas_bn.gif);
+						}
+						.STARTS TD
+						{
+							border:none;
+							background-image:none;
+							padding:0px;
+						}
+						.STARTSROOT
+						{
+							table-layout:fixed;
+							font-size:10px;          
+							border-collapse:collapse;
+							padding:0px;
+							margin:0px;
+							
+							width:120px;
+							height:16px;
+						}
+						.STARTSROOT TD
+						{
+							border:none;
+							padding:0px;  
+							text-align:right;
+						}
+					</style>
+					<style media="screen">
+						BODY
+						{
+							background-color: #FFFFFF;
+							
+							font-size: 10px;
+							font-family: Verdana;
+							color: #000000;
+						}
+						.CABECERA
+						{
+							border-collapse:collapse;
+							background-color: #FFFFFF;
+							
+							font-size: 10px;
+							font-family: Verdana;
+							color: #000000;
+							
+							width:100%;
+							border:2px solid black;
+						}
+						.CABECERA TH
+						{
+							font-weight: bold;
+							text-align:left;     
+							border:1px solid black;
+						}
+						.CABECERA TD
+						{
+							font-weight: normal;
+							text-align:left;       
+							border:1px solid black;
+						}
+						.CABECERA_TITLE
+						{
+							background-color: #FFFFFF;
+
+							font-size: 20px;  
+							font-family: Verdana;
+							color: #000000;
+							text-align:center;
+							
+							width:100%;
+							border:2px solid black;    
+							
+							padding-top:5px;
+							padding-bottom:5px;
+							
+						}
+						.PLANTILLA
+						{
+							border-collapse:collapse;
+							background-color: #FFFFFF;
+
+							font-size: 10px;  
+							font-family: Verdana;
+							color: #000000;
+							text-align:left;
+							
+							width:100%;
+							border:2px solid black;
+						}
+						.FIRMA
+						{
+							height:50px
+						}
+						.PLANTILLA_TITLE
+						{
+							background-color: #DDDDDD;
+
+							font-size: 12px;  
+							text-align:center;
+							
+							border:1px solid black;
+							padding-top:3px;
+							padding-bottom:3px;
+							padding-left:10px;
+							padding-right:10px;
+						}
+						.PLANTILLA_SUBTITLE
+						{
+							background-color: #DDDDDD;
+
+							font-size: 12px;  
+							text-align:center;
+							
+							border:1px solid black;
+							padding-top:3px;
+							padding-bottom:3px;
+							padding-left:10px;
+							padding-right:10px;
+						}
+						.PLANTILLA TD
+						{
+							text-align:center;
+							border:1px solid black;
+							padding-left:10px;
+							padding-right:10px;
+						}
+						TEXTAREA
+						{
+							background-color: #FFFFFF;
+							
+							width:100%;
+							height:100%;
+
+							font-size: 10px;  
+							font-family: Verdana;
+							color: #000000;    
+							
+							border:none;
+							overflow:hidden;
+							resize:vertical;
+						}
+						.SEPARACION
+						{
+							background-color: #808080;
+
+							font-size: 10px;  
+							font-family: Verdana;
+							color: #000000;
+							text-align:center;
+							
+							width:100%;
+							border-left:2px solid black;
+							border-right:2px solid black;
+						}        
+						.screen
+						{
+						}   
+						.STARTS
+						{
+							table-layout:fixed;
+							font-size:10px;    
+							border-collapse:collapse;
+							padding:0px;
+							margin:0px;
+							
+							width:80px;
+							height:16px;
+							
+							background-image:url(./Images/Reports/estrellas_bn.gif);
+						}
+						.STARTS TD
+						{
+							border:none;
+							background-image:none;
+							padding:0px;
+						}
+						.STARTSROOT
+						{
+							table-layout:fixed;
+							font-size:10px;          
+							border-collapse:collapse;
+							padding:0px;
+							margin:0px;
+							
+							width:120px;
+							height:16px;
+						}
+						.STARTSROOT TD
+						{
+							border:none;
+							padding:0px;  
+							text-align:right;
+						}   
+						td.x1
+						{
+							text-align:left;
+							font-family:verdana;
+							font-weight: normal;
+							font-size: 11px;
+							font-style: normal;
+							padding: 2px 2px 2px 2px;	 
+						}
+					</style>
+				</head>
+				<body>
+					<xsl:apply-templates select="REPORT"/>
+				</body>
+			</html>
+		</xsl:template>
+		<xsl:template match="REPORT">
+			<xsl:if test="@pos!='1'">
+				<p style="page-break-after:always;">
+					<br/>
+					<hr class="screen" style="border:1px dotted black;" noshade="true" color="#000000" size="1px" align="center"/>
+				</p>
+			</xsl:if>
+			<table class="CABECERA_TITLE" CELLPADDING="0" CELLSPACING="0">
+				<tr>
+					<th colspan="3">
+						CALIFICACION Y PLANIFICACION DE DESEMPE&#209;O
+					</th>
+				</tr>
+				<tr style="font-size:12px; text-align:left; font-family:Verdana">
+					<td class="x1">
+						<b>
+							<xsl:text>
+								Empresa-Evento:&#160;
+							</xsl:text>
+						</b>
+						<xsl:value-of select="concat( @empresa,' - ',@EV_d_evento)"/>
+						<br/>
+					</td>
+					<td class="x1">
+						<b>
+							Fecha Desde:&#160;
+						</b>
+						<xsl:value-of select="@EV_f_desde"/>
+					</td>
+				</tr>
+				<tr style="font-size:12px; text-align:left; font-family:Verdana">
+					<td class="x1">
+						<b>
+							Tipo Evaluaci&#243;n:&#160;
+						</b>
+						<xsl:value-of select="concat( @c_tipo_eval,' - ',@d_tipo_eval)"/>
+						<br/>
+					</td>
+					<td class="x1">
+						<b>
+							Fecha Hasta:&#160;
+						</b>
+						<xsl:value-of select="@EV_f_hasta"/>
+					</td>
+				</tr>
+				<tr style="font-size:12px; text-align:left; font-family:Verdana">
+					<td class="x1">
+						<b>
+							Estado Evaluaci&#243;n:&#160;
+						</b>
+						<xsl:value-of select="@c_estado"/>
+						<br/>
+					</td>
+					<td class="x1">
+						<b>
+							Fecha Cierre:&#160;
+						</b>
+						<xsl:value-of select="@EV_f_cierre"/>
+						<br/>
+					</td>
+				</tr>
+			</table>
+			<xsl:call-template name="SEPARATOR"/>
+			<table class="CABECERA" CELLPADDING="0" CELLSPACING="0">
+				<col width="20%"/>
+				<col/>
+				<col width="100px">
+					<xsl:if test="not(@E_foto)">
+						<xsl:attribute name="style">
+							display:none;
+						</xsl:attribute>
+					</xsl:if>
+				</col>
+				<tr>
+					<th>
+						Apellido y Nombre
+					</th>
+					<td>
+						<xsl:value-of select="@E_text"/>
+					</td>
+					<td rowspan="6" align="center" valign="MIDDLE">
+						<img width="80px">
+							<xsl:attribute name="src">
+								<xsl:value-of select="concat('./NomadFile.aspx?ut=',@ut,'&amp;mode=DB&amp;class=NucleusRH.Base.Personal.Imagenes.HEAD&amp;id=',@E_foto,'&amp;width=80')"/>
+							</xsl:attribute>
+						</img>
+					</td>
+				</tr>
+				<xsl:if test="@E_posicion">
+					<tr>
+						<th>
+							Puesto
+						</th>
+						<td>
+							<xsl:value-of select="@E_posicion"/>
+						</td>
+					</tr>
+				</xsl:if>
+				<xsl:if test="@E_unidad">
+					<tr>
+						<th>
+							Unidad Organizativa
+						</th>
+						<td>
+							<xsl:value-of select="@E_unidad"/>
+						</td>
+					</tr>
+				</xsl:if>
+				<tr>
+					<th>
+						Evaluador
+					</th>
+					<td>
+						<xsl:value-of select="@J_text"/>
+					</td>
+				</tr>
+				<xsl:if test="@J_posicion">
+					<tr>
+						<th>
+							Puesto
+						</th>
+						<td>
+							<xsl:value-of select="@J_posicion"/>
+						</td>
+					</tr>
+				</xsl:if>
+				<xsl:if test="@J_unidad">
+					<tr>
+						<th>
+							Unidad Organizativa
+						</th>
+						<td>
+							<xsl:value-of select="@J_unidad"/>
+						</td>
+					</tr>
+				</xsl:if>
+				<xsl:if test="@S_text">
+					<tr>
+						<th>
+							Supervisor
+						</th>
+						<td>
+							<xsl:value-of select="@S_text"/>
+						</td>
+					</tr>
+					<xsl:if test="@S_posicion">
+						<tr>
+							<th>
+								Puesto
+							</th>
+							<td>
+								<xsl:value-of select="@S_posicion"/>
+							</td>
+						</tr>
+					</xsl:if>
+					<xsl:if test="@S_unidad">
+						<tr>
+							<th>
+								Unidad Organizativa
+							</th>
+							<td>
+								<xsl:value-of select="@S_unidad"/>
+							</td>
+						</tr>
+					</xsl:if>
+				</xsl:if>
+			</table>
+			<xsl:apply-templates select="PLANTILLA"/>
+		</xsl:template>
+		<xsl:template match="PLANTILLA[@DEF_d_reporte='ITEM_ESC_FIJA' or @DEF_d_reporte='ITEM_ESC_FIJA_EDIT']">
+			<xsl:call-template name="SEPARATOR"/>
+			<xsl:variable name="PLANTILLA" select="."/>
+			<table class="PLANTILLA" CELLPADDING="0" CELLSPACING="0">
+				<COL/>
+				<COL width="150px"/>
+				<tr>
+					<th class="PLANTILLA_TITLE" colspan="2">
+						<xsl:value-of select="@DEF_d_plantilla"/>
+					</th>
+				</tr>
+				<xsl:for-each select="ITEM">
+					<tr>
+						<td style="text-align:left;">
+							<xsl:value-of select="@d_objetivo"/>
+						</td>
+						<td>
+							<xsl:call-template name="START-ITEMS">
+								<xsl:with-param name="VAL" select="round(100 * @n_resultado div ../@ESC_max_val)"/>
+							</xsl:call-template>
+						</td>
+					</tr>
+				</xsl:for-each>
+				<tr>
+					<th class="PLANTILLA_SUBTITLE" style="text-align:left;">
+						<xsl:if test="@DEF_d_cus1">
+							<xsl:value-of select="@DEF_d_cus1"/>
+						</xsl:if>
+						<xsl:if test="not(@DEF_d_cus1)">
+							Resultado
+						</xsl:if>
+						:
+					</th>
+					<th class="PLANTILLA_SUBTITLE">
+						<xsl:call-template name="START-PLANTILLAS">
+							<xsl:with-param name="VAL" select="round(100 * @EVA_n_resultado div @ESC_max_val)"/>
+						</xsl:call-template>
+					</th>
+				</tr>
+			</table>
+		</xsl:template>
+		<xsl:template match="PLANTILLA[@DEF_d_reporte='ITEM_ESC_FIJA_COMENT' or @DEF_d_reporte='ITEM_ESC_FIJA_EDIT_COMENT']">
+			<xsl:call-template name="SEPARATOR"/>
+			<xsl:variable name="PLANTILLA" select="."/>
+			<table class="PLANTILLA" CELLPADDING="0" CELLSPACING="0">
+				<COL/>
+				<COL width="150px"/>
+				<tr>
+					<th class="PLANTILLA_TITLE" colspan="2">
+						<xsl:value-of select="@DEF_d_plantilla"/>
+					</th>
+				</tr>
+				<xsl:for-each select="ITEM">
+					<tr>
+						<td style="text-align:left;">
+							<xsl:value-of select="@d_objetivo"/>
+						</td>
+						<td>
+							<xsl:call-template name="START-ITEMS">
+								<xsl:with-param name="VAL" select="round(100 * @n_resultado div ../@ESC_max_val)"/>
+							</xsl:call-template>
+						</td>
+					</tr>
+				</xsl:for-each>
+				<tr>
+					<th class="PLANTILLA_SUBTITLE" style="text-align:left;">
+						<xsl:if test="@DEF_d_cus1">
+							<xsl:value-of select="@DEF_d_cus1"/>
+						</xsl:if>
+						<xsl:if test="not(@DEF_d_cus1)">
+							Resultado
+						</xsl:if>
+						:
+					</th>
+					<th class="PLANTILLA_SUBTITLE">
+						<xsl:call-template name="START-PLANTILLAS">
+							<xsl:with-param name="VAL" select="round(100 * @EVA_n_resultado div @ESC_max_val)"/>
+						</xsl:call-template>
+					</th>
+				</tr>
+				<tr>
+					<td colspan="2">
+						<textarea readonly="1">
+							<xsl:if test="not(@EVA_o_plantilla)">
+								&#160;
+							</xsl:if>
+							<xsl:value-of select="@EVA_o_plantilla"/>
+						</textarea>
+					</td>
+				</tr>
+			</table>
+		</xsl:template>
+		<xsl:template match="PLANTILLA[@DEF_d_reporte='ITEM_NOESCALA_EDIT']">
+			<xsl:call-template name="SEPARATOR"/>
+			<xsl:variable name="PLANTILLA" select="."/>
+			<table class="PLANTILLA" CELLPADDING="0" CELLSPACING="0">
+				<COL width="20%">
+					<xsl:if test="not(@DEF_d_cus1)">
+						<xsl:attribute name="style">
+							display:none;
+						</xsl:attribute>
+					</xsl:if>
+				</COL>
+				<COL width="20%">
+					<xsl:if test="not(@DEF_d_cus2)">
+						<xsl:attribute name="style">
+							display:none;
+						</xsl:attribute>
+					</xsl:if>
+				</COL>
+				<COL width="20%">
+					<xsl:if test="not(@DEF_d_cus3)">
+						<xsl:attribute name="style">
+							display:none;
+						</xsl:attribute>
+					</xsl:if>
+				</COL>
+				<COL width="20%">
+					<xsl:if test="not(@DEF_d_cus4)">
+						<xsl:attribute name="style">
+							display:none;
+						</xsl:attribute>
+					</xsl:if>
+				</COL>
+				<COL width="20%">
+					<xsl:if test="not(@DEF_d_cus5)">
+						<xsl:attribute name="style">
+							display:none;
+						</xsl:attribute>
+					</xsl:if>
+				</COL>
+				<tr>
+					<th class="PLANTILLA_TITLE" colspan="5">
+						<xsl:value-of select="@DEF_d_plantilla"/>
+					</th>
+				</tr>
+				<tr>
+					<th class="PLANTILLA_SUBTITLE">
+						<xsl:value-of select="@DEF_d_cus1"/>
+					</th>
+					<th class="PLANTILLA_SUBTITLE">
+						<xsl:value-of select="@DEF_d_cus2"/>
+					</th>
+					<th class="PLANTILLA_SUBTITLE">
+						<xsl:value-of select="@DEF_d_cus3"/>
+					</th>
+					<th class="PLANTILLA_SUBTITLE">
+						<xsl:value-of select="@DEF_d_cus4"/>
+					</th>
+					<th class="PLANTILLA_SUBTITLE">
+						<xsl:value-of select="@DEF_d_cus5"/>
+					</th>
+				</tr>
+				<xsl:for-each select="ITEM">
+					<xsl:variable name="ITEM" select="."/>
+					<tr>
+						<td style="text-align:left;">
+							<textarea readonly="1">
+								<xsl:value-of select="@d_cus1"/>
+								&#160;
+							</textarea>
+						</td>
+						<td style="text-align:left;">
+							<textarea readonly="1">
+								<xsl:value-of select="@d_cus2"/>
+								&#160;
+							</textarea>
+						</td>
+						<td style="text-align:left;">
+							<textarea readonly="1">
+								<xsl:value-of select="@d_cus3"/>
+								&#160;
+							</textarea>
+						</td>
+						<td style="text-align:left;">
+							<textarea readonly="1">
+								<xsl:value-of select="@d_cus4"/>
+								&#160;
+							</textarea>
+						</td>
+						<td style="text-align:left;">
+							<textarea readonly="1">
+								<xsl:value-of select="@d_cus5"/>
+								&#160;
+							</textarea>
+						</td>
+					</tr>
+				</xsl:for-each>
+			</table>
+		</xsl:template>
+		<xsl:template match="PLANTILLA[@DEF_d_reporte='COMENT_EVALUADOR']">
+			<xsl:call-template name="SEPARATOR"/>
+			<table class="PLANTILLA" CELLPADDING="0" CELLSPACING="0">
+				<tr>
+					<th class="PLANTILLA_TITLE">
+						<xsl:value-of select="@DEF_d_plantilla"/>
+					</th>
+				</tr>
+				<tr>
+					<td>
+						<textarea readonly="1">
+							<xsl:value-of select="../@o_evaluador"/>
+							&#160;
+						</textarea>
+					</td>
+				</tr>
+			</table>
+		</xsl:template>
+		<xsl:template match="PLANTILLA[@DEF_d_reporte='COMENT_EVALUADO']">
+			<xsl:call-template name="SEPARATOR"/>
+			<table class="PLANTILLA" CELLPADDING="0" CELLSPACING="0">
+				<tr>
+					<th class="PLANTILLA_TITLE">
+						<xsl:value-of select="@DEF_d_plantilla"/>
+					</th>
+				</tr>
+				<tr>
+					<td>
+						<textarea readonly="1">
+							<xsl:value-of select="../@o_evaluado"/>
+							&#160;
+						</textarea>
+					</td>
+				</tr>
+			</table>
+		</xsl:template>
+		<xsl:template match="PLANTILLA[@DEF_d_reporte='RESUMEN']">
+			<xsl:call-template name="SEPARATOR"/>
+			<table class="PLANTILLA" CELLPADDING="0" CELLSPACING="0">
+				<COL/>
+				<COL width="20%"/>
+				<COL width="20%"/>
+				<COL width="20%"/>
+				<tr>
+					<th class="PLANTILLA_TITLE" colspan="4">
+						<xsl:value-of select="@DEF_d_plantilla"/>
+					</th>
+				</tr>
+				<tr>
+					<th class="PLANTILLA_SUBTITLE">
+						&#160;
+					</th>
+					<th class="PLANTILLA_SUBTITLE">
+						Cumplimiento
+					</th>
+					<th class="PLANTILLA_SUBTITLE">
+						Ponderacion
+					</th>
+					<th class="PLANTILLA_SUBTITLE">
+						Subtotal
+					</th>
+				</tr>
+				<xsl:for-each select="../PLANTILLA[@DEF_l_mostrar_res='1']">
+					<tr>
+						<th class="PLANTILLA_SUBTITLE" style="text-align:left;">
+							<xsl:value-of select="@DEF_d_plantilla"/>
+						</th>
+						<td>
+							<xsl:call-template name="START-PLANTILLAS">
+								<xsl:with-param name="VAL" select="round(100 * @EVA_n_resultado div @ESC_max_val)"/>
+							</xsl:call-template>
+						</td>
+						<td>
+							<xsl:call-template name="START-PLANTILLAS">
+								<xsl:with-param name="VAL" select="round(100*(@EVA_n_ponderacion div ../@MAXVALUE))"/>
+							</xsl:call-template>
+						</td>
+						<td>
+							<xsl:call-template name="START-PLANTILLAS">
+								<xsl:with-param name="VAL" select="round(100 * (@EVA_n_ponderacion div ../@MAXVALUE) * @EVA_n_resultado div @ESC_max_val)"/>
+							</xsl:call-template>
+						</td>
+					</tr>
+				</xsl:for-each>
+				<tr>
+					<th class="PLANTILLA_SUBTITLE" colspan="3" style="text-align:right;">
+						Total
+					</th>
+					<th class="PLANTILLA_SUBTITLE">
+						<xsl:call-template name="START-EVALUACION">
+							<xsl:with-param name="VAL" select="round(100 * ../@n_resultado div ../@ESC_max_val)"/>
+						</xsl:call-template>
+					</th>
+				</tr>
+				<tr>
+					<td colspan="4">
+						<textarea readonly="1">
+							<xsl:value-of select="../@o_evaluador"/>
+							&#160;
+						</textarea>
+					</td>
+				</tr>
+			</table>
+		</xsl:template>
+		<xsl:template name="SEPARATOR">
+			<table class="SEPARACION" CELLPADDING="0" CELLSPACING="0">
+				<tr>
+					<td>
+						&#160;
+					</td>
+				</tr>
+			</table>
+		</xsl:template>
+		<xsl:template name="START-ITEMS">
+			<xsl:param name="VAL"/>
+			<table class="STARTSROOT" CELLPADDING="0" CELLSPACING="0">
+				<col width="80px"/>
+				<col/>
+				<tr>
+					<td>
+						<table class="STARTS" CELLPADDING="0" CELLSPACING="0">
+							<tr>
+								<td style="background-image:url(./Images/Reports/estrellas.gif);">
+									<xsl:attribute name="width">
+										<xsl:value-of select="concat($VAL,'%')"/>
+									</xsl:attribute>
+									&#160;
+								</td>
+								<td>
+									&#160;
+								</td>
+							</tr>
+						</table>
+					</td>
+					<td>
+						<xsl:value-of select="concat($VAL,'%')"/>
+					</td>
+				</tr>
+			</table>
+		</xsl:template>
+		<xsl:template name="START-PLANTILLAS">
+			<xsl:param name="VAL"/>
+			<table class="STARTSROOT" CELLPADDING="0" CELLSPACING="0">
+				<col width="80px"/>
+				<col/>
+				<tr>
+					<td>
+						<table class="STARTS" CELLPADDING="0" CELLSPACING="0">
+							<tr>
+								<td style="background-image:url(./Images/Reports/estrellas.gif);">
+									<xsl:attribute name="width">
+										<xsl:value-of select="concat($VAL,'%')"/>
+									</xsl:attribute>
+									&#160;
+								</td>
+								<td>
+									&#160;
+								</td>
+							</tr>
+						</table>
+					</td>
+					<td>
+						<b>
+							<xsl:value-of select="concat($VAL,'%')"/>
+						</b>
+					</td>
+				</tr>
+			</table>
+		</xsl:template>
+		<xsl:template name="START-EVALUACION">
+			<xsl:param name="VAL"/>
+			<table class="STARTSROOT" CELLPADDING="0" CELLSPACING="0">
+				<col width="80px"/>
+				<col/>
+				<tr>
+					<td>
+						<table class="STARTS" CELLPADDING="0" CELLSPACING="0">
+							<tr>
+								<td style="background-image:url(./Images/Reports/estrellas.gif);">
+									<xsl:attribute name="width">
+										<xsl:value-of select="concat($VAL,'%')"/>
+									</xsl:attribute>
+									&#160;
+								</td>
+								<td>
+									&#160;
+								</td>
+							</tr>
+						</table>
+					</td>
+					<td style="font-size:120%;">
+						<b>
+							<xsl:value-of select="concat($VAL,'%')"/>
+						</b>
+					</td>
+				</tr>
+			</table>
+		</xsl:template>
+	</html:xslt>
+</html:html>

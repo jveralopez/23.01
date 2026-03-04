@@ -1,0 +1,702 @@
+<flow:flow xmlns:flow="nomad_engine.flow" xmlns:doc="nomad_engine.doc" xmlns:qry="nomad_engine.qry" default_action="initialize203" extends="Nomad.Base.flow" name="NucleusRH.Base.Liquidacion.Recibos.ReciboFO.flow">
+	<flow:info label="ReciboFO"/>
+	<flow:declare>
+		<doc:define name="FILTERDATA">
+			<FILTRO excluir="" oi_liquidacion="" periodo="" modelo="1">
+				<PERSONAS/>
+			</FILTRO>
+		</doc:define>
+		<doc:define name="PARAMETERS"/>
+		<qry:define declare="&lt;FILTRO oi_liquidacion=&quot;1502&quot;&gt;&lt;PERSONAS&gt;&lt;ROW VALUES=&quot;1&quot; /&gt;&lt;/PERSONAS&gt;&lt;/FILTRO&gt;" name="QRY_RECIBOS_LIQ">
+			<qry:main doc="SOURCE">
+				<qry:element name="FLAG">
+					<qry:append-doc name="FILTRO" doc-path="#SOURCE:FILTRO"/>
+					<qry:append-doc name="PUNTO" doc-path="."/>
+					<qry:attribute value="'0'" name="flag"/>
+					<qry:attribute value="iif(#SOURCE:FILTRO/@chkOcultarLeyenda!='',#SOURCE:FILTRO/@chkOcultarLeyenda,0)" name="chkOcultarLeyenda"/>
+					<qry:attribute value="iif(#SOURCE:FILTRO/@chkInvertir!='',#SOURCE:FILTRO/@chkInvertir,0)" name="chkInvertir"/>
+					<qry:attribute value="iif(#SOURCE:FILTRO/@periodo!='',1,0)" name="chkPeriodo"/>
+					<qry:attribute-doc doc="FILTRO" name="liquidacion" value="iif(#FILTRO:@liquidacion = '' and #FILTRO:@oi_liquidacion != '',#FILTRO:@oi_liquidacion,#FILTRO:@liquidacion)"/>
+					<qry:insert-select name="QRY_EMPRESA" doc-path="#SOURCE:FILTRO"/>
+					<qry:element name="ROWS">
+						<qry:attribute name="flag" value="0"/>
+						<qry:attribute name="hts:delete" value="1"/>
+						<qry:insert-select doc-path="#FILTRO:" name="QRY_RECIBOS"/>
+					</qry:element>
+					<qry:element name="RECIBOS">
+						<qry:insert-select doc-path="../ROWS" name="QRY_ORDER"/>
+					</qry:element>
+					<qry:attribute name="flag" value="ROWS/@flag"/>
+				</qry:element>
+			</qry:main>
+			<qry:select name="QRY_EMPRESA" doc="SOURCE">
+				<qry:xquery>
+					for $r in sql('
+SELECT 
+LIQ19_LIQUIDACION.oi_empresa,
+ORG03_EMPRESAS.c_empresa
+FROM
+LIQ19_LIQUIDACION, ORG03_EMPRESAS
+JOIN
+LIQ19_LIQUIDACION.oi_empresa INNER ORG03_EMPRESAS.oi_empresa
+WHERE
+LIQ19_LIQUIDACION.oi_liquidacion = {#SOURCE:@liquidacion}
+')ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:attribute value="$r/@oi_empresa" name="oi_empresa"/>
+					<qry:attribute value="$r/@c_empresa" name="c_empresa"/>
+				</qry:out>
+			</qry:select>
+			<qry:select name="QRY_RECIBOS" doc="SOURCE">
+				<qry:xquery>
+					for $r in sql('			
+
+SELECT
+{%? (#FILTRO:@orden1!=''){% {%=#FILTRO:@orden1 %} as orden1,%}{% %} %}
+{%? (#FILTRO:@orden2!=''){% {%=#FILTRO:@orden2 %} as orden2,%}{% %} %}
+LIQ20_TOT_LIQ_PER.oi_tot_liq_per, 
+LIQ99_RECIBOS.e_numero_legajo,
+LIQ99_RECIBOS.e_numero_legajo AS LEG,
+LIQ19_LIQUIDACION.oi_tipo_liq AS TIPO,        
+PER02_PERSONAL_EMP.oi_personal_emp
+FROM
+ORG03_EMPRESAS,
+LIQ19_LIQUIDACION,
+LIQ99_LIQUIDACION,
+LIQ99_RECIBOS, 
+LIQ20_TOT_LIQ_PER,
+LIQ25_PERSONAL_LIQ,
+PER02_PERSONAL_EMP,
+LIQ97_PERSONAL_EMP,
+ORG03_UBICACIONES(ORG03_UBICACIONES.oi_empresa = {%=$PUNTO/@oi_empresa%})
+JOIN	
+ORG03_EMPRESAS.oi_empresa INNER LIQ19_LIQUIDACION.oi_empresa,
+ORG03_EMPRESAS.oi_empresa INNER PER02_PERSONAL_EMP.oi_empresa,
+LIQ19_LIQUIDACION.c_liquidacion INNER LIQ99_LIQUIDACION.c_liquidacion,
+ORG03_EMPRESAS.c_empresa INNER LIQ99_LIQUIDACION.c_empresa,
+LIQ99_LIQUIDACION.oi_liquidacion_ddo INNER LIQ99_RECIBOS.oi_liquidacion_ddo,
+LIQ99_RECIBOS.e_numero_legajo INNER PER02_PERSONAL_EMP.e_numero_legajo,
+LIQ99_RECIBOS.oi_tot_liq_per INNER LIQ20_TOT_LIQ_PER.oi_tot_liq_per,
+LIQ19_LIQUIDACION.oi_liquidacion INNER LIQ25_PERSONAL_LIQ.oi_liquidacion,
+PER02_PERSONAL_EMP.oi_personal_emp INNER LIQ25_PERSONAL_LIQ.oi_personal_emp,
+LIQ20_TOT_LIQ_PER.oi_per_emp_ddo INNER LIQ97_PERSONAL_EMP.oi_per_emp_ddo,
+LIQ97_PERSONAL_EMP.c_ubicacion LEFT OUTER ORG03_UBICACIONES.c_ubicacion
+WHERE 	
+LIQ99_LIQUIDACION.c_estado = \'F\'
+AND LIQ19_LIQUIDACION.oi_tipo_liq != 6
+{%? 
+(#FILTRO:@l_confidencial='0')
+{%  AND (LIQ19_LIQUIDACION.l_confidencial = {%=$FILTRO/@l_confidencial%} OR ISNULL(LIQ19_LIQUIDACION.l_confidencial))  %} 		
+{% %} 
+%}			
+{%? 
+(#FILTRO:@periodo!='') 
+{%  AND LIQ19_LIQUIDACION.e_periodo = {%=$FILTRO/@periodo%}  %} 
+{%? 
+(#FILTRO:@liquidacion!='')
+{%  AND LIQ19_LIQUIDACION.oi_liquidacion = {%=$FILTRO/@liquidacion%}  %} 		
+{% %} 
+%} 
+%}
+ORDER BY
+  {%? 
+(#FILTRO:@liquidacion!='')
+{% 
+{%? (#FILTRO:@orden1!='') {% orden1 ASC, %} {% %} %}
+{%? (#FILTRO:@orden2!='') {% orden2 ASC, %} {% %} %}
+%} 		
+{% %} 
+%}
+LEG ASC, TIPO asc
+')ROWS/ROW, $e in split('1;{%=#FILTRO:PERSONAS/ROW/@values %}')/ROWS/ROW
+join $r/@oi_personal_emp inner $e/@value
+				</qry:xquery>
+				<qry:out>
+					<qry:element name="RECIBO">
+						<qry:attribute value="$r/@oi_tot_liq_per" name="oi_tot_liq_per"/>
+						<qry:attribute value="$r/@e_numero_legajo" name="e_numero_legajo"/>
+						<qry:if test="#FILTRO:@liquidacion!=''">
+							<qry:then>
+								<qry:attribute value="iif($FILTRO/@orden1!='' AND $FILTRO/@orden1!='0', NMD_FILLRIGHT($r/@orden1, ' ', 50, 'L'), '')" name="order"/>
+								<qry:attribute value="@order + iif($FILTRO/@orden2!='' AND $FILTRO/@orden2!='0', NMD_FILLRIGHT($r/@orden2, ' ', 50, 'L'), '')" name="order"/>
+								<qry:attribute value="@order + NMD_FILLLEFT($r/@e_numero_legajo, '0', 10, 'R')" name="order"/>
+							</qry:then>
+						</qry:if>
+					</qry:element>
+					<qry:attribute value="'1'" name="flag"/>
+				</qry:out>
+			</qry:select>
+			<qry:select name="QRY_ORDER" doc="SOURCE">
+				<qry:xquery>
+					for $r in #SOURCE:RECIBO ORDERBY $r/@order ASC
+				</qry:xquery>
+				<qry:out>
+					<qry:insert-element doc-path="$r"/>
+				</qry:out>
+			</qry:select>
+		</qry:define>
+		<doc:define name="FILTERLIQ">
+			<FILTRO excluir="" oi_liquidacion="">
+				<LIQUIDACIONES/>
+			</FILTRO>
+		</doc:define>
+		<doc:define name="PARAMLIQS"/>
+		<qry:define declare="&lt;FILTRO oi_empresa=&quot;164&quot; legajo=&quot;15139&quot; excluir=&quot;&quot; oi_liquidacion=&quot;&quot; gcustom=&quot;&quot; periodo_desde=&quot;201201&quot; periodo_hasta=&quot;201601&quot; liqID=&quot;5482&quot; oi_personal_emp=&quot;1&quot;&gt;&#13;&#10;&#9;&lt;LIQUIDACIONES&gt;&lt;ROW VALUES=&quot;5482&quot; /&gt;&lt;/LIQUIDACIONES&gt;&#13;&#10;&lt;/FILTRO&gt;" name="QRY_PARAM_LIQ">
+			<qry:main doc="SOURCE">
+				<qry:element name="FLAG">
+					<qry:attribute value="1" name="flag"/>
+					<qry:attribute value="0" name="chkOcultarLeyenda"/>
+					<qry:attribute value="0" name="chkInvertir"/>
+					<qry:attribute name="oi_empresa" value="#SOURCE:FILTRO/@oi_empresa"/>
+					<qry:element name="RECIBOS">
+						<qry:element name="RECIBO">
+							<qry:attribute name="oi_tot_liq_per" value="#SOURCE:FILTRO/LIQUIDACIONES/ROW/@VALUES"/>
+							<qry:attribute name="e_numero_legajo" value="#SOURCE:FILTRO/@legajo"/>
+						</qry:element>
+					</qry:element>
+				</qry:element>
+			</qry:main>
+		</qry:define>
+		<qry:define name="QRY_LEGAJO">
+			<qry:main doc="SOURCE">
+				<qry:element name="PER">
+					<qry:attribute name="flag" value="'0'"/>
+					<qry:insert-select name="sql1" doc-path="."/>
+				</qry:element>
+			</qry:main>
+			<qry:select doc="SOURCE" name="sql1">
+				<qry:xquery>
+					for $r in SQL(' 
+		SELECT 
+			PER02_PERSONAL_EMP.oi_personal_emp,
+			PER02_PERSONAL_EMP.e_numero_legajo,
+			PER01_PERSONAL.oi_personal,
+			PER01_PERSONAL.d_ape_y_nom,
+			PER01_PERSONAL.oi_foto, 
+			ORG03_EMPRESAS.oi_empresa,
+			ORG03_EMPRESAS.d_empresa
+			
+		FROM
+			PER02_PERSONAL_EMP, 
+			PER01_PERSONAL,
+			ORG03_EMPRESAS
+		JOIN
+			PER02_PERSONAL_EMP.oi_personal INNER PER01_PERSONAL.oi_personal,
+			PER02_PERSONAL_EMP.oi_empresa INNER ORG03_EMPRESAS.oi_empresa
+		WHERE 
+			PER01_PERSONAL.oi_usuario_sistema = {#PROXY:@etty}
+			AND PER02_PERSONAL_EMP.oi_indic_activo=1   
+		
+	')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:attribute name="oi_personal_emp" value="$r/@oi_personal_emp"/>
+					<qry:attribute name="oi_personal" value="$r/@oi_personal"/>
+					<qry:attribute name="legajo" value="$r/@e_numero_legajo"/>
+					<qry:attribute name="nombre" value="$r/@d_ape_y_nom"/>
+					<qry:attribute name="empresa" value="$r/@d_empresa"/>
+					<qry:attribute name="oi_empresa" value="$r/@oi_empresa"/>
+					<qry:attribute name="image" value="$r/@oi_foto"/>
+					<qry:attribute name="flag" value="'1'"/>
+				</qry:out>
+			</qry:select>
+		</qry:define>
+		<doc:define name="LEGAJO"/>
+		<doc:define name="RECIBOS"/>
+		<qry:define declare="&lt;FILTRO excluir=&quot;&quot; oi_liquidacion=&quot;&quot; oi_personal_emp=&quot;11545&quot; periodo_liq=&quot;&quot; l_intervalo=&quot;&quot; periodo_desde=&quot;012008&quot; periodo_hasta=&quot;&quot; oi_empresa=&quot;&quot;&gt;&lt;LIQUIDACIONES /&gt;&lt;/FILTRO&gt;&#13;&#10;&#13;&#10;" name="FILTER">
+			<qry:main doc="SOURCE">
+				<qry:element name="ROWS">
+					<qry:append-doc name="PARAMIN" doc-path="#SOURCE:."/>
+					<qry:insert-select name="sql1" doc-path="#SOURCE:."/>
+				</qry:element>
+			</qry:main>
+			<qry:select name="sql1" doc="SOURCE">
+				<qry:xquery>
+					for $r in SQL('
+		SELECT 
+			LIQ20_TOT_LIQ_PER.oi_tot_liq_per, LIQ97_PERSONAL_EMP.e_numero_legajo, 
+			LIQ97_PERSONAL_EMP.d_ape_y_nom, LIQ19_EJECUCIONES.oi_ejecucion,
+			LIQ99_LIQUIDACION.c_liquidacion, LIQ99_LIQUIDACION.d_titulo,
+			LIQ20_TOT_LIQ_PER.f_cierre,LIQ20_TOT_LIQ_PER.n_totpag, LIQ99_LIQUIDACION.f_liquidacion,
+			PER02_PERSONAL_EMP.oi_personal_emp,LIQ25_PERSONAL_LIQ.oi_personal_liq,
+			LIQ99_LIQUIDACION.e_periodo, LIQ99_LIQUIDACION.f_pago, ORG03_EMPRESAS.oi_empresa,
+			ORG03_EMPRESAS.c_empresa, ORG03_EMPRESAS.d_empresa,LIQ19_EJECUCIONES.oi_liquidacion 
+		FROM
+			LIQ25_PERSONAL_LIQ, LIQ19_EJECUCIONES, LIQ99_LIQUIDACION,
+			LIQ99_RECIBOS, LIQ20_TOT_LIQ_PER, ORG03_EMPRESAS, 
+			LIQ97_PERSONAL_EMP, PER02_PERSONAL_EMP, LIQ19_LIQUIDACION
+		WHERE
+			LIQ19_LIQUIDACION.oi_liquidacion = LIQ19_EJECUCIONES.oi_liquidacion AND
+			LIQ25_PERSONAL_LIQ.oi_liquidacion = LIQ19_EJECUCIONES.oi_liquidacion AND
+			LIQ19_EJECUCIONES.oi_liquidacion_ddo = LIQ99_LIQUIDACION.oi_liquidacion_ddo AND
+			LIQ99_LIQUIDACION.oi_liquidacion_ddo = LIQ99_RECIBOS.oi_liquidacion_ddo AND
+			LIQ99_RECIBOS.oi_tot_liq_per = LIQ20_TOT_LIQ_PER.oi_tot_liq_per AND
+			LIQ20_TOT_LIQ_PER.oi_per_emp_ddo = LIQ97_PERSONAL_EMP.oi_per_emp_ddo AND
+			LIQ97_PERSONAL_EMP.e_numero_legajo = PER02_PERSONAL_EMP.e_numero_legajo AND
+			LIQ25_PERSONAL_LIQ.oi_personal_emp = PER02_PERSONAL_EMP.oi_personal_emp AND
+			LIQ97_PERSONAL_EMP.c_empresa = ORG03_EMPRESAS.c_empresa AND
+			LIQ99_LIQUIDACION.c_estado = \'F\' AND  
+			ISNOTNULL(LIQ20_TOT_LIQ_PER.f_cierre) AND  
+			LIQ19_LIQUIDACION.oi_tipo_liq != 6 AND
+			PER02_PERSONAL_EMP.oi_personal_emp = {#SOURCE:@oi_personal_emp}               
+			
+			{%? (string(#SOURCE:@periodo_liq)!='') {%  AND LIQ99_LIQUIDACION.e_periodo = {%=$SOURCE/@periodo_liq%}  %} {% %} %}
+			
+			{%? (string(#SOURCE:@periodo_desde)!='') {%  AND LIQ99_LIQUIDACION.e_periodo &gt;= {%=$SOURCE/@periodo_desde%}  %} {% %} %}
+			
+			{%? (string(#SOURCE:@periodo_hasta)!='') {%  AND LIQ99_LIQUIDACION.e_periodo &lt;= {%=$SOURCE/@periodo_hasta%}  %} {% %} %}
+			
+			{%? (string(#SOURCE:@periodo_desde)!='' and string(#SOURCE:@periodo_hasta)!='')  {%  
+						AND LIQ99_LIQUIDACION.e_periodo &lt;= {%=$SOURCE/@periodo_hasta%} 
+						AND LIQ99_LIQUIDACION.e_periodo &lt;= {%=$SOURCE/@periodo_hasta%}  
+			%} {% %} %}
+			
+		ORDER BY 
+			f_liquidacion DESC
+	')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:element name="ROW">
+						<qry:attribute name="id" value="$r/@oi_tot_liq_per"/>
+						<qry:attribute name="oi_tot_liq_per" value="$r/@oi_tot_liq_per"/>
+						<qry:attribute name="e_numero_legajo" value="$r/@e_numero_legajo"/>
+						<qry:attribute name="d_ape_y_nom" value="$r/@d_ape_y_nom"/>
+						<qry:attribute name="liquidacion" value="$r/@c_liquidacion + '-' + $r/@d_titulo"/>
+						<qry:attribute name="empresa" value="$r/@c_empresa + '-' + $r/@d_empresa"/>
+						<qry:attribute name="periodo" value="$r/@e_periodo +'01'"/>
+						<qry:attribute name="periodo_pago" value="$r/@f_pago"/>
+						<qry:attribute name="n_tot_pago" value="format_number($r/@n_totpag,'###,###,##0.00')"/>
+						<qry:attribute name="f_cierre" value="$r/@f_cierre"/>
+						<qry:attribute name="oi_personal_liq" value="$r/@oi_personal_liq"/>
+						<qry:attribute name="oi_personal_emp" value="$r/@oi_personal_emp"/>
+						<qry:attribute name="oi_empresa" value="$r/@oi_empresa"/>
+						<qry:attribute name="oi_liquidacion" value="$r/@oi_liquidacion"/>
+					</qry:element>
+				</qry:out>
+			</qry:select>
+		</qry:define>
+		<qry:define declare="&lt;FILTRO excluir=&quot;&quot; oi_liquidacion=&quot;&quot; oi_personal_emp=&quot;13544&quot; oi_personal_emp2=&quot;13544&quot; periodo_liq=&quot;&quot; l_intervalo=&quot;&quot; periodo_desde=&quot;&quot; periodo_hasta=&quot;&quot; oi_empresa=&quot;&quot;&gt;&lt;LIQUIDACIONES /&gt;&lt;/FILTRO&gt;" name="QRY_LEGAJO_PER">
+			<qry:main doc="SOURCE">
+				<qry:element name="PER">
+					<qry:insert-select name="sql1" doc-path="#SOURCE:."/>
+				</qry:element>
+			</qry:main>
+			<qry:select doc="SOURCE" name="sql1">
+				<qry:xquery>
+					for $r in SQL(' 
+		SELECT 
+			PER02_PERSONAL_EMP.oi_personal_emp,
+			PER02_PERSONAL_EMP.e_numero_legajo,
+			PER01_PERSONAL.oi_personal,
+			PER01_PERSONAL.d_ape_y_nom,
+			PER01_PERSONAL.oi_foto, 
+			ORG03_EMPRESAS.oi_empresa,
+			ORG03_EMPRESAS.d_empresa
+		FROM
+			PER02_PERSONAL_EMP, 
+			PER01_PERSONAL,
+			ORG03_EMPRESAS
+		JOIN
+			PER02_PERSONAL_EMP.oi_personal INNER PER01_PERSONAL.oi_personal,
+			PER02_PERSONAL_EMP.oi_empresa INNER ORG03_EMPRESAS.oi_empresa
+		WHERE 
+			PER02_PERSONAL_EMP.oi_personal_emp = {#SOURCE:@oi_personal_emp2} 
+		
+	')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:attribute name="oi_personal_emp" value="$r/@oi_personal_emp"/>
+					<qry:attribute name="oi_personal" value="$r/@oi_personal"/>
+					<qry:attribute name="legajo" value="$r/@e_numero_legajo"/>
+					<qry:attribute name="nombre" value="$r/@d_ape_y_nom"/>
+					<qry:attribute name="empresa" value="$r/@d_empresa"/>
+					<qry:attribute name="oi_empresa" value="$r/@oi_empresa"/>
+					<qry:attribute name="image" value="$r/@oi_foto"/>
+					<qry:attribute name="flag" value="'1'"/>
+				</qry:out>
+			</qry:select>
+		</qry:define>
+		<doc:define name="RECIBOS_EMPTY"/>
+		<qry:define name="FILTER_TOP" declare="&lt;FILTRO excluir=&quot;&quot; oi_liquidacion=&quot;&quot; oi_personal_emp=&quot;11545&quot; periodo_liq=&quot;&quot; l_intervalo=&quot;&quot; periodo_desde=&quot;012008&quot; periodo_hasta=&quot;&quot; oi_empresa=&quot;&quot;&gt;&lt;LIQUIDACIONES /&gt;&lt;/FILTRO&gt;&#13;&#10;&#13;&#10;">
+			<qry:main doc="SOURCE">
+				<qry:element name="ROWS">
+					<qry:append-doc name="PARAMIN" doc-path="#SOURCE:."/>
+					<qry:insert-select name="sql1" doc-path="#SOURCE:."/>
+				</qry:element>
+			</qry:main>
+			<qry:select name="sql1" doc="SOURCE">
+				<qry:xquery>
+					for $r in SQL('
+		MAXSIZE 5
+		SELECT 
+			LIQ20_TOT_LIQ_PER.oi_tot_liq_per, LIQ97_PERSONAL_EMP.e_numero_legajo, 
+			LIQ97_PERSONAL_EMP.d_ape_y_nom, LIQ19_EJECUCIONES.oi_ejecucion,
+			LIQ99_LIQUIDACION.c_liquidacion, LIQ99_LIQUIDACION.d_titulo,
+			LIQ20_TOT_LIQ_PER.f_cierre,LIQ20_TOT_LIQ_PER.n_totpag, LIQ99_LIQUIDACION.f_liquidacion,
+			PER02_PERSONAL_EMP.oi_personal_emp,LIQ25_PERSONAL_LIQ.oi_personal_liq,
+			LIQ99_LIQUIDACION.e_periodo, LIQ99_LIQUIDACION.f_pago, ORG03_EMPRESAS.oi_empresa,
+			ORG03_EMPRESAS.c_empresa, ORG03_EMPRESAS.d_empresa,LIQ19_EJECUCIONES.oi_liquidacion 
+		FROM
+			LIQ25_PERSONAL_LIQ, LIQ19_EJECUCIONES, LIQ99_LIQUIDACION,
+			LIQ99_RECIBOS, LIQ20_TOT_LIQ_PER, ORG03_EMPRESAS, 
+			LIQ97_PERSONAL_EMP, PER02_PERSONAL_EMP, LIQ19_LIQUIDACION
+		WHERE
+			LIQ19_LIQUIDACION.oi_liquidacion = LIQ19_EJECUCIONES.oi_liquidacion AND
+			LIQ25_PERSONAL_LIQ.oi_liquidacion = LIQ19_EJECUCIONES.oi_liquidacion AND
+			LIQ19_EJECUCIONES.oi_liquidacion_ddo = LIQ99_LIQUIDACION.oi_liquidacion_ddo AND
+			LIQ99_LIQUIDACION.oi_liquidacion_ddo = LIQ99_RECIBOS.oi_liquidacion_ddo AND
+			LIQ99_RECIBOS.oi_tot_liq_per = LIQ20_TOT_LIQ_PER.oi_tot_liq_per AND
+			LIQ20_TOT_LIQ_PER.oi_per_emp_ddo = LIQ97_PERSONAL_EMP.oi_per_emp_ddo AND
+			LIQ97_PERSONAL_EMP.e_numero_legajo = PER02_PERSONAL_EMP.e_numero_legajo AND
+			LIQ25_PERSONAL_LIQ.oi_personal_emp = PER02_PERSONAL_EMP.oi_personal_emp AND
+			LIQ97_PERSONAL_EMP.c_empresa = ORG03_EMPRESAS.c_empresa AND
+			LIQ99_LIQUIDACION.c_estado = \'F\' AND  
+			ISNOTNULL(LIQ20_TOT_LIQ_PER.f_cierre) AND  
+			LIQ19_LIQUIDACION.oi_tipo_liq != 6 AND
+			PER02_PERSONAL_EMP.oi_personal_emp = {#SOURCE:@oi_personal_emp}               
+			
+			{%? (string(#SOURCE:@periodo_liq)!='') {%  AND LIQ99_LIQUIDACION.e_periodo = {%=$SOURCE/@periodo_liq%}  %} {% %} %}
+			
+			{%? (string(#SOURCE:@periodo_desde)!='') {%  AND LIQ99_LIQUIDACION.e_periodo &gt;= {%=$SOURCE/@periodo_desde%}  %} {% %} %}
+			
+			{%? (string(#SOURCE:@periodo_hasta)!='') {%  AND LIQ99_LIQUIDACION.e_periodo &lt;= {%=$SOURCE/@periodo_hasta%}  %} {% %} %}
+			
+			{%? (string(#SOURCE:@periodo_desde)!='' and string(#SOURCE:@periodo_hasta)!='')  {%  
+						AND LIQ99_LIQUIDACION.e_periodo &lt;= {%=$SOURCE/@periodo_hasta%} 
+						AND LIQ99_LIQUIDACION.e_periodo &lt;= {%=$SOURCE/@periodo_hasta%}  
+			%} {% %} %}
+			
+		ORDER BY 
+			f_liquidacion DESC
+	')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:element name="ROW">
+						<qry:attribute name="id" value="$r/@oi_tot_liq_per"/>
+						<qry:attribute name="oi_tot_liq_per" value="$r/@oi_tot_liq_per"/>
+						<qry:attribute name="e_numero_legajo" value="$r/@e_numero_legajo"/>
+						<qry:attribute name="d_ape_y_nom" value="$r/@d_ape_y_nom"/>
+						<qry:attribute name="liquidacion" value="$r/@c_liquidacion + '-' + $r/@d_titulo"/>
+						<qry:attribute name="empresa" value="$r/@c_empresa + '-' + $r/@d_empresa"/>
+						<qry:attribute name="periodo" value="$r/@e_periodo +'01'"/>
+						<qry:attribute name="periodo_pago" value="$r/@f_pago"/>
+						<qry:attribute name="n_tot_pago" value="format_number($r/@n_totpag,'###,###,##0.00')"/>
+						<qry:attribute name="f_cierre" value="$r/@f_cierre"/>
+						<qry:attribute name="oi_personal_liq" value="$r/@oi_personal_liq"/>
+						<qry:attribute name="oi_personal_emp" value="$r/@oi_personal_emp"/>
+						<qry:attribute name="oi_empresa" value="$r/@oi_empresa"/>
+						<qry:attribute name="oi_liquidacion" value="$r/@oi_liquidacion"/>
+					</qry:element>
+				</qry:out>
+			</qry:select>
+		</qry:define>
+		<qry:define declare="&lt;FILTRO  modelo_defecto=&quot;10&quot; excluir=&quot;&quot; oi_liquidacion=&quot;&quot; periodo=&quot;200101&quot; modelo=&quot;&quot; empresa=&quot;1&quot; periodo_hasta=&quot;202312&quot; l_confidencial=&quot;&quot; chkZIP=&quot;&quot;&gt;&lt;PERSONAS nmd-col=&quot;1&quot;&gt;&lt;ROW VALUES=&quot;1&quot; id=&quot;2023111912321&quot;/&gt;&lt;ROW VALUES=&quot;84549&quot; id=&quot;2023111912322&quot;/&gt;&lt;/PERSONAS&gt;&lt;/FILTRO&gt;" name="COMBO">
+			<qry:main doc="SOURCE">
+				<ROWS>
+					<qry:append-doc name="PARAM" doc-path="#SOURCE:."/>
+					<qry:insert-select name="CUSTOM" doc-path="$PARAM"/>
+					<qry:if test="#SOURCE:FILTRO/@modelo_defecto = ''">
+						<qry:then>
+							<qry:element name="PRUEBA_212"/>
+							<qry:if test="count(OPT)=0">
+								<qry:then>
+									<qry:insert-select name="BASE" doc-path="$PARAM"/>
+								</qry:then>
+							</qry:if>
+						</qry:then>
+					</qry:if>
+				</ROWS>
+			</qry:main>
+			<qry:select name="BASE" doc="SOURCE">
+				<qry:xquery>
+					for $r in FILESTORE('Resources/NucleusRH.Base.Liquidacion.RECIBOS.resource.XML')/RECIBOS/RECIBO[contains(@valido,'212')]
+				</qry:xquery>
+				<qry:out>
+					<qry:insert-select name="MODELO" doc-path="$r"/>
+				</qry:out>
+			</qry:select>
+			<qry:select name="CUSTOM" doc="SOURCE">
+				<qry:xquery>
+					for $r in FILESTORE('Resources/NucleusRH.{%=substring-before(#PROXY:@APP,'-')%}.Liquidacion.RECIBOS.resource.XML')/RECIBOS/RECIBO[contains(@valido,'212')]
+				</qry:xquery>
+				<qry:out>
+					<qry:insert-select name="MODELO" doc-path="$r"/>
+				</qry:out>
+			</qry:select>
+			<qry:select name="MODELO" doc="SOURCE">
+				<qry:out>
+					<qry:if test="$PARAM/@modelo_defecto != '' and $PARAM/@modelo_defecto &lt;= 8">
+						<qry:then>
+							<COUNT>
+								<qry:attribute name="contador" value="count(../COUNT)"/>
+								<qry:attribute name="hts:delete" value="1"/>
+							</COUNT>
+							<qry:if test="count(./COUNT) = $PARAM/@modelo_defecto">
+								<qry:then>
+									<OPT>
+										<qry:attribute name="id" value="$PARAM/@modelo_defecto"/>
+										<qry:attribute name="code" value="@id"/>
+										<qry:attribute name="value" value="@id"/>
+										<qry:attribute name="text" value="$SOURCE/@label"/>
+										<qry:attribute name="file" value="$SOURCE/@file"/>
+										<qry:attribute name="chkZIP" value="$SOURCE/@chkZIP"/>
+										<qry:attribute name="chkOcultarLeyenda" value="$SOURCE/@chkOcultarLeyenda"/>
+										<qry:attribute name="chkInvertir" value="$SOURCE/@chkInvertir"/>
+										<qry:if test="$PARAM/@modelo_defecto != '' and $PARAM/@modelo_defecto != @id ">
+											<qry:then>
+												<qry:attribute name="hts:delete" value="1"/>
+											</qry:then>
+										</qry:if>
+									</OPT>
+								</qry:then>
+							</qry:if>
+						</qry:then>
+						<qry:else>
+							<OPT>
+								<qry:attribute name="id" value="count(../OPT)"/>
+								<qry:attribute name="code" value="@id"/>
+								<qry:attribute name="value" value="@id"/>
+								<qry:attribute name="text" value="$SOURCE/@label"/>
+								<qry:attribute name="file" value="$SOURCE/@file"/>
+								<qry:attribute name="chkZIP" value="$SOURCE/@chkZIP"/>
+								<qry:attribute name="chkOcultarLeyenda" value="$SOURCE/@chkOcultarLeyenda"/>
+								<qry:attribute name="chkInvertir" value="$SOURCE/@chkInvertir"/>
+								<qry:if test="$PARAM/@modelo != '' and $PARAM/@modelo != @id ">
+									<qry:then>
+										<qry:attribute name="hts:delete" value="1"/>
+									</qry:then>
+								</qry:if>
+							</OPT>
+						</qry:else>
+					</qry:if>
+				</qry:out>
+			</qry:select>
+		</qry:define>
+		<doc:define name="RS"/>
+		<qry:define name="QRY_RECIBOS_LIQ2" declare="&lt;FILTRO oi_liquidacion=&quot;1502&quot;&gt;&lt;PERSONAS&gt;&lt;ROW VALUES=&quot;1&quot; /&gt;&lt;/PERSONAS&gt;&lt;/FILTRO&gt;">
+			<qry:main doc="SOURCE">
+				<qry:element name="FILTRO">
+					<qry:attribute name="liquidacion" value="#SOURCE:FILTRO/@oi_liquidacion"/>
+					<qry:insert-select name="QRY_EMPRESA" doc-path="."/>
+					<qry:element name="PERSONAS">
+						<qry:element name="ROW">
+							<qry:attribute name="VALUES" value="#SOURCE:FILTRO/PERSONAS/ROW/@VALUES"/>
+						</qry:element>
+					</qry:element>
+				</qry:element>
+			</qry:main>
+			<qry:select name="QRY_EMPRESA" doc="SOURCE">
+				<qry:xquery>
+					for $r in sql('
+SELECT 
+LIQ19_LIQUIDACION.oi_empresa,
+ORG03_EMPRESAS.c_empresa
+FROM
+LIQ19_LIQUIDACION, ORG03_EMPRESAS
+JOIN
+LIQ19_LIQUIDACION.oi_empresa INNER ORG03_EMPRESAS.oi_empresa
+WHERE
+LIQ19_LIQUIDACION.oi_liquidacion = {#SOURCE:@liquidacion}
+')ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:attribute value="$r/@oi_empresa" name="empresa"/>
+				</qry:out>
+			</qry:select>
+		</qry:define>
+		<doc:define name="FILTERMODELO"/>
+		<qry:define name="QRY_MODELOPARAM">
+			<qry:main doc="SOURCE">
+				<qry:element name="FILTRO">
+					<qry:insert-select name="sql1" doc-path="."/>
+				</qry:element>
+			</qry:main>
+			<qry:select doc="SOURCE" name="sql1">
+				<qry:xquery>
+					for $r in sql('					
+			SELECT 
+    			ORG26.c_parametro,
+				ORG26.d_valor                    
+			FROM
+				ORG26_PARAMETROS AS ORG26
+            WHERE
+				ORG26.c_modulo = \'LIQ\'
+				AND ORG26.c_parametro in (\'RepRecPred\')						 				
+      ')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:attribute name="modelo_defecto" value="$r/@d_valor"/>
+				</qry:out>
+			</qry:select>
+		</qry:define>
+	</flow:declare>
+	<flow:main doc="SOURCE">
+		<flow:action name="initialize">
+			<flow:open-form form-class="NucleusRH.Base.Liquidacion.Recibos.ReciboFO.filter.form" doc-path="#FILTERDATA:" mode="FILTER"/>
+		</flow:action>
+		<flow:action name="initialize_recibo">
+			<flow:log text-path="#SOURCE:" text="filterdate-log"/>
+			<doc:load-qry qry="QRY_RECIBOS_LIQ2" input-doc-path="#SOURCE:" output-doc="PARAMETERS"/>
+			<doc:load-qry output-doc="FILTERMODELO" qry="QRY_MODELOPARAM"/>
+			<flow:log text-path="#FILTERMODELO:" text="MODELO-LOG"/>
+			<doc:load-qry input-doc-path="#FILTERMODELO:" output-doc="RS" qry="COMBO"/>
+			<flow:log text-path="#RS:" text="RS-LOG"/>
+			<flow:call-action else="REPORT_PDF" action="REPORT_ZIP" eq="1" if="#RS:OPT/@chkZIP"/>
+			<flow:open-form doc-path="#PARAMETERS:" mode="BATCH" form-class="Nomad.base.batch.report.form"/>
+			<flow:exec-method out-attr-path="#PARAMETERS:@batch-id" class="Nomad.Base.Report.GeneralReport.REPORT" method="ExecReportFO" priority="5">
+				<flow:param value="NucleusRH.Base.Liquidacion.ReciboNuevo.Recibo.rpt" type="Nomad.NSystem.String" mode="in" name="ReportName"/>
+				<flow:param doc-path="#PARAMETERS:" type="Nomad.NSystem.Proxy.NomadXML" mode="in" name="xmlParam"/>
+			</flow:exec-method>
+		</flow:action>
+		<flow:action name="initialize_portal">
+			<doc:load-qry output-doc="LEGAJO" input-doc-path="#LEGAJO:" qry="QRY_LEGAJO"/>
+			<flow:attach-doc doc-path="#LEGAJO:" attach-id="LEGAJO"/>
+			<flow:open-form doc-path="#FILTERLIQ:" mode="FILTER" form-class="NucleusRH.Base.Liquidacion.Recibos.FiltroPortal.form"/>
+		</flow:action>
+		<flow:action name="COMBO">
+			<doc:load-qry output-doc="RS" qry="COMBO"/>
+			<flow:exit-flow return-path="#RS:"/>
+		</flow:action>
+		<flow:action name="REPORT_PDF">
+			<flow:exec-method out-attr-path="#PARAMETERS:@batch-id" method="ExecReportFO" class="Nomad.Base.Report.GeneralReport.REPORT" priority="5">
+				<flow:param attr-path="#RS:OPT/@file" type="Nomad.NSystem.String" mode="in" name="ReportName"/>
+				<flow:param doc-path="#PARAMETERS:" type="Nomad.NSystem.Proxy.NomadXML" mode="in" name="xmlParam"/>
+			</flow:exec-method>
+			<flow:open-form doc-path="#PARAMETERS:" mode="BATCH" form-class="Nomad.base.batch.report.form"/>
+		</flow:action>
+		<flow:action name="REPORT_ZIP">
+			<flow:exec-method method="ExecReportFOZip" out-attr-path="#PARAMETERS:@batch-id" class="Nomad.Base.Report.GeneralReport.REPORT" priority="5">
+				<flow:param attr-path="#RS:OPT/@file" type="Nomad.NSystem.String" mode="in" name="ReportName"/>
+				<flow:param doc-path="#PARAMETERS:" type="Nomad.NSystem.Proxy.NomadXML" mode="in" name="xmlParam"/>
+			</flow:exec-method>
+			<flow:open-form form-class="Nomad.Base.Batch.Download.form" mode="BATCH_ZIP" doc-path="#PARAMETERS:"/>
+		</flow:action>
+		<flow:action name="initialize203">
+			<flow:open-form form-class="NucleusRH.Base.Liquidacion.Recibos.ReciboFO203.filter.form" doc-path="#FILTERDATA:" mode="FILTER"/>
+		</flow:action>
+	</flow:main>
+	<flow:form form-class="NucleusRH.Base.Liquidacion.Recibos.ReciboFO.filter.form" name="NucleusRH.Base.Liquidacion.Recibos.ReciboFO.filter.form:FILTER" parent-doc="PARENTSOURCE" doc="SOURCE" mode="FILTER">
+		<flow:action name="REPORT_PDF">
+			<flow:exec-method out-attr-path="#PARAMETERS:@batch-id" method="ExecReportFO" class="Nomad.Base.Report.GeneralReport.REPORT" priority="5">
+				<flow:param attr-path="#RS:OPT/@file" type="Nomad.NSystem.String" mode="in" name="ReportName"/>
+				<flow:param doc="FILTERDATA" type="Nomad.NSystem.Proxy.NomadXML" mode="in" name="xmlParam"/>
+			</flow:exec-method>
+			<flow:open-form doc-path="#PARAMETERS:" mode="BATCH" form-class="Nomad.base.batch.report.form"/>
+		</flow:action>
+		<flow:action name="REPORT_ZIP">
+			<flow:exec-method method="ExecReportFOZip" out-attr-path="#PARAMETERS:@batch-id" class="Nomad.Base.Report.GeneralReport.REPORT" priority="5">
+				<flow:param attr-path="#RS:OPT/@file" type="Nomad.NSystem.String" mode="in" name="ReportName"/>
+				<flow:param doc="FILTERDATA" type="Nomad.NSystem.Proxy.NomadXML" mode="in" name="xmlParam"/>
+			</flow:exec-method>
+			<flow:open-form form-class="Nomad.Base.Batch.Download.form" mode="BATCH_ZIP" doc-path="#PARAMETERS:"/>
+		</flow:action>
+		<flow:action name="BACK">
+			<flow:close-form/>
+		</flow:action>
+		<flow:action name="ACCEPT">
+			<doc:load-qry input-doc-path="#FILTERDATA:" output-doc="RS" qry="COMBO"/>
+			<doc:set-attribute from-attr-path="#RS:OPT/@chkOcultarLeyenda" to-attr-path="#FILTERDATA:@chkOcultarLeyenda"/>
+			<doc:set-attribute from-attr-path="#RS:OPT/@chkInvertir" to-attr-path="#FILTERDATA:@chkInvertir"/>
+			<flow:call-action action="Save-FILTER"/>
+			<flow:call-action else="REPORT_PDF" action="REPORT_ZIP" eq="1" if="#RS:OPT/@chkZIP"/>
+		</flow:action>
+		<flow:action name="NODATA">
+			<flow:open-form form-class="NucleusRH.Base.Liquidacion.Recibos.NODATA.form" mode="SHOW" doc-path="#FILTERDATA:"/>
+		</flow:action>
+		<flow:action name="Load-FILTER">
+			<flow:load-user-data name="FILTER-NucleusRH.Base.Liquidacion.Recibos_sueldoFO" doc="FILTERDATA"/>
+		</flow:action>
+		<flow:action name="Save-FILTER">
+			<flow:save-user-data name="FILTER-NucleusRH.Base.Liquidacion.Recibos_sueldoFO" doc-path="#FILTERDATA:"/>
+		</flow:action>
+		<flow:action name="on-open">
+			<flow:log text-path="#SOURCE:" text="ppopen"/>
+		</flow:action>
+	</flow:form>
+	<flow:form mode="SHOW" doc="SOURCE" name="NucleusRH.Base.Liquidacion.Recibos.NODATA.form:SHOW" form-class="NucleusRH.Base.Liquidacion.Recibos.NODATA.form">
+		<flow:action name="BACK">
+			<flow:close-form/>
+		</flow:action>
+	</flow:form>
+	<flow:form form-class="NucleusRH.Base.Liquidacion.Recibos.NOLEGAJO.form" name="NucleusRH.Base.Liquidacion.Recibos.NOLEGAJO.form:SHOW" mode="SHOW" doc="SOURCE">
+		<flow:action name="BACK">
+			<flow:close-form next-action="BACK"/>
+		</flow:action>
+	</flow:form>
+	<flow:form name="NucleusRH.Base.Liquidacion.Recibos.FiltroPortal.form:FILTER" parent-doc="PARENTSOURCE" doc="SOURCE" mode="FILTER" form-class="NucleusRH.Base.Liquidacion.Recibos.FiltroPortal.form">
+		<flow:action name="BACK">
+			<flow:close-form/>
+		</flow:action>
+		<flow:action name="ACCEPT">
+			<flow:call-action action="Save-FILTER"/>
+			<doc:set-attribute from-attr-path="#LEGAJO:@oi_empresa" to-attr-path="#SOURCE:@oi_empresa"/>
+			<doc:load-qry output-doc="PARAMLIQS" input-doc-path="#FILTERLIQ:" qry="QRY_PARAM_LIQ"/>
+			<flow:call-action action="REPORT"/>
+		</flow:action>
+		<flow:action name="Load-FILTER">
+			<flow:load-user-data name="FILTER-NucleusRH.Base.Liquidacion.Recibos.FiltroPortal.form" doc="SOURCE"/>
+		</flow:action>
+		<flow:action name="Save-FILTER">
+			<flow:save-user-data name="FILTER-NucleusRH.Base.Liquidacion.Recibos.FiltroPortal.form" doc-path="#SOURCE:"/>
+		</flow:action>
+		<flow:action name="on-open">
+			<flow:call-action action="Load-FILTER"/>
+			<flow:call-action action="NODATA" eq="0" if="#LEGAJO:@flag"/>
+			<flow:call-action action="CARGAR_TOP"/>
+		</flow:action>
+		<flow:action name="NODATA">
+			<flow:open-form form-class="NucleusRH.Base.Liquidacion.Recibos.NOLEGAJO.form" mode="SHOW" doc-path="#FILTERLIQ:"/>
+		</flow:action>
+		<flow:action name="CARGAR">
+			<doc:load-qry input-doc-path="#SOURCE:" output-doc="RECIBOS" qry="FILTER"/>
+			<flow:attach-doc doc-path="#RECIBOS:" attach-id="RS"/>
+		</flow:action>
+		<flow:action name="LOAD_LEGAJO">
+			<doc:load-qry qry="QRY_LEGAJO_PER" input-doc-path="#SOURCE:" output-doc="LEGAJO"/>
+			<flow:attach-doc doc-path="#LEGAJO:" attach-id="LEGAJO"/>
+			<flow:call-action action="CARGAR_TOP"/>
+		</flow:action>
+		<flow:action name="CARGAR_TOP">
+			<doc:load-qry qry="FILTER_TOP" input-doc-path="#LEGAJO:" output-doc="RECIBOS"/>
+			<flow:attach-doc doc-path="#RECIBOS:" attach-id="RS"/>
+		</flow:action>
+		<flow:action name="REPORT">
+			<flow:exec-method class="Nomad.Base.Report.GeneralReport.REPORT" method="ExecReportFO" out-attr-path="#BATCHDOC:@batch-id" priority="5">
+				<flow:param value="NucleusRH.Base.Liquidacion.ReciboNuevo/Recibo.rpt" type="Nomad.NSystem.String" mode="in" name="ReportName"/>
+				<flow:param doc-path="#SOURCE:" type="Nomad.NSystem.Proxy.NomadXML" mode="in" name="xmlParam"/>
+			</flow:exec-method>
+			<flow:open-form mode="BATCH" form-class="Nomad.base.batch.report.form" doc-path="#BATCHDOC:"/>
+		</flow:action>
+	</flow:form>
+	<flow:form form-class="NucleusRH.Base.Liquidacion.Recibos.ReciboFO203.filter.form" name="NucleusRH.Base.Liquidacion.Recibos.ReciboFO203.filter.form:FILTER" parent-doc="PARENTSOURCE" doc="SOURCE" mode="FILTER">
+		<flow:action name="REPORT">
+			<flow:log text-path="#FILTERDATA:" text="filterdate-log"/>
+			<doc:load-qry input-doc-path="#FILTERDATA:" output-doc="PARAMETERS" qry="QRY_RECIBOS_LIQ"/>
+			<flow:log text-path="#PARAMETERS:" text="parameters-log"/>
+			<flow:exec-method out-attr-path="#PARAMETERS:@batch-id" method="ExecReportFO" class="Nomad.Base.Report.GeneralReport.REPORT" priority="5">
+				<flow:param value="NucleusRH.Base.Liquidacion.Recibo.Recibo.rpt" type="Nomad.NSystem.String" mode="in" name="ReportName"/>
+				<flow:param doc="PARAMETERS" type="Nomad.NSystem.Proxy.NomadXML" mode="in" name="xmlParam"/>
+			</flow:exec-method>
+			<flow:open-form doc-path="#PARAMETERS:" mode="BATCH" form-class="Nomad.base.batch.report.form"/>
+		</flow:action>
+		<flow:action name="BACK">
+			<flow:close-form/>
+		</flow:action>
+		<flow:action name="ACCEPT">
+			<flow:call-action action="REPORT"/>
+		</flow:action>
+		<flow:action name="NODATA">
+			<flow:open-form form-class="NucleusRH.Base.Liquidacion.Recibos.NODATA.form" mode="SHOW" doc-path="#FILTERDATA:"/>
+		</flow:action>
+		<flow:action name="Load-FILTER">
+			<flow:load-user-data name="FILTER-NucleusRH.Base.Liquidacion.Recibos_sueldo" doc="FILTERDATA"/>
+		</flow:action>
+		<flow:action name="Save-FILTER">
+			<flow:save-user-data name="FILTER-NucleusRH.Base.Liquidacion.Recibos_sueldo" doc-path="#FILTERDATA:"/>
+		</flow:action>
+		<flow:action name="on-open">
+			<flow:log text-path="#SOURCE:" text="ppopen"/>
+		</flow:action>
+	</flow:form>
+</flow:flow>

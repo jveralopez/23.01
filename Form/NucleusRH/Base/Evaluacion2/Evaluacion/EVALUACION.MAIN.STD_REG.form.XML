@@ -1,0 +1,365 @@
+<form:Form xmlns:form="nomad_engine.form" xmlns:qry="nomad_engine.qry" default_mode="EVALUADO" doc="source" name="NucleusRH.Base.Evaluacion2.Evaluacion.EVALUACION">
+	<form:Title width="90%">
+		<form:RowAligner name="ralTitle">
+			<form:Row name="row1">
+				<form:Label label="Bandeja de Evaluador" dynamic="1" nowrap="1" align="center" style="S3 LCol_w" name="GEN"/>
+			</form:Row>
+		</form:RowAligner>
+	</form:Title>
+	<form:Center height="100%" width="100%">
+		<form:UrlControl name="URLREPORT" direct="1" default="about:blank" border="2" height="100%" width="100%"/>
+		<form:Hidden nvalue="#source:@oi_evaluacion" name="oi_evaluacion"/>
+		<form:Hidden nvalue="#source:@oi_tipo_eval" name="oi_tipo_eval"/>
+		<form:Hidden nvalue="#source:@REPORT" name="REPORT"/>
+		<form:Hidden nvalue="#source:@modo" name="modo"/>
+		<form:Hidden nvalue="#source:@CAMBIO_ESTADO" name="CAMBIO_ESTADO"/>
+		<form:Hidden name="EDITABLE" nvalue="#source:@editable"/>
+	</form:Center>
+	<form:Bottom>
+		<form:RowAligner name="buttonlinks">
+			<form:Row name="row1">
+				<!-- PARA MODO CERRAR -->
+				<form:Button visible="CERRAR" name="CERRAR" mess="&#191;Esta seguro que quiere Cerrar la Evaluaci&#243;n?" label="Cerrar" img="lock" descrip="Cerrar la Evaluacion">
+					<form:Event action="CERRAR" name="OnClick" runat="client"/>
+				</form:Button>
+				<form:Button visible="!NOEDIT" label="Guardar" img="SAVE" descrip="Guardar Evaluacion" name="SAVE">
+					<form:Event action="SAVE" name="OnClick" runat="client"/>
+				</form:Button>
+				<!-- PARA MODO APROBAR -->
+				<form:Button visible="APROBAR" name="APROBAR" mess="&#191;Esta seguro que quiere Aprobar la Evaluaci&#243;n?" label="Aprobar" img="OK" descrip="Aprobar la Evaluacion">
+					<form:Event action="APROBAR" name="OnClick" runat="client"/>
+				</form:Button>
+				<form:Button visible="APROBAR" name="RECHAZAR" mess="&#191;Esta seguro que quiere Rechazar la Evaluaci&#243;n?" label="Rechazar" img="CANCEL" descrip="Rechazar la Evaluacion">
+					<form:Event action="RECHAZAR" name="OnClick" runat="client"/>
+				</form:Button>
+				<!-- COMUN PARA TODOS-->
+				<form:Button visible="!PORTAL" label="Imprimir" img="print" descrip="Imprimir Evaluacion" name="PRINT">
+					<form:Event action="PRINT" name="OnClick" runat="client"/>
+				</form:Button>
+				<form:Button visible="EDIT" name="SAVE_CE" label="Aceptar" img="ok" descrip="Guardar Evaluacion">
+					<form:Event action="SAVE_CE" name="OnClick" runat="client"/>
+				</form:Button>
+				<form:Button descrip="Volver" img="BACK" name="BACK" label="Volver">
+					<form:Event action="BACK" name="OnClick" runat="server"/>
+				</form:Button>
+			</form:Row>
+		</form:RowAligner>
+	</form:Bottom>
+	<form:Scripts>
+		var report_window = null;
+function set_report_window (obj)
+{
+	report_window = obj;
+}
+
+function OnLoad()
+{
+	var XMLEva=GetProxy().SQLService().GetXML(Ctrl("main").getResource("DATA_ADIC"), '&lt;DATA oi_evaluacion="'+Ctrl("oi_evaluacion").GetXValue()+'" /&gt;');
+	var rep = XMLEva.GetAttr('d_reporte').substr(0, XMLEva.GetAttr('d_reporte').lastIndexOf('.'));
+ 	var editable = Ctrl("EDITABLE").GetXValue();
+    var oi_evaluador360;
+	var modo = Ctrl("modo").GetXValue();
+	
+	// Setea el titulo de la ventana
+	var titulo = Ctrl('GEN');
+	if (modo == 'PREEVALUAR')
+		titulo.SetText('Ingreso de Datos');
+	if (modo == 'EVALUADO')
+		titulo.SetText('Autoevaluaci&#243;n de Desempe&#241;o');
+	if (modo == 'EVALUADOR')
+		titulo.SetText('Evaluaci&#243;n de Desempe&#241;o');
+	if (modo == 'SUPERVISOR')
+		titulo.SetText('Validaci&#243;n de Evaluaci&#243;n');
+	if (modo == 'EVALUADOR360')
+	{
+		titulo.SetText('Evaluaci&#243;n de Desempe&#241;o');
+		var XMLEva360=GetProxy().SQLService().GetXML(Ctrl("main").getResource("EVALUADORES360"), '&lt;DATA oi_evaluacion="'+Ctrl("oi_evaluacion").GetXValue()+'" /&gt;');
+	    oi_evaluador360 = XMLEva360.GetAttr('oi_evaluador360');
+	}
+	
+	if (modo == 'APROBAR')
+		titulo.SetText('Aprobaci&#243;n / Rechazo de Evaluaci&#243;n');
+	if (modo == 'POSAPROBAR')
+		titulo.SetText('Cierre de Evaluaci&#243;n');
+	if (modo == 'SHOW')
+		titulo.SetText('Consulta de Evaluaci&#243;n');
+	
+	 // Setea el titulo de la pesta&#241;a
+	 g_FFConnect.ObjectManager.SetWindowTitle(titulo.GetText(), g_FFConnect);
+	
+	if(Ctrl('main').GetMode()=='PORTAL')
+		url="../../../ReportViewer.aspx?ut="+GetProxy().UserToken()+"&amp;file="+rep+"&amp;mode="+modo+"&amp;oi_evaluacion="+Ctrl("oi_evaluacion").GetXValue()+"&amp;portal=1&amp;editable="+editable+"&amp;oi_evaluador_360="+oi_evaluador360;
+	else
+		url="../../../ReportViewer.aspx?ut="+GetProxy().UserToken()+"&amp;file="+rep+"&amp;mode="+modo+"&amp;oi_evaluacion="+Ctrl("oi_evaluacion").GetXValue()+"&amp;portal=0&amp;editable="+editable+"&amp;oi_evaluador_360="+oi_evaluador360;
+	Ctrl("URLREPORT").SetURL(url);
+}
+
+
+function PRINT()
+{
+	var _iframe = window.frames['URLREPORT_FRAME'];
+	_iframe.focus();
+	_iframe.print();
+}                         
+                          
+function GET_DDO()
+{             
+	var OBJ=new NomadXML(GetProxy().DDOService().Get("NucleusRH.Base.Evaluacion2.Evaluacion.EVALUACION",Ctrl("oi_evaluacion").GetXValue()));
+ 	OBJ.SetAttr("nmd-status","~u,");
+ 	
+	var EVA=OBJ.FirstChild();
+	if (report_window==null)
+		report_window = window.frames['URLREPORT_FRAME'];
+	report_window.DDOCHANGE(EVA);
+	
+	return OBJ;
+}             
+
+function isFinish(EVA)
+{                                                  
+	var retval=true;
+	var XMLEva=GetProxy().SQLService().GetXML(Ctrl("main").getResource("DATA_ADIC"), '&amp;lt;DATA oi_evaluacion="'+Ctrl("oi_evaluacion").GetXValue()+'" /&amp;gt;');
+
+	if (EVA.GetAttr("n_resultado")=="") retval=false;
+	if (XMLEva.GetAttr("l_eva2")=="1") if (EVA.GetAttr("n_resultado2")=="") retval=false;
+	if (XMLEva.GetAttr("l_eva3")=="1") if (EVA.GetAttr("n_resultado3")=="") retval=false;
+	
+	return retval;
+}
+
+function CHECK_COMPLETE()
+{
+	if (report_window==null)
+		report_window = window.frames['URLREPORT_FRAME'];
+
+	if (!report_window.IsComplete())
+		return confirm("Existen Items sin Completar\nDesea Continuar?")
+	return true;
+}
+
+
+function EVALUADO()
+{                    
+	var OBJ=GET_DDO();
+	var EVA=OBJ.FirstChild();     
+	var proxy=new NomadProxy();
+	var RPC=proxy.RPCService();
+	
+	if (!CHECK_COMPLETE()) return;
+
+	//Guardar DDO	
+	EVA.SetAttr("f_evaluacion", date2str(new Date()));
+ 	RPC.AddParam(new NomadRPCParam("e"    , "IN" , OBJ, "NucleusRH.Base.Evaluacion2.Evaluacion.EVALUACION"));
+	RPC.AddParam(new NomadRPCParam("Estado", "IN" , isFinish(EVA)?"EV":"HA"));
+	
+	RPC.Execute("NucleusRH.Base.Evaluacion2.Evaluacion.EVALUACION","CambiarEstado");
+	Ctrl("main").DoEvent("BACK");
+}
+                          
+// Solo guardar
+function SAVE()
+{
+	var OBJ=GET_DDO();
+	var EVA=OBJ.FirstChild();
+	  
+	if (!CHECK_COMPLETE()) return;
+
+    //Guardar DDO	
+	EVA.SetAttr("f_evaluacion", date2str(new Date()));
+	GetProxy().DDOService().Set("NucleusRH.Base.Evaluacion2.Evaluacion.EVALUACION", OBJ.ToString());
+ 	Ctrl("main").DoEvent("BACK");
+}
+
+// Guardar y cambiar estado
+function SAVE_CE()
+{
+	var OBJ=GET_DDO();
+	var EVA=OBJ.FirstChild();
+    var proxy=new NomadProxy();
+    var CAMBIO_ESTADO = Ctrl('CAMBIO_ESTADO').GetXValue();
+    
+	if (CAMBIO_ESTADO != '')
+	{
+		if (!(CAMBIO_ESTADO=='AB' || CAMBIO_ESTADO=='HA'))
+			if (!isFinish(EVA))
+			{
+				alert("La evaluaci&amp;#243;n no est&#225; completa.");
+				return;
+			}
+		
+		// Cambio estado
+	    var RPC=proxy.RPCService(); 
+		EVA.SetAttr("f_evaluacion", date2str(new Date()));
+	 	RPC.AddParam(new NomadRPCParam("e"    , "IN" , OBJ, "NucleusRH.Base.Evaluacion2.Evaluacion.EVALUACION"));
+		RPC.AddParam(new NomadRPCParam("Estado", "IN" , CAMBIO_ESTADO));
+		RPC.Execute("NucleusRH.Base.Evaluacion2.Evaluacion.EVALUACION","CambiarEstado");
+	}
+	else
+	{
+		if (!CHECK_COMPLETE()) return;
+		//Guardar DDO	
+		EVA.SetAttr("f_evaluacion", date2str(new Date()));
+	 	GetProxy().DDOService().Set("NucleusRH.Base.Evaluacion2.Evaluacion.EVALUACION", OBJ.ToString());
+	}
+
+	Ctrl("main").DoEvent("BACK");
+}           
+
+function CONFIRM()
+{
+	var OBJ=GET_DDO();
+	var EVA=OBJ.FirstChild();
+	var proxy=new NomadProxy();
+	var RPC=proxy.RPCService();
+	
+	//Puede ser confirmada?	
+	if (!isFinish(EVA)) 
+	{
+		alert("La evaluaci&amp;#243;n tiene que estar Evaluada para poder Confirmarse.");
+		return;
+	}
+	
+	//Guardar DDO	
+	EVA.SetAttr("f_evaluacion", date2str(new Date()));
+ 	RPC.AddParam(new NomadRPCParam("e"    , "IN" , OBJ, "NucleusRH.Base.Evaluacion2.Evaluacion.EVALUACION"));
+	RPC.AddParam(new NomadRPCParam("Estado", "IN" , "CO"));
+	
+	RPC.Execute("NucleusRH.Base.Evaluacion2.Evaluacion.EVALUACION","CambiarEstado");
+	Ctrl("main").DoEvent("BACK");
+}
+
+function APROBAR()
+{
+	var OBJ=GET_DDO();
+	var EVA=OBJ.FirstChild();  
+	var proxy=new NomadProxy();
+	var RPC=proxy.RPCService();
+	
+	if (!isFinish(EVA))
+	{
+		alert("La evaluaci&amp;#243;n tiene que estar Evaluada o Confirmada para poder Aprobarse.");
+		return;
+	}
+
+	//Guardar DDO	
+	RPC.AddParam(new NomadRPCParam("e"    , "IN" , OBJ, "NucleusRH.Base.Evaluacion2.Evaluacion.EVALUACION"));
+	RPC.AddParam(new NomadRPCParam("Estado", "IN" , "AP"));
+	
+	RPC.Execute("NucleusRH.Base.Evaluacion2.Evaluacion.EVALUACION","CambiarEstado");
+	Ctrl("main").DoEvent("BACK");
+}
+
+function RECHAZAR()
+{
+	var OBJ=GET_DDO();
+	var EVA=OBJ.FirstChild();
+	var proxy=new NomadProxy();
+	var RPC=proxy.RPCService();
+
+	if (!isFinish(EVA))
+	{
+		alert("La evaluaci&amp;#243;n tiene que estar Evaluada o Confirmada para poder Rechazarce.");
+		return;
+	}
+
+	//Guardar DDO	
+	RPC.AddParam(new NomadRPCParam("e"    , "IN" , OBJ, "NucleusRH.Base.Evaluacion2.Evaluacion.EVALUACION"));
+	RPC.AddParam(new NomadRPCParam("Estado", "IN" , "RZ"));
+
+	RPC.Execute("NucleusRH.Base.Evaluacion2.Evaluacion.EVALUACION","CambiarEstado");
+
+	Ctrl("main").DoEvent("BACK");
+}
+
+function CERRAR()
+{
+	var OBJ=GET_DDO();
+	var EVA=OBJ.FirstChild();
+	var proxy=new NomadProxy();
+	var RPC=proxy.RPCService();
+	
+	if (!isFinish(EVA))
+	{
+		alert("La evaluaci&amp;#243;n tiene que estar Evaluada, Confirmada o Aprobada para poder Cerrarse.");
+		return;
+	}
+
+	//Guardar DDO	
+	RPC.AddParam(new NomadRPCParam("e"    , "IN" , OBJ, "NucleusRH.Base.Evaluacion2.Evaluacion.EVALUACION"));
+	RPC.AddParam(new NomadRPCParam("Estado", "IN" , "CE"));
+	
+	RPC.Execute("NucleusRH.Base.Evaluacion2.Evaluacion.EVALUACION","CambiarEstado");
+	Ctrl("main").DoEvent("BACK");
+}
+	</form:Scripts>
+	<form:Event action="OnLoad" name="OnLoad" runat="client"/>
+	<form:Event action="BACK" name="BACK" runat="server"/>
+	<form:Resources>
+		<form:Resource declare="&lt;DATA oi_evaluacion=&quot;58&quot; /&gt;" name="DATA_ADIC">
+			<qry:main name="" doc="PARAM">
+				<ROW>
+					<qry:insert-select name="SQL1" doc-path="#PARAM:/DATA"/>
+				</ROW>
+			</qry:main>
+			<qry:select name="SQL1" doc="PARAM">
+				<qry:xquery>
+					for $r in SQL('
+					SELECT               
+						EVA.oi_evaluacion,
+						EVE.oi_evento,
+						TYP.l_eva2,
+						TYP.l_eva3,
+						TYP.d_reporte
+					FROM 
+						EDD03_EVALUACION as EVA,
+						EDD02_EVENTOS as EVE,
+						EDD01_TIPOS_EVAL as TYP
+					JOIN
+						EVA.oi_evento INNER EVE.oi_evento,
+						EVE.oi_tipo_eval INNER TYP.oi_tipo_eval
+					WHERE                   
+						EVA.oi_evaluacion={$PARAM/@oi_evaluacion}
+				')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:attribute name="oi_evaluacion" value="$r/@oi_evaluacion"/>
+					<qry:attribute name="oi_evento" value="$r/@oi_evento"/>
+					<qry:attribute name="l_eva2" value="$r/@l_eva2"/>
+					<qry:attribute name="l_eva3" value="$r/@l_eva3"/>
+					<qry:attribute name="d_reporte" value="$r/@d_reporte"/>
+				</qry:out>
+			</qry:select>
+		</form:Resource>
+		<form:Resource name="EVALUADORES360">
+			<qry:main doc="SOURCE">
+				<ROW>
+					<qry:insert-select name="EVALUADORES" doc-path="#SOURCE:."/>
+				</ROW>
+			</qry:main>
+			<qry:select name="EVALUADORES" doc="SOURCE">
+				<qry:xquery>
+					for $r in SQL('
+select 
+	LEG.oi_personal_emp
+from 
+	edd03_eva_evaluad as EVA,
+	edd05_roles as ROL,
+	per02_personal_emp as LEG,
+	per01_personal as PER
+join
+	EVA.oi_rol INNER ROL.oi_rol,
+	EVA.oi_personal_emp INNER LEG.oi_personal_emp,
+	LEG.oi_personal INNER PER.oi_personal
+where
+	EVA.oi_evaluacion = {#SOURCE:@oi_evaluacion} and
+	PER.oi_usuario_sistema={#PROXY:@ETTY}            
+ 
+')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:attribute name="oi_evaluador360" value="$r/@oi_personal_emp"/>
+				</qry:out>
+			</qry:select>
+		</form:Resource>
+	</form:Resources>
+</form:Form>

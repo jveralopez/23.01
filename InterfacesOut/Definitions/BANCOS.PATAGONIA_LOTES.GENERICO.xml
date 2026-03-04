@@ -1,0 +1,200 @@
+<INTERFACE-DEF xmlns:qry="nomad_engine.qry" code="" desc="" entermode="DOS" finalenter="1">
+	<QUERY declare="&lt;DATA oi_empresa=&quot;1&quot; oi_banco=&quot;1&quot; oi_sucursal=&quot;&quot; f_acreditacion=&quot;20100707&quot; f_vencimiento=&quot;&quot; interface=&quot;&quot;&gt;&#13;&#10;&#9;&lt;LIQS&gt;&#13;&#10;&#9;&#9;&lt;LIQ oi_liquidacion=&quot;2977&quot;/&gt;&#13;&#10;&#9;&lt;/LIQS&gt;&#13;&#10;&lt;/DATA&gt;">
+		<qry:main doc="SOURCE">
+			<qry:element name="DATA">
+				<qry:element name="HEAD">
+					<qry:insert-select name="qryHeadTot" doc-path="#SOURCE:DATA"/>
+				</qry:element>
+				<qry:element name="DETAILS">
+					<qry:insert-select name="qryDetail" doc-path="#SOURCE:DATA"/>
+				</qry:element>
+			</qry:element>
+		</qry:main>
+		<qry:select name="qryHeadTot" doc="SOURCE">
+			<qry:xquery>
+				for $r in SQL('
+SELECT
+  sum(LIQ20_TOT_LIQ_PER.n_totpag) as total,
+  count(LIQ20_TOT_LIQ_PER.n_totpag) as cantidad,
+  max(LIQ15_EMPRESA_BCOS.c_convenio) as c_convenio,
+  max(LIQ01_TIPOS_LIQ.c_tipo_liq) as c_tipo_liq
+FROM
+  LIQ15_EMPRESA_BCOS ,
+  LIQ15_EMPRESAS ,
+  ORG03_EMPRESAS,
+  LIQ22_BANCOS ,
+  LIQ22_BANCOS_SUCUR ,
+  LIQ99_RECIBOS ,
+  LIQ20_TOT_LIQ_PER ,
+  LIQ97_PERSONAL_EMP ,
+  LIQ93_EMPRESAS ,
+  LIQ99_LIQUIDACION,
+  LIQ19_EJECUCIONES ,
+  LIQ19_LIQUIDACION ,
+  PER31_FORMAS_PAGO,
+  LIQ01_TIPOS_LIQ
+JOIN
+  LIQ15_EMPRESA_BCOS.oi_empresa         INNER LIQ15_EMPRESAS.oi_empresa  ,
+  LIQ15_EMPRESAS.oi_empresa             INNER ORG03_EMPRESAS.oi_empresa  ,
+  LIQ15_EMPRESA_BCOS.oi_banco             INNER LIQ22_BANCOS.oi_banco  ,
+  LIQ22_BANCOS.oi_banco                 INNER LIQ22_BANCOS_SUCUR.oi_banco  ,
+  LIQ20_TOT_LIQ_PER.oi_per_emp_ddo       INNER LIQ97_PERSONAL_EMP.oi_per_emp_ddo  ,
+  LIQ99_RECIBOS.oi_tot_liq_per           INNER LIQ20_TOT_LIQ_PER.oi_tot_liq_per  ,
+  LIQ93_EMPRESAS.oi_empresa_ddo         INNER LIQ99_LIQUIDACION.oi_empresa_ddo ,
+  LIQ99_RECIBOS.oi_liquidacion_ddo       INNER LIQ99_LIQUIDACION.oi_liquidacion_ddo ,
+  ORG03_EMPRESAS.c_empresa               INNER LIQ93_EMPRESAS.c_empresa  ,
+  LIQ99_LIQUIDACION.oi_liquidacion_ddo   INNER LIQ19_EJECUCIONES.oi_liquidacion_ddo  ,
+  LIQ19_EJECUCIONES.oi_liquidacion       INNER LIQ19_LIQUIDACION.oi_liquidacion ,
+  LIQ22_BANCOS_SUCUR.c_sucursal         INNER LIQ97_PERSONAL_EMP.c_sucursal  ,
+  LIQ22_BANCOS.c_banco                   INNER LIQ97_PERSONAL_EMP.c_banco,
+  PER31_FORMAS_PAGO.c_forma_pago         INNER LIQ20_TOT_LIQ_PER.c_forma_pago,
+  LIQ19_LIQUIDACION.oi_tipo_liq         LEFT OUTER LIQ01_TIPOS_LIQ.oi_tipo_liq
+WHERE
+  LIQ99_LIQUIDACION.c_estado = \'F\' and
+  LIQ22_BANCOS.oi_banco = {#SOURCE:@oi_banco}
+  AND LIQ19_LIQUIDACION.oi_liquidacion IN ({%= STRING(#SOURCE:LIQS/LIQ/@oi_liquidacion) %})
+  AND PER31_FORMAS_PAGO.l_banco = 1
+  AND LIQ20_TOT_LIQ_PER.n_totpag &gt; 0
+        ')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:attribute name="c_banco" value="'034'"/>
+				<qry:attribute name="c_empresa" value="FILL_LEFT($r/@c_convenio, '0', 4)"/>
+				<qry:attribute name="f_presentacion" value="format_date(now(), 'yyyymmdd')"/>
+				<qry:attribute name="importe_lotes" value="FORMAT_NUMBER($r/@total, 13, 2, '', '', '0')"/>
+				<qry:attribute name="tipo_mov" value="'2'"/>
+				<qry:switch test="$r/@c_tipo_liq">
+					<qry:case value="1">
+						<qry:attribute name="concepto" value="concat('HAB',format_date(now(), 'mm/yy'), '  ')"/>
+					</qry:case>
+					<qry:case value="2">
+						<qry:attribute name="concepto" value="concat('SUE',format_date(now(), 'mm/yy'), '  ')"/>
+					</qry:case>
+					<qry:case value="3">
+						<qry:attribute name="concepto" value="concat('HAB',format_date(now(), 'mm/yy'), '  ')"/>
+					</qry:case>
+					<qry:case value="4">
+						<qry:attribute name="concepto" value="concat('VAR',format_date(now(), 'mm/yy'), '  ')"/>
+					</qry:case>
+					<qry:case value="5">
+						<qry:attribute name="concepto" value="concat('VAR',format_date(now(), 'mm/yy'), '  ')"/>
+					</qry:case>
+					<qry:case value="10">
+						<qry:attribute name="concepto" value="concat('VAR',format_date(now(), 'mm/yy'), '  ')"/>
+					</qry:case>
+					<qry:case value="102">
+						<qry:attribute name="concepto" value="concat('VAR',format_date(now(), 'mm/yy'), '  ')"/>
+					</qry:case>
+				</qry:switch>
+				<qry:attribute name="cantidad" value="FILL_LEFT($r/@cantidad, '0', 3)"/>
+				<qry:attribute name="f_acreditacion" value="format_date(#SOURCE:@f_acreditacion, 'yyyymmdd')"/>
+			</qry:out>
+		</qry:select>
+		<qry:select name="qryDetail" doc="SOURCE">
+			<qry:xquery>
+				for $r in SQL('
+SELECT
+  ORG03_EMPRESAS.c_empresa,
+  LIQ22_BANCOS_SUCUR.c_suc_bancaria,
+  LIQ22_BANCOS.c_banco,
+  LIQ97_PERSONAL_EMP.c_tipo_documento,
+  LIQ97_PERSONAL_EMP.c_nro_documento,
+  LIQ97_PERSONAL_EMP.c_cta_bancaria,
+  LIQ97_PERSONAL_EMP.c_forma_pago,
+  LIQ97_PERSONAL_EMP.d_ape_y_nom,
+  LIQ20_TOT_LIQ_PER.n_totpag,
+  LIQ15_EMPRESA_BCOS.c_convenio,
+  LIQ97_PERSONAL_EMP.e_numero_legajo,
+  LIQ01_TIPOS_LIQ.c_tipo_liq
+FROM
+  LIQ15_EMPRESA_BCOS ,
+  LIQ15_EMPRESAS ,
+  ORG03_EMPRESAS,
+  LIQ22_BANCOS ,
+  LIQ22_BANCOS_SUCUR ,
+  LIQ99_RECIBOS ,
+  LIQ20_TOT_LIQ_PER ,
+  LIQ97_PERSONAL_EMP ,
+  LIQ93_EMPRESAS ,
+  LIQ99_LIQUIDACION,
+  LIQ19_EJECUCIONES ,
+  LIQ19_LIQUIDACION ,
+  PER31_FORMAS_PAGO,
+  LIQ01_TIPOS_LIQ
+JOIN
+  LIQ15_EMPRESA_BCOS.oi_empresa         INNER LIQ15_EMPRESAS.oi_empresa  ,
+  LIQ15_EMPRESAS.oi_empresa             INNER ORG03_EMPRESAS.oi_empresa  ,
+  LIQ15_EMPRESA_BCOS.oi_banco             INNER LIQ22_BANCOS.oi_banco  ,
+  LIQ22_BANCOS.oi_banco                 INNER LIQ22_BANCOS_SUCUR.oi_banco  ,
+  LIQ20_TOT_LIQ_PER.oi_per_emp_ddo       INNER LIQ97_PERSONAL_EMP.oi_per_emp_ddo  ,
+  LIQ99_RECIBOS.oi_tot_liq_per           INNER LIQ20_TOT_LIQ_PER.oi_tot_liq_per  ,
+  LIQ93_EMPRESAS.oi_empresa_ddo         INNER LIQ99_LIQUIDACION.oi_empresa_ddo ,
+  LIQ99_RECIBOS.oi_liquidacion_ddo       INNER LIQ99_LIQUIDACION.oi_liquidacion_ddo ,
+  ORG03_EMPRESAS.c_empresa               INNER LIQ93_EMPRESAS.c_empresa  ,
+  LIQ99_LIQUIDACION.oi_liquidacion_ddo   INNER LIQ19_EJECUCIONES.oi_liquidacion_ddo  ,
+  LIQ19_EJECUCIONES.oi_liquidacion       INNER LIQ19_LIQUIDACION.oi_liquidacion ,
+  LIQ22_BANCOS_SUCUR.c_sucursal         INNER LIQ97_PERSONAL_EMP.c_sucursal  ,
+  LIQ22_BANCOS.c_banco                   INNER LIQ97_PERSONAL_EMP.c_banco,
+  PER31_FORMAS_PAGO.c_forma_pago         INNER LIQ20_TOT_LIQ_PER.c_forma_pago,
+  LIQ19_LIQUIDACION.oi_tipo_liq         LEFT OUTER LIQ01_TIPOS_LIQ.oi_tipo_liq
+WHERE
+  LIQ99_LIQUIDACION.c_estado = \'F\' and
+  LIQ22_BANCOS.oi_banco = {%= #SOURCE:@oi_banco %}
+  AND LIQ19_LIQUIDACION.oi_liquidacion IN ({%= STRING(#SOURCE:LIQS/LIQ/@oi_liquidacion) %})
+  AND PER31_FORMAS_PAGO.l_banco = 1
+  AND LIQ20_TOT_LIQ_PER.n_totpag &gt; 0
+ORDER BY e_numero_legajo ASC
+')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:element name="DETAIL">
+					<qry:attribute name="c_empresa" value="FILL_LEFT($r/@c_convenio, '0', 4)"/>
+					<qry:attribute name="c_forma_pago" value="iif($r/@c_forma_pago='5', '2', '1')"/>
+					<qry:attribute name="c_cta_bancaria" value="SUBSTRING(FILL_LEFT($r/@c_cta_bancaria,  '0', 10), 0, 10)"/>
+					<qry:attribute name="monto" value="FORMAT_NUMBER($r/@n_totpag, 9, 2, '', '', '0')"/>
+					<qry:attribute name="nro_comprobante" value="FILL_LEFT(TRANSLATE($r/@e_numero_legajo, '.', ''), '0', 7)"/>
+					<qry:attribute name="d_ape_y_nom" value="SUBSTRING(FILL_LEFT($r/@d_ape_y_nom, '0', 20), 0, 20)"/>
+					<qry:attribute name="c_banco" value="SUBSTRING(FILL_LEFT($r/@c_banco,  '0', 3), 0, 3)"/>
+					<qry:attribute name="c_suc_bancaria" value="SUBSTRING(FILL_LEFT($r/@c_suc_bancaria,  '0', 5), 0, 5)"/>
+					<qry:attribute name="c_tipo_documento" value="IIF($r/@c_tipo_documento = 'DNI', '001', IIF($r/@c_tipo_documento = 'LE', '002',IIF($r/@c_tipo_documento = 'LC', '003',IF($r/@c_tipo_documento = 'CI', '004', '005'))))"/>
+					<qry:attribute name="c_nro_documento" value="SUBSTRING(FILL_LEFT($r/@c_nro_documento, '0', 17), 0, 17)"/>
+					<qry:attribute name="c_dependencia" value="'01             '"/>
+					<qry:attribute name="f_acreditacion" value="format_date(#SOURCE:@f_acreditacion, 'yyyymmdd')"/>
+					<qry:switch test="$r/@c_tipo_liq">
+						<qry:case value="1">
+							<qry:attribute name="c_tipo_liq" value="'001'"/>
+						</qry:case>
+						<qry:case value="2">
+							<qry:attribute name="c_tipo_liq" value="'002'"/>
+						</qry:case>
+						<qry:case value="3">
+							<qry:attribute name="c_tipo_liq" value="'001'"/>
+						</qry:case>
+						<qry:case value="4">
+							<qry:attribute name="c_tipo_liq" value="'003'"/>
+						</qry:case>
+						<qry:case value="5">
+							<qry:attribute name="c_tipo_liq" value="'003'"/>
+						</qry:case>
+						<qry:case value="10">
+							<qry:attribute name="c_tipo_liq" value="'003'"/>
+						</qry:case>
+						<qry:case value="102">
+							<qry:attribute name="c_tipo_liq" value="'003'"/>
+						</qry:case>
+					</qry:switch>
+				</qry:element>
+			</qry:out>
+		</qry:select>
+	</QUERY>
+	<HEAD>
+		0{c_banco:3}{space(5)}{c_empresa:4}{f_presentacion:8}010001{space(2)}{importe_lotes:15}{space(10)}0{space(133)}{space(8)}{c_empresa:4}
+10001{tipo_mov:1}{concepto:10}{cantidad:3}{importe_lotes:15}{f_acreditacion:8}01{space(144)}{space(8)}{c_empresa:4}
+	</HEAD>
+	<DETAIL>
+		20001{c_forma_pago:1}{c_cta_bancaria:10}{monto:11}{nro_comprobante:7}{d_ape_y_nom:20}{c_banco:3}{c_suc_bancaria:5}{c_tipo_documento:3}{c_nro_documento:17}00{c_dependencia:15}{space(1)}{c_tipo_liq:3}{space(93)}{c_empresa:4}
+	</DETAIL>
+	<MESS>
+		<EMPTY mess="No se encontraron registros. Por favor valide que los legajos estest&#233;n asociados al banco correcto y que las liquidaciones del per&#237;odo est&#233;n cerradas."/>
+	</MESS>
+</INTERFACE-DEF>

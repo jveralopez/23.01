@@ -1,0 +1,94 @@
+<html:html xmlns:html="nomad_engine.html" xmlns:qry="nomad_engine.qry" extends="Nomad.Base.BaseReport.rpt" name="NucleusRH.Base.Personal.VencimientosContratos" doc="source">
+	<html:query declare="&lt;DATOS oi_empresa=&quot;1&quot; f_desde=&quot;20000301&quot; f_hasta=&quot;20121230&quot; l_incluir=&quot;1&quot;&gt;&lt;ROWS /&gt;&lt;/DATOS&gt;">
+		<qry:main doc="SOURCE">
+			<qry:append-doc name="PARAMIN" doc-path="#SOURCE:DATOS"/>
+			<REPORT label="Vencimiento de Contratos">
+				<qry:attribute name="date" value="format_date(Now(),'dd/mm/yyyy HH:MM')"/>
+				<GROUPS>
+					<GROUP tag="CAB" type="title" noreg="No se encontraron registros para los filtros seleccionados.">
+						<COLS>
+							<COL name="d_empresa" label="Empresa" align="left" width="10"/>
+							<COL name="f_desde" label="Fecha Desde" style="width:13%;" type="date"/>
+							<COL name="f_hasta" label="Fecha Hasta" style="width:10%;" type="date"/>
+						</COLS>
+						<GROUP tag="PER" style="padding-left:50px" type="table" noreg="No se encontraron registros para los filtros seleccionados.">
+							<COLS>
+								<COL name="legajo" label="Legajo" style="width:10%;"/>
+								<COL name="ape_y_nom" label="Apellido y Nombre" style="width:40%;"/>
+								<COL name="contrato" label="Contrato" style="width:30%;"/>
+								<COL name="ini" label="Fecha Inicio" style="width:10%;" type="date"/>
+								<COL name="fin" label="Fecha Fin" style="width:10%;" type="date"/>
+								<COL name="obs" label="Observaciones" style="width:40%;"/>
+							</COLS>
+						</GROUP>
+					</GROUP>
+				</GROUPS>
+				<qry:element name="DATA">
+					<qry:element name="CAB">
+						<qry:insert-select doc-path="#SOURCE:DATOS" name="QRY_EMPRESA"/>
+						<qry:attribute value="format_date(#SOURCE:DATOS/@f_desde, 'dd/mm/yyyy')" name="f_desde"/>
+						<qry:attribute value="format_date(#SOURCE:DATOS/@f_hasta, 'dd/mm/yyyy')" name="f_hasta"/>
+						<qry:insert-select doc-path="#SOURCE:DATOS" name="QRY_EMPLEADOS"/>
+					</qry:element>
+				</qry:element>
+			</REPORT>
+		</qry:main>
+		<qry:select doc="PARAM" name="QRY_EMPRESA">
+			<qry:xquery>
+				for $r in sql('
+					SELECT
+						ORG03_EMPRESAS.d_empresa
+					FROM 
+						ORG03_EMPRESAS
+					WHERE
+						ORG03_EMPRESAS.oi_empresa = {#PARAM:@oi_empresa}
+				')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:attribute name="d_empresa" value="$r/@d_empresa"/>
+			</qry:out>
+		</qry:select>
+		<qry:select doc="PARAM" name="QRY_EMPLEADOS">
+			<qry:xquery>
+				for $r in sql('
+					SELECT						
+						PER02_PERSONAL_EMP.e_numero_legajo, 
+						PER01_PERSONAL.d_ape_y_nom, 
+						PER28_CONTRATOS.d_contrato,
+						PER02_CONTR_PER.f_inicio,
+						PER02_CONTR_PER.f_fin,
+						PER02_CONTR_PER.o_contrato_per
+					FROM 						
+						PER02_PERSONAL_EMP, 
+						PER01_PERSONAL,                            
+						PER02_CONTR_PER,
+						PER28_CONTRATOS
+					JOIN						
+						PER02_PERSONAL_EMP.oi_personal INNER PER01_PERSONAL.oi_personal,  
+						PER02_PERSONAL_EMP.oi_personal_emp LEFT OUTER PER02_CONTR_PER.oi_personal_emp,
+						PER02_CONTR_PER.oi_contrato LEFT OUTER PER28_CONTRATOS.oi_contrato
+					WHERE
+						PER02_PERSONAL_EMP.oi_empresa = {#PARAM:@oi_empresa}
+						{%? (#PARAMIN:@l_incluir!='1') 
+							{% AND PER02_PERSONAL_EMP.oi_indic_activo = 1 %}
+							{% %} 
+						%}
+						AND PER02_CONTR_PER.f_fin &gt;= {Datetime(#PARAM:@f_desde)}
+						AND PER02_CONTR_PER.f_fin &lt;= {Datetime(#PARAM:@f_hasta)}
+					ORDER BY
+						e_numero_legajo ASC
+				')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:element name="PER">
+					<qry:attribute name="legajo" value="$r/@e_numero_legajo"/>
+					<qry:attribute name="ape_y_nom" value="$r/@d_ape_y_nom"/>
+					<qry:attribute name="contrato" value="$r/@d_contrato"/>
+					<qry:attribute name="obs" value="$r/@o_contrato_per"/>
+					<qry:attribute name="ini" value="format_date($r/@f_inicio, 'dd/mm/yyyy')"/>
+					<qry:attribute name="fin" value="format_date($r/@f_fin, 'dd/mm/yyyy')"/>
+				</qry:element>
+			</qry:out>
+		</qry:select>
+	</html:query>
+</html:html>

@@ -1,0 +1,88 @@
+<form:Form xmlns:form="nomad_engine.form" xmlns:qry="nomad_engine.qry" extends="NucleusRH.Base.Legales.Sujetos.SUJETO.filter.autoform" mess="&#191;Est&#225; seguro que desa cancelar la operaci&#243;n?" doc="source" name="NucleusRH.Base.Legales.Sujetos.SUJETO">
+	<form:Help>
+		<form:Help-title text="Sujetos" name="TITLE"/>
+		<form:Help-descr name="DESCR"/>
+		<form:Help-note name="NOTE"/>
+	</form:Help>
+	<form:Title width="90%">
+		<form:RowAligner name="ralTitle">
+			<form:Row name="row1">
+				<form:Label nowrap="1" align="center" style="S3 LCol_w" label="Filtrar Sujetos" name="GEN_FILTER"/>
+			</form:Row>
+		</form:RowAligner>
+	</form:Title>
+	<form:Center width="95%">
+		<form:Columns visible="FILTER" name="main_columnsFILTER">
+			<form:Column name="main_columnsFILTERcolumn1">
+				<form:TextBox nvalue="#FILTERDATA:@c_sujeto" required="0" enabled="FILTER" ysize="1" xsize="30" length="30" label="C&#243;digo" name="c_sujeto"/>
+				<form:TextBox required="0" enabled="FILTER" ysize="1" xsize="50" length="100" label="Descripci&#243;n" nvalue="#FILTERDATA:@d_sujeto" name="d_sujeto"/>
+				<form:ComboBox queryname1="NucleusRH.Base.Legales.Clasif_Suj.CLASIF_SUJ.INFO" xsize="40" mode="QRY" required="1" enabled="FILTER" label="Clasificaci&#243;n" nvalue="#FILTERDATA:@oi_clasif_suj" name="oi_clasif_suj"/>
+			</form:Column>
+		</form:Columns>
+	</form:Center>
+	<form:Bottom>
+		<form:RowAligner name="buttonlinks">
+			<form:Row name="row1">
+				<form:Button startvalidate="1" name="FILTER" label="Filtrar" img="ok" descrip="Ejecuta el filtro sobre la Base de Datos" note="Guardar los Cambios en la Base de Datos" visible="FILTER" X-POLICY="./FORM/NucleusRH/Base/Legales/Sujetos/SUJETO/filter/form/FILTER">
+					<form:Event runat="client" name="onclick" action="FILTER"/>
+				</form:Button>
+				<form:Button name="ADD" label="Agregar" img="new" descrip="Agregar un Registro a la Base de Datos" note="Agregar un Registro a la Base de Datos" visible="FILTER" X-POLICY="./FORM/NucleusRH/Base/Legales/Sujetos/SUJETO/filter/form/ADD">
+					<form:Event runat="server" name="onclick" action="ADD"/>
+				</form:Button>
+				<form:Button name="BACK" label="Volver" img="back" descrip="Volver a la pantalla anterior" note="Vuelve a la pantalla anterior del formulario" visible="FILTER" X-POLICY="./FORM/NucleusRH/Base/Legales/Sujetos/SUJETO/filter/form/BACK">
+					<form:Event runat="server" name="onclick" action="BACK"/>
+				</form:Button>
+			</form:Row>
+		</form:RowAligner>
+	</form:Bottom>
+	<form:Event action="FILTER" name="FILTER" runat="server"/>
+	<form:Scripts>
+		function FILTER()
+{
+	np = new NomadProxy("", ut);
+	nSQL = np.SQLService();
+	var PARAM = "&lt;PARAM c_sujeto=\"" +Ctrl("c_sujeto").GetXValue() + "\" d_sujeto=\""+Ctrl("d_sujeto").GetXValue() + "\" oi_clasif_suj=\""+ Ctrl("oi_clasif_suj").GetXValue() + "\" /&gt;";
+	var result = nSQL.GetOBJ(Ctrl("main").getResource("CantidadSujetos"), PARAM); 
+	
+	if(result.cantidad &gt; 1000)
+	{
+		alert("La b&#250;squeda devuelve m&#225;s de 1000 registros, por favor afine la b&#250;squeda.");
+		return false;
+	}
+	else
+		Ctrl("main").DoEvent("FILTER");
+			
+}
+	</form:Scripts>
+	<form:Resources>
+		<form:Resource declare="&lt;PARAM c_sujeto=&quot;JP&quot; d_sujeto=&quot;&quot; oi_clasif_suj=&quot;3&quot; /&gt;" name="CantidadSujetos">
+			<qry:main doc="PARAM">
+				<qry:element name="ROW">
+					<qry:insert-select doc-path="#PARAM:PARAM" name="sql1"/>
+				</qry:element>
+			</qry:main>
+			<qry:select doc="PARAM" name="sql1">
+				<qry:xquery>
+					for $r in sql('
+			SELECT
+				COUNT(t0.oi_sujeto) as cantidad
+			FROM 
+    		LEG40_SUJETOS as t0,
+    		LEG40_CLASIF_SUJ as t1,
+    		LEG41_CLASIF as t2    		
+    	JOIN
+    		t0.oi_sujeto INNER t1.oi_sujeto,
+    		t1.oi_clasif_suj INNER t2.oi_clasif_suj
+    	WHERE
+    		t2.oi_clasif_suj = {#PARAM:@oi_clasif_suj}
+    		{%? (#PARAM:@c_sujeto='') {% %} {% AND CONTAIN(t0.c_sujeto, \'{%=#PARAM:@c_sujeto%}\') %} %}
+    		{%? (#PARAM:@d_sujeto='') {% %} {% AND CONTAIN(t0.d_sujeto, \'{%=#PARAM:@d_sujeto%}\') %} %}
+    	')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:attribute name="cantidad" value="$r/@cantidad"/>
+				</qry:out>
+			</qry:select>
+		</form:Resource>
+	</form:Resources>
+</form:Form>

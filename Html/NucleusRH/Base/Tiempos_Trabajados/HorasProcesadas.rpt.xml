@@ -1,0 +1,207 @@
+<html:html xmlns:html="nomad_engine.html" xmlns:qry="nomad_engine.qry" extends="Nomad.Base.BaseReport.rpt" name="NucleusRH.Base.Tiempos_Trabajados.HorasProcesadas.rpt" doc="source">
+	<html:for-each declare="&lt;FILTRO gcustom=&quot;&quot; oi_liquidacion=&quot;2&quot; oi_grupo_th=&quot;&quot; gpers=&quot;&quot; empresa=&quot;1&quot; activos=&quot;&quot; nombre=&quot;&quot; documento=&quot;&quot; sexo=&quot;&quot; grupo_sanguineo=&quot;&quot; listlegajos=&quot;1-4&quot; oi_indic_activo=&quot;&quot; egresado=&quot;&quot; oi_forma_pago=&quot;&quot; oi_tipo_personal=&quot;&quot; oi_centro_costo=&quot;&quot; oi_categoria=&quot;&quot; soloconvenio=&quot;&quot; oi_ubicacion_desde=&quot;&quot; oi_ubicacion_hasta=&quot;&quot; oi_estructura=&quot;&quot; escructura_childs=&quot;&quot; oi_afjp=&quot;&quot; oi_obra_social=&quot;&quot; oi_sindicato=&quot;&quot; legajo_reloj_desde=&quot;&quot; legajo_reloj_hasta=&quot;&quot; chksinreloj=&quot;&quot; tarjeta_desde=&quot;&quot; tarjeta_hasta=&quot;&quot; chksintarjeta=&quot;&quot; oi_horario=&quot;&quot; oi_escuadra=&quot;&quot; tipo=&quot;&quot; legID=&quot;&quot; leg_where=&quot;(LEG.e_numero_legajo &amp;gt;= 1 AND LEG.e_numero_legajo &amp;lt;= 4)&quot;&gt;&#13;&#10;  &lt;PERSONAS&gt;&#13;&#10;    &lt;ROW VALUES=&quot;1,10&quot; /&gt;&#13;&#10;  &lt;/PERSONAS&gt;&#13;&#10;&lt;/FILTRO&gt;&#13;&#10;">
+		<qry:main doc="PARAM">
+			<REPORT label="Horas Procesadas">
+				<qry:attribute value="format_date(now(),'dd/mm/yyyy HH:MM')" name="date"/>
+				<GROUPS>
+					<GROUP tag="REP" type="title">
+						<COLS>
+							<COL name="procesamiento" label="Procesamiento"/>
+							<COL name="f_desde" label="Fecha Desde" type="date"/>
+							<COL name="f_hasta" label="Fecha Hasta" type="date"/>
+							<COL name="grupo_th" label="Grupo de Tipo de Hora"/>
+						</COLS>
+						<GROUP tag="EMP" type="title">
+							<COLS>
+								<COL name="empresa" label="Empresa"/>
+							</COLS>
+							<GROUP tag="HOR" type="table">
+								<COLS>
+									<COL name="e_numero_legajo" label="Legajo" style="width:60px"/>
+									<COL name="d_ape_y_nom" label="Apellido y Nombre" style="width:270px"/>
+									<COL name="fecha" label="Fecha" style="text-align:center" type="date"/>
+									<COL name="desde" label="Desde" style="text-align:center"/>
+									<COL name="hasta" label="Hasta" style="text-align:center"/>
+									<COL name="tipo_hora" label="Tipo de Hora"/>
+									<COL name="n_cantidadhs" label="Cant." type="num"/>
+								</COLS>
+							</GROUP>
+						</GROUP>
+					</GROUP>
+				</GROUPS>
+				<qry:element name="DATA">
+					<qry:element name="REP">
+						<qry:append-doc name="FILTRO" doc-path="#PARAM:FILTRO"/>
+						<qry:insert-select doc-path="#FILTRO:" name="QRY_PROCESO"/>
+						<qry:if test="#FILTRO:@oi_grupo_th!=''">
+							<qry:then>
+								<qry:insert-select doc-path="#FILTRO:" name="QRY_GRUPO"/>
+							</qry:then>
+						</qry:if>
+						<qry:insert-select doc-path="#FILTRO:" name="QRY_EMPRESAS"/>
+					</qry:element>
+				</qry:element>
+			</REPORT>
+		</qry:main>
+		<qry:select name="QRY_PROCESO" doc="PARAM">
+			<qry:xquery>
+				for $r in sql('		
+			SELECT 
+				TTA09_LIQUIDACION.c_liquidacion,
+				TTA09_LIQUIDACION.d_liquidacion,
+				TTA09_LIQUIDACION.f_fechainicio,
+				TTA09_LIQUIDACION.f_fechafin
+			FROM
+				TTA09_LIQUIDACION
+			WHERE
+				TTA09_LIQUIDACION.oi_liquidacion = {#FILTRO:@oi_liquidacion}
+			')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:attribute value="$r/@c_liquidacion + ' - ' + $r/@d_liquidacion" name="procesamiento"/>
+				<qry:attribute value="format_date($r/@f_fechainicio, 'dd/mm/yyyy')" name="f_desde"/>
+				<qry:attribute value="format_date($r/@f_fechafin, 'dd/mm/yyyy')" name="f_hasta"/>
+			</qry:out>
+		</qry:select>
+		<qry:select name="QRY_GRUPO" doc="PARAM">
+			<qry:xquery>
+				for $r in sql('		
+				SELECT 
+					TTA13_GRUPOS_TH.c_grupo_th,
+					TTA13_GRUPOS_TH.d_grupo_th
+				FROM 
+					TTA13_GRUPOS_TH
+				WHERE 
+					TTA13_GRUPOS_TH.oi_grupo_th = {#PARAM:@oi_grupo_th}
+			')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:attribute value="$r/@d_grupo_th" name="grupo_th"/>
+			</qry:out>
+		</qry:select>
+		<qry:select doc="PARAM" name="QRY_EMPRESAS">
+			<qry:xquery>
+				for $r in sql('				
+					SELECT 
+						ORG03_EMPRESAS.oi_empresa,
+						ORG03_EMPRESAS.c_empresa,
+						ORG03_EMPRESAS.d_empresa
+					FROM						
+						ORG03_EMPRESAS
+			')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<EMP qry-delete-child="1">
+					<qry:attribute value="$r/@oi_empresa" name="oi_empresa"/>
+					<qry:attribute value="$r/@c_empresa + ' - ' + $r/@d_empresa" name="empresa"/>
+					<qry:append-doc doc-path="." name="EMP"/>
+					<qry:insert-select doc-path="#PARAM:PERSONAS/ROW" name="QRY_PERSONAS"/>
+					<qry:attribute name="hts:delete" value="1"/>
+					<qry:insert-select doc-path="qry:call" name="NO_DELETE"/>
+				</EMP>
+			</qry:out>
+		</qry:select>
+		<qry:select doc="PARAM" name="QRY_PERSONAS">
+			<qry:xquery>
+				for $r in sql('		
+				SELECT 
+					PER02_PERSONAL_EMP.oi_personal_emp
+				FROM 
+					PER02_PERSONAL_EMP
+				WHERE 
+					PER02_PERSONAL_EMP.oi_empresa = {#EMP:@oi_empresa} and 
+					PER02_PERSONAL_EMP.oi_personal_emp in ({%=#PARAM:@values%})
+			')/ROWS
+			</qry:xquery>
+			<qry:out>
+				<qry:if test="number($r/@cnt)!=0">
+					<qry:then>
+						<qry:call>
+							<FILTRO>
+								<qry:attribute value="#EMP:@oi_empresa" name="oi_empresa"/>
+								<qry:attribute value="#FILTRO:@oi_liquidacion" name="oi_liquidacion"/>
+								<qry:attribute value="#FILTRO:@oi_grupo_th" name="oi_grupo_th"/>
+								<qry:attribute value="string($r/ROW/@oi_personal_emp)" name="values"/>
+							</FILTRO>
+						</qry:call>
+					</qry:then>
+					<qry:else/>
+				</qry:if>
+			</qry:out>
+		</qry:select>
+		<qry:select name="NO_DELETE" doc="">
+			<qry:out>
+				<qry:attribute name="hts:delete" value="''"/>
+			</qry:out>
+		</qry:select>
+	</html:for-each>
+	<html:query declare="&lt;FILTRO values=&quot;1,10&quot; oi_liquidacion=&quot;2&quot; oi_empresa=&quot;1&quot;/&gt;&#13;&#10;&#9;&#9;&#9;&#9;">
+		<qry:main doc="PARAM">
+			<qry:no-show>
+				<qry:insert-select doc-path="#PARAM:/FILTRO" name="QRY_HORAS"/>
+			</qry:no-show>
+		</qry:main>
+		<qry:select doc="PARAM" name="QRY_HORAS">
+			<qry:xquery>
+				for $r in sql('		
+				SELECT 
+					TTA10_LIQUIDACPROC.oi_liquidacionproc,
+					PER02_PERSONAL_EMP.oi_personal_emp,
+					PER02_PERSONAL_EMP.e_numero_legajo,
+					PER01_PERSONAL.d_ape_y_nom,
+					TTA10_LIQUIDACJOR.f_fecjornada,
+					TTA10_LIQUIDACPROC.f_fechoraentrada,
+					TTA10_LIQUIDACPROC.f_fechorasalida,
+					TTA01_TIPOHORAS.d_tipohora,
+					TTA10_LIQUIDACPROC.n_cantidadhs
+				FROM 
+					TTA10_LIQUIDACPROC,
+					TTA10_LIQUIDACJOR,
+					TTA10_LIQUIDACPERS,
+					PER02_PERSONAL_EMP,
+					PER01_PERSONAL,
+					TTA01_TIPOHORAS
+				JOIN
+					TTA10_LIQUIDACPROC.oi_liquidacjor INNER TTA10_LIQUIDACJOR.oi_liquidacjor,
+					TTA10_LIQUIDACJOR.oi_liquidacionpers INNER TTA10_LIQUIDACPERS.oi_liquidacionpers,
+					TTA10_LIQUIDACPERS.oi_personal_emp INNER PER02_PERSONAL_EMP.oi_personal_emp,
+					PER02_PERSONAL_EMP.oi_personal INNER PER01_PERSONAL.oi_personal,
+					TTA01_TIPOHORAS.oi_tipohora INNER TTA10_LIQUIDACPROC.oi_tipohora
+				WHERE
+					TTA10_LIQUIDACPERS.oi_liquidacion = {#PARAM:@oi_liquidacion}
+					AND TTA10_LIQUIDACPERS.oi_personal_emp in ({%=#PARAM:@values%})
+					AND PER02_PERSONAL_EMP.oi_empresa = {#PARAM:@oi_empresa}
+					{%? (#PARAM:@oi_grupo_th!='') 
+						{% AND TTA10_LIQUIDACPROC.oi_tipohora in (SELECT TTA13_THS_GRUPO.oi_tipohora FROM TTA13_THS_GRUPO WHERE TTA13_THS_GRUPO.oi_grupo_th = {%=#PARAM:@oi_grupo_th%}) %} 
+						{%  %} 
+				  %}
+				ORDER BY
+					e_numero_legajo ASC, 
+				  f_fecjornada ASC
+			')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:element name="HOR">
+					<qry:attribute value="$r/@oi_personal_emp" name="oi_personal_emp"/>
+					<qry:if test="$r/@oi_personal_emp != ../@oip">
+						<qry:then>
+							<qry:attribute value="$r/@e_numero_legajo" name="e_numero_legajo"/>
+							<qry:attribute value="$r/@d_ape_y_nom" name="d_ape_y_nom"/>
+						</qry:then>
+						<qry:else>
+							<qry:attribute value="''" name="e_numero_legajo"/>
+							<qry:attribute value="''" name="d_ape_y_nom"/>
+						</qry:else>
+					</qry:if>
+					<qry:attribute value="format_date($r/@f_fecjornada, 'dd/mm/yyyy')" name="fecha"/>
+					<qry:attribute value="format_date($r/@f_fechoraentrada, 'dd/mm/yyyy HH:MM')" name="desde"/>
+					<qry:attribute value="format_date($r/@f_fechorasalida, 'dd/mm/yyyy HH:MM')" name="hasta"/>
+					<qry:attribute value="$r/@d_tipohora" name="tipo_hora"/>
+					<qry:attribute value="$r/@n_cantidadhs" name="n_cantidadhs"/>
+				</qry:element>
+				<qry:attribute value="'1'" name="visible"/>
+				<qry:attribute value="$r/@oi_personal_emp" name="oip"/>
+			</qry:out>
+		</qry:select>
+	</html:query>
+</html:html>

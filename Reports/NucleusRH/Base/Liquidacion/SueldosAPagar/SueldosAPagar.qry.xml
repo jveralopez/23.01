@@ -1,0 +1,153 @@
+<qry:define declare="&lt;FILTRO report=&quot;&quot; FormatRPT=&quot;PDF&quot; file-name=&quot;0&quot; batch-id=&quot;0&quot; e_periodo=&quot;200802&quot; oi_empresa=&quot;164&quot;&gt;&#13;&#10;&#9;&lt;LIQUIDACIONES&gt;&#13;&#10;&#9;&#9;&lt;SLIQUIDACION id=&quot;40&quot;/&gt;&#13;&#10;&#9;&lt;/LIQUIDACIONES&gt;&#13;&#10;&lt;/FILTRO&gt;" xmlns:qry="XXX" name="SueldosAPagar">
+	<qry:main doc="PARAM" xmlns:qry="XXX">
+		<qry:append-doc name="FILTRO" doc-path="#PARAM:/FILTRO"/>
+		<qry:element name="SUELDOSAPAGAR">
+			<qry:attribute value="format_date(now(),'dd/mm/yyyy HH:MM:SS')" name="f_informe" type="Nomad.NSystem.String"/>
+			<qry:element name="LIQUIDACIONES">
+				<qry:insert-select doc-path="#FILTRO:" name="QRY_LIQUIDACIONES"/>
+			</qry:element>
+			<qry:element name="SUELDOS">
+				<qry:attribute value="'0'" name="cant"/>
+				<qry:insert-select doc-path="#FILTRO:" name="QRY_RECIBOS"/>
+				<qry:insert-select doc-path=".[./@cant='0']" name="QRY_VACIO"/>
+			</qry:element>
+		</qry:element>
+	</qry:main>
+	<qry:select doc="PARAM" name="QRY_RECIBOS">
+		<qry:xquery>
+			for $r in sql('
+				SELECT 
+				LIQ20_TOT_LIQ_PER.oi_tot_liq_per,
+				LIQ99_LIQUIDACION.oi_liquidacion_ddo,
+				LIQ99_LIQUIDACION.c_liquidacion,
+				LIQ99_LIQUIDACION.d_titulo,
+				LIQ99_LIQUIDACION.oi_empresa_ddo,				
+				LIQ97_PERSONAL_EMP.e_numero_legajo,				
+				LIQ97_PERSONAL_EMP.c_cta_bancaria,
+				LIQ97_PERSONAL_EMP.d_ape_y_nom,
+				LIQ97_PERSONAL_EMP.c_nro_cuil,
+				LIQ20_TOT_LIQ_PER.n_sbasico,
+				LIQ20_TOT_LIQ_PER.n_totsret,
+				LIQ20_TOT_LIQ_PER.n_totpag,
+				LIQ20_TOT_LIQ_PER.n_totnsret,
+				LIQ20_TOT_LIQ_PER.n_totdesc,
+				LIQ20_TOT_LIQ_PER.n_totasig,
+				LIQ20_TOT_LIQ_PER.n_totant,				
+				LIQ20_TOT_LIQ_PER.n_totemb,
+				LIQ20_TOT_LIQ_PER.n_totcont
+				
+				FROM
+				LIQ20_TOT_LIQ_PER, LIQ97_PERSONAL_EMP,
+				LIQ99_LIQUIDACION, LIQ99_RECIBOS, LIQ19_LIQUIDACION, ORG03_EMPRESAS
+				
+				JOIN 
+				LIQ19_LIQUIDACION.oi_empresa INNER ORG03_EMPRESAS.oi_empresa,
+				LIQ19_LIQUIDACION.c_liquidacion INNER LIQ99_LIQUIDACION.c_liquidacion,
+				ORG03_EMPRESAS.c_empresa INNER LIQ99_LIQUIDACION.c_empresa,
+				LIQ99_LIQUIDACION.oi_liquidacion_ddo INNER LIQ99_RECIBOS.oi_liquidacion_ddo,
+				LIQ20_TOT_LIQ_PER.oi_per_emp_ddo INNER LIQ97_PERSONAL_EMP.oi_per_emp_ddo,
+				LIQ20_TOT_LIQ_PER.oi_tot_liq_per INNER LIQ99_RECIBOS.oi_tot_liq_per
+				
+				WHERE
+				LIQ99_LIQUIDACION.c_estado = \'F\' and
+				ORG03_EMPRESAS.oi_empresa = {#PARAM:@oi_empresa}
+				{%? (#PARAM:@e_periodo!='') {% AND LIQ19_LIQUIDACION.e_periodo = {#PARAM:@e_periodo} %} {% %} %}
+				{%? (string(#PARAM:LIQUIDACIONES/LIQUIDACION/@id)!='') {% AND LIQ19_LIQUIDACION.oi_liquidacion IN ({%=string(#PARAM:LIQUIDACIONES/LIQUIDACION/@id)%}) %} {% %} %}
+				{%? ((#PARAM:@e_periodo='') and (string(#PARAM:LIQUIDACIONES/LIQUIDACION/@id)='')) {% and 1=2 %} {% %} %}
+				ORDER BY e_numero_legajo ASC
+			')/ROWS/ROW
+		</qry:xquery>
+		<qry:out>
+			<qry:element name="SUELDO">
+				<qry:attribute value="$r/@oi_tot_liq_per" name="oi_tot_liq_per"/>
+				<qry:attribute value="$r/@oi_liquidacion_ddo" name="oi_liquidacion_ddo"/>
+				<qry:attribute value="$r/@c_liquidacion + ' - ' + $r/@d_titulo" name="liquidacion"/>
+				<qry:attribute value="$r/@oi_empresa_ddo" name="oi_empresa_ddo"/>
+				<qry:attribute value="$r/@e_numero_legajo" name="e_numero_legajo"/>
+				<qry:attribute value="iif($r/@c_cta_bancaria!='', $r/@c_cta_bancaria, '-')" name="c_cta_bancaria"/>
+				<qry:attribute value="$r/@n_sbasico*100" name="n_sbasico"/>
+				<qry:attribute value="$r/@n_totsret*100" name="n_totsret"/>
+				<qry:attribute value="$r/@n_totpag*100" name="n_totpag"/>
+				<qry:attribute value="$r/@n_totnsret*100" name="n_totnsret"/>
+				<qry:attribute value="$r/@n_totdesc*100" name="n_totdesc"/>
+				<qry:attribute value="$r/@n_totasig*100" name="n_totasig"/>
+				<qry:attribute value="$r/@n_totant*100" name="n_totant"/>
+				<qry:attribute value="$r/@d_ape_y_nom" name="personal"/>
+				<qry:attribute value="iif($r/@c_nro_cuil!='', $r/@c_nro_cuil, '-')" name="c_nro_cuil"/>
+				<qry:attribute value="$r/@n_totemb*100" name="n_totemb"/>
+				<qry:attribute value="$r/@n_totcont*100" name="n_totcont"/>
+				<qry:insert-select doc-path="$r" name="QRY_DATOS_EMPRESA"/>
+			</qry:element>
+			<qry:attribute value="'1'" name="cant"/>
+		</qry:out>
+	</qry:select>
+	<qry:select doc="PARAM" name="QRY_DATOS_EMPRESA">
+		<qry:xquery>
+			for $r in sql('
+			SELECT LIQ93_EMPRESAS.c_empresa,
+			LIQ93_EMPRESAS.d_empresa
+			FROM LIQ93_EMPRESAS			
+			WHERE LIQ93_EMPRESAS.oi_empresa_ddo = {#PARAM:@oi_empresa_ddo}
+		')/ROWS/ROW
+		</qry:xquery>
+		<qry:out>
+			<qry:attribute value="$r/@c_empresa" name="c_empresa"/>
+			<qry:attribute value="$r/@c_empresa + ' - ' + $r/@d_empresa" name="empresa"/>
+		</qry:out>
+	</qry:select>
+	<qry:select doc="PARAM" name="QRY_LIQUIDACIONES">
+		<qry:xquery>
+			for $r in sql('
+			SELECT LIQ19_LIQUIDACION.oi_liquidacion,
+			LIQ19_LIQUIDACION.c_liquidacion,
+			LIQ19_LIQUIDACION.d_titulo			
+			FROM LIQ19_LIQUIDACION
+			WHERE
+			LIQ19_LIQUIDACION.oi_empresa = {#PARAM:@oi_empresa}
+			{%? (#PARAM:@e_periodo!='') {% AND LIQ19_LIQUIDACION.e_periodo = {#PARAM:@e_periodo} %} {% %} %}
+			{%? (string(#PARAM:LIQUIDACIONES/LIQUIDACION/@id)!='') {% AND LIQ19_LIQUIDACION.oi_liquidacion IN ({%=string(#PARAM:LIQUIDACIONES/LIQUIDACION/@id)%}) %} {% %} %}
+			{%? ((#PARAM:@e_periodo='') AND (string(#PARAM:LIQUIDACIONES/LIQUIDACION/@id)='')) {% AND 1=2 %} {% %} %}
+			
+		')/ROWS/ROW
+		</qry:xquery>
+		<qry:out>
+			<qry:element name="LIQUIDACION">
+				<qry:attribute value="$r/@oi_liquidacion" name="oi_liquidacion"/>
+				<qry:attribute value="$r/@c_liquidacion + ' - ' + $r/@d_titulo" name="liquidacion"/>
+			</qry:element>
+		</qry:out>
+	</qry:select>
+	<qry:select doc="PARAM" name="SECURITY">
+		<qry:xquery>
+			for $r in sql('select policy from NMD_SECURITY where class=\'NucleusRH.Base.Personal.LegajoEmpresa.PERSONAL_EMP\' and id={#PARAM:@oi_personal_emp}')/ROWS/ROW
+		</qry:xquery>
+		<qry:out>
+			<qry:attribute value="$r/@policy" name="policy"/>
+		</qry:out>
+	</qry:select>
+	<qry:select doc="PARAM" name="QRY_VACIO">
+		<qry:out>
+			<qry:element name="SUELDO">
+				<qry:attribute value="'0'" name="empresa"/>
+				<qry:attribute value="'0'" name="c_empresa"/>
+				<qry:attribute value="'0'" name="c_nro_cuil"/>
+				<qry:attribute value="'0'" name="personal"/>
+				<qry:attribute value="'0'" name="n_totcont"/>
+				<qry:attribute value="'0'" name="n_totemb"/>
+				<qry:attribute value="'0'" name="n_totant"/>
+				<qry:attribute value="'0'" name="n_totasig"/>
+				<qry:attribute value="'0'" name="n_totdesc"/>
+				<qry:attribute value="'0'" name="n_totnsret"/>
+				<qry:attribute value="'0'" name="n_totpag"/>
+				<qry:attribute value="'0'" name="n_totsret"/>
+				<qry:attribute value="'0'" name="n_sbasico"/>
+				<qry:attribute value="'0'" name="c_cta_bancaria"/>
+				<qry:attribute value="'0'" name="e_numero_legajo"/>
+				<qry:attribute value="'0'" name="oi_empresa_ddo"/>
+				<qry:attribute value="'0'" name="liquidacion"/>
+				<qry:attribute value="'0'" name="oi_liquidacion_ddo"/>
+				<qry:attribute value="'0'" name="oi_tot_liq_per"/>
+			</qry:element>
+		</qry:out>
+	</qry:select>
+</qry:define>

@@ -1,0 +1,183 @@
+<html:html xmlns:html="nomad_engine.html" xmlns:qry="nomad_engine.qry" extends="Nomad.Base.BaseReport.rpt" doc="source" name="NucleusRH.Base.Liquidacion.ListadoSindicatos">
+	<html:query declare="&lt;DATOS salida=&quot;HTML&quot; c_empresa=&quot;&quot; oi_banco=&quot;201&quot; f_acreditacion=&quot;20250128&quot; c_liquidacion=&quot;&quot; report=&quot;&quot; oi_empresa=&quot;1&quot; oi_liquidacion=&quot;1307&quot; /&gt;">
+		<qry:main doc="SOURCE">
+			<qry:append-doc name="PARAMIN" doc-path="#SOURCE:DATOS"/>
+			<REPORT label="Listado de Acreditaci&#243;n de Haberes">
+				<qry:attribute name="date" value="format_date(Now(),'dd/mm/yyyy HH:MM')"/>
+				<GROUPS>
+					<GROUP tag="EMP" type="title" noreg="No se encontraron registros para los filtros seleccionados.">
+						<COLS>
+							<COL name="d_empresa" label="Empresa"/>
+							<qry:if test="#PARAMIN:@oi_banco">
+								<qry:then>
+									<COL name="d_banco" label="Banco"/>
+								</qry:then>
+								<qry:else/>
+							</qry:if>
+							<COL name="d_liquidacion" label="Liquidaci&#243;n"/>
+							<COL name="f_acreditacion" label="Fecha de Acreditaci&#243;n" type="date"/>
+							<COL name="cantidad" label="Cantidad de Legajos"/>
+						</COLS>
+						<GROUP tag="PER" type="table" noreg="No se encontraron registros para los filtros seleccionados.">
+							<COLS>
+								<COL name="e_numero_legajo" label="Legajo" style="width:10%; text-align:right;"/>
+								<COL name="c_nro_cuil" label="CUIL" style="text-align:center; width:15%;"/>
+								<COL name="d_ape_y_nom" label="Apellido y Nombre" style="width:40%;"/>
+								<COL name="d_banco" label="Banco" style="width:15%;"/>
+								<COL name="c_sucursal" label="Sucursal" style="width:15%;"/>
+								<COL type="long" name="c_cta_bancaria" label="Nro. Cta. Bancaria" style="width:10%;"/>
+								<COL type="long" name="c_cbu" label="CBU" style="width:10%;"/>
+								<COL type="long" name="ubicacion" label="[codigo ubicacion] descripcion ubicacion" style="width:10%;"/>
+								<COL type="long" name="convenioCategoria" label="Convenio-Categoria" style="width:10%;"/>
+								<COL name="n_totpag" label="Remuneraci&#243;n" style="width:10%;" type="num"/>
+							</COLS>
+							<FCOLS>
+								<COL style="border-right:none;"/>
+								<COL style="border-right:none;border-left:none;"/>
+								<COL style="border-right:none;border-left:none;"/>
+								<COL style="border-right:none;border-left:none;"/>
+								<COL style="border-right:none;border-left:none;"/>
+								<COL style="border-right:none;border-left:none;"/>
+								<COL style="border-right:none;border-left:none;"/>
+								<COL style="border-right:none;border-left:none;"/>
+								<COL label="Total $" style="text-align:right;border-left:none;"/>
+								<COL name="total" type="num" style="text-align:right;"/>
+							</FCOLS>
+						</GROUP>
+					</GROUP>
+				</GROUPS>
+				<qry:element name="DATA">
+					<qry:element name="EMP">
+						<qry:attribute name="cantidad" value="0" type="Nomad.NSystem.String"/>
+						<qry:attribute name="f_acreditacion" value="format_date(#PARAMIN:@f_acreditacion, 'dd/mm/yyyy')" type="Nomad.NSystem.String"/>
+						<qry:insert-select name="qry_cabecera"/>
+						<qry:if test="#PARAMIN:@oi_banco">
+							<qry:then>
+								<qry:insert-select name="qry_banco"/>
+							</qry:then>
+							<qry:else/>
+						</qry:if>
+						<qry:insert-select name="qry_personas"/>
+						<qry:attribute name="total" value="./@total" type="Nomad.NSystem.String"/>
+					</qry:element>
+				</qry:element>
+			</REPORT>
+		</qry:main>
+		<qry:select doc="SOURCE" name="qry_cabecera">
+			<qry:xquery>
+				for $r in sql('
+				SELECT 
+					LIQ93_EMPRESAS.d_empresa, 
+					LIQ99_LIQUIDACION.c_liquidacion, 
+					LIQ99_LIQUIDACION.d_titulo
+				FROM 
+					LIQ93_EMPRESAS, 
+					LIQ99_LIQUIDACION, 
+					LIQ19_EJECUCIONES, 
+					LIQ19_LIQUIDACION
+				JOIN 
+					LIQ93_EMPRESAS.oi_empresa_ddo INNER LIQ99_LIQUIDACION.oi_empresa_ddo,
+					LIQ99_LIQUIDACION.oi_liquidacion_ddo INNER LIQ19_EJECUCIONES.oi_liquidacion_ddo,
+					LIQ19_EJECUCIONES.oi_liquidacion INNER LIQ19_LIQUIDACION.oi_liquidacion
+				WHERE 
+					LIQ19_LIQUIDACION.oi_liquidacion = {#PARAMIN:@oi_liquidacion} and
+					LIQ99_LIQUIDACION.c_estado = \'F\'
+					{%? (#PARAMIN:@l_simulacion!='')	{% AND LIQ19_LIQUIDACION.l_simulacion = {%= #PARAMIN:@l_simulacion %} %} {% %} %}
+			')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:attribute name="d_empresa" value="$r/@d_empresa" type="Nomad.NSystem.String"/>
+				<qry:attribute name="d_liquidacion" value="$r/@c_liquidacion + ' - ' + $r/@d_titulo" type="Nomad.NSystem.String"/>
+			</qry:out>
+		</qry:select>
+		<qry:select doc="SOURCE" name="qry_banco">
+			<qry:xquery>
+				for $r in sql('
+				SELECT LIQ22_BANCOS.d_banco 
+				FROM LIQ22_BANCOS
+				WHERE LIQ22_BANCOS.oi_banco = {#PARAMIN:@oi_banco}
+			')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:attribute name="d_banco" value="$r/@d_banco" type="Nomad.NSystem.String"/>
+			</qry:out>
+		</qry:select>
+		<qry:select doc="SOURCE" name="qry_personas">
+			<qry:xquery>
+				for $r in sql('
+				SELECT 
+				LIQ97_PERSONAL_EMP.e_numero_legajo,	
+				LIQ97_PERSONAL_EMP.c_nro_cuil, 
+				LIQ97_PERSONAL_EMP.d_ape_y_nom, 
+				LIQ97_PERSONAL_EMP.c_cta_bancaria, 
+				LIQ97_PERSONAL_EMP.c_sucursal, 
+				LIQ20_TOT_LIQ_PER.n_totpag,
+				PER31_FORMAS_PAGO.c_forma_pago,
+				PER31_FORMAS_PAGO.l_banco,
+				LIQ22_BANCOS.d_banco,
+				LIQ97_PERSONAL_EMP.c_cbu,
+				ORG03_UBICACIONES.d_ubicacion,
+				ORG03_UBICACIONES.c_ubicacion,
+				ORG18_CONVENIOS.d_convenio,
+				ORG18_CATEGORIAS.d_categoria 
+				
+				FROM 
+				LIQ99_RECIBOS, LIQ19_EJECUCIONES, 
+				LIQ19_LIQUIDACION, LIQ99_LIQUIDACION,
+				LIQ97_PERSONAL_EMP, LIQ20_TOT_LIQ_PER,
+				PER31_FORMAS_PAGO, LIQ22_BANCOS,ORG03_EMPRESAS,
+				ORG03_UBICACIONES, ORG18_CATEGORIAS,ORG18_CONVENIOS
+				
+				JOIN
+				LIQ19_LIQUIDACION.oi_liquidacion INNER LIQ19_EJECUCIONES.oi_liquidacion,
+				LIQ19_EJECUCIONES.oi_liquidacion_ddo INNER LIQ99_LIQUIDACION.oi_liquidacion_ddo,
+				LIQ99_LIQUIDACION.oi_liquidacion_ddo INNER LIQ99_RECIBOS.oi_liquidacion_ddo,
+				LIQ20_TOT_LIQ_PER.oi_tot_liq_per INNER LIQ99_RECIBOS.oi_tot_liq_per,
+				LIQ20_TOT_LIQ_PER.oi_per_emp_ddo INNER LIQ97_PERSONAL_EMP.oi_per_emp_ddo,
+				PER31_FORMAS_PAGO.c_forma_pago	 INNER LIQ20_TOT_LIQ_PER.c_forma_pago,
+				LIQ97_PERSONAL_EMP.c_banco 			 LEFT OUTER LIQ22_BANCOS.c_banco,
+				LIQ97_PERSONAL_EMP.c_empresa INNER ORG03_EMPRESAS.c_empresa,
+				LIQ97_PERSONAL_EMP.c_ubicacion INNER ORG03_UBICACIONES.c_ubicacion,
+				ORG03_EMPRESAS.oi_empresa INNER ORG03_UBICACIONES.oi_empresa,
+				LIQ97_PERSONAL_EMP.c_convenio INNER ORG18_CONVENIOS.c_convenio, 
+			  LIQ97_PERSONAL_EMP.c_categoria_ult INNER ORG18_CATEGORIAS.c_categoria, 
+			  ORG18_CATEGORIAS.oi_convenio INNER ORG18_CONVENIOS.oi_convenio 
+   
+				WHERE
+				LIQ19_LIQUIDACION.oi_liquidacion = {#PARAMIN:@oi_liquidacion} and
+				LIQ99_LIQUIDACION.c_estado = \'F\' and
+				PER31_FORMAS_PAGO.l_banco = 1				
+				{%? (#PARAMIN:@oi_banco!='')	{% AND LIQ22_BANCOS.oi_banco = {%= #PARAMIN:@oi_banco %} %} {% %} %}
+				{%? (#PARAMIN:@l_simulacion!='')	{% AND LIQ19_LIQUIDACION.l_simulacion = {%= #PARAMIN:@l_simulacion %} %} {% %} %}
+				ORDER BY e_numero_legajo ASC
+				
+			')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:attribute name="total" value="number($r/@n_totpag) + number(./@total)" type="Nomad.NSystem.String"/>
+				<qry:attribute name="cantidad" value="number(./@cantidad) + 1" type="Nomad.NSystem.String"/>
+				<qry:element name="PER">
+					<qry:attribute name="c_nro_cuil" value="$r/@c_nro_cuil" type="Nomad.NSystem.String"/>
+					<qry:attribute name="e_numero_legajo" value="$r/@e_numero_legajo" type="Nomad.NSystem.String"/>
+					<qry:attribute name="d_ape_y_nom" value="$r/@d_ape_y_nom" type="Nomad.NSystem.String"/>
+					<qry:attribute name="c_cta_bancaria" value="$r/@c_cta_bancaria" type="Nomad.NSystem.String"/>
+					<qry:attribute name="d_banco" value="$r/@d_banco" type="Nomad.NSystem.String"/>
+					<qry:attribute name="c_sucursal" value="$r/@c_sucursal" type="Nomad.NSystem.String"/>
+					<qry:attribute name="c_cbu" value="$r/@c_cbu" type="Nomad.NSystem.String"/>
+					<qry:attribute name="ubicacion" value="concat('[',$r/@c_ubicacion,'] ',$r/@d_ubicacion)" type="Nomad.NSystem.String"/>
+					<qry:attribute name="convenioCategoria" value="concat($r/@d_convenio,' - ',$r/@d_categoria)" type="Nomad.NSystem.String"/>
+					<qry:attribute name="n_totpag" value="$r/@n_totpag" type="Nomad.NSystem.String"/>
+				</qry:element>
+			</qry:out>
+		</qry:select>
+		<qry:select doc="SOURCE" name="qry_total">
+			<qry:xquery>
+				for $r in #SOURCE:PERSONAS/PERSONA
+			</qry:xquery>
+			<qry:out>
+				<qry:attribute name="total_num" value="number(./@total_num) + number($r/@n_totpag_num)" type="Nomad.NSystem.String"/>
+				<qry:attribute name="total" value="Concat('$', FORMAT_NUMBER(./@total_num, 10, 2, '.', ',', ''))" type="Nomad.NSystem.String"/>
+			</qry:out>
+		</qry:select>
+	</html:query>
+</html:html>

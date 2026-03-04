@@ -1,0 +1,106 @@
+<flow:flow xmlns:flow="nomad_engine.flow" xmlns:doc="nomad_engine.doc" xmlns:qry="nomad_engine.qry" extends="Nomad.base.HTML_XLS.flow" name="NucleusRH.Base.Vacaciones.Generacion.flow">
+	<flow:info label="Flow para NucleusRH.Base.Personal.Reportes.AptitudesVsPuesto"/>
+	<flow:declare>
+		<doc:define name="DDO"/>
+		<doc:define name="NEWDDO"/>
+		<doc:define name="QRY"/>
+		<doc:define name="FILTERDATA">
+			<FILTRO oi_empresa="" f_desde="" f_hasta="" oi_calendario="" oi_estado_solic="" oi_estructura="">
+				<PERSONAS/>
+			</FILTRO>
+		</doc:define>
+		<qry:define declare="&lt;FILTRO oi_empresa=&quot;&quot; f_desde=&quot;20100101&quot; f_hasta=&quot;20121231&quot; oi_calendario=&quot;1&quot; oi_estado_solic=&quot;&quot; oi_estructura=&quot;&quot; gpers=&quot;&quot; activos=&quot;&quot; nombre=&quot;&quot; documento=&quot;&quot; sexo=&quot;&quot; grupo_sanguineo=&quot;&quot; listlegajos=&quot;&quot; oi_indic_activo=&quot;&quot; egresado=&quot;&quot; oi_forma_pago=&quot;&quot; oi_tipo_personal=&quot;&quot; fecha_desde=&quot;&quot; fecha_hasta=&quot;&quot; oi_centro_costo=&quot;&quot; oi_convenio=&quot;&quot; soloconvenio=&quot;&quot; oi_categoria=&quot;&quot; oi_ubicacion_desde=&quot;&quot; oi_ubicacion_hasta=&quot;&quot; escructura_childs=&quot;&quot; oi_contrato=&quot;&quot; oi_afjp=&quot;&quot; oi_obra_social=&quot;&quot; oi_sindicato=&quot;&quot;&gt;&#13;&#10;&#9;&lt;ROWS&gt;&#13;&#10;&#9;&#9;&lt;ROW id=&quot;415&quot;/&gt;&#13;&#10;&#9;&lt;/ROWS&gt;&#13;&#10;&lt;/FILTRO&gt;" name="SOLICITUDES">
+			<qry:main doc="SOURCE">
+				<qry:element name="DATOS">
+					<qry:attribute name="f_desde" value="#SOURCE:FILTRO/@f_desde" type="Nomad.NSystem.Int"/>
+					<qry:attribute name="f_hasta" value="#SOURCE:FILTRO/@f_hasta" type="Nomad.NSystem.Int"/>
+					<qry:attribute name="oi_calendario" value="#SOURCE:FILTRO/@oi_calendario" type="Nomad.NSystem.Int"/>
+					<qry:if test="#SOURCE:FILTRO/@oi_estado_solic!=''">
+						<qry:then>
+							<qry:attribute name="oi_estado_solic" value="#SOURCE:FILTRO/@oi_estado_solic"/>
+						</qry:then>
+						<qry:else>
+							<qry:attribute name="oi_estado_solic" value="'-'"/>
+						</qry:else>
+					</qry:if>
+					<qry:element name="SOLICITUDES">
+						<qry:insert-select name="RS1" doc-path="#SOURCE:FILTRO"/>
+					</qry:element>
+					<qry:attribute/>
+				</qry:element>
+			</qry:main>
+			<qry:select doc="PARAM" name="RS1">
+				<qry:xquery>
+					for $r in sql('
+				SELECT
+				PER02_PERSONAL_EMP.oi_personal_emp,
+				VAC01_SOLICITUDES.oi_solicitud,
+				VAC01_SOLICITUDES.f_desde_solicitud,
+				IIFISNULL(VAC01_SOLICITUDES.f_interrupcion,VAC01_SOLICITUDES.f_hasta_solicitud) AS f_hasta_solicitud,
+				VAC01_SOLICITUDES.e_dias_solicitud
+				FROM 
+				PER02_PERSONAL_EMP, 
+					VAC01_SOLICITUDES 
+					{%? (#PARAM:@oi_estructura !='') {% , ORG02_ESTRUC_PERS %} {%  %} %}
+				JOIN
+					PER02_PERSONAL_EMP.oi_personal_emp INNER VAC01_SOLICITUDES.oi_personal_emp
+					{%? (#PARAM:@oi_estructura !='') 
+						{% ,PER02_PERSONAL_EMP.oi_personal_emp INNER ORG02_ESTRUC_PERS.oi_personal_emp %} 
+						{%  %} 
+					%}
+				WHERE 
+					{%? (#PARAM:@oi_estado_solic !='') {% VAC01_SOLICITUDES.oi_estado_solic = {#PARAM:@oi_estado_solic} AND %}    {% %} %}
+						PER02_PERSONAL_EMP.oi_personal_emp IN ({%=string(#PARAM:PERSONAS/ROW/@values)%})
+					AND VAC01_SOLICITUDES.f_desde_solicitud &lt; {Datetime(#PARAM:@f_hasta)}
+					AND VAC01_SOLICITUDES.f_hasta_solicitud &gt; {Datetime(#PARAM:@f_desde)}
+					{%? (#PARAM:@oi_estructura !='') 
+						{% AND ORG02_ESTRUC_PERS.oi_estructura = {%=#PARAM:@oi_estructura %} %} 
+						{%  %} 
+					%}			
+					
+				')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:element name="SOLICITUD">
+						<qry:attribute name="oi_personal_emp" value="$r/@oi_personal_emp" type="Nomad.NSystem.Int"/>
+						<qry:attribute name="oi_solicitud" value="$r/@oi_solicitud" type="Nomad.NSystem.Int"/>
+						<qry:attribute name="f_desde_solicitud" value="$r/@f_desde_solicitud" type="Nomad.NSystem.Int"/>
+						<qry:attribute name="f_hasta_solicitud" value="$r/@f_hasta_solicitud" type="Nomad.NSystem.Int"/>
+						<qry:attribute name="e_dias_solicitud" value="$r/@e_dias_solicitud" type="Nomad.NSystem.Int"/>
+					</qry:element>
+				</qry:out>
+			</qry:select>
+		</qry:define>
+		<doc:define name="SOLIC"/>
+		<doc:define name="RESULTADO"/>
+		<doc:define name="PARAMETERS"/>
+	</flow:declare>
+	<flow:main doc="SOURCE">
+		<flow:action name="initialize">
+			<flow:open-form doc-path="#FILTERDATA:" form-class="NucleusRH.Base.Vacaciones.Reportes.Gantt.filter.form" mode="FILTER"/>
+		</flow:action>
+	</flow:main>
+	<flow:form form-class="NucleusRH.Base.Vacaciones.Reportes.Gantt.filter.form" name="NucleusRH.Base.Vacaciones.Reportes.Gantt.filter.form:FILTER" mode="FILTER" doc="SOURCE">
+		<flow:action name="on-show">
+			<flow:call-action action="Load-FILTER"/>
+		</flow:action>
+		<flow:action name="FILTER">
+			<flow:call-action action="Save-FILTER"/>
+			<doc:load-qry input-doc-path="#SOURCE:" output-doc="SOLIC" qry="SOLICITUDES"/>
+			<flow:exec-method class="NucleusRH.Base.Vacaciones.LegajoVacaciones.PERSONAL_EMP" priority="9" out-attr-path="#BATCHDOC:@batch-id" method="Datos_Gantt">
+				<flow:param mode="in" type="Nomad.NSystem.Object" name="solicitudes" doc="SOLIC"/>
+			</flow:exec-method>
+			<doc:set-attribute from-value="Gantt de Vacaciones" to-attr-path="#BATCHDOC:@title"/>
+			<flow:open-form form-class="Nomad.base.HTML_XLS.form" parent-doc-path="#SOURCE:" mode="SHOW" doc-path="#BATCHDOC:"/>
+		</flow:action>
+		<flow:action name="BACK">
+			<flow:close-form/>
+		</flow:action>
+		<flow:action name="Save-FILTER">
+			<flow:save-user-data name="FILTER-NucleusRH.Base.Vacaciones.Reportes.Gantt" doc-path="#SOURCE:"/>
+		</flow:action>
+		<flow:action name="Load-FILTER">
+			<flow:load-user-data name="FILTER-NucleusRH.Base.Vacaciones.Reportes.Gantt" doc="SOURCE"/>
+		</flow:action>
+	</flow:form>
+</flow:flow>

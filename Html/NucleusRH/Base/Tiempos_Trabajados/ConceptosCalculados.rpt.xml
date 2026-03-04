@@ -1,0 +1,145 @@
+<html:html xmlns:html="nomad_engine.html" xmlns:qry="nomad_engine.qry" name="NucleusRH.Base.Tiempos_Trabajados.ConceptosCalculados" extends="Nomad.Base.BaseReport.rpt" doc="source">
+	<html:query declare="&lt;FILTRO f_hasta=&quot;20120919&quot; f_desde=&quot;20120901&quot; oi_liquidacion=&quot;155&quot;&gt;&#13;&#10;&lt;ROWS nmd-col=&quot;1&quot;&gt;&#13;&#10;&lt;ROW id=&quot;11566&quot; /&gt;&lt;ROW id=&quot;11574&quot; /&gt;&lt;/ROWS&gt;&lt;CONC /&gt;&lt;/FILTRO&gt;">
+		<qry:main doc="PARAM">
+			<qry:append-doc name="FILTRO" doc-path="#PARAM:/FILTRO"/>
+			<REPORT label="Conceptos Calculados" style="width:100%">
+				<qry:attribute value="format_date(now(),'dd/mm/yyyy HH:MM')" name="date"/>
+				<GROUPS>
+					<GROUP tag="REP" type="title">
+						<COLS>
+							<COL name="f_des" label="Fecha Desde" type="date"/>
+							<COL name="f_has" label="Fecha Hasta" type="date"/>
+							<COL name="procesamiento" label="Procesamiento"/>
+						</COLS>
+						<GROUP tag="CONC" type="table">
+							<COLS>
+								<COL name="legajo" label="Legajo"/>
+								<COL name="c_concepto" label="C&#243;digo" style="width:10%;"/>
+								<COL name="d_concepto" label="Descripci&#243;n" style="width:40%;"/>
+								<COL name="c_externo" label="C&#243;digo Ext." style="width:10%;"/>
+								<COL name="valor" label="Valor" style="width:10%;text-align:right"/>
+							</COLS>
+						</GROUP>
+					</GROUP>
+				</GROUPS>
+				<qry:element name="DATA">
+					<qry:element name="REP">
+						<qry:attribute name="f_des" value="format_date(#FILTRO:@f_desde, 'dd/mm/yyyy')"/>
+						<qry:attribute name="f_has" value="format_date(#FILTRO:@f_hasta, 'dd/mm/yyyy')"/>
+						<qry:if test="#FILTRO:@oi_liquidacion != ''">
+							<qry:then>
+								<qry:insert-select name="QRY_LIQUIDACION" doc-path="#FILTRO:"/>
+							</qry:then>
+						</qry:if>
+						<qry:insert-select doc-path="#FILTRO:" name="QRY_CONCEPTOS"/>
+					</qry:element>
+				</qry:element>
+			</REPORT>
+		</qry:main>
+		<qry:select doc="PARAM" name="QRY_CONCEPTOS">
+			<qry:xquery>
+				for $r in sql('
+				SELECT 					
+					PER02_PERSONAL_EMP.oi_personal_emp,					
+					TTA10_CONC_PER.oi_concepto,
+					TTA15_CONCEPTOS.c_concepto,
+					TTA15_CONCEPTOS.c_externo,
+					TTA15_CONCEPTOS.d_concepto,
+					TTA15_CONCEPTOS.e_mostrar,
+					TTA15_CONCEPTOS.c_unidad,
+					SUM(TTA10_CONC_PER.n_valor) as n_valor,					
+					ORG03_EMPRESAS.c_empresa,
+					PER02_PERSONAL_EMP.e_numero_legajo,
+					PER01_PERSONAL.d_ape_y_nom					 
+				FROM 
+					TTA10_CONC_PER, 
+					TTA10_LIQUIDACPERS, 
+					TTA15_CONCEPTOS,
+					PER02_PERSONAL_EMP,
+					ORG03_EMPRESAS,
+					PER01_PERSONAL					
+				JOIN 					
+					TTA10_CONC_PER.oi_liquidacionpers INNER TTA10_LIQUIDACPERS.oi_liquidacionpers,
+					TTA10_CONC_PER.oi_concepto INNER TTA15_CONCEPTOS.oi_concepto,
+					TTA10_LIQUIDACPERS.oi_personal_emp INNER PER02_PERSONAL_EMP.oi_personal_emp,
+					PER02_PERSONAL_EMP.oi_empresa INNER ORG03_EMPRESAS.oi_empresa,
+					PER01_PERSONAL.oi_personal INNER PER02_PERSONAL_EMP.oi_personal					
+				WHERE    			
+					TTA15_CONCEPTOS.e_mostrar != 0				
+					AND TTA10_CONC_PER.e_clave &gt;= {#FILTRO:@f_desde}
+    		        AND TTA10_CONC_PER.e_clave &lt;= {#FILTRO:@f_hasta} 
+					AND TTA10_CONC_PER.oi_concepto in ({%=string(#FILTRO:CONC/C/@id) %})
+					{%?(#FILTRO:@oi_liquidacion!=''){% AND TTA10_LIQUIDACPERS.oi_liquidacion = {#FILTRO:@oi_liquidacion} %} {% %} %}
+				GROUP BY            
+					PER02_PERSONAL_EMP.oi_personal_emp,
+					TTA10_CONC_PER.oi_concepto,
+					TTA15_CONCEPTOS.c_concepto,
+					TTA15_CONCEPTOS.c_externo,
+					TTA15_CONCEPTOS.d_concepto,
+					TTA15_CONCEPTOS.e_mostrar,
+					TTA15_CONCEPTOS.c_unidad,
+					ORG03_EMPRESAS.c_empresa,
+					PER02_PERSONAL_EMP.e_numero_legajo,
+					PER01_PERSONAL.d_ape_y_nom					
+				ORDER BY 
+					e_numero_legajo ASC,
+					e_mostrar ASC				
+			')/ROWS/ROW
+			, $l in #FILTRO:ROWS/ROW
+			where $r/@oi_personal_emp=$l/@id
+			</qry:xquery>
+			<qry:out>
+				<qry:element name="CONC">
+					<qry:attribute value="$r/@oi_personal_emp" name="oi_personal_emp"/>
+					<qry:if test="$r/@oi_personal_emp != ../@oip">
+						<qry:then>
+							<qry:attribute value="'(' + $r/@c_empresa + ' - ' + $r/@e_numero_legajo + ') ' + $r/@d_ape_y_nom" name="legajo"/>
+						</qry:then>
+						<qry:else>
+							<qry:attribute value="" name="legajo"/>
+						</qry:else>
+					</qry:if>
+					<qry:attribute value="$r/@c_concepto" name="c_concepto"/>
+					<qry:attribute value="$r/@c_externo" name="c_externo"/>
+					<qry:attribute value="$r/@d_concepto" name="d_concepto"/>
+					<qry:if test="$r/@c_unidad= 'horas'">
+						<qry:then>
+							<qry:attribute value="floor($r/@n_valor)" name="horas"/>
+							<qry:attribute value="format_number(($r/@n_valor*60) MOD 60,'00')" name="minutos"/>
+							<qry:attribute value="@horas + ':' + @minutos" name="valor"/>
+						</qry:then>
+						<qry:else>
+							<qry:if test="$r/@c_unidad= 'pesos'">
+								<qry:then>
+									<qry:attribute value="format_number(Number($r/@n_valor), '$ ####0,00')" name="valor"/>
+								</qry:then>
+								<qry:else>
+									<qry:attribute value="$r/@n_valor + ' ' + $r/@c_unidad" name="valor"/>
+								</qry:else>
+							</qry:if>
+						</qry:else>
+					</qry:if>
+				</qry:element>
+				<qry:attribute value="$r/@oi_personal_emp" name="oip"/>
+			</qry:out>
+		</qry:select>
+		<qry:select doc="SOURCE" name="QRY_LIQUIDACION">
+			<qry:xquery>
+				for $r in SQL('
+			SELECT 
+				TTA09_LIQUIDACION.oi_liquidacion,
+				TTA09_LIQUIDACION.c_liquidacion,
+				TTA09_LIQUIDACION.d_liquidacion
+			FROM
+				TTA09_LIQUIDACION
+			WHERE
+				TTA09_LIQUIDACION.oi_liquidacion = {#SOURCE:@oi_liquidacion}
+		')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:attribute name="oi_liquidacion" value="$r/@oi_liquidacion"/>
+				<qry:attribute name="procesamiento" value="$r/@c_liquidacion + ' - ' + $r/@d_liquidacion"/>
+			</qry:out>
+		</qry:select>
+	</html:query>
+</html:html>

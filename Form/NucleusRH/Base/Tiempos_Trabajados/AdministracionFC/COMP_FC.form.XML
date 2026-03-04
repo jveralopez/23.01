@@ -1,0 +1,284 @@
+<form:Form xmlns:form="nomad_engine.form" xmlns:qry="nomad_engine.qry" default_mode="NEW" extends="NucleusRH.Base.Tiempos_Trabajados.AdministracionFC.COMP_FC.autoform" mess="&#191;Est&#225; seguro que desa cancelar la operaci&#243;n?" doc="source" name="NucleusRH.Base.Tiempos_Trabajados.AdministracionFC.COMP_FC">
+	<form:Center width="95%">
+		<form:Columns visible="SHOW|EDIT|DELETE|NEW" name="main_columnsCOMP_FC">
+			<form:Column name="main_columnsCOMP_FCcolumn1">
+				<form:NumberBox visible="0" required="1" enabled="NEW|EDIT" mask="###.###.##0" xsize="12" label="OID Registro FC" nvalue="#source:@oi_registro_fc" name="oi_registro_fc"/>
+				<form:ComboBox order-change="PREV:f_comp" enabled="0" nvalue="#BANCOHORAS:@oi_banco_hs" name="oi_banco_hora" queryname1="NucleusRH.Base.Tiempos_Trabajados.BancosHoras.BANCO_HORA.INFO" xsize="40" mode="QRY" required="1" label="Banco Hora"/>
+				<form:ComboBox order-change="NEXT:oi_banco_hora" xsize="40" mode="OPT" required="0" enabled="0" label="Unidad de tiempo" nvalue="#source:@c_unidad_tiempo" name="c_unidad_tiempo">
+					<options>
+						<option text="Horas" value="H"/>
+						<option text="Minutos" value="M"/>
+					</options>
+				</form:ComboBox>
+				<form:DateTime pattern="YYYYMMDD" required="1" enabled="NEW|EDIT" mask="dd/mm/yyyy" label="Fecha" nvalue="#source:@f_comp" name="f_comp">
+					<form:SButtons>
+						<form:SButton visible="EDIT|NEW" img="Calendar" label="Calendar" name="Calendar">
+							<form:Event action="SHOW_HELPER" name="onclick" runat="client"/>
+						</form:SButton>
+					</form:SButtons>
+				</form:DateTime>
+				<form:NumberBox visible="0" required="1" enabled="NEW|EDIT" mask="###.###.##0" xsize="12" label="Cantidad Compensada" nvalue="#source:@n_cant_comp" name="n_cant_comp"/>
+				<form:ComboBox xsize="40" mode="OPT" required="0" enabled="NEW|EDIT" label="Rango" nvalue="#source:@c_rango" name="c_rango">
+					<options>
+						<option text="Al comienzo del d&#237;a" value="CD"/>
+						<option text="Al final del d&#237;a" value="FD"/>
+						<option text="En cualquier momento" value="CM"/>
+					</options>
+				</form:ComboBox>
+				<form:TextBox label="Cantidad Compensada" order-change="PREV:c_rango" name="t_cant_comp" required="1" enabled="NEW|EDIT">
+					<form:Event action="Validar" name="OnLostFocus" runat="client"/>
+				</form:TextBox>
+			</form:Column>
+		</form:Columns>
+		<form:Blank visible="LIST|LIST_EDIT" name="blank_rowList"/>
+		<form:ListView visible="LIST|LIST_EDIT" paging="1" rows="-250" docname="RS" name="LIST">
+			<form:Event action="ListClick" name="OnClick" runat="client"/>
+			<form:Event runat="client" action="ListDobleClick" name="OnDblClick"/>
+			<form:LVColumns>
+				<form:LVColumn additional="dd/mm/yyyy" align="center" sorteable="1" width="50px" type="datetime" label="Fecha" attrname="f_comp" name="f_comp"/>
+				<form:LVColumn visible="0" additional="###,###,##0" align="right" sorteable="1" width="50px" type="number" label="Cantidad Compensada" attrname="n_cant_comp" name="n_cant_comp"/>
+				<form:LVColumn additional="&lt;OPTS&gt;&lt;OPT value=&quot;CD&quot; text=&quot;Al comienzo del d&#237;a&quot; /&gt;&lt;OPT value=&quot;FD&quot; text=&quot;Al final del d&#237;a&quot; /&gt;&lt;OPT value=&quot;CM&quot; text=&quot;En cualquier momento&quot; /&gt;&lt;/OPTS&gt;" align="left" sorteable="1" width="50px" type="enum" label="Rango" attrname="c_rango" name="c_rango"/>
+				<form:LVColumn order-change="PREV:c_rango" align="right" sorteable="1" width="50px" type="string" label="Cantidad Compensada" attrname="t_cant_comp" name="t_cant_comp"/>
+			</form:LVColumns>
+		</form:ListView>
+		<form:Hidden name="n_cant_comp" nvalue="#source:@n_cant_comp"/>
+	</form:Center>
+	<form:Scripts>
+		&#32;function formatear_hora(par1,par2)
+{
+	if(par1.GetXValue() != '')
+	{
+		if (par1.GetXValue().toString().length == 1) 
+		{							
+			par2.SetXValue("0" + par1.GetXValue() + ":00");
+		}
+		else
+		{
+			par2.SetXValue(par1.GetXValue() + ":00");
+		}		
+	} 
+} 
+
+function formatear_minuto(par1,par2)
+{
+	var resultado = "";			
+	var cantidad = parseInt(par1.GetXValue());
+	 			
+	var hora = Math.floor(cantidad / 60); 
+	var minutos = cantidad - (Math.floor(cantidad / 60) * 60);			
+   
+	if(par1.GetXValue() != '')
+	{
+		if (hora.toString().length == 1) 
+		{			
+			resultado = "0" + hora.toString();			
+		}
+		else
+		{
+			resultado = hora.toString();
+		}	
+		 	                                                               
+		if (minutos.toString().length == 1) 
+		{
+			resultado = resultado + ":0" + minutos.toString();
+		}
+		else
+		{
+			resultado = resultado + ":" + minutos.toString();
+		}
+		
+		par2.SetXValue(resultado);									
+	}    
+}
+
+
+function LoadForm()
+{ 
+	if(Ctrl("main").GetMode() == "NEW" || Ctrl("main").GetMode() == "SHOW" || Ctrl("main").GetMode() == "EDIT")
+	{
+
+		var Param=new NomadXML("PARAM");
+		Param.SetAttr("oi_banco_hora", Ctrl('oi_banco_hora').GetXValue());
+			
+		var Data =new NomadXML();
+		Data = GetProxy().SQLService().GetXML(Ctrl("main").getResource("QRY_UNIDAD"), Param.ToString())	
+		
+		Ctrl('c_unidad_tiempo').SetXValue(Data.GetAttr("c_unidad_tiempo").toString());				
+	     
+		//Horas						
+		if (Ctrl('c_unidad_tiempo').GetXValue() == "" || Ctrl('c_unidad_tiempo').GetXValue() == "H") 
+		{  	
+			formatear_hora(Ctrl('n_cant_comp'),Ctrl('t_cant_comp'));								
+		}
+		
+		//Minutos
+		if (Ctrl('c_unidad_tiempo').GetXValue() == "M")
+		{     
+			formatear_minuto(Ctrl('n_cant_comp'),Ctrl('t_cant_comp'));			
+		}		
+	}
+}                                 
+
+function Validar(obj)
+{	
+	if(obj.GetXValue() !='')
+	{                                                 
+		var regexp = new RegExp("^([0-9]{1,3}|[0-9]{1,3}:[0-5][0-9])$");				      		                    
+		if(!regexp.test(obj.GetXValue().toString()))
+		{		
+			obj.SetXValue("");
+			alert("Formato correcto HHH:MM");
+		}
+		
+		else
+		{	
+						
+			if(obj.GetXValue().toString().indexOf(":") == -1) 
+			{
+				if (obj.GetXValue().toString().length == 1) 
+				{							
+					obj.SetXValue("0" + obj.GetXValue() + ":00");
+				}
+				else
+				{
+					obj.SetXValue(obj.GetXValue() + ":00");
+				}
+			}
+			
+			else
+			{    				
+				//Horas --&gt; minutos :00
+				if(Ctrl('c_unidad_tiempo').GetXValue() == "H" || Ctrl('c_unidad_tiempo').GetXValue() == "")
+				{												
+					if((obj.GetXValue().split(':')[1]).toString() != "00")
+					{
+						obj.SetXValue((obj.GetXValue().split(':')[0]).toString() + ":00");
+					}
+				}				
+			}  
+		}
+	}
+}				
+								
+
+
+function Convertir_Horas(par1,par2)  
+{
+	if(par1.GetXValue() !='')
+	{
+		par2.SetXValue(par1.GetXValue().split(':')[0]);
+	}
+	else
+	{
+		par2.SetXValue("");
+	}
+}
+ 
+function Convertir_Minutos(par1,par2)
+{
+	if(par1.GetXValue() !='')
+	{			
+		par2.SetXValue(((parseInt(par1.GetXValue().split(':')[0]) * 60 ) + parseInt(par1.GetXValue().split(':')[1])).toString());									
+	}	
+	else
+	{
+		par2.SetXValue("");
+	}
+}
+
+function ConvertirACantidad()
+{		
+	if(Ctrl("main").GetMode() == "NEW" || Ctrl("main").GetMode() == "EDIT")
+	{
+		if(Ctrl('c_unidad_tiempo').GetXValue() == "H" || Ctrl('c_unidad_tiempo').GetXValue() == "")
+		{		
+			Convertir_Horas(Ctrl('t_cant_comp'),Ctrl('n_cant_comp'));			
+			return true;
+		}  
+    	
+		if(Ctrl('c_unidad_tiempo').GetXValue() == "M")
+		{ 		      		
+			Convertir_Minutos(Ctrl('t_cant_comp'),Ctrl('n_cant_comp'));			
+			return true;
+		}
+	}
+	else
+	{ 
+		return true;
+	}		
+}
+	</form:Scripts>
+	<form:Event action="LoadForm" name="onload" runat="client"/>
+	<form:Resources>
+		<form:Resources>
+			<form:Resource name="QRY_LICENCIA" declare="&lt;PARAM oi_licencia=&quot;100&quot;/&gt;">
+				<qry:main doc="SOURCE">
+					<qry:element name="DATO">
+						<qry:attribute name="enfermedad" value="'0'"/>
+						<qry:insert-select name="RS1" doc-path="#SOURCE:PARAM"/>
+					</qry:element>
+				</qry:main>
+				<qry:select name="RS1" doc="SOURCE">
+					<qry:xquery>
+						for $r in sql('					
+				SELECT 
+					PER16_LICENCIAS.oi_licencia,
+					PER16_LICENCIAS.c_licencia,
+					PER16_LICENCIAS.d_licencia
+				FROM 
+					PER16_LICENCIAS
+				WHERE
+					PER16_LICENCIAS.oi_licencia = {#SOURCE:@oi_licencia}
+					AND contain(ucase(PER16_LICENCIAS.d_licencia), \'FAMILIAR ENFERMO\') 		 				
+      ')/ROWS/ROW
+					</qry:xquery>
+					<qry:out>
+						<qry:attribute name="enfermedad" value="'1'"/>
+					</qry:out>
+				</qry:select>
+			</form:Resource>
+		</form:Resources>
+		<form:Resource name="QRY_UNIDAD" declare="&lt;PARAM oi_banco_hora=&quot;1&quot;/&gt;">
+			<qry:main doc="SOURCE">
+				<qry:element name="DATO">
+					<qry:insert-select name="RS1" doc-path="#SOURCE:PARAM"/>
+				</qry:element>
+			</qry:main>
+			<qry:select name="RS1" doc="SOURCE">
+				<qry:xquery>
+					for $r in sql('											
+			SELECT 
+				TTA21_BANCO_HORA.oi_banco_hora,
+				TTA21_BANCO_HORA.c_unidad_tiempo
+			FROM 
+				TTA21_BANCO_HORA
+			WHERE 
+				TTA21_BANCO_HORA.oi_banco_hora = {#SOURCE:@oi_banco_hora}									 			
+      ')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:attribute name="oi_banco_hora" value="$r/@oi_banco_hora"/>
+					<qry:attribute name="c_unidad_tiempo" value="$r/@c_unidad_tiempo"/>
+				</qry:out>
+			</qry:select>
+		</form:Resource>
+	</form:Resources>
+	<form:Bottom>
+		<form:RowAligner name="buttonlinks">
+			<form:Row name="row1">
+				<form:Button name="ACCEPT" label="Aceptar" img="ok" descrip="Acepta la operacion" note="Acepta la operacion sobre el formulario" startvalidate="1" visible="NEW">
+					<form:Event runat="client" name="onclick" action="ConvertirACantidad"/>
+					<form:Event runat="server" name="onclick" action="ACCEPT"/>
+				</form:Button>
+				<form:Button visible="SHOW|LIST|DELETE|EDIT|LIST_EDIT" name="BACK" label="Volver" img="back" descrip="Volver a la pantalla anterior" note="Vuelve a la pantalla anterior del formulario" startvalidate="1" X-POLICY="./FORM/NucleusRH/Base/Tiempos_Trabajados/AdministracionFC/COMP_FC/autoform/BACK">
+					<form:Event runat="client" name="onclick" action="ConvertirACantidad"/>
+					<form:Event runat="server" name="onclick" action="BACK"/>
+					<form:Policies>
+						<form:Updateable X-POLICY="./FORM/NucleusRH/Base/Tiempos_Trabajados/AdministracionFC/COMP_FC/autoform/BACK/HAB"/>
+						<form:Visible X-POLICY="./FORM/NucleusRH/Base/Tiempos_Trabajados/AdministracionFC/COMP_FC/autoform/BACK"/>
+					</form:Policies>
+				</form:Button>
+			</form:Row>
+		</form:RowAligner>
+	</form:Bottom>
+</form:Form>

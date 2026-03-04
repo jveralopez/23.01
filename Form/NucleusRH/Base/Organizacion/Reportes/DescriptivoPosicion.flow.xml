@@ -1,0 +1,91 @@
+<flow:flow xmlns:flow="nomad_engine.flow" xmlns:doc="nomad_engine.doc" xmlns:qry="nomad_engine.qry" extends="Nomad.base.HTML_XLS.flow" name="NucleusRH.Base.Organizacion.Reportes.DescriptivoPosicion">
+	<flow:info label="Flow para NucleusRH.Base.Organizacion.Reportes.DescripcionPuesto"/>
+	<flow:declare>
+		<doc:define name="DDO"/>
+		<doc:define name="NEWDDO"/>
+		<doc:define name="QRY"/>
+		<doc:define name="PARAMETERS">
+			<PARAMETERS organigrama="0" oi_posicion=""/>
+		</doc:define>
+		<qry:define declare="&lt;ESTRUCTURA id=&quot;180&quot; /&gt;" name="QRY_POSICION">
+			<qry:main doc="SOURCE">
+				<qry:element name="PARAMETERS">
+					<qry:insert-select name="RS2" doc-path="#SOURCE:ESTRUCTURA"/>
+				</qry:element>
+			</qry:main>
+			<qry:select name="RS2" doc="SOURCE">
+				<qry:xquery>
+					for $r in sql('
+				SELECT ORG01_UNI_ORG.oi_unidad_org,
+				ORG01_UNI_ORG.c_unidad_org
+				FROM ORG01_UNI_ORG
+				WHERE ORG01_UNI_ORG.oi_unidad_org
+				in (SELECT ORG02_ESTRUCTURAS.oi_unidad_org
+					FROM ORG02_ESTRUCTURAS
+					WHERE ORG02_ESTRUCTURAS.oi_estructura = {%=#SOURCE:@id%})				
+			')ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:attribute name="id" value="#SOURCE:@id"/>
+					<qry:attribute name="oi_unidad_org" value="$r/@oi_unidad_org"/>
+					<qry:attribute name="c_unidad_org" value="$r/@c_unidad_org"/>
+					<qry:attribute name="c_empresa" value="substring_before($r/@c_unidad_org, '-')"/>
+					<qry:insert-select name="RS3" doc-path="."/>
+				</qry:out>
+			</qry:select>
+			<qry:select name="RS3" doc="SOURCE">
+				<qry:xquery>
+					for $r in sql('
+				SELECT ORG04_PUESTOS.oi_puesto,
+				ORG04_POSICIONES.oi_posicion
+				FROM ORG04_POSICIONES, ORG04_PUESTOS, ORG03_EMPRESAS
+				JOIN ORG04_POSICIONES.oi_puesto INNER ORG04_PUESTOS.oi_puesto,
+				ORG04_PUESTOS.oi_empresa INNER ORG03_EMPRESAS.oi_empresa
+				WHERE ORG03_EMPRESAS.c_empresa = {#SOURCE:@c_empresa}
+				AND ORG04_POSICIONES.oi_unidad_org
+				in (SELECT ORG02_ESTRUCTURAS.oi_unidad_org
+					FROM ORG02_ESTRUCTURAS
+					WHERE ORG02_ESTRUCTURAS.oi_estructura = {%=#SOURCE:@id%})				
+			')ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:attribute name="oi_posicion" value="$r/@oi_posicion"/>
+					<qry:attribute name="organigrama" value="'1'"/>
+					<qry:attribute name="salida" value="'HTML'"/>
+					<qry:attribute name="oi_puesto" value="$r/@oi_puesto"/>
+				</qry:out>
+			</qry:select>
+		</qry:define>
+	</flow:declare>
+	<flow:main doc="SOURCE">
+		<flow:action name="initialize">
+			<flow:load-user-data name="FILTER-NucleusRH.Base.Organizacion.Reporte.DescriptivoPosicion" doc="PARAMETERS"/>
+			<flow:open-form form-class="NucleusRH.Base.Organizacion.Reportes.DescriptivoPosicion.filter.form" doc-path="#PARAMETERS:" mode="FILTER"/>
+		</flow:action>
+		<flow:action name="ORGANIGRAMA">
+			<doc:load-qry output-doc="PARAMETERS" input-doc-path="#SOURCE:" qry="QRY_POSICION"/>
+			<flow:open-form form-class="NucleusRH.Base.Organizacion.Reportes.DescriptivoPosicion.filter.form" doc-path="#PARAMETERS:" mode="FILTER"/>
+		</flow:action>
+	</flow:main>
+	<flow:form name="NucleusRH.Base.Organizacion.Reportes.DescriptivoPosicion.filter.form:FILTER" form-class="NucleusRH.Base.Organizacion.Reportes.DescriptivoPosicion.filter.form" doc="PARAMETERS" mode="FILTER">
+		<flow:action name="on-show"/>
+		<flow:action name="ACCEPT">
+			<flow:call-action action="Save-FILTER"/>
+			<flow:exec-method method="ExecReportHTML" out-attr-path="#BATCHDOC:@batch-id" priority="9" class="Nomad.Base.Report.GeneralReport.REPORT">
+				<flow:param value="NucleusRH.Base.Organizacion.DescriptivoPosicion.rpt" type="Nomad.NSystem.String" mode="in" name="ReportName"/>
+				<flow:param doc-path="#PARAMETERS:" name="paramIN" type="Nomad.NSystem.Proxy.NomadXML" mode="in"/>
+			</flow:exec-method>
+			<doc:set-attribute from-value="102 - Descriptivo de una Posici&#243;n Laboral" to-attr-path="#BATCHDOC:@title"/>
+			<flow:open-form form-class="Nomad.base.HTML_XLS.form" parent-doc-path="#SOURCE:" mode="SHOW" doc-path="#BATCHDOC:"/>
+		</flow:action>
+		<flow:action name="BACK">
+			<flow:close-form/>
+		</flow:action>
+		<flow:action name="Save-FILTER">
+			<flow:save-user-data name="FILTER-NucleusRH.Base.Organizacion.Reporte.DescriptivoPosicion" doc-path="#PARAMETERS:"/>
+		</flow:action>
+		<flow:action name="Load-FILTER">
+			<flow:load-user-data name="FILTER-NucleusRH.Base.Organizacion.Reporte.DescriptivoPosicion" doc="PARAMETERS"/>
+		</flow:action>
+	</flow:form>
+</flow:flow>

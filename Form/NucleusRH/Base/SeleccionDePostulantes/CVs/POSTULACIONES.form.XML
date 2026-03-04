@@ -1,0 +1,74 @@
+<form:Form xmlns:form="nomad_engine.form" xmlns:qry="nomad_engine.qry" extends="NucleusRH.Base.SeleccionDePostulantes.CVs.POSTULACIONES.autoform" default_mode="SHOW" mess="&#191;Est&#225; seguro que desa cancelar la operaci&#243;n?" doc="source" name="POSTULACIONES">
+	<form:Center width="95%">
+		<form:Hidden nvalue="#source:POSTULACIONES[1]/@oi_cv" name="oi_cv"/>
+	</form:Center>
+	<form:Right width="200px">
+		<form:VGroup label="Acciones" name="vgVerCV" visible="SHOW" background="1" collapse="1" width="100%">
+			<form:Link name="VERRCV" label="Ver Reclutado" allowimg="1">
+				<form:Event action="REPORTE" name="onclick" runat="client"/>
+			</form:Link>
+		</form:VGroup>
+	</form:Right>
+	<form:Scripts>
+		function REPORTE() 
+{   
+	var aviso = Ctrl("MAIN_GRID").GetCellSelectedXValue("oi_aviso"); 
+	var cv = Ctrl("oi_cv").GetXValue(); 
+	
+	var PARAM=new NomadXML("DATOS");
+	
+	PARAM.SetAttr("oi_aviso",aviso);
+	PARAM.SetAttr("oi_cv",cv);		
+	    
+	var nSQL = GetProxy().SQLService();
+ 	var resultado = nSQL.GetOBJ(Ctrl("main").getResource("QRY_RECLUT"), PARAM.ToString());
+	
+	if(resultado.flag!=0)
+	{
+		var PARAM2=new NomadXML("DATOS");
+	 	PARAM2.SetAttr("oi_aviso",aviso);
+		PARAM2.SetAttr("oi_reclutado",resultado.oi_reclutado);
+		PARAM2.SetAttr("c_estado","");
+		PARAM2.SetAttr("l_excluir","");	
+		openNewFlow ("NucleusRH.Base.SeleccionDePostulantes.Reclutados.flow", "adm-reclutados", PARAM2.ToString(), null, "L");	
+	}
+	else
+	{
+		alert("No se encontraron registros para Reclutados - El CV s&#243;lo esta postulado al aviso");	
+	}
+			
+}
+	</form:Scripts>
+	<form:Resources>
+		<form:Resource declare="&lt;DATOS oi_aviso=&quot;134&quot; oi_cv=&quot;20&quot; /&gt;" name="QRY_RECLUT">
+			<qry:main maxdeep="2" doc="SOURCE">
+				<qry:element name="ROW">
+					<qry:attribute name="flag" value="0"/>
+					<qry:insert-select name="sql1" doc-path="#SOURCE:DATOS"/>
+				</qry:element>
+			</qry:main>
+			<qry:select doc="SOURCE" name="sql1">
+				<qry:xquery>
+					for $r in sql('
+				SELECT 
+					t0.oi_reclutado as oi_reclutado
+				FROM 
+					SDP14_RECLUTADOS as t0
+				WHERE  					 
+					t0.oi_aviso = {#SOURCE:@oi_aviso}
+					AND t0.oi_cv = {#SOURCE:@oi_cv}	   
+				ORDER BY 
+					oi_reclutado asc')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:attribute name="oi_reclutado" value="$r/@oi_reclutado"/>
+					<qry:if test="$r/@oi_reclutado!=''">
+						<qry:then>
+							<qry:attribute name="flag" value="1"/>
+						</qry:then>
+					</qry:if>
+				</qry:out>
+			</qry:select>
+		</form:Resource>
+	</form:Resources>
+</form:Form>

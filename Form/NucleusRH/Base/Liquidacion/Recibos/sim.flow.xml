@@ -1,0 +1,244 @@
+<flow:flow xmlns:flow="nomad_engine.flow" xmlns:doc="nomad_engine.doc" xmlns:qry="nomad_engine.qry" default_action="initialize" extends="NucleusRH.Base.Liquidacion.Recibos.autoflow" name="Nomad.Base.Liquidacion.Recibos">
+	<flow:info label="Flow para Nomad.Base.Liquidacion.Recibos">
+		Flow para Nomad.Base.Liquidacion.Liquidacion
+	</flow:info>
+	<flow:declare>
+		<doc:define name="DOC_RECIBO"/>
+		<doc:define name="VERREC">
+			<DATO oi_liquidacion=""/>
+		</doc:define>
+		<doc:define name="RECIBO"/>
+		<doc:define name="FILTERDATA">
+			<FILTRO ORDEN4="" ATRIB_ORDEN4="" ORDEN3="" ATRIB_ORDEN3="" ORDEN2="" ATRIB_ORDEN2="" ORDEN1="" ATRIB_ORDEN1="" oi_empresa="">
+				<LIQUIDACIONES/>
+				<PERSONAS/>
+			</FILTRO>
+		</doc:define>
+		<doc:define name="FiltroReporteRecibo">
+			<Datos oi_tot_liq_per=""/>
+		</doc:define>
+		<doc:define name="TOTLIQPER"/>
+		<qry:define name="FILTER">
+			<qry:main doc="SOURCE">
+				<qry:element name="ROWS">
+					<qry:insert-select doc-path="#SOURCE:FILTRO" name="RS1"/>
+				</qry:element>
+			</qry:main>
+			<qry:select name="RS1" doc="SOURCE">
+				<qry:xquery>
+					for $r in sql('
+SELECT     
+LIQ99_LIQUIDACION.c_estado, 
+LIQ97_PERSONAL_EMP.e_numero_legajo, 
+LIQ20_TOT_LIQ_PER.oi_tot_liq_per, 
+LIQ97_PERSONAL_EMP.d_ape_y_nom
+FROM         
+LIQ19_LIQUIDACION, LIQ19_EJECUCIONES , LIQ99_LIQUIDACION ,
+LIQ99_RECIBOS , LIQ20_TOT_LIQ_PER , LIQ97_PERSONAL_EMP 
+JOIN
+LIQ19_EJECUCIONES.oi_liquidacion_ddo INNER LIQ99_LIQUIDACION.oi_liquidacion_ddo ,
+LIQ19_LIQUIDACION.oi_liquidacion     INNER LIQ19_EJECUCIONES.oi_liquidacion  ,
+LIQ99_LIQUIDACION.oi_liquidacion_ddo INNER LIQ99_RECIBOS.oi_liquidacion_ddo  ,
+LIQ99_RECIBOS.oi_tot_liq_per         INNER LIQ20_TOT_LIQ_PER.oi_tot_liq_per  ,
+LIQ20_TOT_LIQ_PER.oi_per_emp_ddo     INNER LIQ97_PERSONAL_EMP.oi_per_emp_ddo
+WHERE                           
+{%? (#SOURCE:@oi_liquidacion!='')	{% LIQ19_LIQUIDACION.oi_liquidacion= {%=#SOURCE:@oi_liquidacion %} %} {% 1 = 2 %} %}
+AND
+LIQ99_LIQUIDACION.c_estado = \'F\'
+and                               
+{%? (#SOURCE:@LegajoDesde!='')	{% LIQ97_PERSONAL_EMP.e_numero_legajo &gt;= {%=#SOURCE:@LegajoDesde %} %} {% 1 = 1 %} %}
+AND
+{%? (#SOURCE:@LegajoHasta!='')	{% LIQ97_PERSONAL_EMP.e_numero_legajo &lt;= {%=#SOURCE:@LegajoHasta %} %} {% 1 = 1 %} %}
+        order by 
+        	{%? (#SOURCE:@ATRIB_ORDEN1!='')	{% {%=#SOURCE:@ATRIB_ORDEN1%} {%? (#SOURCE:@ORDEN1!='') {% {%=#SOURCE:@ORDEN1%}, %} {% ASC, %}	%} %} {% %} %}
+        	       
+        	e_numero_legajo ASC
+        ')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:element name="ROW">
+						<qry:attribute name="value" value="$r/@oi_tot_liq_per"/>
+						<qry:attribute name="id" value="$r/@oi_tot_liq_per"/>
+						<qry:attribute name="e_numero_legajo" value="$r/@e_numero_legajo"/>
+						<qry:attribute name="d_ape_y_nom" value="$r/@d_ape_y_nom"/>
+					</qry:element>
+				</qry:out>
+			</qry:select>
+		</qry:define>
+		<qry:define declare="&lt;DATOS oi_empresa=&quot;0&quot; oi_personal_liq=&quot;13&quot; /&gt;" name="QRY_TOTLIQPER">
+			<qry:main doc="PARAM">
+				<qry:element name="Datos">
+					<qry:insert-select name="qry_obtieneOITLP" doc-path="#PARAM:/datos"/>
+				</qry:element>
+			</qry:main>
+			<qry:select doc="PARAM" name="qry_obtieneOITLP">
+				<qry:xquery>
+					for $r in sql( 'select  TLP.oi_tot_liq_per 
+									FROM LIQ20_TOT_LIQ_PER as TLP, 
+											liq97_personal_emp  as PEM , 
+											per02_personal_emp as EMP , 
+											LIQ25_Personal_liq as L25 , 
+											liq19_ejecuciones as EJE 
+									JOIN		L25.oi_personal_emp INNER  EMP.oi_personal_emp  ,
+										L25.e_secuencia INNER  EJE.e_secuencia ,
+										L25.oi_liquidacion INNER  EJE.oi_liquidacion ,
+										EMP.e_numero_legajo INNER  PEM.e_numero_legajo ,
+										TLP.oi_per_emp_ddo INNER PEM.oi_per_emp_ddo ,
+										TLP.oi_liquidacion_ddo INNER EJE.oi_liquidacion_ddo 
+									WHERE L25.oi_personal_liq = {#PARAM:@oi_personal_liq}	
+ ')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:attribute value="$r/@oi_tot_liq_per" name="oi_tot_liq_per"/>
+				</qry:out>
+			</qry:select>
+		</qry:define>
+		<qry:define name="PARAMETROS">
+			<qry:main doc="SOURCE">
+				<qry:element name="DATOS">
+					<qry:attribute name="oi_empresa" value="0" type="Nomad.NSystem.String"/>
+					<qry:attribute name="oi_tot_liq_per" value="" type="Nomad.NSystem.String"/>
+					<qry:attribute name="report" value="" type="Nomad.NSystem.String"/>
+				</qry:element>
+			</qry:main>
+		</qry:define>
+	</flow:declare>
+	<flow:main doc="SOURCE">
+		<flow:action name="initialize">
+			<flow:open-form form-class="NucleusRH.Base.Liquidacion.Recibos.Filter.form" mode="EDIT" doc-path="#FILTERDATA:"/>
+		</flow:action>
+		<flow:action name="initializeRecibo">
+			<doc:load-qry qry="PARAMETROS" output-doc="RECIBO"/>
+			<flow:open-form form-class="NucleusRH.Base.Liquidacion.Recibos.Recibo.form" mode="EDIT" doc-path="#RECIBO:"/>
+		</flow:action>
+		<flow:action name="initializeReciboLiquidacion">
+			<doc:load-qry qry="QRY_TOTLIQPER" input-doc-path="#SOURCE:" output-doc="TOTLIQPER"/>
+			<flow:html-gen ext="html" out-file-path="#TOTLIQPER:@report" input-doc-path="#TOTLIQPER:" template-file="NucleusRH.Base.Liquidacion.Recibo.rpt"/>
+			<flow:open-form doc-path="#TOTLIQPER:" form-class="NucleusRH.Base.Liquidacion.Reporte.Recibo.form" mode="REPORT"/>
+		</flow:action>
+		<flow:action name="initializeReciboCompleto">
+			<doc:load-qry qry="PARAMETROS" output-doc="RECIBO"/>
+			<flow:open-form form-class="NucleusRH.Base.Liquidacion.Recibos.Recibo.sim.form" mode="COMPLETO" doc-path="#RECIBO:"/>
+		</flow:action>
+		<flow:action name="initializeReciboDesde25">
+			<doc:load-qry output-doc="TOTLIQPER" input-doc-path="#SOURCE:" qry="QRY_TOTLIQPER"/>
+			<flow:html-gen template-file="NucleusRH.Base.Liquidacion.ReciboCompleto.rpt" out-file-path="#TOTLIQPER:@report" input-doc-path="#TOTLIQPER:"/>
+			<flow:open-form mode="REPORT1" doc-path="#TOTLIQPER:" form-class="NucleusRH.Base.Liquidacion.Reporte.Recibo.form"/>
+		</flow:action>
+	</flow:main>
+	<flow:form name="NucleusRH.Base.Liquidacion.Recibos.Filter.form:EDIT" extends="NucleusRH.Base.Liquidacion.Recibos.TOT_LIQ_PER.filter.autoform:FILTER" form-class="NucleusRH.Base.Liquidacion.Recibos.Filter.form" mode="EDIT" doc="FILTERDATA">
+		<flow:action name="on-show"/>
+		<flow:action name="BACK">
+			<flow:close-form/>
+		</flow:action>
+		<flow:action name="EJECUTAR_CLICK">
+			<doc:load-qry qry="FILTER" input-doc-path="#FILTERDATA:" output-doc="QRY"/>
+			<flow:call-action action="Save-FILTER"/>
+			<flow:open-form form-class="NucleusRH.Base.Liquidacion.Recibos.TOT_LIQ_PER.noreg.autoform" mode="EDIT" doc-path="#DOC_RECIBO:" parent-doc-path="#QRY:" iter-index="#QRY:ROW/@value"/>
+		</flow:action>
+	</flow:form>
+	<flow:form name="NucleusRH.Base.Liquidacion.Recibos.TOT_LIQ_PER.noreg.autoform:EDIT" mode="EDIT" form-class="NucleusRH.Base.Liquidacion.Recibos.TOT_LIQ_PER.noreg.autoform" extends="NucleusRH.Base.Liquidacion.Recibos.TOT_LIQ_PER.noreg.autoform:EDIT" doc="SOURCE" parent-doc="PARENTSOURCE">
+		<flow:action name="on-move-iterator">
+			<doc:new-object class="NucleusRH.Base.Liquidacion.Recibos.TOT_LIQ_PER" doc="DDO"/>
+			<doc:load-qry qry="FILTER" input-doc-path="#FILTERDATA:" output-doc="QRY"/>
+			<flow:open-form form-class="NucleusRH.Base.Liquidacion.Recibos.TOT_LIQ_PER.form" mode="SHOW" doc-path="#DOC_RECIBO:" parent-doc-path="#QRY:" iter-index="#QRY:ROW/@id"/>
+		</flow:action>
+		<flow:action name="on-empty-iterator">
+			<doc:load-qry qry="FILTER" input-doc-path="#FILTERDATA:" output-doc="QRY"/>
+			<flow:open-form form-class="NucleusRH.Base.Liquidacion.Recibos.TOT_LIQ_PER.form" mode="SHOW" doc-path="#DOC_RECIBO:" parent-doc-path="#QRY:" iter-index="#QRY:ROW/@id"/>
+		</flow:action>
+		<flow:action name="ADD"/>
+		<flow:action name="on-show"/>
+		<flow:action name="empty"/>
+		<flow:action name="After-Back">
+			<flow:close-form next-action="After-Back"/>
+		</flow:action>
+		<flow:action name="After-Change">
+			<doc:iter-refresh/>
+		</flow:action>
+		<flow:action name="BACK">
+			<flow:close-form next-action="After-Back"/>
+		</flow:action>
+	</flow:form>
+	<flow:form name="NucleusRH.Base.Liquidacion.Recibos.TOT_LIQ_PER.form:SHOW" mode="SHOW" form-class="NucleusRH.Base.Liquidacion.Recibos.TOT_LIQ_PER.form" extends="NucleusRH.Base.Liquidacion.Recibos.TOT_LIQ_PER.autoform:SHOW" doc="SOURCE" parent-doc="PARENTSOURCE">
+		<flow:action name="on-move-iterator">
+			<doc:load-object doc="DDO" class="NucleusRH.Base.Liquidacion.Recibos.TOT_LIQ_PER" id-path="#iter-cursor:@value"/>
+			<doc:set-attribute to-attr-path="#FiltroReporteRecibo:@oi_tot_liq_per" from-attr-path="#DDO:@id"/>
+			<flow:log text="a123" text-path="#FiltroReporteRecibo:"/>
+			<doc:load-qry qry="QRY_TOTLIQPER" input-doc-path="#iter-cursor:" output-doc="DOC_RECIBO"/>
+			<flow:html-gen ext="html" out-file-path="#FiltroReporteRecibo:@report" input-doc-path="#FiltroReporteRecibo:" template-file="NucleusRH.Base.Liquidacion.Recibo.rpt"/>
+		</flow:action>
+		<flow:action name="on-show">
+			<flow:log text-path="#SOURCE:" text="logpp1"/>
+			<flow:log text-path="#PARENTSOURCE:" text="logpp3"/>
+		</flow:action>
+	</flow:form>
+	<flow:form name="NucleusRH.Base.Liquidacion.Recibos.Recibo.form:EDIT" form-class="NucleusRH.Base.Liquidacion.Recibos.Recibo.form" mode="EDIT" doc="SOURCE">
+		<flow:action name="on-show"/>
+		<flow:action name="ACCEPT">
+			<flow:call-action action="Save-FILTER"/>
+			<doc:load-qry output-doc="TOTLIQPER" input-doc-path="#SOURCE:" qry="QRY_TOTLIQPER"/>
+			<flow:html-gen out-file-path="#TOTLIQPER:@report" input-doc-path="#TOTLIQPER:" template-file="NucleusRH.Base.Liquidacion.Recibo.rpt"/>
+			<flow:open-form doc-path="#TOTLIQPER:" form-class="NucleusRH.Base.Liquidacion.Reporte.Recibo.form" mode="REPORT"/>
+		</flow:action>
+		<flow:action name="CANCEL">
+			<flow:close-form/>
+		</flow:action>
+		<flow:action name="Load-FILTER">
+			<flow:load-user-data name="FILTER-NucleusRH.Base.Liquidacion.Recibos.TOT_LIQ_PERReci" doc="VERREC"/>
+		</flow:action>
+		<flow:action name="Save-FILTER">
+			<flow:save-user-data name="FILTER-NucleusRH.Base.Liquidacion.Recibos.TOT_LIQ_PERReci" doc-path="#VERREC:"/>
+		</flow:action>
+		<flow:action name="on-open">
+			<flow:call-action action="Load-FILTER"/>
+		</flow:action>
+	</flow:form>
+	<flow:form name="NucleusRH.Base.Liquidacion.Recibos.Recibo.sim.form:COMPLETO" form-class="NucleusRH.Base.Liquidacion.Recibos.Recibo.sim.form" mode="COMPLETO" doc="SOURCE">
+		<flow:action name="on-show">
+			<flow:log text-path="#SOURCE:" text="logshow"/>
+		</flow:action>
+		<flow:action name="ACCEPT">
+			<doc:load-qry output-doc="TOTLIQPER" input-doc-path="#SOURCE:" qry="QRY_TOTLIQPER"/>
+			<flow:call-action action="Save-FILTER"/>
+			<flow:html-gen template-file="NucleusRH.Base.Liquidacion.ReciboCompleto.rpt" out-file-path="#TOTLIQPER:@report" input-doc-path="#TOTLIQPER:"/>
+			<flow:open-form mode="REPORT1" doc-path="#TOTLIQPER:" form-class="NucleusRH.Base.Liquidacion.Reporte.Recibo.form"/>
+		</flow:action>
+		<flow:action name="CANCEL">
+			<flow:close-form/>
+		</flow:action>
+		<flow:action name="on-open">
+			<flow:call-action action="Load-FILTER"/>
+		</flow:action>
+		<flow:action name="Load-FILTER">
+			<flow:load-user-data name="FILTER-NucleusRH.Base.Liquidacion.Recibos.TOT_LIQ_PER.REPORTE" doc="VERREC"/>
+		</flow:action>
+		<flow:action name="Save-FILTER">
+			<flow:save-user-data name="FILTER-NucleusRH.Base.Liquidacion.Recibos.TOT_LIQ_PER.REPORTE" doc-path="#VERREC:"/>
+		</flow:action>
+	</flow:form>
+	<flow:form name="NucleusRH.Base.Liquidacion.Reporte.Recibo.form:REPORT" mode="REPORT" form-class="NucleusRH.Base.Liquidacion.Reporte.Recibo.form" doc="SOURCE">
+		<flow:action name="on-show"/>
+		<flow:action name="BACK">
+			<flow:close-form/>
+		</flow:action>
+		<flow:action name="on-empty-iterator">
+			<flow:open-form form-class="NucleusRH.Base.Liquidacion.Recibos.TOT_LIQ_PER.noreg.autoform" mode="SHOW" doc-path="#SOURCE:" parent-doc-path="#SOURCE:"/>
+		</flow:action>
+	</flow:form>
+	<flow:form name="NucleusRH.Base.Liquidacion.Reporte.Recibo.form:REPORT1" mode="REPORT1" form-class="NucleusRH.Base.Liquidacion.Reporte.Recibo.form" doc="SOURCE">
+		<flow:action name="on-show"/>
+		<flow:action name="BACK">
+			<flow:close-form/>
+		</flow:action>
+		<flow:action name="on-empty-iterator">
+			<flow:open-form form-class="NucleusRH.Base.Liquidacion.Recibos.TOT_LIQ_PER.noreg.autoform" mode="SHOW" doc-path="#SOURCE:" parent-doc-path="#SOURCE:"/>
+		</flow:action>
+	</flow:form>
+	<flow:form name="NucleusRH.Base.Liquidacion.Recibos.TOT_LIQ_PER.noreg.autoform:SHOW" form-class="NucleusRH.Base.Liquidacion.Recibos.TOT_LIQ_PER.noreg.autoform" mode="SHOW" doc="SOURCE" parent-doc="DOCDOC">
+		<flow:action name="on-show"/>
+		<flow:action name="BACK">
+			<flow:close-form next-action="BACK"/>
+		</flow:action>
+	</flow:form>
+</flow:flow>

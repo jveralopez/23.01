@@ -1,0 +1,704 @@
+<html:html xmlns:html="nomad_engine.html" xmlns:qry="nomad_engine.qry" xmlns:xsl="http://www.w3.org/1999/XSL/Transform" name="NucleusRH.Base.Liquidacion.PresupuestoEgreso" doc="source">
+	<html:query declare="&lt;FILTRO salida=&quot;HTML&quot; c_empresa=&quot;&quot; oi_banco=&quot;&quot; f_acreditacion=&quot;&quot; c_liquidacion=&quot;&quot; report=&quot;&quot; oi_empresa=&quot;164&quot; oi_liquidacion=&quot;92&quot; oi_personal_liq=&quot;1280&quot; /&gt;&#13;&#10;">
+		<qry:main doc="SOURCE">
+			<qry:element name="DATOS">
+				<qry:append-doc name="PS" doc-path="."/>
+				<PS>
+					<P name="ConPreaviso" val="0"/>
+					<P name="ConVacNoGoz" val="0"/>
+					<P name="ConIndAntig" val="0"/>
+					<P name="ConIndClien" val="0"/>
+					<P name="ConIndVencC" val="0"/>
+					<P name="ConIndInval" val="0"/>
+					<P name="ConIndFalle" val="0"/>
+					<P name="ConOtrasInd" val="0"/>
+					<P name="ConSacProp" val="0"/>
+					<P name="ConAux1" val="0"/>
+					<P name="ConAux2" val="0"/>
+					<P name="ConAux3" val="0"/>
+				</PS>
+				<qry:append-doc name="PARAMIN" doc-path="#SOURCE:FILTRO"/>
+				<qry:insert-select name="QRY_DATOS_EGRESO" doc-path="#PARAMIN:"/>
+			</qry:element>
+		</qry:main>
+		<qry:select doc="SOURCE" name="QRY_DATOS_EGRESO">
+			<qry:xquery>
+				for $r in sql('
+			SELECT 
+				LIQ99_LIQUIDACION.c_liquidacion, 
+				LIQ99_LIQUIDACION.d_titulo,
+				LIQ99_LIQUIDACION.f_liquidacion,
+				LIQ97_PERSONAL_EMP.d_ape_y_nom,
+				LIQ93_EMPRESAS.c_empresa, 
+				LIQ93_EMPRESAS.d_empresa,
+				LIQ97_PERSONAL_EMP.e_numero_legajo,
+				LIQ99_LIQUIDACION.oi_liquidacion_ddo,
+				LIQ97_PERSONAL_EMP.oi_per_emp_ddo,
+				LIQ97_PERSONAL_EMP.f_ingreso,
+				ORG22_EST_CIVIL.d_estado_civil,
+				LIQ97_PERSONAL_EMP.f_nacim,
+				LIQ97_PERSONAL_EMP.c_convenio, 
+				LIQ97_PERSONAL_EMP.c_categoria_ult,
+				LIQ20_TOT_LIQ_PER.oi_tot_liq_per,
+				LIQ97_PERSONAL_EMP.f_egreso,
+				LIQ97_PERSONAL_EMP.c_motivo_eg
+			FROM
+				LIQ19_EJECUCIONES, 
+				LIQ99_LIQUIDACION,
+				LIQ99_RECIBOS, 
+				LIQ20_TOT_LIQ_PER, 
+				LIQ93_EMPRESAS,
+				LIQ97_PERSONAL_EMP,
+				PER02_PERSONAL_EMP,
+				ORG03_EMPRESAS,
+				LIQ25_PERSONAL_LIQ,
+				ORG22_EST_CIVIL
+			JOIN
+				LIQ19_EJECUCIONES.oi_liquidacion_ddo INNER LIQ99_LIQUIDACION.oi_liquidacion_ddo,
+				LIQ99_LIQUIDACION.oi_empresa_ddo INNER LIQ93_EMPRESAS.oi_empresa_ddo,
+				LIQ99_LIQUIDACION.oi_liquidacion_ddo INNER LIQ99_RECIBOS.oi_liquidacion_ddo,
+				LIQ99_RECIBOS.oi_tot_liq_per INNER LIQ20_TOT_LIQ_PER.oi_tot_liq_per,
+				LIQ20_TOT_LIQ_PER.oi_per_emp_ddo INNER LIQ97_PERSONAL_EMP.oi_per_emp_ddo,
+				LIQ97_PERSONAL_EMP.e_numero_legajo INNER PER02_PERSONAL_EMP.e_numero_legajo,
+				LIQ97_PERSONAL_EMP.c_estado_civil LEFT OUTER ORG22_EST_CIVIL.c_estado_civil,
+				LIQ93_EMPRESAS.c_empresa INNER ORG03_EMPRESAS.c_empresa,
+				PER02_PERSONAL_EMP.oi_empresa INNER ORG03_EMPRESAS.oi_empresa,
+				LIQ25_PERSONAL_LIQ.oi_liquidacion INNER LIQ19_EJECUCIONES.oi_liquidacion,
+				LIQ25_PERSONAL_LIQ.oi_personal_emp INNER PER02_PERSONAL_EMP.oi_personal_emp
+			WHERE
+				LIQ99_LIQUIDACION.c_estado = \'F\' AND
+				LIQ19_EJECUCIONES.oi_liquidacion = {#SOURCE:@oi_liquidacion} AND
+				LIQ25_PERSONAL_LIQ.oi_personal_liq = {#SOURCE:@oi_personal_liq}
+	')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:attribute name="empresa" value="$r/@c_empresa + ' - ' + $r/@d_empresa"/>
+				<qry:attribute name="liquidacion" value="$r/@c_liquidacion + ' - ' + $r/@d_titulo"/>
+				<qry:element name="DATA">
+					<qry:attribute name="e_numero_legajo" value="$r/@e_numero_legajo"/>
+					<qry:append-doc name="DATA" doc-path="."/>
+					<qry:attribute name="edad" value="FLOOR((Number(now()) - Number(Datetime($r/@f_nacim))) DIV 365)"/>
+					<qry:attribute name="ape_y_nom" value="$r/@d_ape_y_nom"/>
+					<qry:attribute name="f_ingreso" value="format_date($r/@f_ingreso, 'dd/mm/yyyy')"/>
+					<qry:attribute name="d_estado_civil" value="$r/@d_estado_civil"/>
+					<qry:attribute name="c_categoria_ult" value="$r/@c_categoria_ult"/>
+					<qry:attribute name="c_convenio" value="$r/@c_convenio"/>
+					<qry:attribute name="oi_tot_liq_per" value="$r/@oi_tot_liq_per"/>
+					<qry:attribute name="f_egreso" value="format_date($r/@f_egreso,'dd/mm/yyyy')"/>
+					<qry:attribute name="mot_egreso" value="$r/@c_motivo_eg"/>
+					<qry:insert-select name="QRY_CATEG" doc-path="$r"/>
+					<qry:insert-select name="QRY_PARAMETROS"/>
+					<qry:insert-select name="QRY_PARAM_CONC"/>
+					<qry:attribute name="f_egreso" value="iif(@ConFecEgreso_v!='', format_date(@ConFecEgreso_v,'dd/mm/yyyy'), @f_egreso)"/>
+					<qry:attribute name="mot_egreso" value="iif(@ConFecEgreso_c!='',@ConFecEgreso_c, @mot_egreso)"/>
+					<qry:attribute name="ConAntiguedad_v" value="FORMAT_NUMBER(@ConAntiguedad_v, 10, 0, '', ',', '')"/>
+					<qry:insert-select name="QRY_MOT_EGRESO" doc-path="."/>
+				</qry:element>
+			</qry:out>
+		</qry:select>
+		<qry:select name="QRY_PARAMETROS" doc="">
+			<qry:xquery>
+				for $r in SQL('
+			SELECT 
+				ORG26_PARAMETROS.c_parametro,
+				ORG26_PARAMETROS.d_valor
+			FROM
+				ORG26_PARAMETROS                
+			WHERE
+				ORG26_PARAMETROS.c_modulo = \'LIQ\' AND 
+				ORG26_PARAMETROS.d_clase = \'RepEgreso\' AND
+				ORG26_PARAMETROS.c_parametro IN (\'ConFecEgreso\',\'ConAntiguedad\',\'ConMejorRemun\',\'ConRecupInver\',\'DescAux1\',\'DescAux2\',\'DescAux3\')
+			')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:insert-select name="QRY_CONC1" doc-path="$r"/>
+				<qry:attribute name-calc="$r/@c_parametro" value="$r/@d_valor"/>
+			</qry:out>
+		</qry:select>
+		<qry:select name="QRY_CATEG" doc="SOURCE">
+			<qry:xquery>
+				for $r in SQL('
+		  SELECT 
+		  	ORG18_CATEGORIAS.d_categoria
+		  FROM 
+		  	ORG18_CATEGORIAS,
+		  	ORG18_CONVENIOS
+		  JOIN
+		  	ORG18_CATEGORIAS.oi_convenio INNER ORG18_CONVENIOS.oi_convenio
+		  WHERE
+		  	ORG18_CATEGORIAS.c_categoria = {#SOURCE:@c_categoria_ult} AND
+		  	ORG18_CONVENIOS.c_convenio = {#SOURCE:@c_convenio}
+		')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:attribute name="d_categoria" value="$r/@d_categoria"/>
+			</qry:out>
+		</qry:select>
+		<qry:select name="QRY_PARAM_CONC" doc="">
+			<qry:xquery>
+				for $r in SQL('
+			SELECT 
+				ORG26_PARAMETROS.c_parametro,
+				ORG26_PARAMETROS.d_valor
+			FROM
+				ORG26_PARAMETROS                
+			WHERE
+				ORG26_PARAMETROS.c_modulo = \'LIQ\' AND 
+				ORG26_PARAMETROS.d_clase = \'RepEgreso\' AND
+				ORG26_PARAMETROS.c_parametro IN (\'ConSacProp\',\'ConRecupInver\',\'ConPreaviso\',\'ConVacNoGoz\',\'ConIndAntig\',\'ConIndClien\',\'ConIndVencC\',\'ConIndInval\',\'ConIndFalle\',\'ConOtrasInd\',\'ConAux1\',\'ConAux2\',\'ConAux3\')
+			')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:append-doc name="PARAM" doc-path="$r"/>
+				<qry:insert-select name="QRY_SPLIT" doc-path="$r"/>
+			</qry:out>
+		</qry:select>
+		<qry:select name="QRY_SPLIT" doc="SOURCE">
+			<qry:xquery>
+				for $r in SPLIT('1;{%=$SOURCE/@d_valor%}')
+			</qry:xquery>
+			<qry:out>
+				<qry:insert-select name="QRY_CONC" doc-path="$r/ROW"/>
+			</qry:out>
+		</qry:select>
+		<qry:select name="QRY_CONC" doc="SOURCE">
+			<qry:xquery>
+				for $r in SQL('
+			SELECT 
+				LIQ20_CONC_LIQ_PER.n_valor
+			FROM 
+				LIQ20_CONC_LIQ_PER, 
+				LIQ96_CONCEPTOS
+			JOIN
+				LIQ20_CONC_LIQ_PER.oi_concepto_ddo INNER LIQ96_CONCEPTOS.oi_concepto_ddo
+			WHERE
+				LIQ20_CONC_LIQ_PER.oi_tot_liq_per = {$DATA/@oi_tot_liq_per} and
+				LIQ96_CONCEPTOS.c_concepto = {$SOURCE/@value}
+		')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:insert-select name="PEGAR_VALOR" doc-path="$r" to-element="$PS/PS/P[@name=$PARAM/@c_parametro]"/>
+			</qry:out>
+		</qry:select>
+		<qry:select name="PEGAR_VALOR" doc="r">
+			<qry:out>
+				<qry:attribute name="val" value="number(@val) + number($r/@n_valor)"/>
+			</qry:out>
+		</qry:select>
+		<qry:select name="QRY_CONC1" doc="SOURCE">
+			<qry:xquery>
+				for $r in SQL('
+			SELECT 
+				LIQ20_CONC_LIQ_PER.n_valor,
+				LIQ20_CONC_LIQ_PER.n_cantidad
+			FROM 
+				LIQ20_CONC_LIQ_PER, 
+				LIQ96_CONCEPTOS
+			JOIN
+				LIQ20_CONC_LIQ_PER.oi_concepto_ddo INNER LIQ96_CONCEPTOS.oi_concepto_ddo
+			WHERE
+				LIQ20_CONC_LIQ_PER.oi_tot_liq_per = {$DATA/@oi_tot_liq_per} and
+				LIQ96_CONCEPTOS.c_concepto = {#SOURCE:@d_valor}
+		')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:attribute name-calc="$SOURCE/@c_parametro + '_c'" value="$r/@n_cantidad"/>
+				<qry:attribute name-calc="$SOURCE/@c_parametro + '_v'" value="$r/@n_valor"/>
+			</qry:out>
+		</qry:select>
+		<qry:select name="QRY_MOT_EGRESO" doc="SOURCE">
+			<qry:xquery>
+				for $r in SQL('
+				SELECT
+					PER22_MOT_EG_PER.d_motivo_eg_per 
+				FROM
+					PER22_MOT_EG_PER
+				WHERE 
+					PER22_MOT_EG_PER.c_motivo_eg_per = {#SOURCE:@mot_egreso}	
+			')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:attribute name="d_motivo_eg_per" value="$r/@d_motivo_eg_per"/>
+			</qry:out>
+		</qry:select>
+	</html:query>
+	<html:xslt>
+		<xsl:template match="DATOS">
+			<html>
+				<xsl:attribute name="x:HOLA" namespace="urn:schemas-microsoft-com:office:excel">
+					HOLA
+				</xsl:attribute>
+				<head>
+					<meta http-equiv="Content-Type" content="text/html; charset=utf-8"/>
+					<style media="screen">
+						.body {
+          font-family:verdana;
+          font-weight:normal;
+          background-color:#B0B0B0;
+          font-size:11px;
+          width:100%;
+          margin:30px;}
+          
+          .bodysinmarco {
+					PADDING-RIGHT: 0px; 
+					PADDING-LEFT: 0px; 
+					PADDING-BOTTOM: 0px; 
+					MARGIN: 0px; 
+					BORDER-TOP-STYLE: none; 
+					PADDING-TOP: 0px; 
+					BORDER-RIGHT-STYLE: none; 
+					BORDER-LEFT-STYLE: none; 
+					BORDER-BOTTOM-STYLE: none;
+          
+          font-family:verdana;
+          font-weight:normal;          
+          font-size:11px;
+          width:100%;}
+
+          .title {
+          font-size:15px;
+          font-family:verdana;
+          font-weight:bold;}
+
+          .table_table_style {
+          border: none;
+          border-collapse: collapse; 
+          background-color:#FFFFFF;
+          font-size: 11px;
+          font-family: verdana;
+           }
+          
+           .table_title_style {
+          border:none;
+          font-family:verdana;
+          background-color:#FFFFFF;
+          font-size:12px;
+          font-weight:normal;
+          width:50%;}
+
+         
+          .group_td {
+          padding-left:30px;
+          text-align:right; }
+
+          .coll_img {
+          padding:0px; margin:0px;
+          font-family:verdana;
+          font-weight:bold;
+          text-align:center;
+          cursor:pointer;
+          border:1px solid black;
+          font-size:8px;
+          width:12px;
+          height:12px;}
+
+          .table_span_style {
+          font-family:verdana;
+          font-weight:bold;
+
+          }
+
+          tfoot {
+          font-family:verdana;
+          font-weight:bold;
+          }
+
+          .stitle {
+          width:100%;
+          background-color:#FFFFFF;
+          }
+           .divmarco {
+          border:solid 1px #555555;
+          border-top:solid 2px #555555;
+          border-right:solid 8px #555555;
+          background-color:white;
+          margin:0px; 
+          padding:20px;
+          width:100%;
+          height:100%}
+         
+          
+          .divsinmarco {          
+          background-color:white;
+          margin:0px;           
+          width:100%;}
+ 
+          .scontent {
+          width:100%;
+          aheight:100%;
+          background-color:#FFFFFF; }
+					</style>
+					<style media="print">
+						.body {
+					font-family:verdana;
+					font-weight:normal; 
+					background-color:white; 
+					font-size:8pt;
+					width:20cm;}
+					
+					.bodysinmarco {
+					font-family:verdana;
+					font-weight:normal; 
+					background-color:white; 
+					font-size:8pt;
+					width:20cm;}
+					
+					.titulo {
+					font-family:verdana;
+					font-size:11pt;
+					font-weight:bold;}
+					
+					.table_table_style {
+					border: none; 
+				  border-collapse: collapse; 
+					font-size: 8pt; 
+					font-family: verdana;
+					width:50%;}
+					
+					.table_title_style {
+					border:none; 
+					font-family:verdana;
+					font-size:9pt;
+					font-weight:normal;
+					width:100%;}
+					
+					.table_span_style {
+					font-family:verdana;
+					font-weight:bold;
+					}
+					
+					.group_td {
+					padding-left:30px;
+					text-align:right; }
+					
+					.coll_img {
+					display:none;}
+					
+					.stitle {
+					background-color:#FFFFFF; 
+					border:none;}
+					
+					.scontent {
+					background-color:#FFFFFF; 
+					border:none;}
+					</style>
+					<style media="all">
+						.table_table_style td {
+					border: solid 1px black; 
+					padding-left: 3px; 
+					padding-right: 3px;
+					text-align: left;}
+					
+					.table_table_style td#num{
+					mso-number-format:0.00;
+					text-align:right;}
+					
+					.table_table_style th {
+					border:solid 1px black;
+					background-color:#BBBBBB; 
+					border-bottom:solid 2px black;
+					padding-left: 3px; 
+					padding-right: 3px;
+					text-align: center;}
+					
+					.table_title_style span#label {
+					font-family:verdana;
+					font-weight: bold; }
+					</style>
+				</head>
+				<body>
+					<table class="title" align="center">
+						<tr>
+							<td>
+								PRESUPUESTO EGRESO
+							</td>
+						</tr>
+					</table>
+					<table class="table_title_style" CELLPADDING="0" CELLSPACING="0">
+						<tr>
+							<td>
+								<b>
+									<xsl:text>
+										Empresa:&#160;
+									</xsl:text>
+								</b>
+								<xsl:value-of select="@empresa"/>
+								<br/>
+							</td>
+						</tr>
+						<tr>
+							<td>
+								<b>
+									<xsl:text>
+										Liquidaci&#243;n:&#160;
+									</xsl:text>
+								</b>
+								<xsl:value-of select="@liquidacion"/>
+								<br/>
+							</td>
+						</tr>
+						<br/>
+					</table>
+					<xsl:apply-templates select="DATA"/>
+				</body>
+			</html>
+		</xsl:template>
+		<xsl:template match="DATA">
+			<table class="table_table_style">
+				<br/>
+				<tr>
+					<td style="background-color:#BBBBBB;font-weight:bold;" nowrap="1">
+						N&#250;mero de Legajo
+					</td>
+					<td nowrap="1">
+						<xsl:value-of select="@e_numero_legajo"/>
+					</td>
+				</tr>
+				<tr>
+					<td style="background-color:#BBBBBB;font-weight:bold;" nowrap="1">
+						Apellido y Nombre
+					</td>
+					<td nowrap="1">
+						<xsl:value-of select="@ape_y_nom"/>
+					</td>
+				</tr>
+				<tr>
+					<td style="background-color:#BBBBBB;font-weight:bold;" nowrap="1">
+						Motivo de Egreso
+					</td>
+					<td nowrap="1">
+						<xsl:value-of select="@d_motivo_eg_per"/>
+					</td>
+				</tr>
+				<tr>
+					<td style="background-color:#BBBBBB;font-weight:bold;" nowrap="1">
+						Fecha de Egreso
+					</td>
+					<td nowrap="1">
+						<xsl:value-of select="@f_egreso"/>
+					</td>
+				</tr>
+				<tr>
+					<td style="background-color:#BBBBBB;font-weight:bold;" nowrap="1">
+						Fecha de Ingreso
+					</td>
+					<td nowrap="1">
+						<xsl:value-of select="@f_ingreso"/>
+					</td>
+				</tr>
+				<tr>
+					<td style="background-color:#BBBBBB;font-weight:bold;" nowrap="1">
+						Edad
+					</td>
+					<td nowrap="1">
+						<xsl:value-of select="@edad"/>
+					</td>
+				</tr>
+				<tr>
+					<td style="background-color:#BBBBBB;font-weight:bold;" nowrap="1">
+						Estado Civil
+					</td>
+					<td nowrap="1">
+						<xsl:value-of select="@d_estado_civil"/>
+					</td>
+				</tr>
+				<tr>
+					<td style="background-color:#BBBBBB;font-weight:bold;" nowrap="1">
+						Categor&#237;a Laboral
+					</td>
+					<td nowrap="1">
+						<xsl:value-of select="@d_categoria"/>
+					</td>
+				</tr>
+				<tr>
+					<td style="background-color:#BBBBBB;font-weight:bold;" nowrap="1">
+						Antig&#252;edad en la empresa
+					</td>
+					<td nowrap="1">
+						<xsl:value-of select="@ConAntiguedad_v"/>
+					</td>
+				</tr>
+				<tr>
+					<td style="background-color:#BBBBBB;font-weight:bold;" nowrap="1">
+						Mejor Remuneraci&#243;n &#250;ltimo a&#241;o
+					</td>
+					<td id="num">
+						<xsl:if test="@ConMejorRemun_v!=''">
+							<xsl:attribute name="x:num" namespace="urn:schemas-microsoft-com:office:excel">
+								<xsl:value-of select="format-number(@ConMejorRemun_v, '###,###,##0.00')"/>
+							</xsl:attribute>
+							<xsl:value-of select="format-number(@ConMejorRemun_v, '###,###,##0.00')"/>
+						</xsl:if>
+					</td>
+				</tr>
+				<tr>
+					<td style="background-color:#BBBBBB;font-weight:bold;" nowrap="1">
+						Recupero Inversi&#243;n
+					</td>
+					<td id="num">
+						<xsl:if test="@ConRecupInver_v!=''">
+							<xsl:attribute name="x:num" namespace="urn:schemas-microsoft-com:office:excel">
+								<xsl:value-of select="format-number(@ConRecupInver_v, '###,###,##0.00')"/>
+							</xsl:attribute>
+							<xsl:value-of select="format-number(@ConRecupInver_v, '###,###,##0.00')"/>
+						</xsl:if>
+					</td>
+				</tr>
+				<tr>
+					<td colspan="2" style="background-color:#FFF;font-weight:bold;padding-top:15px;">
+						Conceptos
+					</td>
+				</tr>
+				<tr>
+					<td style="background-color:#BBBBBB;font-weight:bold;">
+						Preaviso
+					</td>
+					<td id="num">
+						<xsl:attribute name="x:num" namespace="urn:schemas-microsoft-com:office:excel">
+							<xsl:value-of select="format-number(../PS/P[@name='ConPreaviso']/@val, '###,###,##0.00')"/>
+						</xsl:attribute>
+						<xsl:value-of select="format-number(../PS/P[@name='ConPreaviso']/@val, '###,###,##0.00')"/>
+					</td>
+				</tr>
+				<tr>
+					<td style="background-color:#BBBBBB;font-weight:bold;">
+						SAC Proporcional
+					</td>
+					<td id="num">
+						<xsl:attribute name="x:num" namespace="urn:schemas-microsoft-com:office:excel">
+							<xsl:value-of select="format-number(../PS/P[@name='ConSacProp']/@val, '###,###,##0.00')"/>
+						</xsl:attribute>
+						<xsl:value-of select="format-number(../PS/P[@name='ConSacProp']/@val, '###,###,##0.00')"/>
+					</td>
+				</tr>
+				<tr>
+					<td style="background-color:#BBBBBB;font-weight:bold;">
+						Vacaciones no Gozadas
+					</td>
+					<td id="num">
+						<xsl:attribute name="x:num" namespace="urn:schemas-microsoft-com:office:excel">
+							<xsl:value-of select="format-number(../PS/P[@name='ConVacNoGoz']/@val, '###,###,##0.00')"/>
+						</xsl:attribute>
+						<xsl:value-of select="format-number(../PS/P[@name='ConVacNoGoz']/@val, '###,###,##0.00')"/>
+					</td>
+				</tr>
+				<tr>
+					<td style="background-color:#BBBBBB;font-weight:bold;">
+						Indemnizaci&#243;n antig&#252;edad
+					</td>
+					<td id="num">
+						<xsl:attribute name="x:num" namespace="urn:schemas-microsoft-com:office:excel">
+							<xsl:value-of select="format-number(../PS/P[@name='ConIndAntig']/@val, '###,###,##0.00')"/>
+						</xsl:attribute>
+						<xsl:value-of select="format-number(../PS/P[@name='ConIndAntig']/@val, '###,###,##0.00')"/>
+					</td>
+				</tr>
+				<tr>
+					<td style="background-color:#BBBBBB;font-weight:bold;">
+						Indemnizaci&#243;n por Clientela
+					</td>
+					<td id="num">
+						<xsl:attribute name="x:num" namespace="urn:schemas-microsoft-com:office:excel">
+							<xsl:value-of select="format-number(../PS/P[@name='ConIndClien']/@val, '###,###,##0.00')"/>
+						</xsl:attribute>
+						<xsl:value-of select="format-number(../PS/P[@name='ConIndClien']/@val, '###,###,##0.00')"/>
+					</td>
+				</tr>
+				<tr>
+					<td style="background-color:#BBBBBB;font-weight:bold;">
+						Indemnizaci&#243;n Venc. Contrato
+					</td>
+					<td id="num">
+						<xsl:attribute name="x:num" namespace="urn:schemas-microsoft-com:office:excel">
+							<xsl:value-of select="format-number(../PS/P[@name='ConIndVencC']/@val, '###,###,##0.00')"/>
+						</xsl:attribute>
+						<xsl:value-of select="format-number(../PS/P[@name='ConIndVencC']/@val, '###,###,##0.00')"/>
+					</td>
+				</tr>
+				<tr>
+					<td style="background-color:#BBBBBB;font-weight:bold;">
+						Indemnizaci&#243;n por Invalidez
+					</td>
+					<td id="num">
+						<xsl:attribute name="x:num" namespace="urn:schemas-microsoft-com:office:excel">
+							<xsl:value-of select="format-number(../PS/P[@name='ConIndInval']/@val, '###,###,##0.00')"/>
+						</xsl:attribute>
+						<xsl:value-of select="format-number(../PS/P[@name='ConIndInval']/@val, '###,###,##0.00')"/>
+					</td>
+				</tr>
+				<tr>
+					<td style="background-color:#BBBBBB;font-weight:bold;">
+						Indemnizaci&#243;n por Fallecimiento
+					</td>
+					<td id="num">
+						<xsl:attribute name="x:num" namespace="urn:schemas-microsoft-com:office:excel">
+							<xsl:value-of select="format-number(../PS/P[@name='ConIndFalle']/@val, '###,###,##0.00')"/>
+						</xsl:attribute>
+						<xsl:value-of select="format-number(../PS/P[@name='ConIndFalle']/@val, '###,###,##0.00')"/>
+					</td>
+				</tr>
+				<tr>
+					<td style="background-color:#BBBBBB;font-weight:bold;">
+						Otras Indemnizaciones / Gratificaciones
+					</td>
+					<td id="num">
+						<xsl:attribute name="x:num" namespace="urn:schemas-microsoft-com:office:excel">
+							<xsl:value-of select="format-number(../PS/P[@name='ConOtrasInd']/@val, '###,###,##0.00')"/>
+						</xsl:attribute>
+						<xsl:value-of select="format-number(../PS/P[@name='ConOtrasInd']/@val, '###,###,##0.00')"/>
+					</td>
+				</tr>
+				<xsl:if test="@DescAux1!=''">
+					<tr>
+						<td style="background-color:#BBBBBB;font-weight:bold;">
+							<xsl:value-of select="@DescAux1"/>
+						</td>
+						<td id="num">
+							<xsl:attribute name="x:num" namespace="urn:schemas-microsoft-com:office:excel">
+								<xsl:value-of select="format-number(../PS/P[@name='ConAux1']/@val, '###,###,##0.00')"/>
+							</xsl:attribute>
+							<xsl:value-of select="format-number(../PS/P[@name='ConAux1']/@val, '###,###,##0.00')"/>
+						</td>
+					</tr>
+				</xsl:if>
+				<xsl:if test="@DescAux2!=''">
+					<tr>
+						<td style="background-color:#BBBBBB;font-weight:bold;">
+							<xsl:value-of select="@DescAux2"/>
+						</td>
+						<td id="num">
+							<xsl:attribute name="x:num" namespace="urn:schemas-microsoft-com:office:excel">
+								<xsl:value-of select="format-number(../PS/P[@name='ConAux2']/@val, '###,###,##0.00')"/>
+							</xsl:attribute>
+							<xsl:value-of select="format-number(../PS/P[@name='ConAux2']/@val, '###,###,##0.00')"/>
+						</td>
+					</tr>
+				</xsl:if>
+				<xsl:if test="@DescAux3!=''">
+					<tr>
+						<td style="background-color:#BBBBBB;font-weight:bold;">
+							<xsl:value-of select="@DescAux3"/>
+						</td>
+						<td id="num">
+							<xsl:attribute name="x:num" namespace="urn:schemas-microsoft-com:office:excel">
+								<xsl:value-of select="format-number(../PS/P[@name='ConAux3']/@val, '###,###,##0.00')"/>
+							</xsl:attribute>
+							<xsl:value-of select="format-number(../PS/P[@name='ConAux3']/@val, '###,###,##0.00')"/>
+						</td>
+					</tr>
+				</xsl:if>
+				<tr>
+					<td style="background-color:#BBBBBB;font-weight:bold;">
+						TOTAL
+					</td>
+					<td style="font-weight:bold;" id="num">
+						<xsl:attribute name="x:num" namespace="urn:schemas-microsoft-com:office:excel">
+							<xsl:value-of select="sum(../PS/P/@val)"/>
+						</xsl:attribute>
+						<xsl:value-of select="format-number(sum(../PS/P/@val), '###,###,##0.00')"/>
+					</td>
+				</tr>
+			</table>
+		</xsl:template>
+	</html:xslt>
+</html:html>

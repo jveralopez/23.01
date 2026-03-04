@@ -1,0 +1,193 @@
+<interface:interface doc="source" name="NucleusRH.Base.Liquidacion.Empresa_Liquidacion.InterfaceAHNBSF"
+	xmlns:interface="nomad:interface"
+	xmlns:qry="nomad:query"
+	xmlns:xsl="http://www.w3.org/1999/XSL/Transform"
+	xmlns:fo="http://www.w3.org/1999/XSL/Format"
+	>
+
+	<interface:query>
+			<qry:main doc="SOURCE">   
+				<qry:element name="datos">
+					<qry:attribute name="sufix" value="#SOURCE:FILTRO/@fechaAcred + '.txt'"/>
+				 	<qry:attribute name="f_acreditacion" value="format_date(#SOURCE:FILTRO/@fechaAcred,'dd/mm/yyyy')"/>
+					<qry:element name="LIQUIDACIONES">
+						<qry:insert-select doc-path="#SOURCE:/FILTRO" name="qry_datosPadre"/>
+					</qry:element>
+				  <qry:insert-select doc-path="#SOURCE:/FILTRO" name="qry_datosPadreAcum"/>				
+					<qry:element name="PERSONAS">
+						<qry:insert-select doc-path="#SOURCE:/FILTRO" name="qry_Acred"/>
+					</qry:element>
+				</qry:element>
+			</qry:main>
+			
+
+	<qry:select doc="SOURCE" name="qry_datosPadre">
+		<qry:xquery>
+			for $r in table('
+				SELECT liq19_liquidacion.oi_liquidacion id, c_empresa, d_empresa, c_liquidacion, d_titulo, f_acreditacion
+				FROM liq19_liquidacion, org03_empresas
+				WHERE 
+				{%? (string(#SOURCE:LIQUIDACIONES/LIQUIDACION/@id)!='') 
+					{% liq19_liquidacion.oi_liquidacion in ({%=string(#SOURCE:LIQUIDACIONES/LIQUIDACION/@id) %}) %} {% 1=2 %} %}
+				AND liq19_liquidacion.oi_empresa = org03_empresas.oi_empresa
+			')/ROWS/ROW
+		</qry:xquery>
+		<qry:out>                               
+			<qry:element name="LIQUIDACION">
+				<qry:attribute name="id" value="$r/@id"    type="Nomad.NSystem.String"/>
+				<qry:attribute name="c_liquidacion" value="$r/@c_empresa + '-' + $r/@c_liquidacion"    type="Nomad.NSystem.String"/>
+				<qry:attribute name="d_titulo" value="$r/@d_empresa + '-' + $r/@d_titulo"    type="Nomad.NSystem.String"/>
+				<qry:attribute name="f_acreditacion" value="format_date($r/@f_acreditacion,'dd/mm/yyyy')"    type="Nomad.NSystem.String"/>
+			</qry:element>
+		</qry:out>           
+	</qry:select>
+	
+	
+	<qry:select doc="SOURCE" name="qry_Acred">
+		<qry:xquery>
+			for $r in table('                         
+SELECT per02_personal_emp.oi_personal_emp oi_personal_emp
+, per01_personal.d_ape_y_nom d_ape_y_nom
+, \'DNI\' c_tipo_doc
+, per01_personal.c_dni c_dni
+
+, liq07_personal.c_cta_bancaria c_cta_bancaria
+, sum(LIQ20_TOT_LIQ_PER.n_totpag) totaPagar
+, liq22_bancos_sucur.c_suc_bancaria c_suc_bancaria
+, liq22_bancos_sucur.c_sucursal c_sucursal
+, liq22_bancos_sucur.d_sucursal d_sucursal
+, liq15_empresa_bcos.c_convenio c_convenio
+, liq22_bancos.c_banco c_banco
+, liq22_bancos.d_banco d_banco
+
+FROM liq25_personal_liq, per02_personal_emp, per01_personal, 
+liq07_personal, LIQ20_TOT_LIQ_PER
+, liq22_bancos_sucur, liq15_empresa_bcos,  liq22_bancos 
+WHERE 
+
+{%? (string(#SOURCE:LIQUIDACIONES/LIQUIDACION/@id)!='') 
+{% liq25_personal_liq.oi_liquidacion in ({%=string(#SOURCE:LIQUIDACIONES/LIQUIDACION/@id) %}) %} {% 1=2 %} %}
+
+AND per02_personal_emp.oi_personal = per01_personal.oi_personal
+AND Liq20_tot_liq_per.oi_tot_liq_per = liq25_personal_liq.oi_tot_liq_pers
+AND per02_personal_emp.oi_personal_emp = liq25_personal_liq.oi_personal_emp
+AND liq07_personal.oi_personal_emp = liq25_personal_liq.oi_personal_emp
+and liq22_bancos.oi_banco = {%= #SOURCE:@oi_banco %}
+and liq07_personal.oi_sucursal = liq22_bancos_sucur.oi_sucursal
+and liq22_bancos_sucur.oi_banco = liq15_empresa_bcos.oi_banco
+and LIQ20_TOT_LIQ_PER.n_totpag != 0
+and liq22_bancos_sucur.oi_banco = liq22_bancos.oi_banco
+AND per02_personal_emp.oi_empresa = liq15_empresa_bcos.oi_empresa 
+group by 
+per02_personal_emp.oi_personal_emp, d_ape_y_nom , liq22_bancos_sucur.c_sucursal
+, liq22_bancos_sucur.d_sucursal, c_dni, c_cta_bancaria, c_suc_bancaria, c_convenio
+, liq22_bancos.c_banco, liq22_bancos.d_banco
+order by per02_personal_emp.oi_personal_emp
+
+		')/ROWS/ROW
+		</qry:xquery>
+		<qry:out>                               
+		<qry:element name="PERSONA">
+			<qry:attribute name="oi_personal_emp" value="$r/@OI_PERSONAL_EMP"    type="Nomad.NSystem.String"/>
+			<qry:attribute name="d_ape_y_nom" value="$r/@d_ape_y_nom"    type="Nomad.NSystem.String"/> <!-- este tiene de largo 30 -->
+			<qry:attribute name="tipo_doc" value="$r/@c_tipo_doc"    type="Nomad.NSystem.String"/>
+			<qry:attribute name="c_dni" value="$r/@c_dni"    type="Nomad.NSystem.String"/> <!-- este tiene de largo 10 -->
+			<qry:attribute name="c_cta_bancaria" value="$r/@c_cta_bancaria"    type="Nomad.NSystem.String"/> <!-- este tiene de largo 9 -->
+			<qry:attribute name="suc" value="$r/@c_suc_bancaria"    type="Nomad.NSystem.String"/> <!-- este tiene de largo 4 -->
+			<qry:attribute name="nomSucur" value="$r/@d_sucursal"    type="Nomad.NSystem.String"/> <!-- este tiene de largo 4 -->
+			<qry:attribute name="BANCO" value="$r/@c_banco + '-' + $r/@d_banco"    type="Nomad.NSystem.String"/>
+			<qry:attribute name="importe" value="format_number($r/@totaPagar,'##,###,###,##0.00')"    type="Nomad.NSystem.String"/>	<!-- este tiene de largo 14 -->
+			<qry:attribute name="error" value="'0000'"    type="Nomad.NSystem.String"/> <!-- este tiene de largo 4 -->
+			<qry:attribute name="convenio" value="$r/@c_convenio"  type="Nomad.NSystem.String"/> <!-- este tiene de largo 4 -->
+			<qry:attribute name="Sistema" value="'unCs'"    type="Nomad.NSystem.String"/> <!-- este tiene de largo 2 -->
+			<qry:attribute name="cod_doc" value="'01'"    type="Nomad.NSystem.String"/>	<!-- este tiene de largo 2 -->
+			<qry:attribute name="Fecha" value="format_date(#SOURCE:@fechaAcred,'yyyy/mm/dd')"    type="Nomad.NSystem.String"/> <!-- este tiene de largo 10 -->
+			<qry:attribute name="cod_op" value="'02'"    type="Nomad.NSystem.String"/> <!-- este tiene de largo 2 -->
+			<qry:attribute name="libre" value="'          '"    type="Nomad.NSystem.String"/> <!-- este tiene de largo 10 -->
+		</qry:element>		
+		</qry:out>
+	</qry:select>
+
+	<qry:select doc="SOURCE" name="qry_datosPadreAcum">
+		<qry:xquery>
+			for $r in table('                             
+SELECT 
+liq22_bancos.oi_banco oi_banco
+, liq22_bancos.c_banco c_banco
+, liq22_bancos.d_banco d_banco
+, COUNT(DISTINCT PER02_PERSONAL_EMP.OI_PERSONAL_EMP) CANTIDAD
+, SUM(LIQ20_TOT_LIQ_PER.N_TOTPAG) TOTAL
+FROM liq25_personal_liq, per02_personal_emp, per01_personal, 
+liq07_personal, LIQ20_TOT_LIQ_PER
+, liq22_bancos_sucur, liq15_empresa_bcos,  liq22_bancos 
+WHERE 
+{%? (string(#SOURCE:LIQUIDACIONES/LIQUIDACION/@id)!='') 
+{% liq25_personal_liq.oi_liquidacion in ({%=string(#SOURCE:LIQUIDACIONES/LIQUIDACION/@id) %}) %} {% 1=2 %} %}
+
+AND per02_personal_emp.oi_personal = per01_personal.oi_personal
+AND Liq20_tot_liq_per.oi_tot_liq_per = liq25_personal_liq.oi_tot_liq_pers
+AND per02_personal_emp.oi_personal_emp = liq07_personal.oi_personal_emp
+AND liq07_personal.oi_personal_emp = liq25_personal_liq.oi_personal_emp
+and liq07_personal.oi_sucursal = liq22_bancos_sucur.oi_sucursal
+and liq22_bancos_sucur.oi_banco = liq15_empresa_bcos.oi_banco
+and LIQ20_TOT_LIQ_PER.n_totpag != 0
+and liq22_bancos_sucur.oi_banco = liq22_bancos.oi_banco
+and liq22_bancos.oi_banco = {%= #SOURCE:@oi_banco %}
+AND per02_personal_emp.oi_empresa = liq15_empresa_bcos.oi_empresa 
+group by liq22_bancos.c_banco, liq22_bancos.d_banco,liq22_bancos.oi_banco
+			')/ROWS/ROW
+		</qry:xquery>
+		<qry:out>                               
+			<qry:attribute name="oi_banco" value="$r/@oi_banco"  type="Nomad.NSystem.String"/>
+			<qry:attribute name="c_banco" value="$r/@c_banco"  type="Nomad.NSystem.String"/>
+			<qry:attribute name="d_banco" value="$r/@d_banco"  type="Nomad.NSystem.String"/>
+			<qry:attribute name="cantidad" value="$r/@cantidad"  type="Nomad.NSystem.String"/>
+			<qry:attribute name="suma" value="format_number($r/@TOTAL,'###,###,##0.00')"    type="Nomad.NSystem.String"/>
+			<qry:attribute name="d_ape_y_nom" value="'                              '"    type="Nomad.NSystem.String"/> <!-- este tiene de largo 30 -->
+			<qry:attribute name="c_dni" value="'          '"    type="Nomad.NSystem.String"/> <!-- este tiene de largo 10 -->
+			<qry:attribute name="c_cta_bancaria" value="'         '"    type="Nomad.NSystem.String"/> <!-- este tiene de largo 9 -->
+			<qry:attribute name="suc" value="'    '"    type="Nomad.NSystem.String"/> <!-- este tiene de largo 4 -->
+			<qry:attribute name="importe" value="format_number($r/@TOTAL,'###,###,##0.00')"    type="Nomad.NSystem.String"/>	<!-- este tiene de largo 14 -->
+			<qry:attribute name="error" value="'    '"    type="Nomad.NSystem.String"/> <!-- este tiene de largo 4 -->
+			<qry:attribute name="convenio" value="'  '"  type="Nomad.NSystem.String"/> <!-- este tiene de largo 4 -->
+			<qry:attribute name="Sistema" value="'    '"    type="Nomad.NSystem.String"/> <!-- este tiene de largo 2 -->
+			<qry:attribute name="cod_doc" value="'  '"    type="Nomad.NSystem.String"/>	<!-- este tiene de largo 2 -->
+			<qry:attribute name="Fecha" value="'          '"    type="Nomad.NSystem.String"/> <!-- este tiene de largo 10 -->
+			<qry:attribute name="cod_op" value="'  '"    type="Nomad.NSystem.String"/> <!-- este tiene de largo 2 -->
+			<qry:attribute name="libre" value="'          '"    type="Nomad.NSystem.String"/> <!-- este tiene de largo 10 -->
+			
+		</qry:out>
+	</qry:select> 
+	</interface:query>
+	<!--interface:block file-sufix="object/@file-sufix"-->
+	<interface:block file-sufix="/datos/@sufix">
+		<xsl:output method="text"/>
+		<xsl:template match="/">
+			<xsl:apply-templates select="/datos/PERSONAS"/>
+		</xsl:template>
+		<xsl:template match="PERSONA">
+			<xsl:value-of select="@convenio"/>
+			<xsl:text></xsl:text>
+			<xsl:value-of select="@Sistema"/>
+			<xsl:text></xsl:text>
+			<xsl:value-of select="@suc"/>
+			<xsl:text></xsl:text>
+			<xsl:value-of select="@c_cta_bancaria"/>
+			<xsl:text></xsl:text>
+			<xsl:value-of select="@cod_op"/>
+			<xsl:text></xsl:text>
+			<xsl:value-of select="@importe"/>
+			<xsl:text></xsl:text>
+			<xsl:value-of select="@Fecha"/>	
+			<xsl:text></xsl:text>
+			<xsl:value-of select="@cod_doc"/>
+			<xsl:text></xsl:text>
+			<xsl:value-of select="@c_dni"/>
+			<xsl:text></xsl:text>
+			<xsl:value-of select="@error"/>
+			<xsl:text></xsl:text>
+			<xsl:value-of select="@d_ape_y_nom"/>												
+			<xsl:text>&#13;&#10;</xsl:text>
+		</xsl:template>
+	</interface:block>
+</interface:interface>

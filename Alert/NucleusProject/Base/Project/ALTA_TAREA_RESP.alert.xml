@@ -1,0 +1,273 @@
+<ALERT xmlns:qry="nomad_engine.qry" name="ALTA_TAREA_RESP.alert" label="Alta de Tarea - Responsable">
+	<PARAMS>
+		<PARAM event-key="NucleusProject.Base.Project.Tareas.TAREA" type="string" req="0" label="PROJECT" name="Project"/>
+	</PARAMS>
+	<QRY declare="&lt;PARAMS&gt;&#13;&#10;&#9;&lt;EVE IDS=&quot;6173&quot; oi_recurso_log=&quot;22&quot; /&gt;&#13;&#10;&lt;/PARAMS&gt;">
+		<qry:include name="Nomad.Base.Login.Entidades.ENTIDAD.INFO"/>
+		<qry:main name="" doc="PARAMS">
+			<qry:append-doc name="PARAMIN" doc-path="$PARAMS/PARAMS"/>
+			<qry:element name="ROWS">
+				<qry:insert-select name="QRY_TAREA" doc-path="$PARAMIN/EVE"/>
+			</qry:element>
+		</qry:main>
+		<qry:select doc="PARAM" name="sql1">
+			<qry:xquery>
+				for $r in file('Nomad\\Base\\Login\\Entidades\\{%=#PARAM:@oi_usuario_sistema%}.ENTIDAD.XML')/ENTIDAD
+			</qry:xquery>
+			<qry:out>
+				<qry:attribute name="MAIL" value="@MAIL + nmd-replace(string($r/MAILS/MAIL[@PRINCIPAL=1]/@EMAIL),',',';')"/>
+			</qry:out>
+		</qry:select>
+		<qry:select doc="PARAM" name="QRY_TAREA">
+			<qry:xquery>
+				for $r in sql('
+SELECT
+	t0.oi_tarea as oi_tarea
+	, t0.c_tarea as c_tarea
+	, t0.d_tarea as d_tarea  
+	, t0.oi_recurso as oi_recurso  
+	, t1.c_recurso as c_recurso  
+	, t1.d_email as mail_recurso
+	, t2.d_ape_y_nom as ape_y_nom
+	, t0.oi_proyecto as oi_proyecto 
+	, t4.c_proyecto as c_proyecto
+	, t4.d_proyecto as d_proyecto
+	, t0.f_inicio_est as f_inicio_est
+	, t0.f_fin_est as f_fin_est
+	, t0.e_estimado as e_estimado 
+	, t0.oi_unidad_tiempo as oi_unidad_tiempo
+	, t3.c_unidad_tiempo as c_unidad_tiempo
+	, t3.d_unidad_tiempo as d_unidad_tiempo 
+	, t0.f_limite as f_limite
+	, t0.c_clasificacion
+	, t0.c_estado as c_estado  
+	, t0.o_detallada as mail_original
+	, t0.o_tarea as mail_original_2
+	, t2.oi_usuario_sistema
+
+FROM 
+	PRY02_TAREAS as t0
+	, PRY05_RECURSOS as t1
+	, PER01_PERSONAL as t2
+	, PRY03_UND_TIEMPO as t3 
+	, PRY01_PROYECTOS as t4 
+	
+JOIN
+	  t1.oi_recurso INNER t0.oi_recurso
+	, t2.oi_personal INNER t1.oi_personal
+	, t3.oi_unidad_tiempo INNER t0.oi_unidad_tiempo  
+	, t4.oi_proyecto INNER t0.oi_proyecto
+	
+WHERE
+
+  t0.oi_tarea = {%=$PARAM/@IDS%}
+
+
+	')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:element name="TAREA">
+					<qry:attribute name="id" value="$r/@oi_tarea"/>
+					<qry:attribute name="C_TAREA" value="$r/@c_tarea"/>
+					<qry:attribute name="D_TAREA" value="$r/@d_tarea"/>
+					<qry:attribute name="FECHA" value="format-date(now(), 'dd/mm/yyyy')"/>
+					<qry:insert-select name="QRY_LOG" doc-path="$PARAM"/>
+					<qry:attribute name="RECURSO" value="$r/@ape_y_nom"/>
+					<qry:if test="$r/@mail_recurso!=''">
+						<qry:then>
+							<qry:attribute name="MAIL" value="$r/@mail_recurso"/>
+						</qry:then>
+						<qry:else>
+							<qry:insert-select name="sql1" doc-path="$r"/>
+							<qry:attribute name="MAIL" value="@MAIL"/>
+						</qry:else>
+					</qry:if>
+					<!--Seccion que guarda GRUPO DE TAREAS, PROYECTO y CLIENTE -->
+					<qry:attribute name="GTAR" value="'['+$r/@c_proyecto+'] '+$r/@d_proyecto"/>
+					<qry:insert-select name="QRY_PROY" doc-path="$r"/>
+					<!--Fin de la Seccion-->
+					<qry:attribute name="F_INICIO_EST" value="format-date($r/@f_inicio_est, 'dd/mm/yyyy')"/>
+					<qry:attribute name="F_FIN_EST" value="format-date($r/@f_fin_est, 'dd/mm/yyyy')"/>
+					<qry:attribute name="E_ESTIMADO" value="$r/@e_estimado"/>
+					<qry:attribute name="UNIDAD_TIEMPO" value="'['+$r/@c_unidad_tiempo+'] '+$r/@d_unidad_tiempo"/>
+					<qry:attribute name="F_LIMITE" value="format-date($r/@f_limite, 'dd/mm/yyyy')"/>
+					<qry:switch test="$r/@c_clasificacion">
+						<qry:case value="1">
+							<qry:attribute name="CLASIF" value="'Alta'"/>
+						</qry:case>
+						<qry:case value="5">
+							<qry:attribute name="CLASIF" value="'Media'"/>
+						</qry:case>
+						<qry:case value="9">
+							<qry:attribute name="CLASIF" value="'Baja'"/>
+						</qry:case>
+						<qry:default>
+							<qry:attribute name="CLASIF" value="$r/@c_estado"/>
+						</qry:default>
+					</qry:switch>
+					<qry:switch test="$r/@c_estado">
+						<qry:case value="I">
+							<qry:attribute name="ESTADO" value="'Inicializada'"/>
+						</qry:case>
+						<qry:case value="AP">
+							<qry:attribute name="ESTADO" value="'Asignar Personas'"/>
+						</qry:case>
+						<qry:case value="T">
+							<qry:attribute name="ESTADO" value="'Trabajando'"/>
+						</qry:case>
+						<qry:case value="P">
+							<qry:attribute name="ESTADO" value="'Pausada'"/>
+						</qry:case>
+						<qry:case value="F">
+							<qry:attribute name="ESTADO" value="'Finalizada'"/>
+						</qry:case>
+						<qry:case value="A">
+							<qry:attribute name="ESTADO" value="'Anulada'"/>
+						</qry:case>
+						<qry:case value="L">
+							<qry:attribute name="ESTADO" value="'Bloqueada'"/>
+						</qry:case>
+						<qry:case value="D">
+							<qry:attribute name="ESTADO" value="'Derivada a Testing'"/>
+						</qry:case>
+						<qry:default>
+							<qry:attribute name="ESTADO" value="$r/@c_estado"/>
+						</qry:default>
+					</qry:switch>
+					<qry:attribute name="MAIL_ORIGINAL" value="$r/@mail_original"/>
+					<qry:attribute name="MAIL_ORIGINAL_2" value="$r/@mail_original_2"/>
+				</qry:element>
+			</qry:out>
+		</qry:select>
+		<qry:select doc="PARAM" name="QRY_LOG">
+			<qry:xquery>
+				for $r in SQL('
+			SELECT 
+				P.oi_personal,
+				R.oi_recurso,
+				P.d_ape_y_nom as ape_y_nom,
+				R.d_email as mail_emisor
+			
+			FROM
+				PER01_PERSONAL as P,
+				PRY05_RECURSOS as R
+			JOIN
+				P.oi_personal inner R.oi_personal
+			WHERE               
+				R.oi_recurso = {#PARAM:@oi_recurso_log}
+		')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:attribute name="EMISOR" value="$r/@ape_y_nom"/>
+				<qry:if test="$r/@mail_emisor!=''">
+					<qry:then>
+						<qry:attribute name="MAIL_EMISOR" value="$r/@mail_emisor"/>
+					</qry:then>
+					<qry:else>
+						<qry:insert-select name="sql1" doc-path="$r"/>
+						<qry:attribute name="MAIL_EMISOR" value="@MAIL"/>
+					</qry:else>
+				</qry:if>
+			</qry:out>
+		</qry:select>
+		<qry:select doc="PARAM" name="QRY_PROY">
+			<qry:xquery>
+				for $r in SQL('
+			SELECT 
+				PRY01_PROYECTOS.oi_proyecto,
+				PRY01_PROYECTOS.oi_proyecto_parent,
+				PRY01_PROYECTOS.oi_tipo_proyecto,
+				PRY01_PROYECTOS.c_proyecto,
+				PRY01_PROYECTOS.d_proyecto,
+				PRY08_CLIENTES.c_cliente,
+				PRY08_CLIENTES.d_nom_cliente
+				
+			FROM 
+				PRY01_PROYECTOS,
+				PRY08_CLIENTES
+			JOIN
+				PRY01_PROYECTOS.oi_cliente LEFT OUTER PRY08_CLIENTES.oi_cliente
+			
+			WHERE
+				PRY01_PROYECTOS.oi_proyecto={#PARAM:@oi_proyecto}
+			
+			
+			')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:if test="$r/@oi_tipo_proyecto='1'">
+					<qry:then>
+						<qry:attribute name="PROYECTO" value="'['+$r/@c_proyecto+'] '+$r/@d_proyecto"/>
+						<qry:attribute name="COD_CLI" value="$r/@c_cliente"/>
+						<qry:attribute name="DESC_CLI" value="$r/@d_nom_cliente"/>
+					</qry:then>
+					<qry:else>
+						<qry:attribute name="oi_proyecto" value="$r/@oi_proyecto_parent"/>
+						<qry:insert-select name="QRY_PROY" doc-path="."/>
+					</qry:else>
+				</qry:if>
+			</qry:out>
+		</qry:select>
+	</QRY>
+	<MAILS>
+		<MAIL suject="Area Soporte -Alta de Tarea:  {% @TAREA.C_TAREA %} -  {% @TAREA.D_TAREA%}" group="TAREA">
+			**Grupo de Tareas:** {% @TAREA.GTAR %}
+
+**Proyecto:** {% @TAREA.PROYECTO %}  
+
+**Cliente:** [{% @TAREA.COD_CLI %}] {% @TAREA.DESC_CLI %} 
+
+**C&#243;digo Tarea:** {% @TAREA.C_TAREA %} 
+
+**Fecha:** {% @TAREA.FECHA %}
+
+**Usuario Emisor:** {% @TAREA.EMISOR %} ({% @TAREA.MAIL_EMISOR %})  
+
+**Recurso Asignado:** {% @TAREA.RECURSO %} ({% @TAREA.MAIL %})
+
+**Fecha de inicio estimada:** {% @TAREA.F_INICIO_EST %}
+
+**Fecha de fin estimada:** {% @TAREA.F_FIN_EST %}
+
+**Tiempo estimado:** {% @TAREA.E_ESTIMADO %}   {% @TAREA.UNIDAD_TIEMPO %} 
+
+**Fecha l&#237;mite:** {% @TAREA.F_LIMITE %}  
+
+**Clasificaci&#243;n:** {% @TAREA.CLASIF %}
+
+**Estado:** {% @TAREA.ESTADO %}
+
+
+===== Mail Original =====   
+
+{% @TAREA.MAIL_ORIGINAL %} 
+
+{% @TAREA.MAIL_ORIGINAL_2 %}
+		</MAIL>
+	</MAILS>
+	<GROUPS>
+		<GROUP label="Tarea" name="TAREA">
+			<FIELD label="C&#243;digo Tarea" type="string" name="C_TAREA"/>
+			<FIELD label="Descripci&#243;nTarea" type="string" name="D_TAREA"/>
+			<FIELD type="string" label="Fecha" name="FECHA"/>
+			<FIELD label="Emisor" type="string" name="EMISOR"/>
+			<FIELD name="MAIL_EMISOR" label="Mail Emisor" type="string"/>
+			<FIELD type="string" label="Recurso" name="RECURSO"/>
+			<FIELD type="string" label="E-mail" name="MAIL"/>
+			<FIELD type="string" label="Proyecto" name="PROYECTO"/>
+			<FIELD type="string" label="Fecha de inicio estimada" name="F_INICIO_EST"/>
+			<FIELD type="string" label="Fecha de fin estimada" name="F_FIN_EST"/>
+			<FIELD name="E_ESTIMADO" type="string" label="Tiempo estimado"/>
+			<FIELD label="Unidad de tiempo" name="UNIDAD_TIEMPO" type="string"/>
+			<FIELD type="string" label="Fecha l&#237;mite" name="F_LIMITE"/>
+			<FIELD label="Clasificaci&#243;n" name="CLASIF" type="string"/>
+			<FIELD type="string" label="Estado" name="ESTADO"/>
+			<FIELD type="string" label="Mail Original" name="MAIL_ORIGINAL"/>
+			<FIELD name="MAIL_ORIGINAL_2" type="string" label="Mail Original"/>
+			<FIELD type="string" label="C&#243;digo de Cliente" name="COD_CLI"/>
+			<FIELD label="Descripci&#243;n Cliente" name="DESC_CLI" type="string"/>
+			<FIELD type="string" label="Grupo de Tareas" name="GTAR"/>
+		</GROUP>
+	</GROUPS>
+	<ENUMS/>
+</ALERT>

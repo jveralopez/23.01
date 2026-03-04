@@ -1,0 +1,1061 @@
+<qry:define xmlns:qry="nomad_engine.qry" declare="&lt;param oi_evaluacion=&quot;1084&quot; mode=&quot;PREEVALUAR&quot; oi_ev2aluador_360=&quot;11446&quot;/&gt;" name="QueryEvaluacion">
+	<qry:main doc="SOURCE">
+		<qry:insert-select name="MAIN" doc-path="#SOURCE:."/>
+	</qry:main>
+	<qry:select doc="SOURCE" name="MAIN">
+		<qry:out>
+			<REPORT>
+				<EVALUADORES>
+					<qry:append-doc name="EVALUADORES" doc-path="."/>
+					<qry:if test="$SOURCE/@oi_evaluacion!=''">
+						<qry:then>
+							<qry:insert-select name="EVALUADORES" doc-path="$SOURCE"/>
+						</qry:then>
+					</qry:if>
+					<qry:attribute name="oi_evaluador_360" value="$SOURCE/@oi_evaluador_360"/>
+					<qry:switch test="$SOURCE/@mode">
+						<qry:case value="EVALUADOR">
+							<qry:insert-select name="EVALUADOR360_EVALUADOR" doc-path="$SOURCE"/>
+						</qry:case>
+						<qry:case value="EVALUADO">
+							<qry:insert-select name="EVALUADOR360_EVALUADO" doc-path="$SOURCE"/>
+						</qry:case>
+						<qry:case value="SUPERVISOR">
+							<qry:insert-select name="EVALUADOR360_SUPERVISOR" doc-path="$SOURCE"/>
+						</qry:case>
+					</qry:switch>
+					<qry:if test="@oi_evaluador_360=''">
+						<qry:then>
+							<qry:insert-select name="EVALUADOR360"/>
+						</qry:then>
+					</qry:if>
+					<qry:if test="@oi_evaluador_360=''">
+						<qry:then>
+							<qry:attribute name="oi_evaluador_360" value="0"/>
+						</qry:then>
+					</qry:if>
+					<qry:insert-select name="EVALUADORES_CUSTOM" doc-path="$SOURCE"/>
+				</EVALUADORES>
+				<qry:attribute name="eva360_count" value="count(EVALUADORES/*)"/>
+				<qry:attribute name="mode" value="$SOURCE/@mode"/>
+				<qry:attribute name="timestamp" value="Now()"/>
+				<qry:if test="$SOURCE/@oi_evaluacion=''">
+					<qry:then>
+						<qry:insert-select name="REPORT_PREVIEW" doc-path="$SOURCE"/>
+					</qry:then>
+					<qry:else>
+						<qry:insert-select name="REPORT" doc-path="$SOURCE"/>
+					</qry:else>
+				</qry:if>
+				<qry:insert-select name="ESC" doc-path="PLANTILLA"/>
+				<qry:insert-select name="ESC" doc-path="PLANTILLA/ITEM"/>
+				<qry:insert-select name="ESC" doc-path="PLANTILLA/ITEM/SUBITEM"/>
+				<ESCALAS>
+					<qry:insert-select name="ESCALAS" doc-path=".."/>
+					<qry:insert-select name="ESCALAS_CUSTOM" doc-path="$SOURCE"/>
+				</ESCALAS>
+				<qry:insert-select name="FINAL_CUSTOM" doc-path="$SOURCE"/>
+				<qry:attribute name="editable" value="$SOURCE/@editable"/>
+			</REPORT>
+		</qry:out>
+	</qry:select>
+	<qry:select doc="SOURCE" name="REPORT">
+		<qry:xquery>
+			for $r in SQL('
+SELECT               
+	ET.l_eva2 as ET_l_eve2,
+	ET.l_eva3 as ET_l_eve3,
+	ET.l_eva360 as ET_l_eve360, 
+	ET.c_plantilla,
+	EV.c_evento as EV_c_evento,
+	EV.d_evento as EV_d_evento,
+	EV.f_desde as EV_f_desde,
+	EV.f_desde as EV_f_hasta,
+	EV.o_evento as EV_o_evento,
+	EV.d_cus1 as EV_a,
+	EV.d_cus2 as EV_d_cus2,
+	EV.d_cus3 as EV_d_cus3,
+	EV.d_cus4 as EV_d_cus4,
+	EV.d_cus5 as EV_d_cus5,
+	EV.oi_escala,
+	E.oi_evaluacion,
+	E.c_estado,
+	E.o_evaluado,
+	E.o_evaluador,
+	E.f_evaluacion,
+	E.n_resultado,
+	E.n_resultado2,
+	E.n_resultado3,
+	E.d_cus1,
+	E.d_cus2,
+	E.d_cus3,
+	E.d_cus4,
+	E.d_cus5,
+	E.f_estado,
+	
+	LE.oi_personal_emp as E_oi_personal_emp,
+	LE.codemp as E_codemp,
+	LE.empresa as E_empresa,
+	LE.fingreso as E_fingreso,
+	LE.foto as E_foto,
+	LE.legajo as E_legajo,
+	LE.nombre as E_nombre,
+	LU.d_unidad_org as E_unidad,
+	LP.d_posicion as E_posicion,
+	
+	EE.oi_personal_emp as J_oi_personal_emp,
+	EE.codemp as J_codemp,
+	EE.empresa as J_empresa,
+	EE.fingreso as J_fingreso,
+	EE.legajo as J_legajo,
+	EE.nombre as J_nombre,
+	EU.d_unidad_org as J_unidad,
+	EP.d_posicion as J_posicion,    
+	
+	SE.oi_personal_emp as S_oi_personal_emp,
+	SE.codemp as S_codemp,
+	SE.empresa as S_empresa,
+	SE.fingreso as S_fingreso,
+	SE.legajo as S_legajo,
+	SE.nombre as S_nombre,
+	SU.d_unidad_org as S_unidad,
+	SP.d_posicion as S_posicion
+
+FROM                  
+	EDD01_TIPOS_EVAL as ET,
+	EDD02_EVENTOS as EV,
+	EDD03_EVALUACION as E,   
+	
+	ORG01_UNI_ORG as LU,
+	ORG01_UNI_ORG as EU,
+	ORG01_UNI_ORG as SU,    
+	
+	ORG04_POSICIONES as LP,
+	ORG04_POSICIONES as EP,
+	ORG04_POSICIONES as SP,
+	
+	(select
+	L1.oi_empresa      as oi_empresa,
+	E1.c_empresa       as codemp,
+	E1.d_empresa       as empresa,
+	L1.oi_personal_emp as oi_personal_emp,
+	L1.f_ingreso       as fingreso,
+	L1.e_numero_legajo as legajo,
+	H1.d_ape_y_nom     as nombre,
+	H1.oi_foto         as foto
+	from
+	PER02_PERSONAL_EMP as L1,
+	ORG03_EMPRESAS     as E1,
+	PER01_PERSONAL     as H1
+	join
+	E1.oi_empresa inner L1.oi_empresa,
+	L1.oi_personal inner H1.oi_personal) as LE,
+	
+	(select
+	L1.oi_empresa      as oi_empresa,
+	E1.c_empresa       as codemp,
+	E1.d_empresa       as empresa,
+	L1.oi_personal_emp as oi_personal_emp,
+	L1.f_ingreso       as fingreso,
+	L1.e_numero_legajo as legajo,
+	H1.d_ape_y_nom     as nombre,
+	H1.oi_foto         as foto
+	from
+	PER02_PERSONAL_EMP as L1,
+	ORG03_EMPRESAS     as E1,
+	PER01_PERSONAL     as H1
+	join
+	E1.oi_empresa inner L1.oi_empresa,
+	L1.oi_personal inner H1.oi_personal) as EE,
+	
+	(select
+	L1.oi_empresa      as oi_empresa,
+	E1.c_empresa       as codemp,
+	E1.d_empresa       as empresa,
+	L1.oi_personal_emp as oi_personal_emp,
+	L1.f_ingreso       as fingreso,
+	L1.e_numero_legajo as legajo,
+	H1.d_ape_y_nom     as nombre,
+	H1.oi_foto         as foto
+	from
+	PER02_PERSONAL_EMP as L1,
+	ORG03_EMPRESAS     as E1,
+	PER01_PERSONAL     as H1
+	join
+	E1.oi_empresa inner L1.oi_empresa,
+	L1.oi_personal inner H1.oi_personal) as SE
+
+join
+	EV.oi_evento inner E.oi_evento,
+	EV.oi_tipo_eval inner ET.oi_tipo_eval,
+	E.oi_personal_emp inner LE.oi_personal_emp,
+	E.oi_evaluador inner EE.oi_personal_emp,
+	E.oi_supervisor left outer SE.oi_personal_emp,
+	E.oi_uni_evaluado left outer LU.oi_unidad_org,
+	E.oi_uni_evaluador left outer EU.oi_unidad_org,
+	E.oi_uni_supervisor left outer SU.oi_unidad_org,
+	E.oi_pos_evaluado left outer LP.oi_posicion,
+	E.oi_pos_evaluador left outer EP.oi_posicion,
+	E.oi_pos_supervisor left outer SP.oi_posicion
+
+WHERE            
+	E.oi_evaluacion={#SOURCE:@oi_evaluacion}
+')/ROWS/ROW
+		</qry:xquery>
+		<qry:out>
+			<qry:attribute name="oi_escalas" value="','+$r/@oi_escala+','"/>
+			<qry:attribute name="oi_escala" value="$r/@oi_escala"/>
+			<qry:attribute name="ET_l_eve2" value="$r/@ET_l_eve2"/>
+			<qry:attribute name="ET_l_eve3" value="$r/@ET_l_eve3"/>
+			<qry:attribute name="ET_l_eve360" value="$r/@ET_l_eve360"/>
+			<qry:attribute name="EV_c_evento" value="$r/@EV_c_evento"/>
+			<qry:attribute name="EV_d_evento" value="$r/@EV_d_evento"/>
+			<qry:attribute value="format_date($r/@EV_f_desde,'dd/mm/yyyy')" name="EV_f_desde"/>
+			<qry:attribute value="format_date($r/@EV_f_hasta,'dd/mm/yyyy')" name="EV_f_hasta"/>
+			<qry:attribute name="EV_o_evento" value="$r/@EV_o_evento"/>
+			<qry:attribute name="EV_d_cus1" value="$r/@EV_d_cus1"/>
+			<qry:attribute name="EV_d_cus2" value="$r/@EV_d_cus2"/>
+			<qry:attribute name="EV_d_cus3" value="$r/@EV_d_cus3"/>
+			<qry:attribute name="EV_d_cus4" value="$r/@EV_d_cus4"/>
+			<qry:attribute name="EV_d_cus5" value="$r/@EV_d_cus5"/>
+			<qry:attribute name="oi_evaluacion" value="$r/@oi_evaluacion"/>
+			<qry:attribute value="format_date($r/@E_ingreso,'dd/mm/yyyy')" name="E_ingreso"/>
+			<qry:attribute name="E_oi_personal_emp" value="$r/@E_oi_personal_emp"/>
+			<qry:attribute name="E_foto" value="$r/@E_foto"/>
+			<qry:attribute name="E_text" value="iif($r/@E_nombre='','','['+$r/@E_codemp+'-'+$r/@E_legajo+'] '+$r/@E_nombre+' ('+$r/@E_empresa+')')"/>
+			<qry:attribute name="E_unidad" value="$r/@E_unidad"/>
+			<qry:attribute name="E_posicion" value="$r/@E_posicion"/>
+			<qry:attribute name="J_oi_personal_emp" value="$r/@J_oi_personal_emp"/>
+			<qry:attribute name="J_text" value="iif($r/@J_nombre='','','['+$r/@J_codemp+'-'+$r/@J_legajo+'] '+$r/@J_nombre+' ('+$r/@J_empresa+')')"/>
+			<qry:attribute name="J_unidad" value="$r/@J_unidad"/>
+			<qry:attribute name="J_posicion" value="$r/@J_posicion"/>
+			<qry:attribute name="S_oi_personal_emp" value="$r/@S_oi_personal_emp"/>
+			<qry:attribute name="S_text" value="iif($r/@S_nombre='','','['+$r/@S_codemp+'-'+$r/@S_legajo+'] '+$r/@S_nombre+' ('+$r/@S_empresa+')')"/>
+			<qry:attribute name="S_unidad" value="$r/@S_unidad"/>
+			<qry:attribute name="S_posicion" value="$r/@S_posicion"/>
+			<qry:attribute name="c_estado" value="$r/@c_estado"/>
+			<qry:attribute name="o_evaluado" value="$r/@o_evaluado"/>
+			<qry:attribute name="o_evaluador" value="$r/@o_evaluador"/>
+			<qry:attribute value="format_date($r/@f_evaluacion,'dd/mm/yyyy')" name="f_evaluacion"/>
+			<qry:attribute name="n_resultado" value="$r/@n_resultado"/>
+			<qry:attribute name="n_resultado2" value="$r/@n_resultado2"/>
+			<qry:attribute name="n_resultado3" value="$r/@n_resultado3"/>
+			<qry:attribute name="d_cus1" value="$r/@d_cus1"/>
+			<qry:attribute name="d_cus2" value="$r/@d_cus2"/>
+			<qry:attribute name="d_cus3" value="$r/@d_cus3"/>
+			<qry:attribute name="d_cus4" value="$r/@d_cus4"/>
+			<qry:attribute name="d_cus5" value="$r/@d_cus5"/>
+			<qry:attribute name="oi_empresa" value="$r/@oi_empresa"/>
+			<qry:attribute name="EM_c_empresa" value="$r/@EM_c_empresa"/>
+			<qry:attribute name="EM_d_empresa" value="$r/@EM_d_empresa"/>
+			<qry:attribute name="EM_oi_logotipo" value="$r/@EM_oi_logotipo"/>
+			<qry:if test="@c_estado = 'AP'">
+				<qry:then>
+					<qry:attribute name="f_aprobacion" value="format_date($r/@f_estado,'dd/mm/yyyy')"/>
+				</qry:then>
+			</qry:if>
+			<qry:attribute name="c_plantilla" value="$r/@c_plantilla"/>
+			<qry:insert-select name="PLANTILLAS" doc-path="$r"/>
+			<qry:insert-select name="EVALUACION360" doc-path="$r"/>
+			<qry:insert-select name="REPORT_CUSTOM" doc-path="$r"/>
+		</qry:out>
+	</qry:select>
+	<qry:select doc="SOURCE" name="REPORT_PREVIEW">
+		<qry:xquery>
+			for $r in SQL('
+SELECT           
+TV.l_eva2 as ET_l_eve2,
+TV.l_eva3 as ET_l_eve3,
+TV.l_eva360 as ET_l_eve360,
+TV.oi_tipo_eval,
+TV.oi_escala
+FROM             
+EDD01_TIPOS_EVAL as TV
+WHERE            
+TV.oi_tipo_eval={#SOURCE:@oi_tipo_eval}
+')/ROWS/ROW
+		</qry:xquery>
+		<qry:out>
+			<qry:attribute name="oi_escalas" value="','+$r/@oi_escala+','"/>
+			<qry:attribute name="oi_escala" value="$r/@oi_escala"/>
+			<qry:attribute name="ET_l_eve2" value="$r/@ET_l_eve2"/>
+			<qry:attribute name="ET_l_eve3" value="$r/@ET_l_eve3"/>
+			<qry:attribute name="ET_l_eve360" value="$r/@ET_l_eve360"/>
+			<qry:attribute name="EV_c_evento" value="'CODIGO del EVENTO'"/>
+			<qry:attribute name="EV_d_evento" value="'DESCRIPCION del EVENTO'"/>
+			<qry:attribute value="'15/01/2010'" name="EV_f_desde"/>
+			<qry:attribute value="'15/01/2010'" name="EV_f_hasta"/>
+			<qry:attribute name="EV_o_evento" value="'OBSERVACION del EVENTO'"/>
+			<qry:attribute name="EV_d_cus1" value="'CUSTON 1 del EVENTO'"/>
+			<qry:attribute name="EV_d_cus2" value="'CUSTON 2 del EVENTO'"/>
+			<qry:attribute name="EV_d_cus3" value="'CUSTON 3 del EVENTO'"/>
+			<qry:attribute name="EV_d_cus4" value="'CUSTON 4 del EVENTO'"/>
+			<qry:attribute name="EV_d_cus5" value="'CUSTON 5 del EVENTO'"/>
+			<qry:attribute value="'15/01/2010'" name="E_ingreso"/>
+			<qry:attribute name="E_legajo" value="'128'"/>
+			<qry:attribute name="E_nombre" value="'Nombre del Empleado'"/>
+			<qry:attribute name="E_cpos" value="'Codigo Posicion del Empleado'"/>
+			<qry:attribute name="E_dpos" value="'Descripcion Posicion del Empleado'"/>
+			<qry:attribute name="J_legajo" value="'128'"/>
+			<qry:attribute name="J_nombre" value="'Nombre del Evaluador'"/>
+			<qry:attribute name="J_cpos" value="'Codigo Posicion del Evaluador'"/>
+			<qry:attribute name="J_dpos" value="'Descripcion Posicion del Evaluador'"/>
+			<qry:attribute name="S_legajo" value="'128'"/>
+			<qry:attribute name="S_nombre" value="'Nombre del Supervisor'"/>
+			<qry:attribute name="S_cpos" value="'Codigo Posicion del Supervisor'"/>
+			<qry:attribute name="S_dpos" value="'Descripcion Posicion del Supervisor'"/>
+			<qry:attribute name="c_estado" value="'A'"/>
+			<qry:attribute name="o_evaluado" value="'OBSERVACION del EMPLEADO'"/>
+			<qry:attribute name="o_evaluador" value="'OBSERVACION del EVALUADOR'"/>
+			<qry:attribute value="'15/01/2010'" name="f_evaluacion"/>
+			<qry:attribute name="n_resultado" value="'null'"/>
+			<qry:attribute name="n_resultado2" value="'null'"/>
+			<qry:attribute name="n_resultado3" value="'null'"/>
+			<qry:attribute name="d_cus1" value="'CUSTOM 1'"/>
+			<qry:attribute name="d_cus2" value="'CUSTOM 2'"/>
+			<qry:attribute name="d_cus3" value="'CUSTOM 3'"/>
+			<qry:attribute name="d_cus4" value="'CUSTOM 4'"/>
+			<qry:attribute name="d_cus5" value="'CUSTOM 5'"/>
+			<qry:attribute name="EM_c_empresa" value="'CODIGO de la EMPRESA'"/>
+			<qry:attribute name="EM_d_empresa" value="'DESCRIPCION de la EMPRESA'"/>
+			<qry:insert-select name="PLANTILLAS_PREVIEW" doc-path="$r"/>
+		</qry:out>
+	</qry:select>
+	<qry:select name="PLANTILLAS" doc="SOURCE">
+		<qry:xquery>
+			for $r in SQL('
+select 
+	EVA.oi_plantilla,
+	EVA.n_ponderacion as EVA_n_ponderacion,
+	EVA.n_resultado as EVA_n_resultado,
+	EVA.n_resultado2 as EVA_n_resultado2,  
+	EVA.n_resultado3 as EVA_n_resultado3,    
+	EVA.o_plantilla as EVA_o_plantilla,    
+	EVA.d_cus1 as EVA_d_cus1,
+	EVA.d_cus2 as EVA_d_cus2,
+	EVA.d_cus3 as EVA_d_cus3,
+	EVA.d_cus4 as EVA_d_cus4,
+	EVA.d_cus5 as EVA_d_cus5,
+	EVE.n_ponderacion as EVE_n_ponderacion,
+	EVE.l_habilitada as EVE_l_habilitada,
+	EVE.oi_escala,
+	EVE.oi_escala_item,
+	EVE.oi_escala_subitem,
+	EVE.d_cus1 as EVE_d_cus1,
+	EVE.d_cus2 as EVE_d_cus2,
+	EVE.d_cus3 as EVE_d_cus3,
+	EVE.d_cus4 as EVE_d_cus4,
+	EVE.d_cus5 as EVE_d_cus5,
+	DEF.d_reporte as DEF_d_reporte,
+	DEF.c_plantilla as DEF_c_plantilla,
+	DEF.d_plantilla as DEF_d_plantilla,
+	DEF.o_plantilla as DEF_o_plantilla,
+	DEF.l_mostrar_res as DEF_l_mostrar_res,        
+	DEF.n_ponderacion as DEF_n_ponderacion,
+	DEF.d_cus1 as DEF_d_cus1,
+	DEF.d_cus2 as DEF_d_cus2,
+	DEF.d_cus3 as DEF_d_cus3,
+	DEF.d_cus4 as DEF_d_cus4,
+	DEF.d_cus5 as DEF_d_cus5,
+	DEF.e_show as DEF_e_show,
+	DEF.e_preeva as DEF_e_preeva,
+	DEF.e_evaluador as DEF_e_evaluador,
+	DEF.e_evaluador_360 as DEF_e_eval_360,
+	DEF.e_evaluado as DEF_e_evaluado,
+	DEF.e_supervisor as DEF_e_supervisor,
+	DEF.e_aprobacion as DEF_e_aprobacion,
+	DEF.e_posaprob as DEF_e_posaprob,
+	DEF.e_orden
+from 
+	EDD03_PLANTILLAS as EVA,  
+	EDD02_PLANTILLAS as EVE,
+	EDD01_PLANTILLAS as DEF
+where
+	EVA.oi_plantilla_eve=EVE.oi_plantilla and
+	EVE.oi_plantilla_def=DEF.oi_plantilla and
+	EVA.oi_evaluacion={#SOURCE:@oi_evaluacion}
+order by         
+	e_orden asc, oi_plantilla asc 
+
+')/ROWS/ROW
+		</qry:xquery>
+		<qry:out>
+			<qry:attribute name="MAXVALUE" value="number(@MAXVALUE)+iif($r/@DEF_l_mostrar_res='1',number($r/@EVA_n_ponderacion),0)"/>
+			<PLANTILLA>
+				<qry:attribute name="oi_plantilla" value="$r/@oi_plantilla"/>
+				<qry:attribute name="oi_escala" value="$r/@oi_escala"/>
+				<qry:attribute name="oi_escala_item" value="iif($r/@oi_escala_item='',@oi_escala,$r/@oi_escala_item)"/>
+				<qry:attribute name="oi_escala_subitem" value="iif($r/@oi_escala_subitem='',@oi_escala_item,$r/@oi_escala_subitem)"/>
+				<qry:attribute name="EVA_n_ponderacion" value="$r/@EVA_n_ponderacion"/>
+				<qry:attribute name="EVA_o_plantilla" value="$r/@EVA_o_plantilla"/>
+				<qry:attribute name="EVA_n_resultado" value="iif($r/@EVA_n_resultado='','null',$r/@EVA_n_resultado)"/>
+				<qry:attribute name="EVA_n_resultado2" value="iif($r/@EVA_n_resultado2='','null',$r/@EVA_n_resultado2)"/>
+				<qry:attribute name="EVA_n_resultado3" value="iif($r/@EVA_n_resultado3='','null',$r/@EVA_n_resultado3)"/>
+				<qry:attribute name="EVA_d_cus1" value="$r/@EVA_d_cus1"/>
+				<qry:attribute name="EVA_d_cus2" value="$r/@EVA_d_cus2"/>
+				<qry:attribute name="EVA_d_cus3" value="$r/@EVA_d_cus3"/>
+				<qry:attribute name="EVA_d_cus4" value="$r/@EVA_d_cus4"/>
+				<qry:attribute name="EVA_d_cus5" value="$r/@EVA_d_cus5"/>
+				<qry:attribute name="EVE_l_habilitada" value="$r/@EVE_l_habilitada"/>
+				<qry:attribute name="EVE_n_ponderacion" value="$r/@EVE_n_ponderacion"/>
+				<qry:attribute name="EVE_o_plantilla" value="$r/@EVE_o_plantilla"/>
+				<qry:attribute name="EVE_d_cus1" value="$r/@EVE_d_cus1"/>
+				<qry:attribute name="EVE_d_cus2" value="$r/@EVE_d_cus2"/>
+				<qry:attribute name="EVE_d_cus3" value="$r/@EVE_d_cus3"/>
+				<qry:attribute name="EVE_d_cus4" value="$r/@EVE_d_cus4"/>
+				<qry:attribute name="EVE_d_cus5" value="$r/@EVE_d_cus5"/>
+				<qry:attribute name="DEF_d_reporte" value="$r/@DEF_d_reporte"/>
+				<qry:attribute name="DEF_c_plantilla" value="$r/@DEF_c_plantilla"/>
+				<qry:attribute name="DEF_o_plantilla" value="$r/@DEF_o_plantilla"/>
+				<qry:attribute name="DEF_d_plantilla" value="$r/@DEF_d_plantilla"/>
+				<qry:attribute name="DEF_n_ponderacion" value="$r/@DEF_n_ponderacion"/>
+				<qry:attribute name="DEF_l_mostrar_res" value="$r/@DEF_l_mostrar_res"/>
+				<qry:attribute name="DEF_d_cus1" value="$r/@DEF_d_cus1"/>
+				<qry:attribute name="DEF_d_cus2" value="$r/@DEF_d_cus2"/>
+				<qry:attribute name="DEF_d_cus3" value="$r/@DEF_d_cus3"/>
+				<qry:attribute name="DEF_d_cus4" value="$r/@DEF_d_cus4"/>
+				<qry:attribute name="DEF_d_cus5" value="$r/@DEF_d_cus5"/>
+				<qry:attribute name="DEF_cant_cus" value="iif(@DEF_d_cus1!='',1,0) + iif(@DEF_d_cus2!='',1,0) + iif(@DEF_d_cus3!='',1,0) + iif(@DEF_d_cus4!='',1,0) + iif(@DEF_d_cus5!='',1,0)"/>
+				<qry:switch test="../@mode">
+					<qry:case value="SHOW">
+						<qry:attribute name="B" value="$r/@DEF_e_show"/>
+					</qry:case>
+					<qry:case value="PREEVALUAR">
+						<qry:attribute name="B" value="$r/@DEF_e_preeva"/>
+					</qry:case>
+					<qry:case value="EVALUADOR">
+						<qry:attribute name="B" value="$r/@DEF_e_evaluador"/>
+					</qry:case>
+					<qry:case value="EVALUADOR360">
+						<qry:attribute name="B" value="$r/@DEF_e_eval_360"/>
+					</qry:case>
+					<qry:case value="EVALUADO">
+						<qry:attribute name="B" value="$r/@DEF_e_evaluado"/>
+					</qry:case>
+					<qry:case value="SUPERVISOR">
+						<qry:attribute name="B" value="$r/@DEF_e_supervisor"/>
+					</qry:case>
+					<qry:case value="APROBAR">
+						<qry:attribute name="B" value="$r/@DEF_e_aprobacion"/>
+					</qry:case>
+					<qry:case value="POSAPROBAR">
+						<qry:attribute name="B" value="$r/@DEF_e_posaprob"/>
+					</qry:case>
+				</qry:switch>
+				<qry:insert-select name="TOBIN"/>
+				<qry:attribute name="DEF_Show" value="substring(@BB,0,1)"/>
+				<qry:attribute name="DEF_Edit" value="iif($r/@EVE_l_habilitada='1',substring(@BB,9,1),'0')"/>
+				<qry:attribute name="DEF_Evaluador" value="iif($r/@EVE_l_habilitada='1',number(substring(@BB,7,1))*2+number(substring(@BB,8,1)), number(substring(@BB,7,1))*1+number(substring(@BB,8,1))) "/>
+				<qry:attribute name="DEF_Evaluado" value="iif(../@ET_l_eve2=1,iif($r/@EVE_l_habilitada='1',number(substring(@BB,5,1))*2+number(substring(@BB,6,1)),number(substring(@BB,5,1))*1+number(substring(@BB,6,1))),0)"/>
+				<qry:attribute name="DEF_Supervisor" value="iif(../@ET_l_eve3=1,iif($r/@EVE_l_habilitada='1',number(substring(@BB,3,1))*2+number(substring(@BB,4,1)),number(substring(@BB,3,1))*1+number(substring(@BB,4,1))) ,0)"/>
+				<qry:attribute name="DEF_Evaluador360" value="iif(../@ET_l_eve360=1,iif($r/@EVE_l_habilitada='1',number(substring(@BB2,2,1))*2+number(substring(@BB2,3,1)),number(substring(@BB2,2,1))*2+number(substring(@BB2,3,1))) ,0)"/>
+				<qry:attribute name="DEF_Comentarios" value="iif($r/@EVE_l_habilitada='1',number(substring(@BB,1,1))*2+number(substring(@BB,2,1)),number(substring(@BB,1,1))*1+number(substring(@BB,2,1)))"/>
+				<qry:attribute name="B" value="$r/@DEF_e_eval_360"/>
+				<qry:insert-select name="TOBIN"/>
+				<qry:attribute name="PLA_360" value="@PLA_360+substring(@BB2,2,2)"/>
+				<qry:attribute name="PLA_EVA" value="@PLA_EVA+substring(@BB,7,1)"/>
+				<qry:attribute name="PLA_AUT" value="@PLA_AUT+substring(@BB,5,1)"/>
+				<qry:attribute name="PLA_SUP" value="@PLA_SUP+substring(@BB,3,1)"/>
+				<qry:attribute name="B" value="$r/@DEF_e_evaluador"/>
+				<qry:insert-select name="TOBIN"/>
+				<qry:attribute name="PLA_360" value="@PLA_360+substring(@BB2,2,2)"/>
+				<qry:attribute name="PLA_EVA" value="@PLA_EVA+substring(@BB,7,1)"/>
+				<qry:attribute name="PLA_AUT" value="@PLA_AUT+substring(@BB,5,1)"/>
+				<qry:attribute name="PLA_SUP" value="@PLA_SUP+substring(@BB,3,1)"/>
+				<qry:attribute name="B" value="$r/@DEF_e_evaluado"/>
+				<qry:insert-select name="TOBIN"/>
+				<qry:attribute name="PLA_360" value="@PLA_360+substring(@BB2,2,2)"/>
+				<qry:attribute name="PLA_EVA" value="@PLA_EVA+substring(@BB,7,1)"/>
+				<qry:attribute name="PLA_AUT" value="@PLA_AUT+substring(@BB,5,1)"/>
+				<qry:attribute name="PLA_SUP" value="@PLA_SUP+substring(@BB,3,1)"/>
+				<qry:attribute name="B" value="$r/@DEF_e_supervisor"/>
+				<qry:insert-select name="TOBIN"/>
+				<qry:attribute name="PLA_360" value="@PLA_360+substring(@BB2,2,2)"/>
+				<qry:attribute name="PLA_EVA" value="@PLA_EVA+substring(@BB,7,1)"/>
+				<qry:attribute name="PLA_AUT" value="@PLA_AUT+substring(@BB,5,1)"/>
+				<qry:attribute name="PLA_SUP" value="@PLA_SUP+substring(@BB,3,1)"/>
+				<qry:attribute name="B" value="$r/@DEF_e_preeva"/>
+				<qry:insert-select name="TOBIN"/>
+				<qry:attribute name="PLA_360" value="@PLA_360+substring(@BB2,2,2)"/>
+				<qry:attribute name="PLA_EVA" value="@PLA_EVA+substring(@BB,7,1)"/>
+				<qry:attribute name="PLA_AUT" value="@PLA_AUT+substring(@BB,5,1)"/>
+				<qry:attribute name="PLA_SUP" value="@PLA_SUP+substring(@BB,3,1)"/>
+				<qry:attribute name="BB" value="''"/>
+				<qry:attribute name="PLA_EVA" value="iif(@PLA_EVA='00000',0,1)"/>
+				<qry:attribute name="PLA_AUT" value="iif(@PLA_AUT='00000',0,1)"/>
+				<qry:attribute name="PLA_SUP" value="iif(@PLA_SUP='00000',0,1)"/>
+				<qry:attribute name="PLA_360" value="iif(@PLA_360='0000000000',0,1)"/>
+				<qry:attribute name="DEF_Evaluador360" value="iif(number(../@eva360_count)=0,0,@DEF_Evaluador360)"/>
+				<qry:attribute name="PLA_360" value="iif(number(../@eva360_count)=0,0,@PLA_360)"/>
+				<qry:insert-select name="OBJETIVOS" doc-path="$r"/>
+				<qry:insert-select name="RESULT_AUX" doc-path="$EVALUADORES/EVALUADOR"/>
+				<qry:insert-select name="PLANTILLA360" doc-path="$r"/>
+				<qry:insert-select name="PLANTILLA_CUSTOM" doc-path="$r"/>
+			</PLANTILLA>
+		</qry:out>
+	</qry:select>
+	<qry:select name="TOBIN">
+		<qry:out>
+			<qry:attribute name="BB" value="''"/>
+			<qry:attribute name="BB2" value="''"/>
+			<qry:attribute name="BB2" value="@BB2 + iif(number(@B) &gt;= 8192,'1','0')"/>
+			<qry:attribute name="B" value="iif(number(@B) &gt;= 8192,number(@B)-8192,@B)"/>
+			<qry:attribute name="BB2" value="@BB2 + iif(number(@B) &gt;= 4096,'1','0')"/>
+			<qry:attribute name="B" value="iif(number(@B) &gt;= 4096,number(@B)-4096,@B)"/>
+			<qry:attribute name="BB2" value="@BB2 + iif(number(@B) &gt;= 2048,'1','0')"/>
+			<qry:attribute name="B" value="iif(number(@B) &gt;= 2048,number(@B)-2048,@B)"/>
+			<qry:attribute name="BB2" value="@BB2 + iif(number(@B) &gt;= 1024,'1','0')"/>
+			<qry:attribute name="B" value="iif(number(@B) &gt;= 1024,number(@B)-1024,@B)"/>
+			<qry:attribute name="BB" value="@BB + iif(number(@B) &gt;= 512,'1','0')"/>
+			<qry:attribute name="B" value="iif(number(@B) &gt;= 512,number(@B)-512,@B)"/>
+			<qry:attribute name="BB" value="@BB + iif(number(@B) &gt;= 256,'1','0')"/>
+			<qry:attribute name="B" value="iif(number(@B) &gt;= 256,number(@B)-256,@B)"/>
+			<qry:attribute name="BB" value="@BB + iif(number(@B) &gt;= 128,'1','0')"/>
+			<qry:attribute name="B" value="iif(number(@B) &gt;= 128,number(@B)-128,@B)"/>
+			<qry:attribute name="BB" value="@BB + iif(number(@B) &gt;= 64,'1','0')"/>
+			<qry:attribute name="B" value="iif(number(@B) &gt;= 64,number(@B)-64,@B)"/>
+			<qry:attribute name="BB" value="@BB + iif(number(@B) &gt;= 32,'1','0')"/>
+			<qry:attribute name="B" value="iif(number(@B) &gt;= 32,number(@B)-32,@B)"/>
+			<qry:attribute name="BB" value="@BB + iif(number(@B) &gt;= 16,'1','0')"/>
+			<qry:attribute name="B" value="iif(number(@B) &gt;= 16,number(@B)-16,@B)"/>
+			<qry:attribute name="BB" value="@BB + iif(number(@B) &gt;= 8,'1','0')"/>
+			<qry:attribute name="B" value="iif(number(@B) &gt;= 8,number(@B)-8,@B)"/>
+			<qry:attribute name="BB" value="@BB + iif(number(@B) &gt;= 4,'1','0')"/>
+			<qry:attribute name="B" value="iif(number(@B) &gt;= 4,number(@B)-4,@B)"/>
+			<qry:attribute name="BB" value="@BB + iif(number(@B) &gt;= 2,'1','0')"/>
+			<qry:attribute name="B" value="iif(number(@B) &gt;= 2,number(@B)-2,@B)"/>
+			<qry:attribute name="BB" value="@BB + iif(number(@B) &gt;= 1,'1','0')"/>
+			<qry:attribute name="B" value="iif(number(@B) &gt;= 1,number(@B)-1,@B)"/>
+			<qry:attribute name="B" value="''"/>
+		</qry:out>
+	</qry:select>
+	<qry:select name="PLANTILLAS_PREVIEW" doc="SOURCE">
+		<qry:xquery>
+			for $r in SQL('
+select 
+DEF.oi_plantilla,
+DEF.oi_escala,
+DEF.d_reporte as DEF_d_reporte,
+DEF.c_plantilla as DEF_c_plantilla,
+DEF.d_plantilla as DEF_d_plantilla,
+DEF.o_plantilla as DEF_o_plantilla,
+DEF.l_mostrar_res as DEF_l_mostrar_res,        
+DEF.n_ponderacion as DEF_n_ponderacion,
+DEF.d_cus1 as DEF_d_cus1,
+DEF.d_cus2 as DEF_d_cus2,
+DEF.d_cus3 as DEF_d_cus3,
+DEF.d_cus4 as DEF_d_cus4,
+DEF.d_cus5 as DEF_d_cus5,
+DEF.e_show as DEF_e_show,
+DEF.e_preeva as DEF_e_preeva,
+DEF.e_evaluador as DEF_e_evaluador,
+DEF.e_evaluado as DEF_e_evaluado,
+DEF.e_supervisor as DEF_e_supervisor,
+DEF.e_aprobacion as DEF_e_aprobacion,
+DEF.e_posaprob as DEF_e_posaprob,
+DEF.e_orden
+from 
+EDD01_PLANTILLAS as DEF
+where
+DEF.oi_tipo_eval={#SOURCE:@oi_tipo_eval}
+order by         
+e_orden asc, oi_plantilla asc 
+
+')/ROWS/ROW
+		</qry:xquery>
+		<qry:out>
+			<qry:attribute name="MAXVALUE" value="number(@MAXVALUE)+iif($r/@DEF_l_mostrar_res='1',number($r/@DEF_n_ponderacion),0)"/>
+			<PLANTILLA>
+				<qry:attribute name="oi_escala" value="$r/@oi_escala"/>
+				<qry:attribute name="oi_plantilla" value="$r/@oi_plantilla"/>
+				<qry:attribute name="EVA_n_ponderacion" value="$r/@DEF_n_ponderacion"/>
+				<qry:attribute name="EVA_o_plantilla" value="$r/@DEF_o_plantilla"/>
+				<qry:attribute name="EVA_n_resultado" value="'null'"/>
+				<qry:attribute name="EVA_n_resultado2" value="'null'"/>
+				<qry:attribute name="EVA_n_resultado3" value="'null'"/>
+				<qry:attribute name="EVA_d_cus1" value="$r/@DEF_d_cus1"/>
+				<qry:attribute name="EVA_d_cus2" value="$r/@DEF_d_cus2"/>
+				<qry:attribute name="EVA_d_cus3" value="$r/@DEF_d_cus3"/>
+				<qry:attribute name="EVA_d_cus4" value="$r/@DEF_d_cus4"/>
+				<qry:attribute name="EVA_d_cus5" value="$r/@DEF_d_cus5"/>
+				<qry:attribute name="EVE_n_ponderacion" value="$r/@DEF_n_ponderacion"/>
+				<qry:attribute name="EVE_o_plantilla" value="$r/@DEF_o_plantilla"/>
+				<qry:attribute name="EVE_d_cus1" value="$r/@DEF_d_cus1"/>
+				<qry:attribute name="EVE_d_cus2" value="$r/@DEF_d_cus2"/>
+				<qry:attribute name="EVE_d_cus3" value="$r/@DEF_d_cus3"/>
+				<qry:attribute name="EVE_d_cus4" value="$r/@DEF_d_cus4"/>
+				<qry:attribute name="EVE_d_cus5" value="$r/@EVE_d_cus5"/>
+				<qry:attribute name="DEF_d_reporte" value="$r/@DEF_d_reporte"/>
+				<qry:attribute name="DEF_c_plantilla" value="$r/@DEF_c_plantilla"/>
+				<qry:attribute name="DEF_o_plantilla" value="$r/@DEF_o_plantilla"/>
+				<qry:attribute name="DEF_d_plantilla" value="$r/@DEF_d_plantilla"/>
+				<qry:attribute name="DEF_n_ponderacion" value="$r/@DEF_n_ponderacion"/>
+				<qry:attribute name="DEF_l_mostrar_res" value="$r/@DEF_l_mostrar_res"/>
+				<qry:attribute name="DEF_d_cus1" value="$r/@DEF_d_cus1"/>
+				<qry:attribute name="DEF_d_cus2" value="$r/@DEF_d_cus2"/>
+				<qry:attribute name="DEF_d_cus3" value="$r/@DEF_d_cus3"/>
+				<qry:attribute name="DEF_d_cus4" value="$r/@DEF_d_cus4"/>
+				<qry:attribute name="DEF_d_cus5" value="$r/@DEF_d_cus5"/>
+				<qry:attribute name="DEF_cant_cus" value="iif(@DEF_d_cus1!='',1,0) + iif(@DEF_d_cus2!='',1,0) + iif(@DEF_d_cus3!='',1,0) + iif(@DEF_d_cus4!='',1,0) + iif(@DEF_d_cus5!='',1,0)"/>
+				<qry:attribute name="B" value="$r/@DEF_e_show"/>
+				<qry:attribute name="B10" value="iif(number(@B) &gt;= 512,1,0)"/>
+				<qry:attribute name="B" value="iif(number(@B) &gt;= 512,number(@B)-512,@B)"/>
+				<qry:attribute name="B9" value="iif(number(@B) &gt;= 256,1,0)"/>
+				<qry:attribute name="B" value="iif(number(@B) &gt;= 256,number(@B)-256,@B)"/>
+				<qry:attribute name="B8" value="iif(number(@B) &gt;= 128,1,0)"/>
+				<qry:attribute name="B" value="iif(number(@B) &gt;= 128,number(@B)-128,@B)"/>
+				<qry:attribute name="B7" value="iif(number(@B) &gt;= 64,1,0)"/>
+				<qry:attribute name="B" value="iif(number(@B) &gt;= 64,number(@B)-64,@B)"/>
+				<qry:attribute name="B6" value="iif(number(@B) &gt;= 32,1,0)"/>
+				<qry:attribute name="B" value="iif(number(@B) &gt;= 32,number(@B)-32,@B)"/>
+				<qry:attribute name="B5" value="iif(number(@B) &gt;= 16,1,0)"/>
+				<qry:attribute name="B" value="iif(number(@B) &gt;= 16,number(@B)-16,@B)"/>
+				<qry:attribute name="B4" value="iif(number(@B) &gt;= 8,1,0)"/>
+				<qry:attribute name="B" value="iif(number(@B) &gt;= 8,number(@B)-8,@B)"/>
+				<qry:attribute name="B3" value="iif(number(@B) &gt;= 4,1,0)"/>
+				<qry:attribute name="B" value="iif(number(@B) &gt;= 4,number(@B)-4,@B)"/>
+				<qry:attribute name="B2" value="iif(number(@B) &gt;= 2,1,0)"/>
+				<qry:attribute name="B" value="iif(number(@B) &gt;= 2,number(@B)-2,@B)"/>
+				<qry:attribute name="B1" value="iif(number(@B) &gt;= 1,1,0)"/>
+				<qry:attribute name="B" value="iif(number(@B) &gt;= 1,number(@B)-1,@B)"/>
+				<qry:attribute name="DEF_Show" value="@B10"/>
+				<qry:attribute name="DEF_Edit" value="@B1"/>
+				<qry:attribute name="DEF_Evaluador" value="@B3 * 2 + @B2"/>
+				<qry:attribute name="DEF_Evaluado" value="iif(../@ET_l_eve2=1,@B5 * 2 + @B4,0)"/>
+				<qry:attribute name="DEF_Supervisor" value="iif(../@ET_l_eve3=1,@B7 * 2 + @B6,0)"/>
+				<qry:attribute name="DEF_Comentarios" value="@B9 * 2 + @B8"/>
+				<qry:attribute name="B10" value="''"/>
+				<qry:attribute name="B9" value="''"/>
+				<qry:attribute name="B8" value="''"/>
+				<qry:attribute name="B7" value="''"/>
+				<qry:attribute name="B6" value="''"/>
+				<qry:attribute name="B5" value="''"/>
+				<qry:attribute name="B4" value="''"/>
+				<qry:attribute name="B3" value="''"/>
+				<qry:attribute name="B2" value="''"/>
+				<qry:attribute name="B1" value="''"/>
+				<qry:attribute name="B" value="''"/>
+				<qry:switch test="$r/@DEF_d_reporte">
+					<qry:case value="ITEM_ESC_COMBO">
+						<ITEM c_objetivo="CODIGO del ITEM" d_objetivo="DESCRIPCION del ITEM" o_objetivo="OBSERVACION del ITEM" d_cus1="AUXILIAR 1 del ITEM" d_cus2="AUXILIAR 2 del ITEM" d_cus3="AUXILIAR 3 del ITEM" d_cus4="AUXILIAR 4 del ITEM" d_cus5="AUXILIAR 5 del ITEM" n_ponderacion="1" n_resultado="null" n_resultado2="null" n_resultado3="null">
+							<qry:attribute name="oi_escala" value="$r/@oi_escala"/>
+							<qry:attribute name="oi_objetivo" value="../@oi_plantilla"/>
+						</ITEM>
+					</qry:case>
+					<qry:case value="ITEM_NOESCALA">
+						<ITEM c_objetivo="CODIGO del ITEM" d_objetivo="DESCRIPCION del ITEM" o_objetivo="OBSERVACION del ITEM" d_cus1="AUXILIAR 1 del ITEM" d_cus2="AUXILIAR 2 del ITEM" d_cus3="AUXILIAR 3 del ITEM" d_cus4="AUXILIAR 4 del ITEM" d_cus5="AUXILIAR 5 del ITEM" n_ponderacion="1" n_resultado="null" n_resultado2="null" n_resultado3="null">
+							<qry:attribute name="oi_escala" value="$r/@oi_escala"/>
+							<qry:attribute name="oi_objetivo" value="../@oi_plantilla"/>
+						</ITEM>
+					</qry:case>
+				</qry:switch>
+			</PLANTILLA>
+		</qry:out>
+	</qry:select>
+	<qry:select doc="SOURCE" name="OBJETIVOS">
+		<qry:xquery>
+			for $r in SQL('
+select
+OBJ.oi_objetivo,
+OBJ.c_objetivo,
+OBJ.d_objetivo,
+OBJ.oi_escala,
+OBJ.n_ponderacion,
+OBJ.n_resultado,
+OBJ.n_resultado2,
+OBJ.n_resultado3,
+OBJ.o_objetivo,
+OBJ.d_cus1,
+OBJ.d_cus2,
+OBJ.d_cus3,
+OBJ.d_cus4,
+OBJ.d_cus5
+from
+EDD03_OBJETIVOS as OBJ
+where
+OBJ.oi_plantilla={#SOURCE:@oi_plantilla}
+order by
+oi_objetivo ASC
+')/ROWS/ROW
+		</qry:xquery>
+		<qry:out>
+			<ITEM>
+				<qry:attribute name="oi_objetivo" value="$r/@oi_objetivo"/>
+				<qry:attribute name="c_objetivo" value="$r/@c_objetivo"/>
+				<qry:attribute name="d_objetivo" value="$r/@d_objetivo"/>
+				<qry:attribute name="oi_escala" value="iif($r/@oi_escala='', ../@oi_escala_item,$r/@oi_escala)"/>
+				<qry:attribute name="oi_escala_subitem" value="../@oi_escala_subitem"/>
+				<qry:attribute value="iif($r/@n_ponderacion='',1,$r/@n_ponderacion)" name="n_ponderacion"/>
+				<qry:attribute name="n_resultado" value="iif($r/@n_resultado='','null',format-number($r/@n_resultado, 0, 2, '.', '', ''))"/>
+				<qry:attribute name="n_resultado2" value="iif($r/@n_resultado2='','null',format-number($r/@n_resultado2, 0, 2, '.', '', ''))"/>
+				<qry:attribute name="n_resultado3" value="iif($r/@n_resultado3='','null',format-number($r/@n_resultado3, 0, 2, '.', '', ''))"/>
+				<qry:attribute name="o_objetivo" value="$r/@o_objetivo"/>
+				<qry:attribute name="d_cus1" value="$r/@d_cus1"/>
+				<qry:attribute name="d_cus2" value="$r/@d_cus2"/>
+				<qry:attribute name="d_cus3" value="$r/@d_cus3"/>
+				<qry:attribute name="d_cus4" value="$r/@d_cus4"/>
+				<qry:attribute name="d_cus5" value="$r/@d_cus5"/>
+				<qry:insert-select name="SUBOBJETIVOS" doc-path="$r"/>
+				<qry:insert-select name="RESULT_AUX" doc-path="$EVALUADORES/EVALUADOR"/>
+				<qry:insert-select name="OBJETIVO360" doc-path="$r"/>
+				<qry:insert-select name="OBJETIVO_CUSTOM" doc-path="$r"/>
+			</ITEM>
+		</qry:out>
+	</qry:select>
+	<qry:select doc="SOURCE" name="SUBOBJETIVOS">
+		<qry:xquery>
+			for $r in SQL('
+select
+SUB.oi_subobjetivo,
+SUB.c_subobjetivo,
+SUB.d_subobjetivo,
+SUB.o_subobjetivo,
+SUB.oi_escala,
+SUB.n_ponderacion,
+SUB.n_resultado,
+SUB.n_resultado2,
+SUB.n_resultado3,
+SUB.d_cus1,
+SUB.d_cus2,
+SUB.d_cus3,
+SUB.d_cus4,
+SUB.d_cus5
+from
+EDD03_SUBOBJETIVOS as SUB
+where
+SUB.oi_objetivo={#SOURCE:@oi_objetivo}
+order by
+oi_subobjetivo ASC
+')/ROWS/ROW
+		</qry:xquery>
+		<qry:out>
+			<SUBITEM>
+				<qry:attribute name="oi_subobjetivo" value="$r/@oi_subobjetivo"/>
+				<qry:attribute name="c_subobjetivo" value="$r/@c_subobjetivo"/>
+				<qry:attribute name="d_subobjetivo" value="$r/@d_subobjetivo"/>
+				<qry:attribute name="o_subobjetivo" value="$r/@o_subobjetivo"/>
+				<qry:attribute name="oi_escala" value="iif($r/@oi_escala='', ../@oi_escala_subitem,$r/@oi_escala)"/>
+				<qry:attribute name="oi_escala" value="iif(@oi_escala='', ../@oi_escala,@oi_escala)"/>
+				<qry:attribute name="n_ponderacion" value="$r/@n_ponderacion"/>
+				<qry:attribute name="n_resultado" value="iif($r/@n_resultado='','null',format-number($r/@n_resultado, 0, 2, '.', '', ''))"/>
+				<qry:attribute name="n_resultado2" value="iif($r/@n_resultado2='','null',format-number($r/@n_resultado2, 0, 2, '.', '', ''))"/>
+				<qry:attribute name="n_resultado3" value="iif($r/@n_resultado3='','null',format-number($r/@n_resultado3, 0, 2, '.', '', ''))"/>
+				<qry:attribute name="d_cus1" value="$r/@d_cus1"/>
+				<qry:attribute name="d_cus2" value="$r/@d_cus2"/>
+				<qry:attribute name="d_cus3" value="$r/@d_cus3"/>
+				<qry:attribute name="d_cus4" value="$r/@d_cus4"/>
+				<qry:attribute name="d_cus5" value="$r/@d_cus5"/>
+				<qry:insert-select name="RESULT_AUX" doc-path="$EVALUADORES/EVALUADOR"/>
+				<qry:insert-select name="SUBOBJETIVO360" doc-path="$r"/>
+				<qry:insert-select name="SUBOBJETIVO_CUSTOM" doc-path="$r"/>
+			</SUBITEM>
+		</qry:out>
+	</qry:select>
+	<qry:select name="ESCALAS" doc="SOURCE">
+		<qry:xquery>
+			for $r in SQL('
+select 
+ESC.oi_escala as oi_escala, 
+ESC.c_escala as c_escala, 
+ESC.d_escala as d_escala
+from 
+org29_escalas as ESC
+where
+ESC.oi_escala in ({%=substring(#SOURCE:@oi_escalas,1,string_length(#SOURCE:@oi_escalas)-2) %})
+')/ROWS/ROW
+		</qry:xquery>
+		<qry:out>
+			<ESCALA prev="0">
+				<qry:attribute name="oi_escala" value="$r/@oi_escala"/>
+				<qry:insert-select name="VALORES" doc-path="$r"/>
+				<qry:switch test="COUNT(./VAL)">
+					<qry:case value="0">
+						<qry:attribute name="enum" value="0"/>
+						<qry:attribute name="max" value="100"/>
+						<qry:attribute name="min" value="0"/>
+					</qry:case>
+					<qry:case value="1">
+						<qry:attribute name="enum" value="0"/>
+						<qry:attribute name="max" value="max(./VAL/@VAL_hasta)"/>
+						<qry:attribute name="min" value="min(./VAL/@VAL_desde)"/>
+					</qry:case>
+					<qry:default>
+						<qry:attribute name="enum" value="1"/>
+						<qry:attribute name="max" value="max(./VAL/@VAL_hasta)"/>
+						<qry:attribute name="min" value="min(./VAL/@VAL_desde)"/>
+					</qry:default>
+				</qry:switch>
+				<qry:attribute name="prev" value="''"/>
+				<qry:insert-select name="VALORES_CHK" doc-path="." to-element="./VAL"/>
+				<qry:insert-select name="ESCALA_CUSTOM" doc-path="$r"/>
+			</ESCALA>
+		</qry:out>
+	</qry:select>
+	<qry:select name="VALORES" doc="SOURCE">
+		<qry:xquery>
+			for $r in SQL('
+select 
+V.oi_val_escala,
+V.c_valor,
+V.d_valor,	
+V.n_val_desde,
+V.n_val_hasta
+from 
+org29_val_escalas as V
+where
+V.oi_escala={#SOURCE:@oi_escala}
+order by
+n_val_desde ASC
+')/ROWS/ROW
+		</qry:xquery>
+		<qry:out>
+			<VAL>
+				<qry:attribute name="VAL_id" value="$r/@oi_valor"/>
+				<qry:attribute name="VAL_cod" value="$r/@c_valor"/>
+				<qry:attribute name="VAL_des" value="$r/@d_valor"/>
+				<qry:attribute name="VAL_desde" value="$r/@n_val_desde"/>
+				<qry:attribute name="VAL_hasta" value="$r/@n_val_hasta"/>
+				<qry:attribute name="VAL_min" value="$r/@n_val_desde"/>
+				<qry:attribute name="VAL_max" value="$r/@n_val_hasta"/>
+			</VAL>
+			<qry:attribute name="prev" value="$r/@n_val_hasta"/>
+		</qry:out>
+	</qry:select>
+	<qry:select name="ESC" doc="SOURCE">
+		<qry:out>
+			<qry:if test="#SOURCE:@oi_escala!=''">
+				<qry:then>
+					<qry:attribute name="oi_escalas" value="iif(contains(@oi_escalas,','+#SOURCE:@oi_escala+','), @oi_escalas, @oi_escalas+#SOURCE:@oi_escala+',')"/>
+				</qry:then>
+			</qry:if>
+			<qry:if test="#SOURCE:@oi_escala_item!=''">
+				<qry:then>
+					<qry:attribute name="oi_escalas" value="iif(contains(@oi_escalas,','+#SOURCE:@oi_escala_item+','), @oi_escalas, @oi_escalas+#SOURCE:@oi_escala_item+',')"/>
+				</qry:then>
+			</qry:if>
+			<qry:if test="#SOURCE:@oi_escala_subitem!=''">
+				<qry:then>
+					<qry:attribute name="oi_escalas" value="iif(contains(@oi_escalas,','+#SOURCE:@oi_escala_subitem+','), @oi_escalas, @oi_escalas+#SOURCE:@oi_escala_subitem+',')"/>
+				</qry:then>
+			</qry:if>
+		</qry:out>
+	</qry:select>
+	<qry:select name="EVALUADORES" doc="SOURCE">
+		<qry:xquery>
+			for $r in SQL('
+select 
+	PER.d_ape_y_nom, 
+	EVA.c_estado, 
+	EVA.oi_personal_emp, 
+	ROL.oi_rol,
+	ROL.d_rol,
+	ROL.c_rol
+from 
+	edd03_eva_evaluad as EVA,
+	edd05_roles as ROL,
+	per02_personal_emp as LEG,
+	per01_personal as PER
+join
+	EVA.oi_rol INNER ROL.oi_rol,
+	EVA.oi_personal_emp INNER LEG.oi_personal_emp,
+	LEG.oi_personal INNER PER.oi_personal
+where
+	EVA.oi_evaluacion = {#SOURCE:@oi_evaluacion}              
+order by
+	c_rol asc, oi_personal_emp asc
+')/ROWS/ROW
+		</qry:xquery>
+		<qry:out>
+			<EVALUADOR>
+				<qry:attribute name="d_ape_y_nom" value="iif($SOURCE/@show_label=1,$r/@d_ape_y_nom,$r/@d_rol)"/>
+				<qry:attribute name="oi_personal_emp" value="$r/@oi_personal_emp"/>
+				<qry:attribute name="oi_rol" value="$r/@oi_rol"/>
+				<qry:attribute name="d_rol" value="$r/@d_rol"/>
+				<qry:attribute name="c_estado" value="$r/@c_estado"/>
+				<qry:insert-select name="EVALUADOR_CUSTOM" doc-path="$r"/>
+			</EVALUADOR>
+		</qry:out>
+	</qry:select>
+	<qry:select name="EVALUACION360" doc="SOURCE">
+		<qry:xquery>
+			for $r in SQL('
+select 
+	EVA.n_resultado,
+	EVA.o_comentario,  
+	EVA.oi_personal_emp
+from 
+	edd03_eva_evaluad as EVA
+where
+	EVA.oi_evaluacion = {#SOURCE:@oi_evaluacion}              
+')/ROWS/ROW
+		</qry:xquery>
+		<qry:out>
+			<qry:attribute name-calc="'EVA_n_res_'+$r/@oi_personal_emp" value="iif($r/@n_resultado='','null',format-number($r/@n_resultado, 0, 2, '.', '', ''))"/>
+			<qry:attribute name-calc="'EVA_o_com_'+$r/@oi_personal_emp" value="$r/@o_comentario"/>
+		</qry:out>
+	</qry:select>
+	<qry:select name="PLANTILLA360" doc="SOURCE">
+		<qry:xquery>
+			for $r in SQL('
+select 
+	EVA.n_resultado,
+	EVA.o_comentario,  
+	EVA.oi_personal_emp
+from 
+	edd03_pla_evaluad as EVA
+where
+	EVA.oi_plantilla = {#SOURCE:@oi_plantilla}              
+')/ROWS/ROW
+		</qry:xquery>
+		<qry:out>
+			<qry:attribute name-calc="'EVA_n_res_'+$r/@oi_personal_emp" value="iif($r/@n_resultado='','null',format-number($r/@n_resultado, 0, 2, '.', '', ''))"/>
+			<qry:attribute name-calc="'EVA_o_com_'+$r/@oi_personal_emp" value="$r/@o_comentario"/>
+		</qry:out>
+	</qry:select>
+	<qry:select name="OBJETIVO360" doc="SOURCE">
+		<qry:xquery>
+			for $r in SQL('
+select 
+	EVA.n_resultado,
+	EVA.oi_personal_emp
+from 
+	edd03_obj_evaluad as EVA
+where
+	EVA.oi_objetivo = {#SOURCE:@oi_objetivo}              
+')/ROWS/ROW
+		</qry:xquery>
+		<qry:out>
+			<qry:attribute name-calc="'EVA_n_res_'+$r/@oi_personal_emp" value="iif($r/@n_resultado='','null',format-number($r/@n_resultado, 0, 2, '.', '', ''))"/>
+		</qry:out>
+	</qry:select>
+	<qry:select name="SUBOBJETIVO360" doc="SOURCE">
+		<qry:xquery>
+			for $r in SQL('
+select 
+	EVA.n_resultado,
+	EVA.oi_personal_emp
+from 
+	edd03_sub_evaluad as EVA
+where
+	EVA.oi_subobjetivo = {#SOURCE:@oi_subobjetivo}              
+')/ROWS/ROW
+		</qry:xquery>
+		<qry:out>
+			<qry:attribute name-calc="'EVA_n_res_'+$r/@oi_personal_emp" value="iif($r/@n_resultado='','null',format-number($r/@n_resultado, 0, 2, '.', '', ''))"/>
+		</qry:out>
+	</qry:select>
+	<qry:select name="EVALUADOR360" doc="SOURCE">
+		<qry:xquery>
+			for $r in SQL('
+select 
+	PER.d_ape_y_nom,
+	LEG.oi_personal_emp
+	
+from 
+	per02_personal_emp as LEG,
+	per01_personal as PER,
+	PER21_INDIC_ACTIVO as ACT
+join
+	LEG.oi_personal INNER PER.oi_personal,
+	LEG.oi_indic_activo INNER ACT.oi_indic_activo
+where 
+	ACT.c_indic_activo = \'A\' and 
+	PER.oi_usuario_sistema = {$PROXY/@ETTY}              
+')/ROWS/ROW
+		</qry:xquery>
+		<qry:out>
+			<qry:attribute name="oi_evaluador_360" value="$r/@oi_personal_emp"/>
+		</qry:out>
+	</qry:select>
+	<qry:select name="EVALUADOR360_EVALUADOR" doc="SOURCE">
+		<qry:xquery>
+			for $r in SQL('
+select 
+	EVA.oi_evaluador as oi_personal_emp
+from 
+	edd03_evaluacion as EVA
+where 
+	EVA.oi_evaluacion = {$SOURCE/@oi_evaluacion}
+')/ROWS/ROW
+		</qry:xquery>
+		<qry:out>
+			<qry:attribute name="oi_evaluador_360" value="$r/@oi_personal_emp"/>
+		</qry:out>
+	</qry:select>
+	<qry:select name="EVALUADOR360_EVALUADO" doc="SOURCE">
+		<qry:xquery>
+			for $r in SQL('
+select 
+	EVA.oi_personal_emp as oi_personal_emp
+from 
+	edd03_evaluacion as EVA
+where 
+	EVA.oi_evaluacion = {$SOURCE/@oi_evaluacion}
+')/ROWS/ROW
+		</qry:xquery>
+		<qry:out>
+			<qry:attribute name="oi_evaluador_360" value="$r/@oi_personal_emp"/>
+		</qry:out>
+	</qry:select>
+	<qry:select name="EVALUADOR360_SUPERVISOR" doc="SOURCE">
+		<qry:xquery>
+			for $r in SQL('
+select 
+	EVA.oi_supervisor as oi_personal_emp
+from 
+	edd03_evaluacion as EVA
+where 
+	EVA.oi_evaluacion = {$SOURCE/@oi_evaluacion}
+')/ROWS/ROW
+		</qry:xquery>
+		<qry:out>
+			<qry:attribute name="oi_evaluador_360" value="$r/@oi_personal_emp"/>
+		</qry:out>
+	</qry:select>
+	<qry:select name="RESULT_AUX" doc="r">
+		<qry:out>
+			<qry:attribute name-calc="'EVA_n_res_'+$r/@oi_personal_emp" value="'null'"/>
+		</qry:out>
+	</qry:select>
+	<qry:select name="VALORES_CHK" doc="SOURCE">
+		<qry:out>
+			<qry:if test="@VAL_min=min(../VAL/@VAL_min)">
+				<qry:then>
+					<qry:attribute name="VAL_min" value="-99999999"/>
+				</qry:then>
+			</qry:if>
+			<qry:if test="@VAL_max=max(../VAL/@VAL_max)">
+				<qry:then>
+					<qry:attribute name="VAL_max" value="99999999"/>
+				</qry:then>
+			</qry:if>
+		</qry:out>
+	</qry:select>
+	<qry:select name="REPORT_CUSTOM" doc="SOURCE">
+		<qry:out/>
+	</qry:select>
+	<qry:select name="PLANTILLA_CUSTOM" doc="SOURCE">
+		<qry:out/>
+	</qry:select>
+	<qry:select name="OBJETIVO_CUSTOM" doc="SOURCE">
+		<qry:out/>
+	</qry:select>
+	<qry:select name="SUBOBJETIVO_CUSTOM" doc="SOURCE">
+		<qry:out/>
+	</qry:select>
+	<qry:select name="EVALUADORES_CUSTOM" doc="SOURCE">
+		<qry:out/>
+	</qry:select>
+	<qry:select name="EVALUADOR_CUSTOM" doc="SOURCE">
+		<qry:out/>
+	</qry:select>
+	<qry:select name="ESCALAS_CUSTOM" doc="SOURCE">
+		<qry:out/>
+	</qry:select>
+	<qry:select name="ESCALA_CUSTOM" doc="SOURCE">
+		<qry:out/>
+	</qry:select>
+	<qry:select name="FINAL_CUSTOM" doc="SOURCE">
+		<qry:out/>
+	</qry:select>
+</qry:define>

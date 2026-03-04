@@ -1,0 +1,220 @@
+<html:html xmlns:html="nomad_engine.html" xmlns:qry="nomad_engine.qry" extends="Nomad.Base.BaseReport.rpt" doc="source" name="NucleusRH.Base.Liquidacion.NovedadesLiquidacion">
+	<html:query declare="&lt;DATOS oi_empresa=&quot;2&quot; salida=&quot;HTML&quot; oi_liquidacion=&quot;1&quot; oi_variable=&quot;&quot; report=&quot;&quot; l_incluir=&quot;1&quot;&gt;&lt;ROWS/&gt;&lt;/DATOS&gt;">
+		<qry:main doc="SOURCE">
+			<qry:append-doc name="PARAMIN" doc-path="#SOURCE:DATOS"/>
+			<REPORT label="NOVEDADES POR LIQUIDACI&#211;N (DETALLE)">
+				<qry:attribute name="date" value="format_date(Now(),'dd/mm/yyyy HH:MM')"/>
+				<GROUPS>
+					<GROUP tag="LIQ" type="title" noreg="No se encontraron registros para los filtros seleccionados.">
+						<COLS>
+							<COL name="d_empresa" label="Empresa"/>
+							<COL name="d_liquidacion" label="Liquidaci&#243;n"/>
+						</COLS>
+						<GROUP tag="VAR" style="padding-left:50px;" type="title_collapse" noreg="No se encontraron registros para los filtros seleccionados.">
+							<COLS>
+								<COL name="d_variable" label="Variable"/>
+							</COLS>
+							<GROUP tag="PER" style="padding-left:50px;width:580px;" type="table" noreg="No se encontraron registros para los filtros seleccionados.">
+								<COLS>
+									<COL name="nro_orden" label="Ord."/>
+									<COL name="e_numero_legajo" label="Legajo" style="width: 100px"/>
+									<COL name="d_ape_y_nom" label="Apellido y Nombre" style="width: 350px"/>
+									<COL name="e_periodo" label="Per&#237;odo" style="width:150px;"/>
+									<COL name="n_valor" label="Valor" style="text-align:right; width:130px;  mso-number-format:0.00;" type="num"/>
+								</COLS>
+								<qry:element name="FCOLS">
+									<COL/>
+									<COL style="text-align:RIGHT; font-weight: bold"/>
+									<COL style="text-align:RIGHT; font-weight: bold"/>
+									<COL label="Total" style="text-align:RIGHT; font-weight: bold" type="num"/>
+									<COL type="num" name="total_valor" style="text-align:right; font-weight: bold"/>
+								</qry:element>
+							</GROUP>
+						</GROUP>
+					</GROUP>
+				</GROUPS>
+				<qry:element name="DATA">
+					<qry:element name="LIQ">
+						<qry:attribute name="hts:delete" value="1"/>
+						<qry:insert-select name="qry_cabecera"/>
+						<qry:insert-select name="qry_variables"/>
+					</qry:element>
+				</qry:element>
+			</REPORT>
+		</qry:main>
+		<qry:select name="qry_cabecera" doc="SOURCE">
+			<qry:xquery>
+				for $r in sql('
+SELECT ORG03_EMPRESAS.d_empresa, 
+LIQ19_LIQUIDACION.c_liquidacion, 
+LIQ19_LIQUIDACION.d_titulo
+FROM ORG03_EMPRESAS, LIQ19_LIQUIDACION
+JOIN ORG03_EMPRESAS.oi_empresa INNER LIQ19_LIQUIDACION.oi_empresa
+WHERE LIQ19_LIQUIDACION.oi_liquidacion = {#PARAMIN:@oi_liquidacion}
+{%? (#PARAMIN:@l_simulacion!='')	{% AND LIQ19_LIQUIDACION.l_simulacion = {%= #PARAMIN:@l_simulacion %} %} {% %} %}
+')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:attribute name="d_empresa" value="$r/@d_empresa" type="Nomad.NSystem.Int"/>
+				<qry:attribute name="d_liquidacion" value="$r/@c_liquidacion + ' - ' + $r/@d_titulo" type="Nomad.NSystem.String"/>
+				<qry:attribute name="hts:delete" value="0"/>
+			</qry:out>
+		</qry:select>
+		<qry:select name="qry_variables" doc="SOURCE">
+			<qry:xquery>
+				for $r in sql(' 
+SELECT 
+LIQ09_VARIABLES.oi_variable,
+LIQ09_VARIABLES.c_variable, 
+LIQ09_VARIABLES.d_variable
+FROM 
+LIQ09_VARIABLES
+WHERE 
+LIQ09_VARIABLES.c_tipo_variable = \'1\'
+AND LIQ09_VARIABLES.oi_variable IN 
+(SELECT LIQ25_VAL_VAREN.oi_variable 
+FROM 
+LIQ25_PERSONAL_LIQ, 
+LIQ25_VAL_VAREN, 
+LIQ19_LIQUIDACION
+JOIN
+LIQ25_PERSONAL_LIQ.oi_personal_liq INNER LIQ25_VAL_VAREN.oi_personal_liq,
+LIQ19_LIQUIDACION.oi_liquidacion INNER LIQ25_PERSONAL_LIQ.oi_liquidacion
+WHERE 
+LIQ25_PERSONAL_LIQ.oi_liquidacion = {%=#PARAMIN:@oi_liquidacion%}
+{%? (#PARAMIN:@l_simulacion!='')	{% AND LIQ19_LIQUIDACION.l_simulacion = {%= #PARAMIN:@l_simulacion %} %} {% %} %}				
+GROUP BY LIQ25_VAL_VAREN.oi_variable)
+
+{%? (string(#PARAMIN:ROWS/ROW/@id)!='') {% AND LIQ09_VARIABLES.oi_variable in ({%=string(#PARAMIN:ROWS/ROW/@id) %}) %} {%  %} %}
+
+UNION
+
+SELECT 
+LIQ09_VARIABLES.oi_variable,
+LIQ09_VARIABLES.c_variable, 
+LIQ09_VARIABLES.d_variable
+FROM 
+LIQ09_VARIABLES
+WHERE 
+LIQ09_VARIABLES.c_tipo_variable = \'10\'
+AND LIQ09_VARIABLES.oi_variable IN 
+(SELECT LIQ25_VAL_VARPN.oi_variable 
+FROM 
+LIQ25_PERSONAL_LIQ, 
+LIQ25_VAL_VARPN, 
+LIQ19_LIQUIDACION
+JOIN
+LIQ25_PERSONAL_LIQ.oi_personal_liq INNER LIQ25_VAL_VARPN.oi_personal_liq,
+LIQ19_LIQUIDACION.oi_liquidacion INNER LIQ25_PERSONAL_LIQ.oi_liquidacion
+WHERE 
+LIQ25_PERSONAL_LIQ.oi_liquidacion = {%=#PARAMIN:@oi_liquidacion%}
+{%? (#PARAMIN:@l_simulacion!='')	{% AND LIQ19_LIQUIDACION.l_simulacion = {%= #PARAMIN:@l_simulacion %} %} {% %} %}				
+GROUP BY LIQ25_VAL_VARPN.oi_variable)
+
+{%? (string(#PARAMIN:ROWS/ROW/@id)!='') {% AND LIQ09_VARIABLES.oi_variable in ({%=string(#PARAMIN:ROWS/ROW/@id) %}) %} {%  %} %}
+')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:element name="VAR">
+					<qry:attribute name="id" value="$r/@oi_variable"/>
+					<qry:attribute name="d_variable" value="$r/@c_variable + ' - ' + $r/@d_variable" type="Nomad.NSystem.Int"/>
+					<qry:insert-select name="qry_personas" doc-path="$r"/>
+					<qry:attribute name="total_valor" value="0"/>
+					<qry:insert-select name="qry_totales" doc-path="."/>
+					<qry:insert-select name="SECURITY" doc-path="."/>
+				</qry:element>
+			</qry:out>
+		</qry:select>
+		<qry:select name="qry_personas" doc="SOURCE">
+			<qry:xquery>
+				for $r in sql(' 
+SELECT 
+P1.e_numero_legajo AS legajo, 
+PER1.d_ape_y_nom, 
+LIQ25_VAL_VAREN.n_valor,
+\'\' as e_periodo
+
+FROM 
+LIQ25_PERSONAL_LIQ as L1, 				
+LIQ25_VAL_VAREN, 
+PER02_PERSONAL_EMP AS P1, 
+PER01_PERSONAL as PER1, 
+LIQ09_VARIABLES AS V1,   
+LIQ19_LIQUIDACION AS VL1
+
+JOIN
+L1.oi_personal_liq INNER LIQ25_VAL_VAREN.oi_personal_liq,
+P1.oi_personal_emp INNER L1.oi_personal_emp,
+P1.oi_personal INNER PER1.oi_personal,
+V1.oi_variable INNER LIQ25_VAL_VAREN.oi_variable,
+VL1.oi_liquidacion INNER L1.oi_liquidacion
+
+WHERE L1.oi_liquidacion = {#PARAMIN:@oi_liquidacion} AND
+  LIQ25_VAL_VAREN.oi_variable = {#SOURCE:@oi_variable}
+  {%? (#PARAMIN:@l_simulacion!='')	{% AND VL1.l_simulacion = {%= #PARAMIN:@l_simulacion %} %} {% %} %}
+
+UNION
+
+SELECT 
+P10.e_numero_legajo AS legajo, 
+PER10.d_ape_y_nom, 
+LIQ25_VAL_VARPN.n_valor,
+LIQ25_VAL_VARPN.e_periodo
+
+FROM 
+LIQ25_PERSONAL_LIQ AS L10, 				
+LIQ25_VAL_VARPN, 
+PER02_PERSONAL_EMP as P10, 
+PER01_PERSONAL AS PER10, 
+LIQ09_VARIABLES AS V10,   
+LIQ19_LIQUIDACION AS VL10
+
+JOIN
+L10.oi_personal_liq INNER LIQ25_VAL_VARPN.oi_personal_liq,
+P10.oi_personal_emp INNER L10.oi_personal_emp,
+P10.oi_personal INNER PER10.oi_personal,
+V10.oi_variable INNER LIQ25_VAL_VARPN.oi_variable,
+VL10.oi_liquidacion INNER L10.oi_liquidacion
+
+WHERE L10.oi_liquidacion = {#PARAMIN:@oi_liquidacion} AND
+  LIQ25_VAL_VARPN.oi_variable = {#SOURCE:@oi_variable}
+  {%? (#PARAMIN:@l_simulacion!='')	{% AND VL10.l_simulacion = {%= #PARAMIN:@l_simulacion %} %} {% %} %}
+ 
+ORDER BY legajo ASC
+
+')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:attribute name="n_registros" value="number(@n_registros) + 1"/>
+				<qry:element name="PER">
+					<qry:attribute name="nro_orden" value="../@n_registros"/>
+					<qry:attribute name="e_numero_legajo" value="$r/@legajo" type="Nomad.NSystem.Int"/>
+					<qry:attribute name="d_ape_y_nom" value="$r/@d_ape_y_nom" type="Nomad.NSystem.Int"/>
+					<qry:attribute name="n_valor" value="$r/@n_valor" type="Nomad.NSystem.Int"/>
+					<qry:attribute name="e_periodo" value="iif($r/@e_periodo='0','',format_date($r/@e_periodo + '01','mm/yyyy'))" type="Nomad.NSystem.Int"/>
+					<qry:attribute name="hts:delete" value="iif(#PARAMIN:@ocultarDetalle=1,1,'')" type="Nomad.NSystem.Int"/>
+				</qry:element>
+			</qry:out>
+		</qry:select>
+		<qry:select name="qry_totales" doc="SOURCE">
+			<qry:xquery>
+				for $r in #SOURCE:PER
+			</qry:xquery>
+			<qry:out>
+				<qry:attribute name="total_valor" value="number(@total_valor) + number($r/@n_valor)"/>
+			</qry:out>
+		</qry:select>
+		<qry:select doc="PARAM" name="SECURITY">
+			<qry:xquery>
+				for $r in sql('
+SELECT NMD_SECURITY.policy 
+FROM NMD_SECURITY 
+WHERE NMD_SECURITY.class=\'NucleusRH.Base.Liquidacion.Variables.VARIABLE\' 
+AND NMD_SECURITY.id={#PARAM:@id}')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:attribute value="$r/@policy" name="policy"/>
+			</qry:out>
+		</qry:select>
+	</html:query>
+</html:html>

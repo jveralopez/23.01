@@ -1,0 +1,149 @@
+<form:Form xmlns:form="nomad_engine.form" xmlns:qry="nomad_engine.qry" extends="NucleusWF.Base.Definicion.Workflows.TEXT.MAIN.STD_REG.autoform" name="NucleusWF.Base.Definicion.Workflows.TEXT.MAIN.STD_REG.form" default_mode="EDIT" mess="&#191;Est&#225; seguro que desa cancelar la operaci&#243;n?" doc="source">
+	<form:Title width="90%">
+		<form:RowAligner name="ralTitle">
+			<form:Row name="row1">
+				<form:Label nowrap="1" align="center" visible="NEW" style="S3 LCol_w" name="GEN_NEW" label="Crear Texto"/>
+				<form:Label nowrap="1" align="center" visible="EDIT" style="S3 LCol_w" name="GEN_EDIT" label="Modificar Texto"/>
+				<form:Label nowrap="1" align="center" visible="SHOW" style="S3 LCol_w" name="GEN_SHOW" label="Consultar Texto"/>
+				<form:Label nowrap="1" align="center" style="S3 LCol_w" dynamic="1" name="OBJ" visible="SHOW|EDIT"/>
+				<form:Label nowrap="1" align="center" style="S2 LCol_w" dynamic="1" name="PAR"/>
+			</form:Row>
+		</form:RowAligner>
+	</form:Title>
+	<form:Center width="90%">
+		<form:Columns width="90%" visible="SHOW|EDIT|DELETE|NEW" name="main_columnsCUENTA">
+			<form:Column width="100%" name="main_columnsCUENTAcolumn1">
+				<form:Wiki width="100%" nvalue="#source:@WIKITEXT" mail-mode="N" share-mode="N" form-mode="N" flow-mode="N" window-mode="N" goto-mode="N" required="1" enabled="!SHOW" label="Texto a Mostrar" name="WikiText" border="2" height="500px">
+					<form:SButtons>
+						<form:SButton descrip="Imprimir" name="PRINT" img="PRINT">
+							<form:Event action="Print" name="onclick" runat="object"/>
+						</form:SButton>
+						<form:SButton name="EDIT" img="EDIT" descrip="Modificar">
+							<form:Event name="onclick" action="Edit" runat="object"/>
+						</form:SButton>
+					</form:SButtons>
+					<form:Event action="SplitText" name="onload" runat="client"/>
+				</form:Wiki>
+			</form:Column>
+		</form:Columns>
+		<form:Hidden name="HiLockREG" nvalue="#source:@LOCK"/>
+		<form:Hidden name="PARENT" nvalue="#source:@PARENT"/>
+		<form:Hidden name="ID" nvalue="#source:@ID"/>
+	</form:Center>
+	<form:Bottom>
+		<form:RowAligner name="buttonlinks">
+			<form:Row name="row1">
+				<form:Button visible="SHOW" descrip="Modificar el Registro" img="edit" label="Modificar" name="EDIT">
+					<form:Event action="EDIT" name="onclick" runat="server"/>
+				</form:Button>
+				<form:Button mess="&#191;Est&#225; seguro que desa eliminar el registro?" visible="SHOW" descrip="Eliminar un Registro" img="del" label="Eliminar" name="DELETE">
+					<form:Event action="DELETE" name="onclick" runat="server"/>
+				</form:Button>
+				<form:Button name="ACCEPT" descrip="Aceptar" img="OK" label="Aceptar" visible="NEW|EDIT" startvalidate="1">
+					<form:Event action="SAVE" name="onclick" runat="server"/>
+				</form:Button>
+				<form:Blank name="BB1" width="20px"/>
+				<form:Button visible="SHOW" descrip="Volver" img="BACK" label="Volver" name="BACK">
+					<form:Event action="BACK" name="onclick" runat="server"/>
+				</form:Button>
+				<form:Button name="CANCEL" descrip="Cancelar" img="CANCEL" label="Cancelar" visible="NEW|EDIT">
+					<form:Event action="CANCEL" name="onclick" runat="server"/>
+				</form:Button>
+			</form:Row>
+		</form:RowAligner>
+	</form:Bottom>
+	<form:Scripts>
+		var CFG;
+var TIT=null;
+var T2T=null;
+
+///////////////////////////////////////////////////////////////////////////////          
+//EVENTOS
+function OnLoad()
+{                
+	//Cargo la Configuracion
+	CFG=new NomadXML(Ctrl("main").getResource("QRY_CFG"));
+
+	//Modifico los Recursos
+	ReplaceResource("QRY_IDS_OBJECT");
+	ReplaceResource("QRY_IDS_PARENT");
+	
+	//Actualizo el Titulo
+	if ((Ctrl("PAR"))&amp;&amp; (CFG.GetAttr("RESOURCE-PARENT")!="") &amp;&amp; (Ctrl("PARENT").GetXValue()!=""))
+	{
+		if (TIT==null)
+			TIT=GetProxy().SQLService().GetXML(Ctrl("main").getResource("QRY_IDS_PARENT"), '&lt;PARAM IDS="'+Ctrl("PARENT").GetXValue()+'"/&gt;');
+
+		if (TIT!=null) TIT=TIT.FirstChild();
+		if (TIT!=null &amp;&amp; TIT.GetAttr("descr")!="")
+			Ctrl("PAR").SetXValue(" ("+TIT.GetAttr("descr")+")");
+	}
+
+	if ((Ctrl("OBJ"))&amp;&amp; (CFG.GetAttr("RESOURCE-OBJECT")!="") &amp;&amp; (Ctrl("ID").GetXValue()!=""))
+	{
+		if (T2T==null)
+			T2T=GetProxy().SQLService().GetXML(Ctrl("main").getResource("QRY_IDS_OBJECT"), '&lt;PARAM IDS="'+Ctrl("ID").GetXValue()+'"/&gt;');
+
+		if (T2T!=null) T2T=T2T.FirstChild();
+		if (T2T!=null &amp;&amp; T2T.GetAttr("descr")!="")
+			Ctrl("OBJ").SetXValue(" '"+T2T.GetAttr("descr")+"'");
+	}        
+	
+	//Concateno los text
+	var WikiTXT="";
+	WikiTXT+=Ctrl("o_text").GetXValue();
+	WikiTXT+=Ctrl("o_text2").GetXValue();
+	WikiTXT+=Ctrl("o_text3").GetXValue();
+	WikiTXT+=Ctrl("o_text4").GetXValue();
+	Ctrl("WikiText").SetXValue(WikiTXT);
+}
+
+function ReplaceResource(recID)
+{
+	var recValue=Ctrl("main").getResource(recID);
+	recValue=Replace(recValue,"#RESOURCE-PARENT#",CFG.GetAttr("RESOURCE-PARENT"));
+	recValue=Replace(recValue,"#RESOURCE-OBJECT#",CFG.GetAttr("RESOURCE-OBJECT"));
+	
+	Ctrl("main").setResource(recValue, recID);
+}
+
+function SplitText()
+{
+	var TextS=new Array();
+	var TextAll=Ctrl("WikiText").GetXValue(); 
+	
+	while (TextAll.length&gt;0)
+	{
+		TextS.push(TextAll.substr(0,3500));
+		TextAll=TextAll.substr(3500);
+	}
+	
+	Ctrl("o_text" ).SetXValue(TextS[0]?TextS[0]:"");
+	Ctrl("o_text2").SetXValue(TextS[1]?TextS[1]:"");
+	Ctrl("o_text3").SetXValue(TextS[2]?TextS[2]:"");
+	Ctrl("o_text4").SetXValue(TextS[3]?TextS[3]:"");
+}
+	</form:Scripts>
+	<form:Resources>
+		<form:Resource declare="" name="QRY_IDS_OBJECT">
+			<qry:include name="#RESOURCE-OBJECT#"/>
+			<qry:main maxdeep="2" doc="PARAMIN">
+				<qry:element name="ROWS">
+					<qry:insert-select name="sql1" doc-path="#PARAMIN:/PARAM"/>
+				</qry:element>
+			</qry:main>
+		</form:Resource>
+		<form:Resource declare="" name="QRY_IDS_PARENT">
+			<qry:include name="#RESOURCE-PARENT#"/>
+			<qry:main maxdeep="2" doc="PARAMIN">
+				<qry:element name="ROWS">
+					<qry:insert-select name="sql1" doc-path="#PARAMIN:/PARAM"/>
+				</qry:element>
+			</qry:main>
+		</form:Resource>
+		<form:Resource name="QRY_CFG">
+			<CFG resource-object="NucleusWF.Base.Definicion.Workflows.TEXT.INFO_IDS_LIST" resource-parent="NucleusWF.Base.Definicion.Workflows.WF.INFO_IDS_LIST"/>
+		</form:Resource>
+	</form:Resources>
+	<form:Event action="OnLoad" name="OnLoad" runat="client"/>
+</form:Form>

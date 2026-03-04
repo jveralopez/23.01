@@ -1,0 +1,71 @@
+<form:Form xmlns:form="nomad_engine.form" xmlns:qry="nomad_engine.qry" extends="NucleusRH.Base.Personal.LegajoEmpresa.PERSONAL_EMP.AGREGAR2.form" name="NucleusRH.Base.Liquidacion.Legajo.filter.form" doc="source" default_mode="FILTER">
+	<form:Center width="100%">
+		<form:VGroup visible="0" nvalue="#source:@gcustom" border="1" width="90%" label="Criterios de selecci&#243;n particulares" name="vgroupDatosCustom" collapse="1"/>
+		<form:VGroup nvalue="#source:@gpers" border="1" width="90%" collapse="1" label="Criterios de selecci&#243;n de personas" name="vgroupDatosPers">
+			<form:Tab name="tab_filtro">
+				<form:Panels>
+					<form:Panel name="pan_liquidacion" label="Liquidaci&#243;n">
+						<form:Columns width="95%" height="130px" name="cols_liquidacion">
+							<form:Column valign="top" align="left" name="col1_liquidacion">
+								<form:ComboBox nvalue="#source:@oi_banco" name="oi_banco" label="Banco" queryname1="NucleusRH.Base.Liquidacion.Bancos.BANCO.INFO" xsize="40" mode="QRY" required="0"/>
+								<form:ComboBox queryname1="NucleusRH.Base.Liquidacion.Bancos.SUCURSAL.INFO" prev="oi_banco" label="Sucursal" name="oi_sucursal" nvalue="#source:@oi_sucursal" xsize="40" mode="QRY" required="0"/>
+							</form:Column>
+						</form:Columns>
+					</form:Panel>
+				</form:Panels>
+			</form:Tab>
+		</form:VGroup>
+	</form:Center>
+	<form:Scripts/>
+	<form:Resources>
+		<form:Resource declare="&lt;PARAM empresa=&quot;&quot; oi_banco=&quot;&quot; oi_sucursal=&quot;&quot;/&gt;" name="qry_pan_liquidacion">
+			<qry:main name="qry" doc="SOURCE">
+				<qry:element name="ROWS">
+					<qry:insert-select name="sql1" doc-path="#SOURCE:/PARAM"/>
+				</qry:element>
+			</qry:main>
+			<qry:select name="sql1" doc="SOURCE">
+				<qry:xquery>
+					for $r in sql('
+			SELECT EMP.d_empresa, LEG.oi_personal_emp, LEG.e_numero_legajo, PER.d_ape_y_nom, SEC.policy
+			FROM 
+			PER01_PERSONAL as PER, 
+			PER02_PERSONAL_EMP as LEG, 
+			ORG03_EMPRESAS as EMP,
+			LIQ07_PERSONAL AS LIQ07, 
+			LIQ22_BANCOS_SUCUR AS SUC,
+			LIQ22_BANCOS AS BANCO,
+			NMD_SECURITY(class=\'NucleusRH.Base.Personal.LegajoEmpresa.PERSONAL_EMP\') as SEC
+			JOIN 
+			PER.oi_personal INNER LEG.oi_personal,
+			LEG.oi_empresa INNER EMP.oi_empresa,
+			LEG.oi_personal_emp INNER LIQ07.oi_personal_emp,
+			LIQ07.oi_sucursal INNER SUC.oi_sucursal,
+			SUC.oi_banco INNER BANCO.oi_banco,
+			LEG.oi_personal_emp LEFT OUTER SEC.id
+			WHERE 1=1
+			{%?(#SOURCE:@activos='1') {% and LEG.oi_indic_activo= \'1\' %} {% %} %}
+			{%?(#SOURCE:@empresa!='') {% and LEG.oi_empresa = {#SOURCE:@empresa} %} {% %} %}
+			{%?(#SOURCE:@oi_banco!='') {% and BANCO.oi_banco = {#SOURCE:@oi_banco} %} {% %} %}
+			{%?(#SOURCE:@oi_sucursal!='') {% and SUC.oi_sucursal = {#SOURCE:@oi_sucursal} %} {% %} %}
+			
+		 
+		 ORDER BY d_empresa ASC, e_numero_legajo ASC
+		')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:element name="ROW">
+						<qry:attribute name="id" value="$r/@oi_personal_emp"/>
+						<qry:attribute name="d_empresa" value="$r/@d_empresa"/>
+						<qry:attribute name="e_numero_legajo" value="$r/@e_numero_legajo"/>
+						<qry:attribute name="d_ape_y_nom" value="$r/@d_ape_y_nom"/>
+						<qry:attribute name="policy" value="$r/@policy"/>
+					</qry:element>
+				</qry:out>
+			</qry:select>
+			<qry:params>
+				##activos,empresa,oi_banco,oi_sucursal##
+			</qry:params>
+		</form:Resource>
+	</form:Resources>
+</form:Form>

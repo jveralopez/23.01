@@ -1,0 +1,152 @@
+<ALERT xmlns:qry="nomad_engine.qry" label="Alta de Solicitud - Contacto" name="ALTA_SOL_CLI.event">
+	<PARAMS>
+		<PARAM event-key="NucleusProject.Base.Project.Solicitudes.SOLICITUD" type="string" req="0" label="PROJECT" name="Project"/>
+		<PARAM type="date" req="0" label="Fecha Desde" name="f_desde"/>
+		<PARAM type="date" req="0" label="Fecha Hasta" name="f_hasta"/>
+	</PARAMS>
+	<QRY declare="&lt;PARAMS f_desde=&quot;20131017&quot; f_hasta=&quot;&quot;&gt;&#13;&#10;&#9;&lt;EVE IDS=&quot;&quot;/&gt;&#13;&#10;&lt;/PARAMS&gt;">
+		<qry:include name="Nomad.Base.Login.Entidades.ENTIDAD.INFO"/>
+		<qry:main name="" doc="PARAMS">
+			<qry:append-doc name="PARAMIN" doc-path="$PARAMS/PARAMS"/>
+			<qry:element name="ROWS">
+				<qry:element name="TODOS">
+					<qry:attribute name="f_desde" value="#PARAMIN:@f_desde"/>
+					<qry:attribute name="f_hasta" value="#PARAMIN:@f_hasta"/>
+					<qry:append-doc name="FECHAS" doc-path="."/>
+					<qry:insert-select name="QRY_PROY" doc-path="$PARAMIN/EVE"/>
+				</qry:element>
+			</qry:element>
+		</qry:main>
+		<qry:select name="QRY_PROY" doc="PARAM">
+			<qry:xquery>
+				for $r in SQL('
+		SELECT
+			PRY07_SOLICITUDES.c_solicitud,
+			PRY07_SOLICITUDES.d_solicitud,
+			PRY07_SOLICITUDES.o_observaciones,
+			PRY07_SOLICITUDES.o_detalle,
+			PRY08_CLIENTES.d_nom_cliente,
+			PRY08_CLIENTES.c_cliente,  
+			PRY08_CLIENTES.d_email as mail_cli,
+			PRY08_CONTACTOS.d_nom_y_ape,
+			PRY08_CONTACTOS.d_email as mail_cont,
+			PRY11_APLICACIONES.c_aplicacion,
+			PRY11_APLICACIONES.d_aplicacion,
+			PRY11_MODULOS.d_nombre,
+			PRY05_RECURSOS.d_email as mail_rec,
+			PRY05_RECURSOS.c_recurso,
+			PER01_PERSONAL.d_ape_y_nom,
+			PER01_PERSONAL.oi_usuario_sistema
+		FROM
+			PRY01_PROYECTOS,
+			PRY07_SOLICITUDES,
+			PRY02_TAREAS,
+			PRY05_RECURSOS,
+			PER01_PERSONAL,
+			PRY08_CLIENTES,
+			PRY11_APLICACIONES,
+			PRY11_MODULOS,
+			PRY08_CONTACTOS 
+		JOIN
+			PRY01_PROYECTOS.oi_proyecto INNER PRY02_TAREAS.oi_pry_imputa,
+			PRY02_TAREAS.oi_solicitud INNER PRY07_SOLICITUDES.oi_solicitud,
+			PRY05_RECURSOS.oi_recurso INNER PRY07_SOLICITUDES.oi_recurso,
+			PRY05_RECURSOS.oi_personal INNER PER01_PERSONAL.oi_personal,
+			PRY07_SOLICITUDES.oi_modulo INNER PRY11_MODULOS.oi_modulo,
+			PRY11_MODULOS.oi_aplicacion INNER PRY11_APLICACIONES.oi_aplicacion,
+			PRY07_SOLICITUDES.oi_contacto INNER PRY08_CONTACTOS.oi_contacto,
+			PRY08_CONTACTOS.oi_cliente INNER PRY08_CLIENTES.oi_cliente
+		WHERE
+			PRY07_SOLICITUDES.l_envio_mail = 1  
+	 		{%? (#FECHAS:@f_hasta!='') 
+			{% AND PRY07_SOLICITUDES.f_solicitud &lt;= {Datetime(#FECHAS:@f_hasta)} %} {% %} %}
+	 		{%? (#FECHAS:@f_desde!='') 
+			{% AND PRY07_SOLICITUDES.f_solicitud &gt;= {Datetime(#FECHAS:@f_desde)} %} {% %} %}
+			{%? (#PARAM:@IDS!='')                         
+				{% AND PRY07_SOLICITUDES.oi_solicitud in ({%=#PARAM:@IDS%}) %}  
+				{% %} %}	
+			')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:element name="SOLICITUD">
+					<qry:attribute name="COD_SOL" value="$r/@c_solicitud"/>
+					<qry:attribute name="FECHA_HORA" value="format-date(now(), 'dd/mm/yyyy HH:MM')"/>
+					<qry:attribute name="COD_CLI" value="$r/@c_cliente"/>
+					<qry:attribute name="DESC_CLI" value="$r/@d_nom_cliente"/>
+					<qry:attribute name="NOM_CONTACTO" value="$r/@d_nom_y_ape"/>
+					<qry:attribute name="MAIL_CONTACTO" value="nmd-replace(string($r/@mail_cont),',',';')"/>
+					<qry:attribute name="MODULO" value="'[' + $r/@c_aplicacion + '] ' + $r/@d_aplicacion + ' \\ ' + $r/@d_nombre"/>
+					<qry:if test="$r/@mail_rec!=''">
+						<qry:then>
+							<qry:attribute name="COD_RESP" value="$r/@c_recurso"/>
+							<qry:attribute name="NOM_RESP" value="$r/@d_ape_y_nom"/>
+							<qry:attribute name="MAIL_RESP" value="nmd-replace(string($r/@mail_rec),',',';')"/>
+						</qry:then>
+						<qry:else>
+							<qry:insert-select name="sql1" doc-path="$r"/>
+							<qry:attribute name="email" value="substring-after(@MAIL, ';')"/>
+							<qry:attribute name="COD_RESP" value="$r/@c_recurso"/>
+							<qry:attribute name="NOM_RESP" value="$r/@d_ape_y_nom"/>
+							<qry:attribute name="MAIL_RESP" value="@email"/>
+						</qry:else>
+					</qry:if>
+					<qry:attribute name="ASUNTO" value="$r/@d_solicitud"/>
+					<qry:attribute name="DETALLE" value="$r/@o_detalle"/>
+					<qry:attribute name="OBSERVACIONES" value="$r/@o_observaciones"/>
+					<qry:attribute name="MAIL" value="$r/@mail_cli + ';' + $r/@mail_cont"/>
+				</qry:element>
+			</qry:out>
+		</qry:select>
+		<qry:select doc="PARAM" name="sql1">
+			<qry:xquery>
+				for $r in file('Nomad\\Base\\Login\\Entidades\\{%=#PARAM:@oi_usuario_sistema%}.ENTIDAD.XML')/ENTIDAD
+			</qry:xquery>
+			<qry:out>
+				<qry:attribute name="MAIL" value="@MAIL + ';' + nmd-replace(string($r/MAILS/MAIL[@PRINCIPAL=1]/@EMAIL),',',';')"/>
+			</qry:out>
+		</qry:select>
+	</QRY>
+	<MAILS>
+		<MAIL suject="Area Soporte - Sol. {% @SOLICITUD.COD_SOL %}" group="SOLICITUD">
+			**C&#243;digo Solicitud:** {% @SOLICITUD.COD_SOL %} 
+
+**Fecha Hora Mail:** {% @SOLICITUD.FECHA_HORA %}
+
+**Cliente:** [{% @SOLICITUD.COD_CLI %}] {% @SOLICITUD.DESC_CLI %}  **Contacto:** {% @SOLICITUD.NOM_CONTACTO %} ({% @SOLICITUD.MAIL_CONTACTO %})
+
+**M&#243;dulo:** {% @SOLICITUD.MODULO %}
+
+**Asignado a:** [{% @SOLICITUD.COD_RESP %}] {% @SOLICITUD.NOM_RESP %} ({% @SOLICITUD.MAIL_RESP %})
+
+**Asunto:** {% @SOLICITUD.ASUNTO %}
+
+Se informa que la Solicitud mencionada ha sido registrada por el Area de Soporte.
+
+===== Mail Original =====
+  
+
+{% @SOLICITUD.DETALLE %}
+
+{% @SOLICITUD.OBSERVACIONES %}
+		</MAIL>
+	</MAILS>
+	<GROUPS>
+		<GROUP label="Por Solicitud" name="SOLICITUD">
+			<FIELD label="C&#243;digo Solicitud" type="string" name="COD_SOL"/>
+			<FIELD type="string" label="Fecha y Hora" name="FECHA_HORA"/>
+			<FIELD label="C&#243;digo Cliente" type="string" name="COD_CLI"/>
+			<FIELD label="Descripci&#243;n Cliente" name="DESC_CLI" type="string"/>
+			<FIELD label="Nombre Contacto" name="NOM_CONTACTO" type="string"/>
+			<FIELD label="E-mail Contacto" name="MAIL_CONTACTO" type="string"/>
+			<FIELD type="string" label="M&#243;dulo" name="MODULO"/>
+			<FIELD label="C&#243;digo Responsable" type="string" name="COD_RESP"/>
+			<FIELD label="Nombre Responsable" type="string" name="NOM_RESP"/>
+			<FIELD label="E-Mail Responsable" type="string" name="MAIL_RESP"/>
+			<FIELD type="string" label="Asunto" name="ASUNTO"/>
+			<FIELD type="string" label="Detalle" name="DETALLE"/>
+			<FIELD type="string" label="Observaciones" name="OBSERVACIONES"/>
+			<FIELD type="string" label="E-mail" name="MAIL"/>
+		</GROUP>
+	</GROUPS>
+	<ENUMS/>
+</ALERT>

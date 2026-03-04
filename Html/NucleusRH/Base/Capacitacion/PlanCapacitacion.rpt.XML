@@ -1,0 +1,626 @@
+<html:html xmlns:html="nomad_engine.html" xmlns:qry="nomad_engine.qry" xmlns:QRY="nomad_engine.QRY" xmlns:xsl="http://www.w3.org/1999/XSL/Transform" doc="source" name="NucleusRH.Base.Capacitacion.PlanCapacitacionNuevo">
+	<html:for-each declare="&lt;PARAM oi_empresa=&quot;&quot; e_periodo_des=&quot;201009&quot; e_periodo_has=&quot;201010&quot; oi_estructura=&quot;&quot; l_recursivo=&quot;1&quot;/&gt;">
+		<qry:main doc="SOURCE">
+			<qry:append-doc name="DATOS" doc-path="$SOURCE/PARAM"/>
+			<qry:element name="DATOS">
+				<qry:attribute name="ut" value="#PROXY:@src-token"/>
+				<qry:attribute name="qry-orderby" value="'ord'"/>
+				<qry:attribute value="format_date(now(),'dd/mm/yyyy HH:MM')" name="date"/>
+				<qry:attribute name="per_desde" value="format_date(datetime($DATOS/@e_periodo_des+'01'),'mm/yyyy')"/>
+				<qry:attribute name="per_hasta" value="format_date(datetime($DATOS/@e_periodo_has+'01'),'mm/yyyy')"/>
+				<qry:attribute name="d" value="$DATOS/@e_periodo_des"/>
+				<qry:attribute name="h" value="$DATOS/@e_periodo_has"/>
+				<qry:create-doc name="TEMPESTR"/>
+				<qry:insert-select name="qry_estructura" doc-path="$DATOS/.[@oi_estructura!='']" to-element="$TEMPESTR"/>
+				<qry:if test="$TEMPESTR/@ids=''">
+					<qry:then>
+						<qry:call>
+							<PARAM>
+								<qry:attribute name="e_periodo_des" value="$DATOS/@e_periodo_des"/>
+								<qry:attribute name="e_periodo_has" value="$DATOS/@e_periodo_has"/>
+							</PARAM>
+						</qry:call>
+					</qry:then>
+					<qry:else>
+						<qry:insert-select name="qry_split" doc-path="$TEMPESTR"/>
+					</qry:else>
+				</qry:if>
+				<MESES>
+					<qry:insert-select name="qry_anios" doc-path=".."/>
+				</MESES>
+				<qry:insert-select name="qry_estr_filtro" doc-path="$DATOS/.[@oi_estructura!='']"/>
+			</qry:element>
+		</qry:main>
+		<qry:select name="qry_estr_filtro" doc="PARAM">
+			<qry:xquery>
+				for $r in SQL('
+			SELECT u.c_unidad_org, u.d_unidad_org
+			FROM ORG02_ESTRUCTURAS AS e, ORG01_UNI_ORG AS u
+			JOIN e.oi_unidad_org inner u.oi_unidad_org
+			WHERE e.oi_estr_padre = {$PARAM/@oi_estructura}
+			')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:attribute name="sector" value="$r/@d_unidad_org + iif($DATOS/@l_recursivo=1,'   (Incluye subestructuras)','')"/>
+			</qry:out>
+		</qry:select>
+		<qry:select name="qry_estructura" doc="PARAM">
+			<qry:out>
+				<qry:attribute name="ids" value="$PARAM/@oi_estructura"/>
+				<qry:insert-select name="qry_estr_childs" doc-path="$PARAM/.[@l_recursivo=1]"/>
+			</qry:out>
+		</qry:select>
+		<qry:select name="qry_estr_childs" doc="PARAM">
+			<qry:xquery>
+				for $r in SQL('
+			SELECT e.oi_estructura
+			FROM ORG02_ESTRUCTURAS AS e
+			WHERE e.oi_estr_padre = {$PARAM/@oi_estructura}
+			')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:attribute name="ids" value="@ids + ','+ $r/@oi_estructura"/>
+				<qry:insert-select name="qry_estr_childs" doc-path="$r"/>
+			</qry:out>
+		</qry:select>
+		<qry:select name="qry_anios" doc="P">
+			<qry:xquery>
+				for $r in secuence('INT, {%= floor(number($P/@d) div 100) %}, {%= floor(number($P/@h) div 100) %}, 1')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<A>
+					<qry:attribute name="a" value="$r/@value"/>
+					<qry:attribute name="d" value="iif(number($P/@d)&gt;number(@a+'01'), number($P/@d), @a+'01')"/>
+					<qry:attribute name="h" value="iif(number($P/@h)&lt;number(@a+'12'), number($P/@h), @a+'12')"/>
+					<qry:insert-select name="qry_meses" doc-path="."/>
+				</A>
+			</qry:out>
+		</qry:select>
+		<qry:select name="qry_meses" doc="P">
+			<qry:xquery>
+				for $r in secuence('INT,{%= number($P/@d) %},{%= number($P/@h) %}, 1')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<M>
+					<qry:attribute name="m" value="$r/@value"/>
+					<qry:attribute name="u" value="day-from-dateTime(datetime(concat(number($r/@value) + 1, '01'))-1)"/>
+				</M>
+			</qry:out>
+		</qry:select>
+		<qry:select name="qry_split" doc="PARAM">
+			<qry:xquery>
+				for $r in split('50;{%=$PARAM/@ids%}')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:call>
+					<PARAM>
+						<qry:attribute name="e_periodo_des" value="$DATOS/@e_periodo_des"/>
+						<qry:attribute name="e_periodo_has" value="$DATOS/@e_periodo_has"/>
+						<qry:attribute name="ids" value="$r/@value"/>
+					</PARAM>
+				</qry:call>
+			</qry:out>
+		</qry:select>
+	</html:for-each>
+	<html:query declare="&lt;PARAM e_periodo_has=&quot;201707&quot; e_periodo_des=&quot;201007&quot;/&gt;">
+		<qry:main doc="SOURCE">
+			<QRY:NO-SHOW>
+				<qry:append-doc name="DICTADOS" doc-path="."/>
+				<qry:insert-select name="qry_dictados" doc-path="$SOURCE/PARAM"/>
+				<qry:insert-select name="qry_docentes" doc-path="$SOURCE/PARAM"/>
+			</QRY:NO-SHOW>
+		</qry:main>
+		<qry:select doc="PARAM" name="qry_dictados">
+			<qry:xquery>
+				for $r in sql('
+				SELECT
+				 	CYD02_DICTADOS.oi_dictado,
+				 	CYD02_DICTADOS.oi_curso,
+				 	CYD01_CURSOS.d_curso,
+					CYD02_DICTADOS.d_dictado,
+					CYD02_DICTADOS.o_dictado,
+					CYD02_DICTADOS.f_inicio, 
+					CYD02_DICTADOS.f_fin,
+					CYD02_DICTADOS.oi_estructura,
+					CYD02_DICTADOS.n_duracion_hs,
+					CYD02_DICTADOS.c_estado, 
+					CYD02_DICTADOS.o_objetivos,
+					CYD02_DICTADOS.l_evaluable,
+					CYD02_DICTADOS.c_prioridad,
+					CYD02_DICTADOS.o_forma_eval,
+					CANT_ASIS.cant,
+					CYD05_TIPOS_CURSO.d_tipo_curso,
+					UNI_ORG.d_unidad_org
+				FROM 
+					CYD02_DICTADOS,
+					CYD01_CURSOS,
+					CYD05_TIPOS_CURSO,
+					(SELECT 
+						COUNT(CYD02_INSCRIPTOS.oi_inscripto) AS cant,
+						CYD02_INSCRIPTOS.oi_dictado					
+					 FROM	CYD02_INSCRIPTOS
+					 GROUP BY CYD02_INSCRIPTOS.oi_dictado
+					) as CANT_ASIS,
+					(SELECT 
+						ORG02_ESTRUCTURAS.oi_estructura,
+						ORG01_UNI_ORG.d_unidad_org
+					 FROM 		
+					 	ORG02_ESTRUCTURAS,			        
+						ORG01_UNI_ORG
+					 JOIN         
+					 	ORG02_ESTRUCTURAS.oi_unidad_org INNER ORG01_UNI_ORG.oi_unidad_org
+					) as UNI_ORG
+				JOIN
+					CYD02_DICTADOS.oi_curso INNER CYD01_CURSOS.oi_curso,
+					CYD02_DICTADOS.oi_dictado LEFT OUTER CANT_ASIS.oi_dictado,
+					CYD02_DICTADOS.oi_estructura LEFT OUTER UNI_ORG.oi_estructura,
+					CYD01_CURSOS.oi_tipo_curso LEFT OUTER CYD05_TIPOS_CURSO.oi_tipo_curso
+				WHERE 
+					CYD02_DICTADOS.f_inicio &lt; {datetime(string(number($PARAM/@e_periodo_has)+1)+\'01\')} AND
+					CYD02_DICTADOS.f_fin    &gt;= {datetime($PARAM/@e_periodo_des+\'01\')}
+					{%?($PARAM/@ids!='') {% AND CYD02_DICTADOS.oi_estructura in ({%=$PARAM/@ids%}) %} {% %} %}
+			')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:element name="D">
+					<qry:attribute name="ord" value="$r/@f_inicio + $r/@d_dictado"/>
+					<qry:attribute name="curso" value="$r/@d_curso"/>
+					<qry:attribute name="desc" value="$r/@d_dictado"/>
+					<qry:attribute name="oi_dictado" value="$r/@oi_dictado"/>
+					<qry:attribute name="obs" value="$r/@o_dictado"/>
+					<qry:attribute name="asist" value="number($r/@cant)"/>
+					<qry:attribute name="hs" value="iif($r/@n_duracion_hs !='', format_number($r/@n_duracion_hs, '###,###,##0.00'), '')"/>
+					<qry:attribute name="tipo" value="$r/@d_tipo_curso"/>
+					<qry:attribute name="doc" value="$r/@d_ape_y_nom"/>
+					<qry:attribute name="d" value="$r/@f_inicio"/>
+					<qry:attribute name="h" value="$r/@f_fin"/>
+					<qry:attribute name="objetivos" value="$r/@o_objetivos"/>
+					<qry:attribute name="l_evaluable" value="iif($r/@l_evaluable = '1','Si','No')"/>
+					<qry:switch test="$r/@c_prioridad">
+						<qry:case value="A">
+							<qry:attribute name="c_prioridad" value="'Alta'"/>
+						</qry:case>
+						<qry:case value="M">
+							<qry:attribute name="c_prioridad" value="'Media'"/>
+						</qry:case>
+						<qry:case value="B">
+							<qry:attribute name="c_prioridad" value="'Baja'"/>
+						</qry:case>
+						<qry:default>
+							<qry:attribute name="c_prioridad" value="''"/>
+						</qry:default>
+					</qry:switch>
+					<qry:attribute name="o_forma_eval" value="$r/@o_forma_eval"/>
+					<qry:attribute value="now()" name="date"/>
+					<qry:switch test="$r/@c_estado">
+						<qry:case value="P">
+							<qry:attribute name="est" value="'Planificado'"/>
+						</qry:case>
+						<qry:case value="C">
+							<qry:attribute name="est" value="'Cancelado'"/>
+						</qry:case>
+						<qry:default>
+							<qry:attribute name="est" value="'Finalizado'"/>
+						</qry:default>
+					</qry:switch>
+					<qry:if test="$r/@c_estado='P' AND now() &gt;= datetime($r/@f_inicio) AND now() &lt;= datetime($r/@f_fin)">
+						<qry:then>
+							<qry:attribute name="est" value="'En Curso'"/>
+						</qry:then>
+					</qry:if>
+					<qry:attribute name="sector" value="$r/@d_unidad_org"/>
+				</qry:element>
+			</qry:out>
+		</qry:select>
+		<qry:select doc="PARAM" name="qry_docentes">
+			<qry:xquery>
+				for $r in sql('
+				SELECT 
+					CYD04_DOCENTES.d_ape_y_nom,
+					CYD02_DICTADOS.oi_dictado
+				FROM 					        
+					CYD02_DOC_DICTADO,
+					CYD02_DICTADOS,
+					CYD04_DOCENTES
+				JOIN
+					CYD02_DICTADOS.oi_dictado INNER CYD02_DOC_DICTADO.oi_dictado,
+					CYD02_DOC_DICTADO.oi_docente INNER CYD04_DOCENTES.oi_docente
+				WHERE	
+					CYD02_DICTADOS.f_inicio &lt; {datetime(string(number($PARAM/@e_periodo_has)+1)+\'01\')} AND
+					CYD02_DICTADOS.f_fin    &gt;= {datetime($PARAM/@e_periodo_des+\'01\')}
+					{%?($PARAM/@ids!='') {% AND CYD02_DICTADOS.oi_estructura in ({%=$PARAM/@ids%}) %} {% %} %}
+			')/ROWS/ROW,
+			$s in $DICTADOS/D
+			join $r/@oi_dictado inner $s/@oi_dictado
+			</qry:xquery>
+			<qry:out>
+				<qry:insert-select name="qry_pegar" doc-path="$r" to-element="$s"/>
+			</qry:out>
+		</qry:select>
+		<qry:select name="qry_pegar" doc="r">
+			<qry:out>
+				<qry:attribute name="doc" value="@doc + iif(@doc != '', ' - ','') + $r/@d_ape_y_nom"/>
+			</qry:out>
+		</qry:select>
+	</html:query>
+	<html:xslt>
+		<xsl:template match="/DATOS">
+			<html>
+				<HEAD>
+					<script languaje="javascript">
+						function OpenDetail(pOiDictado) {
+						var ut = document.getElementById("hidUT").value;
+					  
+					  window.open("./ReportViewer.aspx?ut="+ut+String.fromCharCode(38)+"file=NucleusRH.Base.Capacitacion.DictadosPorPeriodo.rpt"+String.fromCharCode(38)+"oi_dictado="+pOiDictado, '', 'channelmode=no,directories=no,fullscreen=no,location=no,menubar=no,resizable=yes,scrollbars=yes,status=no,titlebar=no,toolbar=no,left=0,top=0,width='+800+',height='+400); 
+					  
+					}
+					</script>
+					<style>
+						<xsl:text>
+							body, table
+					{
+						font-family:verdana;
+						font-size:10px;
+						border:none;
+						border-collapse:collapse;
+						table-layout:fixed;
+					}
+					td
+					{
+						border-top:none;
+						border-bottom:1px solid #CCCCCC;
+						border-left:1px solid #CCCCCC;
+						border-right:1px solid #CCCCCC;
+						padding:2px 3px 2px 3px;
+						height:17px;
+						overflow:hidden;
+						white-space:nowrap;
+ 						text-overflow: ellipsis;
+					}
+					th
+					{
+						border:1px solid #4E56A0;
+						color:#0D1235;
+						padding:2px 3px 2px 3px;
+					}
+					p
+					{
+						overflow:hidden;
+						white-space:nowrap;
+ 						text-overflow: ellipsis;
+					}
+					.th
+					{
+						background-color:#BCC0FF;
+					}
+					.thmes
+					{
+						background-color:#D8DBFF;
+					}
+					.mes
+					{
+						text-align:center;
+						font-size:8px;
+						padding-left:1px;
+						padding-right:1px;
+						max-width:60px;
+						min-width:60px;
+						width:60px;
+						overflow:hidden;
+						text-overflow:ellipsis;
+					}
+					.mesval
+					{
+						text-align:center;
+						font-size:8px;
+						padding-left:1px;
+						padding-right:1px;
+						max-width:60px;
+						width:60px;
+						min-width:60px;
+						background-color:#FFFBC6;
+						overflow:hidden;
+						text-overflow:ellipsis;
+					}
+				 	
+				 	.title
+				 	{
+          font-size:15px; 
+          height:20px;
+          font-family:verdana;
+          font-weight:bold;
+					}
+                  
+          .table_title
+          {
+          border:none;
+          font-family:verdana;
+          background-color:#FFFFFF;
+          font-size:12px;
+          font-weight:normal;
+          width:100%;
+					}
+						</xsl:text>
+					</style>
+				</HEAD>
+				<body>
+					<table cellspacing="0" cellpadding="0">
+						<col width="200px"/>
+						<col width="180px"/>
+						<col width="170px"/>
+						<xsl:for-each select="MESES/A/M">
+							<col width="60px"/>
+						</xsl:for-each>
+						<col width="50px"/>
+						<col width="50px"/>
+						<col width="90px"/>
+						<col width="120px"/>
+						<col width="80px"/>
+						<col width="140px"/>
+						<tr>
+							<td class="title" align="RIGHT" style="border:none;font-size:12px;font-weight:normal;">
+								<xsl:attribute name="colspan">
+									<xsl:value-of select="count(MESES/A/M)+8"/>
+								</xsl:attribute>
+								<b>
+									<xsl:text>
+										Fecha de Emisi&#243;n:&#160;
+									</xsl:text>
+								</b>
+								<xsl:value-of select="@date"/>
+							</td>
+						</tr>
+						<tr>
+							<td class="title" align="CENTER" style="border:none;">
+								<xsl:attribute name="colspan">
+									<xsl:value-of select="count(MESES/A/M)+8"/>
+								</xsl:attribute>
+								PLAN DE CAPACITACI&#211;N
+							</td>
+						</tr>
+						<tr>
+							<td style="border:none;font-size: 12px;" colspan="3">
+								<b>
+									<xsl:text>
+										Per&#237;odo Desde:&#160;
+									</xsl:text>
+								</b>
+								<xsl:value-of select="@per_desde"/>
+							</td>
+						</tr>
+						<tr>
+							<td style="border:none;font-size: 12px;" colspan="3">
+								<b>
+									<xsl:text>
+										Per&#237;odo Hasta:&#160;
+									</xsl:text>
+								</b>
+								<xsl:value-of select="@per_hasta"/>
+							</td>
+						</tr>
+						<xsl:if test="@sector!=''">
+							<tr>
+								<td style="border:none;font-size: 12px;" colspan="3">
+									<b>
+										<xsl:text>
+											Solicitante:&#160;
+										</xsl:text>
+									</b>
+									<xsl:value-of select="@sector"/>
+								</td>
+							</tr>
+						</xsl:if>
+						<tr>
+							<td style="border:none;">
+								&#160;
+							</td>
+						</tr>
+						<xsl:if test="D">
+							<tr>
+								<th class="th" rowspan="2">
+									CURSO
+								</th>
+								<th class="th" rowspan="2">
+									DICTADO
+								</th>
+								<th class="th" rowspan="2">
+									SOLICITANTE
+								</th>
+								<xsl:for-each select="MESES/A">
+									<th class="th">
+										<xsl:attribute name="colspan">
+											<xsl:value-of select="count(M)"/>
+										</xsl:attribute>
+										<xsl:value-of select="@a"/>
+									</th>
+								</xsl:for-each>
+								<th class="th" rowspan="2">
+									CANT ASIST.
+								</th>
+								<th class="th" rowspan="2">
+									TOTAL HS
+								</th>
+								<th class="th" rowspan="2">
+									TIPO DE ACTIV.
+								</th>
+								<th class="th" rowspan="2">
+									DISERTANTE
+								</th>
+								<th class="th" rowspan="2">
+									ESTADO
+								</th>
+								<th class="th" rowspan="2">
+									OBSERVACI&#211;N
+								</th>
+								<th class="th" rowspan="2">
+									OBJETIVOS
+								</th>
+								<th class="th" rowspan="2">
+									EVALUABLE
+								</th>
+								<th class="th" rowspan="2">
+									PRIORIDAD
+								</th>
+								<th class="th" rowspan="2">
+									FORMA DE EVALUACION
+								</th>
+							</tr>
+							<tr>
+								<xsl:for-each select="MESES/A/M">
+									<th class="thmes">
+										<xsl:value-of select="substring('ENE-FEB-MAR-ABR-MAY-JUN-JUL-AGO-SEP-OCT-NOV-DIC',4*substring(@m,5)-3,3)"/>
+									</th>
+								</xsl:for-each>
+							</tr>
+							<xsl:for-each select="D">
+								<xsl:variable name="DIC" select="."/>
+								<tr style="cursor:pointer;" onmouseover="this.bgColor='#D8DBFF'" onmouseout="this.bgColor='#ffffff'">
+									<xsl:attribute name="onclick">
+										<xsl:value-of select="concat('OpenDetail(', @oi_dictado, ');')"/>
+									</xsl:attribute>
+									<td style="max-width:200px;min-width:200px">
+										<xsl:attribute name="title">
+											<xsl:value-of select="@curso"/>
+										</xsl:attribute>
+										<p>
+											<xsl:value-of select="@curso"/>
+										</p>
+									</td>
+									<td style="max-width:180px;min-width:180px;">
+										<xsl:attribute name="title">
+											<xsl:value-of select="@desc"/>
+										</xsl:attribute>
+										<p>
+											<xsl:value-of select="@desc"/>
+										</p>
+									</td>
+									<td style="max-width:170px;min-width:170px;">
+										<xsl:attribute name="title">
+											<xsl:value-of select="@sector"/>
+										</xsl:attribute>
+										<p>
+											<xsl:value-of select="@sector"/>
+										</p>
+									</td>
+									<xsl:for-each select="/DATOS/MESES/A/M">
+										<xsl:variable name="mesd" select="substring($DIC/@d,1,6)"/>
+										<xsl:variable name="mesh" select="substring($DIC/@h,1,6)"/>
+										<td class="mes" style="max-width:60px;">
+											<xsl:if test="$mesd=@m">
+												<xsl:attribute name="class">
+													mesval
+												</xsl:attribute>
+												<xsl:value-of select="concat('DIA ', substring($DIC/@d,7))"/>
+												<xsl:if test="$mesh!=@m">
+													<xsl:value-of select="concat(' AL ', @u)"/>
+												</xsl:if>
+											</xsl:if>
+											<xsl:if test="$mesh=@m">
+												<xsl:if test="$mesd!=@m">
+													<xsl:attribute name="class">
+														mesval
+													</xsl:attribute>
+												</xsl:if>
+												<xsl:if test="$mesd!=@m">
+													<xsl:value-of select="'DIA 1'"/>
+												</xsl:if>
+												<xsl:if test="$DIC/@d!=$DIC/@h">
+													<xsl:value-of select="concat(' AL ', substring($DIC/@h,7))"/>
+												</xsl:if>
+											</xsl:if>
+											<xsl:if test="number($mesd)&lt;number(@m) and number($mesh)&gt;number(@m)">
+												<xsl:attribute name="class">
+													mesval
+												</xsl:attribute>
+												<xsl:value-of select="concat('DIA 1 AL ', @u)"/>
+											</xsl:if>
+											&#160;
+										</td>
+									</xsl:for-each>
+									<td style="text-align:center;">
+										<xsl:value-of select="@asist"/>
+									</td>
+									<td style="text-align:center;">
+										<xsl:value-of select="@hs"/>
+									</td>
+									<td>
+										<xsl:attribute name="title">
+											<xsl:value-of select="@tipo"/>
+										</xsl:attribute>
+										<p>
+											<xsl:value-of select="@tipo"/>
+										</p>
+									</td>
+									<td style="max-width:120px;">
+										<xsl:attribute name="title">
+											<xsl:value-of select="concat('Disertantes:&#10; ',translate(@doc,'-','&#10;'))"/>
+										</xsl:attribute>
+										<p>
+											<xsl:value-of select="@doc"/>
+										</p>
+									</td>
+									<td>
+										<xsl:attribute name="title">
+											<xsl:value-of select="@est"/>
+										</xsl:attribute>
+										<xsl:value-of select="@est"/>
+									</td>
+									<td>
+										<xsl:attribute name="title">
+											<xsl:value-of select="@obs"/>
+										</xsl:attribute>
+										<p>
+											<xsl:value-of select="@obs"/>
+										</p>
+									</td>
+									<td>
+										<xsl:attribute name="title">
+											<xsl:value-of select="@objetivos"/>
+										</xsl:attribute>
+										<p>
+											<xsl:value-of select="@objetivos"/>
+										</p>
+									</td>
+									<td>
+										<xsl:attribute name="title">
+											<xsl:value-of select="@l_evaluable"/>
+										</xsl:attribute>
+										<p>
+											<xsl:value-of select="@l_evaluable"/>
+										</p>
+									</td>
+									<td>
+										<xsl:attribute name="title">
+											<xsl:value-of select="@c_prioridad"/>
+										</xsl:attribute>
+										<p>
+											<xsl:value-of select="@c_prioridad"/>
+										</p>
+									</td>
+									<td>
+										<xsl:attribute name="title">
+											<xsl:value-of select="@o_forma_eval"/>
+										</xsl:attribute>
+										<p>
+											<xsl:value-of select="@o_forma_eval"/>
+										</p>
+									</td>
+								</tr>
+							</xsl:for-each>
+						</xsl:if>
+					</table>
+					<xsl:if test="not(D)">
+						<span style="color:#666666; font-weight:bold; padding: 20 0 0 20; font-size:14px;">
+							NO SE ENCONTRARON DICTADOS PARA LOS FILTROS SELECCIONADOS
+						</span>
+					</xsl:if>
+					<input type="hidden" id="hidUT" name="hidUT">
+						<xsl:attribute name="value">
+							<xsl:value-of select="@ut"/>
+						</xsl:attribute>
+					</input>
+				</body>
+			</html>
+		</xsl:template>
+	</html:xslt>
+</html:html>

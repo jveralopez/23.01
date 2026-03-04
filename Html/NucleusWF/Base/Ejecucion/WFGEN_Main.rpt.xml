@@ -1,0 +1,1341 @@
+<html:html xmlns:html="nomad_engine.html" xmlns:xsl="http://www.w3.org/1999/XSL/Transform" extends="NucleusWF.Base.Definicion.WFPLA_Main.rpt" name="Formulario de TRABAJO para los WF" doc="source" impl="M">
+	<html:xslt>
+		<xsl:template name="STYLE">
+			BODY {
+	background-color: #ffffff; 
+
+	cursor: default;
+	margin: 0PX; 
+
+	padding-top: 0PX; 
+	padding-left: 0PX; 
+	padding-right: 0PX; 
+	padding-bottom: 0PX; 
+
+	border-top-style: none; 
+	border-left-style: none; 
+	border-right-style: none; 
+	border-bottom-style: none;
+
+	font-size: 10PX;
+	fomt-family: Verdana;
+	color: #000000;
+}
+
+/* LABELS DE CONTROLES --------------------*/
+
+.Label_n {
+	padding-right: 20px;
+	padding-left: 1px;
+
+	font-size: 10px;
+	font-family: Verdana;
+	color: #007393;
+
+}
+
+/* GRILLA --------------------*/
+
+.GridCol_n {
+	background-image: none;
+}
+
+.GridCol_o {
+	background-image: none;
+}      
+
+/* REPORTES --------------------*/
+pre.TEXT 
+{
+	font-size:12px; 
+	color: #000;
+	text-align:left;
+}              
+div.dokuwiki
+{
+	font-size:10px; 
+	color: #000;
+	text-align:left;
+}
+		</xsl:template>
+		<xsl:template name="SCRIPTS">
+			<xsl:call-template name="SCRIPTS-GRID"/>
+			<xsl:call-template name="SCRIPTS-EVENTS"/>
+			<xsl:call-template name="SCRIPTS-FILES"/>
+			var g_rmode = 'WORK';
+	var g_debug = false;
+	  
+	var g_Texts = new Object();	  
+	    
+
+function RefreshReport(pstrGroupName)
+{ 
+	var xmlFormCtrls = nmdGetFormCtrls();
+	if (xmlFormCtrls == null) return;
+	
+	var xmlGroup = xmlFormCtrls.FindElement2("GROUP","cod", pstrGroupName);
+	if (xmlGroup == null) return;
+
+
+	//Genero la URL
+	var URL="";
+	
+	switch(xmlGroup.GetAttr("d_param_1"))
+	{
+		case "URL":
+			URL=xmlGroup.GetAttr("o_text");		
+			break;
+			
+		case "NOMAD":
+			URL="../../ReportViewer.aspx?"+xmlGroup.GetAttr("o_text");
+			break;
+
+		default:
+			if (xmlGroup.GetAttr("d_param_1").substr(0,5)=="WIKI/")
+			{               
+				document.getElementById(xmlGroup.GetAttr("cod")).innerHTML=WikiToHTML(parent.GenerateReportText(xmlGroup.GetAttr("d_param_1").substr(5), g_xmlValues));
+				return;
+			} else
+			if (xmlGroup.GetAttr("d_param_1").substr(0,5)=="TEXT/")
+			{               
+				document.getElementById(xmlGroup.GetAttr("cod")).innerHTML=parent.GenerateReportText(xmlGroup.GetAttr("d_param_1").substr(5), g_xmlValues);
+				return;
+			} else
+				URL="../../ReportViewer.aspx?ut="+parent.GetProxy().UserToken()+"|report="+parent.GetProxy().AppName()+"."+xmlGroup.GetAttr("d_param_1").substr(0,xmlGroup.GetAttr("d_param_1").length-4)+"|"+xmlGroup.GetAttr("o_text");
+			break;
+	}                  
+	
+	if (URL=="") return;
+	
+	URL=Replace(URL,"\n","{#CHAR.AMP#}");
+	URL=Replace(URL,"|","{#CHAR.AMP#}");
+
+	//Cambios Basicos	 
+ 	while(URL.indexOf("{")!=-1)
+ 	{
+ 		preURL=URL.substr(0, URL.indexOf("{"));
+ 		varURL=URL.substr(preURL.length+1, URL.substring(preURL.length+1).indexOf("}"));
+ 		posURL=URL.substr(preURL.length+varURL.length+2);
+ 		
+ 		URL=preURL+GetVariableString(varURL)+posURL;
+ 	}                    
+ 	
+ 	document.getElementById(xmlGroup.GetAttr("cod")).src=URL;
+}
+
+	    
+function BindControls(pstrValues) {
+	var xmlFormCtrls;
+  var xmlMetadata;
+  var xmlFile, xmlFiles;
+	var xmlGroup;
+	var xmlCtrl;
+	var xmlVar;
+	var xmlOpt;
+	var objValue;
+	var objCtrl;
+	var objVar;
+  
+	g_xmlValues = new NomadXML(pstrValues);
+	xmlFormCtrls = nmdGetFormCtrls();
+	
+	//Obtiene el estado de la variable debug
+	g_debug = g_xmlValues.GetAttrBool("debug");
+	
+	//alert(g_xmlValues.FindElement("DATA").ToString());
+	
+	//Recorre los metadata de las variables y guarda:
+	//- el elemento XML del metadata
+	//- un array con los controles asociados a esa variable
+	if (g_xmlValues != null) {
+		
+		g_cVars = new Array();
+		if (g_xmlValues != null) {
+			xmlMetadata = g_xmlValues.FindElement("METADATA");
+			
+			var xmlCtrl;
+                                
+			//Recorre los grupos del Metadata
+			for (xmlGroup = xmlMetadata.FirstChild(); xmlGroup != null; xmlGroup = xmlGroup.Next()) {
+				
+				strGroupName = xmlGroup.GetAttr("name");
+				
+				//Recorre las variables del grupo
+				for (xmlVar = xmlGroup.FirstChild(); xmlVar != null; xmlVar = xmlVar.Next()) {
+				  
+					//alert("variable " + strGroupName + "." + xmlVar.GetAttr("name"));
+					objVar = new Object();
+					objVar.VarName = strGroupName + "." + xmlVar.GetAttr("name");
+					objVar.VarName = objVar.VarName.toUpperCase();
+					objVar.xmlMetadata = xmlVar;
+					objVar.xmlMetadataGrp = xmlGroup;
+					objVar.Ctrls = null;
+					
+					if (xmlVar.GetAttr("type") == "enum") {
+						objVar.Options = new Array();
+						for (xmlOpt = xmlVar.FirstChild(); xmlOpt != null; xmlOpt = xmlOpt.Next()) {
+							//Es un combo. Agrega los options
+							objVar.Options[xmlOpt.GetAttr("val")] = xmlOpt.GetAttr("txt");
+						}
+					}
+					
+					g_cVars[objVar.VarName] = objVar;
+					
+				}
+			}
+		}		
+	}
+  
+  
+	//Recorre los controles del formulario, obtiene los valores y los Setea
+	if (xmlFormCtrls != null) {
+
+		//Recorre los grupos
+		for (xmlGroup = xmlFormCtrls.FirstChild(); xmlGroup != null; xmlGroup = xmlGroup.Next()) {
+      
+      //Valida si es un grupo con GRILLA
+      if (xmlGroup.GetAttr("c_var_group") != "") {
+      	g_cVarsGrid[xmlGroup.GetAttr("c_var_group")] = xmlGroup.GetAttr("cod");
+      	g_cGridVars[xmlGroup.GetAttr("cod")] = xmlGroup.GetAttr("c_var_group");
+      }
+      
+			//Recorre los campos del grupo
+			for (xmlCtrl = xmlGroup.FirstChild(); xmlCtrl != null; xmlCtrl = xmlCtrl.Next()) {
+				
+				//Agrega el control en el array de controles
+				var objCtrl = new Object();
+				objCtrl.GroupName = xmlGroup.GetAttr("cod");
+				objCtrl.GroupType = xmlGroup.GetAttr("c_mode");
+
+				objCtrl.VarName   = xmlCtrl.GetAttr("c_var");
+				objCtrl.VarName   = objCtrl.VarName == "" ? null : objCtrl.VarName;
+				objCtrl.VarType   = xmlCtrl.GetAttr("c_type");
+				objCtrl.ParentVar = xmlCtrl.GetAttr("c_parent_field");
+				
+				objCtrl.CtrlName  = xmlCtrl.GetAttr("ctrl_name");
+				objCtrl.CtrlLabel = xmlCtrl.GetAttr("label");
+				objCtrl.CtrlMode  = xmlCtrl.GetAttr("c_mode");
+				
+				objCtrl.OnChange = xmlCtrl.GetAttr("onchange") == "1";
+				objCtrl.OnValidate = xmlCtrl.GetAttr("onvalidate") == "1";
+				
+				//Agrega el control a la coleccion
+				AddInCols(objCtrl);
+				
+				//Agrega el control a la lista de hijos de una variable
+				AddVarChildren(objCtrl);
+			}
+			
+			switch (xmlGroup.GetAttr("c_mode")) {
+				case "MAIN":
+					//Recorre los campos del grupo y setea los valores
+					for (xmlCtrl = xmlGroup.FirstChild(); xmlCtrl != null; xmlCtrl = xmlCtrl.Next()) {
+	
+						//Sete el valor al control.
+						//Obtiene el valor de la variable
+						objValue = GetVariable(xmlCtrl.GetAttr("c_var"));
+						
+						//Obtiene nuevamente el control
+						objCtrl = g_cCtrls[xmlCtrl.GetAttr("ctrl_name")];
+
+						if (objValue || objCtrl.VarType == "text" || objValue == 0) {
+							nmdSetCtrlValue(objCtrl.CtrlName, objValue);
+						}
+					}
+					break;
+
+				case "GRID":
+					//Obtiene el count del child
+					var x;
+					var ChildCount = GetChildLength(xmlGroup.GetAttr("c_var_group"));
+					
+					//Recorre los child y hace los add a la grilla
+					for (x=0; x!=ChildCount; x++) {
+						nmdAddGridRow(xmlGroup.GetAttr("cod"));
+					
+						//Recorre los campos del grupo y setea los valores
+						for (xmlCtrl = xmlGroup.FirstChild(); xmlCtrl != null; xmlCtrl = xmlCtrl.Next()) {
+		
+							//Sete el valor al control.
+							//Obtiene el valor de la variable
+							objValue = GetVariable(xmlCtrl.GetAttr("c_var"), x+1);
+							
+							//Obtiene nuevamente el control
+							objCtrl = g_cCtrls[xmlCtrl.GetAttr("ctrl_name")];
+							
+							if (objValue || objCtrl.VarType == "text") {
+								nmdSetCtrlValue(objCtrl.CtrlName, objValue, x+1);
+							}
+						}
+					}
+					break;       
+					    
+				case "REPORT":                   
+					RefreshReport(xmlGroup.GetAttr("cod"));
+					break;
+
+				case "BUT":
+					break;
+			}
+			
+		}
+		
+		//Recorre los posibles archivos adjuntos
+		xmlFiles = g_xmlValues.FindElement("FILES"); 
+
+		var htmlFiles = document.getElementById("filesTABLE");
+		if (htmlFiles) {
+			for (xmlFile = xmlFiles.FirstChild(); xmlFile!= null; xmlFile = xmlFile.Next()) {
+				nmdAddFileToTable(xmlFile.GetAttr("id"), xmlFile.GetAttr("name"), xmlFile.GetAttr("size")); //FALTA EL SIZE
+			}
+			
+		}
+		
+	}
+	
+}
+
+//Setea un valor en un control
+//Recibe un valor tipado
+function nmdSetCtrlValue(pCod, pobjValue, pIndex) {
+	var objCtrl;
+	var htmlCtrl;
+	var CtrlName;
+
+	pCod = pCod.toUpperCase();	
+	//Valida que exista el control
+	objCtrl = g_cCtrls[pCod];
+	if (objCtrl) {
+		
+		//Si es un valor de un child busca el item adecuado.
+		CtrlName = pIndex ? objCtrl.CtrlName + "_" + pIndex : objCtrl.CtrlName;
+
+		htmlCtrl = document.getElementById(CtrlName);
+
+
+		switch (objCtrl.VarType) {
+			case "string":
+			case "text":
+				htmlCtrl.value = pobjValue ? pobjValue : "";
+				break;
+		
+			case "int":
+				htmlCtrl.value = int2text(pobjValue);
+				break;
+
+			case "double":
+				htmlCtrl.value = number2text(pobjValue);
+				break;
+
+			case "date":
+				htmlCtrl.value = pobjValue ? date2text(pobjValue) : "";
+				break;
+
+			case "bool":
+				htmlCtrl.checked = pobjValue ? pobjValue : false;
+				break;
+
+			case "enum":
+				htmlCtrl.value = pobjValue ? pobjValue.Value : "";
+				break;
+				
+			case "fk":
+				htmlCtrl.value = pobjValue ? pobjValue.Desc : "";
+				break;
+				
+			case "file": alert("nmdSetCtrlValue file no implementado"); break;
+
+		}
+
+	}
+}
+
+
+//Retorna un objeto tipo "Valor de combo"
+function nmdText2ObjEnum(pobjHTML) {
+	var strDesc;
+	var objResult = new Object();
+	
+	if (pobjHTML) {
+		objResult.Type  = "enum";
+		objResult.Value = pobjHTML.value;
+		objResult.Des   = pobjHTML.options[pobjHTML.selectedIndex].text;
+	} else {
+	}
+		
+	return objResult;
+}
+
+
+
+//Retorna un objeto tipo "Valor de combo"
+function nmdGetObjEnum(pstrValue, pOptions) {
+	return nmdGetObjValue(pstrValue, pOptions[pstrValue]);
+}
+
+//Retorna un objeto tipo VALOR y DESCRIPCION
+function nmdGetObjValue(pstrValue, pstrDesc) {
+	var objResult;
+	
+	objResult = new Object();
+	objResult.Value = pstrValue;
+	objResult.Desc  = pstrDesc;
+	
+	return objResult;
+}
+                
+
+
+//Se llama cuando se selecciona una fila desde una Guia
+function nmdSetFK(pVarName, pVal, pDes, pIndex, pElement) {
+	var objResult;
+	
+	objResult = nmdGetObjValue(pVal, pDes);
+	nmdSetFKResult(pElement);
+	SetFK(pVarName, objResult, pIndex);
+}
+
+
+//Setea la bandera correspondiente indicando el estado del control
+function nmdSetEnabled(pobjCtrl, pValue, pIndex) {
+	var htmlCtrl;
+	var arrHtmlCtrls;
+	var x;
+	var strCtrlName;
+	var strHelpName;
+
+	if (pobjCtrl) {
+
+		switch (pobjCtrl.GroupType) {
+			case "MAIN":
+			case "GRID":
+			
+				strCtrlName = pIndex ? (pobjCtrl.CtrlName + "_" + pIndex) : pobjCtrl.CtrlName;
+				if (pIndex) {
+					strCtrlName = pobjCtrl.CtrlName + "_" + pIndex;
+					strHelpName = pobjCtrl.CtrlName + "_help_" + pIndex; 
+				} else {
+					strCtrlName = pobjCtrl.CtrlName;
+					strHelpName = pobjCtrl.CtrlName + "_help"; 
+				}
+				
+
+				switch (pobjCtrl.VarType) {
+					case "string":
+					case "int":
+					case "text":
+					case "double":
+					case "bool":
+					case "enum": 
+						htmlCtrl = document.getElementById(strCtrlName);
+						if (htmlCtrl) htmlCtrl.setAttribute("nmd-dis", pValue ? "0" : "1");
+						break;
+						
+					case "date":
+						htmlCtrl = document.getElementById(strCtrlName);
+						if (htmlCtrl) htmlCtrl.setAttribute("nmd-dis", pValue ? "0" : "1");
+
+					case "fk":
+						arrHtmlCtrls = document.getElementsByName(strHelpName);
+						for (x=0; x!=arrHtmlCtrls.length; x++) {
+							htmlCtrl = arrHtmlCtrls[x];
+							htmlCtrl.setAttribute("nmd-dis", pValue ? "0" : "1");
+						}
+						break;
+
+					case "file": alert("nmdSetEnabled file no implementado"); break;
+	
+				}
+
+				break;
+
+			case "BUT":
+				htmlCtrl = document.getElementById(pobjCtrl.CtrlName);
+				if (htmlCtrl) htmlCtrl.setAttribute("nmd-dis", pValue ? "0" : "1");
+				break;
+		}		
+
+		//Habilita o deshabilita realmente el control
+		nmdSetActive(pobjCtrl, pValue, pIndex);
+
+	}
+}
+
+//Habilita o deshabilita el control indicado
+function nmdSetActive(pobjCtrl, pValue, pIndex) {
+	var htmlCtrl;
+	var arrHtmlCtrls;
+	var x;
+	var CtrlName, HelpName;
+	var BanValue;
+
+	if (pobjCtrl) {
+
+		switch (pobjCtrl.GroupType) {
+			case "MAIN":
+			case "GRID":
+			
+				CtrlName = pIndex ? (pobjCtrl.CtrlName + "_" + pIndex) : pobjCtrl.CtrlName;
+
+				switch (pobjCtrl.VarType) {
+					case "string":
+					case "int":
+					case "text":
+					case "double":
+					case "bool":
+					case "enum":
+						htmlCtrl = document.getElementById(CtrlName);
+						if (htmlCtrl) {
+							BanValue = !(htmlCtrl.getAttribute("nmd-dis") == "1"); 
+							htmlCtrl.disabled = !(nmdAnd(BanValue, pValue));
+							htmlCtrl.className = htmlCtrl.disabled ? "BoxD" : "Box";
+						}
+						break;
+						
+					case "date":
+						htmlCtrl = document.getElementById(CtrlName);
+						if (htmlCtrl) {
+							BanValue = !(htmlCtrl.getAttribute("nmd-dis") == "1"); 
+							htmlCtrl.disabled = !(nmdAnd(BanValue,pValue));
+							htmlCtrl.className = htmlCtrl.disabled ? "BoxD" : "Box";
+						}
+
+					case "fk":
+	
+						HelpName = pobjCtrl.CtrlName + (pIndex ? ("_help_" + pIndex) : "_help");
+						arrHtmlCtrls = document.getElementsByName(HelpName);
+						for (x=0; x!=arrHtmlCtrls.length; x++) {
+							htmlCtrl = arrHtmlCtrls[x];
+							BanValue = !(htmlCtrl.getAttribute("nmd-dis") == "1"); 
+							
+							//htmlCtrl.disabled = !(nmdAnd(BanValue,pValue));
+							
+							SButtonChangeStyle(htmlCtrl, (nmdAnd(BanValue,pValue) ? "ENABLED":"DISABLED"));
+						}
+						break;
+
+					case "file": alert("nmdSetEnabled file no implementado"); break;
+	
+				}
+	
+				break;
+			
+			case "BUT":
+				htmlCtrl = document.getElementById(pobjCtrl.CtrlName);
+				if (htmlCtrl) htmlCtrl.disabled = !pValue;
+				break;
+		}		
+		
+	}
+}
+
+//Retorna un bool indicando si el control est#abilitado
+function nmdGetEnabled(pobjCtrl, pIndex) {
+
+}
+		</xsl:template>
+		<xsl:template name="CTRLS-DATA">
+			<textarea id="ctrls_data" name="ctrls_data" style="display:none;">
+				<CTRLS-DATA>
+					<xsl:for-each select="GROUP">
+						<GROUP>
+							<xsl:attribute name="cod">
+								<xsl:value-of select="@cod"/>
+							</xsl:attribute>
+							<xsl:attribute name="c_mode">
+								<xsl:value-of select="@c_mode"/>
+							</xsl:attribute>
+							<xsl:attribute name="c_var_group">
+								<xsl:value-of select="@c_var_group"/>
+							</xsl:attribute>
+							<xsl:attribute name="d_param_1">
+								<xsl:value-of select="@d_param_1"/>
+							</xsl:attribute>
+							<xsl:attribute name="d_param_2">
+								<xsl:value-of select="@d_param_2"/>
+							</xsl:attribute>
+							<xsl:attribute name="d_param_3">
+								<xsl:value-of select="@d_param_3"/>
+							</xsl:attribute>
+							<xsl:attribute name="o_text">
+								<xsl:value-of select="translate(@o_text,'&amp;','|')"/>
+							</xsl:attribute>
+							<xsl:for-each select="FIELD">
+								<FIELD>
+									<xsl:attribute name="cod">
+										<xsl:value-of select="@cod"/>
+									</xsl:attribute>
+									<xsl:attribute name="ctrl_name">
+										<xsl:value-of select="@ctrl_name"/>
+									</xsl:attribute>
+									<xsl:attribute name="label">
+										<xsl:value-of select="@d_field"/>
+									</xsl:attribute>
+									<xsl:attribute name="c_mode">
+										<xsl:value-of select="@c_mode"/>
+									</xsl:attribute>
+									<xsl:attribute name="c_type">
+										<xsl:value-of select="@c_type"/>
+									</xsl:attribute>
+									<xsl:attribute name="c_var">
+										<xsl:value-of select="@c_var"/>
+									</xsl:attribute>
+									<xsl:attribute name="c_parent_field">
+										<xsl:value-of select="@c_parent_field"/>
+									</xsl:attribute>
+									<xsl:attribute name="im_class">
+										<xsl:value-of select="@d_type_fk"/>
+									</xsl:attribute>
+									<xsl:if test="@o_onchange != ''">
+										<xsl:attribute name="onchange">
+											<xsl:value-of select="'1'"/>
+										</xsl:attribute>
+									</xsl:if>
+									<xsl:if test="@o_onvalidate != ''">
+										<xsl:attribute name="onvalidate">
+											<xsl:value-of select="'1'"/>
+										</xsl:attribute>
+									</xsl:if>
+								</FIELD>
+							</xsl:for-each>
+						</GROUP>
+					</xsl:for-each>
+				</CTRLS-DATA>
+			</textarea>
+		</xsl:template>
+		<xsl:template name="SCRIPTS-INCLUDES">
+			<script src="../../Scripts/generalFunctions.js" type="text/javascript">
+				matias
+			</script>
+			<script src="../../Scripts/nmdXML.js" type="text/javascript">
+				matias
+			</script>
+			<script src="../../Scripts/nmdWF.js" type="text/javascript">
+				matias
+			</script>
+			<link rel="stylesheet" media="all" type="text/css" href="../../Skins/_Default/styles/WIKI-common.css"/>
+			<link rel="stylesheet" media="screen" type="text/css" href="../../Skins/_Default/styles/WIKI-all.css"/>
+			<link rel="stylesheet" media="print" type="text/css" href="../../Skins/_Default/styles/WIKI-print.css"/>
+		</xsl:template>
+		<xsl:template name="SCRIPTS-CTRLS">
+			<xsl:text>
+				&#13;&#10;//INI-SCRIPTS
+		//Scripts del formulario
+			</xsl:text>
+			<xsl:value-of select="concat('&#13;&#10;', @o_scripts_1, @o_scripts_2, @o_scripts_3, @o_scripts_4, '&#13;&#10;')"/>
+			<xsl:text>
+				//Fin de scripts del formulario
+			</xsl:text>
+			<xsl:for-each select="GROUP">
+				<xsl:if test="@c_mode = 'GRID'">
+					<xsl:value-of select="concat('&#13;&#10;function OnChange_', translate(@cod, '.', '_'), '(pEvent) {&#13;&#10;', @o_onchange, '&#13;&#10;}')"/>
+				</xsl:if>
+				<xsl:for-each select="FIELD">
+					<xsl:if test="@o_onchange != ''">
+						<xsl:choose>
+							<xsl:when test="../@c_mode = 'BUT'">
+								<xsl:value-of select="concat('&#13;&#10;function OnClick_', translate(@ctrl_name, '.', '_'), '(pEvent) {&#13;&#10;', @o_onchange, '&#13;&#10;}')"/>
+							</xsl:when>
+							<xsl:otherwise>
+								<xsl:value-of select="concat('&#13;&#10;function OnChange_', translate(@ctrl_name, '.', '_'), '(pEvent) {&#13;&#10;', @o_onchange, '&#13;&#10;}')"/>
+							</xsl:otherwise>
+						</xsl:choose>
+					</xsl:if>
+					<xsl:if test="@o_onvalidate != ''">
+						<xsl:value-of select="concat('&#13;&#10;function OnValidate_', translate(@ctrl_name, '.', '_'), '(pEvent) {&#13;&#10;', @o_onvalidate, '&#13;&#10;}')"/>
+					</xsl:if>
+				</xsl:for-each>
+			</xsl:for-each>
+			<xsl:text>
+				&#13;&#10;//FIN-SCRIPTS
+			</xsl:text>
+		</xsl:template>
+		<xsl:template name="SCRIPTS-GRID">
+			//Scripts para la GRILLA
+
+//Al hacer click en el HELP de los row de la grilla
+function nmdOnGRIDHelpClick(phtmlHelp) {
+	var strGridName;
+	var htmlTable;
+	
+	if (phtmlHelp.disabled) return;
+	
+	//Busca la tabla principal de la grilla
+	strGridName = Replace(phtmlHelp.id, "_help", "");
+	htmlTable = document.getElementById(strGridName);
+	
+	//Determina que modo es el del HELP
+	if (phtmlHelp.getAttribute("nmd-mode") == "A") {
+		//Agrega un CHILD al XML de datos
+		AddChildXML(htmlTable.getAttribute("nmdVarGroup"));
+
+	} else {                           
+	
+		if (confirm("&#191;Est&#225; seguro que desea eliminar el registro?")) {
+			//Elimina un CHILD al XML de datos
+			DeleteChildXML(htmlTable.getAttribute("nmdVarGroup"), phtmlHelp.getAttribute("nmd-idx"));
+		}
+	}	
+
+}
+ 
+//Agrega un registro a la grilla
+function nmdAddGridRow(pName) {
+	var htmlTable, htmlProto;	
+	var newRow, newCell;
+	var x;
+	var htmlProtoCell;
+	var strGridMode;
+	var htmlA, htmlImg;
+	var strInnerTD;
+	var RowsCount;
+	
+	//Obtiene la tabla y el row proto
+	htmlTable = document.getElementById(pName);
+	htmlProto = document.getElementById(pName + "_proto");
+	
+	strGridMode = htmlTable.getAttribute("nmdGridMode");
+	
+	//Crea el nuevo ROW
+	newRow = htmlTable.insertRow(htmlTable.rows.length-1);
+	newRow.className = htmlProto.className;
+	
+	RowsCount = htmlTable.rows.length-3;
+		
+	//Recorre los TDs del proto y se los agrega al nuevo Row
+	for (x = 0; Compare(x, htmlProto.cells.length) == -1; x++) {
+		htmlProtoCell = htmlProto.cells[x];
+		
+		newCell = newRow.insertCell(-1);
+		strInnerTD = htmlProtoCell.innerHTML;
+		
+		//alert("strInnerTD ANTES " + strInnerTD)
+		
+		if (htmlProtoCell.getAttribute("nmdCtrlName") != "") {
+			//Realiza los reemplazos de los nombres de los controles
+			strInnerTD = Replace(strInnerTD, ' id="' + htmlProtoCell.getAttribute("nmdCtrlName") + '_help"',   ' id="' + htmlProtoCell.getAttribute("nmdCtrlName") + "_help_" + RowsCount + '"');
+			strInnerTD = Replace(strInnerTD, ' name="' + htmlProtoCell.getAttribute("nmdCtrlName") + '_help"', ' name="' + htmlProtoCell.getAttribute("nmdCtrlName") + "_help_" + RowsCount + '"');
+			strInnerTD = Replace(strInnerTD, ' id=' + htmlProtoCell.getAttribute("nmdCtrlName") + '_help',     ' id="' + htmlProtoCell.getAttribute("nmdCtrlName") + "_help_" + RowsCount + '"');
+			strInnerTD = Replace(strInnerTD, ' name=' + htmlProtoCell.getAttribute("nmdCtrlName") + '_help',   ' name="' + htmlProtoCell.getAttribute("nmdCtrlName") + "_help_" + RowsCount + '"');
+
+			strInnerTD = Replace(strInnerTD, ' id="' + htmlProtoCell.getAttribute("nmdCtrlName") + '"',        ' id="' + htmlProtoCell.getAttribute("nmdCtrlName") + "_" + RowsCount + '"');
+			strInnerTD = Replace(strInnerTD, ' name="' + htmlProtoCell.getAttribute("nmdCtrlName") + '"',      ' name="' + htmlProtoCell.getAttribute("nmdCtrlName") + "_" + RowsCount + '"');
+			strInnerTD = Replace(strInnerTD, ' id=' + htmlProtoCell.getAttribute("nmdCtrlName"),               ' id="' + htmlProtoCell.getAttribute("nmdCtrlName") + "_" + RowsCount + '"');
+			strInnerTD = Replace(strInnerTD, ' name=' + htmlProtoCell.getAttribute("nmdCtrlName"),             ' name="' + htmlProtoCell.getAttribute("nmdCtrlName") + "_" + RowsCount + '"');
+			
+			strInnerTD = Replace(strInnerTD, ' nmd-idx="0"', ' nmd-idx="' + RowsCount + '"');
+		}
+		
+		//alert("strInnerTD DESPUES " + strInnerTD)
+		newCell.innerHTML = strInnerTD;
+		newCell.className = htmlProtoCell.className;
+		
+		//Verifica el smallbutton de eliminar
+		if (x==0) {
+			if (strGridMode == "CT") {
+				
+				//Cambia el help
+				htmlA = newCell.childNodes.item(0);
+				htmlA.setAttribute("nmd-mode", "D");
+				
+				htmlImg = htmlA.childNodes.item(0);
+				htmlImg.src = Replace(htmlImg.src, "table_add_n.gif", "table_delete_n.gif");
+				htmlImg.src = Replace(htmlImg.src, "table_add_o.gif", "table_delete_n.gif");
+				htmlImg.title = "Eliminar el registro";
+							
+			} else {
+				newCell.innerHTML = " ";
+			}
+		}
+		
+	}
+
+	//Llama al evento Onchange de la grilla
+	nmdOnEvent(pName, "ONCHANGE", null, "ADDROW");
+}
+
+function nmdDeleteGridRow(pName, pIndex) {
+	var htmlTable;	
+	var VarGroup;
+	var xmlFormCtrls, xmlGroup;
+	var xmlCtrl;
+	var xmlGroup;
+                            
+	htmlTable = document.getElementById(pName);
+
+ 	if (htmlTable) {
+
+		VarGroup = htmlTable.getAttribute("nmdVarGroup");
+  	
+		//Rebindea la grilla
+		var x;
+		var ChildCount = GetChildLength(VarGroup);
+
+		xmlFormCtrls = nmdGetFormCtrls();
+		xmlGroup = xmlFormCtrls.FindElement2("GROUP", "cod", pName);
+
+		//Recorre los child y hace los add a la grilla
+		for (x=0; x!=ChildCount; x++) {
+		
+			//Recorre los campos del grupo y setea los valores
+			for (xmlCtrl = xmlGroup.FirstChild(); xmlCtrl != null; xmlCtrl = xmlCtrl.Next()) {
+	
+				//Sete el valor al control.
+
+				//Obtiene el valor de la variable
+				objValue = GetVariable(xmlCtrl.GetAttr("c_var"), x+1);
+				
+				//Obtiene nuevamente el control
+				objCtrl = g_cCtrls[xmlCtrl.GetAttr("ctrl_name")];
+				nmdSetCtrlValue(objCtrl.CtrlName, objValue, x+1);
+			}
+		}
+
+		//Borra el ultimo
+		htmlTable.deleteRow(htmlTable.rows.length-2);
+		
+		//Llama al evento Onchange de la grilla
+		nmdOnEvent(pName, "ONCHANGE", null, "DELROW");
+	}
+
+}
+		</xsl:template>
+		<xsl:template name="SCRIPTS-EVENTS">
+			//Al iniciar la pagina
+function nmdPageLoad() {
+	//Se obtiene el titulo del formulario
+	var objTD = document.getElementById("tdtitle");
+	
+	//Se informa al FORM que el formulario HMTL ya esta listo
+	parent.FormReady(window, objTD.innerText);
+
+}
+
+//Pone en foco el control indicado
+function nmdSetFocus(pCtrl, pIndex) {
+	var objCtrl;
+	var htmlCtrl;
+
+	//Valida si le pasan el nombre del control o el objeto
+	if (typeof(pCtrl) == "object") {
+		objCtrl = pCtrl;
+	} else {
+		pCtrl = pCtrl.toUpperCase();	
+		objCtrl = g_cCtrls[pCtrl];
+	}
+
+	//Valida que exista el control
+	if (objCtrl) {
+		
+		htmlCtrl = document.getElementById(objCtrl.CtrlName);
+
+		if (htmlCtrl) {
+			
+			switch (objCtrl.GroupType) {
+				case "MAIN":
+					switch (objCtrl.VarType) {
+						case "string":
+						case "int":
+						case "text":
+						case "double":
+						case "date":
+						case "bool":
+						case "enum":
+						case "fk":
+							if (!htmlCtrl.disabled)
+								htmlCtrl.focus();
+							break;
+							
+						case "file": alert("nmdSetFocus file no implementado"); break;
+	
+					}
+	
+					break;
+				
+				case "GRID":
+					//TODO:
+					//alert("nmdSetFocus GRID no implementado");
+					break;
+	
+				case "BUT":
+					//TODO:
+					//alert("nmdSetFocus BUT no implementado");
+					break;
+			}		
+		}	
+	}
+	
+
+}
+
+//Se ejecuta al hacerse el onBlur del control
+function nmdOnBlur(pobjHTML) {
+	var objNewValue;
+	var Index;
+	var DoSetVariable = true;
+  
+	//Determina el tipo de valor
+	switch (pobjHTML.getAttribute("nmd-type")) {
+		case "string":
+		case "text":
+			
+			objNewValue = pobjHTML.value;
+			break;
+			
+		case "int":    objNewValue = text2int(pobjHTML.value); break;
+		case "double": objNewValue = text2number(pobjHTML.value); break;
+		case "date":   objNewValue = text2date(pobjHTML.value); break;
+		case "bool":   objNewValue = pobjHTML.checked; break;
+		case "enum":   objNewValue = nmdText2ObjEnum(pobjHTML); break;
+
+		case "fk":     DoSetVariable = false; break;
+
+		case "file":
+			alert("nmdOnBlur file no implementado");
+			break;
+		
+	}
+
+	if (DoSetVariable) {
+		SetVariable(pobjHTML.getAttribute("nmd-var"), objNewValue, parseInt(pobjHTML.getAttribute("nmd-idx"), 10));
+	}
+	
+}
+
+//Se ejecuta al hacerse el onclick del boton
+function nmdOnClick(pobjHTML) {
+	var strValue;
+	var objCtrl;
+	var strEventsResult;
+
+	//Busca el control asociado al boton
+	objCtrl = g_cCtrls[pobjHTML.id];
+	if (objCtrl?false:true) {
+		alert("No se econtro el bot&#243;n '" + pobjHTML.id + "'");
+		return;
+	}
+	
+	//----------------------------------------------------------
+	//Realiza las acciones de acuerdo al tipo de boton
+
+	switch(objCtrl.CtrlMode) {
+		case "CA": //Cancelar  --------------------------------------------------------------
+
+			//4 - Avisa al form padre y cierra el reporte
+			parent.CompleteEdit(g_xmlValues, objCtrl.CtrlMode);
+		
+			break;
+			
+		case "AC": //Aceptar  ---------------------------------------------------------------
+		case "AE": //Aceptar y Esperar  -----------------------------------------------------
+
+				//1 - Determina si existe un valor a setear. Solo setea variables de tipo MAIN
+				if (pobjHTML.getAttribute("nmd-var") != "") {
+					strValue = "" + pobjHTML.getAttribute("nmd-valvar");
+					SetVariable(pobjHTML.getAttribute("nmd-var"), (strValue ? strValue : ""), null);
+				}
+
+				//2 - Ejecuta el "OnClick" del control  
+				strEventsResult = nmdOnEvent(pobjHTML.id, "ONCLICK");
+				if (strEventsResult != "") {
+					alert(strEventsResult);
+					return;
+				}
+
+				//3 - Ejecuta el "OnValidate" general del reporte
+				strEventsResult = OnFormValidate();
+				if (strEventsResult != "") {
+					alert(strEventsResult);
+					return;
+				}
+
+				//4 - Avisa al form padre y cierra el reporte
+				parent.CompleteEdit(g_xmlValues, objCtrl.CtrlMode);
+			break;
+			
+		case "AF": //Accion de Formulario  --------------------------------------------------
+				//1 - Determina si existe un valor a setear. Solo setea variables de tipo MAIN
+				if (pobjHTML.getAttribute("nmd-var") != "") {
+					strValue = pobjHTML.getAttribute("nmd-valvar");
+					SetVariable(pobjHTML.getAttribute("nmd-var"), (strValue ? strValue : ""), null);
+				}
+
+				//2 - Ejecuta el "OnClick" del control  
+				nmdOnEvent(pobjHTML.id, "ONCLICK");
+
+			break;
+			
+		case "GU": //Guardar  ---------------------------------------------------------------
+		case "GD": //Guardar y Delegar  -----------------------------------------------------
+
+				//1 - Determina si existe un valor a setear. Solo setea variables de tipo MAIN
+				if (pobjHTML.getAttribute("nmd-var") != "") {
+					strValue = pobjHTML.getAttribute("nmd-valvar");
+					SetVariable(pobjHTML.getAttribute("nmd-var"), (strValue ? strValue : ""), null);
+				}
+
+				//2 - Ejecuta el "OnClick" del control  
+				nmdOnEvent(pobjHTML.id, "ONCLICK");
+
+				//4 - Avisa al form padre y cierra el reporte
+				parent.CompleteEdit(g_xmlValues, objCtrl.CtrlMode);
+			break;
+			
+		case "DL": //Delegar  ---------------------------------------------------------------
+				//4 - Avisa al form padre y cierra el reporte
+				parent.CompleteEdit(g_xmlValues, objCtrl.CtrlMode);
+
+			break;
+	}
+
+}
+
+
+//Se ejecuta cuando se hace click sobre el HELP de un FK
+function nmdOnFKHelpClick(pobjHTML) {
+	var objParentValue;
+	var Value;
+	var Index;
+	
+	if (pobjHTML.disabled) return;
+	
+	Index = parseInt(pobjHTML.getAttribute("nmd-idx"), 10);
+	
+	if (pobjHTML.getAttribute("nmd-parent") != "") {
+		if (GetMajor(pobjHTML.getAttribute("nmd-varname")) == GetMajor(pobjHTML.getAttribute("nmd-parent"))) {
+			objParentValue = GetVariable(pobjHTML.getAttribute("nmd-parent"), Index);
+		} else {
+			objParentValue = GetVariable(pobjHTML.getAttribute("nmd-parent"), 0);
+		}
+		
+		if (objParentValue) {} else {return;}
+		
+	} else {
+		objParentValue = null;
+	}
+
+	if (objParentValue) {
+		
+		//Prepara los parametros para llamar la guia
+		if (nmdIsObject(objParentValue))
+			Value = objParentValue.Value; //Es un FK, un Combo, etc
+		else
+			Value = objParentValue;
+			
+	} else {
+		Value = "";
+	}
+	
+	//Inhabilita todos los controles
+	SetFormEnable(false);
+	
+	//Llama al Formulario para indicarle que levante la guia
+	parent.OpenFKHelp(Value, pobjHTML.getAttribute("nmd-imclass"), Index, pobjHTML.getAttribute("nmd-varname"), g_debug, window);
+
+}
+
+//Se ejecuta cuando se hace click sobre el HELP de BORRADO de un FK
+function nmdOnFKClearClick(pobjHTML) {
+	var objParentValue;
+	var Value;
+	
+	if (pobjHTML.disabled) return;
+	
+	SetVariable(pobjHTML.getAttribute("nmd-varname"), null, parseInt(pobjHTML.getAttribute("nmd-idx"), 10));
+}
+
+function nmdFKKeyPress(pobjHTML, pKeyCode) {
+
+	switch (pKeyCode) {
+		case 13:
+			break;
+
+		case 8: //Back
+		case 46: //Delete
+			break;
+
+		default:
+			break;
+	}
+	
+}
+
+function nmdOnFileHelpClick(pobjHTML) {
+	var Value;
+	var Index;
+	
+	if (pobjHTML.disabled) return;
+	
+	Index = parseInt(pobjHTML.getAttribute("nmd-idx"), 10);
+	
+	//Inhabilita todos los controles
+	//SetFormEnable(false);
+	
+	//Llama al Formulario para indicarle que levante la guia
+	parent.OpenFileHelp(Value, pobjHTML.getAttribute("nmd-imclass"), Index, pobjHTML.getAttribute("nmd-varname"), window);
+
+}
+
+//Se ejecuta cuando se hace click sobre el HELP de un DateTime
+function nmdOnDATEHelpClick(pobjHTML) {
+	var varName;
+	var Value, strValue;
+	var Index;
+	
+	if (pobjHTML.disabled) return;
+	
+	Index = parseInt(pobjHTML.getAttribute("nmd-idx"), 10);
+	
+	varName = pobjHTML.getAttribute("nmd-varname")
+	
+	//Obtiene el valor actual
+	Value = GetVariable(varName, Index);
+
+	//Inhabilita todos los controles
+	//SetFormEnable(false);
+	
+	//Llama al Formulario para indicarle que levante la guia
+	strValue = Value ? date2nomadxml(Value) : date2nomadxml(new Date());
+	parent.OpenDateHelp(strValue, Index, varName, window);
+
+}
+		</xsl:template>
+		<xsl:template name="SCRIPTS-FILES">
+			//Funciones para los archivos adjuntos
+	
+	
+function nmdOnFILESAddClick(pobjHTML) {
+	
+	if (pobjHTML.disabled) return;
+	
+	//Llama al Formulario para indicarle que levante la guia
+	parent.OpenFileHelp(window);
+
+}
+
+function nmdOnFILESDelClick(pobjHTML) {
+	if (pobjHTML.disabled) return;
+
+	if (!confirm("&#191;Esta seguro que desea eliminar el archivo?")) return;
+	
+	var FileId;
+
+	FileId = Replace(pobjHTML.id, "DEL", "");	
+
+	//Elimina el archivo del administrador de archivos
+	nmdDElFileFromTable(FileId);
+	
+	//Elimina el archivo del XML
+	DeleteXMLFile(FileId)
+
+	return;
+	
+}
+
+function nmdAddFile(pstrData) {
+	var strFileId, strFileName;
+	
+	xmlNewFile = new NomadXML(pstrData);
+
+	strFileId = xmlNewFile.GetAttr("id");
+	strFileName = xmlNewFile.GetAttr("name");
+		
+	//Agrega el archivo en el administrador de archivos
+	nmdAddFileToTable(strFileId, strFileName, ""); //Falta el SIZE
+	
+	//Agrega el archivo en el XML
+	AddXMLFile(strFileId, strFileName, ""); //Falta el size
+	
+}
+
+function nmdAddFileToTable(pFileId, pFileName, pSize) {
+	var xmlNewFile;
+	var objTR, objTD;
+	var objTemp;
+	var objProtoTD;
+	var strInner, strFileType;
+	
+	objTR = document.getElementById("filesTR");
+	objProtoTD = document.getElementById("filesTD"); 
+
+	
+	//Agrega un archivo
+	objTD = objTR.insertCell(-1);
+	
+	strInner = objProtoTD.innerHTML;
+	strInner = Replace(strInner, "XXIDXX", pFileId);
+	
+	//Setea el html
+	objTD.innerHTML = strInner;
+	
+	//Obtiene el tipo de archivo
+	strFileType = nmdGetFileType(pFileName);
+
+	objTemp = document.getElementById(pFileId + "A");
+	objTemp.style.backgroundImage = "url(" + Replace(objTemp.getAttribute("nmd-img"), "XXFILEXX", strFileType) + ")";
+	
+	objTemp = document.getElementById(pFileId + "TEXT");
+	objTemp.innerHTML = nmdGetFileName(pFileName);
+	
+}
+
+function nmdDElFileFromTable(pFileId) {
+	var htmlTR, htmlTD, htmlTable;
+	var x;
+	
+	htmlTR = document.getElementById("filesTR");
+	
+	for (x = 0; x!=htmlTR.cells.length; x++) {
+		htmlTD = htmlTR.cells.item(x);
+		htmlTable = htmlTD.firstChild;
+		
+		if (htmlTable.id == pFileId) {
+			htmlTR.deleteCell(x-1);
+			break;
+		}
+	}
+
+}
+
+function nmdOnFILESDownloadClick(pobjHTML) {
+	var FileId;
+	var objIFrame;
+
+	if (pobjHTML.disabled) return;
+
+	FileId = Replace(pobjHTML.id, "DO", "");	
+	
+	objIFrame = document.getElementById("filesIFR");
+	objIFrame.src = "../../ToDownLoad.aspx?modo=DB" + String.fromCharCode(38) + "file_id=" + FileId + String.fromCharCode(38) + "class=NucleusWF.Base.Ejecucion.Archivos.HEAD";
+
+	return;
+}
+
+//Retorna el tipo de archivo segun la extension
+function nmdGetFileType(pFileName) {
+	var strExt = pFileName.substr(pFileName.lastIndexOf(".") + 1);
+	var strFileType;
+
+  switch (strExt.toUpperCase()) {
+		case "":
+  		strFileType = "no32.gif";
+  		break;
+  		
+  	case "DOC": case "DOCX": case "ODF": case "DOT": case "ODF": case "DOCM": case "DOTM": case "DOTX": case "WPD": case "RTF":
+  		strFileType = "doc32.gif";
+  		break;
+
+  	case "AVI": case "MPG": case "MOV": case "MP4": case "ASX": case "FLV": case "3GP": case "MKV":
+  		strFileType = "avi32.gif";
+  		break;
+  		
+  	case "EXE": case "COM": case "BAT":
+  		strFileType = "exe32.gif";
+  		break;
+
+  	case "BMP": case "TIF": case "JPG":  case "GIF": case "PNG":
+  		strFileType = "img32.gif";
+  		break;
+
+  	case "MP3": case "WAV": case "OGG": case "WMA": case "AC3": case "MID": case "AIF":
+  		strFileType = "mp332.gif";
+  		break;
+
+  	case "PDF":
+  		strFileType = "pdf32.gif";
+  		break;
+
+  	case "TXT": case "DAT": case "INF":
+  		strFileType = "txt32.gif";
+  		break;
+  		
+  	case "XLS": case "CSV": case "ODS": case "XLT":  case "XLW": case "XLSX": case "XLSM": case "XLTX": case "XLTM":
+  		strFileType = "xls32.gif";
+  		break;
+  	
+  	case "ZIP": case "RAR": case "7Z": case "ARJ": case "CAB": case "DEB": case "GZ": case "LZH": case "RPM": case "TAR": case "Z":
+  		strFileType = "zip32.gif";
+  		break;
+  		
+  	case "BMP": case "TIF": case "JPG":  case "GIF": case "PNG":
+  		strFileType = "img32.gif";
+  		break;
+
+  	case "XML":
+  		strFileType = "xml32.gif";
+  		break;
+
+		default:
+			strFileType = "bin32.gif";
+  			break;			    		
+  }
+    	
+	return strFileType;
+}
+
+function nmdOnFileOver(pTable, pMode) {
+	var htmlImg;
+	var strId;
+	
+	if (pTable.getAttribute("nmd-dis") == "1") return;
+	
+	strId = pTable.id;
+	
+	pTable.style.backgroundColor = pMode ? "#D2DBE0" : "#F7F7F7";
+	
+	htmlImg = document.getElementById(strId + "DEL");
+	if (htmlImg)
+		htmlImg.style.display = pMode ? "inline" : "none";
+
+	htmlImg = document.getElementById(strId + "DO");
+	htmlImg.style.display = pMode ? "inline" : "none";
+	
+}
+
+function nmdGetFileName(pName) {
+	var maxL = 12;
+	
+	if (Compare(pName.length, maxL) == 1)
+		return pName.substring(0, maxL) + "...";
+	else 
+		return pName;
+		
+}
+
+//Habilita o inhabilita el administrador de archivos
+function nmdFilesSetEnable(pMode) {
+	var htmlTemp;
+	var htmlTable, htmlTD, htmlTR;
+	var x;
+	var FileId;
+	        
+	//Setea el boton de add
+	htmlTemp = document.getElementById("filesAdd");
+	if (htmlTemp) {
+		if (pMode)
+			htmlTemp.src = Replace(htmlTemp.src, "_d.gif", "_n.gif");
+		else {
+			htmlTemp.src = Replace(htmlTemp.src, "_n.gif", "_d.gif");
+			htmlTemp.src = Replace(htmlTemp.src, "_o.gif", "_d.gif");
+		}
+
+		htmlTemp.disabled = !pMode;
+	}
+	
+	htmlTR = document.getElementById("filesTR");
+	if (htmlTR) {
+		for (x = 0; x!=htmlTR.cells.length; x++) {
+			if (x== 0) continue;
+			
+			htmlTD = htmlTR.cells.item(x);
+			htmlTable = htmlTD.firstChild;
+			
+			htmlTable.setAttribute("nmd-dis", (pMode?"0":"1"));
+		}
+		
+	}
+
+}
+		</xsl:template>
+	</html:xslt>
+</html:html>

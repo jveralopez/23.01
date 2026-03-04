@@ -1,0 +1,87 @@
+<flow:flow xmlns:flow="nomad_engine.flow" xmlns:doc="nomad_engine.doc" xmlns:qry="nomad_engine.qry" default_action="SHOW" name="NucleusWF.Base.Ejecucion.Formularios.ShowForm.flow">
+	<flow:info label="Valida si un usuario puede resolver un WF y retorna una pantalla con la instancia o un mensaje."/>
+	<flow:declare>
+		<doc:define name="QRYResult"/>
+		<qry:define declare="&lt;DATA IM=&quot;IM:OPUS.EMPRESA&quot; PAR=&quot;&quot; /&gt;" name="QRY_GUIDE_TYPE">
+			<qry:main doc="SOURCE">
+				<RESULT>
+					<qry:attribute name="IM" value="substring($SOURCE/./@IM,3)"/>
+					<qry:attribute name="PAR" value="$SOURCE/./@PAR"/>
+					<qry:attribute name="DEBUG" value="$SOURCE/./@DEBUG"/>
+					<qry:insert-select name="IM" doc-path="."/>
+				</RESULT>
+			</qry:main>
+			<qry:select name="IM" doc="SOURCE">
+				<qry:xquery>
+					for $r in SQL('
+SELECT 
+	IM.d_int_mag,
+	IM.c_list_mode
+FROM 
+	WRK04_INT_MAN as IM
+WHERE 
+	IM.c_int_mag = {$SOURCE/@IM}
+			')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:attribute name="mode" value="$r/@c_list_mode"/>
+					<qry:attribute name="label" value="$r/@d_int_mag"/>
+				</qry:out>
+			</qry:select>
+		</qry:define>
+		<doc:define name="ITEMList"/>
+		<qry:define declare="&lt;GUIA&gt;&lt;COLUMNS nmd-col=&quot;1&quot;&gt;&lt;COLUMN name=&quot;VAL&quot; label=&quot;Valor&quot; type=&quot;int&quot; /&gt;&lt;COLUMN name=&quot;DES&quot; label=&quot;Empresa&quot; type=&quot;string&quot; /&gt;&lt;/COLUMNS&gt;&lt;ROWS nmd-col=&quot;1&quot;&gt;&lt;ROW VAL=&quot;1&quot; DES=&quot;[1] BAYTON S.A.&quot; /&gt;&lt;ROW VAL=&quot;2&quot; DES=&quot;[2] BAYTON SERVICIOS EMPRESARIOS S.A.&quot; /&gt;&lt;ROW VAL=&quot;3&quot; DES=&quot;[3] TRELAND S.A.&quot; /&gt;&lt;ROW VAL=&quot;4&quot; DES=&quot;[4] NUCLEUS S.A.&quot; /&gt;&lt;ROW VAL=&quot;5&quot; DES=&quot;[5] CLAYTON PETS SUPPLY SA&quot; /&gt;&lt;/ROWS&gt;&lt;/GUIA&gt;" name="QRY_GUIA_SIMPLE">
+			<qry:main doc="SOURCE">
+				<ROWS>
+					<qry:insert-select name="ROW" doc-path="$SOURCE/GUIA/ROWS/ROW"/>
+				</ROWS>
+			</qry:main>
+			<qry:select name="ROW" doc="SOURCE">
+				<qry:out>
+					<ROW>
+						<qry:attribute name="id" value="$SOURCE/@VAL"/>
+						<qry:attribute name="DES" value="$SOURCE/@DES"/>
+					</ROW>
+				</qry:out>
+			</qry:select>
+		</qry:define>
+		<doc:define name="RS"/>
+		<doc:define name="REPORTDOM"/>
+	</flow:declare>
+	<flow:main doc="SOURCE">
+		<flow:action name="SHOW">
+			<doc:load-qry qry="QRY_GUIDE_TYPE" output-doc="QRYResult" input-doc-path="#SOURCE:"/>
+			<flow:log text-path="#QRYResult:"/>
+			<flow:call-action action="SHOW-GUIA-SIMPLE" eq="SIMPLE" if="#QRYResult:@mode"/>
+		</flow:action>
+		<flow:action name="SHOW-GUIA-SIMPLE">
+			<flow:open-form doc-path="#QRYResult:" form-class="NucleusWF.Base.Ejecucion.Formularios.ShowGuia.SIMPLE.form" mode="SHOW"/>
+		</flow:action>
+	</flow:main>
+	<flow:form form-class="NucleusWF.Base.Ejecucion.Formularios.ShowGuia.SIMPLE.form" name="NucleusWF.Base.Ejecucion.Formularios.ShowGuia.SIMPLE.form:EDIT" doc="SOURCE" mode="SHOW">
+		<flow:action name="on-show">
+			<flow:exec-method class="NucleusWF.Base.Definicion.Integracion.INT_MAG" out-type="Nomad.NSystem.Proxy.NomadXML" out-doc="ITEMList" method="ExecuteGUIA">
+				<flow:param attr-path="#SOURCE:@IM" type="Nomad.NSystem.String" mode="in" name="IM"/>
+				<flow:param doc-path="#QRYResult:" type="Nomad.NSystem.Proxy.NomadXML" mode="in" name="xmlIn"/>
+			</flow:exec-method>
+			<flow:log text-path="#ITEMList:" text="chuekalog"/>
+			<flow:html-gen input-doc-path="#ITEMList:" template-file="NucleusWF.Base.Ejecucion.Guia.rpt" out-file-path="#REPORTDOM:@report"/>
+			<!--doc:load-qry output-doc="RS" input-doc-path="#ITEMList:" qry="QRY_GUIA_SIMPLE"/>
+	<flow:attach-doc doc-path="#RS:" attach-id="RS"/-->
+		</flow:action>
+		<flow:action name="ACCEPT">
+			<doc:set-attribute to-attr-path="#SOURCE:@ACT" from-value="A"/>
+			<doc:set-attribute from-attr-path="#ITEMList:ROWS/ROW[@VAL='{#SOURCE:@VAL}']/@DES" to-attr-path="#SOURCE:@DES"/>
+			<doc:add-object doc-path="#ITEMList:ROWS/ROW[@VAL='{#SOURCE:@VAL}']" parent-doc-path="#SOURCE:"/>
+			<flow:exit-flow return-path="#SOURCE:"/>
+		</flow:action>
+		<flow:action name="CANCEL">
+			<doc:set-attribute to-attr-path="#SOURCE:@ACT" from-value="C"/>
+			<flow:log text-path="#SOURCE:" text="CANCEL"/>
+			<flow:exit-flow return-path="#SOURCE:"/>
+		</flow:action>
+		<flow:action name="FILTER">
+			<flow:html-gen input-doc-path="#ITEMList:" template-file="NucleusWF.Base.Ejecucion.Guia.rpt" out-file-path="#REPORTDOM:@report"/>
+		</flow:action>
+	</flow:form>
+</flow:flow>

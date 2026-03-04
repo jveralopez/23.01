@@ -1,0 +1,673 @@
+<html:html xmlns:html="nomad_engine.html" xmlns:qry="nomad_engine.qry" name="NucleusRH.Base.Liquidacion.ReportesPorConceptos" extends="Nomad.Base.BaseReport.rpt" doc="source">
+	<html:query declare="&lt;!--&lt;DATOS oi_empresa=&quot;1&quot; cb_confidenciales=&quot;T&quot; e_periodo=&quot;202404&quot; oi_liquidacion=&quot;&quot; oi_reporte=&quot;2&quot;/&gt;--&gt;&#13;&#10;&lt;DATOS oi_empresa=&quot;2&quot; cb_confidenciales=&quot;T&quot; e_periodo=&quot;202511&quot; oi_liquidacion=&quot;&quot; oi_reporte=&quot;3&quot;/&gt;">
+		<qry:main doc="SOURCE">
+			<qry:element name="REPORT">
+				<qry:attribute name="style" value="'width:100%;'"/>
+				<qry:attribute name="date" value="format_date(Now(),'dd/mm/yyyy HH:MM')"/>
+				<qry:append-doc name="PARAMIN" doc-path="#SOURCE:DATOS"/>
+				<ESTR>
+					<qry:insert-select name="qry_report" doc-path="#SOURCE:DATOS"/>
+				</ESTR>
+				<qry:attribute name="colspan" value="count(./ESTR/CFS/CF)+count(./ESTR/COLS/COL)+1+iif(./ESTR/@l_agregartotales='1',1,0)"/>
+				<qry:append-doc doc-path="." name="ESTR"/>
+				<qry:attribute name="label" value="./ESTR/@label"/>
+				<GROUPS>
+					<GROUP tag="GROUP" type="title" noreg="No se encontraron registros para los filtros seleccionados.">
+						<qry:attribute name="style" value="'font-size:10px;'"/>
+						<qry:attribute name="page-break" value="iif($ESTR/ESTR/@l_separar='1','1','')"/>
+						<COLS>
+							<COL name="d_empresa" label="Empresa" style="width:100%;font-size:12px;"/>
+							<COL name="e_periodo" label="Per&#237;odo" style="width:100%;font-size:12px;"/>
+							<qry:if test="$ESTR/ESTR/@oi_liquidacion!=''">
+								<qry:then>
+									<COL name="liquidacion" label="Liquidaci&#243;n" style="font-size:12px;"/>
+								</qry:then>
+							</qry:if>
+							<qry:if test="$ESTR/ESTR/@Agrupar='centro'">
+								<qry:then>
+									<COL name="centro" label="Centro de Costo" style="font-size:12px;"/>
+								</qry:then>
+							</qry:if>
+							<qry:if test="$ESTR/ESTR/@Agrupar='afjp'">
+								<qry:then>
+									<COL name="afjp" label="AFJP" style="font-size:12px;"/>
+								</qry:then>
+							</qry:if>
+							<qry:if test="$ESTR/ESTR/@Agrupar='sindicato'">
+								<qry:then>
+									<COL name="sindicato" label="Sindicato" style="font-size:12px;"/>
+								</qry:then>
+							</qry:if>
+							<qry:if test="$ESTR/ESTR/@Agrupar='obra'">
+								<qry:then>
+									<COL name="obra" label="Obra Social" style="font-size:12px;"/>
+								</qry:then>
+							</qry:if>
+							<qry:if test="$ESTR/ESTR/@Agrupar='categ'">
+								<qry:then>
+									<COL name="categ" label="Categor&#237;a" style="font-size:12px;"/>
+								</qry:then>
+							</qry:if>
+							<qry:if test="$ESTR/ESTR/@Agrupar='c_ubic'">
+								<qry:then>
+									<COL name="c_ubic" label="Ubicaci&#243;n" style="font-size:12px;"/>
+								</qry:then>
+							</qry:if>
+							<COL name="cant" label="Legajos" style="font-size:12px;"/>
+						</COLS>
+						<GROUP tag="PER" type="table" style="font-size:10px;width:auto;margin:0px;">
+							<COLS>
+								<COL nowrap="1" style="text-align:right;width:50px;" label="Ord." name="ord"/>
+								<qry:insert-select name="qry_columnas_fijas" doc-path="$ESTR/ESTR"/>
+								<qry:insert-select name="qry_columnas" doc-path="$ESTR/ESTR"/>
+								<qry:insert-select name="ColumnaTotales" doc-path=".[$ESTR/ESTR/@l_agregartotales='1']"/>
+							</COLS>
+							<FCOLS>
+								<COL nowrap="1" style=";width:1px;white-space:nowrap;"/>
+								<qry:insert-select name="qry_columnas_aux"/>
+								<qry:insert-select name="qry_columnas_totales" doc-path="$ESTR/ESTR"/>
+								<qry:insert-select name="ColumnaTotales" doc-path=".[$ESTR/ESTR/@l_agregartotales='1']"/>
+							</FCOLS>
+						</GROUP>
+					</GROUP>
+				</GROUPS>
+				<DATA>
+					<LIQUIDACIONES>
+						<LIQ id="0"/>
+						<qry:insert-select name="doc_liquidaciones" doc-path="#SOURCE:DATOS"/>
+						<qry:append-doc doc-path="." name="DOCLIQ"/>
+					</LIQUIDACIONES>
+					<qry:insert-select name="qry_cabecera" doc-path="#SOURCE:DATOS"/>
+					<qry:attribute name="oi_empresa" value="$SOURCE/DATOS/@oi_empresa"/>
+					<qry:append-doc doc-path="." name="TEMP"/>
+					<qry:insert-select name="qry_personas" doc-path="#SOURCE:DATOS"/>
+					<qry:attribute name="e_periodo" value="$SOURCE/DATOS/@e_periodo"/>
+					<qry:insert-select name="qry_personas_cols"/>
+					<qry:insert-select name="qry_orden" to-element="./GROUP" doc-path="PER[@hts:delete='']"/>
+				</DATA>
+			</qry:element>
+		</qry:main>
+		<qry:select doc="SOURCE" name="qry_report">
+			<qry:xquery>
+				for $r in sql('
+SELECT 
+LIQ26_REPORTES.o_label, 
+LIQ26_REPORTES.c_agrupacion, 
+LIQ26_REPORTES.l_mostrar, 
+LIQ26_REPORTES.l_separar,
+LIQ26_REPORTES.l_agregartotales,
+LIQ26_REPORTES.OI_REPORTE
+FROM LIQ26_REPORTES
+WHERE LIQ26_REPORTES.OI_REPORTE = {#SOURCE:@oi_reporte}
+			')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:attribute name="label" value="$r/@o_label"/>
+				<qry:attribute name="Agrupar" value="$r/@c_agrupacion"/>
+				<qry:attribute name="l_mostrar" value="$r/@l_mostrar"/>
+				<qry:attribute name="l_separar" value="$r/@l_separar"/>
+				<qry:attribute name="oi_liquidacion" value="#SOURCE:@oi_liquidacion"/>
+				<qry:attribute name="l_agregartotales" value="$r/@l_agregartotales"/>
+				<qry:element name="CFS">
+					<qry:insert-select name="qry_col_fija" doc-path="$r"/>
+				</qry:element>
+				<qry:element name="COLS">
+					<qry:insert-select name="qry_col_conc" doc-path="$r"/>
+				</qry:element>
+				<qry:if test="@Agrupar='centro'">
+					<qry:then>
+						<qry:attribute name="gru" value="'c_centro_costo_ult'"/>
+					</qry:then>
+				</qry:if>
+				<qry:if test="@Agrupar='afjp'">
+					<qry:then>
+						<qry:attribute name="gru" value="'c_afjp'"/>
+					</qry:then>
+				</qry:if>
+				<qry:if test="@Agrupar='sindicato'">
+					<qry:then>
+						<qry:attribute name="gru" value="'c_sindicato'"/>
+					</qry:then>
+				</qry:if>
+				<qry:if test="@Agrupar='obra'">
+					<qry:then>
+						<qry:attribute name="gru" value="'c_obra_social'"/>
+					</qry:then>
+				</qry:if>
+				<qry:if test="@Agrupar='categ'">
+					<qry:then>
+						<qry:attribute name="gru" value="'c_categoria_ult'"/>
+					</qry:then>
+				</qry:if>
+				<qry:if test="@Agrupar='c_ubic'">
+					<qry:then>
+						<qry:attribute name="gru" value="'c_ubicacion'"/>
+					</qry:then>
+				</qry:if>
+				<qry:if test="@Agrupar=''">
+					<qry:then>
+						<qry:attribute name="gru" value="'c_empresa'"/>
+					</qry:then>
+				</qry:if>
+			</qry:out>
+		</qry:select>
+		<qry:select doc="SOURCE" name="qry_col_conc">
+			<qry:xquery>
+				for $r in sql('
+SELECT 
+liq26_columnas.d_columna,
+liq26_columnas.oi_columna,
+liq26_columnas.c_signo,
+liq26_columnas.o_style,
+liq26_columnas.c_tipo,
+liq26_columnas.e_posicion,
+liq26_columnas.c_sumar
+FROM liq26_columnas
+WHERE liq26_columnas.OI_REPORTE =  {#SOURCE:@oi_reporte}
+order by e_posicion ASC')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:element name="COL">
+					<qry:attribute name="id" value="$r/@oi_columna"/>
+					<qry:attribute name="signo" value="$r/@c_signo"/>
+					<qry:attribute name="label" value="$r/@d_columna"/>
+					<qry:attribute name="c_sumar" value="iif($r/@c_sumar='C', 'n_cantidad', 'n_valor')"/>
+					<qry:attribute name="style" value="concat('width:110px;', $r/@o_style)"/>
+					<qry:attribute name="type" value="'num'"/>
+					<qry:attribute name="type" value="iif($r/@c_tipo!= '', $r/@c_tipo, ./@type)"/>
+					<qry:element name="CON">
+						<qry:insert-select name="qry_concs" doc-path="$r"/>
+					</qry:element>
+				</qry:element>
+			</qry:out>
+		</qry:select>
+		<qry:select doc="SOURCE" name="qry_concs">
+			<qry:xquery>
+				for $r in sql('
+SELECT 
+LIQ26_COL_CON.oi_concepto
+FROM LIQ26_COL_CON
+WHERE 
+LIQ26_COL_CON.oi_columna = {#SOURCE:@oi_columna}
+			')/ROWS
+			</qry:xquery>
+			<qry:out>
+				<qry:attribute name="oi_concepto" value="string($r/ROW/@oi_concepto)"/>
+			</qry:out>
+		</qry:select>
+		<qry:select doc="SOURCE" name="qry_col_fija">
+			<qry:xquery>
+				for $r in sql('
+select 
+c.oi_reporte,
+c.c_columna,
+c.d_columna,
+c.c_tipo, 
+c.o_style,
+c.e_posicion
+from LIQ26_COLFIJAS as c
+WHERE c.OI_REPORTE =  {#SOURCE:@oi_reporte}
+order by e_posicion ASC
+			')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:element name="CF">
+					<qry:attribute name="name" value="$r/@c_columna"/>
+					<qry:attribute name="label" value="$r/@d_columna"/>
+					<qry:attribute name="style" value="iif($r/@c_tipo='string','text-align:left;width:70px;',@style)"/>
+					<qry:attribute name="style" value="iif($r/@c_tipo='alfa','text-align:left;width:250px;',@style)"/>
+					<qry:attribute name="style" value="iif($r/@o_style != '', $r/@o_style, @style)"/>
+					<qry:attribute name="type" value="'string'"/>
+					<qry:attribute name="type" value="iif($r/@c_tipo!= '', $r/@c_tipo, ./@type)"/>
+				</qry:element>
+			</qry:out>
+		</qry:select>
+		<qry:select doc="SOURCE" name="qry_columnas_fijas">
+			<qry:xquery>
+				for $r in #SOURCE:CFS/CF
+			</qry:xquery>
+			<qry:out>
+				<qry:element name="COL">
+					<qry:attribute name="name" value="$r/@name"/>
+					<qry:attribute name="label" value="$r/@label"/>
+					<qry:attribute name="style" value="$r/@style"/>
+					<qry:attribute name="type" value="$r/@type"/>
+					<qry:attribute name="nowrap" value="'1'"/>
+				</qry:element>
+			</qry:out>
+		</qry:select>
+		<qry:select doc="SOURCE" name="qry_columnas">
+			<qry:xquery>
+				for $r in #SOURCE:COLS/COL
+			</qry:xquery>
+			<qry:out>
+				<qry:element name="COL">
+					<qry:attribute name="name" value="concat('c_',$r/@id)"/>
+					<qry:attribute name="label" value="$r/@label"/>
+					<qry:attribute name="style" value="$r/@style"/>
+					<qry:attribute name="type" value="$r/@type"/>
+				</qry:element>
+			</qry:out>
+		</qry:select>
+		<qry:select doc="SOURCE" name="qry_columnas_totales">
+			<qry:xquery>
+				for $r in #SOURCE:COLS/COL
+			</qry:xquery>
+			<qry:out>
+				<qry:element name="COL">
+					<qry:attribute name="name" value="concat('c_',$r/@id)"/>
+					<qry:attribute name="style" value="$r/@style"/>
+					<qry:attribute name="type" value="$r/@type"/>
+				</qry:element>
+			</qry:out>
+		</qry:select>
+		<qry:select name="qry_personas_cols">
+			<qry:xquery>
+				for $r in $ESTR/ESTR/COLS/COL
+			</qry:xquery>
+			<qry:out>
+				<qry:append-doc name="COL" doc-path="$r"/>
+				<qry:insert-select name="qry_datos" doc-path="$r"/>
+			</qry:out>
+		</qry:select>
+		<qry:select doc="SOURCE" name="ColumnaTotales">
+			<qry:out>
+				<COL type="num" label="Total" name="tot" style="width:120px;"/>
+			</qry:out>
+		</qry:select>
+		<qry:select doc="SOURCE" name="qry_columnas_aux">
+			<qry:xquery>
+				for $r in $ESTR/ESTR/CFS/CF
+			</qry:xquery>
+			<qry:out>
+				<qry:element name="COL">
+					<qry:attribute name="name" value="$r/@name"/>
+					<qry:attribute name="style" value="$r/@style"/>
+					<qry:attribute name="type" value="$r/@type"/>
+				</qry:element>
+			</qry:out>
+		</qry:select>
+		<qry:select doc="SOURCE" name="qry_cabecera">
+			<qry:xquery>
+				for $r in sql('
+			SELECT 
+{%? ($ESTR/ESTR/@Agrupar='categ') {% l97.c_categoria_ult, org18_convenios.c_convenio, max(org18_convenios.d_convenio) as d_convenio, max(org18_categorias.d_categoria) as d_categoria,	%} {% %} %}
+{%? ($ESTR/ESTR/@Agrupar='c_ubic') {% l97.c_ubicacion, max(ORG03_UBICACIONES.d_ubicacion) as d_ubicacion,	%} {% %} %}
+{%? ($ESTR/ESTR/@Agrupar='centro') {% l97.c_centro_costo_ult, max(ORG08_CS_COSTO.d_centro_costo) as d_centro_costo, %} {% %} %}
+{%? ($ESTR/ESTR/@Agrupar='afjp') {% l97.c_afjp, max(PER03_AFJP.d_afjp) as d_afjp, %} {% %} %}
+{%? ($ESTR/ESTR/@Agrupar='sindicato') {% l97.c_sindicato, max(PER30_SINDICATOS.d_sindicato) as d_sindicato, %} {% %} %}
+{%? ($ESTR/ESTR/@Agrupar='obra') {%	l97.c_obra_social, max(PER06_OBRAS_SOC.d_obra_social) as d_obra_social, %} {% %} %}
+
+l97.{%= $ESTR/ESTR/@gru %} as gru, 
+
+{%? ($ESTR/ESTR/@oi_liquidacion!='') {% l19.c_liquidacion, 	l19.d_titulo, %} {% %} %}		
+
+l93.c_empresa, l93.d_empresa, 
+l99.e_periodo, o03.oi_empresa
+FROM 
+LIQ93_EMPRESAS as l93, 
+LIQ99_LIQUIDACION as l99,
+LIQ19_LIQUIDACION as l19,
+LIQ19_EJECUCIONES as e19,
+org03_empresas as o03, 
+LIQ97_PERSONAL_EMP as l97,
+LIQ99_RECIBOS as r99,
+LIQ20_TOT_LIQ_PER as r20
+{%? ($ESTR/ESTR/@Agrupar='centro') {% , ORG08_CS_COSTO %} {% %} %}
+{%? ($ESTR/ESTR/@Agrupar='c_ubic') {% , ORG03_UBICACIONES %} {% %} %}
+{%? ($ESTR/ESTR/@Agrupar='afjp') {% , PER03_AFJP %}	{% %} %}
+{%? ($ESTR/ESTR/@Agrupar='sindicato') {% , PER30_SINDICATOS %}	{% %} %}
+{%? ($ESTR/ESTR/@Agrupar='obra') {% , PER06_OBRAS_SOC %} {% %} %}
+{%? ($ESTR/ESTR/@Agrupar='categ') {% , org18_categorias, org18_convenios %} {% %} %}
+JOIN
+{%? ($ESTR/ESTR/@Agrupar='categ') {%  org18_categorias.c_categoria INNER l97.c_categoria_ult , org18_convenios.c_convenio INNER l97.c_convenio , org18_categorias.oi_convenio INNER org18_convenios.oi_convenio ,		%} {% %} %}                                                
+{%? ($ESTR/ESTR/@Agrupar='centro') {%  l97.c_centro_costo_ult INNER ORG08_CS_COSTO.c_centro_costo , %} {% %} %}
+{%? ($ESTR/ESTR/@Agrupar='c_ubic') {%  l97.c_ubicacion INNER ORG03_UBICACIONES.c_ubicacion , o03.oi_empresa INNER ORG03_UBICACIONES.oi_empresa, %} {% %} %}
+{%? ($ESTR/ESTR/@Agrupar='afjp') {% l97.c_afjp INNER PER03_AFJP.c_afjp , 	%} {% %} %}
+{%? ($ESTR/ESTR/@Agrupar='sindicato') {% l97.c_sindicato INNER PER30_SINDICATOS.c_sindicato , %} {% %} %}
+{%? ($ESTR/ESTR/@Agrupar='obra') {% l97.c_obra_social INNER PER06_OBRAS_SOC.c_obra_social , %} {% %} %}		
+l99.oi_liquidacion_ddo INNER r99.oi_liquidacion_ddo,
+r99.oi_tot_liq_per INNER r20.oi_tot_liq_per,
+r20.oi_per_emp_ddo INNER l97.oi_per_emp_ddo,
+l93.oi_empresa_ddo INNER l99.oi_empresa_ddo,
+e19.oi_liquidacion_ddo INNER l99.oi_liquidacion_ddo,
+l19.oi_liquidacion INNER e19.oi_liquidacion,
+l93.c_empresa INNER o03.c_empresa
+WHERE
+o03.oi_empresa = {#SOURCE:@oi_empresa}
+and l99.e_periodo =  {#SOURCE:@e_periodo}
+{%? ($ESTR/ESTR/@oi_liquidacion!='') {% and l19.oi_liquidacion = {$ESTR/ESTR/@oi_liquidacion} %} {% %} %}
+and l99.c_estado = \'F\'
+{%? (#SOURCE:@l_simulacion!='')	{% AND l19.l_simulacion = {%= #SOURCE:@l_simulacion %} %} {% %} %} 
+{%? (#PARAMIN:@cb_confidenciales != '' and #PARAMIN:@cb_confidenciales!='T' ) 
+{%  
+{%? (#PARAMIN:@cb_confidenciales = 'C') {%	AND r20.l_confidencial = 1%}{% AND r20.l_confidencial = 0 %} %} 
+%} 
+{%	%}
+%}
+group by
+l93.c_empresa, 
+l93.d_empresa,
+o03.oi_empresa, 
+l99.e_periodo,
+l97.{%= $ESTR/ESTR/@gru %}
+{%? ($ESTR/ESTR/@Agrupar='categ') {% ,org18_convenios.c_convenio %} {% %} %}
+{%? ($ESTR/ESTR/@oi_liquidacion!='') {% ,l19.c_liquidacion, l19.d_titulo %} {% %} %}			
+order by gru asc
+')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<GROUP qry-delete-child="1" cant="0" qry-sum="col1,col1-1,col1-2,col1-3,col1-4,col1-5,bruto,tot">
+					<qry:insert-select name="qry_sum_cols" doc-path="$ESTR/ESTR"/>
+					<qry:attribute name="oi_empresa" value="$r/@oi_empresa"/>
+					<qry:attribute name="oi_liquidacion" value="$ESTR/ESTR/@oi_liquidacion"/>
+					<qry:attribute name="d_empresa" value="$r/@c_empresa + ' - ' + $r/@d_empresa"/>
+					<qry:attribute name="c_centro_costo_ult" value="$r/@c_centro_costo_ult"/>
+					<qry:attribute name="centro" value="$r/@c_centro_costo_ult + ' - ' + $r/@d_centro_costo"/>
+					<qry:attribute name="c_ubic" value="$r/@c_ubicacion + ' - ' + $r/@d_ubicacion"/>
+					<qry:attribute name="c_ubicacion" value="$r/@c_ubicacion"/>
+					<qry:attribute name="afjp" value="$r/@c_afjp + ' - ' + $r/@d_afjp"/>
+					<qry:attribute name="c_afjp" value="$r/@c_afjp"/>
+					<qry:attribute name="liquidacion" value="$r/@c_liquidacion+ ' - ' + $r/@d_titulo"/>
+					<qry:attribute name="sindicato" value="$r/@c_sindicato + ' - ' + $r/@d_sindicato"/>
+					<qry:attribute name="categ" value="'['+$r/@c_convenio + ' - ' + $r/@c_categoria + ']' + $r/@d_convenio + ' - ' + $r/@d_categoria"/>
+					<qry:attribute name="c_convenio" value="$r/@c_convenio"/>
+					<qry:attribute name="c_categoria" value="$r/@c_categoria"/>
+					<qry:attribute name="c_sindicato" value="$r/@c_sindicato"/>
+					<qry:attribute name="obra" value="$r/@c_obra_social + ' - ' + $r/@d_obra_social"/>
+					<qry:attribute name="c_obra_social" value="$r/@c_obra_social"/>
+					<qry:attribute name="e_periodo" value="#SOURCE:@e_periodo"/>
+					<qry:attribute name="CONTADOR" value="0"/>
+					<qry:attribute name="name" value="0"/>
+					<qry:attribute name="gru" value="$r/@gru"/>
+					<qry:attribute name="e_periodo" value="format_date(#SOURCE:@e_periodo + '01', 'mm/yyyy')"/>
+				</GROUP>
+			</qry:out>
+		</qry:select>
+		<qry:select doc="SOURCE" name="qry_personas">
+			<qry:xquery>
+				for $r in sql('SELECT 
+L97.e_numero_legajo,	
+Max(L97.c_nro_cuil) as c_nro_cuil, 
+max(L97.d_ape_y_nom) as d_ape_y_nom,
+max(L97.c_sexo) as c_sexo,
+sum(L20.n_totsret) as suma,
+sum(L20.n_totnsret) as suma1,
+sum(L20.n_totpag) as suma2,
+sum(L20.n_totdesc) as suma3,
+sum(L20.n_totcont) as suma4,
+sum(L20.n_totasig) as suma5,
+max(O18.c_convenio) as c_convenio, 
+max(C18.c_categoria) as c_categoria,
+max(O18.d_convenio) as d_convenio, 
+max(C18.d_categoria) as d_categoria,
+max(L97.c_centro_costo_ult) as c_centro_costo_ult, 
+max(O08.d_centro_costo) as d_centro_costo,
+max(L97.c_afjp) as c_afjp, 
+max(P03.d_afjp) as d_afjp,
+max(L97.c_sindicato) as c_sindicato, 
+max(P30.d_sindicato) as d_sindicato,
+max(L97.c_obra_social) as c_obra_social, 
+max(P06.d_obra_social) as d_obra_social,
+max(L97.f_nacim) as f_nacim,
+max(L97.f_ingreso) as f_ingreso,
+max(L97.f_antiguedad_rec) as f_antiguedad_rec,
+max(L97.c_ubicacion) as c_ubicacion,
+max(L97.d_banco) as d_banco, 
+max(L97.d_sucursal) as d_sucursal,
+max(UBI.d_ubicacion) as d_ubicacion,
+max(FUN.c_funcion) as c_funcion,
+max(FUN.d_funcion) as d_funcion,
+L97.{%= $ESTR/ESTR/@gru %} AS gru
+FROM 
+LIQ97_PERSONAL_EMP as L97,
+LIQ20_TOT_LIQ_PER AS L20, 
+ORG08_CS_COSTO AS O08,
+PER03_AFJP AS P03,
+PER30_SINDICATOS AS P30,
+PER06_OBRAS_SOC AS P06,
+org18_categorias AS C18,
+org18_convenios AS O18,
+LIQ99_RECIBOS AS R99,
+LIQ99_LIQUIDACION as L99,
+LIQ93_EMPRESAS as L93,
+ORG03_EMPRESAS as O03,
+(
+select 
+X.c_ubicacion, X.d_ubicacion 
+from
+ORG03_UBICACIONES as X
+where
+X.oi_empresa={%=$SOURCE/@oi_empresa %}
+) AS UBI,
+(
+select 
+Y.c_funcion, Y.d_funcion 
+from
+ORG03_FUNCIONES as Y
+where
+Y.oi_empresa={%=$SOURCE/@oi_empresa %}
+)AS FUN
+
+JOIN
+C18.c_categoria INNER L97.c_categoria_ult,
+O18.c_convenio INNER L97.c_convenio,
+C18.oi_convenio INNER O18.oi_convenio,
+L97.c_centro_costo_ult INNER O08.c_centro_costo,
+L97.c_afjp INNER P03.c_afjp,
+L97.c_sindicato INNER P30.c_sindicato,
+L97.c_obra_social INNER P06.c_obra_social,
+L20.oi_tot_liq_per INNER R99.oi_tot_liq_per,
+L20.oi_per_emp_ddo INNER L97.oi_per_emp_ddo,
+L93.oi_empresa_ddo INNER L99.oi_empresa_ddo,
+L93.c_empresa INNER O03.c_empresa,
+L97.c_ubicacion LEFT OUTER UBI.c_ubicacion,
+L97.c_funcion LEFT OUTER FUN.c_funcion,
+L99.oi_liquidacion_ddo INNER R99.oi_liquidacion_ddo
+where
+O03.oi_empresa =  {#SOURCE:@oi_empresa} 
+AND L99.e_periodo = {#SOURCE:@e_periodo} 
+{%? (#PARAMIN:@cb_confidenciales != '' and #PARAMIN:@cb_confidenciales!='T' ) 
+{%  
+{%? (#PARAMIN:@cb_confidenciales = 'C') {%	AND L20.l_confidencial = 1%}{% AND L20.l_confidencial = 0 %} %} 
+%} 
+{%	%}
+%}
+group by 
+L97.e_numero_legajo, L97.{%= $ESTR/ESTR/@gru %}
+ORDER BY
+e_numero_legajo ASC')/ROWS/ROW,
+$x in $TEMP/GROUP
+join $r/@gru inner $x/@gru
+			</qry:xquery>
+			<qry:out>
+				<qry:insert-select name="qry_per" doc-path="$r" to-element="$x"/>
+			</qry:out>
+		</qry:select>
+		<qry:select doc="SOURCE" name="doc_liquidaciones">
+			<qry:xquery>
+				for $r in sql('
+	SELECT 
+l99.oi_liquidacion_ddo
+FROM 
+LIQ93_EMPRESAS as l93, 
+LIQ99_LIQUIDACION as l99,
+LIQ19_LIQUIDACION as l19,
+LIQ19_EJECUCIONES as e19,
+org03_empresas as o03,
+NMD_SECURITY(class=\'NucleusRH.Base.Liquidacion.Liquidacion.LIQUIDACION\') as SEC 		
+JOIN
+l93.oi_empresa_ddo INNER l99.oi_empresa_ddo,
+e19.oi_liquidacion_ddo INNER l99.oi_liquidacion_ddo,
+l19.oi_liquidacion INNER e19.oi_liquidacion,
+l93.c_empresa INNER o03.c_empresa,
+l19.oi_liquidacion LEFT OUTER SEC.id
+WHERE
+o03.oi_empresa =  {#SOURCE:@oi_empresa}  
+{%? (#PARAMIN:@cb_confidenciales != '' and #PARAMIN:@cb_confidenciales!='T' ) 
+{%  
+{%? (#PARAMIN:@cb_confidenciales = 'C') {%	AND l19.l_confidencial = 1%}{% AND l19.l_confidencial = 0 %} %} 
+%} 
+{%	%}
+%}
+and l99.e_periodo =  {#SOURCE:@e_periodo}
+{%? ($ESTR/ESTR/@oi_liquidacion!='') {% and l19.oi_liquidacion = {$ESTR/ESTR/@oi_liquidacion} %} {% %} %}
+and l99.c_estado = \'F\'
+{%? (#SOURCE:@l_simulacion!='')	{% AND l19.l_simulacion = {%= #SOURCE:@l_simulacion %} %} {% %} %}')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:element name="LIQ">
+					<qry:attribute name="id" value="$r/@oi_liquidacion_ddo"/>
+				</qry:element>
+			</qry:out>
+		</qry:select>
+		<qry:select doc="SOURCE" name="qry_datos">
+			<qry:xquery>
+				for $r in sql('
+SELECT
+	sum(P.{%=$COL/@c_sumar%}) as suma,
+	L97.e_numero_legajo,
+	L97.{%= $ESTR/ESTR/@gru %} AS gru,
+	(NUMBER2STRING(L97.e_numero_legajo) || \'_\' || L97.{%= $ESTR/ESTR/@gru %}) AS leg_gru
+FROM
+LIQ97_PERSONAL_EMP AS L97, LIQ20_TOT_LIQ_PER as L20, 
+LIQ20_CONC_LIQ_PER as P, LIQ96_CONCEPTOS as C,
+LIQ14_CONCEPTOS as R, LIQ99_RECIBOS as T,
+LIQ99_LIQUIDACION as L99,
+LIQ93_EMPRESAS as L93,
+ORG03_EMPRESAS as O03 
+JOIN
+L20.oi_tot_liq_per INNER T.oi_tot_liq_per,
+L20.oi_per_emp_ddo INNER L97.oi_per_emp_ddo,
+P.oi_tot_liq_per INNER L20.oi_tot_liq_per,
+P.oi_concepto_ddo INNER C.oi_concepto_ddo,
+C.c_concepto INNER R.c_concepto,
+L99.oi_liquidacion_ddo INNER T.oi_liquidacion_ddo,
+L93.oi_empresa_ddo INNER L99.oi_empresa_ddo,
+L93.c_empresa INNER O03.c_empresa
+WHERE 
+L99.e_periodo = {#TEMP:@e_periodo}
+AND O03.oi_empresa =  {#TEMP:@oi_empresa}
+{%? (string($SOURCE/CON/@oi_concepto)!='') {% and R.oi_concepto in ({%= $SOURCE/CON/@oi_concepto %}) %} {% and 1 = 2 %} %}
+{%? (#TEMP:@c_centro_costo_ult!='') {% AND L97.c_centro_costo_ult = \'{%=#TEMP:@c_centro_costo_ult%}\' %} {% %} %}
+{%? (#TEMP:@c_ubicacion!='') {% AND L97.c_ubicacion = \'{%=#TEMP:@c_ubicacion%}\' %} {% %} %}
+{%? (#TEMP:@c_sindicato!='') {% AND L97.c_sindicato = \'{%=#TEMP:@c_sindicato%}\' %} {% %} %}
+{%? (#TEMP:@c_obra_social!='') {% AND L97.c_obra_social = \'{%=#TEMP:@c_obra_social%}\' %} {% %} %}
+{%? (#TEMP:@c_afjp!='') {% AND L97.c_afjp = \'{%=#TEMP:@c_afjp%}\' %} {% %} %}
+{%? (#TEMP:@c_categoria!='') {% AND L97.c_categoria_ult = \'{%=#TEMP:@c_categoria%}\' and L97.c_convenio = \'{%=#TEMP:@c_convenio%}\' %} {% %} %}
+group by L97.e_numero_legajo, L97.{%= $ESTR/ESTR/@gru %}
+UNION
+SELECT 0 as suma, L197.e_numero_legajo, L197.{%= $ESTR/ESTR/@gru %} AS gru,
+(NUMBER2STRING(L197.e_numero_legajo) || \'_\' || L197.{%= $ESTR/ESTR/@gru %}) AS leg_gru
+FROM
+LIQ97_PERSONAL_EMP AS L197, LIQ20_TOT_LIQ_PER as L120, LIQ99_RECIBOS as T1, LIQ99_LIQUIDACION as L1_99, LIQ93_EMPRESAS as L1_93,ORG03_EMPRESAS as O1_03 
+JOIN
+L120.oi_tot_liq_per INNER T1.oi_tot_liq_per,
+L120.oi_per_emp_ddo INNER L197.oi_per_emp_ddo,
+L1_99.oi_liquidacion_ddo INNER T1.oi_liquidacion_ddo,
+L1_93.oi_empresa_ddo INNER L1_99.oi_empresa_ddo,
+L1_93.c_empresa INNER O1_03.c_empresa
+WHERE
+L1_99.e_periodo = {#TEMP:@e_periodo}
+AND O1_03.oi_empresa =  {#TEMP:@oi_empresa}
+{%? (#TEMP:@c_centro_costo_ult!='') {% and L197.c_centro_costo_ult = \'{%=#TEMP:@c_centro_costo_ult%}\' %} {% %} %}
+{%? (#TEMP:@c_ubicacion!='') {% and L197.c_ubicacion = \'{%=#TEMP:@c_ubicacion%}\' %} {% %} %}
+{%? (#TEMP:@c_sindicato!='') {% and L197.c_sindicato = \'{%=#TEMP:@c_sindicato%}\' %} {% %} %}
+{%? (#TEMP:@c_obra_social!='') {% and L197.c_obra_social = \'{%=#TEMP:@c_obra_social%}\' %} {% %} %}
+{%? (#TEMP:@c_afjp!='') {% and L197.c_afjp = \'{%=#TEMP:@c_afjp%}\' %} {% %} %}
+{%? (#TEMP:@c_categoria!='') {% and L197.c_categoria_ult = \'{%=#TEMP:@c_categoria%}\' and L197.c_convenio = \'{%=#TEMP:@c_convenio%}\' %} {% %} %}
+and L197.e_numero_legajo not in (SELECT  
+L297.e_numero_legajo 
+FROM LIQ97_PERSONAL_EMP AS L297, LIQ20_TOT_LIQ_PER as L220, 
+LIQ20_CONC_LIQ_PER as P1, LIQ96_CONCEPTOS as C1, LIQ14_CONCEPTOS as R1, LIQ99_RECIBOS as T2, LIQ99_LIQUIDACION as L2_99, LIQ93_EMPRESAS as L2_93,ORG03_EMPRESAS as O2_03
+JOIN
+L220.oi_tot_liq_per INNER T2.oi_tot_liq_per,
+L220.oi_per_emp_ddo INNER L297.oi_per_emp_ddo,
+P1.oi_tot_liq_per INNER L220.oi_tot_liq_per,
+P1.oi_concepto_ddo INNER C1.oi_concepto_ddo,
+C1.c_concepto INNER R1.c_concepto,
+L2_99.oi_liquidacion_ddo INNER T2.oi_liquidacion_ddo,
+L2_93.oi_empresa_ddo INNER L2_99.oi_empresa_ddo,
+L2_93.c_empresa INNER O2_03.c_empresa
+WHERE
+L2_99.e_periodo = {%= #TEMP:@e_periodo %}
+AND O2_03.oi_empresa = {%= #TEMP:@oi_empresa %}
+{%? (string($SOURCE/CON/@oi_concepto)!='') {% and R1.oi_concepto in ({%= $SOURCE/CON/@oi_concepto %}) %} {% and 1 = 2  %} %}
+{%? (#TEMP:@c_centro_costo_ult!='') {% and L297.c_centro_costo_ult = \'{%=#TEMP:@c_centro_costo_ult%}\' %} {% %} %}
+{%? (#TEMP:@c_ubicacion!='') {% and L297.c_ubicacion = \'{%=#TEMP:@c_ubicacion%}\' %} {% %} %}
+{%? (#TEMP:@c_sindicato!='') {% and L297.c_sindicato = \'{%=#TEMP:@c_sindicato%}\' %} {% %} %}
+{%? (#TEMP:@c_obra_social!='') {% and L297.c_obra_social = \'{%=#TEMP:@c_obra_social%}\' %} {% %} %}
+{%? (#TEMP:@c_afjp!='') {% and L297.c_afjp = \'{%=#TEMP:@c_afjp%}\' %} {% %} %}
+{%? (#TEMP:@c_categoria!='') {% and L297.c_categoria_ult =  \'{%=#TEMP:@c_categoria%}\' and L297.c_convenio = \'{%=#TEMP:@c_convenio%}\' %} {% %} %})
+group by L197.e_numero_legajo, L197.{%= $ESTR/ESTR/@gru %}
+order by e_numero_legajo ASC')/ROWS/ROW,
+$x in $TEMP/GROUP/PER
+join $r/@leg_gru inner $x/@leg_gru
+			</qry:xquery>
+			<qry:out>
+				<qry:insert-select name="qry_val" doc-path="$r/.[@suma!=0]" to-element="$x"/>
+			</qry:out>
+		</qry:select>
+		<qry:select name="qry_val" doc="SOURCE">
+			<qry:out>
+				<qry:attribute name-calc="concat('c_',$COL/@id)" value="iif($COL/@signo!='0', number($SOURCE/@suma), (-1)*number($SOURCE/@suma))"/>
+				<qry:attribute name="hts:delete" value="''"/>
+				<qry:attribute name="tot" value="number(@tot)+iif($COL/@signo!='0', number($SOURCE/@suma), (-1)*number($SOURCE/@suma))"/>
+			</qry:out>
+		</qry:select>
+		<qry:select name="qry_per" doc="SOURCE">
+			<qry:out>
+				<qry:element name="PER">
+					<qry:attribute name="c_nro_cuil" value="$SOURCE/@c_nro_cuil"/>
+					<qry:attribute name="e_numero_legajo" value="$SOURCE/@e_numero_legajo"/>
+					<qry:attribute name="d_ape_y_nom" value="$SOURCE/@d_ape_y_nom"/>
+					<qry:attribute name="sexo" value="iif($SOURCE/@c_sexo='F', 'Femenino', 'Masculino')"/>
+					<qry:attribute name="f_nacim" value="format_date($SOURCE/@f_nacim, 'dd/mm/yyyy')"/>
+					<qry:attribute name="f_ingreso" value="format_date($SOURCE/@f_ingreso, 'dd/mm/yyyy')"/>
+					<qry:attribute name="f_antiguedad_rec" value="format_date($SOURCE/@f_antiguedad_rec, 'dd/mm/yyyy')"/>
+					<qry:attribute name="obra" value="$SOURCE/@c_obra_social + ' - ' + $SOURCE/@d_obra_social"/>
+					<qry:attribute name="afjp" value="$SOURCE/@c_afjp + ' - ' + $SOURCE/@d_afjp"/>
+					<qry:attribute name="sindicato" value="$SOURCE/@c_sindicato + ' - ' + $SOURCE/@d_sindicato"/>
+					<qry:attribute name="centro" value="$SOURCE/@c_centro_costo_ult + ' - ' + $SOURCE/@d_centro_costo"/>
+					<qry:attribute name="categ" value="'['+$SOURCE/@c_convenio + ' - ' + $SOURCE/@c_categoria + ']' + $SOURCE/@d_convenio + ' - ' + $SOURCE/@d_categoria"/>
+					<qry:attribute name="c_ubic" value="$SOURCE/@c_ubicacion"/>
+					<qry:attribute name="d_ubic" value="$SOURCE/@d_ubicacion"/>
+					<qry:attribute name="oi_empresa" value="#SOURCE:@oi_empresa"/>
+					<qry:attribute name="e_periodo" value="#SOURCE:@e_periodo"/>
+					<qry:attribute name="gru" value="#SOURCE:@gru"/>
+					<qry:attribute name="leg_gru" value="concat(#SOURCE:@e_numero_legajo,'_',#SOURCE:@gru)"/>
+					<qry:attribute name="col1" value="$SOURCE/@suma"/>
+					<qry:attribute name="col1-1" value="$SOURCE/@suma1"/>
+					<qry:attribute name="col1-2" value="$SOURCE/@suma2"/>
+					<qry:attribute name="col1-3" value="$SOURCE/@suma3"/>
+					<qry:attribute name="col1-4" value="$SOURCE/@suma4"/>
+					<qry:attribute name="col1-5" value="$SOURCE/@suma5"/>
+					<qry:attribute name="c_funcion" value="$SOURCE/@c_funcion"/>
+					<qry:attribute name="d_funcion" value="$SOURCE/@d_funcion"/>
+					<qry:attribute name="d_banco_suc" value="$SOURCE/@d_banco + ' - ' + $SOURCE/@d_sucursal"/>
+					<qry:attribute name="bruto" value="number($SOURCE/@suma1) + number($SOURCE/@suma)"/>
+					<qry:attribute name="hts:delete" value="iif($ESTR/ESTR/@l_mostrar!='1','1','')"/>
+				</qry:element>
+			</qry:out>
+		</qry:select>
+		<qry:select name="qry_orden" doc="r">
+			<qry:out>
+				<qry:attribute name="cant" value="number(@cant)+1"/>
+				<qry:insert-select to-element="$r" name="qry_orden1"/>
+			</qry:out>
+		</qry:select>
+		<qry:select name="qry_orden1" doc="r">
+			<qry:out>
+				<qry:attribute name="ord" value="../@cant"/>
+			</qry:out>
+		</qry:select>
+		<qry:select name="qry_sum_cols">
+			<qry:xquery>
+				for $r in $ESTR/ESTR/COLS/COL
+			</qry:xquery>
+			<qry:out>
+				<qry:attribute name="qry-sum" value="concat(@qry-sum, ',c_', $r/@id)"/>
+			</qry:out>
+		</qry:select>
+	</html:query>
+</html:html>

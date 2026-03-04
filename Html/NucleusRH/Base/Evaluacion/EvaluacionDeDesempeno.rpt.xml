@@ -1,0 +1,189 @@
+<html:html xmlns:html="nomad_engine.html" xmlns:qry="nomad_engine.qry" name="NucleusRH.Base.Evaluacion.EvaluaciondeDesempeno" extends="Nomad.Base.BaseReport.rpt" doc="source">
+	<html:query declare="&lt;FILTRO oi_personal_emp=&quot;11436&quot; /&gt;">
+		<qry:main doc="SOURCE">
+			<qry:append-doc name="PARAMIN" doc-path="#SOURCE:FILTRO"/>
+			<REPORT label="Evoluci&#243;n de Competencias">
+				<qry:attribute value="format_date(now(), 'dd/mm/yyyy HH:MM')" name="date"/>
+				<GROUPS>
+					<GROUP tag="PER" type="title">
+						<COLS>
+							<COL name="d_empresa" label="Empresa"/>
+							<COL name="e_numero_legajo" label="Legajo"/>
+							<COL name="d_ape_y_nom" label="Apellido y Nombre"/>
+						</COLS>
+						<GROUP tag="ROW" style="width:0px" type="hor_table">
+							<STYLES>
+								<STYLE name="head"/>
+								<STYLE name="head_h" style="font-weight:bold;background-color:#BBBBBB;width:75px;text-align:center;"/>
+								<STYLE name="detail" style="width:120px;border:none"/>
+								<STYLE name="result" style="text-align:center;font-weight:bold;"/>
+								<STYLE name="extra" style="border:none;"/>
+							</STYLES>
+						</GROUP>
+					</GROUP>
+				</GROUPS>
+				<qry:element name="DATA">
+					<qry:insert-select name="QRY_PERSONAL" doc-path="#PARAMIN:"/>
+				</qry:element>
+			</REPORT>
+		</qry:main>
+		<qry:select doc="PARAM" name="QRY_PERSONAL">
+			<qry:xquery>
+				for $r in sql('
+				SELECT 
+					per01.d_ape_y_nom,
+					per02.e_numero_legajo,
+					per02.oi_personal_emp,
+					per02.oi_empresa,
+					org03.d_empresa
+				FROM 
+					PER01_PERSONAL as per01, 
+					PER02_PERSONAL_EMP as per02 ,
+					ORG03_EMPRESAS AS org03
+				JOIN 
+					per01.oi_personal INNER per02.oi_personal,
+					per02.oi_empresa INNER org03.oi_empresa
+				WHERE	
+					per02.oi_personal_emp = {#PARAMIN:@oi_personal_emp}			  		
+		')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:element name="PER">
+					<qry:attribute value="$r/@d_empresa" name="d_empresa"/>
+					<qry:attribute value="$r/@e_numero_legajo" name="e_numero_legajo"/>
+					<qry:attribute value="$r/@d_ape_y_nom" name="d_ape_y_nom"/>
+					<qry:attribute name="oi_personal_emp" value="$r/@oi_personal_emp"/>
+					<qry:insert-select name="SECURITY" doc-path="."/>
+					<qry:element name="ROW">
+						<qry:element name="COL">
+							<qry:attribute value="'head_h'" name="class"/>
+							<qry:attribute value="'Competencias'" name="value"/>
+						</qry:element>
+						<qry:insert-select doc-path="$r" name="QRY_EVALUACIONES"/>
+					</qry:element>
+					<qry:insert-select doc-path="$r" name="QRY_COMPETENCIAS"/>
+				</qry:element>
+			</qry:out>
+		</qry:select>
+		<qry:select name="QRY_EVALUACIONES" doc="PARAM">
+			<qry:xquery>
+				for $r in sql('
+			SELECT
+				eva01_eventos.c_evento,
+				eva02_evaluacion.oi_evaluacion,
+				eva01_eventos.f_desde,
+				eva02_evaluacion.oi_evento
+			FROM
+				eva02_evaluacion,
+				eva01_eventos
+			JOIN 
+				eva02_evaluacion.oi_evento INNER eva01_eventos.oi_evento
+			WHERE
+				eva02_evaluacion.oi_personal_emp= {#PARAMIN:@oi_personal_emp}
+			ORDER BY
+				f_desde ASC				
+			')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:element name="COL">
+					<qry:attribute value="'head_h'" name="class"/>
+					<qry:attribute value="$r/@c_evento" name="value"/>
+				</qry:element>
+			</qry:out>
+		</qry:select>
+		<qry:select name="QRY_COMPETENCIAS" doc="PARAM">
+			<qry:xquery>
+				for $r in sql('
+				SELECT 
+					org21.d_competencia,
+					eva02.oi_competencia
+				FROM 
+					EVA02_COM_EVALU as eva02,
+					ORG21_COMPETENCIAS as org21,
+					EVA02_EVALUACION as eva02e
+				JOIN
+					eva02e.oi_evaluacion INNER eva02.oi_evaluacion,
+					eva02.oi_competencia INNER org21.oi_competencia
+				WHERE 
+					eva02e.oi_personal_emp = {#PARAMIN:@oi_personal_emp}
+				GROUP BY
+					org21.d_competencia,
+					eva02.oi_competencia
+
+			')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:element name="ROW">
+					<qry:element name="COL">
+						<qry:attribute value="$r/@d_competencia" name="value"/>
+					</qry:element>
+					<qry:insert-select doc-path="$r" name="QRY_EVA_COMP"/>
+				</qry:element>
+			</qry:out>
+		</qry:select>
+		<qry:select name="QRY_EVA_COMP" doc="PARAM">
+			<qry:xquery>
+				for $r in sql('
+			SELECT
+				eva01_eventos.c_evento,
+				eva02_evaluacion.oi_evaluacion,
+				eva01_eventos.f_desde,
+				eva02_evaluacion.oi_evento,
+				{%=#PARAM:@oi_competencia%} as oi_competencia
+			FROM
+				eva02_evaluacion,
+				eva01_eventos
+			JOIN 
+				eva02_evaluacion.oi_evento INNER eva01_eventos.oi_evento
+			WHERE
+				eva02_evaluacion.oi_personal_emp= {#PARAMIN:@oi_personal_emp}
+			ORDER BY
+				f_desde ASC
+			')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:element name="COL">
+					<qry:attribute value="'result'" name="class"/>
+					<qry:attribute value="'-'" name="value"/>
+					<qry:insert-select doc-path="$r" name="QRY_RESULTADOS"/>
+				</qry:element>
+			</qry:out>
+		</qry:select>
+		<qry:select doc="PARAM" name="QRY_RESULTADOS">
+			<qry:xquery>
+				for $r in sql('
+				SELECT 
+					eva02e.oi_evaluacion,
+					eva02.c_nivel_resultado
+				FROM 
+					EVA02_COM_EVALU as eva02,
+					EVA02_EVALUACION as eva02e
+				JOIN
+					eva02e.oi_evaluacion INNER eva02.oi_evaluacion					
+				WHERE 
+					eva02e.oi_personal_emp = {#PARAMIN:@oi_personal_emp}
+				AND
+					eva02.oi_competencia = {#PARAM:@oi_competencia}
+				AND 
+					eva02.oi_evaluacion = {#PARAM:@oi_evaluacion} 
+				')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:attribute value="iif($r/@c_nivel_resultado!='',$r/@c_nivel_resultado, '-')" name="value"/>
+			</qry:out>
+		</qry:select>
+		<qry:select doc="PARAM" name="SECURITY">
+			<qry:xquery>
+				for $r in sql('
+			SELECT NMD_SECURITY.policy 
+			FROM NMD_SECURITY 
+			WHERE
+			NMD_SECURITY.class=\'NucleusRH.Base.Personal.LegajoEmpresa.PERSONAL_EMP\' 
+			AND NMD_SECURITY.id={#PARAM:@oi_personal_emp}')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:attribute value="$r/@policy" name="policy"/>
+			</qry:out>
+		</qry:select>
+	</html:query>
+</html:html>

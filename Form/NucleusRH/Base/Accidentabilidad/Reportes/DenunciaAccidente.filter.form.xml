@@ -1,0 +1,107 @@
+<form:Form xmlns:form="nomad_engine.form" xmlns:qry="nomad_engine.qry" doc="source" name="NucleusRH.Base.Accidentabilidad.Reportes.DenunciaAccidente.filter.form">
+	<form:Title>
+		<form:Label label="002 - Denuncia de Accidente" name="lbl" style="S3 LCol_w" visible=""/>
+	</form:Title>
+	<form:Center>
+		<form:Blank name="b20" width="100%" visible=""/>
+		<form:ComboBox queryname2="NucleusRH.Base.Organizacion.Empresas.EMPRESA.INFO" label="Empresa - Legajo" queryname1="NucleusRH.Base.Personal.LegajoEmpresa.PERSONAL_EMP.INFO" xsize="30" mode="QRY" required="1" nvalue="#source:@oi_personal_emp" name="oi_personal_emp">
+			<form:Event action="RELOAD" name="onchange" runat="client"/>
+		</form:ComboBox>
+		<form:Blank name="b30" width="100%" visible=""/>
+		<form:Blank name="b40" width="100%" visible=""/>
+		<form:Blank name="b50" width="100%" visible=""/>
+		<form:ListView rows="10" docname="RS" name="LIST">
+			<form:LVColumns>
+				<form:LVColumn width="50px" additional="dd/mm/yyyy" type="datetime" name="f_fecha_acc" label="Fecha Accidente" attrname="f_fecha_acc"/>
+				<form:LVColumn width="50px" additional="HH:MM:SS" type="datetime" name="f_hora_acc" label="Hora Accidente" attrname="f_hora_acc"/>
+				<form:LVColumn width="50px" type="string" label="Tipo Accidente" name="d_tipo_acc" attrname="d_tipo_acc"/>
+			</form:LVColumns>
+		</form:ListView>
+		<form:TextBox visible="0" ysize="100" xsize="100" name="DEBUG"/>
+	</form:Center>
+	<form:Bottom>
+		<form:RowAligner name="botonera" columns="3">
+			<form:Row name="fila6">
+				<form:Button startvalidate="1" enabled="" visible="" img="ok" name="btnEjecutar" label="Aceptar" note="Ejecuta" descrip="">
+					<form:Event name="onvalidate" action="valAccidente" runat="client"/>
+					<form:Event name="onclick" action="ACCEPT" runat="server"/>
+				</form:Button>
+				<form:Button enabled="" visible="" name="btnVolver" label="Volver" img="back" note="" descrip="">
+					<form:Event action="BACK" name="onclick" runat="server"/>
+				</form:Button>
+			</form:Row>
+		</form:RowAligner>
+	</form:Bottom>
+	<form:Event action="RELOAD" name="reload" runat="server"/>
+	<form:Scripts>
+		function valAccidente(me)
+{
+	if (Ctrl('LIST').RowsCount() == 0)
+	{
+		me.SetError('No hay un accidente seleccionado');
+		return false;
+	}
+	return true;
+}
+
+function RELOAD()
+{	
+	var MyRows;
+	var PARAM = "&lt;DATOS oi_personal_emp=\""+Ctrl('oi_personal_emp').GetXValue()+"\" /&gt;";		
+	MyRows=GetProxy().SQLService().GetXML(Ctrl("main").getResource("QRY_ACCIDENTES"), PARAM)
+	
+	if (Ctrl('DEBUG')) Ctrl('DEBUG').SetXValue(MyRows.ToString());
+	
+	Ctrl("LIST").processResult(MyRows.ToString());	
+}
+	</form:Scripts>
+	<form:Resources>
+		<form:Resource declare="&lt;DATOS oi_personal_emp=&quot;11565&quot;/&gt;" name="QRY_ACCIDENTES">
+			<qry:main doc="PARAM">
+				<qry:element name="ROWS">
+					<qry:insert-select name="qry1" doc-path="#PARAM:DATOS"/>
+				</qry:element>
+			</qry:main>
+			<qry:select name="qry1" doc="PARAM">
+				<qry:xquery>
+					for $r in sql('
+				SELECT 
+					ACC01_ACCIDENTES.oi_accidente, 
+					ACC01_ACCIDENTES.f_fechahora_acc, 
+					ACC01_ACCIDENTES.oi_tipo_acc
+				FROM 
+					ACC01_ACCIDENTES
+				WHERE 
+					ACC01_ACCIDENTES.oi_personal_emp = {#PARAM:@oi_personal_emp}
+			')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:element name="ROW">
+						<qry:attribute name="id" value="$r/@oi_accidente"/>
+						<qry:attribute name="f_fecha_acc" value="$r/@f_fechahora_acc"/>
+						<qry:attribute name="f_hora_acc" value="$r/@f_fechahora_acc"/>
+						<qry:insert-select name="sql2" doc-path="$r"/>
+					</qry:element>
+				</qry:out>
+			</qry:select>
+			<qry:select doc="PARAM" name="sql2">
+				<qry:xquery>
+					for $r in sql('
+				SELECT 
+					ACC10_TIPOS_ACC.oi_tipo_acc, 
+					ACC10_TIPOS_ACC.c_tipo_acc, 
+					ACC10_TIPOS_ACC.d_tipo_acc
+				FROM 
+					ACC10_TIPOS_ACC 
+				WHERE 
+					ACC10_TIPOS_ACC.oi_tipo_acc={#PARAM:@oi_tipo_acc}
+			')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:attribute name="c_tipo_acc" value="$r/@c_tipo_acc"/>
+					<qry:attribute name="d_tipo_acc" value="$r/@d_tipo_acc"/>
+				</qry:out>
+			</qry:select>
+		</form:Resource>
+	</form:Resources>
+</form:Form>

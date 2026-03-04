@@ -1,0 +1,225 @@
+<flow:flow xmlns:flow="nomad_engine.flow" xmlns:doc="nomad_engine.doc" xmlns:qry="nomad_engine.qry" name="NucleusWF.Base.Definicion.Workflows.FORM_GROUP" default_action="DETAIL">
+	<flow:info label="Flow guia para NucleusWF.Base.Definicion.Organigramas.ESTRUCTURA"/>
+	<flow:declare>
+		<doc:define name="PARENT"/>
+		<doc:define name="METHOD"/>
+		<doc:define name="SELECT"/>
+		<qry:define declare="&lt;PARAMS PARENT=&quot;10&quot; MODE=&quot;MAIN&quot; /&gt;" name="GetModeGroup">
+			<qry:main doc="SOURCE">
+				<qry:element name="ROW">
+					<qry:insert-select doc-path="#SOURCE:PARAMS" name="sql1"/>
+				</qry:element>
+			</qry:main>
+			<qry:select doc="PARAM" name="sql1">
+				<qry:xquery>
+					for $r in SQL('
+			SELECT
+				FRM_GRP.c_mode
+			FROM
+				WRK01_FORM_GROUPS as FRM_GRP
+			WHERE
+				FRM_GRP.oi_form_group = {#PARAM:@PARENT}
+			')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:attribute name="c_mode" value="$r/@c_mode"/>
+				</qry:out>
+			</qry:select>
+		</qry:define>
+		<doc:define name="FORM_MODE"/>
+		<doc:define name="DDO"/>
+		<qry:define declare="&lt;PARAMS PARENT=&quot;10&quot; ID=&quot;2&quot; /&gt;" name="GetMode">
+			<qry:main doc="SOURCE">
+				<qry:element name="ROW">
+					<qry:insert-select doc-path="#SOURCE:PARAMS" name="sql1"/>
+					<qry:insert-select doc-path="." name="sql2"/>
+				</qry:element>
+			</qry:main>
+			<qry:select doc="PARAM" name="sql1">
+				<qry:xquery>
+					for $r in SQL('
+			SELECT
+				WRK.d_template,
+				FRM_GRP.c_mode
+			FROM
+				WRK01_FORMS as WRK,
+				WRK01_FORM_GROUPS as FRM_GRP
+			JOIN
+				FRM_GRP.oi_form INNER WRK.oi_form
+			WHERE
+				FRM_GRP.oi_form_group = {#PARAM:@ID}
+			')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:attribute name="d_template" value="$r/@d_template"/>
+					<qry:attribute name="c_mode" value="$r/@c_mode"/>
+				</qry:out>
+			</qry:select>
+			<qry:select doc="PARAM" name="sql2">
+				<qry:xquery>
+					for $r in FILESTORE('Html\\{%=#PARAM:@d_template%}')/html:html/html:xslt/xsl:template[@name='COMBO_GROUPMODES']/OPT[@value=#PARAM:@c_mode]
+				</qry:xquery>
+				<qry:out>
+					<qry:attribute name="text" value="$r/@text"/>
+					<qry:attribute name="action" value="$r/@action-group"/>
+				</qry:out>
+			</qry:select>
+		</qry:define>
+		<qry:define declare="&lt;PARAMS PARENT=&quot;206&quot; MODE=&quot;GRID&quot; /&gt;" name="GRUPOS">
+			<qry:main doc="SOURCE">
+				<ROWS>
+					<qry:insert-select name="sql1" doc-path="#SOURCE:PARAMS"/>
+				</ROWS>
+			</qry:main>
+			<qry:select name="sql1" doc="SOURCE">
+				<qry:xquery>
+					for $r in SQL('
+select
+  WRK01_GROUPS.c_var_group,
+  WRK01_GROUPS.d_var_group
+from
+  WRK01_GROUPS,
+  WRK01_FORMS                          
+join
+	WRK01_FORMS.oi_wf INNER WRK01_GROUPS.oi_wf
+where             
+	 WRK01_FORMS.oi_form={$SOURCE/@PARENT} AND
+	 WRK01_GROUPS.c_mode IN (\'CHILD\', \'ARRAUX\')
+  			')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<option>
+						<qry:attribute name="value" value="$r/@c_var_group"/>
+						<qry:attribute name="text" value="$r/@d_var_group"/>
+					</option>
+				</qry:out>
+			</qry:select>
+		</qry:define>
+		<doc:define name="GRUPOS"/>
+	</flow:declare>
+	<flow:main doc="SOURCE">
+		<flow:action name="FORM_FIELD_ADD">
+			<doc:set-attribute from-attr-path="#SOURCE:@PARENT" to-attr-path="#SELECT:@PARENT"/>
+			<doc:load-qry qry="GetModeGroup" output-doc="FORM_MODE" input-doc-path="#SOURCE:"/>
+			<doc:new-object class="NucleusWF.Base.Definicion.Workflows.FIELD" doc="DDO"/>
+			<flow:call-action else="OPEN_FORM_GENERIC" action="OPEN_FORM_BUT" eq="BUT" if="#FORM_MODE:@c_mode"/>
+		</flow:action>
+		<flow:action name="FORM_FIELD_EDIT">
+			<doc:set-attribute from-attr-path="#SOURCE:@ID" to-attr-path="#SELECT:@ID"/>
+			<doc:set-attribute from-attr-path="#SOURCE:@PARENT" to-attr-path="#SELECT:@PARENT"/>
+			<flow:log text-path="#SOURCE:" text="LOG1"/>
+			<doc:new-object class="NucleusWF.Base.Definicion.Workflows.FIELD" doc="DDO"/>
+			<doc:load-object class="NucleusWF.Base.Definicion.Workflows.FIELD" id-path="#SOURCE:@ID" doc="DDO" load-child="0" load-all="1"/>
+			<doc:load-qry qry="GetModeGroup" input-doc-path="#SOURCE:" output-doc="FORM_MODE"/>
+			<flow:call-action else="OPEN_FORM_GENERIC_EDIT" action="OPEN_FORM_BUT_EDIT" eq="BUT" if="#FORM_MODE:@c_mode"/>
+		</flow:action>
+		<flow:action name="OPEN_FORM_BUT">
+			<flow:open-form mode="BUT_ADD" form-class="NucleusWF.Base.Definicion.Workflows.FIELD.form" parent-doc-path="#SOURCE:" doc-path="#SELECT:"/>
+		</flow:action>
+		<flow:action name="OPEN_FORM_GENERIC">
+			<flow:open-form mode="GENERIC_ADD" form-class="NucleusWF.Base.Definicion.Workflows.FIELD.form" parent-doc-path="#SOURCE:" doc-path="#SELECT:"/>
+		</flow:action>
+		<flow:action name="OPEN_FORM_BUT_EDIT">
+			<flow:open-form mode="CHILD_EDIT" form-class="NucleusWF.Base.Definicion.Workflows.FIELD.form" parent-doc-path="#SOURCE:" doc-path="#SELECT:"/>
+		</flow:action>
+		<flow:action name="OPEN_FORM_GENERIC_EDIT">
+			<flow:open-form mode="GRID_EDIT" form-class="NucleusWF.Base.Definicion.Workflows.FIELD.form" parent-doc-path="#SOURCE:" doc-path="#SELECT:"/>
+		</flow:action>
+	</flow:main>
+	<flow:form parent-doc="PARENTSOURCE" name="NucleusWF.Base.Definicion.Workflows.FIELD.form:BUT_ADD" mode="BUT_ADD" form-class="NucleusWF.Base.Definicion.Workflows.FIELD.form" doc="SOURCE">
+		<flow:action name="on-show">
+			<doc:load-qry input-doc-path="#PARENTSOURCE:" output-doc="GRUPOS" qry="GRUPOS"/>
+			<flow:attach-doc doc-path="#GRUPOS:" attach-id="GRUPOS"/>
+		</flow:action>
+		<flow:action name="CANCEL">
+			<flow:close-form/>
+		</flow:action>
+		<flow:action name="SAVE">
+			<flow:call-action action="INT-VALIDATE"/>
+			<flow:call-action action="INT-SAVE"/>
+			<flow:close-form/>
+		</flow:action>
+		<flow:action name="INT-VALIDATE"/>
+		<flow:action name="INT-SAVE">
+			<doc:new-object class="NucleusWF.Base.Definicion.Workflows.FORM" doc="PARENT"/>
+			<doc:load-object class="NucleusWF.Base.Definicion.Workflows.FORM" id-path="#PARENTSOURCE:@PARENT" doc="PARENT" load-child="0" load-all="1"/>
+			<doc:add-object parent-doc-path="#PARENT:FORM_GROUPS" doc-path="#DDO:"/>
+			<doc:save-object class="NucleusWF.Base.Definicion.Workflows.FORM" doc="PARENT"/>
+		</flow:action>
+	</flow:form>
+	<flow:form mode="GENERIC_ADD" name="NucleusWF.Base.Definicion.Workflows.FIELD.form:GENERIC_ADD" parent-doc="PARENTSOURCE" form-class="NucleusWF.Base.Definicion.Workflows.FIELD.form" doc="SOURCE">
+		<flow:action name="on-show">
+			<doc:load-qry output-doc="GRUPOS" input-doc-path="#PARENTSOURCE:" qry="GRUPOS"/>
+			<flow:attach-doc doc-path="#GRUPOS:" attach-id="GRUPOS"/>
+		</flow:action>
+		<flow:action name="CANCEL">
+			<flow:close-form/>
+		</flow:action>
+		<flow:action name="SAVE">
+			<flow:call-action action="INT-VALIDATE"/>
+			<flow:call-action action="INT-SAVE"/>
+			<flow:close-form/>
+		</flow:action>
+		<flow:action name="INT-VALIDATE"/>
+		<flow:action name="INT-SAVE">
+			<doc:new-object class="NucleusWF.Base.Definicion.Workflows.FORM" doc="PARENT"/>
+			<doc:load-object class="NucleusWF.Base.Definicion.Workflows.FORM" id-path="#PARENTSOURCE:@PARENT" doc="PARENT" load-child="0" load-all="1"/>
+			<doc:add-object parent-doc-path="#PARENT:FORM_GROUPS" doc-path="#DDO:"/>
+			<doc:save-object class="NucleusWF.Base.Definicion.Workflows.FORM" doc="PARENT"/>
+		</flow:action>
+	</flow:form>
+	<flow:form parent-doc="PARENTSOURCE" mode="BUT_EDIT" name="NucleusWF.Base.Definicion.Workflows.FIELD.form:BUT_EDIT" form-class="NucleusWF.Base.Definicion.Workflows.FIELD.form" doc="SOURCE">
+		<flow:action name="on-show">
+			<doc:load-qry output-doc="GRUPOS" input-doc-path="#PARENTSOURCE:" qry="GRUPOS"/>
+			<flow:attach-doc doc-path="#GRUPOS:" attach-id="GRUPOS"/>
+		</flow:action>
+		<flow:action name="CANCEL">
+			<flow:close-form/>
+		</flow:action>
+		<flow:action name="SAVE">
+			<flow:call-action action="INT-VALIDATE"/>
+			<flow:call-action action="INT-SAVE"/>
+			<flow:close-form/>
+		</flow:action>
+		<flow:action name="INT-VALIDATE"/>
+		<flow:action name="INT-SAVE">
+			<doc:save-object class="NucleusWF.Base.Definicion.Workflows.FORM_GROUP" doc="DDO"/>
+		</flow:action>
+		<flow:action name="DELETE">
+			<flow:call-action action="INT-DELETE"/>
+			<flow:close-form/>
+		</flow:action>
+		<flow:action name="INT-DELETE">
+			<doc:load-object class="NucleusWF.Base.Definicion.Workflows.FORM_GROUP" id-path="#SOURCE:@ID" doc="DDO" load-child="1" load-all="1"/>
+			<doc:delete-object doc-path="#DDO:"/>
+			<doc:save-object class="NucleusWF.Base.Definicion.Workflows.FORM_GROUP" doc="DDO"/>
+		</flow:action>
+	</flow:form>
+	<flow:form mode="GENERIC_EDIT" parent-doc="PARENTSOURCE" name="NucleusWF.Base.Definicion.Workflows.FIELD.form:GENERIC_EDIT" form-class="NucleusWF.Base.Definicion.Workflows.FIELD.form" doc="SOURCE">
+		<flow:action name="on-show">
+			<doc:load-qry input-doc-path="#PARENTSOURCE:" output-doc="GRUPOS" qry="GRUPOS"/>
+			<flow:attach-doc doc-path="#GRUPOS:" attach-id="GRUPOS"/>
+		</flow:action>
+		<flow:action name="CANCEL">
+			<flow:close-form/>
+		</flow:action>
+		<flow:action name="SAVE">
+			<flow:call-action action="INT-VALIDATE"/>
+			<flow:call-action action="INT-SAVE"/>
+			<flow:close-form/>
+		</flow:action>
+		<flow:action name="INT-VALIDATE"/>
+		<flow:action name="INT-SAVE">
+			<doc:save-object class="NucleusWF.Base.Definicion.Workflows.FORM_GROUP" doc="DDO"/>
+		</flow:action>
+		<flow:action name="DELETE">
+			<flow:call-action action="INT-DELETE"/>
+			<flow:close-form/>
+		</flow:action>
+		<flow:action name="INT-DELETE">
+			<doc:load-object class="NucleusWF.Base.Definicion.Workflows.FORM_GROUP" id-path="#SOURCE:@ID" doc="DDO" load-child="1" load-all="1"/>
+			<doc:delete-object doc-path="#DDO:"/>
+			<doc:save-object class="NucleusWF.Base.Definicion.Workflows.FORM_GROUP" doc="DDO"/>
+		</flow:action>
+	</flow:form>
+</flow:flow>

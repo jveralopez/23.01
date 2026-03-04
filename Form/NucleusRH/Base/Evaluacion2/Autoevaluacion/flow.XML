@@ -1,0 +1,214 @@
+<flow:flow xmlns:flow="nomad_engine.flow" xmlns:doc="nomad_engine.doc" xmlns:qry="nomad_engine.qry" extends="Nomad.Base.flow" name="Autoevaluacion">
+	<flow:info label="Flow para NucleusRH.Base.Evaluacion2.Autoevaluacion"/>
+	<flow:declare>
+		<doc:define name="RS"/>
+		<qry:define name="QRY_PERSONA">
+			<qry:main>
+				<DATOS>
+					<qry:insert-select name="SQL0"/>
+					<ROWS>
+						<qry:insert-select name="SQL1" doc-path=".."/>
+					</ROWS>
+					<qry:attribute name="count" value="count(ROWS/ROW)"/>
+				</DATOS>
+			</qry:main>
+			<qry:select name="SQL0">
+				<qry:xquery>
+					for $r in SQL('
+SELECT
+	PER02.oi_personal_emp
+FROM
+	PER01_PERSONAL AS PER01,
+	PER02_PERSONAL_EMP AS PER02
+JOIN	
+	PER02.oi_personal INNER PER01.oi_personal
+WHERE                                 
+	PER01.oi_usuario_sistema={#PROXY:@ETTY}
+')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:attribute name="oi_personal_emp" value="$r/@oi_personal_emp"/>
+				</qry:out>
+			</qry:select>
+			<qry:select name="SQL1" doc="PARAM">
+				<qry:xquery>
+					for $r in SQL('
+SELECT
+	PER01.oi_personal,
+	PER02.oi_personal_emp,
+	PER02.e_numero_legajo,
+	PER01.d_ape_y_nom,
+	EVA.c_estado,
+	EVA.oi_evaluacion,
+	EVE.d_evento,
+	EVE.oi_evento,
+	EVE.f_desde
+FROM
+	PER01_PERSONAL AS PER01,
+	PER02_PERSONAL_EMP AS PER02,
+	EDD03_EVALUACION AS EVA,
+	EDD02_EVENTOS AS EVE
+JOIN	
+	PER02.oi_personal INNER PER01.oi_personal,
+	PER02.oi_personal_emp INNER EVA.oi_personal_emp,
+	EVA.oi_evento INNER EVE.oi_evento
+WHERE                                 
+	PER01.oi_usuario_sistema={#PROXY:@ETTY} and
+	EVE.c_estado in (\'H\', \'C\') and
+	EVA.c_estado != \'AB\'
+ORDER BY
+	f_desde ASC
+')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<ROW>
+						<qry:attribute name="oi_personal_emp" value="$r/@oi_personal_emp"/>
+						<qry:attribute name="id" value="$r/@oi_evaluacion"/>
+						<qry:attribute name="oi_personal" value="$r/@oi_personal"/>
+						<qry:attribute name="d_evento" value="$r/@d_evento"/>
+						<qry:attribute name="oi_evento" value="$r/@oi_evento"/>
+						<qry:if test="$r/@c_estado ='HA' or $r/@c_estado ='EV'">
+							<qry:then>
+								<qry:attribute name="c_estado" value="'En Curso'"/>
+							</qry:then>
+							<qry:else>
+								<qry:attribute name="c_estado" value="'Cerrada'"/>
+							</qry:else>
+						</qry:if>
+					</ROW>
+				</qry:out>
+			</qry:select>
+		</qry:define>
+		<doc:define name="PER"/>
+		<qry:define declare="&lt;DATA oi_evento=&quot;112&quot; oi_evaluacion=&quot;2735&quot; /&gt;" name="REPORT">
+			<qry:main name="" doc="SOURCE">
+				<qry:element name="ROW">
+					<qry:insert-select name="SQL1" doc-path="#SOURCE:."/>
+				</qry:element>
+			</qry:main>
+			<qry:select name="SQL1" doc="SOURCE">
+				<qry:xquery>
+					for $r in SQL('
+				select                
+					TY.d_reporte as REPORT
+				from        
+					EDD01_TIPOS_EVAL as TY,
+					EDD02_EVENTOS as EV
+				join                  
+					TY.oi_tipo_eval inner EV.oi_tipo_eval
+				where
+					 EV.oi_evento = {#SOURCE:@oi_evento}
+			')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:attribute name="REPORT" value="$r/@REPORT"/>
+				</qry:out>
+			</qry:select>
+		</qry:define>
+		<doc:define name="REPORTNAME"/>
+		<doc:define name="AUXEVENTO">
+			<DATA/>
+		</doc:define>
+		<qry:define declare="&lt;DATA oi_evaluacion=&quot;2735&quot;/&gt;" name="DATOS">
+			<qry:main name="" doc="SOURCE">
+				<qry:element name="DATA">
+					<qry:insert-select name="SQL1" doc-path="#SOURCE:."/>
+				</qry:element>
+			</qry:main>
+			<qry:select name="SQL1" doc="SOURCE">
+				<qry:xquery>
+					for $r in SQL('
+				select                
+					EVA.oi_evento,
+					EVA.oi_evaluacion
+				from        
+					EDD03_EVALUACION AS EVA
+				where
+					 EVA.oi_evaluacion = {#SOURCE:@oi_evaluacion}
+			')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:attribute name="oi_evaluacion" value="$r/@oi_evaluacion"/>
+					<qry:attribute name="oi_evento" value="$r/@oi_evento"/>
+				</qry:out>
+			</qry:select>
+		</qry:define>
+		<doc:define name="DATOS">
+			<DATA/>
+		</doc:define>
+	</flow:declare>
+	<flow:main doc="SOURCE">
+		<flow:action name="initialize">
+			<flow:open-form mode="FILTER" form-class="NucleusRH.Base.Evaluacion2.Autoevaluacion.form" doc-path="#SOURCE:"/>
+		</flow:action>
+	</flow:main>
+	<flow:group Name="AUTO_EVA">
+		<flow:form name="NucleusRH.Base.Evaluacion2.Autoevaluacion.form:FILTER" doc="SOURCE" form-class="NucleusRH.Base.Evaluacion2.Autoevaluacion.form" mode="FILTER">
+			<flow:action name="on-show">
+				<doc:load-qry qry="QRY_PERSONA" output-doc="PER"/>
+				<flow:call-action else="CONTINUE" eq="" if="#PER:@oi_personal_emp" action="NOLEG"/>
+			</flow:action>
+			<flow:action name="BACK">
+				<flow:close-form next-action="After-Back"/>
+			</flow:action>
+			<flow:action name="EVALUADO">
+				<flow:call-action action="GETDATA"/>
+				<flow:call-action action="Save-FILTER"/>
+				<doc:set-attribute to-attr-path="#DATOS:@REPORT" from-attr-path="#SOURCE:@REPORT"/>
+				<flow:open-form mode="EVALUADO" form-class="NucleusRH.Base.Evaluacion2.Evaluacion.REPORTE.form" parent-doc-path="#DATOS:" doc-path="#DATOS:"/>
+				<flow:load-user-data name="FILTER-NucleusRH.Base.Evaluacion2.Evaluacion.EVALUACION-EVA" doc="SOURCE"/>
+			</flow:action>
+			<flow:action name="GETDATA">
+				<doc:set-attribute to-attr-path="#AUXEVENTO:@oi_evaluacion" from-attr-path="#FORM:ctrl[@id='LIST']/@xval"/>
+				<doc:load-qry input-doc-path="#AUXEVENTO:" output-doc="DATOS" qry="DATOS"/>
+				<doc:load-qry input-doc-path="#DATOS:" output-doc="REPORTNAME" qry="REPORT"/>
+				<doc:set-attribute from-attr-path="#REPORTNAME:@REPORT" to-attr-path="#SOURCE:@REPORT"/>
+			</flow:action>
+			<flow:action name="CONSULTAR">
+				<flow:call-action action="GETDATA"/>
+				<flow:call-action action="Save-FILTER"/>
+				<doc:set-attribute to-attr-path="#DATOS:@REPORT" from-attr-path="#SOURCE:@REPORT"/>
+				<flow:open-form form-class="NucleusRH.Base.Evaluacion2.Evaluacion.REPORTE.form" parent-doc-path="#DATOS:" doc-path="#DATOS:" mode="SHOW"/>
+			</flow:action>
+			<flow:action name="Save-FILTER">
+				<flow:save-user-data name="FILTER-NucleusRH.Base.Evaluacion2.Evaluacion.EVALUACION-ADM" doc-path="#SOURCE:"/>
+			</flow:action>
+			<flow:action name="NOLEG">
+				<flow:close-form/>
+				<flow:open-form doc-path="#SOURCE:" form-class="NucleusRH.Base.Evaluacion2.Autoevaluacion.NOLEG.form" mode="SHOW"/>
+			</flow:action>
+			<flow:action name="NOEVA">
+				<flow:close-form/>
+				<flow:open-form doc-path="#SOURCE:" form-class="NucleusRH.Base.Evaluacion2.Autoevaluacion.NOEVA.form" mode="SHOW"/>
+			</flow:action>
+			<flow:action name="CONTINUE">
+				<flow:call-action eq="0" if="#PER:@count" action="NOEVA"/>
+				<flow:attach-doc doc-path="#PER:ROWS" attach-id="RS"/>
+			</flow:action>
+		</flow:form>
+		<flow:form mode="EVALUADO" name="NucleusRH.Base.Evaluacion2.Evaluacion.REPORTE.form:EVALUADO" parent-doc="SOURCE" form-class="NucleusRH.Base.Evaluacion2.Evaluacion.REPORTE.form" doc="SOURCE">
+			<flow:action name="on-show"/>
+			<flow:action name="on-open"/>
+			<flow:action name="BACK">
+				<flow:close-form/>
+			</flow:action>
+		</flow:form>
+		<flow:form parent-doc="SOURCE" form-class="NucleusRH.Base.Evaluacion2.Evaluacion.REPORTE.form" name="NucleusRH.Base.Evaluacion2.Evaluacion.REPORTE.form:SHOW" doc="SOURCE" mode="SHOW">
+			<flow:action name="on-show"/>
+			<flow:action name="on-open"/>
+			<flow:action name="BACK">
+				<flow:close-form/>
+			</flow:action>
+		</flow:form>
+		<flow:form doc="SOURCE" mode="SHOW" name="NucleusRH.Base.Evaluacion2.Autoevaluacion.NOEVA.form" form-class="NucleusRH.Base.Evaluacion2.Autoevaluacion.NOEVA.form">
+			<flow:action name="BACK">
+				<flow:close-form/>
+			</flow:action>
+		</flow:form>
+		<flow:form doc="SOURCE" mode="SHOW" name="NucleusRH.Base.Evaluacion2.Autoevaluacion.NOLEG.form" form-class="NucleusRH.Base.Evaluacion2.Autoevaluacion.NOLEG.form">
+			<flow:action name="BACK">
+				<flow:close-form/>
+			</flow:action>
+		</flow:form>
+	</flow:group>
+</flow:flow>

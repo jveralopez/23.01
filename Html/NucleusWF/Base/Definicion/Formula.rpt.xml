@@ -1,0 +1,1028 @@
+<html:html xmlns:html="nomad_engine.html" xmlns:qry="nomad_engine.qry" xmlns:xsl="http://www.w3.org/1999/XSL/Transform" name="Evaluacion Base" doc="source">
+	<html:query declare="&lt;PARAMS id=&quot;302&quot; process=&quot;308&quot; im2=&quot;SOAP.ALTA.RECIBO&quot; mode=&quot;EDIT&quot; /&gt;" name="qry_report">
+		<qry:include name="NucleusWF.Base.Definicion.Workflows.WF.VariablesInternas"/>
+		<qry:include name="NucleusWF.Base.Definicion.Workflows.WF.FunsionesInternas"/>
+		<qry:main doc="SOURCE">
+			<FORMULAS>
+				<qry:attribute name="mode" value="#SOURCE:/PARAMS/@mode"/>
+				<qry:attribute name="ctrl" value="#SOURCE:/PARAMS/@ctrl"/>
+				<VARS>
+					<qry:create-doc name="VARINT"/>
+					<qry:insert-select name="InternalVars" to-element="$VARINT"/>
+					<qry:if test="Number(#SOURCE:/PARAMS/@id)!=0">
+						<qry:then>
+							<qry:insert-select doc-path="#SOURCE:/PARAMS" name="WF-GINT"/>
+						</qry:then>
+					</qry:if>
+					<qry:insert-select doc-path="#SOURCE:/PARAMS" name="WF-GVAR"/>
+				</VARS>
+				<qry:if test="#SOURCE:/PARAMS/@im!=''">
+					<qry:then>
+						<IM>
+							<VG id="MAIN" COD="" DES="Principal" MUL="1" IO=""/>
+							<qry:insert-select doc-path="#SOURCE:/PARAMS" name="IM-VARS"/>
+						</IM>
+					</qry:then>
+				</qry:if>
+				<qry:if test="#SOURCE:/PARAMS/@process!=''">
+					<qry:then>
+						<PAR>
+							<VG id="MAIN" COD="" DES="Parametros del Proceso" MUL="1" IO="">
+								<qry:insert-select doc-path="#SOURCE:/PARAMS" name="PR-VARS"/>
+							</VG>
+						</PAR>
+					</qry:then>
+				</qry:if>
+				<FUNS>
+					<qry:create-doc name="FUNINT"/>
+					<qry:insert-select name="InternalFuns" to-element="$FUNINT"/>
+					<qry:insert-select doc-path="#SOURCE:/PARAMS" name="WF-GFUN"/>
+				</FUNS>
+				<qry:attribute name="vars" value="string(VARS/VG/V/@FUL)+','+string(IM/VG/V/@FUL)+','+string(PAR/VG/V/@FUL)"/>
+				<qry:attribute name="keys" value="string(FUNS/FG/F[@typ='proc']/@COD)"/>
+				<qry:attribute name="funs" value="string(FUNS/FG/F[@typ!='proc']/@COD)"/>
+			</FORMULAS>
+		</qry:main>
+		<qry:select doc="SOURCE" name="WF-GVAR">
+			<qry:xquery>
+				for $r in SQL('
+				select
+					VG.oi_var_group,
+					VG.c_var_group,
+					VG.d_var_group,
+					VG.c_mode
+				from
+					WRK01_GROUPS as VG
+				where
+					VG.oi_wf = {$SOURCE/@id}
+			')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<VG>
+					<qry:attribute name="id" value="$r/@oi_var_group"/>
+					<qry:attribute name="COD" value="$r/@c_var_group"/>
+					<qry:attribute name="DES" value="$r/@d_var_group"/>
+					<qry:switch test="$r/@c_mode">
+						<qry:case value="MAIN">
+							<qry:attribute name="MUL" value="'1'"/>
+						</qry:case>
+						<qry:case value="HIST">
+							<qry:attribute name="MUL" value="'1'"/>
+						</qry:case>
+						<qry:case value="AUX">
+							<qry:attribute name="MUL" value="'1'"/>
+						</qry:case>
+						<qry:default>
+							<qry:attribute name="MUL" value="'*'"/>
+						</qry:default>
+					</qry:switch>
+					<qry:insert-select name="WF-VAR" doc-path="$r"/>
+				</VG>
+			</qry:out>
+		</qry:select>
+		<qry:select doc="SOURCE" name="WF-VAR">
+			<qry:xquery>
+				for $r in SQL('
+				select
+					V.oi_var,
+					V.c_var,
+					V.d_var,
+					V.c_type
+				from
+					WRK01_VARS as V
+				where
+					V.oi_var_group = {$SOURCE/@oi_var_group}
+			')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<V>
+					<qry:attribute name="id" value="$r/@oi_var"/>
+					<qry:attribute name="COD" value="$r/@c_var"/>
+					<qry:attribute name="DES" value="$r/@d_var"/>
+					<qry:attribute name="TYP" value="$r/@c_type"/>
+					<qry:attribute name="FUL" value="'@'+iif(../@COD='','',../@COD+'.')+@COD"/>
+				</V>
+			</qry:out>
+		</qry:select>
+		<qry:select doc="SOURCE" name="WF-GINT">
+			<qry:xquery>
+				for $r in $VARINT/GROUP
+			</qry:xquery>
+			<qry:out>
+				<VG>
+					<qry:attribute name="COD" value="$r/@NAME"/>
+					<qry:attribute name="DES" value="$r/@NAME"/>
+					<qry:switch test="$r/@TYPE">
+						<qry:case value="SIMPLE">
+							<qry:attribute name="MUL" value="'1'"/>
+						</qry:case>
+						<qry:default>
+							<qry:attribute name="MUL" value="'*'"/>
+						</qry:default>
+					</qry:switch>
+					<qry:insert-select name="WF-INT" doc-path="$r/VAR"/>
+				</VG>
+			</qry:out>
+		</qry:select>
+		<qry:select doc="r" name="WF-INT">
+			<qry:out>
+				<V>
+					<qry:attribute name="COD" value="$r/@NAME"/>
+					<qry:attribute name="DES" value="$r/@LABEL"/>
+					<qry:attribute name="TYP" value="$r/@TYPE"/>
+					<qry:attribute name="FUL" value="'@'+iif(../@COD='','',../@COD+'.')+@COD"/>
+				</V>
+			</qry:out>
+		</qry:select>
+		<qry:select doc="SOURCE" name="WF-GFUN">
+			<qry:xquery>
+				for $r in $FUNINT/GROUP
+			</qry:xquery>
+			<qry:out>
+				<FG>
+					<qry:attribute name="COD" value="$r/@NAME"/>
+					<qry:attribute name="DES" value="$r/@NAME"/>
+					<qry:attribute name="TYP" value="$r/@TYPE"/>
+					<qry:insert-select name="WF-FUN" doc-path="$r/FUN"/>
+				</FG>
+			</qry:out>
+		</qry:select>
+		<qry:select doc="r" name="WF-FUN">
+			<qry:out>
+				<F>
+					<qry:attribute name="COD" value="$r/@NAME"/>
+					<qry:attribute name="DES" value="$r/@LABEL"/>
+					<qry:attribute name="TYP" value="$r/@TYPE"/>
+					<qry:attribute name="PROTO" value="$r/@PROTO"/>
+				</F>
+			</qry:out>
+		</qry:select>
+		<qry:select doc="SOURCE" name="IM-VARS">
+			<qry:xquery>
+				for $r in SQL('
+				select
+					P.oi_param,
+					P.c_param,
+					P.d_param,
+					P.c_io,
+					P.c_type
+				from
+					WRK04_INT_MAN as I,
+					WRK04_PARAMS as P
+				join
+					P.oi_int_mag inner I.oi_int_mag
+				where       
+					isNull(P.oi_param_x) and
+					I.c_int_mag = {$SOURCE/@im}
+				order by     
+					oi_param asc
+			')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:switch test="$r/@c_type">
+					<qry:case value="array">
+						<VG>
+							<qry:attribute name="id" value="$r/@oi_param"/>
+							<qry:attribute name="COD" value="$r/@c_param"/>
+							<qry:attribute name="DES" value="$r/@d_param"/>
+							<qry:attribute name="MUL" value="'*'"/>
+							<qry:attribute name="IO" value="$r/@c_io"/>
+							<qry:insert-select doc-path="$r" name="IM-STRS"/>
+						</VG>
+					</qry:case>
+					<qry:case value="struct">
+						<VG>
+							<qry:attribute name="id" value="$r/@oi_param"/>
+							<qry:attribute name="COD" value="$r/@c_param"/>
+							<qry:attribute name="DES" value="$r/@d_param"/>
+							<qry:attribute name="MUL" value="'1'"/>
+							<qry:attribute name="IO" value="$r/@c_io"/>
+							<qry:insert-select doc-path="$r" name="IM-STRS"/>
+						</VG>
+					</qry:case>
+					<qry:default>
+						<qry:insert-select doc-path="$r" name="IM-MAIN" to-element="VG[@id='MAIN']"/>
+					</qry:default>
+				</qry:switch>
+			</qry:out>
+		</qry:select>
+		<qry:select doc="r" name="IM-MAIN">
+			<qry:out>
+				<V>
+					<qry:attribute name="id" value="$r/@oi_param"/>
+					<qry:attribute name="COD" value="$r/@c_param"/>
+					<qry:attribute name="DES" value="$r/@d_param"/>
+					<qry:attribute name="TYP" value="$r/@c_type"/>
+					<qry:attribute name="IO" value="$r/@c_io"/>
+					<qry:attribute name="FUL" value="'#'+iif(../@COD='','',../@COD+'.')+@COD"/>
+				</V>
+			</qry:out>
+		</qry:select>
+		<qry:select doc="SOURCE" name="IM-STRS">
+			<qry:xquery>
+				for $r in SQL('
+				select
+					S.oi_struct,
+					S.c_struct,
+					S.d_struct,
+					S.c_type
+				from
+					WRK04_PARAM_STRUCT as S
+				where
+					S.oi_param = {$SOURCE/@oi_param}
+				order by     
+					oi_struct asc
+			')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<V>
+					<qry:attribute name="id" value="$r/@oi_struct"/>
+					<qry:attribute name="COD" value="$r/@c_struct"/>
+					<qry:attribute name="DES" value="$r/@d_struct"/>
+					<qry:attribute name="TYP" value="$r/@c_type"/>
+					<qry:attribute name="IO" value="$SOURCE/@c_io"/>
+					<qry:attribute name="FUL" value="'#'+iif(../@COD='','',../@COD+'.')+@COD"/>
+				</V>
+			</qry:out>
+		</qry:select>
+		<qry:select doc="SOURCE" name="PR-VARS">
+			<qry:xquery>
+				for $r in SQL('
+				select
+					S.oi_process_param,
+					S.c_process_param,
+					S.d_process_param,
+					S.c_type,
+					S.c_io
+				from
+					WRK01_process_param as S
+				where
+					S.oi_process = {$SOURCE/@process}
+				order by     
+					oi_process_param asc
+			')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<V>
+					<qry:attribute name="id" value="$r/@oi_process_param"/>
+					<qry:attribute name="COD" value="$r/@c_process_param"/>
+					<qry:attribute name="DES" value="$r/@d_process_param"/>
+					<qry:attribute name="TYP" value="$r/@c_type"/>
+					<qry:attribute name="IO" value="$r/@c_io"/>
+					<qry:attribute name="FUL" value="'#'+iif(../@COD='','',../@COD+'.')+@COD"/>
+				</V>
+			</qry:out>
+		</qry:select>
+	</html:query>
+	<html:xslt>
+		<xsl:template match="FORMULAS[@mode='EDIT']">
+			<html>
+				<head>
+					<xsl:call-template name="STYLE"/>
+					<xsl:call-template name="SCRIPT"/>
+				</head>
+				<body style="font-size:10px;font-family:verdana;" onload="OnLoad();">
+					<table style="width:100%;height:100%;font-size:10px;border-collapse:collapse;table-layout:fixed;" border="0" cellspacing="0" cellpadding="0">
+						<xsl:if test="IM or PAR">
+							<col width="33%"/>
+							<col width="33%"/>
+							<col width="33%"/>
+						</xsl:if>
+						<xsl:if test="not(IM) and not(PAR)">
+							<col width="50%"/>
+							<col width="50%"/>
+						</xsl:if>
+						<tr height="20px">
+							<td>
+								Variables
+							</td>
+							<xsl:if test="IM">
+								<td>
+									Parametros del Metodo Externo
+								</td>
+							</xsl:if>
+							<xsl:if test="PAR">
+								<td>
+									Parametros del Proceso
+								</td>
+							</xsl:if>
+							<td>
+								Funciones
+							</td>
+						</tr>
+						<tr height="200px">
+							<td style="padding-right:5px;">
+								<div style="border:1px solid black;width:100%;height:200px;overflow:auto;">
+									<xsl:call-template name="VARIABLES"/>
+								</div>
+							</td>
+							<xsl:if test="IM or PAR">
+								<td style="padding-right:5px;">
+									<div style="border:1px solid black;width:100%;height:200px;overflow:auto;">
+										<xsl:call-template name="PARAMETROS"/>
+									</div>
+								</td>
+							</xsl:if>
+							<td style="padding-right:5px;">
+								<div style="border:1px solid black;width:100%;height:200px;overflow:auto;">
+									<xsl:call-template name="FUNSIONES"/>
+								</div>
+							</td>
+						</tr>
+						<tr>
+							<td colspan="2" style="padding-top:5px;padding-right:5px;">
+								<xsl:if test="IM or PAR">
+									<xsl:attribute name="colspan">
+										3
+									</xsl:attribute>
+								</xsl:if>
+								<div id="CODE" name="CODE" style="border:1px solid black;width:100%;height:100%;overflow:auto;font-size:12px;font-family:monospace;" contentEditable="true" onblur="ResaltarSintaxis();">
+									<xsl:attribute name="nmd-vars">
+										<xsl:value-of select="@vars"/>
+									</xsl:attribute>
+									<xsl:attribute name="nmd-funs">
+										<xsl:value-of select="@funs"/>
+									</xsl:attribute>
+									<xsl:attribute name="nmd-keys">
+										<xsl:value-of select="@keys"/>
+									</xsl:attribute>
+									&#160;
+								</div>
+							</td>
+						</tr>
+					</table>
+				</body>
+			</html>
+		</xsl:template>
+		<xsl:template match="FORMULAS[@mode='SHOW']">
+			<html>
+				<head>
+					<xsl:call-template name="STYLE"/>
+					<xsl:call-template name="SCRIPT"/>
+					<script>
+						function StartPage()
+			{
+				var ctrl=document.getElementById("CODE").getAttribute("nmd-ctrl");                           
+				if (ctrl)
+					RefreshCodeDiv(parent.Ctrl(ctrl).GetXValue());
+			}
+					</script>
+				</head>
+				<body onload="OnLoad();">
+					<div id="CODE" name="CODE" style="width:100%;height:100%;overflow:auto;font-size:12px;font-family:monospace;" contentEditable="false">
+						<xsl:attribute name="nmd-ctrl">
+							<xsl:value-of select="@ctrl"/>
+						</xsl:attribute>
+						<xsl:attribute name="nmd-vars">
+							<xsl:value-of select="@vars"/>
+						</xsl:attribute>
+						<xsl:attribute name="nmd-funs">
+							<xsl:value-of select="@funs"/>
+						</xsl:attribute>
+						<xsl:attribute name="nmd-keys">
+							<xsl:value-of select="@keys"/>
+						</xsl:attribute>
+						&#160;
+					</div>
+				</body>
+			</html>
+		</xsl:template>
+		<xsl:template name="SCRIPT">
+			<script>
+				function Replace(strin, strfnd, strrpl)
+		{
+			var strout="", lastpos;
+			
+			for (lastpos=0, pos=strin.indexOf(strfnd); pos!=-1; lastpos=pos+strfnd.length, pos=strin.indexOf(strfnd,lastpos))
+			{                
+				strout+=strin.substr(lastpos,pos-lastpos);
+				strout+=strrpl;
+			} 		
+			strout+=strin.substr(lastpos);
+			
+			return strout;
+		} 
+		function amp()
+		{
+			return String.fromCharCode(38);
+		}
+		function may()
+		{
+			return String.fromCharCode(62);
+		}
+		function men()
+		{
+			return String.fromCharCode(60);
+		}
+	
+		function ToText(obj)
+		{
+			//if (obj.innerText)
+			//	return obj.innerText;
+			
+			var txtIN =obj.innerHTML;
+			var txtOUT="", cmd;
+			var lastpos=0, pos;
+			
+			//Delete TAG TAGS				
+			while(true)
+			{
+				pos=txtIN.indexOf(men(),lastpos)
+				if (pos==-1)
+				{
+					txtOUT+=txtIN.substr(lastpos);
+					break;
+				}
+				
+				txtOUT+=txtIN.substr(lastpos,pos-lastpos);
+				lastpos=txtIN.indexOf(may(),pos);
+				if (lastpos==-1) break;
+				cmd=txtIN.substr(pos,lastpos-pos+1);
+				lastpos++;
+				
+				switch(cmd.substr(1,cmd.length-2).toUpperCase())
+				{
+					case "BR": case "BR/": txtOUT+="\n"; break;
+				}
+			}
+			
+			//Convert Especial Chars
+			txtIN=txtOUT; txtOUT=""; lastpos=0;
+			while(true)
+			{
+				pos=txtIN.indexOf(amp(),lastpos)
+				if (pos==-1)
+				{
+					txtOUT+=txtIN.substr(lastpos);
+					break;
+				}
+				
+				txtOUT+=txtIN.substr(lastpos,pos-lastpos);
+				lastpos=txtIN.indexOf(";",pos);
+				if (lastpos==-1) break;
+				cmd=txtIN.substr(pos,lastpos-pos+1);
+				lastpos++;
+				
+				switch(cmd.substr(1).toUpperCase())
+				{
+					case "NBSP;": txtOUT+=" "; break;
+					case "GT;": txtOUT+=may(); break;
+					case "LT;": txtOUT+=men(); break;
+					case "AMP;": txtOUT+=amp(); break;
+					case "QUOT;": txtOUT+="\""; break;
+					case "APOS;": txtOUT+="\'"; break;
+				}
+			}
+			
+			parent.Ctrl("txtFORMULA").SetXValue(txtOUT);
+	
+			return txtOUT;
+		}
+		
+		var chrWORD    ="ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz";
+		var chrNUMBER  ="0123456789";
+		var chrVARIABLE="ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789._";
+		
+		function GetWord(txtData, startIdx)
+		{
+			idx=startIdx;
+			
+			while (chrWORD.indexOf(txtData.substr(idx,1))!=-1)
+			{
+				if (txtData.substr(idx,1)?false:true) break;
+				idx++;
+			}
+			
+			return txtData.substr(startIdx,idx-startIdx);
+			
+		}                      
+		
+		function ResaltarSintaxis()
+		{                       
+			var txtData=ToText(document.getElementById("CODE"));
+			RefreshCodeDiv(txtData);
+		}
+		
+		var txtKeys="";
+		var txtFunctions="";
+		var txtVars="";
+
+		function RefreshCodeDiv(txtData)
+		{
+			
+			var txtHTML="";
+			var txtMode=0;
+			var txtAux="";
+			var t;
+			var obj=document.getElementById("CODE");
+			
+			for (t=0; t!=txtData.length; )
+			{       
+				if (txtData.substr(t,1)?false:true) 
+					break;     
+				
+				switch(txtMode)
+				{
+					case 0: //Sin Modo
+						if (txtData.substr(t,1)==may())
+						{
+							txtAux=txtData.substr(t,1);
+							txtHTML+=amp()+'gt;';
+							t++;
+						} else
+						if (txtData.substr(t,1)==men())
+						{
+							txtAux=txtData.substr(t,1);
+							txtHTML+=amp()+'lt;';
+							t++;
+						} else
+						if (txtData.substr(t,1)==amp())
+						{
+							txtAux=txtData.substr(t,1);
+							txtHTML+=amp()+'amp;';
+							t++;
+						} else
+						if ((txtData.substr(t,1)=="\"") || (txtData.substr(t,1)=="\'"))
+						{
+							txtAux=txtData.substr(t,1);
+							txtHTML+=men()+'span class="MODE_STRING" '+may()+txtAux;
+							txtMode=1;
+							t++;
+						} else
+						if ((txtData.substr(t,1)=="$") || (txtData.substr(t,1)=="@") || (txtData.substr(t,1)=="#"))
+						{
+							txtAux=txtData.substr(t,1);
+							txtHTML+=men()+'span class="MODE_VARIABLE" '+may()+txtAux;
+							txtMode=4;
+							t++;
+						} else
+						if (chrNUMBER.indexOf(txtData.substr(t,1))!=-1)
+						{
+							txtHTML+=men()+'span class="MODE_NUMBER" '+may()+txtData.substr(t,1);
+							txtMode=2;
+							t++;
+						} else
+						if (chrWORD.indexOf(txtData.substr(t,1))!=-1)
+						{
+							txtAux=GetWord(txtData,t);
+							
+							if (txtKeys.indexOf("|"+txtAux.toUpperCase()+"|")!=-1)
+							{
+								txtHTML+=men()+'span class="MODE_KEY" '+may()+txtAux+men()+"/span"+may();
+							} else
+							if (txtFunctions.indexOf("|"+txtAux.toUpperCase()+"|")!=-1)
+							{
+								txtHTML+=men()+'span class="MODE_FUNCTION" '+may()+txtAux+men()+"/span"+may();
+							} else
+							{
+								txtHTML+=txtAux;
+							}
+							t+=txtAux.length;
+						} else
+						if ((txtData.substr(t,2)=="//") || (txtData.substr(t,2)=="/*"))
+						{
+							txtAux=txtData.substr(t,2)
+							txtHTML+=men()+'span class="MODE_COMMENT" '+may()+txtAux;
+							txtMode=3;
+							t+=2; txtAux=(txtAux=="//"?"\n":"*/");
+						} else
+						{
+							txtHTML+=txtData.substr(t,1);
+							t++;
+						}
+						break;
+	
+					case 1: //Modo Cadena string
+						if (txtData.substr(t,1)==txtAux)
+						{
+							txtHTML+=txtAux+men()+'/span'+may();
+							txtMode=0;
+							t++;
+						} else
+						if (txtData.substr(t,1)==may())
+						{
+							txtAux=txtData.substr(t,1);
+							txtHTML+=amp()+'gt;';
+							t++;
+						} else
+						if (txtData.substr(t,1)==men())
+						{
+							txtAux=txtData.substr(t,1);
+							txtHTML+=amp()+'lt;';
+							t++;
+						} else
+						if (txtData.substr(t,1)==amp())
+						{
+							txtAux=txtData.substr(t,1);
+							txtHTML+=amp()+'amp;';
+							t++;
+						} else
+						if (txtData.substr(t,1)=="\n")
+						{
+							txtHTML+=txtAux+men()+'/span'+may()+'\n';
+							txtMode=0;
+							t++;
+						} else
+						{
+							txtHTML+=txtData.substr(t,1);
+							t++;
+						}
+						break;
+	
+					case 2: //Modo Numero
+						if (chrNUMBER.indexOf(txtData.substr(t,1))!=-1)
+						{
+							txtHTML+=txtData.substr(t,1);
+							t++;
+						} else
+						{
+							txtHTML+=men()+'/span'+may();
+							txtMode=0;
+						}
+						break;
+	
+					case 4: //Modo Variable
+						if (chrVARIABLE.indexOf(txtData.substr(t,1))!=-1)
+						{
+							txtHTML+=txtData.substr(t,1);
+							t++;
+						} else
+						{
+							txtHTML+=men()+'/span'+may();
+							txtMode=0;
+						}
+						break;
+	
+					case 3: //Modo Comentario
+						if (txtData.substr(t,txtAux.length)==txtAux)
+						{
+							txtHTML+=txtAux+men()+'/span'+may();
+							txtMode=0;
+							t+=txtAux.length;
+						} else
+						if (txtData.substr(t,1)==may())
+						{
+							txtAux=txtData.substr(t,1);
+							txtHTML+=amp()+'gt;';
+							t++;
+						} else
+						if (txtData.substr(t,1)==men())
+						{
+							txtAux=txtData.substr(t,1);
+							txtHTML+=amp()+'lt;';
+							t++;
+						} else
+						if (txtData.substr(t,1)==amp())
+						{
+							txtAux=txtData.substr(t,1);
+							txtHTML+=amp()+'amp;';
+							t++;
+						} else
+						{
+							txtHTML+=txtData.substr(t,1);
+							t++;
+						}
+						break;
+				}
+			}    
+			
+			
+			txtHTML=Replace(txtHTML,"\n",men()+"br"+may());
+			obj.innerHTML=txtHTML;
+		}                     
+		
+		function OnLoad()
+		{         
+			var ctrl=document.getElementById("CODE");
+			txtKeys     =("|"+Replace(ctrl.getAttribute("nmd-keys"),",","|")+"|").toUpperCase();
+			txtFunctions=("|"+Replace(ctrl.getAttribute("nmd-funs"),",","|")+"|").toUpperCase();
+			txtVars     =("|"+Replace(ctrl.getAttribute("nmd-vars"),",","|")+"|").toUpperCase();
+			
+			StartPage();
+		}
+		
+		function StartPage()
+		{
+			RefreshCodeDiv(parent.Ctrl("txtFORMULA").GetXValue());
+		}
+		
+		function DragText(obj)
+		{                      
+			var txt=obj.getAttribute("nmd-drag");
+			return txt;
+		}          
+		
+		function no_select(event)
+		{ 
+			event.returnValue = false;
+		}
+			</script>
+		</xsl:template>
+		<xsl:template name="STYLE">
+			<style>
+				p
+		{
+			margin:0px;
+		}
+		
+		.MODE_STRING
+		{
+			color:SteelBlue;
+		}
+
+		.MODE_NUMBER
+		{
+			color:SteelBlue;
+		}
+
+		.MODE_COMMENT
+		{
+			color:Green;
+		}
+
+		.MODE_VARIABLE
+		{
+			color:Brown;    
+			font-weight:bold;
+		}
+		.MODE_KEY
+		{
+			color:Blue;
+			font-weight:bold;
+		}
+		.MODE_FUNCTION
+		{
+			color:Orange; 
+			font-weight:bold;
+		}
+			</style>
+		</xsl:template>
+		<xsl:template name="VARIABLES">
+			<table style="font-size:10px;width:100%;" onselectstart="no_select(event);">
+				<col width="20px"/>
+				<col width="20px"/>
+				<col width="200px"/>
+				<col/>
+				<xsl:for-each select="VARS/VG">
+					<tr>
+						<td>
+							<xsl:choose>
+								<xsl:when test="@MUL='1'">
+									<img src="Skins/_Default/Images/Tree/Hidden.ico"/>
+								</xsl:when>
+								<xsl:otherwise>
+									<img src="Skins/_Default/Images/Tree/HiddenArr.ico"/>
+								</xsl:otherwise>
+							</xsl:choose>
+						</td>
+						<td colspan="3" style="border-bottom:1px solid #AAAAAA;">
+							<xsl:value-of select="@DES"/>
+						</td>
+					</tr>
+					<xsl:for-each select="V">
+						<tr>
+							<td>
+								&#160;
+							</td>
+							<td style="border-bottom:1px solid #DDDDDD;">
+								<xsl:choose>
+									<xsl:when test="@TYP='bool'">
+										<img src="Skins/_Default/Images/Tree/CheckBox.ico" width="16px" height="16px"/>
+									</xsl:when>
+									<xsl:when test="@TYP='int'">
+										<img src="Skins/_Default/Images/Tree/NumberBox.ico" width="16px" height="16px"/>
+									</xsl:when>
+									<xsl:when test="@TYP='double'">
+										<img src="Skins/_Default/Images/Tree/NumberBox.ico" width="16px" height="16px"/>
+									</xsl:when>
+									<xsl:when test="@TYP='date'">
+										<img src="Skins/_Default/Images/Tree/DateTime.ico" width="16px" height="16px"/>
+									</xsl:when>
+									<xsl:when test="@TYP='string'">
+										<img src="Skins/_Default/Images/Tree/TextBox.ico" width="16px" height="16px"/>
+									</xsl:when>
+									<xsl:when test="@TYP='enum'">
+										<img src="Skins/_Default/Images/Tree/Combo.ico" width="16px" height="16px"/>
+									</xsl:when>
+									<xsl:when test="@TYP='fk'">
+										<img src="Skins/_Default/Images/Tree/FKInput.ico" width="16px" height="16px"/>
+									</xsl:when>
+									<xsl:otherwise>
+										<img src="Skins/_Default/Images/Tree/Hidden.ico" width="16px" height="16px"/>
+									</xsl:otherwise>
+								</xsl:choose>
+							</td>
+							<td class="MODE_VARIABLE" style="border-bottom:1px solid #DDDDDD;">
+								<div ondragstart="event.dataTransfer.setData('text', DragText(this));" ondragend="ResaltarSintaxis();" draggable="true" style="cursor:default;">
+									<xsl:attribute name="nmd-drag">
+										<xsl:value-of select="concat('@',../@COD,'.',@COD)"/>
+									</xsl:attribute>
+									<xsl:value-of select="concat('@',../@COD,'.',@COD)"/>
+								</div>
+							</td>
+							<td style="border-bottom:1px solid #DDDDDD;">
+								<xsl:value-of select="@DES"/>
+							</td>
+						</tr>
+					</xsl:for-each>
+				</xsl:for-each>
+			</table>
+		</xsl:template>
+		<xsl:template name="FUNSIONES">
+			<table style="font-size:10px;width:100%;" onselectstart="no_select(event);">
+				<col width="20px"/>
+				<col width="20px"/>
+				<col width="100px"/>
+				<col width="200px"/>
+				<col/>
+				<xsl:for-each select="FUNS/FG">
+					<tr>
+						<td>
+							<xsl:choose>
+								<xsl:when test="@TYP='bool'">
+									<img src="Skins/_Default/Images/Tree/CheckBox.ico" width="16px" height="16px"/>
+								</xsl:when>
+								<xsl:when test="@TYP='int'">
+									<img src="Skins/_Default/Images/Tree/NumberBox.ico" width="16px" height="16px"/>
+								</xsl:when>
+								<xsl:when test="@TYP='double'">
+									<img src="Skins/_Default/Images/Tree/NumberBox.ico" width="16px" height="16px"/>
+								</xsl:when>
+								<xsl:when test="@TYP='date'">
+									<img src="Skins/_Default/Images/Tree/DateTime.ico" width="16px" height="16px"/>
+								</xsl:when>
+								<xsl:when test="@TYP='string'">
+									<img src="Skins/_Default/Images/Tree/TextBox.ico" width="16px" height="16px"/>
+								</xsl:when>
+								<xsl:when test="@TYP='enum'">
+									<img src="Skins/_Default/Images/Tree/Combo.ico" width="16px" height="16px"/>
+								</xsl:when>
+								<xsl:when test="@TYP='fk'">
+									<img src="Skins/_Default/Images/Tree/FKInput.ico" width="16px" height="16px"/>
+								</xsl:when>
+								<xsl:when test="@TYP='conv'">
+									<img src="Skins/_Default/Images/Tree/book-open.ico" width="16px" height="16px"/>
+								</xsl:when>
+								<xsl:when test="@TYP='proc'">
+									<img src="Skins/_Default/Images/Tree/organigrama0.ico" width="16px" height="16px"/>
+								</xsl:when>
+								<xsl:otherwise>
+									<img src="Skins/_Default/Images/Tree/Hidden.ico" width="16px" height="16px"/>
+								</xsl:otherwise>
+							</xsl:choose>
+						</td>
+						<td colspan="4" style="border-bottom:1px solid #AAAAAA;">
+							<xsl:value-of select="@DES"/>
+						</td>
+					</tr>
+					<xsl:for-each select="F">
+						<tr>
+							<td>
+								&#160;
+							</td>
+							<td style="border-bottom:1px solid #DDDDDD;">
+								<xsl:choose>
+									<xsl:when test="@TYP='bool'">
+										<img src="Skins/_Default/Images/Tree/CheckBox.ico" width="16px" height="16px"/>
+									</xsl:when>
+									<xsl:when test="@TYP='int'">
+										<img src="Skins/_Default/Images/Tree/NumberBox.ico" width="16px" height="16px"/>
+									</xsl:when>
+									<xsl:when test="@TYP='double'">
+										<img src="Skins/_Default/Images/Tree/NumberBox.ico" width="16px" height="16px"/>
+									</xsl:when>
+									<xsl:when test="@TYP='date'">
+										<img src="Skins/_Default/Images/Tree/DateTime.ico" width="16px" height="16px"/>
+									</xsl:when>
+									<xsl:when test="@TYP='string'">
+										<img src="Skins/_Default/Images/Tree/TextBox.ico" width="16px" height="16px"/>
+									</xsl:when>
+									<xsl:when test="@TYP='enum'">
+										<img src="Skins/_Default/Images/Tree/Combo.ico" width="16px" height="16px"/>
+									</xsl:when>
+									<xsl:when test="@TYP='fk'">
+										<img src="Skins/_Default/Images/Tree/FKInput.ico" width="16px" height="16px"/>
+									</xsl:when>
+									<xsl:when test="@TYP='conv'">
+										<img src="Skins/_Default/Images/Tree/book-open.ico" width="16px" height="16px"/>
+									</xsl:when>
+									<xsl:when test="@TYP='proc'">
+										<img src="Skins/_Default/Images/Tree/organigrama0.ico" width="16px" height="16px"/>
+									</xsl:when>
+									<xsl:otherwise>
+										<img src="Skins/_Default/Images/Tree/Hidden.ico" width="16px" height="16px"/>
+									</xsl:otherwise>
+								</xsl:choose>
+							</td>
+							<td style="border-bottom:1px solid #DDDDDD;">
+								<xsl:choose>
+									<xsl:when test="@TYP='proc'">
+										<xsl:attribute name="CLASS">
+											MODE_KEY
+										</xsl:attribute>
+									</xsl:when>
+									<xsl:otherwise>
+										<xsl:attribute name="CLASS">
+											MODE_FUNCTION
+										</xsl:attribute>
+									</xsl:otherwise>
+								</xsl:choose>
+								<div ondragstart="event.dataTransfer.setData('text', DragText(this));" ondragend="ResaltarSintaxis();" draggable="true" style="cursor:default;">
+									<xsl:attribute name="nmd-drag">
+										<xsl:value-of select="@PROTO"/>
+									</xsl:attribute>
+									<xsl:value-of select="@COD"/>
+								</div>
+							</td>
+							<td style="border-bottom:1px solid #DDDDDD;">
+								<xsl:value-of select="@PROTO"/>
+							</td>
+							<td style="border-bottom:1px solid #DDDDDD;">
+								<xsl:value-of select="@DES"/>
+							</td>
+						</tr>
+					</xsl:for-each>
+				</xsl:for-each>
+			</table>
+		</xsl:template>
+		<xsl:template name="PARAMETROS">
+			<table style="font-size:10px;width:100%;" onselectstart="no_select(event);">
+				<col width="20px"/>
+				<col width="20px"/>
+				<col width="200px"/>
+				<col/>
+				<xsl:for-each select="IM/VG|PAR/VG">
+					<tr>
+						<td>
+							<xsl:choose>
+								<xsl:when test="@MUL='1'">
+									<img src="Skins/_Default/Images/Tree/Hidden.ico"/>
+								</xsl:when>
+								<xsl:otherwise>
+									<img src="Skins/_Default/Images/Tree/HiddenArr.ico"/>
+								</xsl:otherwise>
+							</xsl:choose>
+						</td>
+						<td colspan="3" style="border-bottom:1px solid #AAAAAA;">
+							<xsl:value-of select="@DES"/>
+						</td>
+					</tr>
+					<xsl:for-each select="V">
+						<tr>
+							<td>
+								&#160;
+							</td>
+							<td style="border-bottom:1px solid #DDDDDD;">
+								<xsl:choose>
+									<xsl:when test="@TYP='bool'">
+										<img src="Skins/_Default/Images/Tree/CheckBox.ico" width="16px" height="16px"/>
+									</xsl:when>
+									<xsl:when test="@TYP='int'">
+										<img src="Skins/_Default/Images/Tree/NumberBox.ico" width="16px" height="16px"/>
+									</xsl:when>
+									<xsl:when test="@TYP='double'">
+										<img src="Skins/_Default/Images/Tree/NumberBox.ico" width="16px" height="16px"/>
+									</xsl:when>
+									<xsl:when test="@TYP='datetime'">
+										<img src="Skins/_Default/Images/Tree/DateTime.ico" width="16px" height="16px"/>
+									</xsl:when>
+									<xsl:when test="@TYP='string'">
+										<img src="Skins/_Default/Images/Tree/TextBox.ico" width="16px" height="16px"/>
+									</xsl:when>
+									<xsl:when test="@TYP='enum'">
+										<img src="Skins/_Default/Images/Tree/Combo.ico" width="16px" height="16px"/>
+									</xsl:when>
+									<xsl:when test="@TYP='fk'">
+										<img src="Skins/_Default/Images/Tree/FKInput.ico" width="16px" height="16px"/>
+									</xsl:when>
+									<xsl:otherwise>
+										<img src="Skins/_Default/Images/Tree/Hidden.ico" width="16px" height="16px"/>
+									</xsl:otherwise>
+								</xsl:choose>
+							</td>
+							<td class="MODE_VARIABLE" style="border-bottom:1px solid #DDDDDD;">
+								<div ondragstart="event.dataTransfer.setData('text', DragText(this));" ondragend="ResaltarSintaxis();" draggable="true" style="cursor:default;">
+									<xsl:if test="../@COD!=''">
+										<xsl:attribute name="nmd-drag">
+											<xsl:value-of select="concat('#',../@COD,'.',@COD)"/>
+										</xsl:attribute>
+										<xsl:value-of select="concat('#',../@COD,'.',@COD)"/>
+									</xsl:if>
+									<xsl:if test="not(../@COD) or ../@COD=''">
+										<xsl:attribute name="nmd-drag">
+											<xsl:value-of select="concat('#',@COD)"/>
+										</xsl:attribute>
+										<xsl:value-of select="concat('#',@COD)"/>
+									</xsl:if>
+								</div>
+							</td>
+							<td style="border-bottom:1px solid #DDDDDD;">
+								<xsl:value-of select="@DES"/>
+							</td>
+						</tr>
+					</xsl:for-each>
+				</xsl:for-each>
+			</table>
+		</xsl:template>
+	</html:xslt>
+</html:html>

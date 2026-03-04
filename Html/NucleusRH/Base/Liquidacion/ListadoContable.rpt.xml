@@ -1,0 +1,634 @@
+<html:html xmlns:html="nomad_engine.html" xmlns:qry="nomad_engine.qry" xmlns:xsl="http://www.w3.org/1999/XSL/Transform" name="NucleusRH.Base.Evaluacion.EvaluaciondeDesempeno" extends="Nomad.Base.BaseReport.rpt" doc="source">
+	<html:for-each declare="&lt;DATA oi_empresa=&quot;1&quot; e_periodo=&quot;202209&quot; oi_def_cont=&quot;1&quot; ultimoDia=&quot;30&quot; parent=&quot;1_202209&quot;&gt;&lt;LIQUIDACIONES2&gt;&lt;LIQUIDACION id=&quot;3601&quot; /&gt;&lt;/LIQUIDACIONES2&gt;&lt;/DATA&gt;">
+		<qry:main doc="SOURCE">
+			<qry:append-doc name="PARAMIN" doc-path="#SOURCE:."/>
+			<DATOS>
+				<qry:attribute name="l_detalle" value="#PARAMIN:@l_detalle"/>
+				<qry:insert-select doc-path="#SOURCE:." name="qry_emp"/>
+				<qry:insert-select doc-path="#SOURCE:." name="qry_def"/>
+				<qry:insert-select doc-path="#SOURCE:." name="qry_asientos"/>
+			</DATOS>
+		</qry:main>
+		<qry:select name="qry_emp" doc="SOURCE">
+			<qry:xquery>
+				for $r in SQL('
+SELECT 
+ORG03_EMPRESAS.c_empresa, 
+ORG03_EMPRESAS.d_empresa
+FROM 
+ORG03_EMPRESAS
+WHERE 
+ORG03_EMPRESAS.oi_empresa = {#SOURCE:@oi_empresa}
+')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:attribute name="c_empresa" value="$r/@c_empresa"/>
+				<qry:attribute name="d_empresa" value="$r/@d_empresa"/>
+				<qry:attribute name="e_periodo" value="format_date(#SOURCE:@e_periodo+'01', 'mm/yyyy')"/>
+			</qry:out>
+		</qry:select>
+		<qry:select name="qry_def" doc="SOURCE">
+			<qry:xquery>
+				for $r in SQL('
+SELECT 
+LIQ29_DEF_CONT.c_def_cont, 
+LIQ29_DEF_CONT.d_def_cont
+FROM 
+LIQ29_DEF_CONT
+WHERE 
+LIQ29_DEF_CONT.oi_def_cont = {#SOURCE:@oi_def_cont}
+')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:attribute name="c_def_cont" value="$r/@c_def_cont"/>
+				<qry:attribute name="d_def_cont" value="$r/@d_def_cont"/>
+			</qry:out>
+		</qry:select>
+		<qry:select name="qry_asientos" doc="SOURCE">
+			<qry:xquery>
+				for $r in SQL('
+SELECT 
+LIQ29_ASIENTOS_CON.oi_asiento_con,
+LIQ29_ASIENTOS_CON.c_asiento_con,
+LIQ29_ASIENTOS_CON.d_asiento_con,
+LIQ29_ASIENTOS_CON.e_secuencia
+FROM LIQ29_ASIENTOS_CON
+WHERE LIQ29_ASIENTOS_CON.oi_def_cont = {#SOURCE:@oi_def_cont}
+ORDER BY e_secuencia ASC')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:element name="ASIENTO">
+					<qry:attribute name="c_asiento_con" value="$r/@c_asiento_con"/>
+					<qry:attribute name="d_asiento_con" value="$r/@d_asiento_con"/>
+					<qry:insert-select name="qry_cuentas" doc-path="$r"/>
+				</qry:element>
+			</qry:out>
+		</qry:select>
+		<qry:select name="qry_cuentas" doc="SOURCE">
+			<qry:xquery>
+				for $r in SQL('
+SELECT
+LIQ29_CUENTAS_CON.oi_cuenta_contable,
+LIQ29_CUENTAS_CON.c_cuenta_contable,
+LIQ29_CUENTAS_CON.d_cuenta_contable,
+LIQ29_CUENTAS_CON.ca_debe_haber,
+LIQ29_CUENTAS_CON.ca_operador,
+LIQ29_CUENTAS_CON.c_distribucion,
+LIQ29_CUENTAS_CON.l_excluir_gccos,
+LIQ29_CUENTAS_CON.l_excluir_ccos,
+LIQ29_CUENTAS_CON.l_excluir_conc,
+LIQ29_CUENTAS_CON.l_excluir_conv,
+LIQ29_CUENTAS_CON.e_secuencia
+FROM 
+LIQ29_CUENTAS_CON
+WHERE 
+LIQ29_CUENTAS_CON.oi_asiento_con = {#SOURCE:@oi_asiento_con}
+ORDER BY 
+e_secuencia ASC
+')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:call>
+					<CUENTA>
+						<qry:attribute name="oi_cuenta_contable" value="$r/@oi_cuenta_contable"/>
+						<qry:attribute name="oi_empresa" value="#PARAMIN:@oi_empresa"/>
+						<qry:attribute name="e_periodo" value="#PARAMIN:@e_periodo"/>
+						<qry:attribute name="oi_liqs" value="#PARAMIN:LIQUIDACIONES/LIQUIDACION/@id"/>
+					</CUENTA>
+				</qry:call>
+			</qry:out>
+		</qry:select>
+	</html:for-each>
+	<html:query declare="&lt;CUENTA e_periodo=&quot;202209&quot; oi_empresa=&quot;1&quot; oi_cuenta_contable=&quot;2&quot;/&gt;">
+		<qry:main doc="SOURCE">
+			<qry:append-doc name="PARAMIN" doc-path="#SOURCE:CUENTA"/>
+			<qry:insert-select doc-path="#SOURCE:CUENTA" name="qry_cuentas"/>
+		</qry:main>
+		<qry:select name="qry_cuentas" doc="SOURCE">
+			<qry:xquery>
+				for $r in SQL('
+SELECT
+LIQ29_CUENTAS_CON.oi_cuenta_contable,
+LIQ29_CUENTAS_CON.c_cuenta_contable,
+LIQ29_CUENTAS_CON.d_cuenta_contable,
+LIQ29_CUENTAS_CON.ca_debe_haber,
+LIQ29_CUENTAS_CON.ca_operador,
+LIQ29_CUENTAS_CON.c_distribucion,
+LIQ29_CUENTAS_CON.l_excluir_gccos,
+LIQ29_CUENTAS_CON.l_excluir_ccos,
+LIQ29_CUENTAS_CON.l_excluir_conc,
+LIQ29_CUENTAS_CON.l_excluir_conv,
+LIQ29_CUENTAS_CON.e_secuencia
+FROM 
+LIQ29_CUENTAS_CON
+WHERE 
+LIQ29_CUENTAS_CON.oi_cuenta_contable = {#SOURCE:@oi_cuenta_contable}
+ORDER BY 
+e_secuencia ASC
+')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:element name="CUENTA">
+					<qry:append-doc name="CUENTA" doc-path="."/>
+					<qry:attribute name="oi_cuenta_contable" value="$r/@oi_cuenta_contable"/>
+					<qry:attribute name="c_cuenta_contable" value="$r/@c_cuenta_contable"/>
+					<qry:attribute name="d_cuenta_contable" value="$r/@d_cuenta_contable"/>
+					<qry:attribute name="ca_debe_haber" value="$r/@ca_debe_haber"/>
+					<qry:attribute name="ca_operador" value="$r/@ca_operador"/>
+					<qry:attribute name="c_distribucion" value="$r/@c_distribucion"/>
+					<qry:attribute name="l_excluir_gccos" value="$r/@l_excluir_gccos"/>
+					<qry:attribute name="l_excluir_ccos" value="$r/@l_excluir_ccos"/>
+					<qry:attribute name="l_excluir_conc" value="$r/@l_excluir_conc"/>
+					<qry:attribute name="l_excluir_conv" value="$r/@l_excluir_conv"/>
+					<qry:if test="@c_distribucion!=''">
+						<qry:then>
+							<qry:insert-select doc-path="." name="qry_agrupacion"/>
+						</qry:then>
+					</qry:if>
+					<qry:insert-select name="qry_gccosto" doc-path="$r"/>
+					<qry:insert-select name="qry_ccosto" doc-path="$r"/>
+					<qry:insert-select name="qry_convenio" doc-path="$r"/>
+					<qry:insert-select name="qry_tconc1" doc-path="."/>
+					<qry:insert-select name="qry_conc1" doc-path="."/>
+					<qry:if test="@c_distribucion!=''">
+						<qry:then>
+							<qry:attribute name="n_d" value="sum(ROW/@n_d)"/>
+							<qry:attribute name="n_h" value="sum(ROW/@n_h)"/>
+							<qry:insert-select name="qry_signo" doc-path="$CUENTA" to-element="ROW"/>
+						</qry:then>
+					</qry:if>
+					<qry:insert-select name="qry_signo" doc-path="$CUENTA"/>
+				</qry:element>
+			</qry:out>
+		</qry:select>
+		<qry:select name="qry_tconc" doc="SOURCE">
+			<qry:xquery>
+				for $r in SQL('
+SELECT 
+LIQ29_CUENTAS_TC.oi_tipo_concepto 
+FROM 
+LIQ29_CUENTAS_TC 
+WHERE 
+LIQ29_CUENTAS_TC.oi_cuenta_contable = {#SOURCE:@oi_cuenta_contable}
+')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:attribute name="tconc" value="iif(@tconc!='',@tconc+','+$r/@oi_tipo_concepto, $r/@oi_tipo_concepto)"/>
+			</qry:out>
+		</qry:select>
+		<qry:select name="qry_conc" doc="SOURCE">
+			<qry:xquery>
+				for $r in SQL('
+SELECT 
+LIQ29_CUENTAS_CPT.oi_concepto
+FROM 
+LIQ29_CUENTAS_CPT 
+WHERE 
+LIQ29_CUENTAS_CPT.oi_cuenta_contable = {#SOURCE:@oi_cuenta_contable}
+')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:attribute name="conc" value="iif(@conc!='',@conc+','+$r/@oi_concepto, $r/@oi_concepto)"/>
+			</qry:out>
+		</qry:select>
+		<qry:select name="qry_ccosto" doc="SOURCE">
+			<qry:xquery>
+				for $r in SQL('
+SELECT 
+LIQ29_CUENTAS_CC.oi_centro_costo
+FROM 
+LIQ29_CUENTAS_CC
+WHERE 
+LIQ29_CUENTAS_CC.oi_cuenta_contable = {#SOURCE:@oi_cuenta_contable}
+')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:attribute name="ccosto" value="iif(@ccosto!='',@ccosto+','+$r/@oi_centro_costo, $r/@oi_centro_costo)"/>
+			</qry:out>
+		</qry:select>
+		<qry:select name="qry_gccosto" doc="SOURCE">
+			<qry:xquery>
+				for $r in SQL('
+SELECT 
+LIQ29_CUENTAS_GCC.oi_grupo_ccosto
+FROM 
+LIQ29_CUENTAS_GCC
+WHERE 
+LIQ29_CUENTAS_GCC.oi_cuenta_contable = {#SOURCE:@oi_cuenta_contable}
+')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:attribute name="gccosto" value="iif(@gccosto!='',@gccosto+','+$r/@oi_grupo_ccosto, $r/@oi_grupo_ccosto)"/>
+			</qry:out>
+		</qry:select>
+		<qry:select name="qry_convenio" doc="SOURCE">
+			<qry:xquery>
+				for $r in SQL('
+SELECT 
+LIQ29_CUENTAS_CONV.oi_convenio
+FROM 
+LIQ29_CUENTAS_CONV
+WHERE 
+LIQ29_CUENTAS_CONV.oi_cuenta_contable = {#SOURCE:@oi_cuenta_contable}
+')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:attribute name="convenios" value="iif(@convenios!='',@convenios+','+$r/@oi_convenio, $r/@oi_convenio)"/>
+			</qry:out>
+		</qry:select>
+		<qry:select name="qry_tconc1" doc="SOURCE">
+			<qry:xquery>
+				for $r in SQL('
+SELECT
+{%?(#SOURCE:@c_distribucion='CC')  {% DisCC.cc as c, ORG08_CS_COSTO.d_centro_costo as d, %} {% %} %}
+{%?(#SOURCE:@c_distribucion='GCC') {% ORG09_GR_CCOSTO.c_grupo_ccosto as c, ORG09_GR_CCOSTO.d_grupo_ccosto as d, %} {% %} %}
+sum(round(P20.n_valor*DisCC.por,2)) AS value, l29.c_operacion
+FROM 
+LIQ19_LIQUIDACION as l19,
+LIQ19_EJECUCIONES as e19,
+LIQ99_LIQUIDACION as l99,
+LIQ99_RECIBOS as R99,
+LIQ20_TOT_LIQ_PER as l20,
+LIQ20_CONC_LIQ_PER as P20,
+LIQ14_CONCEPTOS as l14,
+LIQ96_CONCEPTOS as L96,
+LIQ97_PERSONAL_EMP as l97,
+LIQ29_CUENTAS_TC as l29,
+(select              
+P.oi_per_emp_ddo, 
+iifisnull(D.c_centro_costo, P.c_centro_costo_ult) as cc, 
+iifisnull(D.n_p_distrib, 1) as por
+from 
+liq97_personal_emp as P, 
+liq97_distrib_cos as D
+join
+P.oi_per_emp_ddo left outer D.oi_per_emp_ddo
+) as DisCC
+{%?(#SOURCE:@c_distribucion='CC' or #SOURCE:@ccosto!='' or #SOURCE:@c_distribucion='GCC' or #SOURCE:@gccosto!='') {%, ORG08_CS_COSTO%} {% %} %}
+{%?(#SOURCE:@c_distribucion='GCC' or #SOURCE:@gccosto!='') {%, ORG09_GR_CCOSTO%} {% %} %}
+{%?(#SOURCE:@convenios!='') {%, ORG18_CONVENIOS %} {% %} %}
+
+JOIN
+l19.oi_liquidacion INNER e19.oi_liquidacion,
+e19.oi_liquidacion_ddo INNER l99.oi_liquidacion_ddo,
+l99.oi_liquidacion_ddo INNER R99.oi_liquidacion_ddo,
+R99.oi_tot_liq_per INNER l20.oi_tot_liq_per,
+l20.oi_tot_liq_per INNER P20.oi_tot_liq_per,
+P20.oi_concepto_ddo INNER L96.oi_concepto_ddo,
+L96.c_concepto INNER l14.c_concepto,
+l20.oi_per_emp_ddo INNER l97.oi_per_emp_ddo,
+DisCC.oi_per_emp_ddo INNER l97.oi_per_emp_ddo,
+l29.oi_tipo_concepto INNER l14.oi_tipo_concepto
+{%?(#SOURCE:@c_distribucion='CC' or #SOURCE:@ccosto!='' or #SOURCE:@c_distribucion='GCC' or #SOURCE:@gccosto!='') {%, DisCC.cc INNER ORG08_CS_COSTO.c_centro_costo%} {% %} %}
+{%?(#SOURCE:@c_distribucion='GCC' or #SOURCE:@gccosto!='') {%, ORG08_CS_COSTO.oi_grupo_ccosto INNER ORG09_GR_CCOSTO.oi_grupo_ccosto %} {% %} %}
+{%?(#SOURCE:@convenios!='') {%, l97.c_convenio INNER ORG18_CONVENIOS.c_convenio %} {% %} %}
+
+WHERE
+  l29.oi_cuenta_contable = {#SOURCE:@oi_cuenta_contable} 
+AND l19.oi_empresa = {#PARAMIN:@oi_empresa} 
+AND l19.e_periodo = {#PARAMIN:@e_periodo}
+AND l99.c_estado = \'F\'
+AND P20.n_valor != 0
+{%? (#PARAMIN:@oi_liqs!=''){% AND l19.oi_liquidacion in ({%= #PARAMIN:@oi_liqs %}) %} {% %} %}
+{%? (#SOURCE:@gccosto!=''){% AND ORG09_GR_CCOSTO.oi_grupo_ccosto {%?(#SOURCE:@l_excluir_gccos='1') {% not in %} {% in %} %} ({%=#SOURCE:@gccosto%}) %} {% %} %}
+{%? (#SOURCE:@ccosto!='')	{% AND ORG08_CS_COSTO.oi_centro_costo {%?(#SOURCE:@l_excluir_ccos='1') {% not in %} {% in %} %} ({%=#SOURCE:@ccosto%}) %} {% %} %}
+{%? (#SOURCE:@convenios!='') {% AND ORG18_CONVENIOS.oi_convenio {%?(#SOURCE:@l_excluir_convenio='1') {% not in %} {% in %} %} ({%=#SOURCE:@convenios%}) %} {% %} %}
+
+GROUP BY l29.c_operacion
+{%?(#SOURCE:@c_distribucion='CC')  {% ,DisCC.cc, ORG08_CS_COSTO.d_centro_costo %} {% %} %}
+{%?(#SOURCE:@c_distribucion='GCC')  {% ,ORG09_GR_CCOSTO.c_grupo_ccosto, ORG09_GR_CCOSTO.d_grupo_ccosto %} {% %} %}
+')/ROWS/ROW
+{%?(#SOURCE:@c_distribucion!='') {% , $s in $CUENTA/ROW
+join $r/@c inner $s/@c %} {% %} %}
+			</qry:xquery>
+			<qry:out>
+				<qry:if test="#SOURCE:@c_distribucion!=''">
+					<qry:then>
+						<qry:insert-select name="qry_pegar" doc-path="$r" to-element="$s"/>
+					</qry:then>
+					<qry:else>
+						<qry:insert-select name="qry_pegar" doc-path="$r"/>
+					</qry:else>
+				</qry:if>
+			</qry:out>
+		</qry:select>
+		<qry:select name="qry_conc1" doc="SOURCE">
+			<qry:xquery>
+				for $r in SQL('
+SELECT
+{%?(#SOURCE:@c_distribucion='CC')  {% DisCC.cc as c, ORG08_CS_COSTO.d_centro_costo as d, %} {% %} %}
+{%?(#SOURCE:@c_distribucion='GCC') {% ORG09_GR_CCOSTO.c_grupo_ccosto as c, ORG09_GR_CCOSTO.d_grupo_ccosto as d, %} {% %} %}
+sum(round(P20.n_valor*DisCC.por,2)) AS value, l29.c_operacion
+FROM 
+LIQ19_LIQUIDACION as l19,
+LIQ19_EJECUCIONES as e19,
+LIQ99_LIQUIDACION as l99,
+LIQ99_RECIBOS as R99,
+LIQ20_TOT_LIQ_PER as l20,
+LIQ20_CONC_LIQ_PER as P20,
+LIQ14_CONCEPTOS as l14,
+LIQ96_CONCEPTOS as L96,
+LIQ97_PERSONAL_EMP as l97,
+LIQ29_CUENTAS_CPT as l29,
+(select              
+P.oi_per_emp_ddo, 
+iifisnull(D.c_centro_costo, P.c_centro_costo_ult) as cc, 
+iifisnull(D.n_p_distrib, 1) as por
+from 
+liq97_personal_emp as P, 
+liq97_distrib_cos as D
+join
+P.oi_per_emp_ddo left outer D.oi_per_emp_ddo
+) as DisCC
+{%?(#SOURCE:@c_distribucion='CC' or #SOURCE:@ccosto!='' or #SOURCE:@c_distribucion='GCC' or #SOURCE:@gccosto!='') {%, ORG08_CS_COSTO%} {% %} %}
+{%?(#SOURCE:@c_distribucion='GCC' or #SOURCE:@gccosto!='') {%, ORG09_GR_CCOSTO%} {% %} %}
+{%?(#SOURCE:@convenios!='') {%, ORG18_CONVENIOS %} {% %} %}
+
+JOIN
+l19.oi_liquidacion INNER e19.oi_liquidacion,
+e19.oi_liquidacion_ddo INNER l99.oi_liquidacion_ddo,
+l99.oi_liquidacion_ddo INNER R99.oi_liquidacion_ddo,
+R99.oi_tot_liq_per INNER l20.oi_tot_liq_per,
+l20.oi_tot_liq_per INNER P20.oi_tot_liq_per,
+P20.oi_concepto_ddo INNER L96.oi_concepto_ddo,
+L96.c_concepto INNER l14.c_concepto,
+l20.oi_per_emp_ddo INNER l97.oi_per_emp_ddo,
+DisCC.oi_per_emp_ddo INNER l97.oi_per_emp_ddo,
+l29.oi_concepto INNER l14.oi_concepto
+{%?(#SOURCE:@c_distribucion='CC' or #SOURCE:@ccosto!='' or #SOURCE:@c_distribucion='GCC' or #SOURCE:@gccosto!='') {%, DisCC.cc INNER ORG08_CS_COSTO.c_centro_costo%} {% %} %}
+{%?(#SOURCE:@c_distribucion='GCC' or #SOURCE:@gccosto!='') {%, ORG08_CS_COSTO.oi_grupo_ccosto INNER ORG09_GR_CCOSTO.oi_grupo_ccosto %} {% %} %}
+{%?(#SOURCE:@convenios!='') {%, l97.c_convenio INNER ORG18_CONVENIOS.c_convenio %} {% %} %}
+
+WHERE
+l29.oi_cuenta_contable = {#SOURCE:@oi_cuenta_contable} 
+AND l19.oi_empresa = {#PARAMIN:@oi_empresa} 
+AND l19.e_periodo = {#PARAMIN:@e_periodo}
+AND l99.c_estado = \'F\'
+AND P20.n_valor != 0
+{%? (#PARAMIN:@oi_liqs!=''){% AND l19.oi_liquidacion in ({%= #PARAMIN:@oi_liqs %}) %} {% %} %}
+{%? (#SOURCE:@gccosto!=''){% AND ORG09_GR_CCOSTO.oi_grupo_ccosto {%?(#SOURCE:@l_excluir_gccos='1') {% not in %} {% in %} %} ({%=#SOURCE:@gccosto%}) %} {% %} %}
+{%? (#SOURCE:@ccosto!='')	{% AND ORG08_CS_COSTO.oi_centro_costo {%?(#SOURCE:@l_excluir_ccos='1') {% not in %} {% in %} %} ({%=#SOURCE:@ccosto%}) %} {% %} %}
+{%? (#SOURCE:@convenios!='') {% AND ORG18_CONVENIOS.oi_convenio {%?(#SOURCE:@l_excluir_convenio='1') {% not in %} {% in %} %} ({%=#SOURCE:@convenios%}) %} {% %} %}
+
+GROUP BY l29.c_operacion
+{%?(#SOURCE:@c_distribucion='CC')  {% ,DisCC.cc, ORG08_CS_COSTO.d_centro_costo %} {% %} %}
+{%?(#SOURCE:@c_distribucion='GCC')  {% ,ORG09_GR_CCOSTO.c_grupo_ccosto, ORG09_GR_CCOSTO.d_grupo_ccosto %} {% %} %}
+')/ROWS/ROW
+{%?(#SOURCE:@c_distribucion!='') {% , $s in $CUENTA/ROW
+join $r/@c inner $s/@c %} {% %} %}
+			</qry:xquery>
+			<qry:out>
+				<qry:if test="#SOURCE:@c_distribucion!=''">
+					<qry:then>
+						<qry:insert-select name="qry_pegar" doc-path="$r" to-element="$s"/>
+					</qry:then>
+					<qry:else>
+						<qry:insert-select name="qry_pegar" doc-path="$r"/>
+					</qry:else>
+				</qry:if>
+			</qry:out>
+		</qry:select>
+		<qry:select name="qry_agrupacion" doc="SOURCE">
+			<qry:xquery>
+				for $r in SQL('
+SELECT
+{%?(#SOURCE:@c_distribucion='CC')  {% DisCC.cc as c %} {% %} %}
+{%?(#SOURCE:@c_distribucion='GCC') {% ORG09_GR_CCOSTO.c_grupo_ccosto as c %} {% %} %}
+FROM 
+LIQ19_LIQUIDACION as l19,
+LIQ19_EJECUCIONES as e19,
+LIQ99_LIQUIDACION as l99,
+LIQ99_RECIBOS as R99,
+LIQ20_TOT_LIQ_PER as l20,
+LIQ20_CONC_LIQ_PER as P20,
+LIQ96_CONCEPTOS as L96,                     
+(select              
+P.oi_per_emp_ddo, 
+iifisnull(D.c_centro_costo, P.c_centro_costo_ult) as cc, 
+iifisnull(D.n_p_distrib, 1) as por
+from 
+liq97_personal_emp as P, 
+liq97_distrib_cos as D
+join
+P.oi_per_emp_ddo left outer D.oi_per_emp_ddo
+) as DisCC
+{%?(#SOURCE:@c_distribucion='GCC') {%, ORG09_GR_CCOSTO %} {% %} %}
+JOIN
+l19.oi_liquidacion INNER e19.oi_liquidacion,
+e19.oi_liquidacion_ddo INNER l99.oi_liquidacion_ddo,
+l99.oi_liquidacion_ddo INNER R99.oi_liquidacion_ddo,
+R99.oi_tot_liq_per INNER l20.oi_tot_liq_per,
+l20.oi_tot_liq_per INNER P20.oi_tot_liq_per,
+P20.oi_concepto_ddo INNER L96.oi_concepto_ddo,
+DisCC.oi_per_emp_ddo INNER l20.oi_per_emp_ddo
+WHERE
+l19.oi_empresa = {#PARAMIN:@oi_empresa} 
+AND l19.e_periodo = {#PARAMIN:@e_periodo}
+AND l99.c_estado = \'F\'
+AND P20.n_valor != 0       
+{%? (#PARAMIN:@oi_liqs!=''){% AND l19.oi_liquidacion in ({%= #PARAMIN:@oi_liqs %}) %} {% %} %}
+{%?(#SOURCE:@c_distribucion='CC')  {% GROUP BY DisCC.cc %} {% %} %}
+{%?(#SOURCE:@c_distribucion='GCC') {% GROUP BY ORG09_GR_CCOSTO.c_grupo_ccosto %} {% %} %}
+ORDER BY c ASC
+')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<ROW>
+					<qry:attribute name="hts:delete" value="'1'"/>
+					<qry:attribute name="c" value="$r/@c"/>
+				</ROW>
+			</qry:out>
+		</qry:select>
+		<qry:select name="qry_pegar" doc="r">
+			<qry:out>
+				<qry:attribute name="d" value="$r/@d"/>
+				<qry:attribute name="val" value="iif($r/@c_operacion='-', $r/@value * (-1), $r/@value)"/>
+				<qry:if test="$CUENTA/@ca_debe_haber='D'">
+					<qry:then>
+						<qry:attribute name="n_d" value="number(@n_d) + number(@val)"/>
+					</qry:then>
+					<qry:else>
+						<qry:attribute name="n_h" value="number(@n_h) + number(@val)"/>
+					</qry:else>
+				</qry:if>
+				<qry:attribute name="hts:delete" value="''"/>
+			</qry:out>
+		</qry:select>
+		<qry:select name="qry_signo" doc="SOURCE">
+			<qry:out>
+				<qry:attribute name="n_d" value="iif($SOURCE/@ca_operador='+', @n_d, number(@n_d)*(-1))"/>
+				<qry:attribute name="n_h" value="iif($SOURCE/@ca_operador='+', @n_h, number(@n_h)*(-1))"/>
+				<qry:attribute name="n_d" value="iif($SOURCE/@ca_debe_haber='D', @n_d, '')"/>
+				<qry:attribute name="n_h" value="iif($SOURCE/@ca_debe_haber='H', @n_h, '')"/>
+			</qry:out>
+		</qry:select>
+	</html:query>
+	<html:xslt>
+		<xsl:template match="DATOS">
+			<html>
+				<xsl:attribute name="x:HOLA" namespace="urn:schemas-microsoft-com:office:excel">
+					HOLA
+				</xsl:attribute>
+				<head>
+					<meta http-equiv="Content-Type" content="text/html; charset=utf-8"/>
+					<style media="all">
+						body {
+				font-family:verdana;
+				font-weight:normal; 
+				background-color:white; 
+				font-size:8pt;
+				}
+				table {
+				font-size:7pt;
+				}
+					</style>
+				</head>
+				<body style="font-size:10pt">
+					<table style="width:400px; font-weight:bold;">
+						<tr>
+							<td nowrap="1">
+								<xsl:value-of select="@d_empresa"/>
+							</td>
+							<td nowrap="1">
+								<xsl:value-of select="@e_periodo"/>
+							</td>
+						</tr>
+					</table>
+					<xsl:value-of select="@d_def_cont"/>
+					<br/>
+					<br/>
+					<xsl:apply-templates select="ASIENTO"/>
+				</body>
+			</html>
+		</xsl:template>
+		<xsl:template match="ASIENTO">
+			<xsl:value-of select="concat(@c_asiento_con, ' - ', @d_asiento_con)"/>
+			<table style="border:1px solid black; border-collapse:collapse;">
+				<tr>
+					<th colspan="2" style="width:300px; border:1px solid black;font-size:10pt">
+						Cuentas
+					</th>
+					<th style="width:100px; border:1px solid black;font-size:10pt">
+						&#160;Debe&#160;
+					</th>
+					<th style="width:100px; border:1px solid black;font-size:10pt">
+						&#160;Haber&#160;
+					</th>
+				</tr>
+				<xsl:for-each select="CUENTA">
+					<tr>
+						<td colspan="2" style="font-weight:bold;">
+							<xsl:value-of select="@c_cuenta_contable"/>
+							<xsl:text>
+								&#160;-&#160;
+							</xsl:text>
+							<xsl:value-of select="@d_cuenta_contable"/>
+						</td>
+						<xsl:if test="not(@c_distribucion)">
+							<td style="border-left:1px solid black;border-right:1px solid black; text-align:right;">
+								<xsl:if test="@n_d!=''">
+									<xsl:attribute name="x:num" namespace="urn:schemas-microsoft-com:office:excel">
+										<xsl:value-of select="@n_d"/>
+									</xsl:attribute>
+									<xsl:value-of select="format-number(@n_d, '###,###,##0.00')"/>
+								</xsl:if>
+							</td>
+							<td style="text-align:right;">
+								<xsl:if test="@n_h!=''">
+									<xsl:attribute name="x:num" namespace="urn:schemas-microsoft-com:office:excel">
+										<xsl:value-of select="@n_h"/>
+									</xsl:attribute>
+									<xsl:value-of select="format-number(@n_h, '###,###,##0.00')"/>
+								</xsl:if>
+							</td>
+						</xsl:if>
+						<xsl:if test="@c_distribucion!=''">
+							<xsl:if test="../../@l_detalle = '1'">
+								<xsl:if test="(@n_d != '0' or @n_h !='0')">
+									<td style="border-left:1px solid black;border-right:1px solid black; text-align:right;font-weight:bold;">
+										<xsl:if test="@n_d!=''">
+											<xsl:attribute name="x:num" namespace="urn:schemas-microsoft-com:office:excel">
+												<xsl:value-of select="@n_d"/>
+											</xsl:attribute>
+											<xsl:value-of select="format-number(@n_d, '###,###,##0.00')"/>
+										</xsl:if>
+									</td>
+									<td style="text-align:right;font-weight:bold;">
+										<xsl:if test="@n_h!=''">
+											<xsl:attribute name="x:num" namespace="urn:schemas-microsoft-com:office:excel">
+												<xsl:value-of select="@n_h"/>
+											</xsl:attribute>
+											<xsl:value-of select="format-number(@n_h, '###,###,##0.00')"/>
+										</xsl:if>
+									</td>
+								</xsl:if>
+								<xsl:if test="(@n_d = '0' or @n_h ='0')">
+									<td style="border-left:1px solid black;border-right:1px solid black;">
+										&#160;
+									</td>
+									<td>
+										&#160;
+									</td>
+								</xsl:if>
+							</xsl:if>
+							<xsl:if test="../../@l_detalle !='1'">
+								<td style="border-left:1px solid black;border-right:1px solid black;">
+									&#160;
+								</td>
+								<td>
+									&#160;
+								</td>
+							</xsl:if>
+						</xsl:if>
+					</tr>
+					<xsl:if test="@c_distribucion!=''">
+						<xsl:for-each select="ROW">
+							<tr>
+								<td style="width:30px; text-align:right;mso-number-format:\@;">
+									<xsl:value-of select="@c"/>
+								</td>
+								<td style="width:270px; padding-left:3px;">
+									<xsl:value-of select="@d"/>
+								</td>
+								<td style="border-left:1px solid black;border-right:1px solid black; text-align:right;">
+									<xsl:if test="@n_d!=''">
+										<xsl:attribute name="x:num" namespace="urn:schemas-microsoft-com:office:excel">
+											<xsl:value-of select="@n_d"/>
+										</xsl:attribute>
+										<xsl:value-of select="format-number(@n_d, '###,###,##0.00')"/>
+									</xsl:if>
+								</td>
+								<td style="text-align:right;">
+									<xsl:if test="@n_h!=''">
+										<xsl:attribute name="x:num" namespace="urn:schemas-microsoft-com:office:excel">
+											<xsl:value-of select="@n_h"/>
+										</xsl:attribute>
+										<xsl:value-of select="format-number(@n_h, '###,###,##0.00')"/>
+									</xsl:if>
+								</td>
+							</tr>
+						</xsl:for-each>
+					</xsl:if>
+				</xsl:for-each>
+				<tr>
+					<td colspan="2" style="border:1px solid black;">
+						Totales
+					</td>
+					<td style="border:1px solid black; text-align:right;">
+						<xsl:attribute name="x:num" namespace="urn:schemas-microsoft-com:office:excel">
+							<xsl:value-of select="sum(CUENTA/@n_d)"/>
+						</xsl:attribute>
+						<xsl:value-of select="format-number(sum(CUENTA/@n_d), '###,###,##0.00')"/>
+					</td>
+					<td style="border:1px solid black; text-align:right;">
+						<xsl:attribute name="x:num" namespace="urn:schemas-microsoft-com:office:excel">
+							<xsl:value-of select="sum(CUENTA/@n_h)"/>
+						</xsl:attribute>
+						<xsl:value-of select="format-number(sum(CUENTA/@n_h), '###,###,##0.00')"/>
+					</td>
+				</tr>
+			</table>
+			<br/>
+		</xsl:template>
+	</html:xslt>
+</html:html>

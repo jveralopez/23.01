@@ -1,0 +1,76 @@
+<qry:define xmlns:qry="nomad_engine.qry" declare="&lt;DATA oi_escenario=&quot;102&quot; oi_empresa=&quot;1&quot; oi_detalle_pres=&quot;106&quot; paso=&quot;3&quot; leg=&quot;1923&quot;&gt;&lt;LIQS&gt;&lt;LIQ oi_liquidacion=&quot;606&quot;/&gt;&lt;/LIQS&gt;&lt;LEGS nmd-col=&quot;1&quot;&gt;&lt;LEG id=&quot;1050&quot;/&gt;&lt;LEG id=&quot;735&quot;/&gt;&lt;LEG id=&quot;1949&quot;/&gt;&lt;/LEGS&gt;&lt;ASIGS/&gt;&lt;EGRS/&gt;&lt;/DATA&gt;" name="LEGLIST">
+	<qry:select name="QRY_LEGAJOS_Presupuesto" doc="SOURCE">
+		<qry:out>
+			<qry:element name="ROWS">
+				<qry:append-doc name="LEGAJOS" doc-path="."/>
+				<qry:insert-select name="SQL1" doc-path="#SOURCE:."/>
+			</qry:element>
+		</qry:out>
+	</qry:select>
+	<qry:select name="SQL1" doc="SOURCE">
+		<qry:xquery>
+			for $r in SQL(' 
+SELECT 
+LEG.e_numero_legajo as id,
+LEG.d_ape_y_nom as des,
+COUNT(REC.oi_tot_liq_per) as cnt,
+MCO.d_mod_contr as mod_contr,
+max(LEGPRE.oi_grupo) as oi_grupo,
+max(LEGPRE.grp) as grp,
+max(LEG.f_egreso) as f_egreso
+FROM
+LIQ19_EJECUCIONES as EJE, 
+LIQ99_LIQUIDACION as LIQ,
+LIQ99_RECIBOS as LIQREC,
+LIQ20_TOT_LIQ_PER as REC,
+LIQ97_PERSONAL_EMP as LEG,
+PER35_MOD_CONTR as MCO,
+(SELECT
+LEG.e_numero_legajo,
+LEG.oi_grupo as oi_grupo,
+GRP.d_grupo as grp
+FROM
+PRE05_LEGAJOS as LEG,
+PRE08_GRUPOS as GRP
+JOIN
+LEG.oi_grupo inner GRP.oi_grupo
+WHERE
+LEG.oi_escenario={%=#SOURCE:@oi_escenario%}) as LEGPRE
+JOIN
+EJE.oi_liquidacion_ddo inner LIQ.oi_liquidacion_ddo,
+LIQ.oi_liquidacion_ddo inner LIQREC.oi_liquidacion_ddo,
+LIQREC.oi_tot_liq_per inner REC.oi_tot_liq_per,
+REC.oi_per_emp_ddo inner LEG.oi_per_emp_ddo,
+MCO.c_mod_contr inner LEG.c_modalidad,
+LEG.e_numero_legajo LEFT OUTER LEGPRE.e_numero_legajo
+WHERE			     
+EJE.oi_liquidacion in ({%=String(#SOURCE:LIQS/LIQ/@oi_liquidacion)%}) AND
+LIQ.c_estado=\'F\' 
+GROUP BY
+LEG.e_numero_legajo, LEG.d_ape_y_nom, MCO.d_mod_contr
+ORDER BY
+des ASC	
+')/ROWS/ROW
+		</qry:xquery>
+		<qry:out>
+			<qry:element name="ROW">
+				<qry:attribute name="id" value="$r/@id"/>
+				<qry:attribute name="des" value="$r/@des"/>
+				<qry:attribute name="cnt" value="$r/@cnt"/>
+				<qry:attribute name="mod" value="$r/@mod_contr"/>
+				<qry:attribute name="st" value="'N'"/>
+				<qry:attribute name="grp" value="$r/@grp"/>
+				<qry:attribute name="oi_grupo" value="$r/@oi_grupo"/>
+				<qry:attribute name="f_egreso" value="$r/@f_egreso"/>
+				<qry:if test="@grp != ''">
+					<qry:then>
+						<qry:attribute name="st" value="'P'"/>
+					</qry:then>
+					<qry:else>
+						<qry:attribute name="st" value="'N'"/>
+					</qry:else>
+				</qry:if>
+			</qry:element>
+		</qry:out>
+	</qry:select>
+</qry:define>

@@ -1,0 +1,206 @@
+<flow:flow xmlns:flow="nomad_engine.flow" xmlns:qry="nomad_engine.qry" xmlns:doc="nomad_engine.doc" extends="NucleusRH.Base.Presupuesto.Presupuestos.autoflow" name="NucleusRH.Base.Presupuesto.Presupuestos">
+	<flow:info label="Flow para NucleusRH.Base.Presupuesto.Presupuestos"/>
+	<flow:declare>
+		<qry:define declare="&lt;DATA id=&quot;2&quot; Modo=&quot;S&quot; /&gt;" name="FILTER">
+			<qry:main doc="SOURCE">
+				<qry:element name="ROWS">
+					<qry:insert-select name="sql1" doc-path="#SOURCE:DATA"/>
+				</qry:element>
+			</qry:main>
+			<qry:select doc="PARAM" name="sql1">
+				<qry:xquery>
+					for $r in sql('SELECT t0.oi_presupuesto as oi_presupuesto, 
+			SEC.policy FROM PRE12_PRESUPUESTO as t0,NMD_SECURITY(class=\'NucleusRH.Base.Presupuesto.Presupuestos.PRESUPUESTO\') as SEC 
+			JOIN t0.oi_presupuesto LEFT OUTER SEC.id  
+
+			ORDER BY oi_presupuesto asc')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:element name="ROW">
+						<qry:attribute name="policy" value="$r/@policy"/>
+						<qry:attribute name="id" value="$r/@oi_presupuesto"/>
+					</qry:element>
+				</qry:out>
+			</qry:select>
+		</qry:define>
+		<qry:define name="LIST">
+			<qry:include name="NucleusRH.Base.Presupuesto.AniosFiscales.ANIO_FISCAL.INFO"/>
+			<qry:main maxdeep="2">
+				<qry:element name="ROWS">
+					<qry:insert-select name="sql1"/>
+				</qry:element>
+			</qry:main>
+			<qry:select doc="PARAM" name="sql1">
+				<qry:xquery>
+					for $r in sql('SELECT t0.oi_presupuesto as oi_presupuesto, t0.c_presupuesto as c_presupuesto, t0.d_presupuesto as d_presupuesto, t0.c_estado as c_estado, t0.f_alta as f_alta, t0.f_cierre as f_cierre, SEC.policy, t0.c_presupuesto as CODE, t0.d_presupuesto as TEXT, t0.oi_anio_fiscal as oi_anio_fiscal, t0.oi_empresa as oi_empresa FROM PRE12_PRESUPUESTO as t0,NMD_SECURITY(class=\'NucleusRH.Base.Presupuesto.Presupuestos.PRESUPUESTO\') as SEC JOIN t0.oi_presupuesto LEFT OUTER SEC.id  ORDER BY oi_presupuesto asc')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:element name="ROW">
+						<qry:attribute name="policy" value="$r/@policy"/>
+						<qry:attribute name="id" value="$r/@oi_presupuesto"/>
+						<qry:attribute name="c_presupuesto" value="$r/@c_presupuesto"/>
+						<qry:attribute name="d_presupuesto" value="$r/@d_presupuesto"/>
+						<qry:attribute name="c_estado" value="$r/@c_estado"/>
+						<qry:attribute name="f_alta" value="$r/@f_alta"/>
+						<qry:attribute name="f_cierre" value="$r/@f_cierre"/>
+						<qry:attribute name="CODE" value="$r/@CODE"/>
+						<qry:attribute name="TEXT" value="$r/@TEXT"/>
+						<qry:if test="$r/@oi_anio_fiscal!=''">
+							<qry:then>
+								<qry:element name="oi_anio_fiscal">
+									<qry:attribute name="OI_FIND" value="$r/@oi_anio_fiscal"/>
+									<qry:insert-select name="NucleusRH.Base.Presupuesto.AniosFiscales.ANIO_FISCAL.QUERY" doc-path="."/>
+								</qry:element>
+								<qry:attribute name="oi_anio_fiscal" value="'['+oi_anio_fiscal/ROW/@COD+'] '+oi_anio_fiscal/ROW/@DES"/>
+							</qry:then>
+						</qry:if>
+						<qry:attribute name="oi_empresa" value="$r/@oi_empresa"/>
+					</qry:element>
+				</qry:out>
+			</qry:select>
+		</qry:define>
+		<doc:define name="PRESUPUESTO">
+			<DATA id=""/>
+		</doc:define>
+		<doc:define name="FILTERDATA">
+			<DATA id=""/>
+		</doc:define>
+	</flow:declare>
+	<flow:main doc="SOURCE">
+		<flow:action name="initializeEsce">
+			<flow:log text-path="#SOURCE:" text="egg7"/>
+			<doc:set-attribute from-attr-path="#SOURCE:@id" to-attr-path="#FILTERDATA:@id"/>
+			<doc:set-attribute from-attr-path="#SOURCE:@Modo" to-attr-path="#FILTERDATA:@Modo"/>
+			<doc:set-attribute from-value="E" to-attr-path="#FILTERDATA:@LoadDDO"/>
+			<flow:log text-path="#FILTERDATA:" text="egg8"/>
+			<flow:open-form doc-path="#FILTERDATA:" mode="FILTER" form-class="NucleusRH.Base.Presupuesto.Presupuestos.PRESUPUESTO.filter.autoform"/>
+		</flow:action>
+		<flow:action name="initialize">
+			<flow:log text-path="#SOURCE:" text="egg9"/>
+			<doc:set-attribute from-value="M" to-attr-path="#FILTERDATA:@LoadDDO"/>
+			<flow:open-form doc-path="#FILTERDATA:" mode="FILTER" form-class="NucleusRH.Base.Presupuesto.Presupuestos.PRESUPUESTO.filter.autoform"/>
+		</flow:action>
+	</flow:main>
+	<flow:group Name="PRESUPUESTO">
+		<flow:form extends="NucleusRH.Base.Presupuesto.Presupuestos.PRESUPUESTO.filter.autoform:FILTER" parent-doc="PARENTSOURCE" doc="SOURCE" name="NucleusRH.Base.Presupuesto.Presupuestos.PRESUPUESTO.filter.form:FILTER" form-class="NucleusRH.Base.Presupuesto.Presupuestos.PRESUPUESTO.filter.autoform" mode="FILTER">
+			<flow:action name="on-show">
+				<flow:call-action action="inits-DDO"/>
+				<flow:close-form/>
+				<flow:call-action action="FILTER"/>
+			</flow:action>
+			<flow:action name="inits-DDO">
+				<doc:new-object doc="DDO" class="NucleusRH.Base.Presupuesto.Presupuestos.PRESUPUESTO"/>
+				<doc:new-object doc="NEWDDOROOT" class="NucleusRH.Base.Presupuesto.Presupuestos.PRESUPUESTO"/>
+			</flow:action>
+			<flow:action name="new-DDO">
+				<doc:new-object doc="NEWDDOROOT" class="NucleusRH.Base.Presupuesto.Presupuestos.PRESUPUESTO"/>
+			</flow:action>
+			<flow:action name="open-flow-SHOW">
+				<flow:open-form iter-index="#QRY:ROW/@id" parent-doc-path="#QRY:" doc-path="#DDO:" mode="EDIT" form-class="NucleusRH.Base.Presupuesto.Presupuestos.PRESUPUESTO.noreg.autoform"/>
+			</flow:action>
+			<flow:action name="open-flow-ADD">
+				<flow:open-form doc-path="#NEWDDOROOT:" mode="NEW" form-class="NucleusRH.Base.Presupuesto.Presupuestos.PRESUPUESTO.form"/>
+			</flow:action>
+			<flow:action name="open-flow-LIST">
+				<flow:open-form iter-index="#QRY:ROW/@id" parent-doc-path="#QRY:" doc-path="#DDO:" mode="LIST" form-class="NucleusRH.Base.Presupuesto.Presupuestos.PRESUPUESTO.form"/>
+			</flow:action>
+			<flow:action name="Load-FILTER"/>
+			<flow:action name="Save-FILTER">
+				<flow:save-user-data doc-path="#FILTERDATA:" name="FILTER-NucleusRH.Base.Presupuesto.Presupuestos.PRESUPUESTO"/>
+			</flow:action>
+		</flow:form>
+		<flow:form extends="NucleusRH.Base.Presupuesto.Presupuestos.PRESUPUESTO.noreg.autoform:EDIT" parent-doc="PARENTSOURCE" doc="SOURCE" name="NucleusRH.Base.Presupuesto.Presupuestos.PRESUPUESTO.noreg.form:EDIT" form-class="NucleusRH.Base.Presupuesto.Presupuestos.PRESUPUESTO.noreg.autoform" mode="EDIT">
+			<flow:action name="new-DDO">
+				<doc:new-object doc="NEWDDOROOT" class="NucleusRH.Base.Presupuesto.Presupuestos.PRESUPUESTO"/>
+			</flow:action>
+			<flow:action name="load-DDO">
+				<doc:load-object id-path="#QRY:ROW[1]/@id" class="NucleusRH.Base.Presupuesto.Presupuestos.PRESUPUESTO" doc="DDO"/>
+			</flow:action>
+			<flow:action name="open-flow-SHOW">
+				<flow:open-form iter-index="#QRY:ROW/@id" parent-doc-path="#QRY:" doc-path="#DDO:" mode="SHOW" form-class="NucleusRH.Base.Presupuesto.Presupuestos.PRESUPUESTO.form"/>
+			</flow:action>
+			<flow:action name="open-flow-ADD">
+				<flow:open-form doc-path="#NEWDDOROOT:" mode="NEW" form-class="NucleusRH.Base.Presupuesto.Presupuestos.PRESUPUESTO.form"/>
+			</flow:action>
+			<flow:action name="open-flow-LIST">
+				<flow:open-form iter-index="#QRY_LIST:ROW/@id" parent-doc-path="#QRY_LIST:" doc-path="#DDO:" mode="LIST" form-class="NucleusRH.Base.Presupuesto.Presupuestos.PRESUPUESTO.form"/>
+			</flow:action>
+			<flow:action name="on-move-iterator">
+				<flow:call-action else="load-DDO_escenario" eq="M" if="#FILTERDATA:@LoadDDO" action="load-DDO"/>
+				<flow:call-action eq="S" if="#FILTERDATA:@Modo" else="goto-list" action="goto-show"/>
+			</flow:action>
+			<flow:action name="load-DDO_escenario">
+				<doc:load-object id-path="#FILTERDATA:@id" class="NucleusRH.Base.Presupuesto.Presupuestos.PRESUPUESTO" doc="DDO"/>
+			</flow:action>
+		</flow:form>
+		<flow:form extends="NucleusRH.Base.Presupuesto.Presupuestos.PRESUPUESTO.autoform:SHOW" parent-doc="PARENTSOURCE" doc="SOURCE" name="NucleusRH.Base.Presupuesto.Presupuestos.PRESUPUESTO.form:SHOW" form-class="NucleusRH.Base.Presupuesto.Presupuestos.PRESUPUESTO.form" mode="SHOW">
+			<flow:action name="new-DDO">
+				<doc:new-object doc="NEWDDOROOT" class="NucleusRH.Base.Presupuesto.Presupuestos.PRESUPUESTO"/>
+			</flow:action>
+			<flow:action name="load-DDO">
+				<doc:load-object id-path="#iter-cursor:@value" class="NucleusRH.Base.Presupuesto.Presupuestos.PRESUPUESTO" doc="DDO"/>
+			</flow:action>
+			<flow:action name="save-DDO">
+				<doc:save-object class="NucleusRH.Base.Presupuesto.Presupuestos.PRESUPUESTO" doc="DDO"/>
+			</flow:action>
+			<flow:action name="delete-DDO">
+				<doc:delete-object doc-path="#DDO:" class="NucleusRH.Base.Presupuesto.Presupuestos.PRESUPUESTO" doc="DDO"/>
+				<doc:save-object class="NucleusRH.Base.Presupuesto.Presupuestos.PRESUPUESTO" doc="DDO"/>
+			</flow:action>
+			<flow:action name="open-flow-EDIT">
+				<flow:open-form doc-path="#DDO:" mode="EDIT" form-class="NucleusRH.Base.Presupuesto.Presupuestos.PRESUPUESTO.form"/>
+			</flow:action>
+			<flow:action name="open-flow-ADD">
+				<flow:open-form doc-path="#NEWDDOROOT:" mode="NEW" form-class="NucleusRH.Base.Presupuesto.Presupuestos.PRESUPUESTO.form"/>
+			</flow:action>
+			<flow:action name="CALL:ESCENARIOS">
+				<doc:set-attribute from-attr-path="#DDO:@id" to-attr-path="#PRESUPUESTO:@id"/>
+				<doc:set-attribute from-value="S" to-attr-path="#PRESUPUESTO:@Modo"/>
+				<flow:log text-path="#PRESUPUESTO:" text="egg1"/>
+				<flow:exit-flow return-path="#PRESUPUESTO:" next-action="initialize" next-flow="NucleusRH.Base.Presupuesto.Escenarios.flow"/>
+			</flow:action>
+		</flow:form>
+		<flow:form extends="NucleusRH.Base.Presupuesto.Presupuestos.PRESUPUESTO.autoform:LIST" parent-doc="PARENTSOURCE" doc="SOURCE" name="NucleusRH.Base.Presupuesto.Presupuestos.PRESUPUESTO.form:LIST" form-class="NucleusRH.Base.Presupuesto.Presupuestos.PRESUPUESTO.form" mode="LIST">
+			<flow:action name="new-DDO">
+				<doc:new-object doc="NEWDDOROOT" class="NucleusRH.Base.Presupuesto.Presupuestos.PRESUPUESTO"/>
+			</flow:action>
+			<flow:action name="load-DDO">
+				<doc:load-object id-path="#FORM:ctrl[@id='LIST']/@xval" class="NucleusRH.Base.Presupuesto.Presupuestos.PRESUPUESTO" doc="DDO"/>
+			</flow:action>
+			<flow:action name="save-DDO">
+				<doc:save-object class="NucleusRH.Base.Presupuesto.Presupuestos.PRESUPUESTO" doc="DDO"/>
+			</flow:action>
+			<flow:action name="delete-DDO">
+				<doc:delete-object doc-path="#DDO:" class="NucleusRH.Base.Presupuesto.Presupuestos.PRESUPUESTO" doc="DDO"/>
+				<doc:save-object class="NucleusRH.Base.Presupuesto.Presupuestos.PRESUPUESTO" doc="DDO"/>
+			</flow:action>
+			<flow:action name="open-flow-EDIT">
+				<flow:open-form doc-path="#DDO:" mode="EDIT" form-class="NucleusRH.Base.Presupuesto.Presupuestos.PRESUPUESTO.form"/>
+			</flow:action>
+			<flow:action name="open-flow-ADD">
+				<flow:open-form doc-path="#NEWDDOROOT:" mode="NEW" form-class="NucleusRH.Base.Presupuesto.Presupuestos.PRESUPUESTO.form"/>
+			</flow:action>
+			<flow:action name="CALL:ESCENARIOS">
+				<flow:log text-path="#PRESUPUESTO:" text="egg2"/>
+				<doc:set-attribute from-attr-path="#FORM:ctrl[@id='LIST']/@xval" to-attr-path="#PRESUPUESTO:@id"/>
+				<doc:set-attribute from-value="L" to-attr-path="#PRESUPUESTO:@Modo"/>
+				<flow:exit-flow return-path="#PRESUPUESTO:" next-action="initialize" next-flow="NucleusRH.Base.Presupuesto.Escenarios.flow"/>
+			</flow:action>
+		</flow:form>
+		<flow:form extends="NucleusRH.Base.Presupuesto.Presupuestos.PRESUPUESTO.autoform:EDIT" parent-doc="PARENTSOURCE" doc="SOURCE" name="NucleusRH.Base.Presupuesto.Presupuestos.PRESUPUESTO.form:EDIT" form-class="NucleusRH.Base.Presupuesto.Presupuestos.PRESUPUESTO.form" mode="EDIT">
+			<flow:action name="save-DDO">
+				<doc:save-object class="NucleusRH.Base.Presupuesto.Presupuestos.PRESUPUESTO" doc="DDO"/>
+			</flow:action>
+			<flow:action name="delete-DDO">
+				<doc:delete-object doc-path="#DDO:" class="NucleusRH.Base.Presupuesto.Presupuestos.PRESUPUESTO" doc="DDO"/>
+				<doc:save-object class="NucleusRH.Base.Presupuesto.Presupuestos.PRESUPUESTO" doc="DDO"/>
+			</flow:action>
+		</flow:form>
+		<flow:form extends="NucleusRH.Base.Presupuesto.Presupuestos.PRESUPUESTO.autoform:NEW" parent-doc="PARENTSOURCE" doc="SOURCE" name="NucleusRH.Base.Presupuesto.Presupuestos.PRESUPUESTO.form:NEW" form-class="NucleusRH.Base.Presupuesto.Presupuestos.PRESUPUESTO.form" mode="NEW">
+			<flow:action name="save-DDO">
+				<doc:save-object class="NucleusRH.Base.Presupuesto.Presupuestos.PRESUPUESTO" doc="NEWDDOROOT"/>
+				<doc:load-object id-path="#NEWDDOROOT:@id" class="NucleusRH.Base.Presupuesto.Presupuestos.PRESUPUESTO" doc="DDO"/>
+			</flow:action>
+		</flow:form>
+	</flow:group>
+</flow:flow>

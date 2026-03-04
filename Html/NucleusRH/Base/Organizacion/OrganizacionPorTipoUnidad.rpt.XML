@@ -1,0 +1,75 @@
+<html:html xmlns:html="nomad_engine.html" xmlns:qry="nomad_engine.qry" extends="Nomad.Base.BaseReport.rpt" doc="source" name="NucleusRH.Base.Organizacion.OrganizacionPorTipoUnidad">
+	<html:query declare="&lt;DATA  oi_tipo_uni_org=&quot;1&quot;/&gt;">
+		<qry:main doc="SOURCE">
+			<REPORT style="width:80%" label="Listado de Unidades Organizativas por Tipo">
+				<qry:attribute value="format_date(now(),'dd/mm/yyyy HH:MM')" name="date"/>
+				<GROUPS>
+					<GROUP style="width:100%" type="title" tag="TIPE">
+						<COLS>
+							<COL style="width:30%" label="C&#243;digo de Tipo" name="c_tipo_uni_org"/>
+							<COL style="width:70%" label="Tipo de Unidad" name="d_tipo_uni_org"/>
+						</COLS>
+						<GROUP style="width:100%" type="table-title" tag="ORG" label="Organizaciones de este tipo:" noreg="No se encontraron organizaciones con este Tipo de Unidad.">
+							<COLS>
+								<COL style="width:30%; text-align:center" label="C&#243;digo" name="c_unidad_org"/>
+								<COL style="width:70%; text-align:center" label="Unidad Organizativa" name="d_unidad_org"/>
+							</COLS>
+						</GROUP>
+					</GROUP>
+				</GROUPS>
+				<DATA>
+					<qry:insert-select name="qryTiposUnidad" doc-path="$SOURCE"/>
+				</DATA>
+			</REPORT>
+		</qry:main>
+		<qry:select name="qryTiposUnidad" doc="PARAM">
+			<qry:xquery>
+				for $r in SQL('
+SELECT t.oi_tipo_uni_org, t.c_tipo_uni_org, t.d_tipo_uni_org 
+FROM ORG01_TIPOS_UNI as t  
+					
+WHERE 1=1 
+					
+{%? ($PARAM/DATA/@oi_tipo_uni_org = '') {%  %} {% 
+ AND t.oi_tipo_uni_org = {$PARAM/DATA/@oi_tipo_uni_org} %} 
+	%}
+					
+ORDER BY  c_tipo_uni_org ASC 			
+					')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<TIPE>
+					<qry:attribute name="c_tipo_uni_org" value="$r/@c_tipo_uni_org"/>
+					<qry:attribute name="d_tipo_uni_org" value="$r/@d_tipo_uni_org"/>
+					<qry:insert-select name="qryOrganizacion" doc-path="$r"/>
+				</TIPE>
+			</qry:out>
+		</qry:select>
+		<qry:select name="qryOrganizacion" doc="PARAM">
+			<qry:xquery>
+				for $r in SQL('
+SELECT o.c_unidad_org, o.d_unidad_org 
+
+FROM 
+ORG01_TIPOS_UNI as t,
+ORG01_UNI_ORG as o
+
+JOIN
+
+t.oi_tipo_uni_org INNER o.oi_tipo_uni_org
+
+WHERE t.oi_tipo_uni_org = {#PARAM:@oi_tipo_uni_org} 
+
+ORDER BY c_unidad_org ASC
+		
+					')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<ORG>
+					<qry:attribute name="c_unidad_org" value="$r/@c_unidad_org"/>
+					<qry:attribute name="d_unidad_org" value="$r/@d_unidad_org"/>
+				</ORG>
+			</qry:out>
+		</qry:select>
+	</html:query>
+</html:html>

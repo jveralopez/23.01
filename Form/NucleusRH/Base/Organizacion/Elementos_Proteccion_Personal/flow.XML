@@ -1,0 +1,140 @@
+<flow:flow name="NucleusRH.Base.Organizacion.Elementos_Proteccion_Personal.flow" extends="NucleusRH.Base.Organizacion.Elementos_Proteccion_Personal.autoflow" xmlns:doc="nomad_engine.doc" xmlns:qry="nomad_engine.qry" xmlns:flow="nomad_engine.flow">
+	<flow:info label="Flow para NucleusRH.Base.Organizacion.Elementos_Proteccion_Personal"/>
+	<flow:declare>
+		<qry:define name="LIST">
+			<qry:main maxdeep="2">
+				<qry:element name="ROWS">
+					<qry:insert-select name="sql1"/>
+				</qry:element>
+			</qry:main>
+			<qry:select doc="PARAM" name="sql1">
+				<qry:xquery>
+					for $r in sql('SELECT t0.oi_elemento_pp as oi_elemento_pp, t0.c_elemento_pp as c_elemento_pp, t0.d_elemento_pp as d_elemento_pp, t0.e_duracion as e_duracion, t0.n_valor as n_valor, t0.c_elemento_pp as CODE, t0.d_elemento_pp as TEXT, t0.oi_unidad_tiempo as oi_unidad_tiempo FROM ORG07_ELEMENTOS_PP as t0 ORDER BY oi_elemento_pp asc')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:element name="ROW">
+						<qry:attribute name="policy" value="$r/@policy"/>
+						<qry:attribute name="id" value="$r/@oi_elemento_pp"/>
+						<qry:attribute name="c_elemento_pp" value="$r/@c_elemento_pp"/>
+						<qry:attribute name="d_elemento_pp" value="$r/@d_elemento_pp"/>
+						<qry:attribute name="e_duracion" value="$r/@e_duracion"/>
+						<qry:attribute name="n_valor" value="$r/@n_valor"/>
+						<qry:attribute name="CODE" value="$r/@CODE"/>
+						<qry:attribute name="TEXT" value="$r/@TEXT"/>
+						<qry:attribute name="oi_unidad_tiempo" value="$r/@oi_unidad_tiempo"/>
+						<qry:insert-select name="RS1" doc-path="."/>
+					</qry:element>
+				</qry:out>
+			</qry:select>
+			<qry:select name="RS1" doc="SOURCE">
+				<qry:xquery>
+					for $r in sql('
+				SELECT SUM(PER02_EPP_PER.e_cantidad) AS e_cant_entregada
+				FROM PER02_EPP_PER
+				WHERE PER02_EPP_PER.oi_elemento_pp = {#SOURCE:@id}
+				AND PER02_EPP_PER.c_estado = \'E\'
+			')ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:attribute name="entregado" value="iif($r/@e_cant_entregada!='', $r/@e_cant_entregada,0)"/>
+					<qry:insert-select name="RS2" doc-path="."/>
+				</qry:out>
+			</qry:select>
+			<qry:select name="RS2" doc="SOURCE">
+				<qry:xquery>
+					for $r in sql('
+				SELECT ORG07_ELEMENTOS_PP.e_cant_total
+				FROM ORG07_ELEMENTOS_PP
+				WHERE ORG07_ELEMENTOS_PP.oi_elemento_pp = {#SOURCE:@id}
+			')ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:attribute name="e_cant_total" value="$r/@e_cant_total"/>
+					<qry:attribute name="stock" value="$r/@e_cant_total - #SOURCE:@entregado"/>
+				</qry:out>
+			</qry:select>
+		</qry:define>
+		<doc:define name="STOCK">
+			<STOCK value=""/>
+		</doc:define>
+		<qry:define declare="&lt;ic size=&quot;11&quot; position=&quot;4&quot; value=&quot;10&quot;&gt;&#13;&#10;  &lt;items nmd-col=&quot;1&quot;&gt;&#13;&#10;    &lt;item position=&quot;1&quot; value=&quot;1&quot; /&gt;&#13;&#10;    &lt;item position=&quot;2&quot; value=&quot;10&quot; /&gt;&#13;&#10;    &lt;item position=&quot;3&quot; value=&quot;11&quot; /&gt;&#13;&#10;    &lt;item position=&quot;4&quot; value=&quot;12&quot; /&gt;&#13;&#10;    &lt;item position=&quot;5&quot; value=&quot;18&quot; /&gt;&#13;&#10;    &lt;item position=&quot;6&quot; value=&quot;19&quot; /&gt;&#13;&#10;    &lt;item position=&quot;7&quot; value=&quot;20&quot; /&gt;&#13;&#10;    &lt;item position=&quot;8&quot; value=&quot;28&quot; /&gt;&#13;&#10;    &lt;item position=&quot;9&quot; value=&quot;29&quot; /&gt;&#13;&#10;    &lt;item position=&quot;10&quot; value=&quot;30&quot; /&gt;&#13;&#10;    &lt;item position=&quot;11&quot; value=&quot;31&quot; /&gt;&#13;&#10;  &lt;/items&gt;&#13;&#10;&lt;/ic&gt;&#13;&#10;" name="QRY_STOCK" xmlns:qry="nomad.xquery">
+			<qry:main doc="SOURCE">
+				<qry:append-doc name="ID" doc-path="#SOURCE:ic"/>
+				<qry:element name="STOCK">
+					<qry:insert-select name="RS1" doc-path="#ID:"/>
+				</qry:element>
+			</qry:main>
+			<qry:select name="RS1" doc="SOURCE">
+				<qry:xquery>
+					for $r in sql('
+				SELECT SUM(PER02_EPP_PER.e_cantidad) AS e_cant_entregada
+				FROM PER02_EPP_PER
+				WHERE PER02_EPP_PER.oi_elemento_pp = {#ID:@value}
+				AND PER02_EPP_PER.c_estado = \'E\'
+			')ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:attribute name="entregado" value="iif($r/@e_cant_entregada!='', $r/@e_cant_entregada,0)"/>
+					<qry:insert-select name="RS2" doc-path="."/>
+				</qry:out>
+			</qry:select>
+			<qry:select name="RS2" doc="SOURCE">
+				<qry:xquery>
+					for $r in sql('
+				SELECT ORG07_ELEMENTOS_PP.e_cant_total
+				FROM ORG07_ELEMENTOS_PP
+				WHERE ORG07_ELEMENTOS_PP.oi_elemento_pp = {#ID:@value}				
+			')ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:attribute name="e_cant_total" value="$r/@e_cant_total"/>
+					<qry:attribute name="value" value="$r/@e_cant_total - #SOURCE:@entregado"/>
+				</qry:out>
+			</qry:select>
+		</qry:define>
+	</flow:declare>
+	<flow:main doc="SOURCE"/>
+	<flow:group Name="ELEMENTO_PP">
+		<flow:form extends="NucleusRH.Base.Organizacion.Elementos_Proteccion_Personal.ELEMENTO_PP.filter.autoform:FILTER" parent-doc="PARENTSOURCE" doc="SOURCE" name="NucleusRH.Base.Organizacion.Elementos_Proteccion_Personal.ELEMENTO_PP.filter.form:FILTER" form-class="NucleusRH.Base.Organizacion.Elementos_Proteccion_Personal.ELEMENTO_PP.filter.autoform" mode="FILTER">
+			<flow:action name="open-flow-ADD">
+				<flow:open-form doc-path="#NEWDDOROOT:" mode="NEW" form-class="NucleusRH.Base.Organizacion.Elementos_Proteccion_Personal.ELEMENTO_PP.form"/>
+			</flow:action>
+		</flow:form>
+		<flow:form extends="NucleusRH.Base.Organizacion.Elementos_Proteccion_Personal.ELEMENTO_PP.noreg.autoform:EDIT" parent-doc="PARENTSOURCE" doc="SOURCE" name="NucleusRH.Base.Organizacion.Elementos_Proteccion_Personal.ELEMENTO_PP.noreg.form:EDIT" form-class="NucleusRH.Base.Organizacion.Elementos_Proteccion_Personal.ELEMENTO_PP.noreg.autoform" mode="EDIT">
+			<flow:action name="open-flow-SHOW">
+				<flow:open-form iter-index="#QRY:ROW/@id" parent-doc-path="#QRY:" doc-path="#DDO:" mode="SHOW" form-class="NucleusRH.Base.Organizacion.Elementos_Proteccion_Personal.ELEMENTO_PP.form"/>
+			</flow:action>
+			<flow:action name="open-flow-ADD">
+				<flow:open-form doc-path="#NEWDDOROOT:" mode="NEW" form-class="NucleusRH.Base.Organizacion.Elementos_Proteccion_Personal.ELEMENTO_PP.form"/>
+			</flow:action>
+			<flow:action name="open-flow-LIST">
+				<flow:open-form iter-index="#QRY_LIST:ROW/@id" parent-doc-path="#QRY_LIST:" doc-path="#DDO:" mode="LIST" form-class="NucleusRH.Base.Organizacion.Elementos_Proteccion_Personal.ELEMENTO_PP.form"/>
+			</flow:action>
+		</flow:form>
+		<flow:form extends="NucleusRH.Base.Organizacion.Elementos_Proteccion_Personal.ELEMENTO_PP.autoform:SHOW" parent-doc="PARENTSOURCE" doc="SOURCE" name="NucleusRH.Base.Organizacion.Elementos_Proteccion_Personal.ELEMENTO_PP.form:SHOW" form-class="NucleusRH.Base.Organizacion.Elementos_Proteccion_Personal.ELEMENTO_PP.form" mode="SHOW">
+			<flow:action name="open-flow-EDIT">
+				<flow:open-form doc-path="#DDO:" mode="EDIT" form-class="NucleusRH.Base.Organizacion.Elementos_Proteccion_Personal.ELEMENTO_PP.form"/>
+			</flow:action>
+			<flow:action name="open-flow-ADD">
+				<flow:open-form doc-path="#NEWDDOROOT:" mode="NEW" form-class="NucleusRH.Base.Organizacion.Elementos_Proteccion_Personal.ELEMENTO_PP.form"/>
+			</flow:action>
+			<flow:action name="on-move-iterator">
+				<flow:call-action action="get-STOCK"/>
+				<flow:call-action action="load-DDO"/>
+			</flow:action>
+			<flow:action name="get-STOCK">
+				<doc:load-qry output-doc="STOCK" qry="QRY_STOCK" input-doc-path="#iter-cursor:"/>
+			</flow:action>
+		</flow:form>
+		<flow:form extends="NucleusRH.Base.Organizacion.Elementos_Proteccion_Personal.ELEMENTO_PP.autoform:LIST" parent-doc="PARENTSOURCE" doc="SOURCE" name="NucleusRH.Base.Organizacion.Elementos_Proteccion_Personal.ELEMENTO_PP.form:LIST" form-class="NucleusRH.Base.Organizacion.Elementos_Proteccion_Personal.ELEMENTO_PP.form" mode="LIST">
+			<flow:action name="open-flow-EDIT">
+				<flow:open-form doc-path="#DDO:" mode="EDIT" form-class="NucleusRH.Base.Organizacion.Elementos_Proteccion_Personal.ELEMENTO_PP.form"/>
+			</flow:action>
+			<flow:action name="open-flow-ADD">
+				<flow:open-form doc-path="#NEWDDOROOT:" mode="NEW" form-class="NucleusRH.Base.Organizacion.Elementos_Proteccion_Personal.ELEMENTO_PP.form"/>
+			</flow:action>
+		</flow:form>
+		<flow:form extends="NucleusRH.Base.Organizacion.Elementos_Proteccion_Personal.ELEMENTO_PP.autoform:EDIT" parent-doc="PARENTSOURCE" doc="SOURCE" name="NucleusRH.Base.Organizacion.Elementos_Proteccion_Personal.ELEMENTO_PP.form:EDIT" form-class="NucleusRH.Base.Organizacion.Elementos_Proteccion_Personal.ELEMENTO_PP.form" mode="EDIT"/>
+		<flow:form extends="NucleusRH.Base.Organizacion.Elementos_Proteccion_Personal.ELEMENTO_PP.autoform:NEW" parent-doc="PARENTSOURCE" doc="SOURCE" name="NucleusRH.Base.Organizacion.Elementos_Proteccion_Personal.ELEMENTO_PP.form:NEW" form-class="NucleusRH.Base.Organizacion.Elementos_Proteccion_Personal.ELEMENTO_PP.form" mode="NEW"/>
+	</flow:group>
+</flow:flow>

@@ -1,0 +1,149 @@
+<flow:flow xmlns:flow="nomad_engine.flow" xmlns:qry="nomad_engine.qry" xmlns:doc="nomad_engine.doc" name="NucleusRH.Base.Evaluaci&#243;n.Competencias.flow" extends="Nomad.Base.flow">
+	<flow:info label="Flow para NucleusRH.Base.Evaluacion.Competencias"/>
+	<flow:declare>
+		<qry:define declare="&lt;FILTRO oi_posicion=&quot;24&quot; /&gt;" name="FILTER">
+			<qry:main doc="SOURCE">
+				<qry:element name="DATOS">
+					<qry:attribute name="oi_posicion" value="#SOURCE:FILTRO/@oi_posicion"/>
+					<qry:insert-select name="qry_puesto" doc-path="#SOURCE:FILTRO"/>
+					<qry:element name="ROWS">
+						<qry:insert-select name="qry_competencias_posic" doc-path="#SOURCE:FILTRO"/>
+						<qry:insert-select name="qry_competencias_puesto" doc-path=".."/>
+					</qry:element>
+				</qry:element>
+			</qry:main>
+			<qry:select doc="PARAM" name="qry_competencias_posic">
+				<qry:xquery>
+					for $r in sql('
+					SELECT ORG21_COMPETENCIAS.oi_competencia, ORG04_POSIC_COMP.n_ponderacion
+					FROM ORG04_POSIC_COMP, ORG21_COMPETENCIAS
+					JOIN 
+						ORG04_POSIC_COMP.oi_competencia INNER ORG21_COMPETENCIAS.oi_competencia
+					WHERE
+						ORG04_POSIC_COMP.oi_posicion = {#PARAM:@oi_posicion}
+						AND ORG04_POSIC_COMP.l_evaluacion = 1
+				')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:element name="ROW">
+						<qry:attribute name="oi_competencia" value="$r/@oi_competencia"/>
+						<qry:attribute name="ponderacion_ant" value="$r/@n_ponderacion"/>
+						<qry:attribute name="n_ponderacion" value="$r/@n_ponderacion"/>
+						<qry:attribute name="clase" value="'pos'"/>
+					</qry:element>
+				</qry:out>
+			</qry:select>
+			<qry:select doc="PARAM" name="qry_competencias_puesto">
+				<qry:xquery>
+					for $r in sql('
+					SELECT
+						ORG21_COMPETENCIAS.oi_competencia, ORG04_PUESTO_COMP.n_ponderacion, 
+						ORG04_PUESTO_COMP.oi_nivel_comp, ORG04_PUESTO_COMP.l_excluyente, 
+						ORG04_PUESTO_COMP.e_peso, ORG04_PUESTO_COMP.o_puesto_comp, 
+						ORG04_PUESTO_COMP.l_evaluacion
+					FROM
+						ORG04_PUESTO_COMP, ORG21_COMPETENCIAS				
+					JOIN
+						ORG04_PUESTO_COMP.oi_competencia INNER ORG21_COMPETENCIAS.oi_competencia
+					WHERE
+						ORG04_PUESTO_COMP.oi_puesto = {#PARAM:@oi_puesto}
+						AND ORG04_PUESTO_COMP.oi_competencia NOT IN (SELECT ORG04_POSIC_COMP.oi_competencia FROM ORG04_POSIC_COMP WHERE ORG04_POSIC_COMP.oi_posicion = {%=#PARAM:@oi_posicion%})
+						AND ORG04_PUESTO_COMP.l_evaluacion = 1
+				')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:element name="ROW">
+						<qry:attribute name="oi_competencia" value="$r/@oi_competencia"/>
+						<qry:attribute name="ponderacion_ant" value="$r/@n_ponderacion"/>
+						<qry:attribute name="n_ponderacion" value="$r/@n_ponderacion"/>
+						<qry:attribute name="oi_nivel_comp" value="$r/@oi_nivel_comp"/>
+						<qry:attribute name="l_excluyente" value="$r/@l_excluyente"/>
+						<qry:attribute name="e_peso" value="$r/@e_peso"/>
+						<qry:attribute name="o_puesto_comp" value="$r/@o_puesto_comp"/>
+						<qry:attribute name="l_evaluacion" value="$r/@l_evaluacion"/>
+						<qry:attribute name="clase" value="'pue'"/>
+					</qry:element>
+				</qry:out>
+			</qry:select>
+			<qry:select doc="PARAM" name="qry_puesto">
+				<qry:xquery>
+					for $r in sql('
+					SELECT
+						ORG04_POSICIONES.oi_puesto
+					FROM
+						ORG04_POSICIONES
+					WHERE
+						ORG04_POSICIONES.oi_posicion = {#PARAM:@oi_posicion}
+				')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:attribute name="oi_puesto" value="$r/@oi_puesto"/>
+				</qry:out>
+			</qry:select>
+			<qry:select doc="PARAM" name="SECURITY">
+				<qry:xquery>
+					for $r in sql('
+					SELECT NMD_SECURITY.policy 
+					FROM NMD_SECURITY 
+					WHERE NMD_SECURITY.class=\'NucleusRH.Base.Organizacion.Puestos.PUESTO\' 
+					AND NMD_SECURITY.id={#PARAM:@id}')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:attribute value="$r/@policy" name="policy"/>
+				</qry:out>
+			</qry:select>
+		</qry:define>
+		<doc:define name="FILTERDATA">
+			<FILTRO oi_posicion=""/>
+		</doc:define>
+		<doc:define class="NucleusRH.Base.Organizacion.Puestos.PUESTO" name="PUESTO"/>
+	</flow:declare>
+	<flow:main doc="SOURCE">
+		<flow:action name="initialize">
+			<flow:open-form parent-doc-path="#FILTERDATA:" doc-path="#FILTERDATA:" form-class="NucleusRH.Base.Evaluacion.Competencias.POSICION.filter.form" mode="FILTER"/>
+		</flow:action>
+	</flow:main>
+	<flow:group Name="POSICION">
+		<flow:form parent-doc="SOURCE" name="NucleusRH.Base.Evaluacion.Competencias.POSICION.filter.form:FILTER" form-class="NucleusRH.Base.Evaluacion.Competencias.POSICION.filter.form" doc="SOURCE" mode="FILTER">
+			<flow:action name="open-flow-SHOW">
+				<flow:open-form parent-doc-path="#DDO:" form-class="NucleusRH.Base.Evaluacion.Competencias.POSICION.form" doc-path="#QRY:" mode="EDIT"/>
+				<flow:log text="jpr1" text-path="#QRY:"/>
+			</flow:action>
+			<flow:action name="Load-FILTER">
+				<flow:load-user-data name="FILTER-NucleusRH.Base.Evaluacion.Competencias.POSICION" doc="FILTERDATA"/>
+			</flow:action>
+			<flow:action name="Save-FILTER">
+				<flow:save-user-data name="FILTER-NucleusRH.Base.Evaluacion.Competencias.POSICION" doc-path="#FILTERDATA:"/>
+			</flow:action>
+			<flow:action name="on-open">
+				<flow:call-action action="Load-FILTER"/>
+			</flow:action>
+			<flow:action name="on-show"/>
+			<flow:action name="FILTER">
+				<doc:load-qry output-doc="QRY" qry="FILTER" input-doc-path="#FILTERDATA:"/>
+				<flow:call-action action="Save-FILTER"/>
+				<flow:call-action action="open-flow-SHOW"/>
+			</flow:action>
+			<flow:action name="BACK">
+				<flow:call-action action="Save-FILTER"/>
+				<flow:close-form/>
+			</flow:action>
+		</flow:form>
+		<flow:form parent-doc="PARENTSOURCE" doc="SOURCE" name="NucleusRH.Base.Evaluacion.Competencias.POSICION.form:EDIT" form-class="NucleusRH.Base.Evaluacion.Competencias.POSICION.form" mode="EDIT">
+			<flow:action name="save-DDO">
+				<doc:save-object class="NucleusRH.Base.Organizacion.Puestos.PUESTO" doc="DDO"/>
+			</flow:action>
+			<flow:action name="CANCEL">
+				<flow:close-form/>
+				<flow:log text-path="#FORM:" text="jpr2"/>
+			</flow:action>
+			<flow:action name="SAVE">
+				<doc:load-object class="NucleusRH.Base.Organizacion.Puestos.PUESTO" id-path="#SOURCE:@oi_puesto" doc="PUESTO"/>
+				<flow:exec-method this-doc="PUESTO" class="NucleusRH.Base.Organizacion.Puestos.PUESTO" method="competenciasPosicion">
+					<flow:param name="PARAM" doc="QRY" type="Nomad.NSystem.Object" mode="in"/>
+				</flow:exec-method>
+				<flow:close-form/>
+			</flow:action>
+		</flow:form>
+	</flow:group>
+</flow:flow>

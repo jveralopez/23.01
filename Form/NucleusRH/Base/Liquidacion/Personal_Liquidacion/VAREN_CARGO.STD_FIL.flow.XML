@@ -1,0 +1,93 @@
+<flow:flow xmlns:flow="nomad_engine.flow" xmlns:doc="nomad_engine.doc" xmlns:qry="nomad_engine.qry" default_action="initialize" name="NucleusRH.Base.Liquidacion.Personal_Liquidacion.VAREN_CARGO">
+	<flow:info label="VAREN_CARGO"/>
+	<flow:declare>
+		<doc:define name="FILTERDATA">
+			<DATA/>
+		</doc:define>
+		<doc:define name="DATOS"/>
+		<qry:define declare="&lt;DATA oi_cargo=&quot;1&quot; oi_personal_liq=&quot;5320&quot;/&gt;" name="qry_datos_var" resource="">
+			<qry:main doc="SOURCE">
+				<DATOS>
+					<ROWS>
+						<qry:insert-select name="qry1" doc-path="$SOURCE/DATA"/>
+					</ROWS>
+				</DATOS>
+			</qry:main>
+			<qry:select name="qry1" doc="SOURCE">
+				<qry:xquery>
+					for $r in SQL('
+			SELECT var.oi_variable, var.c_tipo_dato, v.oi_cargo, var.c_variable, var.d_variable, v.n_valor, v.oi_varen_cargo
+			FROM 
+				LIQ09_VARIABLES as var, 
+				(SELECT vc.oi_varen_cargo, vc.oi_cargo, vc.oi_personal_liq, vc.n_valor, vc.oi_variable
+				FROM LIQ25_VAREN_CARGO as vc
+				WHERE 
+					vc.oi_personal_liq = {%=$SOURCE/@oi_personal_liq%} and
+					vc.oi_cargo = {%=$SOURCE/@oi_cargo%}) as v
+			JOIN 
+				var.oi_variable LEFT OUTER v.oi_variable
+			WHERE
+				var.c_tipo_variable = 11
+			ORDER BY c_variable asc
+			')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:element name="ROW">
+						<qry:attribute name="pos" value="$r/@_position"/>
+						<qry:attribute name="id" value="$r/@oi_variable"/>
+						<qry:attribute name="leg" value="$r/@c_variable"/>
+						<qry:attribute name="nom" value="$r/@d_variable"/>
+						<qry:attribute name="val" value="$r/@n_valor"/>
+						<qry:attribute name="orig" value="$r/@n_valor"/>
+						<qry:attribute name="c_tipo_dato" value="$r/@c_tipo_dato"/>
+						<qry:attribute name="idvar" value="$r/@oi_varen_cargo"/>
+					</qry:element>
+				</qry:out>
+			</qry:select>
+		</qry:define>
+	</flow:declare>
+	<flow:main doc="SOURCE">
+		<flow:action name="initialize">
+			<flow:open-form mode="FILTER" form-class="NucleusRH.Base.Liquidacion.Personal_Liquidacion.VAREN_CARGO.STD_FIL.form" doc-path="#FILTERDATA:"/>
+		</flow:action>
+	</flow:main>
+	<flow:form mode="FILTER" form-class="NucleusRH.Base.Liquidacion.Personal_Liquidacion.VAREN_CARGO.STD_FIL.form" name="NucleusRH.Base.Liquidacion.Personal_Liquidacion.VAREN_CARGO.STD_FIL.form:FILTER" doc="SOURCE">
+		<flow:action name="RUN">
+			<doc:set-attribute from-value="nc" to-attr-path="#SOURCE:@tipo"/>
+			<doc:load-qry qry="qry_datos_var" output-doc="DATOS" input-doc-path="#SOURCE:"/>
+			<doc:save-file name="CMMC" name-ext="#PROXY:DATA/@TOKEN" group="TEMP" doc-path="#DATOS:"/>
+			<flow:log text="JP_SOURCE1" text-path="#SOURCE:"/>
+			<flow:open-form mode="EDIT" form-class="NucleusRH.Base.Liquidacion.Personal_Liquidacion.VAREN_CARGO.form" doc-path="#SOURCE:"/>
+		</flow:action>
+		<flow:action name="Load-FILTER">
+			<flow:load-user-data name="FILTER-NucleusRH.Base.Liquidacion.Personal_Liquidacion.VAREN_CARGO.STD_FIL" doc="SOURCE"/>
+		</flow:action>
+		<flow:action name="Save-FILTER">
+			<flow:save-user-data name="FILTER-NucleusRH.Base.Liquidacion.Personal_Liquidacion.VAREN_CARGO.STD_FIL" doc-path="#SOURCE:"/>
+		</flow:action>
+		<flow:action name="on-open">
+			<flow:call-action action="Load-FILTER"/>
+		</flow:action>
+		<flow:action name="EXECUTE">
+			<flow:call-action action="Save-FILTER"/>
+			<flow:call-action action="RUN"/>
+		</flow:action>
+		<flow:action name="BACK">
+			<flow:close-form/>
+		</flow:action>
+	</flow:form>
+	<flow:form mode="EDIT" form-class="NucleusRH.Base.Liquidacion.Personal_Liquidacion.VAREN_CARGO.form" name="NucleusRH.Base.Liquidacion.Personal_Liquidacion.VAREN_CARGO.form:FILTER" doc="SOURCE">
+		<flow:action name="BACK">
+			<flow:close-form/>
+		</flow:action>
+		<flow:action name="SAVE">
+			<flow:log text-path="#SOURCE:" text="JP_SOURCE"/>
+			<flow:log text-path="#DATOS:" text="JP_DATOS"/>
+			<flow:exec-method class="NucleusRH.Base.Liquidacion.Legajo_Liquidacion.PERSONAL_EMP" method="CargaMasivaManual">
+				<flow:param doc="SOURCE" type="Nomad.NSystem.Proxy.NomadXML" mode="in" name="FILTRO"/>
+				<flow:param doc="DATOS" type="Nomad.NSystem.Proxy.NomadXML" mode="in" name="DATA"/>
+			</flow:exec-method>
+			<flow:close-form/>
+		</flow:action>
+	</flow:form>
+</flow:flow>

@@ -1,0 +1,539 @@
+<html:html xmlns:html="nomad_engine.html" xmlns:qry="nomad_engine.qry" extends="Nomad.Base.BaseReport.rpt" doc="source" name="NucleusRH.Base.Liquidacion.ConceptosSegunIG">
+	<html:query declare="&lt;DATOS &#13;&#10;&#9;agrupar=&quot;G&quot; &#13;&#10;&#9;&#13;&#10;&#9;&#13;&#10;&#9;&#13;&#10;&#9;&#13;&#10;&#9;&#13;&#10;&#9;&#13;&#10;&#9;&#13;&#10;&#9;&#13;&#10;&#9;&#13;&#10;&#9;&#13;&#10;&#9;&#13;&#10;&#9;oi_empresa=&quot;200&quot; &#13;&#10;&#9;dato=&quot;B&quot; &#13;&#10;&#9;oi_ccosto=&quot;&quot; &#13;&#10;&#9;oi_puesto=&quot;&quot; e_periodoDesde=&quot;200803&quot;&#13;&#10;&#9;e_periodoHasta=&quot;200808&quot;&#13;&#10;&#9;/&gt;">
+		<qry:main doc="SOURCE">
+			<qry:append-doc name="PARAMIN" doc-path="#SOURCE:DATOS"/>
+			<REPORT label="Historico de Remuneraciones">
+				<qry:attribute name="date" value="format_date(Now(),'dd/mm/yyyy HH:MM')"/>
+				<GROUPS>
+					<GROUP tag="EMP" type="title">
+						<COLS>
+							<COL name="empresa" label="Empresa"/>
+							<COL name="dato" label="Dato a Mostrar">
+								<OPT id="B" value="Sueldo Basico"/>
+								<OPT id="A" value="Adicionales"/>
+								<OPT id="C" value="Conformado"/>
+								<OPT id="S" value="Total Sujeto a Retencion"/>
+								<OPT id="N" value="Total No Sujeto a Retencion"/>
+								<OPT id="Q" value="Sueldo Bruto"/>
+								<OPT id="W" value="Total Descuentos"/>
+								<OPT id="T" value="Total Contribuciones"/>
+								<OPT id="R" value="Sueldo Neto"/>
+							</COL>
+							<qry:if test="#SOURCE:DATOS/@e_periodoDesde!=''">
+								<qry:then>
+									<COL name="e_periodoDesde" label="Periodo Desde"/>
+								</qry:then>
+							</qry:if>
+							<qry:if test="#SOURCE:DATOS/@e_periodoHasta!=''">
+								<qry:then>
+									<COL name="e_periodoHasta" label="Periodo Hasta"/>
+								</qry:then>
+							</qry:if>
+							<qry:if test="#SOURCE:DATOS/@oi_ccosto!=''">
+								<qry:then>
+									<COL name="CCosto" label="Centro de Costo"/>
+								</qry:then>
+							</qry:if>
+							<qry:if test="#SOURCE:DATOS/@oi_convenio!=''">
+								<qry:then>
+									<COL name="Convenio" label="Convenio"/>
+								</qry:then>
+							</qry:if>
+						</COLS>
+						<qry:insert-select name="qry_SinAgruparFiltro" doc-path="#SOURCE:DATOS[@agrupar='S']"/>
+						<qry:insert-select name="qry_AgruparConvenioFiltro" doc-path="#SOURCE:DATOS[@agrupar='C']"/>
+						<qry:insert-select name="qry_AgruparCentroFiltro" doc-path="#SOURCE:DATOS[@agrupar='G']"/>
+					</GROUP>
+				</GROUPS>
+				<qry:element name="DATA">
+					<qry:element name="EMP">
+						<qry:insert-select name="qry_cabecera" doc-path="#SOURCE:DATOS"/>
+					</qry:element>
+				</qry:element>
+			</REPORT>
+		</qry:main>
+		<qry:select name="qry_SinAgruparFiltro" doc="SOURCE">
+			<qry:out>
+				<GROUP tag="PERSONAS" style="padding-left:50px;" type="table">
+					<COLS>
+						<COL name="Legajo" label="Legajo" type="string" nowrap="1"/>
+						<COL name="NombreApellido" label="Apellido y Nombre" type="string" nowrap="1"/>
+						<COL name="GCosto" label="Grupo" type="string" nowrap="1"/>
+						<COL name="CentroCosto" label="Centro de Costo" type="string" nowrap="1"/>
+						<COL name="Convenio" label="Convenio" style="" type="string" nowrap="1"/>
+						<COL name="Categoria" label="Categoria" style="" type="string" nowrap="1"/>
+						<qry:insert-select name="qry_obtenerMinMax" doc-path="."/>
+						<COL name="Total" label="Total" style="" type="num" nowrap="1"/>
+					</COLS>
+				</GROUP>
+			</qry:out>
+		</qry:select>
+		<qry:select name="qry_obtenerMinMax" doc="SOURCE">
+			<qry:xquery>
+				for $r in sql('
+SELECT 
+	min(R2b.e_periodo) AS minimo, 
+	MAX(R2b.e_periodo) AS maximo
+FROM 
+	REM02_PERSONAL_EMP AS R2,	
+	PER02_PERSONAL_EMP AS P2, 
+	PER01_PERSONAL AS P1, 
+	ORG08_CS_COSTO AS O8, 
+	ORG09_GR_CCOSTO AS O9,
+	ORG18_CATEGORIAS AS O18, 
+	ORG18_CONVENIOS AS O19, 
+	REM02_PERIODOS AS R2b
+JOIN
+	R2.oi_personal_emp INNER R2b.oi_personal_emp
+	,
+	P2.oi_personal_emp INNER R2.oi_personal_emp
+	, 
+	P1.oi_personal INNER P2.oi_personal 
+	,
+	O8.oi_centro_costo INNER P2.oi_ctro_costo_ult
+	,
+	o8.oi_grupo_ccosto LEFT OUTER O9.oi_grupo_ccosto
+	,
+	O18.oi_categoria INNER P2.oi_categoria_ult
+	,
+	O18.oi_convenio INNER O19.oi_convenio
+WHERE
+	P2.oi_empresa = {#PARAMIN:@oi_empresa}
+	{%? (#PARAMIN:@oi_convenio!='')	{% AND O19.oi_convenio = {%= #PARAMIN:@oi_convenio%} %} {% %} %}
+	{%? (#PARAMIN:@oi_ccosto!='')	{% AND P2.oi_ctro_costo_ult = {%= #PARAMIN:@oi_ccosto%} %} {% %} %}	
+	{%? (#PARAMIN:@e_periodoDesde!='')	{% AND R2b.e_periodo &gt;= {%= #PARAMIN:@e_periodoDesde%} %} {% %} %}	
+	{%? (#PARAMIN:@e_periodoHasta!='')	{% AND R2b.e_periodo &lt;= {%= #PARAMIN:@e_periodoHasta%} %} {% %} %}	
+
+			')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:attribute name="minimo" value="$r/@minimo"/>
+				<qry:attribute name="maximo" value="$r/@maximo"/>
+				<qry:attribute name="actual" value="@minimo"/>
+				<qry:append-doc doc-path="." name="MinMax"/>
+				<qry:insert-select name="qry_obtenerColumnasFiltro" doc-path="."/>
+			</qry:out>
+		</qry:select>
+		<qry:select name="qry_obtenerColumnasFiltro" doc="SOURCE">
+			<qry:out>
+				<COL>
+					<qry:attribute name="name" value="'periodo' + #SOURCE:@actual"/>
+					<qry:attribute name="label" value="format_date(#SOURCE:@actual + '01','mm/yyyy')"/>
+					<qry:attribute name="type" value="'num'"/>
+				</COL>
+				<qry:attribute name="actual" value="format_date(datetime(number(datetime(#SOURCE:@actual + '31')) + 1),'yyyymm')"/>
+				<qry:insert-select name="qry_obtenerColumnasFiltro" doc-path=".[@actual&lt;=@maximo]"/>
+			</qry:out>
+		</qry:select>
+		<qry:select name="qry_AgruparCentroFiltro" doc="SOURCE">
+			<qry:out>
+				<GROUP tag="Niv1" style="padding-left:50px;" type="title_collapse">
+					<COLS>
+						<COL name="GCentro" label="Grupo de Centros de Costos" type="string"/>
+					</COLS>
+					<GROUP tag="Niv2" style="padding-left:50px;" type="title_collapse">
+						<COLS>
+							<COL name="Centro" label="Centro de Costos" type="string"/>
+						</COLS>
+						<GROUP tag="PERSONAS" style="padding-left:50px;" type="table">
+							<COLS>
+								<COL name="Legajo" label="Legajo" type="string" nowrap="1"/>
+								<COL name="NombreApellido" label="Apellido y Nombre" type="string" nowrap="1"/>
+								<COL name="Convenio" label="Convenio" style="" type="string" nowrap="1"/>
+								<COL name="Categoria" label="Categoria" style="" type="string" nowrap="1"/>
+								<qry:insert-select name="qry_obtenerMinMax" doc-path="."/>
+								<COL name="Total" label="Total" style="" type="num" nowrap="1"/>
+							</COLS>
+						</GROUP>
+					</GROUP>
+				</GROUP>
+			</qry:out>
+		</qry:select>
+		<qry:select name="qry_AgruparConvenioFiltro" doc="SOURCE">
+			<qry:out>
+				<GROUP tag="Niv1" style="padding-left:50px;" type="title_collapse">
+					<COLS>
+						<COL name="Convenio" label="Convenio" type="string"/>
+					</COLS>
+					<GROUP tag="Niv2" style="padding-left:50px;" type="title_collapse">
+						<COLS>
+							<COL name="Categoria" label="Categoria" type="string"/>
+						</COLS>
+						<GROUP tag="PERSONAS" style="padding-left:50px;" type="table">
+							<COLS>
+								<COL name="Legajo" label="Legajo" type="string" nowrap="1"/>
+								<COL name="NombreApellido" label="Apellido y Nombre" type="string" nowrap="1"/>
+								<COL name="GCosto" label="Grupo" type="string" nowrap="1"/>
+								<COL name="CentroCosto" label="Centro de Costo" type="string" nowrap="1"/>
+								<qry:insert-select name="qry_obtenerMinMax" doc-path="."/>
+								<COL name="Total" label="Total" style="" type="num" nowrap="1"/>
+							</COLS>
+						</GROUP>
+					</GROUP>
+				</GROUP>
+			</qry:out>
+		</qry:select>
+		<qry:select name="qry_cabecera" doc="SOURCE">
+			<qry:xquery>
+				for $r in sql('
+				SELECT     
+				  O.c_empresa, O.d_empresa, O.oi_empresa
+				FROM
+				 	ORG03_EMPRESAS as O
+				WHERE
+					O.oi_empresa = {#SOURCE:@oi_empresa}
+			')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:attribute name="empresa" value="$r/@c_empresa + '-' + $r/@d_empresa" type="Nomad.NSystem.Int"/>
+				<qry:attribute name="dato" value="#PARAMIN:@dato" type="Nomad.NSystem.Int"/>
+				<qry:attribute name="e_periodoDesde" value="format_date(#PARAMIN:@e_periodoDesde + '01','mm/yyyy')" type="Nomad.NSystem.Int"/>
+				<qry:attribute name="e_periodoHasta" value="format_date(#PARAMIN:@e_periodoHasta + '01','mm/yyyy')" type="Nomad.NSystem.Int"/>
+				<qry:insert-select name="qry_filtroConvenio" doc-path="#PARAMIN:.[@oi_convenio!='']"/>
+				<qry:insert-select name="qry_filtroCentroCosto" doc-path="#PARAMIN:.[@oi_ccosto!='']"/>
+				<qry:attribute name="oi_empresa" value="$r/@oi_empresa" type="Nomad.NSystem.Int"/>
+				<qry:insert-select name="qry_SinAgrupar" doc-path="#PARAMIN:.[@agrupar='S']"/>
+				<qry:insert-select name="qry_AgruparConvenio" doc-path="#PARAMIN:.[@agrupar='C']"/>
+				<qry:insert-select name="qry_AgruparGCentro" doc-path="#PARAMIN:.[@agrupar='G']"/>
+				<qry:insert-select name="qry_AgruparGCentroSinGrupo" doc-path="#PARAMIN:.[@agrupar='G']"/>
+			</qry:out>
+		</qry:select>
+		<qry:select name="qry_AgruparGCentroSinGrupo" doc="SOURCE">
+			<qry:out>
+				<qry:element name="Niv1">
+					<qry:attribute name="GCentro" value="'Centros de Costos Sin Grupo'"/>
+					<qry:attribute name="hts:delete" value="'1'"/>
+					<qry:insert-select name="qry_AgruparCentroSinGrupo"/>
+				</qry:element>
+			</qry:out>
+		</qry:select>
+		<qry:select name="qry_AgruparConvenio" doc="SOURCE">
+			<qry:xquery>
+				for $r in sql('
+SELECT 
+	o18.c_convenio, 
+	o18.d_convenio,
+	o18.oi_convenio	
+FROM 	
+	ORG18_CONVENIOS AS o18    
+WHERE
+	{%? (#PARAMIN:@oi_convenio!='')	{% AND o18.oi_convenio = {%= #PARAMIN:@oi_convenio%} %} {% 1 = 1 %} %}	
+ORDER BY
+	c_convenio ASC
+			')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:element name="Niv1">
+					<qry:attribute name="Convenio" value="$r/@c_convenio + '-' + $r/@d_convenio"/>
+					<qry:attribute name="hts:delete" value="'1'"/>
+					<qry:insert-select name="qry_AgruparCategoria" doc-path="$r"/>
+				</qry:element>
+			</qry:out>
+		</qry:select>
+		<qry:select name="qry_AgruparCategoria" doc="SOURCE">
+			<qry:xquery>
+				for $r in sql('
+SELECT 
+	Ca18.oi_categoria,
+	Ca18.c_categoria,
+	Ca18.d_categoria
+FROM 
+	ORG18_CATEGORIAS AS Ca18
+WHERE 
+	Ca18.oi_convenio = {#SOURCE:@oi_convenio}	
+ORDER BY	
+	oi_categoria ASC
+			')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:element name="Niv2">
+					<qry:attribute name="Categoria" value="$r/@c_categoria + '-' + $r/@d_categoria"/>
+					<qry:attribute name="oi_categAgrupada" value="$r/@oi_categoria"/>
+					<qry:attribute name="hts:delete" value="'1'"/>
+					<qry:attribute name="eliminar" value="1"/>
+					<qry:insert-select name="qry_SinAgrupar" doc-path="."/>
+				</qry:element>
+				<qry:insert-select name="Elim" doc-path="."/>
+			</qry:out>
+		</qry:select>
+		<qry:select name="qry_AgruparGCentro" doc="SOURCE">
+			<qry:xquery>
+				for $r in sql('
+SELECT
+	ORG09_GR_CCOSTO.oi_grupo_ccosto,
+	ORG09_GR_CCOSTO.c_grupo_ccosto,
+	ORG09_GR_CCOSTO.d_grupo_ccosto
+FROM
+	ORG09_GR_CCOSTO
+ORDER BY
+	c_grupo_ccosto ASC
+			')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:element name="Niv1">
+					<qry:attribute name="GCentro" value="$r/@c_grupo_ccosto + '-' + $r/@d_grupo_ccosto"/>
+					<qry:attribute name="hts:delete" value="'1'"/>
+					<qry:insert-select name="qry_AgruparCentro" doc-path="$r"/>
+				</qry:element>
+			</qry:out>
+		</qry:select>
+		<qry:select name="qry_AgruparCentro" doc="SOURCE">
+			<qry:xquery>
+				for $r in sql('
+SELECT
+	ORG08_CS_COSTO.oi_centro_costo,
+	ORG08_CS_COSTO.c_centro_costo,	
+	ORG08_CS_COSTO.d_centro_costo
+FROM
+	ORG08_CS_COSTO
+WHERE
+	ORG08_CS_COSTO.oi_grupo_ccosto = {#SOURCE:@oi_grupo_ccosto}	
+	{%? (#PARAMIN:@oi_ccosto!='')	{% AND ORG08_CS_COSTO.oi_centro_costo = {%= #PARAMIN:@oi_ccosto%} %} {% %} %}	
+ORDER BY	
+	c_centro_costo ASC
+			')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:element name="Niv2">
+					<qry:attribute name="Centro" value="$r/@c_centro_costo + '-' + $r/@d_centro_costo"/>
+					<qry:attribute name="oi_centroAgrupada" value="$r/@oi_centro_costo"/>
+					<qry:attribute name="hts:delete" value="'1'"/>
+					<qry:attribute name="eliminar" value="1"/>
+					<qry:insert-select name="qry_SinAgrupar" doc-path="."/>
+				</qry:element>
+				<qry:insert-select name="Elim" doc-path="."/>
+			</qry:out>
+		</qry:select>
+		<qry:select name="qry_AgruparCentroSinGrupo" doc="SOURCE">
+			<qry:xquery>
+				for $r in sql('
+SELECT
+	ORG08_CS_COSTO.oi_centro_costo,
+	ORG08_CS_COSTO.c_centro_costo,	
+	ORG08_CS_COSTO.d_centro_costo
+FROM
+	ORG08_CS_COSTO, Per02_personal_emp
+WHERE
+	ORG08_CS_COSTO.oi_centro_costo = Per02_personal_emp.oi_ctro_costo_ult
+	and
+	isnull(ORG08_CS_COSTO.oi_grupo_ccosto)
+ORDER BY	
+	c_centro_costo ASC
+			')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:element name="Niv2">
+					<qry:attribute name="Centro" value="$r/@c_centro_costo + '-' + $r/@d_centro_costo"/>
+					<qry:attribute name="oi_centroAgrupada" value="$r/@oi_centro_costo"/>
+					<qry:attribute name="hts:delete" value="'1'"/>
+					<qry:attribute name="eliminar" value="1"/>
+					<qry:insert-select name="qry_SinAgrupar" doc-path="."/>
+				</qry:element>
+				<qry:insert-select name="Elim" doc-path="."/>
+			</qry:out>
+		</qry:select>
+		<qry:select name="qry_SinAgrupar" doc="SOURCE">
+			<qry:xquery>
+				for $r in sql('
+SELECT  
+	P2.oi_personal_emp,
+	P2.e_numero_legajo,
+	P1.d_ape_y_nom, 
+	O18.c_categoria, o18.d_categoria, 
+	o19.c_convenio, O19.d_convenio,
+	O8.c_centro_costo, O8.d_centro_costo,
+	O9.c_grupo_ccosto, O9.d_grupo_ccosto
+FROM 
+	REM02_PERSONAL_EMP AS R2,	
+	PER02_PERSONAL_EMP AS P2, 
+	PER01_PERSONAL AS P1, 
+	ORG08_CS_COSTO AS O8, 
+	ORG09_GR_CCOSTO AS O9,
+	ORG18_CATEGORIAS AS O18, 
+	ORG18_CONVENIOS AS O19
+JOIN
+	P2.oi_personal_emp INNER R2.oi_personal_emp
+	, 
+	P1.oi_personal INNER P2.oi_personal 
+	,
+	O8.oi_centro_costo INNER P2.oi_ctro_costo_ult
+	,
+	o8.oi_grupo_ccosto Left OUTER O9.oi_grupo_ccosto
+	,
+	O18.oi_categoria INNER P2.oi_categoria_ult
+	,
+	O18.oi_convenio INNER O19.oi_convenio
+WHERE  
+	P2.oi_empresa = {#PARAMIN:@oi_empresa} 
+	{%? (#PARAMIN:@oi_convenio!='')	{% AND O19.oi_convenio = {%= #PARAMIN:@oi_convenio%} %} {% %} %}
+	{%? (#PARAMIN:@oi_ccosto!='')	{% AND P2.oi_ctro_costo_ult = {%= #PARAMIN:@oi_ccosto%} %} {% %} %}	
+   	{%? (#SOURCE:@oi_categAgrupada!='')	{% AND O18.oi_categoria = {%= #SOURCE:@oi_categAgrupada %} %} {% %} %}
+	{%? (#SOURCE:@oi_centroAgrupada!='')	{% AND P2.oi_ctro_costo_ult = {%= #SOURCE:@oi_centroAgrupada %} %} {% %} %}	
+ORDER BY
+	e_numero_legajo ASC
+			')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:element name="PERSONAS">
+					<qry:attribute name="Convenio" value="$r/@c_convenio + '-' + $r/@d_convenio"/>
+					<qry:attribute name="Categoria" value="$r/@c_categoria + '-' + $r/@d_categoria"/>
+					<qry:attribute name="Legajo" value="$r/@e_numero_legajo"/>
+					<qry:attribute name="NombreApellido" value="$r/@d_ape_y_nom"/>
+					<qry:attribute name="CentroCosto" value="$r/@c_centro_costo + '-' + $r/@d_centro_costo"/>
+					<qry:attribute name="GCosto" value="$r/@c_grupo_ccosto + '-' + $r/@d_grupo_ccosto"/>
+					<qry:attribute name="oi_personal_emp" value="$r/@oi_personal_emp"/>
+					<qry:attribute name="Total" value="0"/>
+					<qry:insert-select name="qry_obtenerColumnas" doc-path="."/>
+				</qry:element>
+				<qry:attribute name="hts:delete" value="''"/>
+				<qry:attribute name="eliminar" value="0"/>
+			</qry:out>
+		</qry:select>
+		<qry:select name="Elim" doc="SOURCE">
+			<qry:xquery>
+				for $r in #SOURCE:Niv2[@eliminar=0]
+			</qry:xquery>
+			<qry:out>
+				<qry:attribute name="hts:delete" value="''"/>
+			</qry:out>
+		</qry:select>
+		<qry:select name="qry_filtroConvenio" doc="SOURCE">
+			<qry:xquery>
+				for $r in sql('
+SELECT  
+	P.c_convenio, P.d_convenio
+FROM 
+	ORG18_CONVENIOS AS P
+WHERE
+	P.oi_convenio = {#PARAMIN:@oi_convenio}		
+			')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:attribute name="Convenio" value="$r/@c_convenio + '-' + $r/@d_convenio"/>
+			</qry:out>
+		</qry:select>
+		<qry:select name="qry_filtroCentroCosto" doc="SOURCE">
+			<qry:xquery>
+				for $r in sql('
+SELECT
+	ORG08_CS_COSTO.oi_centro_costo,
+	ORG08_CS_COSTO.c_centro_costo,
+	ORG08_CS_COSTO.d_centro_costo
+FROM
+	ORG08_CS_COSTO
+WHERE
+	ORG08_CS_COSTO.oi_centro_costo = {#PARAMIN:@oi_ccosto}			
+			')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:attribute name="CCosto" value="$r/@c_centro_costo + '-' + $r/@d_centro_costo"/>
+			</qry:out>
+		</qry:select>
+		<qry:select name="qry_adicionalesCateg" doc="SOURCE">
+			<qry:xquery>
+				for $r in sql('
+SELECT ORG18_CATEG_ADIC.n_valor 
+FROM 
+	ORG18_CATEG_ADIC, 
+	ORG39_ADICIONALES
+JOIN
+	ORG18_CATEG_ADIC.oi_adicional INNER ORG39_ADICIONALES.oi_adicional
+WHERE
+  ORG18_CATEG_ADIC.oi_categoria = {#SOURCE:@oi_categoria}			
+	AND ORG39_ADICIONALES.l_porcentaje = 0 
+			')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:attribute name="Adicionales" value="number(@Adicionales) + number($r/@n_valor)"/>
+			</qry:out>
+		</qry:select>
+		<qry:select name="qry_obtenerColumnas" doc="SOURCE">
+			<qry:xquery>
+				for $r in sql('
+SELECT
+	REM02_PERIODOS.oi_periodo,
+	REM02_PERIODOS.oi_personal_emp,
+	REM02_PERIODOS.e_periodo,
+	REM02_PERIODOS.n_basico,
+	REM02_PERIODOS.n_adicionales,
+	REM02_PERIODOS.n_conformado,
+	REM02_PERIODOS.n_sujeto,
+	REM02_PERIODOS.n_nosujeto,
+	REM02_PERIODOS.n_bruto,
+	REM02_PERIODOS.n_descuento,
+	REM02_PERIODOS.n_neto,
+	REM02_PERIODOS.n_contribuciones
+FROM
+	REM02_PERIODOS
+WHERE
+	REM02_PERIODOS.oi_personal_emp =  {#SOURCE:@oi_personal_emp}
+	{%? (#PARAMIN:@e_periodoDesde!='')	{% AND REM02_PERIODOS.e_periodo &gt;= {%= #PARAMIN:@e_periodoDesde%} %} {% %} %}	
+	{%? (#PARAMIN:@e_periodoHasta!='')	{% AND REM02_PERIODOS.e_periodo &lt;= {%= #PARAMIN:@e_periodoHasta%} %} {% %} %}		
+			')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<attr>
+					<qry:attribute name="name" value="'periodo' + $r/@e_periodo"/>
+					<qry:switch test="#PARAMIN:@dato">
+						<qry:case value="B">
+							<qry:attribute name="val" value="$r/@n_basico"/>
+						</qry:case>
+						<qry:case value="A">
+							<qry:attribute name="val" value="$r/@n_adicionales"/>
+						</qry:case>
+						<qry:case value="C">
+							<qry:attribute name="val" value="$r/@n_conformado"/>
+						</qry:case>
+						<qry:case value="S">
+							<qry:attribute name="val" value="$r/@n_sujeto"/>
+						</qry:case>
+						<qry:case value="N">
+							<qry:attribute name="val" value="$r/@n_nosujeto"/>
+						</qry:case>
+						<qry:case value="Q">
+							<qry:attribute name="val" value="$r/@n_bruto"/>
+						</qry:case>
+						<qry:case value="W">
+							<qry:attribute name="val" value="$r/@n_descuento"/>
+						</qry:case>
+						<qry:case value="T">
+							<qry:attribute name="val" value="$r/@n_neto"/>
+						</qry:case>
+						<qry:case value="R">
+							<qry:attribute name="val" value="$r/@n_contribuciones"/>
+						</qry:case>
+					</qry:switch>
+				</attr>
+				<qry:switch test="#PARAMIN:@dato">
+					<qry:case value="B">
+						<qry:attribute name="Total" value="number(@Total) + number($r/@n_basico)"/>
+					</qry:case>
+					<qry:case value="A">
+						<qry:attribute name="Total" value="number(@Total) + number($r/@n_adicionales)"/>
+					</qry:case>
+					<qry:case value="C">
+						<qry:attribute name="Total" value="number(@Total) + number($r/@n_conformado)"/>
+					</qry:case>
+					<qry:case value="S">
+						<qry:attribute name="Total" value="number(@Total) + number($r/@n_sujeto)"/>
+					</qry:case>
+					<qry:case value="N">
+						<qry:attribute name="Total" value="number(@Total) + number($r/@n_nosujeto)"/>
+					</qry:case>
+					<qry:case value="Q">
+						<qry:attribute name="Total" value="number(@Total) + number($r/@n_bruto)"/>
+					</qry:case>
+					<qry:case value="W">
+						<qry:attribute name="Total" value="number(@Total) + number($r/@n_descuento)"/>
+					</qry:case>
+					<qry:case value="T">
+						<qry:attribute name="Total" value="number(@Total) + number($r/@n_neto)"/>
+					</qry:case>
+					<qry:case value="R">
+						<qry:attribute name="Total" value="number(@Total) + number($r/@n_contribuciones)"/>
+					</qry:case>
+				</qry:switch>
+			</qry:out>
+		</qry:select>
+	</html:query>
+</html:html>

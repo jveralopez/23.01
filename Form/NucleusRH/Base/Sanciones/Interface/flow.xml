@@ -1,0 +1,84 @@
+<flow:flow xmlns:flow="nomad_engine.flow" xmlns:doc="nomad_engine.doc" xmlns:qry="nomad_engine.qry" extends="Nomad.Base.interface.batch.flow" name="NucleusRH.Base.Sanciones.Interface.flow">
+	<flow:info label="flow para NucleusRH.Base.Sanciones.Interface"/>
+	<flow:declare>
+		<doc:define name="FILTERDATA">
+			<FILTRO>
+				<ROWS/>
+			</FILTRO>
+		</doc:define>
+		<doc:define name="SANCIONES"/>
+		<qry:define declare="&lt;FILTRO gcustom=&quot;&quot; formato=&quot;N&quot; f_ini=&quot;20100101&quot; f_fin=&quot;20101010&quot; empresa=&quot;196&quot; activos=&quot;1&quot; nombre=&quot;&quot; documento=&quot;&quot; sexo=&quot;&quot; grupo_sanguineo=&quot;&quot; legajo_desde=&quot;&quot; legajo_hasta=&quot;&quot; oi_indic_activo=&quot;&quot; egresado=&quot;&quot; oi_forma_pago=&quot;&quot; oi_tipo_personal=&quot;&quot; oi_centro_costo=&quot;&quot; oi_categoria=&quot;&quot; oi_ubicacion=&quot;&quot; oi_estructura=&quot;&quot; escructura_childs=&quot;&quot; oi_afjp=&quot;&quot; oi_obra_social=&quot;&quot; oi_sindicato=&quot;&quot;&gt;&lt;ROWS nmd-col=&quot;1&quot;&gt;&lt;ROW id=&quot;11565&quot; /&gt;&lt;ROW id=&quot;11566&quot; /&gt;&lt;ROW id=&quot;11567&quot; /&gt;&lt;ROW id=&quot;11568&quot; /&gt;&lt;ROW id=&quot;11569&quot; /&gt;&lt;ROW id=&quot;11570&quot; /&gt;&lt;ROW id=&quot;11571&quot; /&gt;&lt;ROW id=&quot;11573&quot; /&gt;&lt;ROW id=&quot;11574&quot; /&gt;&lt;ROW id=&quot;11575&quot; /&gt;&lt;ROW id=&quot;11576&quot; /&gt;&lt;ROW id=&quot;11578&quot; /&gt;&lt;ROW id=&quot;11580&quot; /&gt;&lt;ROW id=&quot;11581&quot; /&gt;&lt;ROW id=&quot;11582&quot; /&gt;&lt;ROW id=&quot;11583&quot; /&gt;&lt;ROW id=&quot;13886&quot; /&gt;&lt;/ROWS&gt;&lt;THS /&gt;&lt;/FILTRO&gt;" name="QRY_SANCIONES">
+			<qry:main doc="PARAM">
+				<qry:append-doc name="FILTRO" doc-path="#PARAM:/FILTRO"/>
+				<qry:element name="ROWS">
+					<qry:insert-select name="QRY_SANCIONES" doc-path="#PARAM:FILTRO"/>
+				</qry:element>
+			</qry:main>
+			<qry:select name="QRY_SANCIONES" doc="PARAM">
+				<qry:xquery>
+					for $r in sql('
+				SELECT 
+					PER02_PERSONAL_EMP.e_numero_legajo,
+					SAN02_SANCIONES.c_enlace,
+					SUM(SAN03_SANCION_PER.e_dias_susp_real) as dias_susp_real
+					FROM 
+						SAN03_SANCION_PER, 
+						SAN02_SANCIONES,
+						PER02_PERSONAL_EMP
+				JOIN
+					SAN03_SANCION_PER.oi_sancion INNER SAN02_SANCIONES.oi_sancion,					
+					SAN03_SANCION_PER.oi_personal_emp INNER PER02_PERSONAL_EMP.oi_personal_emp
+				WHERE 
+					PER02_PERSONAL_EMP.oi_empresa = {#PARAM:@empresa}
+					AND PER02_PERSONAL_EMP.oi_personal_emp in ({%=string(#FILTRO:ROWS/ROW/@id)%})
+					AND SAN03_SANCION_PER.f_fechahora_sanc &gt;= {Datetime(#FILTRO:@f_ini)}
+					AND SAN03_SANCION_PER.f_fechahora_sanc &lt;= {Datetime(Number(Datetime(#FILTRO:@f_fin))+1)}				
+					AND SAN03_SANCION_PER.c_estado = \'A\'
+				GROUP BY 					
+					SAN02_SANCIONES.c_enlace,
+					PER02_PERSONAL_EMP.e_numero_legajo
+				ORDER BY 
+					e_numero_legajo ASC
+			')ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:element name="ROW">
+						<qry:attribute name="e_numero_legajo" value="$r/@e_numero_legajo"/>
+						<qry:attribute name="c_enlace" value="$r/@c_enlace"/>
+						<qry:attribute name="dias_susp_real" value="$r/@dias_susp_real"/>
+					</qry:element>
+				</qry:out>
+			</qry:select>
+		</qry:define>
+	</flow:declare>
+	<flow:main doc="SOURCE">
+		<flow:action name="initialize">
+			<flow:open-form doc-path="#FILTERDATA:" form-class="NucleusRH.Base.Sanciones.Interface.INTERFACE.form" mode="FILTER"/>
+		</flow:action>
+	</flow:main>
+	<flow:form parent-doc="PARENTSOURCE" doc="SOURCE" mode="FILTER" name="NucleusRH.Base.Sanciones.Interface.INTERFACE.form:FILTER" form-class="NucleusRH.Base.Sanciones.Interface.INTERFACE.form">
+		<flow:action name="on-show">
+			<flow:call-action action="Load-FILTER"/>
+			<flow:attach-doc attach-id="ARRB" doc-path="#SOURCE:ROWS"/>
+		</flow:action>
+		<flow:action name="BACK">
+			<flow:close-form/>
+		</flow:action>
+		<flow:action name="ACCEPT">
+			<flow:call-action action="Save-FILTER"/>
+			<flow:log text-path="#SOURCE:" text="ppsanciones"/>
+			<doc:load-qry output-doc="SANCIONES" input-doc-path="#SOURCE:" qry="QRY_SANCIONES"/>
+			<flow:exec-method method="GenerarArchivo" priority="5" out-type="String" out-attr-path="#BATCHDOC:@batch-id" class="NucleusRH.Base.Sanciones.Interface.SANCIONES">
+				<flow:param type="Nomad.NSystem.Proxy.NomadXML" doc="SANCIONES" name="param" mode="in"/>
+			</flow:exec-method>
+			<flow:open-form form-class="NucleusRH.Base.Sanciones.Interface.INTERFACE.batch.form" mode="SHOW" doc-path="#BATCHDOC:"/>
+		</flow:action>
+		<flow:action name="Save-FILTER">
+			<flow:save-user-data name="FILTER-NucleusRH.Base.Sanciones.Interface.INTERFACE" doc-path="#FILTERDATA:"/>
+		</flow:action>
+		<flow:action name="Load-FILTER">
+			<flow:load-user-data name="FILTER-NucleusRH.Base.Sanciones.Interface.INTERFACE" doc="FILTERDATA"/>
+		</flow:action>
+	</flow:form>
+	<flow:form extends="Nomad.Base.interface.batch.form:SHOW" mode="SHOW" name="NucleusRH.Base.Sanciones.Interface.INTERFACE.batch.form:SHOW" form-class="NucleusRH.Base.Sanciones.Interface.INTERFACE.batch.form" doc="SOURCE"/>
+</flow:flow>

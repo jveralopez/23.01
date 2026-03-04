@@ -1,0 +1,288 @@
+<qry:define declare="&lt;FILTRO f_desde=&quot;&quot; f_hasta=&quot;&quot; oi_liquidacion=&quot;15&quot; oi_clase_org=&quot;5&quot; vhora=&quot;C&quot;&gt;&#13;&#10;&#9;&lt;PERSONAS /&gt;&#13;&#10;&#9;&lt;ESTRUCTURAS /&gt;&#13;&#10;&lt;/FILTRO&gt;" xmlns:qry="XXX" name="FORMS">
+	<qry:main doc="PARAM" xmlns:qry="XXX">
+		<qry:append-doc name="FILTRO" doc-path="#PARAM:/FILTRO"/>
+		<qry:element name="HORASPROCESADAS">
+			<qry:element name="CLASES">
+				<qry:insert-select name="QRY_CLASE_PADRE" doc-path="#FILTRO:"/>
+			</qry:element>
+			<qry:append-doc name="ORGANIGRAMAS" doc-path="."/>
+			<qry:attribute value="'No'" name="personas" type="Nomad.NSystem.String"/>
+			<qry:attribute value="'No'" name="estructuras" type="Nomad.NSystem.String"/>
+			<qry:attribute value="'Todo'" name="mostrar" type="Nomad.NSystem.String"/>
+			<qry:attribute value="iif(#FILTRO:@f_desde='', '-', format_date(#FILTRO:@f_desde,'dd/mm/yyyy'))" name="f_desde"/>
+			<qry:attribute value="iif(#FILTRO:@f_hasta='', '-', format_date(#FILTRO:@f_hasta,'dd/mm/yyyy'))" name="f_hasta"/>
+			<qry:attribute value="./@f_desde + ' - ' + ./@f_hasta" name="f_desde_hasta"/>
+			<qry:attribute value="format_date(now(),'dd/mm/yyyy HH:MM:SS')" name="f_informe" type="Nomad.NSystem.String"/>
+			<qry:insert-select doc-path="#FILTRO:" name="QRY_PARAM_CLASE"/>
+			<qry:insert-select doc-path="#FILTRO:" name="QRY_PARAM_PERSONAS"/>
+			<qry:insert-select doc-path="#FILTRO:" name="QRY_PARAM_ESTR"/>
+			<qry:insert-select doc-path="#FILTRO:" name="QRY_PARAM_LIQUIDACION"/>
+			<qry:insert-select doc-path="#FILTRO:/.[#FILTRO:@vhora = 'C']" name="QRY_PARAM_HORA_C"/>
+			<qry:insert-select doc-path="#FILTRO:/.[#FILTRO:@vhora = 'S']" name="QRY_PARAM_HORA_S"/>
+			<qry:insert-select doc-path="#FILTRO:/.[#FILTRO:@mostrar = 'D']" name="QRY_PARAM_DETALLE"/>
+			<qry:insert-select doc-path="#FILTRO:/.[#FILTRO:@mostrar = 'R']" name="QRY_PARAM_RESUMEN"/>
+			<qry:element name="HORAS">
+				<qry:attribute value="'0'" name="cant"/>
+				<qry:insert-select doc-path="#FILTRO:" name="QRY_LEGAJOS"/>
+				<qry:insert-select doc-path=".[./@cant='0']" name="QRY_VACIO"/>
+			</qry:element>
+		</qry:element>
+	</qry:main>
+	<qry:select xmlns:qry="XXX" doc="PARAM" name="QRY_PARAM_CLASE">
+		<qry:xquery>
+			for $r in sql('
+				SELECT ORG02_CLASES_ORG.c_clase_org, ORG02_CLASES_ORG.d_clase_org
+				FROM ORG02_CLASES_ORG
+				WHERE ORG02_CLASES_ORG.oi_clase_org = {#PARAM:@oi_clase_org}
+			')/ROWS/ROW
+		</qry:xquery>
+		<qry:out>
+			<qry:attribute value="$r/@c_clase_org + ' - ' + $r/@d_clase_org" name="clase_org" type="Nomad.NSystem.String"/>
+		</qry:out>
+	</qry:select>
+	<qry:select xmlns:qry="XXX" doc="PARAM" name="QRY_PARAM_PERSONAS">
+		<qry:xquery>
+			for $r in #FILTRO:PERSONAS/PERSONA
+		</qry:xquery>
+		<qry:out>
+			<qry:attribute value="'Si'" name="personas" type="Nomad.NSystem.String"/>
+		</qry:out>
+	</qry:select>
+	<qry:select xmlns:qry="XXX" doc="PARAM" name="QRY_PARAM_ESTR">
+		<qry:xquery>
+			for $r in #FILTRO:ESTRUCTURAS/ESTRUCTURA
+		</qry:xquery>
+		<qry:out>
+			<qry:attribute value="'Si'" name="estructuras" type="Nomad.NSystem.String"/>
+		</qry:out>
+	</qry:select>
+	<qry:select doc="PARAM" name="QRY_PARAM_LIQUIDACION">
+		<qry:xquery>
+			for $r in sql('
+						SELECT ORG03_EMPRESAS.c_empresa, TTA09_LIQUIDACION.d_liquidacion 
+						FROM TTA09_LIQUIDACION, ORG03_EMPRESAS
+						WHERE TTA09_LIQUIDACION.oi_empresa = ORG03_EMPRESAS.oi_empresa
+						AND TTA09_LIQUIDACION.oi_liquidacion = {#FILTRO:@oi_liquidacion}
+			')/ROWS/ROW
+		</qry:xquery>
+		<qry:out>
+			<qry:attribute type="Nomad.NSystem.String" value="$r/@c_empresa + ' - ' + $r/@d_liquidacion" name="liquidacion"/>
+		</qry:out>
+	</qry:select>
+	<qry:select xmlns:qry="XXX" doc="PARAM" name="QRY_PARAM_HORA_C">
+		<qry:out>
+			<qry:attribute value="'Categoria'" name="vhora" type="Nomad.NSystem.String"/>
+		</qry:out>
+	</qry:select>
+	<qry:select xmlns:qry="XXX" doc="PARAM" name="QRY_PARAM_HORA_S">
+		<qry:out>
+			<qry:attribute value="'Sector'" name="vhora" type="Nomad.NSystem.String"/>
+		</qry:out>
+	</qry:select>
+	<qry:select xmlns:qry="XXX" doc="PARAM" name="QRY_PARAM_DETALLE">
+		<qry:out>
+			<qry:attribute value="'Detalle'" name="mostrar" type="Nomad.NSystem.String"/>
+		</qry:out>
+	</qry:select>
+	<qry:select xmlns:qry="XXX" doc="PARAM" name="QRY_PARAM_RESUMEN">
+		<qry:out>
+			<qry:attribute value="'Resumen'" name="mostrar" type="Nomad.NSystem.String"/>
+		</qry:out>
+	</qry:select>
+	<qry:select xmlns:qry="XXX" doc="PARAM" name="QRY_LEGAJOS">
+		<qry:xquery>
+			for $r in sql('
+			SELECT PER02_PERSONAL_EMP.oi_personal_emp,
+			PER02_PERSONAL_EMP.e_numero_legajo,
+			PER01_PERSONAL.d_ape_y_nom,
+			ORG02_ESTRUC_PERS.oi_estructura,
+			TTA10_LIQUIDACPROC.oi_liquidacionproc,
+			TTA10_LIQUIDACPROC.f_fechoraentrada,
+			TTA10_LIQUIDACPROC.f_fechorasalida,
+			TTA10_LIQUIDACPROC.oi_tipohora,
+			TTA10_LIQUIDACPROC.n_cantidadhs,
+			TTA10_LIQUIDACPROC.oi_estructura AS oi_estr_liq  
+			FROM PER02_PERSONAL_EMP, TTA04_PERSONAL,
+			PER01_PERSONAL, ORG02_ESTRUC_PERS,
+			TTA10_LIQUIDACPERS, TTA10_LIQUIDACJOR,
+			TTA10_LIQUIDACPROC
+			JOIN PER02_PERSONAL_EMP.oi_personal_emp INNER TTA04_PERSONAL.oi_personal_emp,
+			PER02_PERSONAL_EMP.oi_personal INNER PER01_PERSONAL.oi_personal,
+			PER02_PERSONAL_EMP.oi_personal_emp INNER ORG02_ESTRUC_PERS.oi_personal_emp,
+			TTA10_LIQUIDACPERS.oi_personal_emp INNER TTA04_PERSONAL.oi_personal_emp,
+			TTA10_LIQUIDACPERS.oi_liquidacionpers INNER TTA10_LIQUIDACJOR.oi_liquidacionpers,
+			TTA10_LIQUIDACPROC.oi_liquidacjor INNER TTA10_LIQUIDACJOR.oi_liquidacjor
+			WHERE ORG02_ESTRUC_PERS.oi_clase_org in ({%=string(#ORGANIGRAMAS:CLASES/CLASE/@oi_clase_org)%})
+			AND TTA10_LIQUIDACPERS.oi_liquidacion = {#FILTRO:@oi_liquidacion}		  
+		  {%? (#FILTRO:@f_desde != '') {% AND TTA10_LIQUIDACPROC.f_fechoraentrada &gt;= {DateTime(#FILTRO:@f_desde)} %} {%  %}   %}
+			{%? (#FILTRO:@f_hasta != '') {% AND TTA10_LIQUIDACPROC.f_fechorasalida &lt;= {DateTime(Number(DateTime(#FILTRO:@f_hasta))+1)} %} {%  %}   %}		 
+		  {%? (string(#FILTRO:ESTRUCTURAS/ESTRUCTURA/@id)!='') 
+				{% AND ORG02_ESTRUC_PERS.oi_estructura in ({%=string(#FILTRO:ESTRUCTURAS/ESTRUCTURA/@id)%}) %} 
+				{%  %} 
+			%}
+			{%? (string(#FILTRO:PERSONAS/PERSONA/@id)!='') 
+				{% AND PER02_PERSONAL_EMP.oi_personal_emp in ({%=string(#FILTRO:PERSONAS/PERSONA/@id)%}) %} 
+				{%  %} 
+			%}			
+			GROUP BY PER02_PERSONAL_EMP.oi_personal_emp, PER02_PERSONAL_EMP.e_numero_legajo, PER01_PERSONAL.d_ape_y_nom,
+			ORG02_ESTRUC_PERS.oi_estructura, TTA10_LIQUIDACPROC.oi_liquidacionproc, TTA10_LIQUIDACPROC.f_fechoraentrada,
+			TTA10_LIQUIDACPROC.f_fechorasalida, TTA10_LIQUIDACPROC.oi_tipohora,	TTA10_LIQUIDACPROC.n_cantidadhs,
+			TTA10_LIQUIDACPROC.oi_estructura			
+		')/ROWS/ROW
+		</qry:xquery>
+		<qry:out>
+			<qry:element name="HORA">
+				<qry:attribute type="Nomad.NSystem.String" value="$r/@oi_personal_emp" name="oi_personal_emp"/>
+				<qry:attribute type="Nomad.NSystem.String" value="$r/@oi_estructura" name="oi_estructura"/>
+				<qry:attribute type="Nomad.NSystem.String" value="$r/@oi_estr_liq" name="oi_estr_liq"/>
+				<qry:attribute type="Nomad.NSystem.String" value="$r/@e_numero_legajo + ' - ' + $r/@d_ape_y_nom" name="personal"/>
+				<qry:attribute type="Nomad.NSystem.String" value="format_date($r/@f_fechoraentrada,'dd/mm/yyyy HH:MM')" name="f_fechoraentrada"/>
+				<qry:attribute type="Nomad.NSystem.String" value="format_date($r/@f_fechorasalida,'dd/mm/yyyy HH:MM')" name="f_fechorasalida"/>
+				<qry:attribute type="Nomad.NSystem.String" value="$r/@oi_liquidacionproc" name="oi_liquidacionproc"/>
+				<qry:attribute type="Nomad.NSystem.String" value="$r/@oi_tipohora" name="oi_tipohora"/>
+				<qry:attribute type="Nomad.NSystem.String" value="ROUND($r/@n_cantidadhs * 10)" name="n_cantidadhs"/>
+				<qry:insert-select doc-path="$r" name="QRY_ESTRUCTURA"/>
+				<qry:insert-select doc-path="$r" name="QRY_TIPO_HORA"/>
+				<qry:insert-select doc-path="$r/.[#FILTRO:@vhora='S']" name="QRY_SECTOR"/>
+				<qry:insert-select doc-path="$r/.[#FILTRO:@vhora='C']" name="QRY_CATEGORIA"/>
+				<qry:attribute type="Nomad.NSystem.String" value="./@n_valor * ./@n_cantidadhs" name="n_valor_hora"/>
+			</qry:element>
+			<qry:attribute value="'1'" name="cant"/>
+		</qry:out>
+	</qry:select>
+	<qry:select xmlns:qry="XXX" doc="PARAM" name="QRY_TIPO_HORA">
+		<qry:xquery>
+			for $r in sql('
+					SELECT TTA01_TIPOHORAS.c_tipohora, TTA01_TIPOHORAS.d_tipohora
+					FROM TTA01_TIPOHORAS
+					WHERE TTA01_TIPOHORAS.oi_tipohora = {#PARAM:@oi_tipohora}					
+		')/ROWS/ROW
+		</qry:xquery>
+		<qry:out>
+			<qry:attribute type="Nomad.NSystem.String" value="$r/@c_tipohora" name="c_tipohora"/>
+			<qry:attribute type="Nomad.NSystem.String" value="$r/@c_tipohora + ' - ' + $r/@d_tipohora" name="tipohora"/>
+		</qry:out>
+	</qry:select>
+	<qry:select xmlns:qry="XXX" doc="PARAM" name="QRY_SECTOR">
+		<qry:xquery>
+			for $r in sql('
+			SELECT TTA05_TERMINALES.n_valor_hora 
+			FROM TTA05_TERMINALES, TTA10_LIQUIDACPROC,
+			ORG02_ESTRUCTURAS
+			JOIN TTA05_TERMINALES.oi_estructura INNER ORG02_ESTRUCTURAS.oi_estructura,
+			TTA10_LIQUIDACPROC.oi_estructura INNER ORG02_ESTRUCTURAS.oi_estructura
+			WHERE ORG02_ESTRUCTURAS.oi_estructura = {#PARAM:@oi_estr_liq}
+			GROUP BY TTA05_TERMINALES.n_valor_hora 
+		')/ROWS/ROW
+		</qry:xquery>
+		<qry:out>
+			<qry:attribute type="Nomad.NSystem.String" value="$r/@n_valor_hora" name="n_valor"/>
+		</qry:out>
+	</qry:select>
+	<qry:select xmlns:qry="XXX" doc="PARAM" name="QRY_CATEGORIA">
+		<qry:xquery>
+			for $r in sql('
+			SELECT ORG18_CATEGORIAS.n_valor_hora
+			FROM PER02_CATEG_PER, ORG18_CATEGORIAS
+			JOIN ORG18_CATEGORIAS.oi_categoria INNER  PER02_CATEG_PER.oi_categoria
+			WHERE PER02_CATEG_PER.oi_personal_emp = {#PARAM:@oi_personal_emp}
+			AND PER02_CATEG_PER.f_ingreso &lt;= now()
+			AND (PER02_CATEG_PER.f_egreso &gt; now()
+			OR ISNULL(PER02_CATEG_PER.f_egreso))
+		')/ROWS/ROW
+		</qry:xquery>
+		<qry:out>
+			<qry:attribute type="Nomad.NSystem.String" value="$r/@n_valor_hora" name="n_valor"/>
+		</qry:out>
+	</qry:select>
+	<qry:select xmlns:qry="XXX" doc="PARAM" name="QRY_ESTRUCTURA">
+		<qry:xquery>
+			for $r in sql('
+			SELECT ORG01_TIPOS_UNI.c_tipo_uni_org, ORG01_TIPOS_UNI.d_tipo_uni_org,
+			ORG01_UNI_ORG.c_unidad_org, ORG01_UNI_ORG.d_unidad_org
+			FROM ORG01_UNI_ORG, ORG01_TIPOS_UNI
+			JOIN ORG01_UNI_ORG.oi_tipo_uni_org INNER ORG01_TIPOS_UNI.oi_tipo_uni_org
+			WHERE ORG01_UNI_ORG.oi_unidad_org in 
+				(SELECT ORG02_ESTRUCTURAS.oi_unidad_org
+				FROM ORG02_ESTRUCTURAS 
+				WHERE ORG02_ESTRUCTURAS.oi_estructura = {%=#PARAM:@oi_estructura%})					
+		')/ROWS/ROW
+		</qry:xquery>
+		<qry:out>
+			<qry:attribute type="Nomad.NSystem.String" value="$r/@d_tipo_uni_org + ': ' + $r/@c_unidad_org + ' - ' + $r/@d_unidad_org" name="unidad_org"/>
+		</qry:out>
+	</qry:select>
+	<qry:select doc="PARAM" name="SECURITY">
+		<qry:xquery>
+			for $r in sql('select policy from NMD_SECURITY where class=\'NucleusRH.Base.Personal.LegajoEmpresa.PERSONAL_EMP\' and id={#PARAM:@oi_personal_emp}')/ROWS/ROW
+		</qry:xquery>
+		<qry:out>
+			<qry:attribute value="$r/@policy" name="policy"/>
+		</qry:out>
+	</qry:select>
+	<qry:select doc="PARAM" name="QRY_VACIO">
+		<qry:out>
+			<qry:element name="HORA">
+				<qry:attribute type="Nomad.NSystem.String" value="'0'" name="oi_personal_emp"/>
+				<qry:attribute type="Nomad.NSystem.String" value="'0'" name="oi_estructura"/>
+				<qry:attribute type="Nomad.NSystem.String" value="'0'" name="oi_estr_liq"/>
+				<qry:attribute type="Nomad.NSystem.String" value="'0'" name="personal"/>
+				<qry:attribute type="Nomad.NSystem.String" value="'0'" name="f_fechoraentrada"/>
+				<qry:attribute type="Nomad.NSystem.String" value="'0'" name="f_fechorasalida"/>
+				<qry:attribute type="Nomad.NSystem.String" value="'0'" name="oi_liquidacionproc"/>
+				<qry:attribute type="Nomad.NSystem.String" value="'0'" name="oi_tipohora"/>
+				<qry:attribute type="Nomad.NSystem.String" value="'0'" name="n_cantidadhs"/>
+				<qry:attribute type="Nomad.NSystem.String" value="'0'" name="tipohora"/>
+				<qry:attribute type="Nomad.NSystem.String" value="'0'" name="c_tipohora"/>
+				<qry:attribute type="Nomad.NSystem.String" value="'0'" name="unidad_org"/>
+				<qry:attribute type="Nomad.NSystem.String" value="'0'" name="n_valor"/>
+				<qry:attribute type="Nomad.NSystem.String" value="'0'" name="n_valor_hora"/>
+			</qry:element>
+		</qry:out>
+	</qry:select>
+	<qry:select name="QRY_CLASE_PADRE" doc="PARAM">
+		<qry:xquery>
+			for $r in sql('
+			SELECT ORG02_CLASES_ORG.oi_clase_org,
+			ORG02_CLASES_ORG.oi_estructura_org AS oi_estructura
+			FROM ORG02_CLASES_ORG
+			WHERE ORG02_CLASES_ORG.oi_clase_org = {#PARAM:@oi_clase_org}
+		')ROWS/ROW
+		</qry:xquery>
+		<qry:out>
+			<qry:element name="CLASE">
+				<qry:attribute name="oi_clase_org" value="#PARAM:@oi_clase_org"/>
+			</qry:element>
+			<qry:insert-select name="QRY_CLASES_HIJAS" doc-path="$r"/>
+			<qry:insert-select name="QRY_ESTR" doc-path="$r"/>
+		</qry:out>
+	</qry:select>
+	<qry:select name="QRY_ESTR" doc="PARAM">
+		<qry:xquery>
+			for $r in sql('
+			SELECT ORG02_ESTRUCTURAS.oi_estructura			
+			FROM ORG02_ESTRUCTURAS
+			WHERE ORG02_ESTRUCTURAS.oi_estr_padre = {#PARAM:@oi_estructura}
+		')ROWS/ROW
+		</qry:xquery>
+		<qry:out>
+			<qry:insert-select name="QRY_CLASES_HIJAS" doc-path="$r"/>
+			<qry:insert-select name="QRY_ESTR" doc-path="$r"/>
+		</qry:out>
+	</qry:select>
+	<qry:select name="QRY_CLASES_HIJAS" doc="PARAM">
+		<qry:xquery>
+			for $r in sql('
+			SELECT ORG02_CLASES_HIJAS.oi_estructura, 
+			ORG02_CLASES_HIJAS.oi_clase_org
+			FROM ORG02_CLASES_HIJAS
+			WHERE ORG02_CLASES_HIJAS.oi_estructura = {#PARAM:@oi_estructura}
+		')ROWS/ROW
+		</qry:xquery>
+		<qry:out>
+			<qry:element name="CLASE">
+				<qry:attribute name="oi_clase_org" value="$r/@oi_clase_org"/>
+			</qry:element>
+		</qry:out>
+	</qry:select>
+</qry:define>

@@ -1,0 +1,169 @@
+<html:html xmlns:html="nomad_engine.html" xmlns:qry="nomad_engine.qry" name="NucleusRH.Base.Tiempos_Trabajados.HorariosTurnos.rpt" extends="Nomad.Base.BaseReport.rpt" doc="source">
+	<html:query declare="&lt;DATA&#13;&#10;c_turno=&quot;&quot;&#13;&#10;d_turno=&quot;&quot;&#13;&#10;c_estado=&quot;&quot;&#13;&#10;oi_tipohora=&quot;&quot; /&gt;">
+		<qry:main doc="SOURCE">
+			<qry:append-doc name="FILTRO" doc-path="$SOURCE/DATA"/>
+			<REPORT label="Horarios por Turnos">
+				<qry:attribute value="format_date(now(),'dd/mm/yyyy HH:MM')" name="date"/>
+				<GROUPS>
+					<GROUP tag="TURNO" type="title" noreg="No se encontraron turnos que cumplan con los filtros seleccionados.">
+						<COLS>
+							<COL name="c_turno" label="C&#243;digo"/>
+							<COL name="d_turno" label="Descripci&#243;n"/>
+							<COL name="d_estado" label="Estado"/>
+							<COL name="c_color" label="Color"/>
+						</COLS>
+						<GROUP tag="HORARIO" type="table" style="width:100%" noreg="No se encontraron horarios para el turno.">
+							<COLS>
+								<COL name="c_horario" label="C&#243;digo" style="text-align:center"/>
+								<COL name="d_horario" label="Descripci&#243;n"/>
+								<COL name="d_tipohorario" label="Tipo de Horario" style="text-align:center"/>
+								<COL name="e_dias" label="D&#237;as" style="text-align:center"/>
+								<COL name="d_estado" label="Estado" style="text-align:center"/>
+								<COL name="c_color" label="Color" style="text-align:center"/>
+								<COL name="l_controla_fic" label="Controla Fichada" style="text-align:center"/>
+								<COL name="l_cambio_turno" label="Aplica Cambio de Turno" style="text-align:center"/>
+								<COL name="l_convenio" label="Aplica Convenio" style="text-align:center"/>
+							</COLS>
+						</GROUP>
+					</GROUP>
+				</GROUPS>
+				<qry:element name="DATA">
+					<qry:insert-select name="qryTurnos" doc-path=""/>
+				</qry:element>
+			</REPORT>
+		</qry:main>
+		<qry:select name="qryTurnos" doc="">
+			<qry:xquery>
+				for $r in SQL('
+			
+				SELECT
+					t.oi_turno,
+					t.c_turno,
+					t.d_turno,
+					t.c_estado,
+					t.c_color					
+				
+				FROM				
+					TTA14_TURNOS as t
+					
+					{%?($FILTRO/@oi_tipohora != '')
+						{%
+							, TTA14_TURNOS_DET as tt
+							
+							JOIN
+								t.oi_turno INNER tt.oi_turno						
+						%}
+						{% %}
+					%}
+					
+				
+				WHERE
+					1=1 
+					
+					{%?($FILTRO/@c_turno != '')
+						{% AND t.c_turno = {$FILTRO/@c_turno} %}
+						{% %}
+					%}
+
+          {%?($FILTRO/@d_turno != '')
+						{% AND CONTAIN(t.d_turno, {$FILTRO/@d_turno}) %}
+						{% %}
+					%}
+
+          {%?($FILTRO/@c_estado != '')
+						{% AND t.c_estado = {$FILTRO/@c_estado} %}
+						{% %}
+					%}
+					
+					{%?($FILTRO/@oi_tipohora != '')
+						{%
+							AND (tt.oi_tipo_hs_norm = {$FILTRO/@oi_tipohora}
+								OR tt.oi_tipo_hs_dom = {$FILTRO/@oi_tipohora}
+								OR tt.oi_tipo_hs_fer = {$FILTRO/@oi_tipohora}
+								OR tt.oi_tipo_hs_domfer = {$FILTRO/@oi_tipohora})
+						%}
+						{% %}
+					%}							
+			
+			')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<TURNO>
+					<qry:attribute name="c_turno" value="$r/@c_turno"/>
+					<qry:attribute name="d_turno" value="$r/@d_turno"/>
+					<qry:insert-select name="attEstado" doc-path="$r"/>
+					<qry:attribute name="c_color" value="$r/@c_color"/>
+					<qry:insert-select name="qryHorarios" doc-path="$r"/>
+				</TURNO>
+			</qry:out>
+		</qry:select>
+		<qry:select name="attEstado" doc="r">
+			<qry:out>
+				<qry:switch test="$r/@c_estado">
+					<qry:case value="P">
+						<qry:attribute name="d_estado" value="'Pendiente'"/>
+					</qry:case>
+					<qry:case value="C">
+						<qry:attribute name="d_estado" value="'Cerrado'"/>
+					</qry:case>
+				</qry:switch>
+			</qry:out>
+		</qry:select>
+		<qry:select name="qryHorarios" doc="TURNO">
+			<qry:xquery>
+				for $r in SQL('
+			  
+			  SELECT
+			  	h.c_horario,
+			  	h.d_horario,
+					h.d_tipohorario,
+					h.e_dias,
+					h.c_estado,
+					h.c_color,
+					h.l_controla_fic,
+					h.l_cambio_turno,
+					h.l_convenio
+			     
+			  FROM
+			  	TTA02_HORA_TUR_DET as ht,
+			  	TTA02_HORARIOS as h
+			  
+			  JOIN
+			  	ht.oi_horario INNER h.oi_horario
+			  
+			  WHERE
+			  	ht.oi_turno = {$TURNO/@oi_turno}			
+			
+			')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<HORARIO>
+					<qry:attribute name="c_horario" value="$r/@c_horario"/>
+					<qry:attribute name="d_horario" value="$r/@d_horario"/>
+					<qry:insert-select name="attTipoHorario" doc-path="$r"/>
+					<qry:attribute name="e_dias" value="$r/@e_dias"/>
+					<qry:insert-select name="attEstado" doc-path="$r"/>
+					<qry:attribute name="c_color" value="$r/@c_color"/>
+					<qry:attribute name="l_controla_fic" value="iif($r/@l_controla_fic = 1, 'Si', 'No')"/>
+					<qry:attribute name="l_cambio_turno" value="iif($r/@l_cambio_turno = 1, 'Si', 'No')"/>
+					<qry:attribute name="l_convenio" value="iif($r/@l_convenio = 1, 'Si', 'No')"/>
+				</HORARIO>
+			</qry:out>
+		</qry:select>
+		<qry:select name="attTipoHorario" doc="r">
+			<qry:out>
+				<qry:switch test="$r/@d_tipohorario">
+					<qry:case value="F">
+						<qry:attribute name="d_tipohorario" value="'Fijo'"/>
+					</qry:case>
+					<qry:case value="R">
+						<qry:attribute name="d_tipohorario" value="'Rotativo'"/>
+					</qry:case>
+					<qry:case value="L">
+						<qry:attribute name="d_tipohorario" value="'Libre'"/>
+					</qry:case>
+				</qry:switch>
+			</qry:out>
+		</qry:select>
+	</html:query>
+</html:html>

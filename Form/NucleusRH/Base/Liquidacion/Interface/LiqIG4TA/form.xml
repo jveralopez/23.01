@@ -1,0 +1,624 @@
+<form:Form xmlns:form="nomad_engine.form" xmlns:qry="nomad_engine.qry" extends="NucleusRH.Base.Personal.LegajoEmpresa.PERSONAL_EMP.BUSCAR.form" default_mode="F2122" name="Filtro del reporte de la ig" doc="source">
+	<form:Title>
+		<form:Label label="F.1357 / F.1359 - Liquidaci&#243;n IG - 4ta Cat. Rel. de Dependencia" visible="FILTER" name="lbl_titulo" align="center" style="S3 LCol_w"/>
+		<form:Label visible="F2122" label="F. 2122 - Liquidaci&#243;n de Imp. Cedular" name="lbl_titulo" align="center" style="S3 LCol_w"/>
+	</form:Title>
+	<form:Center width="100%">
+		<form:Blank name="bl3" width="100%" visible=""/>
+		<form:VGroup visible="" nvalue="#source:@gcustom" border="1" width="90%" label="Criterios de selecci&#243;n particulares" name="vgroupDatosCustom" collapse="1">
+			<form:ComboBox queryname1="NucleusRH.Base.Organizacion.Empresas.EMPRESA.INFO" nvalue="#source:@oi_empresaFIL" name="empresa" xsize="40" mode="QRY" required="1" label="Empresa">
+				<form:Event action="setNombreArchivo" name="onchange" runat="client"/>
+			</form:ComboBox>
+			<form:ComboBox visible="FILTER" xsize="40" prev="empresa" required="1" label="Tipo de Salida" name="tipo_liq" nvalue="#source:@tipo_liq" mode="OPT">
+				<options>
+					<option text="Liquidaci&#243;n Anual con Ajuste" value="1"/>
+					<option text="Liquidaci&#243;n Final" value="2"/>
+					<option text="Liquidaci&#243;n Informativa" value="3"/>
+					<option value="1.1" text="Liquidaci&#243;n Anual sin Ajuste"/>
+					<option text="Liquidaci&#243;n Anual con Aj - dist Ene-Mar" value="4"/>
+					<option text="Liquidaci&#243;n mensual - A&#241;o fiscal en curso" value="99"/>
+				</options>
+				<form:Event action="set_tipo" name="onchange" runat="client"/>
+			</form:ComboBox>
+			<form:ComboBox visible="F2122" xsize="40" prev="empresa" required="1" label="Tipo de Salida" name="tipo_liq" nvalue="#source:@tipo_liq" mode="OPT">
+				<options>
+					<option text="Liquidaci&#243;n Anual con Ajuste" value="1"/>
+					<option text="Liquidaci&#243;n Final" value="2"/>
+					<option text="Liquidaci&#243;n Informativa" value="3"/>
+					<option text="Liquidaci&#243;n Anual con Aj - dist Ene-Mar" value="4"/>
+					<option text="Liquidaci&#243;n mensual - A&#241;o fiscal en curso" value="99"/>
+				</options>
+				<form:Event action="set_tipo" name="onchange" runat="client"/>
+			</form:ComboBox>
+			<form:ComboBox queryname1="NucleusRH.Base.Liquidacion.Liquidacion.LIQUIDACION.INFO" nvalue="#source:@oi_liquidacionFIL" prev="empresa" name="oi_liquidacionFil" label="Liquidaci&#243;n" xsize="40" mode="QRY" required="1">
+				<form:Event action="setNombreArchivo" name="onchange" runat="client"/>
+			</form:ComboBox>
+			<form:ComboBox nvalue="#source:@inter" docname="INTERFACES" label="Version de interface" xsize="40" mode="DOC" required="0" name="interface">
+				<options/>
+				<form:Event action="setNombreArchivo" name="onchange" runat="client"/>
+			</form:ComboBox>
+			<form:NumberBox required="0" label="Secuencia" name="secuencia" nvalue="#source:@secuencia" width="5" max="99" min="0">
+				<form:Event action="setNombreArchivo" name="onchange" runat="client"/>
+			</form:NumberBox>
+			<!--<form:TextBox enabled="0" label="Nombre del archivo" name="nombreArchivo" nvalue="#source:@nombreArchivo" xsize="40" required="1"/> -->
+			<form:Hidden name="l_anioAnterior" nvalue="#source:@l_anioAnterior"/>
+			<form:Hidden name="f_liq_hasta" nvalue="#source:@f_liq_hasta"/>
+			<form:Hidden nvalue="#source:@nombreArchivo" name="nombreArchivo"/>
+		</form:VGroup>
+		<form:VGroup nvalue="#source:@gpers" border="1" width="90%" collapse="1" label="Criterios de selecci&#243;n de personas" name="vgroupDatosPers">
+			<form:Columns visible="0" name="colsemps" width="100%">
+				<form:Column valign="middle" name="colemp" align="left">
+					<form:ComboBox queryname1="NucleusRH.Base.Organizacion.Empresas.EMPRESA.INFO" xsize="40" mode="QRY" required="1" label="Empresa" nvalue="#source:@empresa" name="empresa"/>
+				</form:Column>
+			</form:Columns>
+			<form:Columns width="100%" name="columns1">
+				<form:Column visible="0" valign="top" align="center" name="col1"/>
+				<form:Column visible="0" valign="middle" align="center" name="colbuttons"/>
+			</form:Columns>
+		</form:VGroup>
+		<form:Hidden name="rpt" nvalue="#source:@rpt"/>
+	</form:Center>
+	<form:Bottom width="60%">
+		<form:RowAligner columns="3" name="botonera">
+			<form:Row name="fila">
+				<form:Button label="Filtrar" descrip="" note="" startvalidate="1" img="ok" visible="" name="btnAccept">
+					<form:Event action="Filtrar" runat="client" name="onclick"/>
+				</form:Button>
+				<form:Button visible="FILTER" descrip="Generar reporte resumen de la salida en txt" img="print" name="btnReporte" label="Reporte" note="" startvalidate="1" enabled="">
+					<form:Event action="FiltrarRpt" runat="client" name="onclick"/>
+				</form:Button>
+				<form:Button descrip="" note="" label="Volver" name="btnCancel" img="back" visible="" enabled="">
+					<form:Event runat="server" name="onclick" action="BACK"/>
+				</form:Button>
+			</form:Row>
+		</form:RowAligner>
+	</form:Bottom>
+	<form:Scripts>
+		function SendToServer()
+{       
+	GetProxy().StoreService().SetUserStore("Lista_IDS_IC", array2stringcustom(arrB, "ROWS", "ROW"));
+	return true;
+}
+
+function Filtrar() {
+ 
+ 	if(Ctrl("list2").TotalRowsCount()&lt;=0){
+		CtrlEnabled("btnAccept",false);
+	  alert("Debe seleccionar al menos un legajo para continuar.");
+		return false;
+	} 
+		SendToServer();
+		Ctrl("rpt").SetXValue("0");
+		Ctrl("main").DoEvent("ACCEPT");	
+}
+
+function FiltrarRpt()
+{
+	SendToServer();
+	Ctrl("rpt").SetXValue("1");
+	Ctrl("main").DoEvent("ACCEPT");	
+}
+
+function enable_custom_buttons()
+{  
+	if(Ctrl("list2").TotalRowsCount()&gt;0){
+		CtrlEnabled("btnAccept",true); 
+		CtrlEnabled("btnReporte",true); 
+		
+	}else{
+	  CtrlEnabled("btnAccept",false);
+	  CtrlEnabled("btnReporte",false);
+	  
+	}
+}         
+
+function val_orden() 
+{
+if (Ctrl('orden1').GetXValue() == "P.c_ubicacion" || Ctrl('orden1').GetXValue() == "U.d_ubicacion")
+ {
+ 	CtrlEnabled('orden2',true);
+ }
+else
+ {
+  CtrlEnabled('orden2',false);
+  Ctrl("orden2").SetXValue("");
+ } 
+}                  
+ 
+ 
+function set_tipo()
+{
+	if(Ctrl('tipo_liq').GetXValue() == '3')
+	{
+		//Ctrl("oi_liquidacionFil").SetWhere('LIQ19_LIQUIDACION.oi_liquidacion IN (SELECT VARLIQ.oi_liquidacion FROM LIQ19_VAL_VARGN AS VARLIQ, LIQ09_VARIABLES AS V JOIN VARLIQ.oi_variable INNER V.oi_variable WHERE V.c_variable = \'np_igotroagente\') OR LIQ19_LIQUIDACION.oi_liquidacion IN (SELECT LIQPER.oi_liquidacion FROM	LIQ25_VAL_VAREN AS VARPER, LIQ09_VARIABLES AS V,LIQ25_PERSONAL_LIQ AS LIQPER JOIN	VARPER.oi_variable INNER V.oi_variable,	LIQPER.oi_personal_liq INNER VARPER.oi_personal_liq	WHERE V.c_variable = \'np_igotroagente\') ');
+		var np = new NomadProxy("", ut);
+		var nSQL = np.SQLService();
+		var qryVar = Ctrl("main").getResource("qry_buscar_variable");
+		var resultVar = nSQL.Get(qryVar, "&lt;PARAM /&gt;");
+		var xmldocVar = new NomadXML(resultVar).FirstChild();
+	    var n_valor = xmldocVar.GetAttr("n_valor");  
+		
+		Ctrl("oi_liquidacionFil").SetWhere('LIQ19_LIQUIDACION.oi_liquidacion in (SELECT E.oi_liquidacion FROM LIQ19_EJECUCIONES AS E, LIQ99_LIQUIDACION AS L, LIQ99_RECIBOS AS R, LIQ20_VAR_GR_CONC as GR where E.oi_liquidacion_ddo = L.oi_liquidacion_ddo and L.oi_liquidacion_ddo = R.oi_liquidacion_ddo and R.oi_tot_liq_per = GR.oi_tot_liq_per and L.c_estado = \'F\' AND GR.c_grupo = \'1\' AND GR.'+n_valor+' = \'1\' group by E.oi_liquidacion)');
+		
+		Ctrl("l_anioAnterior").SetXValue("0"); 			
+	}		
+	else if(Ctrl('tipo_liq').GetXValue() == '2' || Ctrl('tipo_liq').GetXValue() == '1.1')
+	{ 
+		Ctrl("oi_liquidacionFil").SetWhere("");
+		Ctrl("l_anioAnterior").SetXValue("0");		
+	}
+	else if(Ctrl('tipo_liq').GetXValue() == '1' || Ctrl('tipo_liq').GetXValue() == '4')
+	{
+		Ctrl("oi_liquidacionFil").SetWhere("");
+		Ctrl("l_anioAnterior").SetXValue("1");		
+	}
+	
+	Ctrl("oi_liquidacionFil").SetXValue("");
+}  
+
+function setNombreArchivo() {       
+	                     
+	                     
+	var nombre;
+	var periodoMin;
+	var np = new NomadProxy("", ut);
+	var nSQL = np.SQLService();	
+	var qry;	 
+	var result;
+	var xmldoc;
+
+ 	if(Ctrl("main").GetMode()=="F2122") {
+ 		//Es modo F2122
+ 		nombre = "F2122.";
+ 		periodoMin = 202400;
+ 	} else {
+ 		//Es modo FILTER (F1359)
+ 		nombre = "F1359.";
+ 		periodoMin = 201800;
+ 	}
+		
+	if(Ctrl("empresa").GetXValue()!='') {
+		qry = Ctrl("main").getResource("qry_cuit");
+		result = nSQL.Get(qry, "&lt;PARAM empresa=\""+Ctrl("empresa").GetXValue()+"\"  /&gt;");
+		xmldoc = new NomadXML(result);
+	 	nombre += xmldoc.FirstChild().GetAttr("cuit").replace("-", "").replace("-", "")+".";				
+	} else {
+	   Ctrl("nombreArchivo").SetXValue("");
+	   return;
+	}
+	
+	if(Ctrl("oi_liquidacionFil").GetXValue()!='') {
+		qry = Ctrl("main").getResource("qry_liq");
+		result = nSQL.Get(qry, "&lt;PARAM liquidacion=\""+Ctrl("oi_liquidacionFil").GetXValue()+"\"  /&gt;");
+		xmldoc = new NomadXML(result);
+		
+		
+		if(parseInt(Ctrl("tipo_liq").GetXValue())==1 || Ctrl("tipo_liq").GetXValue()=='1.1' || Ctrl("tipo_liq").GetXValue()=='4') {
+		  if(parseInt(xmldoc.FirstChild().GetAttr("periodo")) &lt; periodoMin) {
+				alert("No se permite presentar liquidaciones anteriores al per&#237;odo " + periodoMin + ".");
+				Ctrl("nombreArchivo").SetXValue("");
+				Ctrl("oi_liquidacionFil").SetXValue("");
+				return; 
+			}
+		}
+		
+		var periodo = xmldoc.FirstChild().GetAttr("periodo").substring(0, 4);
+		if(Ctrl("tipo_liq").GetXValue()=='1' || Ctrl("tipo_liq").GetXValue()=='4') {
+			periodo-=1; 
+			periodo = periodo.toString();
+		}
+		Ctrl("f_liq_hasta").SetXValue(xmldoc.FirstChild().GetAttr("f_liq_hasta"));
+		nombre += completarCerosFinal(periodo,8,'0')+".";
+	
+	} else {
+	   Ctrl("nombreArchivo").SetXValue("");
+	   return;
+	}
+	
+	if(Ctrl("secuencia").GetXValue()!='') {
+		nombre += completarCerosFinal(Ctrl("secuencia").GetXValue(),4,'0');		
+	} else { 
+		Ctrl("secuencia").SetXValue('0');
+		nombre += completarCerosFinal(Ctrl("secuencia").GetXValue(),4,'0');
+	}
+	
+	Ctrl("nombreArchivo").SetXValue(nombre + ".txt");  
+
+}
+
+function completarCerosFinal(cadena, longitud, caracter){
+ var cadLong = longitud - cadena.length;
+ for(i=0;i&lt;cadLong;i++)
+ {
+ 	cadena += caracter; 
+ }
+ return cadena;
+}
+
+function LoadForm()
+{             
+	enable_custom_buttons();
+	Ctrl("vgroupDatosPers").SetXValue('0');
+	if(Ctrl("secuencia").GetXValue()=='')	
+		Ctrl("secuencia").SetXValue('0');      
+		
+ 
+	inter = Ctrl("interface");          
+  	MyCUR = inter.m_opts.LastChild();
+ 	inter.SetXValue(MyCUR.GetAttr("value"));			 
+ 
+}   
+
+function exec_qry()
+{
+	var np, nSQL, i;
+
+	np = new NomadProxy("", ut);
+	nSQL = np.SQLService();
+
+	var qry = Ctrl("main").getResource("qry_" + Ctrl("tab_filtro").GetSelectedPanelID());
+	
+	var qryMembers = qry.split("##");
+	for (i=1; i&lt;qryMembers.length; i+=2)
+	{
+		if (Ctrl(qryMembers[i]).m_Required &amp;&amp; Ctrl(qryMembers[i]).GetXValue()=="")
+		{
+			alert("El valor es requerido");
+			Ctrl(qryMembers[i]).SetFocus();
+			return null;
+		}				
+
+		qryMembers[i]=EncodeXML(Ctrl(qryMembers[i]).GetXValue());
+	}
+  
+  qry = qryMembers.join("");
+  if (Ctrl("DEBUG")) Ctrl("DEBUG").SetXValue(qry);
+     
+  var result = nSQL.Get(qry, "");
+ 	var resultArray = string2array(result);
+ 	// Ejecuta query EXTERNO en caso del tipo 2
+ 	
+ 	if(Ctrl('tipo_liq').GetXValue() == '2')
+ 	{
+ 	  qry = Ctrl("main").getResource("qry_externo2");
+ 		qryMembers = qry.split("##");
+		for (i=1; i&lt;qryMembers.length; i+=2)
+		{
+			qryMembers[i]=EncodeXML(Ctrl(qryMembers[i]).GetXValue());
+		}
+	  qry = qryMembers.join("");
+	  if (Ctrl("DEBUG")) Ctrl("DEBUG").SetXValue(Ctrl("DEBUG").GetXValue() + "\n\nQuery Externo:\n" + qry);
+	  result = nSQL.Get(qry, "&lt;PARAM liquidacion=\""+Ctrl("oi_liquidacionFil").GetXValue()+"\" f_liq_hasta=\""+Ctrl("f_liq_hasta").GetXValue().substring(0,8)+"\"  /&gt;");
+	  var auxResult = string2array(result);
+	  intersect(resultArray, auxResult);
+ 	}
+ 	// Ejecuta query EXTERNO en caso del tipo 3
+ 	else if(Ctrl('tipo_liq').GetXValue() == '3')
+ 	{  		
+ 	  qry = Ctrl("main").getResource("qry_externo3");
+ 		qryMembers = qry.split("##");
+		for (i=1; i&lt;qryMembers.length; i+=2)
+		{
+			qryMembers[i]=EncodeXML(Ctrl(qryMembers[i]).GetXValue());
+		}
+	  qry = qryMembers.join("");
+	  if (Ctrl("DEBUG")) Ctrl("DEBUG").SetXValue(Ctrl("DEBUG").GetXValue() + "\n\nQuery Externo:\n" + qry);
+	  result = nSQL.Get(qry, "&lt;PARAM liquidacion=\""+Ctrl("oi_liquidacionFil").GetXValue()+"\" f_liq_hasta=\""+Ctrl("f_liq_hasta").GetXValue().substring(0,8)+"\"  /&gt;");
+	  var auxResult = string2array(result);
+	  intersect(resultArray, auxResult);
+ 	} 	
+ 	
+	// Ejecuta query de ATRIBUTOS EXTERNOS
+ 	if (Ctrl("main").getResource("qry_externo_attr"))
+ 	{
+ 		qry = Ctrl("main").getResource("qry_externo_attr");
+ 		qryMembers = qry.split("##");
+		for (i=1; i&lt;qryMembers.length; i+=2)
+		{
+			qryMembers[i]=EncodeXML(Ctrl(qryMembers[i]).GetXValue());
+		}
+	  qry = qryMembers.join("");
+	  if (Ctrl("DEBUG")) Ctrl("DEBUG").SetXValue(Ctrl("DEBUG").GetXValue() + "\n\nQuery de Atributos Externos:\n" + qry);
+	  result = nSQL.Get(qry, array2string(resultArray));
+	  resultArray = string2array(result);
+	}
+
+ 	//Filtra por la variable solo si el formulario 2122
+ 	if(Ctrl("main").GetMode()=="F2122") {
+ 	  qry = Ctrl("main").getResource("qry_externo");
+ 		qryMembers = qry.split("##");
+		for (i=1; i&lt;qryMembers.length; i+=2)
+		{
+			qryMembers[i]=EncodeXML(Ctrl(qryMembers[i]).GetXValue());
+		}
+	  qry = qryMembers.join("");
+	  if (Ctrl("DEBUG")) Ctrl("DEBUG").SetXValue(Ctrl("DEBUG").GetXValue() + "\n\nQuery Externo:\n" + qry);
+	  result = nSQL.Get(qry, "");
+	  var auxResult = string2array(result);
+	  intersect(resultArray, auxResult);
+ 	}
+ 			
+  return resultArray;
+}
+	</form:Scripts>
+	<form:Event action="ACCEPT" name="ACCEPT" runat="server"/>
+	<form:Resources>
+		<form:Resource declare="&lt;PARAM empresa=&quot;1&quot;/&gt;" name="qry_cuit">
+			<qry:main name="qry" doc="SOURCE">
+				<qry:element name="ROWS">
+					<qry:insert-select name="sql1" doc-path="#SOURCE:PARAM"/>
+				</qry:element>
+			</qry:main>
+			<qry:select name="sql1" doc="SOURCE">
+				<qry:xquery>
+					for $r in sql('
+			SELECT 
+				EMP.c_cuit
+			FROM 
+				ORG03_EMPRESAS as EMP			
+			WHERE EMP.oi_empresa = {%=#SOURCE:@empresa%}			
+		')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:element name="ROW">
+						<qry:attribute name="cuit" value="$r/@c_cuit"/>
+					</qry:element>
+				</qry:out>
+			</qry:select>
+		</form:Resource>
+		<form:Resource declare="&lt;PARAM liquidacion=&quot;1&quot;/&gt;" name="qry_liq">
+			<qry:main name="qry" doc="SOURCE">
+				<qry:element name="ROWS">
+					<qry:insert-select name="sql1" doc-path="#SOURCE:PARAM"/>
+				</qry:element>
+			</qry:main>
+			<qry:select name="sql1" doc="SOURCE">
+				<qry:xquery>
+					for $r in sql('
+			SELECT 
+				L.e_periodo,
+				L.f_liquidacion
+			FROM 
+				LIQ19_LIQUIDACION as L			
+			WHERE
+				L.oi_liquidacion = {%=#SOURCE:@liquidacion%}						
+		')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:element name="ROW">
+						<qry:attribute name="periodo" value="$r/@e_periodo"/>
+						<qry:attribute name="f_liq_hasta" value="$r/@f_liquidacion"/>
+					</qry:element>
+				</qry:out>
+			</qry:select>
+		</form:Resource>
+		<form:Resource declare="&quot;&lt;PARAM liquidacion=&quot;1641&quot; f_liq_hasta=&quot;20181204152543&quot;  /&gt;&#13;&#10;" name="qry_externo2">
+			<qry:main doc="SOURCE" name="qry">
+				<qry:append-doc name="PARAM_GLOBALES" doc-path="#SOURCE:PARAM"/>
+				<qry:element name="ROWS">
+					<qry:insert-select name="sql1"/>
+				</qry:element>
+			</qry:main>
+			<qry:select name="sql1">
+				<qry:xquery>
+					for $r in sql('
+			SELECT
+					PEM.oi_personal_emp
+				FROM 
+					LIQ19_EJECUCIONES AS E
+					, LIQ99_LIQUIDACION AS L
+					, LIQ99_RECIBOS AS R
+					, LIQ20_TOT_LIQ_PER AS T
+					, LIQ25_PERSONAL_LIQ AS PL
+					, PER02_PERSONAL_EMP AS PEM
+				JOIN
+					E.oi_liquidacion_ddo INNER L.oi_liquidacion_ddo
+					, L.oi_liquidacion_ddo INNER R.oi_liquidacion_ddo
+					, R.oi_tot_liq_per INNER T.oi_tot_liq_per
+					, E.oi_liquidacion INNER PL.oi_liquidacion
+					, PL.oi_personal_emp INNER PEM.oi_personal_emp
+				WHERE	
+					L.c_estado = \'F\'
+					AND E.oi_liquidacion = {%=string(#PARAM_GLOBALES:@liquidacion)%}
+					AND PEM.f_egreso &lt;= {Datetime(#PARAM_GLOBALES:@f_liq_hasta)}
+		')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:element name="ROW">
+						<qry:attribute name="id" value="$r/@oi_personal_emp"/>
+					</qry:element>
+				</qry:out>
+			</qry:select>
+		</form:Resource>
+		<form:Resource declare="&quot;&lt;PARAM liquidacion=&quot;2301&quot; f_liq_hasta=&quot;20181204&quot;  /&gt;&#13;&#10;" name="qry_externo3">
+			<qry:main doc="SOURCE" name="qry">
+				<qry:append-doc name="PARAM_GLOBALES" doc-path="#SOURCE:PARAM"/>
+				<qry:element name="ROWS">
+					<qry:insert-select name="buscar_variable"/>
+					<qry:insert-select name="sql1" doc-path="."/>
+				</qry:element>
+			</qry:main>
+			<qry:select name="sql1" doc="SOURCE">
+				<qry:xquery>
+					for $r in sql(' 
+	     	SELECT   
+				LEG.oi_personal_emp
+			FROM 
+			LIQ19_EJECUCIONES AS E
+			, LIQ99_LIQUIDACION AS L
+			, LIQ99_RECIBOS AS R
+	    , LIQ20_TOT_LIQ_PER AS T
+			, LIQ20_VAR_GR_CONC as GR
+			, LIQ97_PERSONAL_EMP as p
+			, PER02_PERSONAL_EMP as LEG
+			,ORG03_empresas as EMP
+			JOIN
+			  E.oi_liquidacion_ddo INNER L.oi_liquidacion_ddo,
+			 L.oi_liquidacion_ddo INNER R.oi_liquidacion_ddo,
+			 R.oi_tot_liq_per INNER T.oi_tot_liq_per,
+			 T.oi_tot_liq_per INNER GR.oi_tot_liq_per,
+          	p.oi_per_emp_ddo INNER T.oi_per_emp_ddo,		
+			p.e_numero_legajo INNER LEG.e_numero_legajo,
+			LEG.oi_empresa INNER EMP.oi_empresa,
+			EMP.c_empresa INNER p.c_empresa								
+			WHERE
+			E.oi_liquidacion = {%=string(#PARAM_GLOBALES:@liquidacion)%}
+			and L.c_estado = \'F\'
+			AND GR.c_grupo = \'1\' 
+			AND GR.{%=#SOURCE:@c_columna%} = \'1\'
+				
+				
+		')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:element name="ROW">
+						<qry:attribute name="id" value="$r/@oi_personal_emp"/>
+					</qry:element>
+				</qry:out>
+			</qry:select>
+			<qry:select name="buscar_variable">
+				<qry:xquery>
+					for $r in SQL('
+			SELECT LIQ31_GRUPO_VAR.c_columna
+			FROM
+			LIQ31_GRUPO_VAR,
+			LIQ31_GRUPOS,
+			LIQ09_variables
+			JOIN
+			LIQ31_GRUPO_VAR.oi_grupo INNER LIQ31_GRUPOS.oi_grupo, 
+            LIQ09_variables.oi_variable INNER LIQ31_GRUPO_VAR.oi_variable	
+			where 
+			LIQ31_GRUPOS.c_grupo = \'1\' and
+			LIQ09_variables.c_variable = \'np_igotroagente\'
+		
+			')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:attribute name="c_columna" value="$r/@c_columna"/>
+				</qry:out>
+			</qry:select>
+		</form:Resource>
+		<form:Resource name="qry_buscar_variable">
+			<qry:main doc="SOURCE" name="qry">
+				<qry:element name="ROWS">
+					<qry:insert-select name="buscar_variable"/>
+				</qry:element>
+			</qry:main>
+			<qry:select name="buscar_variable">
+				<qry:xquery>
+					for $r in SQL('
+			SELECT LIQ31_GRUPO_VAR.c_columna
+			FROM
+			LIQ31_GRUPO_VAR,
+			LIQ31_GRUPOS,
+			LIQ09_variables
+			JOIN
+			LIQ31_GRUPO_VAR.oi_grupo INNER LIQ31_GRUPOS.oi_grupo, 
+            LIQ09_variables.oi_variable INNER LIQ31_GRUPO_VAR.oi_variable	
+			where 
+			LIQ31_GRUPOS.c_grupo = \'1\' and
+			LIQ09_variables.c_variable = \'np_igotroagente\'
+		
+			')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:element name="ROW">
+						<qry:attribute name="n_valor" value="$r/@c_columna"/>
+					</qry:element>
+				</qry:out>
+			</qry:select>
+		</form:Resource>
+		<form:Resource name="qry_externo">
+			<qry:main name="qry">
+				<qry:element name="ROWS">
+					<qry:insert-select name="sql1"/>
+				</qry:element>
+			</qry:main>
+			<qry:select name="sql1">
+				<qry:xquery>
+					for $r in sql('
+		SELECT 
+			LEG.oi_personal_emp
+		FROM 
+    	PER02_PERSONAL_EMP as LEG,
+    	LIQ07_VAL_VAREF as VV,
+    	LIQ09_VARIABLES as VR
+		JOIN 
+		LEG.oi_personal_emp INNER VV.oi_personal_emp,
+		VV.oi_variable INNER VR.oi_variable		
+		
+		WHERE
+		 VV.n_valor = 0
+		
+		{%?('##empresa##'!='') {% and LEG.oi_empresa = ##empresa## %} {% %} %}
+
+	')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:element name="ROW">
+						<qry:attribute name="id" value="$r/@oi_personal_emp"/>
+					</qry:element>
+				</qry:out>
+			</qry:select>
+		</form:Resource>
+		<form:Resource name="qry_persona">
+			<qry:main name="qry">
+				<qry:element name="ROWS">
+					<qry:insert-select name="sql1"/>
+				</qry:element>
+			</qry:main>
+			<qry:select name="sql1">
+				<qry:xquery>
+					for $r in sql('
+		SELECT 
+		EMP.d_empresa, 
+		LEG.oi_personal_emp, 
+		LEG.e_numero_legajo,
+		PER.d_ape_y_nom, 
+		LIQ25.oi_liquidacion,
+		SEC.policy  
+		
+		FROM 
+		PER01_PERSONAL as PER, 
+		PER02_PERSONAL_EMP as LEG, 
+		ORG03_EMPRESAS as EMP, 
+		LIQ25_PERSONAL_LIQ as LIQ25,
+		NMD_SECURITY(class=\'NucleusRH.Base.Personal.LegajoEmpresa.PERSONAL_EMP\') as SEC
+		
+		JOIN 
+		PER.oi_personal INNER LEG.oi_personal,
+		LEG.oi_empresa INNER EMP.oi_empresa, 
+		LEG.oi_personal_emp INNER LIQ25.oi_personal_emp,
+		LEG.oi_personal_emp LEFT OUTER SEC.id			
+		
+		WHERE 1=1
+		{%?('##activos##'='1') {% and LEG.oi_indic_activo= \'1\' %} {% %} %}
+		{%?('##empresa##'!='') {% and LEG.oi_empresa = ##empresa## %} {% %} %}
+		{%?('##oi_liquidacionFil##'!='') {% and LIQ25.oi_liquidacion = ##oi_liquidacionFil## %} {% %} %}
+		{%?('##nombre##'!='') {% and contain(UCASE(PER.d_ape_y_nom), UCASE(\'##nombre##\')) %} {% %} %}
+		{%?('##documento##'!='') {% and contain(PER.c_nro_documento, \'##documento##\') %} {% %} %}
+		{%?('##sexo##'!='') {% and PER.c_sexo = \'##sexo##\' %} {% %} %}                              
+		{%?('##grupo_sanguineo##'!='') {% and PER.oi_grupo_sanguineo = \'##grupo_sanguineo##\' %} {% %} %}
+			{%? ('##cb_confidenciales##'!='' and '##cb_confidenciales##'!='T' ) 
+{%  
+{%? ('##cb_confidenciales##'='C') {%	AND LEG.l_confidencial = 1%}{% AND LEG.l_confidencial = 0 %} %} 
+%} 
+{%	%}
+%}
+		ORDER BY d_empresa ASC, e_numero_legajo ASC
+	')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:element name="ROW">
+						<qry:attribute name="id" value="$r/@oi_personal_emp"/>
+						<qry:attribute name="d_empresa" value="$r/@d_empresa"/>
+						<qry:attribute name="e_numero_legajo" value="$r/@e_numero_legajo"/>
+						<qry:attribute name="d_ape_y_nom" value="$r/@d_ape_y_nom"/>
+						<qry:attribute name="policy" value="$r/@policy"/>
+					</qry:element>
+				</qry:out>
+			</qry:select>
+		</form:Resource>
+	</form:Resources>
+	<form:Event action="LoadForm" name="onload" runat="client"/>
+</form:Form>

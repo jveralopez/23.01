@@ -1,0 +1,187 @@
+<html:html xmlns:html="nomad_engine.html" xmlns:qry="nomad_engine.qry" name="NucleusRH.Base.SeleccionDePostulantes.Contratados" extends="Nomad.Base.BaseReport.rpt" doc="source">
+	<html:query declare="&lt;DATOS oi_empresa=&quot;&quot; oi_aviso=&quot;&quot; f_desde=&quot;&quot; f_hasta=&quot;&quot; /&gt;">
+		<qry:main doc="SOURCE">
+			<REPORT label="Listado de Contratados">
+				<qry:attribute value="format_date(now(),'dd/mm/yyyy HH:MM')" name="date"/>
+				<GROUPS>
+					<GROUP tag="REP" type="title">
+						<COLS>
+							<qry:if test="#SOURCE:DATOS/@f_desde!=''">
+								<qry:then>
+									<COL name="f_desde" label="Fecha Desde" type="date"/>
+								</qry:then>
+							</qry:if>
+							<qry:if test="#SOURCE:DATOS/@f_hasta!=''">
+								<qry:then>
+									<COL name="f_hasta" label="Fecha Hasta" type="date"/>
+								</qry:then>
+							</qry:if>
+						</COLS>
+						<GROUP tag="CAB" type="title" noreg="No se encontraron registros de Contratados.">
+							<COLS>
+								<COL name="empresa" label="Empresa"/>
+								<COL name="aviso" label="Aviso"/>
+							</COLS>
+							<GROUP tag="REC" type="table" label="Contratados" style="width:100%;" noreg="No se encontraron registros de Contratados.">
+								<COLS>
+									<COL name="documento" label="Documento" nowrap="1"/>
+									<COL name="d_ape_y_nom" label="Apellido y Nombre" nowrap="1"/>
+									<COL name="f_estado" label="Fecha Contrato" nowrap="1" type="date"/>
+									<COL name="legajo" label="Legajo" nowrap="1"/>
+									<COL name="puesto" label="Puesto" nowrap="1"/>
+									<COL name="posicion" label="Posici&#243;n" nowrap="1"/>
+								</COLS>
+							</GROUP>
+						</GROUP>
+					</GROUP>
+				</GROUPS>
+				<qry:element name="DATA">
+					<qry:element name="REP">
+						<qry:attribute name="f_desde" value="format_date(#SOURCE:DATOS/@f_desde, 'dd/mm/yyyy')"/>
+						<qry:attribute name="f_hasta" value="format_date(#SOURCE:DATOS/@f_hasta, 'dd/mm/yyyy')"/>
+						<qry:append-doc name="DATOS" doc-path="#SOURCE:DATOS"/>
+						<qry:insert-select doc-path="#SOURCE:DATOS" name="AVISO"/>
+					</qry:element>
+				</qry:element>
+			</REPORT>
+		</qry:main>
+		<qry:select doc="SOURCE" name="AVISO">
+			<qry:xquery>
+				for $r in SQL('
+					SELECT
+						AVISO.c_aviso,
+						AVISO.oi_aviso,
+						AVISO.d_puesto,
+						AVISO.oi_puesto,
+						EMPRE.c_empresa,
+						EMPRE.d_empresa,
+						EMPRE.oi_empresa										                                                                       
+					FROM
+						SDP05_AVISOS as AVISO,
+						ORG03_EMPRESAS AS EMPRE,
+						ORG04_PUESTOS AS PUESTO
+					JOIN
+						EMPRE.oi_empresa INNER PUESTO.oi_empresa,
+						PUESTO.oi_puesto LEFT OUTER AVISO.oi_puesto
+					WHERE 
+						1=1   
+					  {%? (#SOURCE:@oi_aviso!='') 
+  						{% 	AND STRING2NUMBER(AVISO.oi_aviso) = {#SOURCE:@oi_aviso} %}                               
+  						{%  %}                     
+ 						%}
+ 						{%? (#SOURCE:@oi_empresa!='') 
+  						{% 	AND STRING2NUMBER(EMPRE.oi_empresa) = {#SOURCE:@oi_empresa} %}                               
+  						{%  %}                     
+ 						%}
+ 					ORDER BY 
+ 						oi_puesto ASC             
+				')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:element name="CAB">
+					<qry:attribute name="empresa" value="$r/@c_empresa + ' - ' + $r/@d_empresa"/>
+					<qry:attribute name="oi_empresa" value="$r/@oi_empresa"/>
+					<qry:attribute name="aviso" value="$r/@c_aviso + ' - ' + $r/@d_puesto"/>
+					<qry:attribute name="puesto" value="$r/@oi_puesto"/>
+					<qry:attribute name="hts:delete" value="1"/>
+					<qry:insert-select doc-path="$r" name="CONTRATADOS"/>
+				</qry:element>
+			</qry:out>
+		</qry:select>
+		<qry:select doc="SOURCE" name="CONTRATADOS">
+			<qry:xquery>
+				for $r in SQL('     
+				SELECT 
+					CV.d_ape_y_nom,
+					CV.c_nro_doc,
+					PER20_TIPOS_DOC.c_tipo_documento,
+					REC.f_estado,
+					AVI.oi_puesto,
+					PER02.e_numero_legajo
+				FROM
+					SDP01_CV AS CV,
+					PER20_TIPOS_DOC,
+					SDP14_RECLUTADOS AS REC,
+					SDP05_AVISOS AS AVI,
+					PER02_PERSONAL_EMP AS PER02
+				JOIN                    
+					REC.oi_cv INNER CV.oi_cv,
+					CV.oi_tipo_documento INNER PER20_TIPOS_DOC.oi_tipo_documento,
+					CV.oi_personal LEFT OUTER PER02.oi_personal,
+					REC.oi_aviso LEFT OUTER AVI.oi_aviso
+				WHERE  
+					REC.c_estado = \'C\' AND
+					REC.oi_aviso = {#SOURCE:@oi_aviso}
+					{%? (#DATOS:@f_desde!='') 
+						{% 	AND REC.f_estado &gt;= {Datetime(#DATOS:@f_desde)} %}                               
+						{%  %}                     
+						%}
+						{%? (#DATOS:@f_hasta!='') 
+						{% 	AND REC.f_estado &lt;= {Datetime(#DATOS:@f_hasta)} %}                               
+						{%  %}
+					%}
+  			ORDER BY    
+  				e_numero_legajo ASC,
+  				d_ape_y_nom ASC
+				')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:attribute name="hts:delete" value="'0'"/>
+				<qry:element name="REC">
+					<qry:attribute name="legajo" value="$r/@e_numero_legajo"/>
+					<qry:attribute name="documento" value="'('+$r/@c_tipo_documento+')'+' '+$r/@c_nro_doc"/>
+					<qry:attribute name="d_ape_y_nom" value="$r/@d_ape_y_nom"/>
+					<qry:attribute name="f_estado" value="format_date($r/@f_estado, 'dd/mm/yyyy')"/>
+					<qry:attribute name="oi_puesto" value="$r/@oi_puesto"/>
+					<qry:insert-select doc-path="$r" name="PUESTOS"/>
+				</qry:element>
+			</qry:out>
+		</qry:select>
+		<qry:select doc="SOURCE" name="PUESTOS">
+			<qry:xquery>
+				for $r in SQL('
+					SELECT                  
+						ORG04_PUESTOS.oi_puesto,
+						ORG04_PUESTOS.c_puesto,
+						ORG04_PUESTOS.d_puesto
+					FROM
+						ORG04_PUESTOS, 
+						PER02_PUESTO_PER
+					JOIN 
+						PER02_PUESTO_PER.oi_puesto INNER ORG04_PUESTOS.oi_puesto
+					WHERE 
+						ORG04_PUESTOS.oi_puesto = {#SOURCE:@oi_puesto}
+				')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:attribute name="puesto" value="$r/@c_puesto + ' - ' + $r/@d_puesto"/>
+				<qry:attribute name="oi_puesto" value="$r/@oi_puesto"/>
+				<qry:insert-select doc-path="$r" name="POSICION"/>
+			</qry:out>
+		</qry:select>
+		<qry:select name="POSICION" doc="SOURCE">
+			<qry:xquery>
+				for $r in SQL('
+					SELECT
+						ORG04_POSICIONES.c_posicion,
+						ORG04_POSICIONES.d_posicion
+					FROM
+						ORG04_POSICIONES,
+						PER02_POSIC_PER
+					JOIN
+						PER02_POSIC_PER.oi_posicion INNER ORG04_POSICIONES.oi_posicion	
+					WHERE 
+						ORG04_POSICIONES.oi_puesto = {#SOURCE:@oi_puesto}
+				')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:attribute name="posicion" value="$r/@c_posicion + ' - ' + $r/@d_posicion"/>
+			</qry:out>
+		</qry:select>
+		<qry:select name="sqldelete" doc="SOURCE">
+			<qry:out>
+				<qry:attribute name="hts:delete" value="'0'"/>
+			</qry:out>
+		</qry:select>
+	</html:query>
+</html:html>

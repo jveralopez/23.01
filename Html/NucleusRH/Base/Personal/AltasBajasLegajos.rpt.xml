@@ -1,0 +1,163 @@
+<html:html xmlns:html="nomad_engine.html" xmlns:qry="nomad_engine.qry" extends="Nomad.Base.BaseReport.rpt" name="NucleusRH.Base.Personal.VencimientosContratos" doc="source">
+	<html:query declare="&lt;DATOS oi_empresa=&quot;1&quot; f_desde=&quot;20110901&quot; f_hasta=&quot;20111201&quot;&gt;&lt;ROWS /&gt;&lt;/DATOS&gt;">
+		<qry:main doc="PARAM">
+			<qry:append-doc name="PARAMIN" doc-path="#PARAM:DATOS"/>
+			<REPORT label="Ingresos y Egresos de Legajos">
+				<qry:attribute name="date" value="format_date(Now(),'dd/mm/yyyy HH:MM')"/>
+				<GROUPS>
+					<GROUP tag="EMP" type="title" noreg="No se encontraron registros para los filtros seleccionados.">
+						<COLS>
+							<COL name="empresa" label="Empresa" align="left" width="10"/>
+							<COL name="f_desde" label="Fecha Desde" style="width:13%;" type="date"/>
+							<COL name="f_hasta" label="Fecha Hasta" style="width:10%;" type="date"/>
+						</COLS>
+						<GROUP tag="ALTA" label="Ingresos" style="width:1150px" type="table" noreg="No se encontraron registros de Ingresos.">
+							<COLS>
+								<COL name="legajo" label="Legajo" style="width:10px;"/>
+								<COL name="ape_y_nom" label="Apellido y Nombre" style="width:250px;"/>
+								<COL name="c_nro_cuil" label="CUIL" style="width:100px;"/>
+								<COL name="f_ingreso" label="Fecha Ingreso" style="width:50px;text-align:center" type="date"/>
+								<COL name="categoria" label="Categor&#237;a" style="width:275px;"/>
+								<COL name="ubicacion" label="Ubicaci&#243;n" style="width:305px;"/>
+								<COL name="observacion" label="Observaciones"/>
+							</COLS>
+						</GROUP>
+						<GROUP tag="BAJA" label="Egresos" style="width:1150px" type="table" noreg="No se encontraron registros de Egresos.">
+							<COLS>
+								<COL name="legajo" label="Legajo" style="width:10px;"/>
+								<COL name="ape_y_nom" label="Apellido y Nombre" style="width:250px;"/>
+								<COL name="c_nro_cuil" label="CUIL" style="width:100px;"/>
+								<COL name="f_ingreso" label="Fecha Ingreso" style="width:50px;text-align:center" type="date"/>
+								<COL name="f_egreso" label="Fecha Egreso" style="width:50px;text-align:center" type="date"/>
+								<COL name="categoria" label="Categor&#237;a" style="width:180px;"/>
+								<COL name="mot_egreso" label="Motivo Egreso" style="width:150px;"/>
+								<COL name="ubicacion" label="Ubicaci&#243;n" style="width:150px;"/>
+								<COL name="observacion" label="Observaciones"/>
+							</COLS>
+						</GROUP>
+					</GROUP>
+				</GROUPS>
+				<qry:element name="DATA">
+					<qry:element name="EMP">
+						<qry:attribute value="format_date(#PARAM:DATOS/@f_desde, 'dd/mm/yyyy')" name="f_desde"/>
+						<qry:attribute value="format_date(#PARAM:DATOS/@f_hasta, 'dd/mm/yyyy')" name="f_hasta"/>
+						<qry:insert-select doc-path="#PARAM:DATOS" name="QRY_EMPRESA"/>
+					</qry:element>
+				</qry:element>
+			</REPORT>
+		</qry:main>
+		<qry:select doc="PARAM" name="QRY_EMPRESA">
+			<qry:xquery>
+				for $r in sql('
+		 SELECT
+		 		ORG03.oi_empresa,
+		 		ORG03.c_empresa,	
+				ORG03.d_empresa
+     FROM
+     		ORG03_EMPRESAS AS ORG03
+     WHERE
+     		ORG03.oi_empresa = {#PARAM:@oi_empresa} 
+		 ')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:attribute name="oi_empresa" value="$r/@oi_empresa"/>
+				<qry:attribute name="empresa" value="$r/@c_empresa + ' - ' + $r/@d_empresa"/>
+				<qry:insert-select name="INGRESOS" doc-path="$r"/>
+				<qry:insert-select name="EGRESOS" doc-path="$r"/>
+			</qry:out>
+		</qry:select>
+		<qry:select doc="PARAM" name="INGRESOS">
+			<qry:xquery>
+				for $r in sql('
+		SELECT
+			PER02.e_numero_legajo,
+			PER01.d_ape_y_nom,
+			PER01.c_nro_cuil,
+			PER02.f_ingreso,
+			CAT.c_categoria, 
+			CAT.d_categoria, 
+			UBI.c_ubicacion,
+			UBI.d_ubicacion,
+			PER02.o_personal_emp
+		FROM 
+			PER02_PERSONAL_EMP AS PER02,
+			PER01_PERSONAL AS PER01,
+			ORG18_CATEGORIAS AS CAT,
+			ORG03_UBICACIONES AS UBI
+		JOIN
+			PER02.oi_personal INNER PER01.oi_personal,
+			PER02.oi_categoria_ult LEFT OUTER CAT.oi_categoria,
+			PER02.oi_ubicacion LEFT OUTER UBI.oi_ubicacion
+		WHERE
+			PER02.oi_empresa = {#PARAM:@oi_empresa} AND
+			PER02.f_ingreso &gt;= {Datetime(#PARAMIN:@f_desde)} AND
+			PER02.f_ingreso &lt;= {Datetime(#PARAMIN:@f_hasta)}
+		ORDER BY			
+			f_ingreso ASC,
+			e_numero_legajo ASC
+	')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:element name="ALTA">
+					<qry:attribute name="legajo" value="$r/@e_numero_legajo"/>
+					<qry:attribute name="ape_y_nom" value="$r/@d_ape_y_nom"/>
+					<qry:attribute name="c_nro_cuil" value="$r/@c_nro_cuil"/>
+					<qry:attribute name="f_ingreso" value="format_date($r/@f_ingreso, 'dd/mm/yyyy')"/>
+					<qry:attribute name="categoria" value="$r/@c_categoria + ' - ' + $r/@d_categoria"/>
+					<qry:attribute name="ubicacion" value="iif($r/@c_ubicacion != '',$r/@c_ubicacion + ' - ' + $r/@d_ubicacion,'')"/>
+					<qry:attribute name="observacion" value="$r/@o_personal_emp"/>
+				</qry:element>
+			</qry:out>
+		</qry:select>
+		<qry:select doc="PARAM" name="EGRESOS">
+			<qry:xquery>
+				for $r in sql('
+		SELECT
+			PER02.e_numero_legajo,
+			PER01.d_ape_y_nom,
+			PER01.c_nro_cuil,
+			PER02.f_egreso, 
+			PER02.f_ingreso,
+			MOT_EG.c_motivo_eg_per,
+			MOT_EG.d_motivo_eg_per,
+			CAT.c_categoria, 
+			CAT.d_categoria, 
+			UBI.c_ubicacion,
+			UBI.d_ubicacion ,
+			PER02.o_personal_emp
+		FROM 
+			PER02_PERSONAL_EMP AS PER02,
+			PER01_PERSONAL AS PER01,
+			PER22_MOT_EG_PER AS MOT_EG,
+			ORG18_CATEGORIAS AS CAT,
+			ORG03_UBICACIONES AS UBI
+		JOIN
+			PER02.oi_personal INNER PER01.oi_personal,
+			PER02.oi_motivo_eg_per INNER MOT_EG.oi_motivo_eg_per,
+			PER02.oi_categoria_ult LEFT OUTER CAT.oi_categoria,
+			PER02.oi_ubicacion LEFT OUTER UBI.oi_ubicacion
+		WHERE
+			PER02.oi_empresa = {#PARAM:@oi_empresa} AND
+			PER02.f_egreso &gt;= {Datetime(#PARAMIN:@f_desde)} AND
+			PER02.f_egreso &lt;= {Datetime(#PARAMIN:@f_hasta)}
+		ORDER BY
+			f_egreso ASC,
+			e_numero_legajo ASC			
+	')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:element name="BAJA">
+					<qry:attribute name="legajo" value="$r/@e_numero_legajo"/>
+					<qry:attribute name="ape_y_nom" value="$r/@d_ape_y_nom"/>
+					<qry:attribute name="c_nro_cuil" value="$r/@c_nro_cuil"/>
+					<qry:attribute name="mot_egreso" value="$r/@c_motivo_eg_per + ' - ' + $r/@d_motivo_eg_per"/>
+					<qry:attribute name="f_egreso" value="format_date($r/@f_egreso, 'dd/mm/yyyy')"/>
+					<qry:attribute name="f_ingreso" value="format_date($r/@f_ingreso, 'dd/mm/yyyy')"/>
+					<qry:attribute name="categoria" value="$r/@c_categoria + ' - ' + $r/@d_categoria"/>
+					<qry:attribute name="ubicacion" value="iif($r/@c_ubicacion != '',$r/@c_ubicacion + ' - ' + $r/@d_ubicacion,'')"/>
+					<qry:attribute name="observacion" value="$r/@o_personal_emp"/>
+				</qry:element>
+			</qry:out>
+		</qry:select>
+	</html:query>
+</html:html>

@@ -1,0 +1,377 @@
+<INTERFACE-DEF xmlns:qry="nomad_engine.qry">
+	<QUERY declare="&lt;DATA c_empresa=&quot;1&quot; oi_sindicato=&quot;2&quot; interface=&quot;ESMATA&quot; inteface2=&quot;&quot; p_periodo=&quot;202203&quot;&gt;&lt;LIQS/&gt;&lt;/DATA&gt;">
+		<qry:main doc="SOURCE">
+			<qry:element name="DATA">
+				<qry:element name="VAR">
+					<qry:append-doc name="VAR" doc-path="."/>
+					<qry:insert-select name="qry_def_variables_grupos" doc-path="#SOURCE:."/>
+					<qry:attribute name="hts:delete" value="1"/>
+				</qry:element>
+				<qry:element name="HEAD"/>
+				<qry:element name="DETAILS">
+					<qry:insert-select name="qryDetail" doc-path="#SOURCE:."/>
+					<qry:insert-element doc-path="#SOURCE:."/>
+				</qry:element>
+			</qry:element>
+		</qry:main>
+		<qry:select name="qryDetail" doc="SOURCE">
+			<qry:xquery>
+				for $r in SQL('
+					SELECT
+						max(PE.c_empresa) as c_empresa, 
+						MAX(PE.c_categoria_ult) as c_categoria_ult,
+						MAX(PE.c_sindicato) as c_sindicato,
+						MAX(PE.f_ingreso) as f_ingreso,
+						PE.e_numero_legajo,
+						MAX(PER.c_nro_cuil) as c_nro_cuil,
+						MAX(PER.oi_personal) as oi_personal, 
+						MAX(PER.d_apellido) as d_apellido, 
+						MAX(PER.d_nombres) as d_nombres,
+						max(TLP.oi_tot_liq_per) as oi_tot_liq_per,
+						MAX(LIQ.e_periodo) as e_periodo,
+						MAX(LIQ.oi_liquidacion_ddo) as oi_liquidacion_ddo,
+						MAX(CAT.d_categoria) as d_categoria,
+						MAX(PEREMP.l_afiliado_sind) as  l_afiliado_sind,
+						MAX(ORG19.d_localidad) as d_localidad,
+						MAX(ORG35.c_provincia) as c_provincia,
+						MAX(V.{%=#VAR:@c_columna%}) as n_totsret,
+						MAX(PER01_DOM.d_calle) as d_calle,
+						MAX(PER01_DOM.e_numero) as e_numero,
+						MAX(PER01_DOM.d_departamento) as d_departamento,
+						MAX(PER01_DOM.d_piso) as d_piso				
+					FROM               
+						LIQ99_LIQUIDACION as LIQ,
+						LIQ99_RECIBOS as REC,
+						LIQ20_TOT_LIQ_PER as TLP,
+						LIQ20_CONC_LIQ_PER as CL,
+						LIQ97_PERSONAL_EMP as PE,
+						PER01_PERSONAL as PER,
+						PER02_PERSONAL_EMP AS PEREMP,
+						PER30_SINDICATOS as S,
+						ORG03_UBICACIONES AS UBI,
+						ORG03_EMPRESAS AS EMP,
+						ORG19_LOCALIDADES AS ORG19,
+						PER01_DOMIC_PER AS PER01_DOM,
+						ORG35_PROVINCIAS AS ORG35,
+						ORG18_CATEGORIAS AS CAT,
+						LIQ20_VAR_GR_CONC as V						
+					JOIN      
+						LIQ.oi_liquidacion_ddo INNER REC.oi_liquidacion_ddo,
+						REC.oi_tot_liq_per INNER TLP.oi_tot_liq_per,
+						TLP.oi_per_emp_ddo INNER PE.oi_per_emp_ddo,
+						PE.c_personal INNER PER.c_personal,
+						PER.oi_personal INNER PEREMP.oi_personal,
+						PEREMP.oi_categoria_ult INNER CAT.oi_categoria,
+						PE.c_sindicato INNER S.c_sindicato,
+						PE.c_ubicacion INNER UBI.c_ubicacion,
+						UBI.oi_empresa INNER EMP.oi_empresa,
+						UBI.oi_localidad INNER ORG19.oi_localidad,
+						ORG19.oi_provincia INNER ORG35.oi_provincia,
+						TLP.oi_tot_liq_per INNER CL.oi_tot_liq_per,
+						V.oi_tot_liq_per INNER TLP.oi_tot_liq_per,
+						PER01_DOM.oi_localidad INNER ORG19.oi_localidad ,
+						PEREMP.oi_personal INNER PER01_DOM.oi_personal
+					WHERE                                                          
+						LIQ.e_periodo = {#SOURCE:@p_periodo}
+						AND EMP.c_empresa = {#SOURCE:@c_empresa}
+						AND S.oi_sindicato = {#SOURCE:@oi_sindicato}
+						AND V.c_grupo = \'4\'
+					GROUP BY 
+						PE.e_numero_legajo				              
+			')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:element name="DETAIL">
+					<qry:attribute name="Cuil" value="concat(substring_before($r/@c_nro_cuil,'-'),substring_before(substring_after($r/@c_nro_cuil,'-'),'-'),substring_after(substring_after($r/@c_nro_cuil,'-'),'-'))"/>
+					<qry:attribute name="Apellido" value="$r/@d_apellido"/>
+					<qry:attribute name="Nombre" value="$r/@d_nombres"/>
+					<qry:attribute name="Afil" value="'0'"/>
+					<qry:attribute name="Afil" value="iif($r/@l_afiliado_sind=1,'1','0')"/>
+					<qry:attribute name="Vit" value="'0'"/>
+					<qry:attribute name="Rem" value="format_number($r/@n_totsret, '', '2','.', '', '')"/>
+					<qry:attribute name="Apo" value="number('0')"/>
+					<qry:insert-select name="qry_aporte_smata" doc-path="$r"/>
+					<qry:insert-select name="qry_cod_prov" doc-path="$r"/>
+					<qry:attribute name="Loc" value="substring_before($r/@d_localidad, ' (')"/>
+					<qry:attribute name="vs_sicoreDomicilioFizcal" value="$r/@d_calle"/>
+					<qry:attribute name="vs_sicoreDomicilioFizcal" value="iif($r/@e_numero!='',@vs_sicoreDomicilioFizcal + '-'+ $r/@e_numero,@vs_sicoreDomicilioFizcal)"/>
+					<qry:attribute name="vs_sicoreDomicilioFizcal" value="iif($r/@d_piso!='',@vs_sicoreDomicilioFizcal + '-'+ $r/@d_piso,@vs_sicoreDomicilioFizcal)"/>
+					<qry:attribute name="FecIng" value="format-date($r/@f_ingreso, 'dd/mm/yyyy')"/>
+					<qry:attribute name="OtrosAportes" value="number('0')"/>
+					<qry:insert-select name="qry_otaporte_smata" doc-path="$r"/>
+					<qry:attribute name="CC_Codigo" value="$r/@c_categoria_ult"/>
+					<qry:insert-select name="qry_interfaces_categoria" doc-path="$r"/>
+					<qry:attribute name="SAC" value="number('0')"/>
+					<qry:insert-select name="qry_sac_smata" doc-path="$r"/>
+					<qry:attribute name="No_Rem" value="number('0')"/>
+					<qry:attribute name="Estado" value="' '"/>
+					<qry:insert-select name="qry_noREm_smata" doc-path="$r"/>
+				</qry:element>
+			</qry:out>
+		</qry:select>
+		<qry:select name="qry_def_variables_grupos" doc="PARAM">
+			<qry:xquery>
+				for $r in SQL('
+					SELECT
+					 LIQ09_VARIABLES.c_variable,
+					 LIQ31_GRUPO_VAR.c_columna,
+					 LIQ31_GRUPOS.c_grupo              
+					FROM               
+						LIQ31_GRUPO_VAR,
+						LIQ31_GRUPOS,
+						LIQ09_VARIABLES
+					JOIN      
+						LIQ31_GRUPOS.oi_grupo INNER LIQ31_GRUPO_VAR.oi_grupo,
+						LIQ09_VARIABLES.oi_variable INNER LIQ31_GRUPO_VAR.oi_variable
+					WHERE                                                          
+						LIQ31_GRUPOS.c_grupo = \'4\'
+						and LIQ09_VARIABLES.c_variable = \'aa_remtotalsind\'				              
+			')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:attribute name="c_variable" value="$r/@c_variable"/>
+				<qry:attribute name="c_columna" value="$r/@c_columna"/>
+			</qry:out>
+		</qry:select>
+		<qry:select name="qry_aporte_smata" doc="SOURCE">
+			<qry:xquery>
+				for $r in SQL('
+          SELECT          
+		        SUM(CL.n_valor) AS n_valor
+     		 	FROM          
+            LIQ99_LIQUIDACION as LIQ,
+            LIQ99_RECIBOS as REC,
+            LIQ20_TOT_LIQ_PER as TLP,
+            LIQ97_PERSONAL_EMP as PE,
+            LIQ20_CONC_LIQ_PER as CL,
+            LIQ96_CONCEPTOS as CDDO,
+            LIQ14_CONCEPTOS as C,
+            LIQ30_CONC_SUM as CONSUM,
+            LIQ30_TOTALES as TOT
+          JOIN      
+            LIQ.oi_liquidacion_ddo INNER REC.oi_liquidacion_ddo,
+            REC.oi_tot_liq_per INNER TLP.oi_tot_liq_per,
+            TLP.oi_per_emp_ddo INNER PE.oi_per_emp_ddo,
+            TLP.oi_tot_liq_per INNER CL.oi_tot_liq_per,
+            CL.oi_concepto_ddo INNER CDDO.oi_concepto_ddo,
+            CDDO.c_concepto INNER C.c_concepto,
+            C.oi_concepto INNER CONSUM.oi_concepto,
+            CONSUM.oi_total INNER TOT.oi_total
+          WHERE
+            LIQ.e_periodo  =  {#SOURCE:@e_periodo}
+            AND PE.c_empresa = {#SOURCE:@c_empresa}
+            AND PE.e_numero_legajo = {#SOURCE:@e_numero_legajo}
+            AND  TOT.c_total  =  \'Aporte_Smata\'
+            ')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:attribute name="Apo" value="format_number(abs($r/@n_valor), '', '2','.', '', '')"/>
+			</qry:out>
+		</qry:select>
+		<qry:select name="qry_otaporte_smata" doc="SOURCE">
+			<qry:xquery>
+				for $r in SQL('
+          SELECT          
+		        SUM(CL.n_valor) AS n_valor
+     		 	FROM          
+            LIQ99_LIQUIDACION as LIQ,
+            LIQ99_RECIBOS as REC,
+            LIQ20_TOT_LIQ_PER as TLP,
+            LIQ97_PERSONAL_EMP as PE,
+            LIQ20_CONC_LIQ_PER as CL,
+            LIQ96_CONCEPTOS as CDDO,
+            LIQ14_CONCEPTOS as C,
+            LIQ30_CONC_SUM as CONSUM,
+            LIQ30_TOTALES as TOT
+          JOIN      
+            LIQ.oi_liquidacion_ddo INNER REC.oi_liquidacion_ddo,
+            REC.oi_tot_liq_per INNER TLP.oi_tot_liq_per,
+            TLP.oi_per_emp_ddo INNER PE.oi_per_emp_ddo,
+            TLP.oi_tot_liq_per INNER CL.oi_tot_liq_per,
+            CL.oi_concepto_ddo INNER CDDO.oi_concepto_ddo,
+            CDDO.c_concepto INNER C.c_concepto,
+            C.oi_concepto INNER CONSUM.oi_concepto,
+            CONSUM.oi_total INNER TOT.oi_total
+          WHERE
+            LIQ.e_periodo  =  {#SOURCE:@e_periodo}
+            AND PE.c_empresa = {#SOURCE:@c_empresa}
+            AND PE.e_numero_legajo = {#SOURCE:@e_numero_legajo}
+            AND  TOT.c_total  =  \'OtAporte_Smata\'
+            ')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:attribute name="OtrosAportes" value="format_number(abs($r/@n_valor), '', '2','.', '', '')"/>
+			</qry:out>
+		</qry:select>
+		<qry:select name="qry_sac_smata" doc="SOURCE">
+			<qry:xquery>
+				for $r in SQL('
+          SELECT          
+		        SUM(CL.n_valor) AS n_valor
+     		 	FROM          
+            LIQ99_LIQUIDACION as LIQ,
+            LIQ99_RECIBOS as REC,
+            LIQ20_TOT_LIQ_PER as TLP,
+            LIQ97_PERSONAL_EMP as PE,
+            LIQ20_CONC_LIQ_PER as CL,
+            LIQ96_CONCEPTOS as CDDO,
+            LIQ14_CONCEPTOS as C,
+            LIQ30_CONC_SUM as CONSUM,
+            LIQ30_TOTALES as TOT
+          JOIN      
+            LIQ.oi_liquidacion_ddo INNER REC.oi_liquidacion_ddo,
+            REC.oi_tot_liq_per INNER TLP.oi_tot_liq_per,
+            TLP.oi_per_emp_ddo INNER PE.oi_per_emp_ddo,
+            TLP.oi_tot_liq_per INNER CL.oi_tot_liq_per,
+            CL.oi_concepto_ddo INNER CDDO.oi_concepto_ddo,
+            CDDO.c_concepto INNER C.c_concepto,
+            C.oi_concepto INNER CONSUM.oi_concepto,
+            CONSUM.oi_total INNER TOT.oi_total
+          WHERE
+            LIQ.e_periodo  =  {#SOURCE:@e_periodo}
+            AND PE.c_empresa = {#SOURCE:@c_empresa}
+            AND PE.e_numero_legajo = {#SOURCE:@e_numero_legajo}
+            AND  TOT.c_total  =  \'SAC_Smata\'
+            ')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:attribute name="SAC" value="format_number($r/@n_valor, '', '2','.', '', '')"/>
+			</qry:out>
+		</qry:select>
+		<qry:select name="qry_noREm_smata" doc="SOURCE">
+			<qry:xquery>
+				for $r in SQL('
+          SELECT          
+		        SUM(CL.n_valor) AS n_valor
+     		 	FROM          
+            LIQ99_LIQUIDACION as LIQ,
+            LIQ99_RECIBOS as REC,
+            LIQ20_TOT_LIQ_PER as TLP,
+            LIQ97_PERSONAL_EMP as PE,
+            LIQ20_CONC_LIQ_PER as CL,
+            LIQ96_CONCEPTOS as CDDO,
+            LIQ14_CONCEPTOS as C,
+            LIQ30_CONC_SUM as CONSUM,
+            LIQ30_TOTALES as TOT
+          JOIN      
+            LIQ.oi_liquidacion_ddo INNER REC.oi_liquidacion_ddo,
+            REC.oi_tot_liq_per INNER TLP.oi_tot_liq_per,
+            TLP.oi_per_emp_ddo INNER PE.oi_per_emp_ddo,
+            TLP.oi_tot_liq_per INNER CL.oi_tot_liq_per,
+            CL.oi_concepto_ddo INNER CDDO.oi_concepto_ddo,
+            CDDO.c_concepto INNER C.c_concepto,
+            C.oi_concepto INNER CONSUM.oi_concepto,
+            CONSUM.oi_total INNER TOT.oi_total
+          WHERE
+            LIQ.e_periodo  =  {#SOURCE:@e_periodo}
+            AND PE.c_empresa = {#SOURCE:@c_empresa}
+            AND PE.e_numero_legajo = {#SOURCE:@e_numero_legajo}
+            AND  TOT.c_total  =  \'NOREM_Smata\'
+            ')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:attribute name="No_Rem" value="format_number($r/@n_valor, '', '2','.', '', '')"/>
+			</qry:out>
+		</qry:select>
+		<qry:select name="qry_interfaces_categoria" doc="PARAM">
+			<qry:xquery>
+				for $r in SQL('
+	        SELECT
+	        	CAT.c_interface
+	        FROM                
+	        	ORG18_CATEGORIAS as CAT                
+	        WHERE
+	        	CAT.c_categoria = {#PARAM:@c_categoria_ult}
+	        	AND LEN(CAT.c_interface) &gt; 0
+            ')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:attribute name="CC_Codigo" value="SUBSTRING_BEFORE(SUBSTRING_AFTER(upper_case($r/@c_interface),'SMATA:'),',')"/>
+			</qry:out>
+		</qry:select>
+		<qry:select name="qry_cod_prov" doc="SOURCE">
+			<qry:out>
+				<qry:switch test="#SOURCE:@c_provincia">
+					<qry:case value="0">
+						<qry:attribute name="Prov" value="'BAI'"/>
+					</qry:case>
+					<qry:case value="1">
+						<qry:attribute name="Prov" value="'BAI'"/>
+					</qry:case>
+					<qry:case value="2">
+						<qry:attribute name="Prov" value="'CAT'"/>
+					</qry:case>
+					<qry:case value="3">
+						<qry:attribute name="Prov" value="'CBA'"/>
+					</qry:case>
+					<qry:case value="4">
+						<qry:attribute name="Prov" value="'COR'"/>
+					</qry:case>
+					<qry:case value="5">
+						<qry:attribute name="Prov" value="'ERI'"/>
+					</qry:case>
+					<qry:case value="6">
+						<qry:attribute name="Prov" value="'JUJ'"/>
+					</qry:case>
+					<qry:case value="7">
+						<qry:attribute name="Prov" value="'MEN'"/>
+					</qry:case>
+					<qry:case value="8">
+						<qry:attribute name="Prov" value="'LRI'"/>
+					</qry:case>
+					<qry:case value="9">
+						<qry:attribute name="Prov" value="'SAL'"/>
+					</qry:case>
+					<qry:case value="10">
+						<qry:attribute name="Prov" value="'SJU'"/>
+					</qry:case>
+					<qry:case value="11">
+						<qry:attribute name="Prov" value="'SLU'"/>
+					</qry:case>
+					<qry:case value="12">
+						<qry:attribute name="Prov" value="'SFE'"/>
+					</qry:case>
+					<qry:case value="13">
+						<qry:attribute name="Prov" value="'SDE'"/>
+					</qry:case>
+					<qry:case value="14">
+						<qry:attribute name="Prov" value="'TUC'"/>
+					</qry:case>
+					<qry:case value="16">
+						<qry:attribute name="Prov" value="'CHA'"/>
+					</qry:case>
+					<qry:case value="17">
+						<qry:attribute name="Prov" value="'CHU'"/>
+					</qry:case>
+					<qry:case value="18">
+						<qry:attribute name="Prov" value="'FOR'"/>
+					</qry:case>
+					<qry:case value="19">
+						<qry:attribute name="Prov" value="'MIS'"/>
+					</qry:case>
+					<qry:case value="20">
+						<qry:attribute name="Prov" value="'NEU'"/>
+					</qry:case>
+					<qry:case value="21">
+						<qry:attribute name="Prov" value="'LPA'"/>
+					</qry:case>
+					<qry:case value="22">
+						<qry:attribute name="Prov" value="'RNE'"/>
+					</qry:case>
+					<qry:case value="23">
+						<qry:attribute name="Prov" value="'SCR'"/>
+					</qry:case>
+					<qry:case value="24">
+						<qry:attribute name="Prov" value="'TDF'"/>
+					</qry:case>
+				</qry:switch>
+			</qry:out>
+		</qry:select>
+	</QUERY>
+	<HEAD>
+		Cuil;Apellido;Nombre;Afil;Vit;Rem;Apo;Prov;Loc;Domicilio;FecIng;OtrosAportes;CC_Codigo;SAC;Estado;No Rem
+	</HEAD>
+	<DETAIL>
+		{Cuil};{Apellido};{Nombre};{Afil};{Vit};{Rem};{Apo};{Prov};{Loc};{vs_sicoreDomicilioFizcal};{FecIng};{OtrosAportes};{CC_Codigo};{SAC};{Estado};{No_Rem}
+	</DETAIL>
+</INTERFACE-DEF>

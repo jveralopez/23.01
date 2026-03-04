@@ -1,0 +1,437 @@
+<html:html xmlns:html="nomad_engine.html" xmlns:qry="nomad_engine.qry" xmlns:xsl="http://www.w3.org/1999/XSL/Transform" extends="NucleusWF.Base.Ejecucion.BaseInicioWF.rpt" doc="source" name="NucleusWF.Base.Ejecucion.WF_Familiares.rpt">
+	<html:query declare="&lt;PARAMS oi_usuario_sistema=&quot;acenci&quot;/&gt;">
+		<qry:include name="NucleusRH.Base.Personal.Legajo.PERSONAL.QRY_INICIO_WFs"/>
+		<qry:main doc="SOURCE">
+			<qry:append-doc name="FILTER" doc-path="#SOURCE:PARAMS"/>
+			<qry:element name="REPORTE">
+				<qry:element name="PERSONAS">
+					<qry:insert-select name="qry_DatosPersonales" doc-path="#SOURCE:PARAMS"/>
+				</qry:element>
+				<qry:element name="FAMILIARES">
+					<qry:attribute name="cant_fam" value="0"/>
+					<qry:insert-select name="qry_familiares"/>
+				</qry:element>
+			</qry:element>
+		</qry:main>
+		<qry:select name="qry_familiares">
+			<qry:xquery>
+				for $r in SQL('
+SELECT
+FAM.oi_familiar_per,
+T_FAM.d_tipo_familiar,
+FAM.d_ape_y_nom,
+FAM.c_nro_documento,
+T_DOC.c_tipo_documento,
+FAM.f_nacimiento,
+FAM.c_nro_cuil,
+EST_CIV.d_estado_civil,
+NAC.d_nacionalidad,
+FAM.l_acargo_af,
+FAM.l_acargo_os,
+FAM.l_acargo_IG,
+FAM.l_acargo_SV,
+FAM.n_porc_seguro,
+FAM.o_acargo_af,
+FAM.o_acargo_os,
+FAM.o_acargo_ig		
+FROM
+PER01_FLIARES_PER as FAM,
+PER15_TIPOS_FAM as T_FAM,
+PER20_TIPOS_DOC as T_DOC,
+PER01_PERSONAL as PER,
+ORG22_EST_CIVIL as EST_CIV,
+ORG12_NACIONALID as NAC 
+JOIN
+FAM.oi_tipo_familiar INNER T_FAM.oi_tipo_familiar,
+FAM.oi_personal INNER PER.oi_personal,
+FAM.oi_tipo_documento LEFT T_DOC.oi_tipo_documento,
+FAM.oi_estado_civil LEFT EST_CIV.oi_estado_civil,
+FAM.oi_nacionalidad LEFT NAC.oi_nacionalidad
+WHERE
+PER.oi_usuario_sistema = \'{%= #FILTER:@oi_usuario_sistema %}\'
+')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:attribute name="cant_fam" value="@cant_fam + 1"/>
+				<qry:element name="FAMILIAR">
+					<qry:attribute name="n_fam" value="../@cant_fam"/>
+					<qry:attribute name="oi_familiar_per" value="$r/@oi_familiar_per"/>
+					<qry:attribute name="desc_idFamiliar" value="'oi_familiar_' + $r/@oi_familiar_per"/>
+					<qry:attribute name="d_tipo_fam" value="$r/@d_tipo_familiar"/>
+					<qry:attribute name="ape_nom" value="$r/@d_ape_y_nom"/>
+					<qry:attribute name="nro_doc" value="$r/@c_nro_documento"/>
+					<qry:attribute name="tipo_doc" value="$r/@c_tipo_documento"/>
+					<qry:attribute name="href" value="'#href_'+@oi_familiar_per"/>
+					<qry:attribute name="id_href" value="'href_'+@oi_familiar_per"/>
+					<qry:attribute name="id_div_collapse" value="'heading_'+@oi_familiar_per"/>
+					<qry:attribute name="id_input_radio" value="'radio_'+@oi_familiar_per"/>
+					<qry:attribute name="familiar_parentesco" value="@ape_nom + ' - ' + @d_tipo_fam"/>
+					<DATOS_FAMILIAR>
+						<qry:attribute name="tipo_y_nro" value="../@tipo_doc + ' ' + ../@nro_doc"/>
+						<qry:attribute name="f_nacimiento" value="iif($r/@f_nacimiento = '','-',format_date($r/@f_nacimiento,'dd/mm/yyyy'))"/>
+						<qry:attribute name="c_nro_cuil" value="iif($r/@c_nro_cuil = '','-',$r/@c_nro_cuil)"/>
+						<qry:attribute name="d_estado_civil" value="iif($r/@d_estado_civil = '','-',$r/@d_estado_civil)"/>
+						<qry:attribute name="d_nacionalidad" value="iif($r/@d_nacionalidad = '','-',$r/@d_nacionalidad)"/>
+						<qry:if test="$r/@l_acargo_af = 0">
+							<qry:then>
+								<qry:attribute name="l_acargo_af" value="'NO'"/>
+							</qry:then>
+							<qry:else>
+								<qry:attribute name="l_acargo_af" value="'SI'"/>
+							</qry:else>
+						</qry:if>
+						<qry:if test="$r/@l_acargo_os = 0">
+							<qry:then>
+								<qry:attribute name="l_acargo_os" value="'NO'"/>
+							</qry:then>
+							<qry:else>
+								<qry:attribute name="l_acargo_os" value="'SI'"/>
+							</qry:else>
+						</qry:if>
+						<qry:if test="$r/@l_acargo_IG = 0">
+							<qry:then>
+								<qry:attribute name="l_acargo_IG" value="'NO'"/>
+							</qry:then>
+							<qry:else>
+								<qry:attribute name="l_acargo_IG" value="'SI'"/>
+							</qry:else>
+						</qry:if>
+						<qry:if test="$r/@l_acargo_SV = 0">
+							<qry:then>
+								<qry:attribute name="l_acargo_SV" value="'NO'"/>
+							</qry:then>
+							<qry:else>
+								<qry:attribute name="l_acargo_SV" value="'SI'"/>
+							</qry:else>
+						</qry:if>
+						<qry:if test="$r/@l_acargo_SV = 0">
+							<qry:then>
+								<qry:attribute name="n_porc_seguro" value="'0'"/>
+							</qry:then>
+							<qry:else>
+								<qry:attribute name="n_porc_seguro" value="$r/@n_porc_seguro"/>
+							</qry:else>
+						</qry:if>
+						<qry:attribute name="o_acargo_af" value="iif($r/@o_acargo_af = '','-',$r/@o_acargo_af)"/>
+						<qry:attribute name="o_acargo_os" value="iif($r/@o_acargo_os = '','-',$r/@o_acargo_os)"/>
+						<qry:attribute name="o_acargo_ig" value="iif($r/@o_acargo_ig = '','-',$r/@o_acargo_ig)"/>
+					</DATOS_FAMILIAR>
+				</qry:element>
+			</qry:out>
+		</qry:select>
+	</html:query>
+	<html:xslt>
+		<xsl:template name="BODY_CUSTOM">
+			<div id="rowFamiliares" class="row">
+				<xsl:choose>
+					<xsl:when test="./FAMILIARES/@cant_fam = 0">
+						<div class="sinFamiliar">
+							<h3>
+								No tiene familiares cargados
+							</h3>
+						</div>
+					</xsl:when>
+					<xsl:otherwise>
+						<div class="panel-group" id="accordionFAM" role="tablist" aria-multiselectable="false">
+							<xsl:apply-templates select="FAMILIARES/FAMILIAR"/>
+						</div>
+					</xsl:otherwise>
+				</xsl:choose>
+			</div>
+		</xsl:template>
+		<xsl:template match="FAMILIAR">
+			<xsl:if test="@n_fam = 1">
+				<input type="hidden" id="oi_familiar_inicial">
+					<xsl:attribute name="value">
+						<xsl:value-of select="@oi_familiar_per"/>
+					</xsl:attribute>
+				</input>
+			</xsl:if>
+			<div class="panel panel-primary">
+				<div class="panel-heading pointer" role="button" data-toggle="collapse" data-parent="#accordionFAM" aria-expanded="true" aria-controls="collapseOne" onclick="BlanquearParam(this.id)">
+					<xsl:attribute name="id">
+						<xsl:value-of select="@id_div_collapse"/>
+					</xsl:attribute>
+					<xsl:attribute name="href">
+						<xsl:value-of select="@href"/>
+					</xsl:attribute>
+					<h4 class="panel-title">
+						<a>
+							<xsl:value-of select="@familiar_parentesco"/>
+						</a>
+						<div class="radio-legajo">
+							<input name="familiar" type="radio">
+								<xsl:attribute name="id">
+									<xsl:value-of select="@id_input_radio"/>
+								</xsl:attribute>
+								<xsl:choose>
+									<xsl:when test="@n_fam = 1">
+										<xsl:attribute name="checked">
+											true
+										</xsl:attribute>
+									</xsl:when>
+									<xsl:otherwise>
+										<xsl:attribute name="disabled">
+											true
+										</xsl:attribute>
+									</xsl:otherwise>
+								</xsl:choose>
+							</input>
+						</div>
+					</h4>
+				</div>
+				<div role="tabpanel" aria-expanded="false">
+					<xsl:attribute name="id">
+						<xsl:value-of select="@id_href"/>
+					</xsl:attribute>
+					<xsl:attribute name="aria-labelledby">
+						<xsl:value-of select="@id_div_collapse"/>
+					</xsl:attribute>
+					<xsl:choose>
+						<xsl:when test="@n_fam = 1">
+							<xsl:attribute name="class">
+								panel-collapse collapse in
+							</xsl:attribute>
+						</xsl:when>
+						<xsl:otherwise>
+							<xsl:attribute name="class">
+								panel-collapse collapse
+							</xsl:attribute>
+						</xsl:otherwise>
+					</xsl:choose>
+					<div class="well">
+						<xsl:apply-templates select="DATOS_FAMILIAR"/>
+					</div>
+				</div>
+			</div>
+		</xsl:template>
+		<xsl:template name="CSS_CUSTOM">
+			.radio-legajo{
+float:right!important;
+}
+
+.panel-heading{
+color: #fff;
+background-color: #337ab7;
+border-color: #2e6da4;
+}
+
+#rowFamiliares{
+margin-bottom: 0px;
+margin-top: 10px;
+}
+
+.well{
+border-radius: 0px;
+margin-bottom: 0px;
+padding: 0px 19px;
+}
+              
+.form-horizontal.form-datos-familiares{
+margin-bottom: 0px;
+}
+
+form.form-datos-familiares div label{
+margin-right: 7px;
+float: left;
+}
+
+form.form-datos-familiares div.form-group{
+margin-bottom: 0px;
+margin-left: 0px;
+}
+
+.sinFamiliar{
+text-align: center;
+}                
+  
+.sinFamiliar h3{
+font-size: 24px;
+}                
+
+label.observaciones{
+margin-left: 20px;
+padding-top: 0px!important;
+}
+
+div.observaciones{
+margin-top: -7px;
+margin-left: 20px;
+}             
+
+.pointer{
+	cursor:pointer;
+}
+		</xsl:template>
+		<xsl:template name="JAVASCRIPT_CUSTOM">
+			<SCRIPT type="text/javascript">
+				function SetParam(param,valor){
+this.parent.SetParam(param,valor);
+} 
+
+$(document).ready(function(){
+var oi_familiar = $("#oi_familiar_inicial").attr("value");
+SetParam("oi_familiar",oi_familiar);	
+});
+             
+function BlanquearParam(id){
+var oi_familiar = id.substr(8);
+
+//Desabilito todos los radio y habilito solamente el que tengo seleccioanado
+$("input[type=radio]").prop("disabled", true);
+$("#radio_"+oi_familiar).prop("disabled", false);
+
+//Selecciono el radio del legajo.
+$("#radio_"+oi_familiar).prop("checked", true); 
+
+//Seteo el oi_familiar que iniciara el WF 
+this.SetParam("oi_familiar",oi_familiar);
+}
+			</SCRIPT>
+		</xsl:template>
+		<xsl:template match="DATOS_FAMILIAR">
+			<div class="row">
+				<div class="col-md-6">
+					<form class="form-horizontal form-datos-familiares">
+						<div class="form-group">
+							<label class="control-label">
+								Fecha Nacimiento:
+							</label>
+							<div>
+								<p class="form-control-static">
+									<xsl:value-of select="@f_nacimiento"/>
+								</p>
+							</div>
+						</div>
+						<div class="form-group">
+							<label class="control-label">
+								Tipo y Nro. Doc:
+							</label>
+							<div>
+								<p class="form-control-static">
+									<xsl:value-of select="@tipo_y_nro"/>
+								</p>
+							</div>
+						</div>
+						<div class="form-group">
+							<label class="control-label">
+								CUIL:
+							</label>
+							<div>
+								<p class="form-control-static">
+									<xsl:value-of select="@c_nro_cuil"/>
+								</p>
+							</div>
+						</div>
+						<div class="form-group">
+							<label class="control-label">
+								Estado Civil:
+							</label>
+							<div>
+								<p class="form-control-static">
+									<xsl:value-of select="@d_estado_civil"/>
+								</p>
+							</div>
+						</div>
+						<div class="form-group">
+							<label class="control-label">
+								Nacionalidad:
+							</label>
+							<div>
+								<p class="form-control-static">
+									<xsl:value-of select="@d_nacionalidad"/>
+								</p>
+							</div>
+						</div>
+					</form>
+				</div>
+				<div class="col-md-6">
+					<form class="form-horizontal form-datos-familiares">
+						<div class="form-group">
+							<label class="control-label">
+								A Cargo Asignaciones Familiares:
+							</label>
+							<div>
+								<p class="form-control-static">
+									<xsl:value-of select="@l_acargo_af"/>
+								</p>
+							</div>
+							<xsl:if test="@l_acargo_af = 'SI'">
+								<label class="control-label observaciones">
+									Observaci&#243;n:
+								</label>
+								<div class="observaciones">
+									<p class="form-control-static">
+										<xsl:value-of select="@o_acargo_af"/>
+									</p>
+								</div>
+							</xsl:if>
+						</div>
+						<div class="form-group">
+							<label class="control-label">
+								A Cargo Obra Social:
+							</label>
+							<div>
+								<p class="form-control-static">
+									<xsl:value-of select="@l_acargo_os"/>
+								</p>
+							</div>
+							<xsl:if test="@l_acargo_os = 'SI'">
+								<label class="control-label observaciones">
+									Observaci&#243;n:
+								</label>
+								<div class="observaciones">
+									<p class="form-control-static">
+										<xsl:value-of select="@o_acargo_os"/>
+									</p>
+								</div>
+							</xsl:if>
+						</div>
+						<div class="form-group">
+							<label class="control-label">
+								A Cargo Impuesto Ganancias:
+							</label>
+							<div>
+								<p class="form-control-static">
+									<xsl:value-of select="@l_acargo_IG"/>
+								</p>
+							</div>
+							<xsl:if test="@l_acargo_IG = 'SI'">
+								<label class="control-label observaciones">
+									Observaci&#243;n:
+								</label>
+								<div class="observaciones">
+									<p class="form-control-static">
+										<xsl:value-of select="@o_acargo_IG"/>
+									</p>
+								</div>
+							</xsl:if>
+						</div>
+						<div class="form-group">
+							<label class="control-label">
+								A Cargo Seguro de Vida:
+							</label>
+							<div>
+								<p class="form-control-static">
+									<xsl:value-of select="@l_acargo_SV"/>
+								</p>
+							</div>
+							<xsl:if test="@l_acargo_SV = 'SI'">
+								<div class="form-group">
+									<label class="control-label observaciones">
+										Porcentaje:
+									</label>
+									<div class="observaciones">
+										<p class="form-control-static">
+											<xsl:value-of select="@n_porc_seguro"/>
+										</p>
+									</div>
+								</div>
+							</xsl:if>
+						</div>
+					</form>
+				</div>
+			</div>
+		</xsl:template>
+	</html:xslt>
+</html:html>

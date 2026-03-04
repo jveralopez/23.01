@@ -1,0 +1,92 @@
+<flow:flow xmlns:flow="nomad_engine.flow" xmlns:doc="nomad_engine.doc" xmlns:qry="nomad_engine.qry" extends="Nomad.Base.interface.batch.flow" name="NucleusRH.Base.Tiempos_Trabajados.Liquidacion.INTERFACE.flow">
+	<flow:info label="flow para NucleusRH.Base.Tiempos_Trabajados.Liquidacion.INTERFACE"/>
+	<flow:declare>
+		<doc:define name="FILTERDATA">
+			<FILTRO>
+				<ROWS/>
+				<THS/>
+			</FILTRO>
+		</doc:define>
+		<doc:define name="HORAS"/>
+		<qry:define declare="&lt;FILTRO gcustom=&quot;&quot; f_ini=&quot;20010101&quot; f_fin=&quot;20101010&quot; oi_grupo_th=&quot;2&quot; oi_empresa=&quot;196&quot; nombre=&quot;&quot; documento=&quot;&quot; legajo_desde=&quot;&quot; legajo_hasta=&quot;&quot; oi_indic_activo=&quot;&quot; egresado=&quot;&quot; oi_forma_pago=&quot;&quot; oi_centro_costo=&quot;&quot; oi_categoria=&quot;&quot; oi_estructura=&quot;&quot; escructura_childs=&quot;&quot; oi_afjp=&quot;&quot; oi_obra_social=&quot;&quot; oi_sindicato=&quot;&quot; legajo_reloj_desde=&quot;&quot; legajo_reloj_hasta=&quot;&quot; tarjeta_desde=&quot;&quot; tarjeta_hasta=&quot;&quot; oi_horario=&quot;&quot; oi_escuadra=&quot;&quot; tipo=&quot;&quot;&gt;&#13;&#10;  &lt;ROWS nmd-col=&quot;1&quot;&gt;&#13;&#10;    &lt;ROW id=&quot;11565&quot; /&gt;&#13;&#10;    &lt;ROW id=&quot;11566&quot; /&gt;&#13;&#10;    &lt;ROW id=&quot;11567&quot; /&gt;&#13;&#10;    &lt;ROW id=&quot;11568&quot; /&gt;&#13;&#10;    &lt;ROW id=&quot;11569&quot; /&gt;&#13;&#10;    &lt;ROW id=&quot;11570&quot; /&gt;&#13;&#10;    &lt;ROW id=&quot;11571&quot; /&gt;&#13;&#10;  &lt;/ROWS&gt;&#13;&#10;  &lt;THS nmd-col=&quot;1&quot;&gt;&#13;&#10;    &lt;TH id=&quot;1001&quot; /&gt;&#13;&#10;    &lt;TH id=&quot;1010&quot; /&gt;&#13;&#10;    &lt;TH id=&quot;1016&quot; /&gt;&#13;&#10;  &lt;/THS&gt;&#13;&#10;&lt;/FILTRO&gt;" name="QRY_HORAS">
+			<qry:main doc="PARAM">
+				<qry:append-doc name="FILTRO" doc-path="#PARAM:/FILTRO"/>
+				<qry:element name="ROWS">
+					<qry:insert-select name="QRY_HORAS" doc-path="#PARAM:FILTRO"/>
+				</qry:element>
+			</qry:main>
+			<qry:select name="QRY_HORAS" doc="PARAM">
+				<qry:xquery>
+					for $r in sql('
+				SELECT PER02_PERSONAL_EMP.e_numero_legajo,
+				TTA01_TIPOHORAS.c_liquidador,
+				SUM(TTA10_LIQUIDACPROC.n_cantidadhs) AS cantidad
+				FROM TTA10_LIQUIDACPROC,
+				TTA10_LIQUIDACJOR,
+				TTA10_LIQUIDACPERS,
+				PER02_PERSONAL_EMP,
+				TTA01_TIPOHORAS
+				JOIN TTA10_LIQUIDACPROC.oi_liquidacjor INNER TTA10_LIQUIDACJOR.oi_liquidacjor,
+				TTA10_LIQUIDACJOR.oi_liquidacionpers INNER TTA10_LIQUIDACPERS.oi_liquidacionpers,
+				TTA10_LIQUIDACPERS.oi_personal_emp INNER PER02_PERSONAL_EMP.oi_personal_emp,
+				TTA01_TIPOHORAS.oi_tipohora INNER TTA10_LIQUIDACPROC.oi_tipohora
+				WHERE PER02_PERSONAL_EMP.oi_personal_emp in ({%=string(#FILTRO:ROWS/ROW/@id)%})
+				AND TTA10_LIQUIDACJOR.f_fecjornada &gt;= {Datetime(#FILTRO:@f_ini)}
+				AND TTA10_LIQUIDACJOR.f_fecjornada &lt;= {Datetime(Number(Datetime(#FILTRO:@f_fin))+1)}
+				{%? (#FILTRO:@oi_grupo_th!= '') 
+					{% AND TTA01_TIPOHORAS.oi_tipohora in
+							 (SELECT TTA13_THS_GRUPO.oi_tipohora
+								FROM TTA13_THS_GRUPO
+								WHERE TTA13_THS_GRUPO.oi_grupo_th = {%=#FILTRO:@oi_grupo_th%}) 
+					%} 
+					{%  %}   
+				%}		  
+               {%? (string(#FILTRO:THS/TH/@id)!='') 
+					{% AND TTA01_TIPOHORAS.oi_tipohora in ({%=string(#FILTRO:THS/TH/@id)%}) %} 
+					{%  %} 
+				%}
+				GROUP BY PER02_PERSONAL_EMP.e_numero_legajo,
+				TTA01_TIPOHORAS.c_liquidador
+				ORDER BY e_numero_legajo ASC
+			')ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:element name="ROW">
+						<qry:attribute name="e_numero_legajo" value="$r/@e_numero_legajo"/>
+						<qry:attribute name="c_liquidador" value="$r/@c_liquidador"/>
+						<qry:attribute name="cantidad" value="ROUND($r/@cantidad)"/>
+					</qry:element>
+				</qry:out>
+			</qry:select>
+		</qry:define>
+	</flow:declare>
+	<flow:main doc="SOURCE">
+		<flow:action name="initialize">
+			<flow:open-form doc-path="#FILTERDATA:" form-class="NucleusRH.Base.Tiempos_Trabajados.Liquidacion.INTERFACE.form" mode="FILTER"/>
+		</flow:action>
+	</flow:main>
+	<flow:form parent-doc="PARENTSOURCE" doc="SOURCE" mode="FILTER" name="NucleusRH.Base.Tiempos_Trabajados.Liquidacion.INTERFACE.form:FILTER" form-class="NucleusRH.Base.Tiempos_Trabajados.Liquidacion.INTERFACE.form">
+		<flow:action name="on-show">
+			<flow:call-action action="Load-FILTER"/>
+			<flow:attach-doc attach-id="ARRB" doc-path="#SOURCE:ROWS"/>
+		</flow:action>
+		<flow:action name="BACK">
+			<flow:close-form/>
+		</flow:action>
+		<flow:action name="ACCEPT">
+			<flow:call-action action="Save-FILTER"/>
+			<doc:load-qry output-doc="HORAS" input-doc-path="#SOURCE:" qry="QRY_HORAS"/>
+			<flow:exec-method method="GenerarArchivo" priority="5" out-type="String" out-attr-path="#BATCHDOC:@batch-id" class="NucleusRH.Base.Tiempos_Trabajados.InterfaceHoras.HORAS">
+				<flow:param doc="HORAS" name="param" mode="in"/>
+			</flow:exec-method>
+			<flow:open-form form-class="NucleusRH.Base.Tiempos_Trabajados.Liquidacion.INTERFACE.batch.form" mode="SHOW" doc-path="#BATCHDOC:"/>
+		</flow:action>
+		<flow:action name="Save-FILTER">
+			<flow:save-user-data name="FILTER-NucleusRH.Base.Tiempos_Trabajados.Liquidacion.INTERFACE" doc-path="#FILTERDATA:"/>
+		</flow:action>
+		<flow:action name="Load-FILTER">
+			<flow:load-user-data name="FILTER-NucleusRH.Base.Tiempos_Trabajados.Liquidacion.INTERFACE" doc="FILTERDATA"/>
+		</flow:action>
+	</flow:form>
+	<flow:form extends="Nomad.Base.interface.batch.form:SHOW" mode="SHOW" name="NucleusRH.Base.Tiempos_Trabajados.Liquidacion.INTERFACE.batch.form:SHOW" form-class="NucleusRH.Base.Tiempos_Trabajados.Liquidacion.INTERFACE.batch.form" doc="SOURCE"/>
+</flow:flow>

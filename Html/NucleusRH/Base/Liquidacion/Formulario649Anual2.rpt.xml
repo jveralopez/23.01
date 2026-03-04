@@ -1,0 +1,493 @@
+<html:html xmlns:html="nomad_engine.html" xmlns:qry="nomad_engine.qry" extends="Nomad.Base.BaseReport.rpt" xtends="Nomad.Base.BaseReport.rpt" doc="source" name="NucleusRH.Base.Liquidacion.ListadoConcepto">
+	<html:query declare="&lt;DATOS salida=&quot;HTML&quot; report=&quot;&quot; modo=&quot;HTML&quot; oi_liquidacion_ddo=&quot;&quot; oi_per_emp_ddo=&quot;&quot; oi_empresa=&quot;1&quot; oi_personal_emp=&quot;12&quot; e_anio=&quot;2011&quot;/&gt;">
+		<qry:main doc="SOURCE">
+			<qry:append-doc name="PARAMIN" doc-path="#SOURCE:DATOS"/>
+			<REPORT style="'width:950%;'">
+				<qry:attribute name="label" value="'Impuesto a las Ganancias - Analisis Anual [' + #PARAMIN:@e_anio + ']'"/>
+				<qry:attribute name="date" value="format_date(Now(),'dd/mm/yyyy HH:MM')"/>
+				<GROUPS>
+					<GROUP tag="LIQ" type="title">
+						<COLS>
+							<COL name="empresa" label="Empresa"/>
+							<COL name="empleado" label="Empleado"/>
+						</COLS>
+						<GROUP tag="ITEMS" style="padding-left:0px;width:100%;" type="table" noreg="No se encontraron registros para los filtros seleccionados.">
+							<COLS>
+								<COL name="det" label="Detalle" style="" nowrap="1"/>
+								<COL name="importe1" label="Enero" type="num" nowrap="1" style="width:100px;"/>
+								<COL name="importe2" label="Febrero" type="num" nowrap="1" style="width:100px;"/>
+								<COL name="importe3" label="Marzo" type="num" nowrap="1" style="width:100px;"/>
+								<COL name="importe4" label="Abril" type="num" nowrap="1" style="width:100px;"/>
+								<COL name="importe5" label="Mayo" type="num" nowrap="1" style="width:100px;"/>
+								<COL name="importe6" label="Junio" type="num" nowrap="1" style="width:100px;"/>
+								<COL name="importe7" label="Julio" type="num" nowrap="1" style="width:100px;"/>
+								<COL name="importe8" label="Agosto" type="num" nowrap="1" style="width:100px;"/>
+								<COL name="importe9" label="Septiembre" type="num" nowrap="1" style="width:100px;"/>
+								<COL name="importe10" label="Octubre" type="num" nowrap="1" style="width:100px;"/>
+								<COL name="importe11" label="Noviembre" type="num" nowrap="1" style="width:100px;"/>
+								<COL name="importe12" label="Diciembre" type="num" nowrap="1" style="width:100px;"/>
+							</COLS>
+						</GROUP>
+					</GROUP>
+				</GROUPS>
+				<qry:element name="DATA">
+					<qry:element name="LIQ">
+						<qry:insert-select name="qry_cabecera" doc-path="#PARAMIN:"/>
+					</qry:element>
+				</qry:element>
+			</REPORT>
+		</qry:main>
+		<qry:select name="qry_cabecera" doc="SOURCE">
+			<qry:xquery>
+				for $r in sql('
+SELECT 
+p.c_nro_cuil, 
+p.d_ape_y_nom, 
+e.c_empresa, 
+e.d_empresa, 
+e.oi_empresa,
+e.c_cuit, 
+L.e_numero_legajo
+
+FROM PER02_PERSONAL_EMP  AS L, PER01_PERSONAL AS P, ORG03_EMPRESAS AS E
+
+JOIN
+E.oi_empresa INNER L.oi_empresa,
+L.oi_personal INNER P.oi_personal
+WHERE
+L.oi_personal_emp = {%= #SOURCE:@oi_personal_emp %}
+			')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:attribute name="empleado" value="$r/@e_numero_legajo + ' - ' + $r/@d_ape_y_nom + '[' + $r/@c_nro_cuil + ']'"/>
+				<qry:attribute name="empresa" value="$r/@c_empresa + ' - ' + $r/@d_empresa + '[' + $r/@c_cuit +']'" type="Nomad.NSystem.String"/>
+				<qry:attribute name="e_numero_legajo" value="$r/@e_numero_legajo" type="Nomad.NSystem.String"/>
+				<qry:attribute name="oi_empresa" value="$r/@oi_empresa" type="Nomad.NSystem.String"/>
+				<ITEMS det="1.A. Haberes">
+					<qry:attribute name="c_variable" value="'ap_acumigh'"/>
+					<qry:attribute name="cont" value="0"/>
+					<qry:insert-select doc-path="." name="datos"/>
+					<qry:attribute name="oi_item" value="1"/>
+				</ITEMS>
+				<ITEMS det="1. Provisi&#243;n / Prorrateo Haberes">
+					<qry:attribute name="c_variable" value="'ax_igproh'"/>
+					<qry:attribute name="cont" value="0"/>
+					<qry:insert-select doc-path="." name="datos"/>
+				</ITEMS>
+				<ITEMS det="1. Pend. prorrateo Haberes">
+					<qry:attribute name="c_variable" value="'ap_igprorrateoh'"/>
+					<qry:attribute name="cont" value="0"/>
+					<qry:insert-select doc-path="." name="datos"/>
+					<!--qry:attribute name="oi_item" value="1"/-->
+				</ITEMS>
+				<qry:attribute name="oi_item" value="1"/>
+				<ITEMS det="1. Importe Bruto de las Ganancias">
+					<qry:attribute name="style" value="'text-color=red;'"/>
+					<qry:insert-select doc-path=".." name="calculo_total01"/>
+					<qry:attribute name="oi_total" value="1"/>
+				</ITEMS>
+				<ITEMS>
+					<qry:attribute name="det" value="''"/>
+				</ITEMS>
+				<ITEMS det="2.A.1. Aportes Jubilatorios">
+					<qry:attribute name="c_variable" value="'ap_igacumjubi'"/>
+					<qry:attribute name="cont" value="0"/>
+					<qry:attribute name="menos" value="0"/>
+					<qry:insert-select doc-path="." name="datos"/>
+					<qry:attribute name="oi_item" value="2"/>
+				</ITEMS>
+				<ITEMS det="2.A.2. Ley 19.032">
+					<qry:attribute name="c_variable" value="'ap_igacumley'"/>
+					<qry:attribute name="cont" value="0"/>
+					<qry:attribute name="menos" value="0"/>
+					<qry:insert-select doc-path="." name="datos"/>
+					<qry:attribute name="oi_item" value="2"/>
+				</ITEMS>
+				<ITEMS det="2.B.1. Obra Social">
+					<qry:attribute name="c_variable" value="'ap_igacumos'"/>
+					<qry:attribute name="cont" value="0"/>
+					<qry:attribute name="menos" value="0"/>
+					<qry:insert-select doc-path="." name="datos"/>
+					<qry:attribute name="oi_item" value="2"/>
+				</ITEMS>
+				<ITEMS det="2.B.2. Cuota Medico Asistencial">
+					<qry:attribute name="c_variable" value="'ap_igacumMedico'"/>
+					<qry:attribute name="cont" value="0"/>
+					<qry:attribute name="menos" value="1"/>
+					<qry:insert-select doc-path="." name="datos"/>
+					<qry:attribute name="oi_item" value="2"/>
+				</ITEMS>
+				<ITEMS det="2.B.3. Cobertura Medica">
+					<qry:attribute name="c_variable" value="'ap_igacumCoberMedico'"/>
+					<qry:attribute name="cont" value="0"/>
+					<qry:attribute name="menos" value="1"/>
+					<qry:insert-select doc-path="." name="datos"/>
+					<qry:attribute name="oi_item" value="2"/>
+				</ITEMS>
+				<ITEMS det="2.B.4. Honorarios Medicos">
+					<qry:attribute name="c_variable" value="'ap_igacumHonoMedico'"/>
+					<qry:attribute name="cont" value="0"/>
+					<qry:attribute name="menos" value="1"/>
+					<qry:insert-select doc-path="." name="datos"/>
+					<qry:attribute name="oi_item" value="2"/>
+				</ITEMS>
+				<ITEMS det="2.C.1. Primas de Seguro de Retiro">
+					<qry:attribute name="c_variable" value="'ap_igacumRetiro'"/>
+					<qry:attribute name="cont" value="0"/>
+					<qry:attribute name="menos" value="1"/>
+					<qry:insert-select doc-path="." name="datos"/>
+					<qry:attribute name="oi_item" value="2"/>
+				</ITEMS>
+				<ITEMS det="2.C.2. Primas de Seguro de Vida">
+					<qry:attribute name="c_variable" value="'ap_igacumsegvida'"/>
+					<qry:attribute name="cont" value="0"/>
+					<qry:attribute name="menos" value="1"/>
+					<qry:insert-select doc-path="." name="datos"/>
+					<qry:attribute name="oi_item" value="2"/>
+				</ITEMS>
+				<ITEMS det="2.C.3. Otros Seguros">
+					<qry:attribute name="c_variable" value="'ap_igacumSeguro'"/>
+					<qry:attribute name="cont" value="0"/>
+					<qry:attribute name="menos" value="1"/>
+					<qry:insert-select doc-path="." name="datos"/>
+					<qry:attribute name="oi_item" value="2"/>
+				</ITEMS>
+				<ITEMS det="2.D. Gastos de Sepelio">
+					<qry:attribute name="c_variable" value="'ap_igacumsepelio'"/>
+					<qry:attribute name="cont" value="0"/>
+					<qry:attribute name="menos" value="1"/>
+					<qry:insert-select doc-path="." name="datos"/>
+					<qry:attribute name="oi_item" value="2"/>
+				</ITEMS>
+				<ITEMS det="2.E. Viaticos">
+					<qry:attribute name="c_variable" value="'ap_igacumViaticos'"/>
+					<qry:attribute name="cont" value="0"/>
+					<qry:attribute name="menos" value="1"/>
+					<qry:insert-select doc-path="." name="datos"/>
+					<qry:attribute name="oi_item" value="2"/>
+				</ITEMS>
+				<ITEMS det="2.F.1 Autonomos">
+					<qry:attribute name="c_variable" value="'ap_igacumAutonomos'"/>
+					<qry:attribute name="cont" value="0"/>
+					<qry:attribute name="menos" value="1"/>
+					<qry:insert-select doc-path="." name="datos"/>
+					<qry:attribute name="oi_item" value="2"/>
+				</ITEMS>
+				<ITEMS det="2.F.2 Interes Prestamos Hipotecarios">
+					<qry:attribute name="c_variable" value="'ap_igacumHipotec'"/>
+					<qry:attribute name="cont" value="0"/>
+					<qry:attribute name="menos" value="1"/>
+					<qry:insert-select doc-path="." name="datos"/>
+					<qry:attribute name="oi_item" value="2"/>
+				</ITEMS>
+				<ITEMS det="2.F.3 Servicio Domestico">
+					<qry:attribute name="c_variable" value="'ap_igacumulaSerDome'"/>
+					<qry:attribute name="cont" value="0"/>
+					<qry:attribute name="menos" value="1"/>
+					<qry:insert-select doc-path="." name="datos"/>
+					<qry:attribute name="oi_item" value="2"/>
+				</ITEMS>
+				<ITEMS det="2.F.4 Otros">
+					<qry:attribute name="c_variable1" value="'ap_acumigd'"/>
+					<qry:attribute name="c_variable2" value="'ap_igacumos'"/>
+					<qry:attribute name="c_variable3" value="'ap_igacumley'"/>
+					<qry:attribute name="c_variable4" value="'ap_igacumjubi'"/>
+					<qry:attribute name="cont" value="0"/>
+					<qry:attribute name="menos" value="0"/>
+					<qry:insert-select doc-path="." name="datos_especiales"/>
+					<qry:attribute name="oi_item" value="2"/>
+				</ITEMS>
+				<ITEMS det="2. Prorrateo Deducciones">
+					<qry:attribute name="c_variable" value="'ap_igprod'"/>
+					<qry:attribute name="cont" value="0"/>
+					<qry:attribute name="menos" value="0"/>
+					<qry:insert-select doc-path="." name="datos"/>
+					<!--qry:attribute name="oi_item" value="2"/-->
+				</ITEMS>
+				<ITEMS det="2. Pend. prorrateo Deducc.">
+					<qry:attribute name="c_variable" value="'ap_igprorrateod'"/>
+					<qry:attribute name="cont" value="0"/>
+					<qry:attribute name="menos" value="0"/>
+					<qry:insert-select doc-path="." name="datos"/>
+					<!--qry:attribute name="oi_item" value="2"/-->
+				</ITEMS>
+				<qry:attribute name="oi_item" value="2"/>
+				<ITEMS det="2. Deducciones y Degravaciones">
+					<qry:attribute name="style" value="'text-color=red;'"/>
+					<qry:insert-select doc-path=".." name="calculo_total01"/>
+					<qry:attribute name="oi_total" value="2"/>
+				</ITEMS>
+				<ITEMS>
+					<qry:attribute name="det" value="''"/>
+				</ITEMS>
+				<ITEMS det="3.A. Item 1">
+					<qry:attribute name="oi_totales" value="1"/>
+					<qry:insert-select doc-path="." name="calculo_total02"/>
+				</ITEMS>
+				<ITEMS det="3.B. Item 2">
+					<qry:attribute name="oi_totales" value="2"/>
+					<qry:attribute name="menos" value="0"/>
+					<qry:insert-select doc-path="." name="calculo_total02"/>
+				</ITEMS>
+				<ITEMS det="3. Resultado Neto">
+					<qry:attribute name="oi_totales" value="1"/>
+					<qry:insert-select doc-path="." name="calculo_total02"/>
+					<qry:attribute name="menos" value="0"/>
+					<qry:attribute name="oi_totales" value="2"/>
+					<qry:attribute name="oi_total" value="3"/>
+					<qry:insert-select doc-path="." name="calculo_total02"/>
+				</ITEMS>
+				<ITEMS>
+					<qry:attribute name="det" value="''"/>
+				</ITEMS>
+				<ITEMS det="4.A Donaciones">
+					<qry:attribute name="c_variable" value="'ap_igacumDonaciones'"/>
+					<qry:attribute name="cont" value="0"/>
+					<qry:attribute name="menos" value="1"/>
+					<qry:insert-select doc-path="." name="datos"/>
+					<qry:attribute name="oi_item" value="4"/>
+				</ITEMS>
+				<ITEMS>
+					<qry:attribute name="det" value="''"/>
+				</ITEMS>
+				<qry:attribute name="oi_item" value="4"/>
+				<ITEMS det="5. Sub Total">
+					<qry:attribute name="oi_total" value="4"/>
+					<qry:insert-select doc-path=".." name="calculo_total01"/>
+					<qry:attribute name="menos" value="0"/>
+					<qry:insert-select doc-path="." name="calculo_total02"/>
+					<qry:attribute name="oi_total" value="5"/>
+				</ITEMS>
+				<ITEMS>
+					<qry:attribute name="det" value="''"/>
+				</ITEMS>
+				<ITEMS det="6.A. Deducciones Especiales">
+					<qry:attribute name="c_variable" value="'ap_igacumEspeciales'"/>
+					<qry:attribute name="cont" value="0"/>
+					<qry:attribute name="menos" value="1"/>
+					<qry:insert-select doc-path="." name="datos"/>
+					<qry:attribute name="oi_item" value="6"/>
+				</ITEMS>
+				<ITEMS det="6.B. Ganancia No Imponible">
+					<qry:attribute name="c_variable" value="'ap_igacumGanNoImpo'"/>
+					<qry:attribute name="cont" value="0"/>
+					<qry:attribute name="menos" value="1"/>
+					<qry:insert-select doc-path="." name="datos"/>
+					<qry:attribute name="oi_item" value="6"/>
+				</ITEMS>
+				<ITEMS det="6.C.1. Conyuge">
+					<qry:attribute name="c_variable" value="'ap_igacumConyuge'"/>
+					<qry:attribute name="cont" value="0"/>
+					<qry:attribute name="menos" value="1"/>
+					<qry:insert-select doc-path="." name="datos"/>
+					<qry:attribute name="oi_item" value="6"/>
+				</ITEMS>
+				<ITEMS det="6.C.2. Hijos">
+					<qry:attribute name="c_variable" value="'ap_igacumHijos'"/>
+					<qry:attribute name="cont" value="0"/>
+					<qry:attribute name="menos" value="1"/>
+					<qry:insert-select doc-path="." name="datos"/>
+					<qry:attribute name="oi_item" value="6"/>
+				</ITEMS>
+				<ITEMS det="6.C.3. Otros Familiares">
+					<qry:attribute name="c_variable" value="'ap_igacumOtrosFlia'"/>
+					<qry:attribute name="cont" value="0"/>
+					<qry:attribute name="menos" value="1"/>
+					<qry:insert-select doc-path="." name="datos"/>
+					<qry:attribute name="oi_item" value="6"/>
+				</ITEMS>
+				<qry:attribute name="oi_item" value="6"/>
+				<ITEMS det="6. Deducciones Especiales">
+					<qry:insert-select doc-path=".." name="calculo_total01"/>
+					<qry:attribute name="oi_total" value="6"/>
+				</ITEMS>
+				<ITEMS>
+					<qry:attribute name="det" value="''"/>
+				</ITEMS>
+				<ITEMS det="7. Sub Total">
+					<qry:attribute name="oi_totales" value="5"/>
+					<qry:insert-select doc-path="." name="calculo_total02"/>
+					<qry:attribute name="menos" value="0"/>
+					<qry:attribute name="oi_totales" value="6"/>
+					<qry:insert-select doc-path="." name="calculo_total02"/>
+				</ITEMS>
+				<ITEMS>
+					<qry:attribute name="det" value="''"/>
+				</ITEMS>
+				<ITEMS det="8.A. Cuota">
+					<qry:attribute name="c_variable" value="'ax_igCuota'"/>
+					<qry:attribute name="cont" value="0"/>
+					<qry:attribute name="menos" value="0"/>
+					<qry:insert-select doc-path="." name="datos"/>
+					<qry:attribute name="oi_item" value="8"/>
+				</ITEMS>
+				<ITEMS det="8.B. Importe Desde">
+					<qry:attribute name="c_variable" value="'ax_igImporteDesde'"/>
+					<qry:attribute name="cont" value="0"/>
+					<qry:attribute name="menos" value="0"/>
+					<qry:insert-select doc-path="." name="datos"/>
+					<qry:attribute name="oi_item" value="8"/>
+				</ITEMS>
+				<ITEMS det="8.C. Porcentaje">
+					<qry:attribute name="c_variable" value="'ax_igRango'"/>
+					<qry:attribute name="cont" value="0"/>
+					<qry:attribute name="menos" value="0"/>
+					<qry:insert-select doc-path="." name="datos"/>
+					<qry:attribute name="oi_item" value="8"/>
+				</ITEMS>
+				<ITEMS det="8. Total del Impuesto">
+					<qry:attribute name="c_variable" value="'ap_igImporte'"/>
+					<qry:attribute name="cont" value="0"/>
+					<qry:attribute name="menos" value="0"/>
+					<qry:insert-select doc-path="." name="datos"/>
+					<qry:attribute name="oi_item" value="8"/>
+				</ITEMS>
+				<ITEMS>
+					<qry:attribute name="det" value="''"/>
+				</ITEMS>
+				<ITEMS det="9. Retenciones Acumuladas">
+					<qry:attribute name="c_variable" value="'ap_igacumretini'"/>
+					<qry:attribute name="cont" value="0"/>
+					<qry:attribute name="menos" value="0"/>
+					<qry:insert-select doc-path="." name="datos"/>
+					<qry:attribute name="oi_item" value="8"/>
+				</ITEMS>
+				<ITEMS>
+					<qry:attribute name="det" value="''"/>
+				</ITEMS>
+				<ITEMS det="10. Retenciones Del Periodo">
+					<qry:attribute name="c_variable" value="'ax_igImportePeriodo'"/>
+					<qry:attribute name="cont" value="0"/>
+					<qry:attribute name="menos" value="1"/>
+					<qry:insert-select doc-path="." name="datos"/>
+					<qry:attribute name="oi_item" value="8"/>
+				</ITEMS>
+				<ITEMS>
+					<qry:attribute name="det" value="''"/>
+				</ITEMS>
+			</qry:out>
+		</qry:select>
+		<qry:select name="QRY_PERSONA" doc="SOURCE">
+			<qry:xquery>
+				for $r in sql(' 
+SELECT 
+	LIQ19_EJECUCIONES.oi_ejecucion,
+	LIQ20_VAR_LIQ_CONC.c_variable, 
+	LIQ20_VAR_LIQ_CONC.n_valor_s
+FROM 
+	LIQ20_TOT_LIQ_PER
+	, LIQ20_CONC_LIQ_PER
+	, LIQ96_CONCEPTOS
+	, LIQ99_LIQUIDACION
+	, LIQ20_VAR_LIQ_CONC
+	, LIQ19_EJECUCIONES
+	, LIQ19_LIQUIDACION
+	, LIQ99_RECIBOS
+JOIN
+	LIQ20_TOT_LIQ_PER.oi_tot_liq_per INNER LIQ20_CONC_LIQ_PER.oi_tot_liq_per 
+	, LIQ96_CONCEPTOS.oi_concepto_ddo INNER LIQ20_CONC_LIQ_PER.oi_concepto_ddo 	
+	, LIQ99_LIQUIDACION.oi_cab_conc_ddo INNER LIQ96_CONCEPTOS.oi_cab_conc_ddo 
+	, LIQ20_VAR_LIQ_CONC.oi_conc_liq_per INNER LIQ20_CONC_LIQ_PER.oi_conc_liq_per	
+	, LIQ99_LIQUIDACION.oi_liquidacion_ddo INNER LIQ19_EJECUCIONES.oi_liquidacion_ddo 
+	, LIQ19_LIQUIDACION.oi_liquidacion INNER LIQ19_EJECUCIONES.oi_liquidacion 
+	, LIQ99_LIQUIDACION.oi_liquidacion_ddo INNER LIQ99_RECIBOS.oi_liquidacion_ddo 
+	, LIQ99_RECIBOS.oi_tot_liq_per INNER LIQ20_TOT_LIQ_PER.oi_tot_liq_per 
+where
+	LIQ99_RECIBOS.e_numero_legajo = {#SOURCE:../../@e_numero_legajo}		
+	AND LIQ20_VAR_LIQ_CONC.c_variable = {#SOURCE:@c_variable}
+	AND LIQ99_LIQUIDACION.c_estado = \'F\'
+	AND LIQ96_CONCEPTOS.c_concepto = \'99999998\'
+	AND GETYEAR(LIQ99_LIQUIDACION.f_pago)*100+GETMONTH(LIQ99_LIQUIDACION.f_pago) = {#SOURCE:@e_periodo}
+	AND LIQ99_LIQUIDACION.c_tipo_liq in (\'1\', \'2\', \'3\', \'5\')
+	AND LIQ19_LIQUIDACION.oi_empresa = {#SOURCE:../../@oi_empresa}
+ORDER BY oi_ejecucion desc
+')/ROWS/ROW[0]
+			</qry:xquery>
+			<qry:out>
+				<qry:attribute name="valor" value="$r/@n_valor_s"/>
+			</qry:out>
+		</qry:select>
+		<qry:select doc="SOURCE" name="calculo_total01">
+			<qry:xquery>
+				for $r in #SOURCE:ITEMS/attr[../@oi_item=../../@oi_item]
+			</qry:xquery>
+			<qry:out>
+				<qry:attribute name="importe1" value="iif($r/@name='importe1', number(@importe1) + number($r/@val), number(@importe1))"/>
+				<qry:attribute name="importe2" value="iif($r/@name='importe2', number(@importe2) + number($r/@val), number(@importe2))"/>
+				<qry:attribute name="importe3" value="iif($r/@name='importe3', number(@importe3) + number($r/@val), number(@importe3))"/>
+				<qry:attribute name="importe4" value="iif($r/@name='importe4', number(@importe4) + number($r/@val), number(@importe4))"/>
+				<qry:attribute name="importe5" value="iif($r/@name='importe5', number(@importe5) + number($r/@val), number(@importe5))"/>
+				<qry:attribute name="importe6" value="iif($r/@name='importe6', number(@importe6) + number($r/@val), number(@importe6))"/>
+				<qry:attribute name="importe7" value="iif($r/@name='importe7', number(@importe7) + number($r/@val), number(@importe7))"/>
+				<qry:attribute name="importe8" value="iif($r/@name='importe8', number(@importe8) + number($r/@val), number(@importe8))"/>
+				<qry:attribute name="importe9" value="iif($r/@name='importe9', number(@importe9) + number($r/@val), number(@importe9))"/>
+				<qry:attribute name="importe10" value="iif($r/@name='importe10', number(@importe10) + number($r/@val), number(@importe10))"/>
+				<qry:attribute name="importe11" value="iif($r/@name='importe11', number(@importe11) + number($r/@val), number(@importe11))"/>
+				<qry:attribute name="importe12" value="iif($r/@name='importe12', number(@importe12) + number($r/@val), number(@importe12))"/>
+			</qry:out>
+		</qry:select>
+		<qry:select doc="SOURCE" name="calculo_total02">
+			<qry:xquery>
+				for $r in #SOURCE:../ITEMS[@oi_total=#SOURCE:@oi_totales]
+			</qry:xquery>
+			<qry:out>
+				<qry:attribute name="importe1" value="(iif(@menos=1, (-1),(1)) * number($r/@importe1)) + number(@importe1)"/>
+				<qry:attribute name="importe2" value="(iif(@menos=1, (-1),(1)) * number($r/@importe2)) + number(@importe2)"/>
+				<qry:attribute name="importe3" value="(iif(@menos=1, (-1),(1)) * number($r/@importe3)) + number(@importe3)"/>
+				<qry:attribute name="importe4" value="(iif(@menos=1, (-1),(1)) * number($r/@importe4)) + number(@importe4)"/>
+				<qry:attribute name="importe5" value="(iif(@menos=1, (-1),(1)) * number($r/@importe5)) + number(@importe5)"/>
+				<qry:attribute name="importe6" value="(iif(@menos=1, (-1),(1)) * number($r/@importe6)) + number(@importe6)"/>
+				<qry:attribute name="importe7" value="(iif(@menos=1, (-1),(1)) * number($r/@importe7)) + number(@importe7)"/>
+				<qry:attribute name="importe8" value="(iif(@menos=1, (-1),(1)) * number($r/@importe8)) + number(@importe8)"/>
+				<qry:attribute name="importe9" value="(iif(@menos=1, (-1),(1)) * number($r/@importe9)) + number(@importe9)"/>
+				<qry:attribute name="importe10" value="(iif(@menos=1, (-1),(1)) * number($r/@importe10)) + number(@importe10)"/>
+				<qry:attribute name="importe11" value="(iif(@menos=1, (-1),(1)) * number($r/@importe11)) + number(@importe11)"/>
+				<qry:attribute name="importe12" value="(iif(@menos=1, (-1),(1)) * number($r/@importe12)) + number(@importe12)"/>
+			</qry:out>
+		</qry:select>
+		<qry:select doc="SOURCE" name="datos">
+			<qry:xquery>
+				for $r in #SOURCE:
+			</qry:xquery>
+			<qry:out>
+				<qry:attribute name="cont" value="number(@cont) + 1"/>
+				<qry:element name="attr">
+					<qry:attribute name="e_periodo" value="number(#PARAMIN:@e_anio) * 100 + number(../@cont)"/>
+					<qry:attribute name="name" value="'importe' + ../@cont"/>
+					<qry:attribute name="c_variable" value="../@c_variable"/>
+					<qry:attribute name="style" value="'text-color=blue;'"/>
+					<qry:insert-select doc-path="." name="QRY_PERSONA"/>
+					<qry:attribute name="val" value="iif(@valor!='',iif(../@menos=1,number(@valor)*(-1),@valor),0)"/>
+				</qry:element>
+				<qry:insert-select doc-path=".[@cont&lt;12]" name="datos"/>
+			</qry:out>
+		</qry:select>
+		<qry:select doc="SOURCE" name="datos_especiales">
+			<qry:xquery>
+				for $r in #SOURCE:
+			</qry:xquery>
+			<qry:out>
+				<qry:attribute name="cont" value="number(@cont) + 1"/>
+				<qry:element name="attr">
+					<qry:attribute name="e_periodo" value="number(#PARAMIN:@e_anio) * 100 + number(../@cont)"/>
+					<qry:attribute name="name" value="'importe' + ../@cont"/>
+					<qry:attribute name="c_variable" value="../@c_variable1"/>
+					<qry:insert-select doc-path="." name="QRY_PERSONA"/>
+					<qry:attribute name="val" value="iif(@valor!='',number(@valor),0)"/>
+					<qry:attribute name="val11" value="iif(@valor!='',number(@valor),0)"/>
+					<qry:attribute name="c_variable" value="../@c_variable2"/>
+					<qry:insert-select doc-path="." name="QRY_PERSONA"/>
+					<qry:attribute name="val" value="iif(@valor!='',number(@val) - number(@valor),0)"/>
+					<qry:attribute name="c_variable" value="../@c_variable3"/>
+					<qry:insert-select doc-path="." name="QRY_PERSONA"/>
+					<qry:attribute name="val" value="iif(@valor!='',number(@val) - number(@valor),0)"/>
+					<qry:attribute name="c_variable" value="../@c_variable4"/>
+					<qry:insert-select doc-path="." name="QRY_PERSONA"/>
+					<qry:attribute name="val" value="iif(@valor!='',number(@val) - number(@valor),0)"/>
+					<qry:attribute name="val" value="iif(@val!='',iif(../@menos=1,number(@val)*(-1),@val),0)"/>
+				</qry:element>
+				<qry:insert-select doc-path=".[@cont&lt;12]" name="datos_especiales"/>
+			</qry:out>
+		</qry:select>
+	</html:query>
+</html:html>

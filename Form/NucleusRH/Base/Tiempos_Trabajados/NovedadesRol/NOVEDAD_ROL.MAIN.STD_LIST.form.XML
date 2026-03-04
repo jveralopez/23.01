@@ -1,0 +1,96 @@
+<form:Form xmlns:form="nomad_engine.form" extends="NucleusRH.Base.Tiempos_Trabajados.NovedadesRol.NOVEDAD_ROL.MAIN.STD_LIST.autoform" name="NucleusRH.Base.Tiempos_Trabajados.NovedadesRol.NOVEDAD_ROL.MAIN.STD_LIST.form" default_mode="LIST" doc="source">
+	<form:Center height="100%" width="95%">
+		<form:Label label="Filtrar por Rol" name="ROL_LBL" align="left" width="100%" style="S2 LCol_g" dynamic="0" order-change="PREV:BUSCAR_LBL"/>
+		<form:ComboBox xsize="40" mode="QRY" name="d_rol" prev="" nvalue="#DDO:@d_rol" visible="" queryname1="Nomad.Base.Security.Roles.ROL.INFO" where1="" order-change="PREV:BUSCAR_LBL">
+			<form:Event action="OnSearch" name="onchange" runat="client"/>
+		</form:ComboBox>
+	</form:Center>
+	<form:Bottom>
+		<form:RowAligner name="buttonlinks">
+			<form:Row name="row1">
+				<form:Button descrip="Eliminar un Registro" img="application_delete.gif" label="Eliminar" name="DELETE" visible="!SELECT">
+					<form:Event action="delete_onclick" name="onclick" runat="client"/>
+				</form:Button>
+			</form:Row>
+		</form:RowAligner>
+	</form:Bottom>
+	<form:Scripts>
+		function OnLoad()
+{
+  //Cargo la Configuracion
+  CFG   =new NomadXML(Ctrl("main").getResource("QRY_CFG"));
+  CHLCFG=new NomadXML(Ctrl("main").getResource("QRY_CHILD"));
+
+  //Mensaje Inicial de la Lista
+  Ctrl("LIST").MsgEmply=(CFG.GetAttr("autoload")!="0"?"Cargando...":"Especifique alg&#250;n criterio de b&#250;squeda...");
+  Ctrl("LIST_REG").SetXValue(CFG.GetAttr("autoload")!="0"?"Cargando...":"Especifique alg&#250;n criterio de b&#250;squeda.");
+
+  //Modifico los Recursos
+  ReplaceResource("QRY_IDS");
+  ReplaceResource("QRY_IDS_LIST");
+  ReplaceResource("QRY_IDS_METHOD");
+  ReplaceResource("QRY_IDS_PARENT");
+
+  //Actualizo el Titulo
+  if ((CFG.GetAttr("RESOURCE-PARENT")!="") &amp;&amp; (Ctrl("PARENT").GetXValue()!=""))
+  {
+    if (TIT==null)
+      TIT=GetProxy().SQLService().GetXML(Ctrl("main").getResource("QRY_IDS_PARENT"), '&lt;PARAM IDS="'+Ctrl("PARENT").GetXValue()+'"/&gt;');
+
+	  while(TIT!=null)
+	  {
+	    if (TIT.GetAttr("descr")!="")
+	      Ctrl("PAR").SetXValue(" ("+TIT.GetAttr("descr")+")");
+	    TIT=TIT.FirstChild();
+	  }
+  }
+  
+  //AGREGAR NUEVO FILTRO
+	var filter = CFG.AddTailElement('FILTER');			
+ 	filter.SetAttr('name', 'd_rol');
+
+  //Cargo la Lista
+  RefreshList(false);
+  
+  //Evento PosONLOAD
+  PosOnLoad();
+}
+
+
+function delete_onclick()
+{
+	if (!confirm("&#191;Est&#225; seguro que desea eliminar la Novedad por Rol?")) return false;
+
+	var xmlParam = new NomadXML("PARAM");	
+	xmlParam.SetAttr("ID", Ctrl('LIST').GetXValue());
+  
+  var flowName = "NucleusRH.Base.Tiempos_Trabajados.NovedadesRol.NOVEDAD_ROL.flow";
+  var flowAction = "DeleteNovRol";
+  
+	openNewFlow(flowName, flowAction, xmlParam.ToString(), new ObjtectResult(), "S");	
+}
+
+
+function ObjtectResult()
+{
+	this.processResult = function(xmlIn)
+	{
+		var xmlResult;		
+		xmlResult = new NomadXML(xmlIn);
+				
+		if (xmlResult.GetAttr("valid")=="0")
+		{		
+			ShowMess("ALERT", [xmlResult.GetAttr("alert")], null, null);					
+		}
+		else
+		{
+			OnRefresh();
+		}		
+	}
+}
+	</form:Scripts>
+	<form:Dictionary name="LOCAL" label="Diccionario Local">
+		<msg SPA="No es posible eliminar la Novedad por Rol" SPA-TXT="{0}" type="MSG" name="ALERT"/>
+		<msg SPA="Se requiere confirmaci&#243;n" SPA-TXT="{0}" type="WRN" name="CONFIRM"/>
+	</form:Dictionary>
+</form:Form>

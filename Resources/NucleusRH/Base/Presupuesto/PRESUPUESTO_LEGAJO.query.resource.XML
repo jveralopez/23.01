@@ -1,0 +1,130 @@
+<qry:define xmlns:qry="nomad_engine.qry" declare="&lt;DATA oi_escenario=&quot;102&quot; oi_empresa=&quot;1&quot; oi_detalle_pres=&quot;106&quot; paso=&quot;3&quot; leg=&quot;731&quot;&gt;&lt;LIQS&gt;&lt;LIQ oi_liquidacion=&quot;606&quot; /&gt;&lt;/LIQS&gt;&lt;LEGS nmd-col=&quot;1&quot;&gt;&lt;LEG id=&quot;1050&quot; /&gt;&lt;LEG id=&quot;731&quot; /&gt;&lt;LEG id=&quot;500160&quot; /&gt;&lt;/LEGS&gt;&lt;ASIGS nmd-col=&quot;1&quot;&gt;&lt;ASIG id=&quot;500160&quot; oi_grupo=&quot;1&quot; /&gt;&lt;ASIG id=&quot;731&quot; oi_grupo=&quot;1&quot; /&gt;&lt;/ASIGS&gt;&lt;EGRS /&gt;&lt;/DATA&gt;" name="LEGLIST">
+	<qry:select name="QRY_LEGAJOS" doc="SOURCE">
+		<qry:out>
+			<qry:append-doc name="PARAMIN" doc-path="#SOURCE:."/>
+			<!--<qry:if test="#PARAMIN:@paso='4' or #PARAMIN:@paso='3'">
+		<qry:then>
+			<qry:if test="#PARAMIN:ASIGS/ASIG/@oi_grupo != ''">
+				<qry:then>
+					<qry:element name="GRUPOS">
+						<qry:append-doc name="GRUPOS" doc-path="."/>
+						<qry:insert-select name="QRY_GRUPOS" doc-path="#SOURCE:."/>
+					</qry:element>
+				</qry:then>
+				<qry:else/>
+			</qry:if>
+		</qry:then>
+		<qry:else/>
+	</qry:if>  -->
+			<qry:element name="ROWS2">
+				<qry:if test="#PARAMIN:@paso='2'">
+					<qry:then>
+						<qry:insert-element doc-path="#LEGAJOS:ROW"/>
+					</qry:then>
+					<qry:else/>
+				</qry:if>
+				<qry:if test="#PARAMIN:@paso='3'">
+					<qry:then>
+						<qry:insert-select name="Paso3" doc-path="#SOURCE:."/>
+					</qry:then>
+					<qry:else/>
+				</qry:if>
+				<qry:if test="#PARAMIN:@paso='4'">
+					<qry:then>
+						<qry:insert-select name="Paso4" doc-path="#SOURCE:."/>
+					</qry:then>
+					<qry:else/>
+				</qry:if>
+				<qry:if test="#PARAMIN:@paso='6'">
+					<qry:then>
+						<qry:insert-element doc-path="#LEGAJOS:ROW[@st = 'P']"/>
+					</qry:then>
+					<qry:else/>
+				</qry:if>
+			</qry:element>
+		</qry:out>
+	</qry:select>
+	<qry:select name="Paso3" doc="SOURCE">
+		<qry:xquery>
+			for $r in #SOURCE:LEGS/LEG
+		</qry:xquery>
+		<qry:out>
+			<qry:insert-element doc-path="#LEGAJOS:ROW[@id = $r/@id and @st = 'N']"/>
+		</qry:out>
+	</qry:select>
+	<qry:select name="Paso4" doc="SOURCE">
+		<!--<qry:xquery>
+for $r in #SOURCE:LEGS/LEG
+</qry:xquery>
+<qry:out>
+<qry:if test="#LEGAJOS:ROW[@id = $r/@id]/@f_egreso != ''">
+<qry:then>
+<qry:element name="ROW">
+<qry:attribute name="id" value="#LEGAJOS:ROW[@id = $r/@id]/@id"/>
+<qry:attribute name="des" value="#LEGAJOS:ROW[@id = $r/@id]/@des"/>
+<qry:attribute name="cnt" value="#LEGAJOS:ROW[@id = $r/@id]/@cnt"/>
+<qry:attribute name="mod" value="#LEGAJOS:ROW[@id = $r/@id]/@mod_contr"/>
+<qry:attribute name="f_egreso" value="#LEGAJOS:ROW[@id = $r/@id]/@f_egreso"/>
+<qry:attribute name="oi_grupo" value="#PARAMIN:ASIGS/ASIG[@id=$r/@id]/@oi_grupo"/>
+<qry:attribute-doc doc="PARAMIN" name="oi_grupo" value="@oi_grupo"/>
+<qry:attribute name="grp" value="#GRUPOS:GRUPO[@oi_grupo = #PARAMIN:@oi_grupo]/@grp"/>
+<qry:attribute name="st" value="'A'"/>
+</qry:element>
+</qry:then>
+</qry:if>
+</qry:out>
+                 -->
+		<qry:xquery>
+			for $r in SQL(' 
+SELECT          
+LEG.e_numero_legajo as id,
+LEG.d_legajo as des,
+LEG.oi_grupo,
+GRP.d_grupo as grp
+FROM
+PRE05_LEGAJOS as LEG, 
+PRE08_GRUPOS as GRP
+JOIN
+LEG.oi_grupo inner GRP.oi_grupo
+WHERE			     
+LEG.oi_escenario={#PARAMIN:@oi_escenario} AND
+isNull(LEG.f_egreso)
+')/ROWS/ROW
+		</qry:xquery>
+		<qry:out>
+			<qry:element name="ROW">
+				<qry:attribute name="id" value="$r/@id"/>
+				<qry:attribute name="des" value="$r/@des"/>
+				<qry:attribute name="st" value="'P'"/>
+				<qry:attribute name="grp" value="$r/@grp"/>
+				<qry:attribute name="mod" value="'N/A'"/>
+				<qry:attribute name="oi_grupo" value="$r/@oi_grupo"/>
+				<qry:if test="#PARAMIN:LEGS/LEG[@id=$r/@id]/@id = ''">
+					<qry:then>
+						<qry:attribute name="hts:delete" value="1"/>
+					</qry:then>
+				</qry:if>
+			</qry:element>
+		</qry:out>
+	</qry:select>
+	<!--<qry:select name="QRY_GRUPOS" doc="SOURCE">
+	<qry:xquery>
+		for $r in SQL('
+SELECT 
+GRP.oi_grupo,
+GRP.d_grupo as grp
+FROM
+PRE08_GRUPOS as GRP
+WHERE			     
+GRP.oi_grupo in ({%=#SOURCE:ASIGS/ASIG/@oi_grupo %})
+
+')/ROWS/ROW
+	</qry:xquery>
+	<qry:out>
+		<qry:element name="GRUPO">
+			<qry:attribute name="oi_grupo" value="$r/@oi_grupo"/>
+			<qry:attribute name="grp" value="$r/@grp"/>
+		</qry:element>
+	</qry:out>
+</qry:select> -->
+</qry:define>

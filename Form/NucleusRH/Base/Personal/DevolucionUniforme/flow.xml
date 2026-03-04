@@ -1,0 +1,99 @@
+<flow:flow xmlns:flow="nomad_engine.flow" xmlns:doc="nomad_engine.doc" xmlns:qry="nomad_engine.qry" extends="Nomad.Base.flow" name="NucleusRH.Base.Personal.DevolucionUniforme.flow">
+	<flow:info label="flow para NucleusRH.Base.Personal.DevolucionUniforme"/>
+	<flow:declare>
+		<doc:define name="DATAGRID">
+			<ROWS/>
+		</doc:define>
+		<qry:define declare="&lt;DATA oi_personal_emp=&quot;11566&quot;/&gt;" name="QRY_UNIFORMES">
+			<qry:main doc="SOURCE">
+				<qry:element name="ROWS">
+					<qry:insert-select name="sql1" doc-path="#SOURCE:/DATA"/>
+				</qry:element>
+			</qry:main>
+			<qry:select name="sql1" doc="SOURCE">
+				<qry:xquery>
+					for $r in sql('
+				SELECT        
+					PER02_UNIF_PER.oi_uniforme_per,
+					PER02_UNIF_PER.f_desde,
+					ORG16_UNIFORMES.oi_uniforme,
+					PER02_UNIF_PER.e_cantidad,
+					PER02_UNIF_PER.e_pendiente,
+					ORG16_UNIFORMES.d_uniforme,					
+					PER37_MOT_ENTREGA.d_mot_entrega
+				FROM 
+					PER02_UNIF_PER,
+					ORG16_UNIFORMES,
+					PER37_MOT_ENTREGA
+				JOIN            
+					PER02_UNIF_PER.oi_uniforme INNER ORG16_UNIFORMES.oi_uniforme,
+					PER02_UNIF_PER.oi_mot_entrega LEFT OUTER PER37_MOT_ENTREGA.oi_mot_entrega
+				WHERE 					    
+					PER02_UNIF_PER.oi_personal_emp = {#SOURCE:@oi_personal_emp} AND
+					PER02_UNIF_PER.e_pendiente &gt; 0
+				ORDER BY  
+					d_uniforme ASC,
+					f_desde ASC		
+			')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<ROW>
+						<qry:attribute name="id" value="$r/@oi_uniforme_per"/>
+						<qry:attribute name="oi_uniforme" value="$r/@oi_uniforme"/>
+						<qry:attribute name="d_uniforme" value="$r/@d_uniforme"/>
+						<qry:attribute name="e_cantidad" value="$r/@e_cantidad"/>
+						<qry:attribute name="e_pendiente" value="$r/@e_pendiente"/>
+						<qry:attribute name="f_entrega1" value="$r/@f_desde"/>
+						<qry:attribute name="f_entrega" value="format_date($r/@f_desde, 'dd/mm/yyyy')"/>
+						<qry:attribute name="d_mot_entrega" value="iif($r/@d_mot_entrega != '', $r/@d_mot_entrega, 'Sin Motivo')"/>
+					</ROW>
+				</qry:out>
+			</qry:select>
+		</qry:define>
+		<doc:define name="FILTERDATA">
+			<DATA oi_personal_emp=""/>
+		</doc:define>
+	</flow:declare>
+	<flow:main doc="SOURCE">
+		<flow:action name="initialize">
+			<flow:open-form mode="FILTER" form-class="NucleusRH.Base.Personal.DevolucionUniforme.filter.form" doc-path="#FILTERDATA:"/>
+		</flow:action>
+	</flow:main>
+	<flow:form name="NucleusRH.Base.Personal.DevolucionUniforme.filter.form:FILTER" form-class="NucleusRH.Base.Personal.DevolucionUniforme.filter.form" mode="FILTER" parent-doc="PARENTSOURCE" doc="SOURCE">
+		<flow:action name="BACK">
+			<flow:close-form/>
+		</flow:action>
+		<flow:action name="Save-FILTER">
+			<flow:save-user-data doc-path="#FILTERDATA:" name="FILTER-NucleusRH.Base.Personal.DevolucionUniforme"/>
+		</flow:action>
+		<flow:action name="Load-FILTER">
+			<flow:load-user-data doc="FILTERDATA" name="FILTER-NucleusRH.Base.Personal.DevolucionUniforme"/>
+		</flow:action>
+		<flow:action name="FILTER">
+			<flow:call-action action="Save-FILTER"/>
+			<doc:load-qry input-doc-path="#FILTERDATA:" output-doc="DATAGRID" qry="QRY_UNIFORMES"/>
+			<flow:open-form parent-doc-path="#DATAGRID:" doc-path="#DATAGRID:" form-class="NucleusRH.Base.Personal.DevolucionUniforme.form" mode="SHOW"/>
+		</flow:action>
+		<flow:action name="on-show">
+			<flow:call-action action="Load-FILTER"/>
+		</flow:action>
+	</flow:form>
+	<flow:form name="NucleusRH.Base.Personal.DevolucionUniforme.form:SHOW" mode="SHOW" parent-doc="PARENTSOURCE" doc="SOURCE" form-class="NucleusRH.Base.Personal.DevolucionUniforme.form">
+		<flow:action name="REFRESH">
+			<doc:set-attribute from-attr-path="#FORM:ctrl[@id='oi_personal_emp']/@xval" to-attr-path="#FILTERDATA:@oi_personal_emp"/>
+			<flow:close-form next-action="FILTER"/>
+		</flow:action>
+		<flow:action name="BACK">
+			<flow:close-form/>
+		</flow:action>
+		<flow:action name="EXECUTE">
+			<flow:log text="ppsourceunif" text-path="#SOURCE:"/>
+			<flow:exec-method method="DevolucionUniforme" priority="6" out-attr-path="#BATCHDOC:@batch-id" class="NucleusRH.Base.Personal.LegajoEmpresa.PERSONAL_EMP">
+				<flow:param attr-path="#FILTERDATA:@oi_personal_emp" name="oi_personal_emp" type="Nomad.NSystem.String" mode="in"/>
+				<flow:param doc-path="#SOURCE:" name="param" type="Nomad.NSystem.Proxy.NomadXML" mode="in"/>
+			</flow:exec-method>
+			<flow:open-form form-class="nomad.base.batchtolist.form" mode="BATCH" doc-path="#BATCHDOC:"/>
+			<flow:call-action action="BACK"/>
+		</flow:action>
+	</flow:form>
+</flow:flow>

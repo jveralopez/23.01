@@ -1,0 +1,76 @@
+<flow:flow xmlns:flow="nomad_engine.flow" xmlns:doc="nomad_engine.doc" xmlns:qry="nomad_engine.qry" name="NucleusRH.Base.Tiempos_Trabajados.Personal.Licencias.flow" extends="NucleusRH.Base.Tiempos_Trabajados.Personal.flow" default_action="initialize">
+	<flow:info label="Flow para NucleusRH.Base.Tiempos_Trabajados.Personal."/>
+	<flow:declare>
+		<doc:define name="FILTERDATA">
+			<FILTRO/>
+		</doc:define>
+		<doc:define name="PAR"/>
+		<qry:define name="qry_parametro_lic">
+			<qry:main doc="SOURCE">
+				<qry:element name="ROW">
+					<qry:attribute name="CantidadDiasModificar" value="'180'"/>
+					<qry:insert-select name="sql1" doc-path="#SOURCE:."/>
+				</qry:element>
+			</qry:main>
+			<qry:select doc="SOURCE" name="sql1">
+				<qry:xquery>
+					for $r in SQL('
+			SELECT  
+			ORG26_PARAMETROS.d_valor
+			FROM 
+			ORG26_PARAMETROS
+			WHERE 
+			ORG26_PARAMETROS.c_parametro = \'CantidadDiasModificar\'
+			')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:attribute name="CantidadDiasModificar" value="$r/@d_valor"/>
+				</qry:out>
+			</qry:select>
+		</qry:define>
+	</flow:declare>
+	<flow:main doc="SOURCE">
+		<flow:action name="initialize">
+			<doc:load-qry output-doc="PAR" qry="qry_parametro_lic"/>
+			<flow:open-form mode="FILTER" form-class="NucleusRH.Base.Tiempos_Trabajados.Personal.Licencias.filter.form" parent-doc-path="#FILTERDATA:" doc-path="#FILTERDATA:"/>
+		</flow:action>
+		<flow:action name="initializerep">
+			<doc:load-qry output-doc="PAR" qry="qry_parametro_lic"/>
+			<doc:set-attribute from-attr-path="#SOURCE:@periodo" to-attr-path="#FILTERDATA:@periodo"/>
+			<doc:new-object class="NucleusRH.Base.Tiempos_Trabajados.Personal.PERSONAL_EMP" doc="DDO"/>
+			<doc:load-object id-path="#SOURCE:@oi_personal_emp" class="NucleusRH.Base.Tiempos_Trabajados.Personal.PERSONAL_EMP" doc="DDO"/>
+			<flow:open-form iter-index="#DDO:LICEN_PER/LICENCIA_PER/@id" parent-doc-path="#DDO:LICEN_PER" doc-path="#DDO:LICEN_PER" form-class="NucleusRH.Base.Tiempos_Trabajados.Personal.Licencias.form" mode="EDIT"/>
+		</flow:action>
+	</flow:main>
+	<flow:group name="LICENCIA_PER">
+		<flow:form form-class="NucleusRH.Base.Tiempos_Trabajados.Personal.Licencias.filter.form" name="NucleusRH.Base.Tiempos_Trabajados.Personal.Licencias.filter.form:FILTER" mode="FILTER" parent-doc="PARENTSOURCE" doc="SOURCE">
+			<flow:action name="BACK">
+				<flow:close-form/>
+			</flow:action>
+			<flow:action name="Save-FILTER">
+				<flow:save-user-data name="FILTER-NucleusRH.Base.Tiempos_Trabajados.Personal.Licencias" doc-path="#FILTERDATA:"/>
+			</flow:action>
+			<flow:action name="Load-FILTER">
+				<flow:load-user-data name="FILTER-NucleusRH.Base.Tiempos_Trabajados.Personal.Licencias" doc="FILTERDATA"/>
+			</flow:action>
+			<flow:action name="FILTER">
+				<flow:call-action action="Save-FILTER"/>
+				<doc:new-object class="NucleusRH.Base.Tiempos_Trabajados.Personal.PERSONAL_EMP" doc="DDO"/>
+				<doc:load-object id-path="#FILTERDATA:@oi_personal_emp" class="NucleusRH.Base.Tiempos_Trabajados.Personal.PERSONAL_EMP" doc="DDO"/>
+				<flow:open-form iter-index="#DDO:LICEN_PER/LICENCIA_PER/@id" parent-doc-path="#DDO:LICEN_PER" doc-path="#DDO:LICEN_PER" form-class="NucleusRH.Base.Tiempos_Trabajados.Personal.Licencias.form" mode="EDIT"/>
+			</flow:action>
+			<flow:action name="on-show">
+				<flow:call-action action="Load-FILTER"/>
+			</flow:action>
+		</flow:form>
+		<flow:form extends="NucleusRH.Base.Tiempos_Trabajados.Personal.HORARIOPERS.form:EDIT" form-class="NucleusRH.Base.Tiempos_Trabajados.Personal.Licencias.form" name="NucleusRH.Base.Tiempos_Trabajados.Personal.Licencias.form:EDIT" mode="EDIT" parent-doc="PARENTSOURCE" doc="SOURCE">
+			<flow:action name="REFRESH">
+				<doc:set-attribute from-attr-path="#FORM:ctrl[@id='oi_personal_emp']/@xval" to-attr-path="#FILTERDATA:@oi_personal_emp"/>
+				<flow:close-form next-action="FILTER"/>
+			</flow:action>
+			<flow:action name="SAVE">
+				<doc:save-object class="NucleusRH.Base.Tiempos_Trabajados.Personal.PERSONAL_EMP" doc="DDO"/>
+			</flow:action>
+		</flow:form>
+	</flow:group>
+</flow:flow>

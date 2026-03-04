@@ -1,0 +1,176 @@
+<flow:flow xmlns:flow="nomad_engine.flow" xmlns:doc="nomad_engine.doc" xmlns:qry="nomad_engine.qry" default_action="novedades" name="NucleusRH.Base.Liquidacion.Variables.CargaMasivaManual.flow">
+	<flow:info label="NucleusRH.Base.Liquidacion.Variables.CargaMasivaManual.flow"/>
+	<flow:declare>
+		<doc:define name="FILTERDATA">
+			<DATA/>
+		</doc:define>
+		<doc:define name="DATOS"/>
+		<qry:define declare="&lt;DATA tipo=&quot;'fp'&quot; oi_empresa=&quot;10&quot; oi_variable=&quot;892&quot; /&gt;" name="qry_datos_fp">
+			<qry:main doc="SOURCE">
+				<DATOS>
+					<qry:insert-select name="qry0" doc-path="$SOURCE/DATA"/>
+					<ROWS>
+						<qry:insert-select name="qry1" doc-path="$SOURCE/DATA"/>
+					</ROWS>
+				</DATOS>
+			</qry:main>
+			<qry:select name="qry0" doc="SOURCE">
+				<qry:xquery>
+					for $r in SQL('SELECT v.c_tipo_dato FROM LIQ09_VARIABLES as v WHERE v.oi_variable = {$SOURCE/@oi_variable}')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:attribute name="c_tipo_dato" value="$r/@c_tipo_dato"/>
+				</qry:out>
+			</qry:select>
+			<qry:select name="qry1" doc="SOURCE">
+				<qry:xquery>
+					for $r in SQL('
+			SELECT l.oi_personal_emp, l.e_numero_legajo, p.d_ape_y_nom, v.n_valor
+			FROM 
+				PER01_PERSONAL as p, 
+				PER02_PERSONAL_EMP as l,
+				(SELECT lv.oi_val_varef, lp.oi_personal_emp, lv.n_valor
+				FROM PER02_PERSONAL_EMP as lp, LIQ07_VAL_VAREF as lv
+				JOIN 
+					lp.oi_personal_emp inner lv.oi_personal_emp
+				WHERE 
+					lp.oi_empresa = {%=$SOURCE/@oi_empresa%} and
+					lv.oi_variable = {%=$SOURCE/@oi_variable%}) as v
+			JOIN 
+				p.oi_personal INNER l.oi_personal,
+				l.oi_personal_emp LEFT OUTER v.oi_personal_emp
+			WHERE 
+				l.oi_empresa = {$SOURCE/@oi_empresa}
+				and l.oi_indic_activo = 1
+			ORDER BY e_numero_legajo asc
+			')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:element name="ROW">
+						<qry:attribute name="pos" value="$r/@_position"/>
+						<qry:attribute name="id" value="$r/@oi_personal_emp"/>
+						<qry:attribute name="leg" value="$r/@e_numero_legajo"/>
+						<qry:attribute name="nom" value="$r/@d_ape_y_nom"/>
+						<qry:attribute name="val" value="$r/@n_valor"/>
+						<qry:attribute name="orig" value="$r/@n_valor"/>
+						<qry:attribute name="idvar" value="$r/@oi_val_varef"/>
+					</qry:element>
+				</qry:out>
+			</qry:select>
+		</qry:define>
+		<qry:define declare="&lt;DATA tipo=&quot;np&quot; oi_empresa=&quot;10&quot; oi_variable=&quot;867&quot; oi_liquidacion=&quot;133&quot; /&gt;" name="qry_datos_np">
+			<qry:main doc="SOURCE">
+				<DATOS>
+					<qry:insert-select name="qry0" doc-path="$SOURCE/DATA"/>
+					<ROWS>
+						<qry:insert-select name="qry1" doc-path="$SOURCE/DATA"/>
+					</ROWS>
+				</DATOS>
+			</qry:main>
+			<qry:select name="qry0" doc="SOURCE">
+				<qry:xquery>
+					for $r in SQL('SELECT v.c_tipo_dato FROM LIQ09_VARIABLES as v WHERE v.oi_variable = {$SOURCE/@oi_variable}')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:attribute name="c_tipo_dato" value="$r/@c_tipo_dato"/>
+				</qry:out>
+			</qry:select>
+			<qry:select name="qry1" doc="SOURCE">
+				<qry:xquery>
+					for $r in SQL('
+				SELECT x.oi_personal_liq, l.e_numero_legajo, p.d_ape_y_nom, v.n_valor
+				FROM
+					LIQ25_PERSONAL_LIQ AS x, 
+					LIQ25_VAL_VAREN (LIQ25_VAL_VAREN.oi_variable={%=$SOURCE/@oi_variable%}) AS v,
+					PER02_PERSONAL_EMP AS l,
+					PER01_PERSONAL AS p
+				JOIN
+					x.oi_personal_liq LEFT OUTER v.oi_personal_liq,
+					x.oi_personal_emp INNER l.oi_personal_emp,
+					l.oi_personal INNER p.oi_personal
+				WHERE
+					x.oi_liquidacion = {$SOURCE/@oi_liquidacion}
+				ORDER BY e_numero_legajo asc
+			')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:element name="ROW">
+						<qry:attribute name="pos" value="$r/@_position"/>
+						<qry:attribute name="id" value="$r/@oi_personal_liq"/>
+						<qry:attribute name="leg" value="$r/@e_numero_legajo"/>
+						<qry:attribute name="nom" value="$r/@d_ape_y_nom"/>
+						<qry:attribute name="val" value="$r/@n_valor"/>
+						<qry:attribute name="orig" value="$r/@n_valor"/>
+						<qry:attribute name="idvar" value="$r/@oi_val_varen"/>
+						<qry:attribute name="t" value="$r/@c_tipo_dato"/>
+					</qry:element>
+				</qry:out>
+			</qry:select>
+		</qry:define>
+	</flow:declare>
+	<flow:main doc="SOURCE">
+		<flow:action name="fijas">
+			<doc:set-attribute from-value="fp" to-attr-path="#FILTERDATA:@tipo"/>
+			<flow:open-form form-class="NucleusRH.Base.Liquidacion.Variables.CargaMasivaManual.FP.filter" doc-path="#FILTERDATA:" mode="SHOW"/>
+		</flow:action>
+		<flow:action name="novedades">
+			<doc:set-attribute from-value="np" to-attr-path="#FILTERDATA:@tipo"/>
+			<flow:open-form form-class="NucleusRH.Base.Liquidacion.Variables.CargaMasivaManual.NP.filter" doc-path="#FILTERDATA:" mode="SHOW"/>
+		</flow:action>
+	</flow:main>
+	<flow:form mode="FILTER" form-class="NucleusRH.Base.Liquidacion.Variables.CargaMasivaManual.NP.filter" name="NucleusRH.Base.Liquidacion.Variables.CargaMasivaManual.filter" doc="SOURCE">
+		<flow:action name="on-open">
+			<flow:call-action action="Load-FILTER"/>
+		</flow:action>
+		<flow:action name="EXECUTE">
+			<flow:call-action action="Save-FILTER"/>
+			<flow:call-action action="RUN"/>
+		</flow:action>
+		<flow:action name="BACK">
+			<flow:close-form/>
+		</flow:action>
+		<flow:action name="Load-FILTER"/>
+		<flow:action name="Save-FILTER"/>
+		<flow:action name="RUN"/>
+	</flow:form>
+	<flow:form extends="NucleusRH.Base.Liquidacion.Variables.CargaMasivaManual.filter" form-class="NucleusRH.Base.Liquidacion.Variables.CargaMasivaManual.FP.filter" name="NucleusRH.Base.Liquidacion.Variables.CargaMasivaManual.FP.filter" mode="SHOW" doc="SOURCE">
+		<flow:action name="RUN">
+			<doc:load-qry qry="qry_datos_fp" output-doc="DATOS" input-doc-path="#SOURCE:"/>
+			<doc:save-file name-ext="#PROXY:DATA/@TOKEN" name="CMM" group="TEMP" doc-path="#DATOS:"/>
+			<flow:open-form form-class="NucleusRH.Base.Liquidacion.Variables.CargaMasivaManual.form" doc-path="#SOURCE:" mode="FP"/>
+		</flow:action>
+		<flow:action name="Load-FILTER">
+			<flow:load-user-data name="FILTER-NucleusRH.Base.Liquidacion.Variables.CargaMasivaManual.FP" doc="SOURCE"/>
+		</flow:action>
+		<flow:action name="Save-FILTER">
+			<flow:save-user-data name="FILTER-NucleusRH.Base.Liquidacion.Variables.CargaMasivaManual.FP" doc-path="#SOURCE:"/>
+		</flow:action>
+	</flow:form>
+	<flow:form extends="NucleusRH.Base.Liquidacion.Variables.CargaMasivaManual.filter" form-class="NucleusRH.Base.Liquidacion.Variables.CargaMasivaManual.NP.filter" name="NucleusRH.Base.Liquidacion.Variables.CargaMasivaManual.NP.filter" mode="SHOW" doc="SOURCE">
+		<flow:action name="RUN">
+			<doc:load-qry qry="qry_datos_np" output-doc="DATOS" input-doc-path="#SOURCE:"/>
+			<doc:save-file name-ext="#PROXY:DATA/@TOKEN" name="CMM" group="TEMP" doc-path="#DATOS:"/>
+			<flow:open-form form-class="NucleusRH.Base.Liquidacion.Variables.CargaMasivaManual.form" doc-path="#SOURCE:" mode="NP"/>
+		</flow:action>
+		<flow:action name="Load-FILTER">
+			<flow:load-user-data name="FILTER-NucleusRH.Base.Liquidacion.Variables.CargaMasivaManual.NP" doc="SOURCE"/>
+		</flow:action>
+		<flow:action name="Save-FILTER">
+			<flow:save-user-data name="FILTER-NucleusRH.Base.Liquidacion.Variables.CargaMasivaManual.NP" doc-path="#SOURCE:"/>
+		</flow:action>
+	</flow:form>
+	<flow:form extends="NucleusRH.Base.Liquidacion.Variables.CargaMasivaManual.form" name="NucleusRH.Base.Liquidacion.Variables.CargaMasivaManual.NP.form" mode="NP" form-class="NucleusRH.Base.Liquidacion.Variables.CargaMasivaManual.form" doc="SOURCE"/>
+	<flow:form extends="NucleusRH.Base.Liquidacion.Variables.CargaMasivaManual.form" name="NucleusRH.Base.Liquidacion.Variables.CargaMasivaManual.FP.form" mode="FP" form-class="NucleusRH.Base.Liquidacion.Variables.CargaMasivaManual.form" doc="SOURCE"/>
+	<flow:form doc="SOURCE" mode="show" name="NucleusRH.Base.Liquidacion.Variables.CargaMasivaManual.form" form-class="NucleusRH.Base.Liquidacion.Variables.CargaMasivaManual.form">
+		<flow:action name="BACK">
+			<flow:close-form/>
+		</flow:action>
+		<flow:action name="SAVE">
+			<flow:exec-method class="NucleusRH.Base.Liquidacion.Legajo_Liquidacion.PERSONAL_EMP" method="CargaMasivaManual">
+				<flow:param doc="SOURCE" type="Nomad.NSystem.Proxy.NomadXML" mode="in" name="FILTRO"/>
+				<flow:param doc="DATOS" type="Nomad.NSystem.Proxy.NomadXML" mode="in" name="DATA"/>
+			</flow:exec-method>
+			<flow:close-form/>
+		</flow:action>
+	</flow:form>
+</flow:flow>

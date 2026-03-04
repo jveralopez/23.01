@@ -1,0 +1,812 @@
+<flow:flow xmlns:flow="nomad_engine.flow" xmlns:doc="nomad_engine.doc" xmlns:qry="nomad_engine.qry" default_action="initialize" extends="NucleusRH.Base.Capacitacion.Dictados.autoflow" name="NucleusRH.Base.Capacitacion.Dictados">
+	<flow:info label="Flow para NucleusRH.Base.Capacitacion.Dictados"/>
+	<flow:declare>
+		<doc:define name="FILTERDATA">
+			<FILTRO oi_curso="" c_estado="" f_desde="" f_hasta="" ATRIB_ORDEN1="" ORDEN1="" ATRIB_ORDEN2="" ORDEN2="" ATRIB_ORDEN3="" ORDEN3="" ATRIB_ORDEN4="" ORDEN4="">
+				<DICTADOS/>
+			</FILTRO>
+		</doc:define>
+		<doc:define name="VALORES"/>
+		<doc:define name="PARAM_ASISTENCIAS">
+			<DATOS oi_dictado="" oi_clase=""/>
+		</doc:define>
+		<doc:define name="ASISTENCIAS">
+			<ROWS/>
+		</doc:define>
+		<qry:define declare="&lt;EVAL_ASIST descr=&quot;[1] AFIANZAMIENTO PROFESIONAL - [15]  - [01] 01&quot; f_eval_asist=&quot;20071001&quot; oi_inscripto=&quot;5&quot; id=&quot;1&quot;&gt;&#13;&#10;  &lt;oi_evaluacion value=&quot;2&quot; nmd-agr=&quot;1&quot; /&gt;&#13;&#10;  &lt;oi_valor nmd-agr=&quot;1&quot; /&gt;&#13;&#10;  &lt;FACT_EV_AS nmd-col=&quot;1&quot;&gt;&#13;&#10;    &lt;FACT_EV_AS descr=&quot;[1] AFIANZAMIENTO PROFESIONAL - [15]  - [01] 01 - [01] 01&quot; oi_eval_asist=&quot;1&quot; id=&quot;1&quot; n_resultado=&quot;&quot; o_fact_ev_as=&quot;&quot;&gt;&#13;&#10;      &lt;oi_factor_eval value=&quot;1&quot; nmd-agr=&quot;1&quot; /&gt;&#13;&#10;      &lt;oi_valor nmd-agr=&quot;1&quot; value=&quot;&quot; /&gt;&#13;&#10;    &lt;/FACT_EV_AS&gt;&#13;&#10;  &lt;/FACT_EV_AS&gt;&#13;&#10;&lt;/EVAL_ASIST&gt;" name="qry_valores">
+			<qry:main doc="SOURCE">
+				<qry:element name="OPTS">
+					<qry:insert-select name="sql1" doc-path="#SOURCE:EVAL_ASIST"/>
+				</qry:element>
+			</qry:main>
+			<qry:select name="sql1" doc="SOURCE">
+				<qry:xquery>
+					for $r in sql('
+				SELECT 
+					CYD14_VALORES.oi_valor,
+					CYD14_VALORES.c_valor,
+					CYD14_VALORES.d_valor
+				FROM 
+					CYD14_VALORES,
+					CYD12_EVALUACIONES
+				JOIN
+					CYD14_VALORES.oi_escala INNER CYD12_EVALUACIONES.oi_escala
+				WHERE 
+					CYD12_EVALUACIONES.oi_evaluacion = {#SOURCE:oi_evaluacion/@value}
+			')ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:element name="OPT">
+						<qry:attribute name="value" value="$r/@oi_valor"/>
+						<qry:attribute name="code" value="$r/@c_valor"/>
+						<qry:attribute name="text" value="$r/@d_valor"/>
+					</qry:element>
+				</qry:out>
+			</qry:select>
+		</qry:define>
+		<qry:define declare="&lt;FILTRO oi_curso=&quot;&quot; c_estado=&quot;&quot; f_desde=&quot;&quot; f_hasta=&quot;&quot; ATRIB_ORDEN1=&quot;&quot; ORDEN1=&quot;&quot; ATRIB_ORDEN2=&quot;&quot; ORDEN2=&quot;&quot; ATRIB_ORDEN3=&quot;&quot; ORDEN3=&quot;&quot; ATRIB_ORDEN4=&quot;&quot; ORDEN4=&quot;&quot; oi_personal_emp=&quot;&quot;&gt;&lt;DICTADOS&gt;&lt;DICTADO id=&quot;&quot; /&gt;&lt;/DICTADOS&gt;&lt;/FILTRO&gt;" name="FILTER">
+			<qry:main doc="SOURCE" maxdeep="2">
+				<qry:element name="ROWS">
+					<qry:insert-select name="sql1" doc-path="#SOURCE:FILTRO"/>
+				</qry:element>
+			</qry:main>
+			<qry:select doc="SOURCE" name="sql1">
+				<qry:xquery>
+					for $r in sql('
+				SELECT 
+					t0.oi_dictado as oi_dictado,
+					t0.c_dictado as c_dictado,
+					t0.c_estado as c_estado,
+					t0.oi_curso as oi_curso,
+					t0.f_inicio as f_inicio
+					{%? (#SOURCE:@oi_personal_emp!='')	
+							{% ,	CYD02_INSCRIPTOS.oi_personal_emp %} 
+							{% %} 
+					%}		 
+				FROM 
+					CYD02_DICTADOS as t0
+					{%? (#SOURCE:@oi_personal_emp!='')	
+							{% ,	CYD02_INSCRIPTOS JOIN t0.oi_dictado INNER CYD02_INSCRIPTOS.oi_dictado %}
+							{% %} 
+					%}
+				WHERE 1=1
+					{%? (#SOURCE:@oi_curso!='')	{% AND t0.oi_curso = {#SOURCE:@oi_curso} %} {% %} %}
+					{%? (#SOURCE:@c_estado!='')	{% AND t0.c_estado = {#SOURCE:@c_estado} %} {% %} %}
+					{%? (#SOURCE:@oi_personal_emp!='')	{% AND CYD02_INSCRIPTOS.oi_personal_emp = {#SOURCE:@oi_personal_emp} %} {% %} %}
+	    		{%? (#SOURCE:@f_desde!='') {% AND t0.f_inicio &gt;= {Datetime(#SOURCE:@f_desde)} %} {% %} %}
+	    		{%? (#SOURCE:@f_hasta!='') {% AND t0.f_fin &lt;= {Datetime(#SOURCE:@f_hasta)+1} %} {% %} %}       		
+	    	  {%? (string(#SOURCE:DICTADOS/DICTADO/@id)!='') {% AND t0.oi_dictado in ({%=string(#SOURCE:DICTADOS/DICTADO/@id) %}) %} {%  %} %}
+    	  ORDER BY 
+	     	  {%? (#SOURCE:@ATRIB_ORDEN1!='')	{% {%=#SOURCE:@ATRIB_ORDEN1%} {%? (#SOURCE:@ORDEN1!='') {% {%=#SOURCE:@ORDEN1%}, %} {% ASC, %}	%} %} {% %} %}
+	     	  {%? (#SOURCE:@ATRIB_ORDEN2!='')	{% {%=#SOURCE:@ATRIB_ORDEN2%} {%? (#SOURCE:@ORDEN2!='') {% {%=#SOURCE:@ORDEN2%}, %} {% ASC, %}	%} %} {% %} %}
+	     		{%? (#SOURCE:@ATRIB_ORDEN3!='')	{% {%=#SOURCE:@ATRIB_ORDEN3%} {%? (#SOURCE:@ORDEN3!='') {% {%=#SOURCE:@ORDEN3%}, %} {% ASC, %}	%} %} {% %} %}
+	     		{%? (#SOURCE:@ATRIB_ORDEN4!='')	{% {%=#SOURCE:@ATRIB_ORDEN4%} {%? (#SOURCE:@ORDEN4!='') {% {%=#SOURCE:@ORDEN4%}, %} {% ASC, %}	%} %} {% %} %}     		     		
+	     		oi_dictado ASC
+			')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:element name="ROW">
+						<qry:attribute name="policy" value="$r/@policy"/>
+						<qry:attribute name="id" value="$r/@oi_dictado"/>
+					</qry:element>
+				</qry:out>
+			</qry:select>
+		</qry:define>
+		<qry:define declare="&lt;FILTRO oi_curso=&quot;&quot; c_estado=&quot;&quot; f_desde=&quot;&quot; f_hasta=&quot;&quot; ATRIB_ORDEN1=&quot;&quot; ORDEN1=&quot;&quot; ATRIB_ORDEN2=&quot;&quot; ORDEN2=&quot;&quot; ATRIB_ORDEN3=&quot;&quot; ORDEN3=&quot;&quot; ATRIB_ORDEN4=&quot;&quot; ORDEN4=&quot;&quot; oi_personal_emp=&quot;&quot;&gt;&lt;DICTADOS&gt;&lt;DICTADO id=&quot;&quot; /&gt;&lt;/DICTADOS&gt;&lt;/FILTRO&gt;" name="LIST">
+			<qry:main doc="SOURCE" maxdeep="2">
+				<qry:element name="ROWS">
+					<qry:insert-select name="sql1" doc-path="#SOURCE:FILTRO"/>
+				</qry:element>
+			</qry:main>
+			<qry:select doc="SOURCE" name="sql1">
+				<qry:xquery>
+					for $r in sql('
+				SELECT 
+					t0.oi_dictado as oi_dictado, 
+					t0.c_dictado as c_dictado, 
+					t0.d_dictado as d_dictado, 
+					t0.f_inicio as f_inicio, t0.f_fin as f_fin, 
+					t0.n_duracion_hs as n_duracion_hs, 
+					t0.c_estado as c_estado, t0.f_estado as f_estado, 
+					t0.l_externo as l_externo, 
+					t0.d_organizador as d_organizador, 
+					t0.e_min_asistencia as e_min_asistencia, 
+					t0.e_cupo_min as e_cupo_min, 
+					t0.e_cupo_max as e_cupo_max, 
+					t0.e_cupo_prev as e_cupo_prev, 
+					t0.e_cupo_conv as e_cupo_conv, 
+					t0.e_cupo_real as e_cupo_real, 
+					t0.c_tipo_asistencia as c_tipo_asistencia, 
+					t0.c_dictado as CODE, t0.d_dictado as TEXT, 
+					t0.oi_curso as oi_curso,   
+					t0.l_evalua as l_evalua,
+					cur.c_curso as c_curso, 
+					t0.oi_estructura as oi_estructura, 
+					t0.oi_proveedor as oi_proveedor, 
+					t0.oi_lugar_dictado as oi_lugar_dictado
+					{%? 
+							(#SOURCE:@oi_personal_emp!='')	
+							{% ,CYD02_INSCRIPTOS.oi_personal_emp %} 
+							{% %} 
+					%}				    		
+					
+				FROM 
+					CYD02_DICTADOS as t0,
+					CYD01_CURSOS as cur					
+					{%? 
+							(#SOURCE:@oi_personal_emp!='')	
+							{% ,CYD02_INSCRIPTOS JOIN t0.oi_dictado INNER CYD02_INSCRIPTOS.oi_dictado %} 
+							{% %} 
+					%}
+				JOIN
+					t0.oi_curso INNER cur.oi_curso				
+				WHERE 1=1
+					{%? (#SOURCE:@oi_curso!='')	{% AND t0.oi_curso = {#SOURCE:@oi_curso} %} {% %} %}
+					{%? (#SOURCE:@c_estado!='')	{% AND t0.c_estado = {#SOURCE:@c_estado} %} {% %} %}
+					{%? (#SOURCE:@oi_personal_emp!='')	{% AND CYD02_INSCRIPTOS.oi_personal_emp = {#SOURCE:@oi_personal_emp} %} {% %} %}				    		
+	    		{%? (#SOURCE:@f_desde!='') {% AND t0.f_inicio &gt;= {Datetime(#SOURCE:@f_desde)} %} {% %} %}
+	    		{%? (#SOURCE:@f_hasta!='')	{% AND t0.f_fin &lt;= {Datetime(#SOURCE:@f_hasta)+1} %} {% %} %}    		
+	    	  {%? (string(#SOURCE:DICTADOS/DICTADO/@id)!='') {% AND t0.oi_dictado in ({%=string(#SOURCE:DICTADOS/DICTADO/@id) %}) %} {%  %} %}
+	    	ORDER BY 
+	     	  {%? (#SOURCE:@ATRIB_ORDEN1!='')	{% {%=#SOURCE:@ATRIB_ORDEN1%} {%? (#SOURCE:@ORDEN1!='') {% {%=#SOURCE:@ORDEN1%}, %} {% ASC, %}	%} %} {% %} %}
+	     	  {%? (#SOURCE:@ATRIB_ORDEN2!='')	{% {%=#SOURCE:@ATRIB_ORDEN2%} {%? (#SOURCE:@ORDEN2!='') {% {%=#SOURCE:@ORDEN2%}, %} {% ASC, %}	%} %} {% %} %}
+	     		{%? (#SOURCE:@ATRIB_ORDEN3!='')	{% {%=#SOURCE:@ATRIB_ORDEN3%} {%? (#SOURCE:@ORDEN3!='') {% {%=#SOURCE:@ORDEN3%}, %} {% ASC, %}	%} %} {% %} %}
+	     		{%? (#SOURCE:@ATRIB_ORDEN4!='')	{% {%=#SOURCE:@ATRIB_ORDEN4%} {%? (#SOURCE:@ORDEN4!='') {% {%=#SOURCE:@ORDEN4%}, %} {% ASC, %}	%} %} {% %} %}     		     		
+	     		oi_dictado ASC
+			')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:element name="ROW">
+						<qry:attribute name="policy" value="$r/@policy"/>
+						<qry:attribute name="id" value="$r/@oi_dictado"/>
+						<qry:attribute name="c_dictado" value="$r/@c_dictado"/>
+						<qry:attribute name="d_dictado" value="$r/@d_dictado"/>
+						<qry:attribute name="f_inicio" value="$r/@f_inicio"/>
+						<qry:attribute name="f_fin" value="$r/@f_fin"/>
+						<qry:attribute name="n_duracion_hs" value="$r/@n_duracion_hs"/>
+						<qry:attribute name="c_estado" value="$r/@c_estado"/>
+						<qry:attribute name="f_estado" value="$r/@f_estado"/>
+						<qry:attribute name="l_evalua" value="$r/@l_evalua"/>
+						<qry:attribute name="l_externo" value="$r/@l_externo"/>
+						<qry:attribute name="d_organizador" value="$r/@d_organizador"/>
+						<qry:attribute name="e_min_asistencia" value="$r/@e_min_asistencia"/>
+						<qry:attribute name="e_cupo_min" value="$r/@e_cupo_min"/>
+						<qry:attribute name="e_cupo_max" value="$r/@e_cupo_max"/>
+						<qry:attribute name="e_cupo_prev" value="$r/@e_cupo_prev"/>
+						<qry:attribute name="e_cupo_conv" value="$r/@e_cupo_conv"/>
+						<qry:attribute name="e_cupo_real" value="$r/@e_cupo_real"/>
+						<qry:attribute name="c_tipo_asistencia" value="$r/@c_tipo_asistencia"/>
+						<qry:attribute name="CODE" value="$r/@CODE"/>
+						<qry:attribute name="TEXT" value="$r/@TEXT"/>
+						<qry:attribute name="oi_curso" value="$r/@c_curso"/>
+						<qry:attribute name="oi_estructura" value="$r/@oi_estructura"/>
+						<qry:attribute name="oi_proveedor" value="$r/@oi_proveedor"/>
+						<qry:attribute name="oi_lugar_dictado" value="$r/@oi_lugar_dictado"/>
+					</qry:element>
+				</qry:out>
+			</qry:select>
+		</qry:define>
+		<qry:define declare="&lt;EVAL_ASIST descr=&quot;Nuevo&quot; nmd-status=&quot;~i,&quot; f_eval_asist=&quot;20080101&quot; n_resultado=&quot;&quot; o_eval_asist=&quot;&quot; id=&quot;~1C041A024CC2-1CE4E38244A4-00000000002A&quot;&gt;&#13;&#10;  &lt;oi_evaluacion nmd-agr=&quot;1&quot; value=&quot;1&quot; nmd-status=&quot;~u,value,&quot; /&gt;&#13;&#10;  &lt;oi_valor nmd-agr=&quot;1&quot; /&gt;&#13;&#10;  &lt;FACT_EV_AS nmd-col=&quot;1&quot;&gt;&#13;&#10;    &lt;FACT_EV_AS descr=&quot;Nuevo&quot; nmd-status=&quot;~i,&quot; id=&quot;~1C041A024CC2-1CE4FBEB3816-00000000002B&quot;&gt;&#13;&#10;      &lt;oi_factor_eval nmd-agr=&quot;1&quot; /&gt;&#13;&#10;      &lt;oi_valor nmd-agr=&quot;1&quot; /&gt;&#13;&#10;    &lt;/FACT_EV_AS&gt;&#13;&#10;  &lt;/FACT_EV_AS&gt;&#13;&#10;&lt;/EVAL_ASIST&gt;" name="qry_valores_fact">
+			<qry:main doc="SOURCE">
+				<qry:element name="ESCALAS">
+					<qry:insert-select name="sql1" doc-path="#SOURCE:EVAL_ASIST"/>
+				</qry:element>
+			</qry:main>
+			<qry:select name="sql1" doc="SOURCE">
+				<qry:xquery>
+					for $r in sql('
+			SELECT 
+				CYD12_FACTORES_EVAL.oi_escala,
+				CYD12_FACTORES_EVAL.oi_factor_eval
+			FROM
+				CYD12_FACTORES_EVAL
+			WHERE
+				CYD12_FACTORES_EVAL.oi_evaluacion = {#SOURCE:oi_evaluacion/@value}
+			')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:element name="ESCALA">
+						<qry:attribute name="oi_escala" value="$r/@oi_escala"/>
+						<qry:attribute name="id" value="$r/@oi_factor_eval"/>
+						<qry:element name="OPTS">
+							<qry:insert-select name="sql2" doc-path=".."/>
+						</qry:element>
+					</qry:element>
+				</qry:out>
+			</qry:select>
+			<qry:select name="sql2" doc="SOURCE">
+				<qry:xquery>
+					for $r in sql('
+			SELECT CYD14_VALORES.oi_valor, CYD14_VALORES.c_valor, CYD14_VALORES.d_valor 
+			FROM CYD14_VALORES
+			WHERE CYD14_VALORES.oi_escala = {#SOURCE:@oi_escala}
+			')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:element name="OPT">
+						<qry:attribute name="value" value="$r/@oi_valor"/>
+						<qry:attribute name="code" value="$r/@c_valor"/>
+						<qry:attribute name="text" value="$r/@d_valor"/>
+					</qry:element>
+				</qry:out>
+			</qry:select>
+		</qry:define>
+		<qry:define declare="&lt;DATOS oi_dictado=&quot;22&quot; oi_clase=&quot;17&quot; /&gt;" name="qry_asistencias">
+			<qry:main doc="SOURCE">
+				<qry:append-doc name="PARAMIN" doc-path="#SOURCE:DATOS"/>
+				<qry:element name="ROWS">
+					<qry:insert-select name="sql1" doc-path="#SOURCE:DATOS"/>
+				</qry:element>
+			</qry:main>
+			<qry:select name="sql1" doc="SOURCE">
+				<qry:xquery>
+					for $r in sql('
+				SELECT CYD02_INSCRIPTOS.oi_personal_emp, CYD02_INSCRIPTOS.oi_inscripto,
+				PER02_PERSONAL_EMP.e_numero_legajo, PER01_PERSONAL.d_ape_y_nom
+				FROM CYD02_INSCRIPTOS, PER02_PERSONAL_EMP, PER01_PERSONAL
+				JOIN CYD02_INSCRIPTOS.oi_personal_emp INNER PER02_PERSONAL_EMP.oi_personal_emp,
+				PER02_PERSONAL_EMP.oi_personal INNER PER01_PERSONAL.oi_personal
+				WHERE CYD02_INSCRIPTOS.oi_dictado = {#SOURCE:@oi_dictado}
+				ORDER BY e_numero_legajo ASC
+			')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:element name="ROW">
+						<qry:attribute name="id" value="$r/@oi_inscripto"/>
+						<qry:attribute name="oi_inscripto" value="$r/@oi_inscripto"/>
+						<qry:attribute name="inscripto" value="$r/@e_numero_legajo + ' - ' + $r/@d_ape_y_nom"/>
+						<qry:attribute name="oi_personal_emp" value="$r/@oi_personal_emp"/>
+						<qry:attribute name="oi_clase" value="#SOURCE:@oi_clase"/>
+						<qry:attribute name="img" value="'Listas/uncheck.ico'"/>
+						<qry:insert-select name="sql2" doc-path="."/>
+					</qry:element>
+				</qry:out>
+			</qry:select>
+			<qry:select name="sql2" doc="SOURCE">
+				<qry:xquery>
+					for $r in sql('
+				SELECT 1 AS sel
+				FROM CYD02_ASIST_CLASE
+				WHERE CYD02_ASIST_CLASE.oi_inscripto = {#SOURCE:@oi_inscripto} 
+				AND CYD02_ASIST_CLASE.oi_clase_dictado = {#SOURCE:@oi_clase}
+			')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:attribute name="img" value="'Listas/check.ico'"/>
+				</qry:out>
+			</qry:select>
+		</qry:define>
+		<doc:define name="EVA"/>
+		<doc:define name="DIC"/>
+	</flow:declare>
+	<flow:main doc="SOURCE">
+		<flow:action name="initialize">
+			<flow:open-form doc-path="#FILTERDATA:" mode="FILTER" form-class="NucleusRH.Base.Capacitacion.Dictados.DICTADO.filter.form"/>
+		</flow:action>
+	</flow:main>
+	<flow:group Name="DICTADO">
+		<flow:form extends="NucleusRH.Base.Capacitacion.Dictados.DICTADO.filter.autoform:FILTER" parent-doc="PARENTSOURCE" doc="SOURCE" name="NucleusRH.Base.Capacitacion.Dictados.DICTADO.filter.form:FILTER" form-class="NucleusRH.Base.Capacitacion.Dictados.DICTADO.filter.form" mode="FILTER">
+			<flow:action name="open-flow-ADD">
+				<flow:open-form parent-doc-path="#QRY:" doc-path="#NEWDDOROOT:" mode="NEW" form-class="NucleusRH.Base.Capacitacion.Dictados.CURSO.form"/>
+			</flow:action>
+			<flow:action name="open-flow-LIST">
+				<flow:open-form iter-index="#QRY:ROW/@id" parent-doc-path="#QRY:" doc-path="#DDO:" mode="SHOW" form-class="NucleusRH.Base.Capacitacion.Dictados.DICTADO.form"/>
+			</flow:action>
+			<flow:action name="FILTER">
+				<flow:log text-path="#FILTERDATA:" text="ppfilter"/>
+				<doc:load-qry output-doc="QRY" qry="FILTER" input-doc-path="#FILTERDATA:"/>
+				<flow:call-action action="Save-FILTER"/>
+				<flow:call-action action="open-flow-SHOW"/>
+			</flow:action>
+			<flow:action name="on-show"/>
+		</flow:form>
+		<flow:form extends="NucleusRH.Base.Capacitacion.Dictados.DICTADO.noreg.autoform:EDIT" parent-doc="PARENTSOURCE" doc="SOURCE" name="NucleusRH.Base.Capacitacion.Dictados.DICTADO.noreg.form:EDIT" form-class="NucleusRH.Base.Capacitacion.Dictados.DICTADO.noreg.autoform" mode="EDIT">
+			<flow:action name="open-flow-ADD">
+				<flow:open-form parent-doc-path="#QRY:" doc-path="#NEWDDOROOT:" mode="NEW" form-class="NucleusRH.Base.Capacitacion.Dictados.CURSO.form"/>
+			</flow:action>
+			<flow:action name="open-flow-SHOW">
+				<flow:open-form iter-index="#QRY:ROW/@id" parent-doc-path="#QRY:" doc-path="#DDO:" mode="SHOW" form-class="NucleusRH.Base.Capacitacion.Dictados.DICTADO.form"/>
+			</flow:action>
+			<flow:action name="open-flow-LIST">
+				<flow:open-form iter-index="#QRY_LIST:ROW/@id" parent-doc-path="#QRY_LIST:" doc-path="#DDO:" mode="LIST" form-class="NucleusRH.Base.Capacitacion.Dictados.DICTADO.form"/>
+			</flow:action>
+			<flow:action name="goto-list">
+				<flow:log text="luchofilter" text-path="#FILTERDATA:"/>
+				<doc:load-qry output-doc="QRY_LIST" qry="LIST" input-doc-path="#FILTERDATA:"/>
+				<flow:call-action action="open-flow-LIST"/>
+			</flow:action>
+		</flow:form>
+		<flow:form extends="NucleusRH.Base.Capacitacion.Dictados.DICTADO.autoform:SHOW" parent-doc="PARENTSOURCE" doc="SOURCE" name="NucleusRH.Base.Capacitacion.Dictados.DICTADO.form:SHOW" form-class="NucleusRH.Base.Capacitacion.Dictados.DICTADO.form" mode="SHOW">
+			<flow:action name="open-flow-ADD">
+				<flow:open-form parent-doc-path="#QRY:" doc-path="#NEWDDOROOT:" mode="NEW" form-class="NucleusRH.Base.Capacitacion.Dictados.CURSO.form"/>
+			</flow:action>
+			<flow:action name="open-flow-EDIT">
+				<flow:open-form doc-path="#DDO:" mode="EDIT" form-class="NucleusRH.Base.Capacitacion.Dictados.DICTADO.form"/>
+			</flow:action>
+			<flow:action name="FINALIZAR">
+				<flow:exec-method class="NucleusRH.Base.Capacitacion.Dictados.DICTADO" this-doc="DDO" method="FinalizarDictado"/>
+				<flow:call-action action="load-DDO"/>
+			</flow:action>
+			<flow:action name="PLANIFICAR">
+				<doc:set-attribute from-value="P" to-attr-path="#SOURCE:@c_estado"/>
+				<doc:set-attribute from-attr-path="#FORM:ctrl[@id='f_hoy']/@xval" to-attr-path="#SOURCE:@f_estado"/>
+				<flow:call-action action="save-DDO"/>
+			</flow:action>
+			<flow:action name="CANCELAR">
+				<doc:set-attribute from-value="C" to-attr-path="#SOURCE:@c_estado"/>
+				<doc:set-attribute from-attr-path="#FORM:ctrl[@id='f_hoy']/@xval" to-attr-path="#SOURCE:@f_estado"/>
+				<flow:call-action action="save-DDO"/>
+			</flow:action>
+			<flow:action name="CALCULAR_ASIST">
+				<flow:exec-method class="NucleusRH.Base.Capacitacion.Dictados.DICTADO" this-doc="DDO" method="Calcular_Asistencia"/>
+				<flow:call-action action="load-DDO"/>
+			</flow:action>
+			<flow:action name="delete-DDO">
+				<flow:exec-method class="NucleusRH.Base.Capacitacion.Dictados.DICTADO" this-doc="DDO" method="Eliminar"/>
+			</flow:action>
+			<flow:action name="on-show">
+				<doc:set-attribute to-attr-path="#DIC:@oi_dictado" from-attr-path="#SOURCE:@id"/>
+				<flow:log text-path="#SOURCE:" text="SOURCEDE"/>
+			</flow:action>
+		</flow:form>
+		<flow:form form-class="NucleusRH.Base.Capacitacion.Dictados.DICTADO.form" extends="NucleusRH.Base.Capacitacion.Dictados.DICTADO.autoform:LIST" parent-doc="PARENTSOURCE" doc="SOURCE" name="NucleusRH.Base.Capacitacion.Dictados.DICTADO.form:LIST" mode="LIST">
+			<flow:action name="open-flow-ADD">
+				<flow:open-form parent-doc-path="#QRY:" doc-path="#NEWDDOROOT:" mode="NEW" form-class="NucleusRH.Base.Capacitacion.Dictados.CURSO.form"/>
+			</flow:action>
+			<flow:action name="open-flow-EDIT">
+				<flow:open-form doc-path="#DDO:" mode="EDIT" form-class="NucleusRH.Base.Capacitacion.Dictados.DICTADO.form"/>
+			</flow:action>
+			<flow:action name="PLANIFICAR">
+				<flow:attach-doc attach-id="RS" doc-path="#QRY_LIST:"/>
+				<flow:call-action action="load-DDO"/>
+				<doc:set-attribute from-value="P" to-attr-path="#DDO:@c_estado"/>
+				<doc:set-attribute from-attr-path="#FORM:ctrl[@id='f_hoy']/@xval" to-attr-path="#DDO:@f_estado"/>
+				<flow:call-action action="save-DDO"/>
+				<doc:load-qry output-doc="QRY_LIST" qry="LIST" input-doc-path="#FILTERDATA:"/>
+				<flow:call-action action="on-show"/>
+			</flow:action>
+			<flow:action name="CANCELAR">
+				<flow:attach-doc attach-id="RS" doc-path="#QRY_LIST:"/>
+				<flow:call-action action="load-DDO"/>
+				<doc:set-attribute from-value="C" to-attr-path="#DDO:@c_estado"/>
+				<doc:set-attribute from-attr-path="#FORM:ctrl[@id='f_hoy']/@xval" to-attr-path="#DDO:@f_estado"/>
+				<flow:call-action action="save-DDO"/>
+				<doc:load-qry output-doc="QRY_LIST" qry="LIST" input-doc-path="#FILTERDATA:"/>
+				<flow:call-action action="on-show"/>
+			</flow:action>
+			<flow:action name="FINALIZAR">
+				<flow:call-action action="load-DDO"/>
+				<flow:exec-method class="NucleusRH.Base.Capacitacion.Dictados.DICTADO" this-doc="DDO" method="FinalizarDictado"/>
+				<doc:load-qry output-doc="QRY_LIST" qry="LIST" input-doc-path="#FILTERDATA:"/>
+				<flow:call-action action="on-show"/>
+			</flow:action>
+			<flow:action name="CALCULAR_ASIST">
+				<flow:call-action action="load-DDO"/>
+				<flow:exec-method class="NucleusRH.Base.Capacitacion.Dictados.DICTADO" this-doc="DDO" method="Calcular_Asistencia"/>
+				<doc:load-qry output-doc="QRY_LIST" qry="LIST" input-doc-path="#FILTERDATA:"/>
+				<flow:call-action action="on-show"/>
+			</flow:action>
+			<flow:action name="delete-DDO">
+				<flow:exec-method class="NucleusRH.Base.Capacitacion.Dictados.DICTADO" this-doc="DDO" method="Eliminar"/>
+			</flow:action>
+		</flow:form>
+		<flow:form extends="NucleusRH.Base.Capacitacion.Dictados.DICTADO.autoform:EDIT" parent-doc="PARENTSOURCE" doc="SOURCE" name="NucleusRH.Base.Capacitacion.Dictados.DICTADO.form:EDIT" form-class="NucleusRH.Base.Capacitacion.Dictados.DICTADO.form" mode="EDIT">
+			<flow:action name="CALL:INSCRIPTO">
+				<flow:log text-path="#SOURCE:" text="SORCED"/>
+				<doc:set-attribute from-attr-path="#SOURCE:@id" to-attr-path="#DIC:@oi_dictado"/>
+				<flow:open-form iter-index="#SOURCE:INSCRIPTOS/INSCRIPTO/@id" parent-doc-path="#SOURCE:INSCRIPTOS" doc-path="#SOURCE:INSCRIPTOS" mode="EDIT" form-class="NucleusRH.Base.Capacitacion.Dictados.INSCRIPTO.noreg.form"/>
+				<flow:log text-path="#DIC:" text="DIC"/>
+			</flow:action>
+			<flow:action name="on-show"/>
+		</flow:form>
+		<flow:form extends="NucleusRH.Base.Capacitacion.Dictados.DICTADO.autoform:NEW" parent-doc="PARENTSOURCE" doc="SOURCE" name="NucleusRH.Base.Capacitacion.Dictados.DICTADO.form:NEW" form-class="NucleusRH.Base.Capacitacion.Dictados.DICTADO.form" mode="NEW">
+			<flow:action name="SAVE">
+				<flow:call-action action="save-DDO"/>
+				<flow:close-form next-action="After-Change"/>
+			</flow:action>
+			<flow:action name="save-DDO">
+				<doc:save-object class="NucleusRH.Base.Capacitacion.Dictados.DICTADO" doc="NEWDDOROOT"/>
+				<doc:load-object id-path="#NEWDDOROOT:@id" class="NucleusRH.Base.Capacitacion.Dictados.DICTADO" doc="DDO"/>
+				<!--<doc:add-object doc-path="#DDO:" parent-doc-path="#PARENTSOURCE:"/>-->
+			</flow:action>
+		</flow:form>
+		<flow:form extends="NucleusRH.Base.Capacitacion.Dictados.DICTADO.autoform:NEW" parent-doc="PARENTSOURCE" doc="SOURCE" name="NucleusRH.Base.Capacitacion.Dictados.CURSO.form:NEW" form-class="NucleusRH.Base.Capacitacion.Dictados.CURSO.form" mode="NEW">
+			<flow:action name="BACK">
+				<flow:close-form/>
+			</flow:action>
+			<flow:action name="ACCEPT">
+				<flow:exec-method this-doc="SOURCE" method="Heredar_Curso"/>
+				<doc:set-attribute from-value="" to-attr-path="#SOURCE:@f_inicio"/>
+				<doc:set-attribute from-value="" to-attr-path="#SOURCE:@f_fin"/>
+				<doc:set-attribute from-value="" to-attr-path="#SOURCE:@f_estado"/>
+				<flow:open-form doc-path="#SOURCE:" parent-doc-path="#PARENTSOURCE:" mode="NEW" form-class="NucleusRH.Base.Capacitacion.Dictados.DICTADO.form"/>
+			</flow:action>
+			<flow:action name="After-Change">
+				<flow:close-form next-action="After-Change"/>
+			</flow:action>
+		</flow:form>
+	</flow:group>
+	<flow:group Name="CLASE_DICTADO">
+		<flow:form extends="NucleusRH.Base.Capacitacion.Dictados.CLASE_DICTADO.noreg.autoform:SHOW" parent-doc="PARENTSOURCE" doc="SOURCE" name="NucleusRH.Base.Capacitacion.Dictados.CLASE_DICTADO.noreg.form:SHOW" form-class="NucleusRH.Base.Capacitacion.Dictados.CLASE_DICTADO.noreg.autoform" mode="SHOW">
+			<flow:action name="on-move-iterator">
+				<flow:open-form iter-index="#PARENTSOURCE:CLASE_DICTADO/@id" parent-doc-path="#PARENTSOURCE:" doc-path="#PARENTSOURCE:" mode="SHOW" form-class="NucleusRH.Base.Capacitacion.Dictados.CLASE_DICTADO.form"/>
+			</flow:action>
+		</flow:form>
+		<flow:form extends="NucleusRH.Base.Capacitacion.Dictados.CLASE_DICTADO.autoform:SHOW" parent-doc="PARENTSOURCE" doc="SOURCE" name="NucleusRH.Base.Capacitacion.Dictados.CLASE_DICTADO.form:SHOW" form-class="NucleusRH.Base.Capacitacion.Dictados.CLASE_DICTADO.form" mode="SHOW">
+			<flow:action name="CALL:ASIST_CLASE">
+				<flow:open-form iter-index="#DDO:INSCRIPTOS/INSCRIPTO/@id" parent-doc-path="#PARENTSOURCE:CLASE_DICTADO[@id='{#FORM:ctrl[@id='MAIN_GRID']/@selectedRow}']/ASIST_CLASE" doc-path="#PARENTSOURCE:CLASE_DICTADO[@id='{#FORM:ctrl[@id='MAIN_GRID']/@selectedRow}']/ASIST_CLASE" mode="SHOW" form-class="NucleusRH.Base.Capacitacion.Dictados.ASIST_CLASE.noreg.autoform"/>
+			</flow:action>
+		</flow:form>
+		<flow:form extends="NucleusRH.Base.Capacitacion.Dictados.CLASE_DICTADO.noreg.autoform:EDIT" parent-doc="PARENTSOURCE" doc="SOURCE" name="NucleusRH.Base.Capacitacion.Dictados.CLASE_DICTADO.noreg.form:EDIT" form-class="NucleusRH.Base.Capacitacion.Dictados.CLASE_DICTADO.noreg.autoform" mode="EDIT">
+			<flow:action name="on-move-iterator">
+				<flow:open-form iter-index="#PARENTSOURCE:CLASE_DICTADO/@id" parent-doc-path="#PARENTSOURCE:" doc-path="#PARENTSOURCE:" mode="EDIT" form-class="NucleusRH.Base.Capacitacion.Dictados.CLASE_DICTADO.form"/>
+			</flow:action>
+			<flow:action name="ADD">
+				<doc:new-object doc="NEWDDO" class="NucleusRH.Base.Capacitacion.Dictados.CLASE_DICTADO"/>
+				<doc:add-object doc-path="#NEWDDO:" parent-doc-path="#PARENTSOURCE:"/>
+				<flow:open-form iter-index="#PARENTSOURCE:CLASE_DICTADO/@id" parent-doc-path="#PARENTSOURCE:" doc-path="#PARENTSOURCE:" mode="EDIT" form-class="NucleusRH.Base.Capacitacion.Dictados.CLASE_DICTADO.form"/>
+			</flow:action>
+		</flow:form>
+		<flow:form extends="NucleusRH.Base.Capacitacion.Dictados.CLASE_DICTADO.autoform:EDIT" parent-doc="PARENTSOURCE" doc="SOURCE" name="NucleusRH.Base.Capacitacion.Dictados.CLASE_DICTADO.form:EDIT" form-class="NucleusRH.Base.Capacitacion.Dictados.CLASE_DICTADO.form" mode="EDIT">
+			<flow:action name="ADD">
+				<doc:new-object doc="NEWDDO" class="NucleusRH.Base.Capacitacion.Dictados.CLASE_DICTADO"/>
+				<doc:add-object doc-path="#NEWDDO:" parent-doc-path="#PARENTSOURCE:"/>
+			</flow:action>
+			<flow:action name="DELETE">
+				<doc:delete-object doc-path="#PARENTSOURCE:CLASE_DICTADO[@id='{#FORM:ctrl[@id='MAIN_GRID']/@selectedRow}']" class="NucleusRH.Base.Capacitacion.Dictados.CLASE_DICTADO"/>
+				<doc:iter-refresh/>
+			</flow:action>
+			<flow:action name="CALL:ASIST_CLASE">
+				<flow:open-form iter-index="#DDO:INSCRIPTOS/INSCRIPTO/@id" parent-doc-path="#PARENTSOURCE:CLASE_DICTADO[@id='{#FORM:ctrl[@id='MAIN_GRID']/@selectedRow}']/ASIST_CLASE" doc-path="#PARENTSOURCE:CLASE_DICTADO[@id='{#FORM:ctrl[@id='MAIN_GRID']/@selectedRow}']/ASIST_CLASE" mode="SHOW" form-class="NucleusRH.Base.Capacitacion.Dictados.ASIST_CLASE.noreg.autoform"/>
+			</flow:action>
+		</flow:form>
+	</flow:group>
+	<flow:group Name="ASIST_CLASE">
+		<flow:form extends="NucleusRH.Base.Capacitacion.Dictados.ASIST_CLASE.noreg.autoform:SHOW" parent-doc="PARENTSOURCE" doc="SOURCE" name="NucleusRH.Base.Capacitacion.Dictados.ASIST_CLASE.noreg.form:SHOW" form-class="NucleusRH.Base.Capacitacion.Dictados.ASIST_CLASE.noreg.autoform" mode="SHOW">
+			<flow:action name="on-move-iterator">
+				<doc:set-attribute from-attr-path="#DDO:@id" to-attr-path="#PARAM_ASISTENCIAS:@oi_dictado"/>
+				<doc:set-attribute from-attr-path="#PARENTSOURCE:../@id" to-attr-path="#PARAM_ASISTENCIAS:@oi_clase"/>
+				<doc:load-qry input-doc-path="#PARAM_ASISTENCIAS:" qry="qry_asistencias" output-doc="ASISTENCIAS"/>
+				<flow:open-form iter-index="#DDO:INSCRIPTOS/INSCRIPTO/@id" parent-doc-path="#PARENTSOURCE:" doc-path="#PARENTSOURCE:" mode="LIST" form-class="NucleusRH.Base.Capacitacion.Dictados.ASIST_CLASE.form"/>
+			</flow:action>
+		</flow:form>
+		<flow:form extends="NucleusRH.Base.Capacitacion.Dictados.ASIST_CLASE.autoform:EDIT" parent-doc="PARENTSOURCE" doc="SOURCE" name="NucleusRH.Base.Capacitacion.Dictados.ASIST_CLASE.form:LIST" form-class="NucleusRH.Base.Capacitacion.Dictados.ASIST_CLASE.form" mode="LIST">
+			<flow:action name="on-show">
+				<flow:attach-doc attach-id="RS" doc-path="#ASISTENCIAS:"/>
+			</flow:action>
+			<flow:action name="BACK">
+				<flow:close-form next-action="After-Back"/>
+			</flow:action>
+		</flow:form>
+	</flow:group>
+	<flow:group Name="UNI_ORG_DICT">
+		<flow:form extends="NucleusRH.Base.Capacitacion.Dictados.UNI_ORG_DICT.noreg.autoform:SHOW" parent-doc="PARENTSOURCE" doc="SOURCE" name="NucleusRH.Base.Capacitacion.Dictados.UNI_ORG_DICT.noreg.form:SHOW" form-class="NucleusRH.Base.Capacitacion.Dictados.UNI_ORG_DICT.noreg.autoform" mode="SHOW">
+			<flow:action name="on-move-iterator">
+				<flow:open-form iter-index="#PARENTSOURCE:UNI_ORG_DICT/@id" parent-doc-path="#PARENTSOURCE:" doc-path="#PARENTSOURCE:" mode="SHOW" form-class="NucleusRH.Base.Capacitacion.Dictados.UNI_ORG_DICT.form"/>
+			</flow:action>
+		</flow:form>
+		<flow:form extends="NucleusRH.Base.Capacitacion.Dictados.UNI_ORG_DICT.autoform:SHOW" parent-doc="PARENTSOURCE" doc="SOURCE" name="NucleusRH.Base.Capacitacion.Dictados.UNI_ORG_DICT.form:SHOW" form-class="NucleusRH.Base.Capacitacion.Dictados.UNI_ORG_DICT.form" mode="SHOW"/>
+		<flow:form extends="NucleusRH.Base.Capacitacion.Dictados.UNI_ORG_DICT.noreg.autoform:EDIT" parent-doc="PARENTSOURCE" doc="SOURCE" name="NucleusRH.Base.Capacitacion.Dictados.UNI_ORG_DICT.noreg.form:EDIT" form-class="NucleusRH.Base.Capacitacion.Dictados.UNI_ORG_DICT.noreg.autoform" mode="EDIT">
+			<flow:action name="on-move-iterator">
+				<flow:open-form iter-index="#PARENTSOURCE:UNI_ORG_DICT/@id" parent-doc-path="#PARENTSOURCE:" doc-path="#PARENTSOURCE:" mode="EDIT" form-class="NucleusRH.Base.Capacitacion.Dictados.UNI_ORG_DICT.form"/>
+			</flow:action>
+			<flow:action name="ADD">
+				<doc:new-object doc="NEWDDO" class="NucleusRH.Base.Capacitacion.Dictados.UNI_ORG_DICT"/>
+				<doc:add-object doc-path="#NEWDDO:" parent-doc-path="#PARENTSOURCE:"/>
+				<flow:open-form iter-index="#PARENTSOURCE:UNI_ORG_DICT/@id" parent-doc-path="#PARENTSOURCE:" doc-path="#PARENTSOURCE:" mode="EDIT" form-class="NucleusRH.Base.Capacitacion.Dictados.UNI_ORG_DICT.form"/>
+			</flow:action>
+		</flow:form>
+		<flow:form extends="NucleusRH.Base.Capacitacion.Dictados.UNI_ORG_DICT.autoform:EDIT" parent-doc="PARENTSOURCE" doc="SOURCE" name="NucleusRH.Base.Capacitacion.Dictados.UNI_ORG_DICT.form:EDIT" form-class="NucleusRH.Base.Capacitacion.Dictados.UNI_ORG_DICT.form" mode="EDIT"/>
+	</flow:group>
+	<flow:group Name="EVAL_DIC">
+		<flow:form extends="NucleusRH.Base.Capacitacion.Dictados.EVAL_DIC.noreg.autoform:EDIT" parent-doc="PARENTSOURCE" doc="SOURCE" name="NucleusRH.Base.Capacitacion.Dictados.EVAL_DIC.noreg.form:EDIT" form-class="NucleusRH.Base.Capacitacion.Dictados.EVAL_DIC.noreg.autoform" mode="EDIT">
+			<flow:action name="on-move-iterator">
+				<flow:open-form iter-index="#PARENTSOURCE:EVAL_DIC/@id" parent-doc-path="#PARENTSOURCE:" doc-path="#PARENTSOURCE:" mode="EDIT" form-class="NucleusRH.Base.Capacitacion.Dictados.EVAL_DIC.form"/>
+			</flow:action>
+			<flow:action name="on-empty-iterator">
+				<doc:new-object doc="NEWDDO" class="NucleusRH.Base.Capacitacion.Dictados.EVAL_DIC"/>
+				<flow:open-form parent-doc-path="#PARENTSOURCE:" doc-path="#NEWDDO:" mode="NEW" form-class="NucleusRH.Base.Capacitacion.Dictados.EVAL_DIC.form"/>
+			</flow:action>
+			<flow:action name="ADD">
+				<doc:new-object doc="NEWDDO" class="NucleusRH.Base.Capacitacion.Dictados.EVAL_DIC"/>
+				<flow:open-form parent-doc-path="#PARENTSOURCE:" doc-path="#NEWDDO:" mode="NEW" form-class="NucleusRH.Base.Capacitacion.Dictados.EVAL_DIC.form"/>
+			</flow:action>
+			<flow:action name="open-flow-EDIT">
+				<doc:set-attribute to-attr-path="#EVA:@oi_evaluacion" from-attr-path="#PARENTSOURCE:EVAL_DIC/oi_evaluacion/@value"/>
+				<flow:open-form iter-index="#PARENTSOURCE:EVAL_DIC/@id" parent-doc-path="#PARENTSOURCE:" doc-path="#PARENTSOURCE:" mode="EDIT" form-class="NucleusRH.Base.Capacitacion.Dictados.EVAL_DIC.autoform"/>
+			</flow:action>
+			<flow:action name="open-flow-LIST">
+				<doc:set-attribute to-attr-path="#EVA:@oi_evaluacion" from-attr-path="#PARENTSOURCE:EVAL_DIC/oi_evaluacion/@value"/>
+				<flow:open-form iter-index="#PARENTSOURCE:EVAL_DIC/@id" parent-doc-path="#PARENTSOURCE:" doc-path="#PARENTSOURCE:" mode="LIST_EDIT" form-class="NucleusRH.Base.Capacitacion.Dictados.EVAL_DIC.autoform"/>
+			</flow:action>
+		</flow:form>
+		<flow:form extends="NucleusRH.Base.Capacitacion.Dictados.EVAL_DIC.autoform:EDIT" doc-path="/EVAL_DIC[@id='{#iter-cursor:@value}']" parent-doc="PARENTSOURCE" doc="SOURCE" name="NucleusRH.Base.Capacitacion.Dictados.EVAL_DIC.form:EDIT" form-class="NucleusRH.Base.Capacitacion.Dictados.EVAL_DIC.form" mode="EDIT">
+			<flow:action name="ADD">
+				<doc:new-object doc="NEWDDO" class="NucleusRH.Base.Capacitacion.Dictados.EVAL_DIC"/>
+				<flow:open-form parent-doc-path="#PARENTSOURCE:" doc-path="#NEWDDO:" mode="NEW" form-class="NucleusRH.Base.Capacitacion.Dictados.EVAL_DIC.form"/>
+			</flow:action>
+			<flow:action name="on-show">
+				<doc:set-attribute to-attr-path="#EVA:@oi_evaluacion" from-attr-path="#SOURCE:oi_evaluacion/@value"/>
+			</flow:action>
+			<flow:action name="ITER:FIRST">
+				<doc:iter-first/>
+				<doc:set-attribute to-attr-path="#EVA:@oi_evaluacion" from-attr-path="#SOURCE:oi_evaluacion/@value"/>
+			</flow:action>
+			<flow:action name="ITER:PREV">
+				<doc:iter-prev/>
+				<doc:set-attribute to-attr-path="#EVA:@oi_evaluacion" from-attr-path="#SOURCE:oi_evaluacion/@value"/>
+			</flow:action>
+			<flow:action name="ITER:NEXT">
+				<doc:iter-next/>
+				<doc:set-attribute to-attr-path="#EVA:@oi_evaluacion" from-attr-path="#SOURCE:oi_evaluacion/@value"/>
+			</flow:action>
+			<flow:action name="ITER:LAST">
+				<doc:iter-last/>
+				<doc:set-attribute to-attr-path="#EVA:@oi_evaluacion" from-attr-path="#SOURCE:oi_evaluacion/@value"/>
+			</flow:action>
+			<flow:action name="ITER:MOVETO">
+				<doc:iter-move position-path="#FORM:ctrl[@id='iter_position']/@xval"/>
+				<doc:set-attribute to-attr-path="#EVA:@oi_evaluacion" from-attr-path="#SOURCE:oi_evaluacion/@value"/>
+			</flow:action>
+		</flow:form>
+		<flow:form extends="NucleusRH.Base.Capacitacion.Dictados.EVAL_DIC.autoform:NEW" parent-doc="PARENTSOURCE" doc="SOURCE" name="NucleusRH.Base.Capacitacion.Dictados.EVAL_DIC.form:NEW" form-class="NucleusRH.Base.Capacitacion.Dictados.EVAL_DIC.form" mode="NEW"/>
+		<flow:form extends="NucleusRH.Base.Capacitacion.Dictados.EVAL_DIC.noreg.autoform:SHOW" parent-doc="PARENTSOURCE" doc="SOURCE" name="NucleusRH.Base.Capacitacion.Dictados.EVAL_DIC.noreg.form:SHOW" form-class="NucleusRH.Base.Capacitacion.Dictados.EVAL_DIC.noreg.autoform" mode="SHOW">
+			<flow:action name="open-flow-SHOW">
+				<doc:set-attribute to-attr-path="#EVA:@oi_evaluacion" from-attr-path="#PARENTSOURCE:EVAL_DIC/oi_evaluacion/@value"/>
+				<flow:open-form iter-index="#PARENTSOURCE:EVAL_DIC/@id" parent-doc-path="#PARENTSOURCE:" doc-path="#PARENTSOURCE:" mode="SHOW" form-class="NucleusRH.Base.Capacitacion.Dictados.EVAL_DIC.autoform"/>
+			</flow:action>
+			<flow:action name="open-flow-LIST">
+				<doc:set-attribute to-attr-path="#EVA:@oi_evaluacion" from-attr-path="#PARENTSOURCE:EVAL_DIC/oi_evaluacion/@value"/>
+				<flow:open-form iter-index="#PARENTSOURCE:EVAL_DIC/@id" parent-doc-path="#PARENTSOURCE:" doc-path="#PARENTSOURCE:" mode="LIST" form-class="NucleusRH.Base.Capacitacion.Dictados.EVAL_DIC.autoform"/>
+			</flow:action>
+		</flow:form>
+	</flow:group>
+	<flow:group Name="INSCRIPTO">
+		<flow:form extends="NucleusRH.Base.Capacitacion.Dictados.INSCRIPTO.noreg.autoform:SHOW" parent-doc="PARENTSOURCE" doc="SOURCE" name="NucleusRH.Base.Capacitacion.Dictados.INSCRIPTO.noreg.form:SHOW" form-class="NucleusRH.Base.Capacitacion.Dictados.INSCRIPTO.noreg.autoform" mode="SHOW">
+			<flow:action name="open-flow-SHOW">
+				<flow:open-form iter-index="#PARENTSOURCE:INSCRIPTO/@id" parent-doc-path="#PARENTSOURCE:" doc-path="#PARENTSOURCE:" mode="SHOW" form-class="NucleusRH.Base.Capacitacion.Dictados.INSCRIPTO.form"/>
+			</flow:action>
+			<flow:action name="open-flow-LIST">
+				<flow:open-form iter-index="#PARENTSOURCE:INSCRIPTO/@id" parent-doc-path="#PARENTSOURCE:" doc-path="#PARENTSOURCE:" mode="LIST" form-class="NucleusRH.Base.Capacitacion.Dictados.INSCRIPTO.form"/>
+			</flow:action>
+		</flow:form>
+		<flow:form form-class="NucleusRH.Base.Capacitacion.Dictados.INSCRIPTO.form" extends="NucleusRH.Base.Capacitacion.Dictados.INSCRIPTO.autoform:SHOW" doc-path="/INSCRIPTO[@id='{#iter-cursor:@value}']" parent-doc="PARENTSOURCE" doc="SOURCE" name="NucleusRH.Base.Capacitacion.Dictados.INSCRIPTO.form:SHOW" mode="SHOW"/>
+		<flow:form form-class="NucleusRH.Base.Capacitacion.Dictados.INSCRIPTO.noreg.form" extends="NucleusRH.Base.Capacitacion.Dictados.INSCRIPTO.noreg.autoform:EDIT" name="NucleusRH.Base.Capacitacion.Dictados.INSCRIPTO.noreg.form:EDIT" parent-doc="PARENTSOURCE" doc="SOURCE" mode="EDIT">
+			<flow:action name="open-flow-EDIT">
+				<flow:open-form iter-index="#PARENTSOURCE:INSCRIPTO/@id" parent-doc-path="#PARENTSOURCE:" doc-path="#PARENTSOURCE:" mode="EDIT" form-class="NucleusRH.Base.Capacitacion.Dictados.INSCRIPTO.form"/>
+			</flow:action>
+			<flow:action name="open-flow-LIST">
+				<flow:open-form iter-index="#PARENTSOURCE:INSCRIPTO/@id" parent-doc-path="#PARENTSOURCE:" doc-path="#PARENTSOURCE:" mode="LIST_EDIT" form-class="NucleusRH.Base.Capacitacion.Dictados.INSCRIPTO.form"/>
+			</flow:action>
+		</flow:form>
+		<flow:form extends="NucleusRH.Base.Capacitacion.Dictados.INSCRIPTO.autoform:EDIT" doc-path="/INSCRIPTO[@id='{#iter-cursor:@value}']" parent-doc="PARENTSOURCE" doc="SOURCE" name="NucleusRH.Base.Capacitacion.Dictados.INSCRIPTO.form:EDIT" form-class="NucleusRH.Base.Capacitacion.Dictados.INSCRIPTO.form" mode="EDIT">
+			<flow:action name="INSCRIPTO">
+				<doc:set-attribute to-attr-path="#SOURCE:@c_estado" from-value="INS"/>
+				<doc:set-attribute from-attr-path="#FORM:ctrl[@id='f_hoy']/@xval" to-attr-path="#SOURCE:@f_estado"/>
+			</flow:action>
+			<flow:action name="CANCELADO">
+				<doc:set-attribute from-value="CAN" to-attr-path="#SOURCE:@c_estado"/>
+				<doc:set-attribute from-attr-path="#FORM:ctrl[@id='f_hoy']/@xval" to-attr-path="#SOURCE:@f_estado"/>
+				<doc:set-attribute from-value="NE" to-attr-path="#SOURCE:@c_estado_aprob"/>
+			</flow:action>
+			<flow:action name="CURSADO">
+				<doc:set-attribute from-value="CUR" to-attr-path="#SOURCE:@c_estado"/>
+				<doc:set-attribute from-attr-path="#FORM:ctrl[@id='f_hoy']/@xval" to-attr-path="#SOURCE:@f_estado"/>
+			</flow:action>
+			<flow:action name="APROBAR">
+				<doc:set-attribute to-attr-path="#SOURCE:@c_estado_aprob" from-value="A"/>
+			</flow:action>
+			<flow:action name="REPROBAR">
+				<doc:set-attribute to-attr-path="#SOURCE:@c_estado_aprob" from-value="R"/>
+			</flow:action>
+		</flow:form>
+		<flow:form extends="NucleusRH.Base.Capacitacion.Dictados.INSCRIPTO.autoform:LIST" doc-path="/INSCRIPTO[@id='{#iter-cursor:@value}']" parent-doc="PARENTSOURCE" doc="SOURCE" name="NucleusRH.Base.Capacitacion.Dictados.INSCRIPTO.form:LIST" form-class="NucleusRH.Base.Capacitacion.Dictados.INSCRIPTO.form" mode="LIST"/>
+		<flow:form extends="NucleusRH.Base.Capacitacion.Dictados.INSCRIPTO.autoform:LIST_EDIT" doc-path="/INSCRIPTO[@id='{#iter-cursor:@value}']" parent-doc="PARENTSOURCE" doc="SOURCE" name="NucleusRH.Base.Capacitacion.Dictados.INSCRIPTO.form:LIST_EDIT" form-class="NucleusRH.Base.Capacitacion.Dictados.INSCRIPTO.form" mode="LIST_EDIT">
+			<flow:action name="open-flow-LIST">
+				<flow:open-form iter-index="#PARENTSOURCE:INSCRIPTO/@id" parent-doc-path="#PARENTSOURCE:" doc-path="#PARENTSOURCE:" mode="LIST_EDIT" form-class="NucleusRH.Base.Capacitacion.Dictados.INSCRIPTO.form"/>
+			</flow:action>
+			<flow:action name="INSCRIPTO">
+				<doc:set-attribute to-attr-path="#PARENTSOURCE:INSCRIPTO[@id={#FORM:ctrl[@id='LIST']/@xval}]/@c_estado" from-value="INS"/>
+				<doc:set-attribute to-attr-path="#PARENTSOURCE:INSCRIPTO[@id={#FORM:ctrl[@id='LIST']/@xval}]/@f_estado" from-attr-path="#FORM:ctrl[@id='f_hoy']/@xval"/>
+				<flow:call-action action="load-child-LIST"/>
+				<flow:call-action action="on-show"/>
+			</flow:action>
+			<flow:action name="CANCELADO">
+				<doc:set-attribute to-attr-path="#PARENTSOURCE:INSCRIPTO[@id={#FORM:ctrl[@id='LIST']/@xval}]/@c_estado" from-value="CAN"/>
+				<doc:set-attribute to-attr-path="#PARENTSOURCE:INSCRIPTO[@id={#FORM:ctrl[@id='LIST']/@xval}]/@f_estado" from-attr-path="#FORM:ctrl[@id='f_hoy']/@xval"/>
+				<doc:set-attribute from-value="NE" to-attr-path="#PARENTSOURCE:INSCRIPTO[@id={#FORM:ctrl[@id='LIST']/@xval}]/@c_estado_aprob"/>
+				<flow:call-action action="load-child-LIST"/>
+				<flow:call-action action="on-show"/>
+			</flow:action>
+			<flow:action name="CURSADO">
+				<doc:set-attribute to-attr-path="#PARENTSOURCE:INSCRIPTO[@id={#FORM:ctrl[@id='LIST']/@xval}]/@c_estado" from-value="CUR"/>
+				<doc:set-attribute to-attr-path="#PARENTSOURCE:INSCRIPTO[@id={#FORM:ctrl[@id='LIST']/@xval}]/@f_estado" from-attr-path="#FORM:ctrl[@id='f_hoy']/@xval"/>
+				<flow:call-action action="load-child-LIST"/>
+				<flow:call-action action="on-show"/>
+			</flow:action>
+			<flow:action name="APROBAR">
+				<doc:set-attribute to-attr-path="#DDO:INSCRIPTOS/INSCRIPTO[@id={#FORM:ctrl[@id='LIST']/@xval}]/@c_estado_aprob" from-value="A"/>
+				<flow:call-action action="load-child-LIST"/>
+				<flow:call-action action="on-show"/>
+			</flow:action>
+			<flow:action name="REPROBAR">
+				<doc:set-attribute to-attr-path="#DDO:INSCRIPTOS/INSCRIPTO[@id={#FORM:ctrl[@id='LIST']/@xval}]/@c_estado_aprob" from-value="R"/>
+				<flow:call-action action="load-child-LIST"/>
+				<flow:call-action action="on-show"/>
+			</flow:action>
+		</flow:form>
+	</flow:group>
+	<!--<flow:group Name="EVAL_ASIST">
+<flow:form extends="NucleusRH.Base.Capacitacion.Dictados.EVAL_ASIST.noreg.autoform:SHOW" parent-doc="PARENTSOURCE" doc="SOURCE" name="NucleusRH.Base.Capacitacion.Dictados.EVAL_ASIST.noreg.form:SHOW" form-class="NucleusRH.Base.Capacitacion.Dictados.EVAL_ASIST.noreg.autoform" mode="SHOW">
+<!--<flow:action name="open-flow-SHOW">
+<flow:open-form iter-index="#PARENTSOURCE:EVAL_ASIST/@id" parent-doc-path="#PARENTSOURCE:" doc-path="#PARENTSOURCE:" mode="SHOW" form-class="NucleusRH.Base.Capacitacion.Dictados.EVAL_ASIST.form"/>
+</flow:action>-->
+	<!--</flow:form>
+<flow:form extends="NucleusRH.Base.Capacitacion.Dictados.EVAL_ASIST.autoform:SHOW" doc-path="/EVAL_ASIST[@id='{#iter-cursor:@value}']" parent-doc="PARENTSOURCE" doc="SOURCE" name="NucleusRH.Base.Capacitacion.Dictados.EVAL_ASIST.form:SHOW" form-class="NucleusRH.Base.Capacitacion.Dictados.EVAL_ASIST.form" mode="SHOW">
+<flow:action name="on-show">
+<!--<flow:log text="LOG_PARAQRY" text-path="#SOURCE:"/>
+<doc:load-qry output-doc="VALORES" input-doc-path="#SOURCE:" qry="qry_valores"/>
+<flow:log text="LOG_VALORES" text-path="#VALORES:"/>
+<flow:attach-doc doc-path="#VALORES:" attach-id="VALORES"/>  -->
+	<!--<flow:log text-path="#SOURCE:" text="DENIS"/>
+<flow:attach-doc doc-path="#SOURCE:" attach-id="DOC"/>
+</flow:action>
+</flow:form>
+<flow:form extends="NucleusRH.Base.Capacitacion.Dictados.EVAL_ASIST.noreg.autoform:EDIT" parent-doc="PARENTSOURCE" doc="SOURCE" name="NucleusRH.Base.Capacitacion.Dictados.EVAL_ASIST.noreg.form:EDIT" form-class="NucleusRH.Base.Capacitacion.Dictados.EVAL_ASIST.noreg.autoform" mode="EDIT">
+<!--<flow:action name="open-flow-EDIT">
+<flow:open-form iter-index="#PARENTSOURCE:EVAL_ASIST/@id" parent-doc-path="#PARENTSOURCE:" doc-path="#PARENTSOURCE:" mode="EDIT" form-class="NucleusRH.Base.Capacitacion.Dictados.EVAL_ASIST.form"/>
+</flow:action>
+<flow:action name="open-flow-ADD">
+<flow:open-form parent-doc-path="#PARENTSOURCE:" doc-path="#NEWDDO:" mode="NEW" form-class="NucleusRH.Base.Capacitacion.Dictados.EVAL_ASIST.form"/>
+</flow:action>
+<flow:action name="open-flow-LIST">
+<flow:open-form iter-index="#PARENTSOURCE:EVAL_ASIST/@id" parent-doc-path="#PARENTSOURCE:" doc-path="#PARENTSOURCE:" mode="LIST_EDIT" form-class="NucleusRH.Base.Capacitacion.Dictados.EVAL_ASIST.form"/>
+</flow:action>-->
+	<!--<flow:action name="on-show">
+<flow:attach-doc doc-path="#SOURCE:" attach-id="DOC"/>
+</flow:action>
+</flow:form>
+<flow:form extends="NucleusRH.Base.Capacitacion.Dictados.EVAL_ASIST.autoform:EDIT" doc-path="/EVAL_ASIST[@id='{#iter-cursor:@value}']" parent-doc="PARENTSOURCE" doc="SOURCE" name="NucleusRH.Base.Capacitacion.Dictados.EVAL_ASIST.form:EDIT" form-class="NucleusRH.Base.Capacitacion.Dictados.EVAL_ASIST.form" mode="EDIT">
+<flow:action name="on-show">
+<!--	 <flow:log text="LOG_PARAQRY" text-path="#SOURCE:"/>
+<doc:load-qry output-doc="VALORES" input-doc-path="#SOURCE:" qry="qry_valores"/>
+<flow:log text="LOG_VALORES" text-path="#VALORES:"/>
+<flow:attach-doc doc-path="#VALORES:" attach-id="VALORES"/>  
+</flow:action>
+<flow:action name="open-flow-ADD">
+<flow:open-form parent-doc-path="#PARENTSOURCE:" doc-path="#NEWDDO:" mode="NEW" form-class="NucleusRH.Base.Capacitacion.Dictados.EVAL_ASIST.form"/>-->
+	<!--<flow:attach-doc doc-path="#SOURCE:" attach-id="DOC"/>
+</flow:action>
+</flow:form>
+<flow:form extends="NucleusRH.Base.Capacitacion.Dictados.EVAL_ASIST.autoform:NEW" parent-doc="PARENTSOURCE" doc="SOURCE" name="NucleusRH.Base.Capacitacion.Dictados.EVAL_ASIST.form:NEW" form-class="NucleusRH.Base.Capacitacion.Dictados.EVAL_ASIST.form" mode="NEW">
+<flow:action name="on-show">
+<flow:log text-path="#SOURCE:" text="DENIS"/>
+<flow:attach-doc doc-path="#SOURCE:" attach-id="DOC"/>
+</flow:action>
+</flow:form>
+<flow:form extends="NucleusRH.Base.Capacitacion.Dictados.EVAL_ASIST.autoform:LIST_EDIT" doc-path="/EVAL_ASIST[@id='{#iter-cursor:@value}']" parent-doc="PARENTSOURCE" doc="SOURCE" name="NucleusRH.Base.Capacitacion.Dictados.EVAL_ASIST.form:LIST_EDIT" form-class="NucleusRH.Base.Capacitacion.Dictados.EVAL_ASIST.form" mode="LIST_EDIT">
+<!--<flow:action name="open-flow-ADD">
+<flow:open-form parent-doc-path="#PARENTSOURCE:" doc-path="#NEWDDO:" mode="NEW" form-class="NucleusRH.Base.Capacitacion.Dictados.EVAL_ASIST.form"/>
+</flow:action>-->
+	<!--</flow:form>
+</flow:group>
+<!--<flow:group Name="FACT_EV_AS">
+<flow:form form-class="NucleusRH.Base.Capacitacion.Dictados.FACT_EV_AS.form" extends="NucleusRH.Base.Capacitacion.Dictados.FACT_EV_AS.autoform:SHOW" parent-doc="PARENTSOURCE" doc="SOURCE" name="NucleusRH.Base.Capacitacion.Dictados.FACT_EV_AS.form:SHOW" mode="SHOW">
+<!--<flow:action name="on-show">
+<doc:load-qry input-doc-path="#SOURCE:.." output-doc="VALORES" qry="qry_valores_fact"/>
+<flow:attach-doc doc-path="#VALORES:" attach-id="VALORES"/>
+</flow:action>  
+</flow:form>
+<flow:form extends="NucleusRH.Base.Capacitacion.Dictados.FACT_EV_AS.noreg.autoform:EDIT" parent-doc="PARENTSOURCE" doc="SOURCE" name="NucleusRH.Base.Capacitacion.Dictados.FACT_EV_AS.noreg.form:EDIT" form-class="NucleusRH.Base.Capacitacion.Dictados.FACT_EV_AS.noreg.autoform" mode="EDIT">
+<flow:action name="on-move-iterator">
+<flow:open-form iter-index="#PARENTSOURCE:FACT_EV_AS/@id" parent-doc-path="#PARENTSOURCE:" doc-path="#PARENTSOURCE:" mode="EDIT" form-class="NucleusRH.Base.Capacitacion.Dictados.FACT_EV_AS.form"/>
+</flow:action>
+<flow:action name="ADD">
+<doc:new-object doc="NEWDDO" class="NucleusRH.Base.Capacitacion.Dictados.FACT_EV_AS"/>
+<doc:add-object doc-path="#NEWDDO:" parent-doc-path="#PARENTSOURCE:"/>
+<flow:open-form iter-index="#PARENTSOURCE:FACT_EV_AS/@id" parent-doc-path="#PARENTSOURCE:" doc-path="#PARENTSOURCE:" mode="EDIT" form-class="NucleusRH.Base.Capacitacion.Dictados.FACT_EV_AS.form"/>
+</flow:action>
+</flow:form>
+<flow:form extends="NucleusRH.Base.Capacitacion.Dictados.FACT_EV_AS.autoform:EDIT" parent-doc="PARENTSOURCE" doc="SOURCE" name="NucleusRH.Base.Capacitacion.Dictados.FACT_EV_AS.form:EDIT" form-class="NucleusRH.Base.Capacitacion.Dictados.FACT_EV_AS.form" mode="EDIT">
+<!--<flow:action name="on-show">
+<flow:log text-path="#SOURCE:.." text="log_factores"/>
+<doc:load-qry input-doc-path="#SOURCE:.." output-doc="VALORES" qry="qry_valores_fact"/>
+<flow:log text="log_2factores" text-path="#VALORES:"/>
+<flow:attach-doc doc-path="#VALORES:" attach-id="VALORES"/>
+</flow:action> 
+</flow:form>
+<flow:form extends="NucleusRH.Base.Capacitacion.Dictados.FACT_EV_AS.noreg.autoform:SHOW" parent-doc="PARENTSOURCE" doc="SOURCE" name="NucleusRH.Base.Capacitacion.Dictados.FACT_EV_AS.noreg.autoform:SHOW" form-class="NucleusRH.Base.Capacitacion.Dictados.FACT_EV_AS.noreg.autoform" mode="SHOW">
+<flow:action name="open-flow-SHOW">
+<flow:open-form iter-index="#PARENTSOURCE:FACT_EV_AS/@id" parent-doc-path="#PARENTSOURCE:" doc-path="#PARENTSOURCE:" mode="SHOW" form-class="NucleusRH.Base.Capacitacion.Dictados.FACT_EV_AS.form"/>
+</flow:action>
+<flow:action name="open-flow-LIST">
+<flow:open-form iter-index="#PARENTSOURCE:FACT_EV_AS/@id" parent-doc-path="#PARENTSOURCE:" doc-path="#PARENTSOURCE:" mode="LIST" form-class="NucleusRH.Base.Capacitacion.Dictados.FACT_EV_AS.autoform"/>
+</flow:action>
+<flow:action name="load-child-LIST">
+<doc:load-qry output-doc="QRY_LIST" input-doc-path="#PARENTSOURCE:" qry="LIST:NucleusRH.Base.Capacitacion.Dictados.FACT_EV_AS"/>
+</flow:action>
+</flow:form>
+</flow:group> -->
+	<flow:group Name="COSTO_DICTADO">
+		<flow:form extends="NucleusRH.Base.Capacitacion.Dictados.COSTO_DICTADO.autoform:LIST_EDIT" doc-path="/COSTO_DICTADO[@id='{#iter-cursor:@value}']" parent-doc="PARENTSOURCE" doc="SOURCE" name="NucleusRH.Base.Capacitacion.Dictados.COSTO_DICTADO.form:LIST_EDIT" form-class="NucleusRH.Base.Capacitacion.Dictados.COSTO_DICTADO.autoform" mode="LIST_EDIT">
+			<flow:action name="open-flow-ADD">
+				<flow:open-form parent-doc-path="#PARENTSOURCE:" doc-path="#NEWDDO:" mode="NEW" form-class="NucleusRH.Base.Capacitacion.Dictados.COSTO_DICTADO.form"/>
+			</flow:action>
+		</flow:form>
+		<flow:form extends="NucleusRH.Base.Capacitacion.Dictados.COSTO_DICTADO.noreg.autoform:EDIT" parent-doc="PARENTSOURCE" doc="SOURCE" name="NucleusRH.Base.Capacitacion.Dictados.COSTO_DICTADO.noreg.form:EDIT" form-class="NucleusRH.Base.Capacitacion.Dictados.COSTO_DICTADO.noreg.autoform" mode="EDIT">
+			<flow:action name="open-flow-EDIT">
+				<flow:open-form iter-index="#PARENTSOURCE:COSTO_DICTADO/@id" parent-doc-path="#PARENTSOURCE:" doc-path="#PARENTSOURCE:" mode="EDIT" form-class="NucleusRH.Base.Capacitacion.Dictados.COSTO_DICTADO.form"/>
+			</flow:action>
+			<flow:action name="open-flow-ADD">
+				<flow:open-form parent-doc-path="#PARENTSOURCE:" doc-path="#NEWDDO:" mode="NEW" form-class="NucleusRH.Base.Capacitacion.Dictados.COSTO_DICTADO.form"/>
+			</flow:action>
+		</flow:form>
+		<flow:form extends="NucleusRH.Base.Capacitacion.Dictados.COSTO_DICTADO.autoform:EDIT" doc-path="/COSTO_DICTADO[@id='{#iter-cursor:@value}']" parent-doc="PARENTSOURCE" doc="SOURCE" name="NucleusRH.Base.Capacitacion.Dictados.COSTO_DICTADO.form:EDIT" form-class="NucleusRH.Base.Capacitacion.Dictados.COSTO_DICTADO.form" mode="EDIT">
+			<flow:action name="open-flow-ADD">
+				<flow:open-form parent-doc-path="#PARENTSOURCE:" doc-path="#NEWDDO:" mode="NEW" form-class="NucleusRH.Base.Capacitacion.Dictados.COSTO_DICTADO.form"/>
+			</flow:action>
+		</flow:form>
+		<flow:form extends="NucleusRH.Base.Capacitacion.Dictados.COSTO_DICTADO.autoform:NEW" parent-doc="PARENTSOURCE" doc="SOURCE" name="NucleusRH.Base.Capacitacion.Dictados.COSTO_DICTADO.form:NEW" form-class="NucleusRH.Base.Capacitacion.Dictados.COSTO_DICTADO.form" mode="NEW"/>
+	</flow:group>
+	<flow:group Name="EVAL_AS_DICT">
+		<flow:form extends="NucleusRH.Base.Capacitacion.Dictados.EVAL_AS_DICT.noreg.autoform:EDIT" parent-doc="PARENTSOURCE" doc="SOURCE" name="NucleusRH.Base.Capacitacion.Dictados.EVAL_AS_DICT.noreg.form:EDIT" form-class="NucleusRH.Base.Capacitacion.Dictados.EVAL_AS_DICT.noreg.autoform" mode="EDIT">
+			<flow:action name="on-move-iterator">
+				<flow:open-form iter-index="#PARENTSOURCE:EVAL_AS_DICT/@id" parent-doc-path="#PARENTSOURCE:" doc-path="#PARENTSOURCE:" mode="EDIT" form-class="NucleusRH.Base.Capacitacion.Dictados.EVAL_AS_DICT.form"/>
+			</flow:action>
+			<flow:action name="ADD">
+				<doc:new-object doc="NEWDDO" class="NucleusRH.Base.Capacitacion.Dictados.EVAL_AS_DICT"/>
+				<doc:add-object doc-path="#NEWDDO:" parent-doc-path="#PARENTSOURCE:"/>
+				<flow:open-form iter-index="#PARENTSOURCE:EVAL_AS_DICT/@id" parent-doc-path="#PARENTSOURCE:" doc-path="#PARENTSOURCE:" mode="EDIT" form-class="NucleusRH.Base.Capacitacion.Dictados.EVAL_AS_DICT.form"/>
+			</flow:action>
+		</flow:form>
+		<flow:form extends="NucleusRH.Base.Capacitacion.Dictados.EVAL_AS_DICT.autoform:EDIT" parent-doc="PARENTSOURCE" doc="SOURCE" name="NucleusRH.Base.Capacitacion.Dictados.EVAL_AS_DICT.form:EDIT" form-class="NucleusRH.Base.Capacitacion.Dictados.EVAL_AS_DICT.form" mode="EDIT"/>
+	</flow:group>
+	<flow:group Name="EVAL_ASIST">
+		<flow:form form-class="NucleusRH.Base.Capacitacion.Dictados.EVAL_ASIST.noreg.autoform" extends="NucleusRH.Base.Capacitacion.Dictados.EVAL_ASIST.noreg.autoform:SHOW" parent-doc="PARENTSOURCE" doc="SOURCE" name="NucleusRH.Base.Capacitacion.Dictados.EVAL_ASIST.noreg.form:SHOW" mode="SHOW">
+			<flow:action name="open-flow-LIST">
+				<doc:set-attribute from-attr-path="#PARENTSOURCE:EVAL_ASIST/oi_evaluacion/@value" to-attr-path="#EVA:@oi_evaluacion"/>
+				<flow:open-form form-class="NucleusRH.Base.Capacitacion.Dictados.EVAL_ASIST.autoform" iter-index="#PARENTSOURCE:EVAL_ASIST/@id" parent-doc-path="#PARENTSOURCE:" doc-path="#PARENTSOURCE:" mode="LIST"/>
+			</flow:action>
+			<flow:action name="open-flow-SHOW">
+				<doc:set-attribute from-attr-path="#PARENTSOURCE:EVAL_ASIST/oi_evaluacion/@value" to-attr-path="#EVA:@oi_evaluacion"/>
+				<flow:open-form doc-path="#PARENTSOURCE:" form-class="NucleusRH.Base.Capacitacion.Dictados.EVAL_ASIST.autoform" iter-index="#PARENTSOURCE:EVAL_ASIST/@id" parent-doc-path="#PARENTSOURCE:" mode="SHOW"/>
+			</flow:action>
+		</flow:form>
+		<flow:form form-class="NucleusRH.Base.Capacitacion.Dictados.EVAL_ASIST.noreg.autoform" extends="NucleusRH.Base.Capacitacion.Dictados.EVAL_ASIST.noreg.autoform:EDIT" parent-doc="PARENTSOURCE" doc="SOURCE" name="NucleusRH.Base.Capacitacion.Dictados.EVAL_ASIST.noreg.form:EDIT" mode="EDIT">
+			<flow:action name="open-flow-EDIT">
+				<doc:set-attribute from-attr-path="#PARENTSOURCE:EVAL_ASIST/oi_evaluacion/@value" to-attr-path="#EVA:@oi_evaluacion"/>
+				<flow:open-form doc-path="#PARENTSOURCE:" iter-index="#PARENTSOURCE:EVAL_ASIST/@id" parent-doc-path="#PARENTSOURCE:" mode="EDIT" form-class="NucleusRH.Base.Capacitacion.Dictados.EVAL_ASIST.autoform"/>
+			</flow:action>
+			<flow:action name="open-flow-LIST">
+				<doc:set-attribute from-attr-path="#PARENTSOURCE:EVAL_ASIST/oi_evaluacion/@value" to-attr-path="#EVA:@oi_evaluacion"/>
+				<flow:open-form iter-index="#PARENTSOURCE:EVAL_ASIST/@id" parent-doc-path="#PARENTSOURCE:" doc-path="#PARENTSOURCE:" mode="LIST_EDIT" form-class="NucleusRH.Base.Capacitacion.Dictados.EVAL_ASIST.autoform"/>
+			</flow:action>
+		</flow:form>
+	</flow:group>
+	<flow:group Name="FACT_EV_AS">
+		<flow:form extends="NucleusRH.Base.Capacitacion.Dictados.FACT_EV_AS.noreg.autoform:SHOW" parent-doc="PARENTSOURCE" doc="SOURCE" name="NucleusRH.Base.Capacitacion.Dictados.FACT_EV_AS.noreg.form:SHOW" form-class="NucleusRH.Base.Capacitacion.Dictados.FACT_EV_AS.noreg.autoform" mode="SHOW">
+			<flow:action name="open-flow-SHOW">
+				<flow:open-form iter-index="#PARENTSOURCE:FACT_EV_AS/@id" parent-doc-path="#PARENTSOURCE:" doc-path="#PARENTSOURCE:" mode="SHOW" form-class="NucleusRH.Base.Capacitacion.Dictados.FACT_EV_AS.form"/>
+			</flow:action>
+			<flow:action name="open-flow-LIST">
+				<flow:open-form iter-index="#PARENTSOURCE:FACT_EV_AS/@id" parent-doc-path="#PARENTSOURCE:" doc-path="#PARENTSOURCE:" mode="LIST" form-class="NucleusRH.Base.Capacitacion.Dictados.FACT_EV_AS.form"/>
+			</flow:action>
+		</flow:form>
+		<flow:form extends="NucleusRH.Base.Capacitacion.Dictados.FACT_EV_AS.noreg.autoform:EDIT" parent-doc="PARENTSOURCE" doc="SOURCE" name="NucleusRH.Base.Capacitacion.Dictados.FACT_EV_AS.noreg.form:EDIT" form-class="NucleusRH.Base.Capacitacion.Dictados.FACT_EV_AS.noreg.autoform" mode="EDIT">
+			<flow:action name="open-flow-EDIT">
+				<flow:open-form iter-index="#PARENTSOURCE:FACT_EV_AS/@id" parent-doc-path="#PARENTSOURCE:" doc-path="#PARENTSOURCE:" mode="EDIT" form-class="NucleusRH.Base.Capacitacion.Dictados.FACT_EV_AS.form"/>
+			</flow:action>
+			<flow:action name="open-flow-ADD">
+				<flow:open-form parent-doc-path="#PARENTSOURCE:" doc-path="#NEWDDO:" mode="NEW" form-class="NucleusRH.Base.Capacitacion.Dictados.FACT_EV_AS.form"/>
+			</flow:action>
+			<flow:action name="open-flow-LIST">
+				<flow:open-form iter-index="#PARENTSOURCE:FACT_EV_AS/@id" parent-doc-path="#PARENTSOURCE:" doc-path="#PARENTSOURCE:" mode="LIST_EDIT" form-class="NucleusRH.Base.Capacitacion.Dictados.FACT_EV_AS.form"/>
+			</flow:action>
+		</flow:form>
+		<flow:form extends="NucleusRH.Base.Capacitacion.Dictados.FACT_EV_AS.autoform:NEW" parent-doc="PARENTSOURCE" doc="SOURCE" name="NucleusRH.Base.Capacitacion.Dictados.FACT_EV_AS.form:NEW" form-class="NucleusRH.Base.Capacitacion.Dictados.FACT_EV_AS.form" mode="NEW"/>
+		<flow:form extends="NucleusRH.Base.Capacitacion.Dictados.FACT_EV_AS.autoform:EDIT" doc-path="/FACT_EV_AS[@id='{#iter-cursor:@value}']" parent-doc="PARENTSOURCE" doc="SOURCE" name="NucleusRH.Base.Capacitacion.Dictados.FACT_EV_AS.form:EDIT" form-class="NucleusRH.Base.Capacitacion.Dictados.FACT_EV_AS.form" mode="EDIT"/>
+		<flow:form extends="NucleusRH.Base.Capacitacion.Dictados.FACT_EV_AS.autoform:LIST_EDIT" doc-path="/FACT_EV_AS[@id='{#iter-cursor:@value}']" parent-doc="PARENTSOURCE" doc="SOURCE" name="NucleusRH.Base.Capacitacion.Dictados.FACT_EV_AS.form:LIST_EDIT" form-class="NucleusRH.Base.Capacitacion.Dictados.FACT_EV_AS.form" mode="LIST_EDIT"/>
+		<flow:form extends="NucleusRH.Base.Capacitacion.Dictados.FACT_EV_AS.autoform:LIST" doc-path="/FACT_EV_AS[@id='{#iter-cursor:@value}']" parent-doc="PARENTSOURCE" doc="SOURCE" name="NucleusRH.Base.Capacitacion.Dictados.FACT_EV_AS.form:LIST" form-class="NucleusRH.Base.Capacitacion.Dictados.FACT_EV_AS.form" mode="LIST"/>
+		<flow:form extends="NucleusRH.Base.Capacitacion.Dictados.FACT_EV_AS.autoform:SHOW" doc-path="/FACT_EV_AS[@id='{#iter-cursor:@value}']" parent-doc="PARENTSOURCE" doc="SOURCE" name="NucleusRH.Base.Capacitacion.Dictados.FACT_EV_AS.form:SHOW" form-class="NucleusRH.Base.Capacitacion.Dictados.FACT_EV_AS.form" mode="SHOW"/>
+	</flow:group>
+</flow:flow>

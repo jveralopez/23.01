@@ -1,0 +1,155 @@
+<html:html xmlns:html="nomad_engine.html" xmlns:qry="nomad_engine.qry" name="NucleusWF.Base.Definicion.Instancias_WKF" extends="Nomad.Base.BaseReport.rpt" doc="source">
+	<html:query declare="&lt;DATA checkR=&quot;0&quot; checkP=&quot;0&quot; checkS=&quot;0&quot; checkF=&quot;0&quot; checkE=&quot;0&quot;  /&gt;&#13;&#10;">
+		<qry:main doc="SOURCE">
+			<qry:append-doc name="FILTRO" doc-path="$SOURCE/DATA"/>
+			<REPORT label=" Cantidad de Instancias por Workflow">
+				<qry:attribute value="format_date(now(), 'dd/mm/yyyy HH:MM')" name="date"/>
+				<GROUPS>
+					<GROUP tag="WorkFlow" type="table">
+						<COLS>
+							<COL name="wkf" label="Workflow"/>
+							<qry:if test="$SOURCE/DATA/@checkR=1">
+								<qry:then>
+									<COL name="cant-Ok" label="Ejec-Ok"/>
+									<COL name="cant-PV" label="Ejec-PV"/>
+									<COL name="cant-V" label="Ejec-V"/>
+									<COL name="cant-R" label="Ejec-Total"/>
+								</qry:then>
+							</qry:if>
+							<qry:if test="$SOURCE/DATA/@checkP=1">
+								<qry:then>
+									<COL name="cant-P" label="Pausado"/>
+								</qry:then>
+							</qry:if>
+							<qry:if test="$SOURCE/DATA/@checkS=1">
+								<qry:then>
+									<COL name="cant-S" label="Detenido"/>
+								</qry:then>
+							</qry:if>
+							<qry:if test="$SOURCE/DATA/@checkF=1">
+								<qry:then>
+									<COL name="cant-F" label="Finalizado"/>
+								</qry:then>
+							</qry:if>
+							<qry:if test="$SOURCE/DATA/@checkE=1">
+								<qry:then>
+									<COL name="cant-E" label="Detenido por Error"/>
+								</qry:then>
+							</qry:if>
+							<COL name="total" label="Total"/>
+						</COLS>
+					</GROUP>
+				</GROUPS>
+				<DATA>
+					<qry:insert-select name="qry_WKF" doc-path="$SOURCE/DATA"/>
+				</DATA>
+			</REPORT>
+		</qry:main>
+		<qry:select name="qry_WKF" doc="PARAM">
+			<qry:xquery>
+				for $r in SQL
+			('
+			    SELECT WF.c_wf,
+								 WF.d_wf    																	
+				 FROM
+				 WRK01_WF as WF,
+				 WRK02_INSTANCES as I
+		JOIN
+		WF.oi_wf INNER I.oi_wf 
+		GROUP BY WF.c_wf, WF.d_wf  	 
+		
+								 
+		')
+			/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:element name="WorkFlow">
+					<qry:attribute name="wkf" value="Concat('[', $r/@c_wf, '] ', $r/@d_wf)"/>
+					<qry:insert-select name="qry_cant-R-OK" doc-path="$r"/>
+					<qry:insert-select name="qry_cant-R-PV" doc-path="$r"/>
+					<qry:insert-select name="qry_cant-R-V" doc-path="$r"/>
+					<qry:insert-select name="qry_Instances" doc-path="$r"/>
+					<qry:attribute name="total" value="Number(@cant-F) + Number(@cant-R) + Number(@cant-S) + Number(@cant-P) + Number(@cant-E)"/>
+				</qry:element>
+			</qry:out>
+		</qry:select>
+		<qry:select name="qry_Instances" doc="PARAM">
+			<qry:xquery>
+				for $r in SQL
+			('
+				SELECT
+				      I.c_estado_ej,
+				      count(I.oi_instance) as cantidad
+				FROM
+				    WRK01_WF as WF,
+				    WRK02_INSTANCES as I
+				JOIN
+				    WF.oi_wf INNER I.oi_wf
+				
+				WHERE
+				  WF.c_wf = {$PARAM/@c_wf}
+				
+				GROUP BY I.c_estado_ej
+								    
+			')
+			/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:attribute name-calc="Concat('cant-', $r/@c_estado_ej)" value="$r/@cantidad"/>
+			</qry:out>
+		</qry:select>
+		<qry:select name="qry_cant-R-OK" doc="PARAM">
+			<qry:xquery>
+				for $r in SQL
+			('
+			       SELECT count(I.oi_instance) as cantidad
+			       FROM WRK02_INSTANCES AS I
+			       WHERE now() &lt; I.f_advertencia   
+			       AND I.c_estado_ej = \'R\'
+       			 AND I.oi_wf IN (SELECT WF.oi_wf
+                     				 FROM WRK01_WF AS WF
+                     				 WHERE WF.c_wf = \'{%=$PARAM/@c_wf%}\' ) 
+			 ')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:attribute name="cant-Ok" value="$r/@cantidad"/>
+			</qry:out>
+		</qry:select>
+		<qry:select name="qry_cant-R-PV" doc="PARAM">
+			<qry:xquery>
+				for $r in SQL
+			('
+			  SELECT count(I.oi_instance) as cantidad
+			  FROM WRK02_INSTANCES AS I
+				WHERE now() &gt; I.f_advertencia 
+				AND now() &lt;I.f_vencimiento
+				AND I.c_estado_ej = \'R\' 
+				AND I.oi_wf IN (SELECT WF.oi_wf
+												FROM WRK01_WF as WF
+												WHERE WF.c_wf = \'{%=$PARAM/@c_wf%}\')
+																	
+			 ')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:attribute name="cant-PV" value="$r/@cantidad"/>
+			</qry:out>
+		</qry:select>
+		<qry:select name="qry_cant-R-V" doc="PARAM">
+			<qry:xquery>
+				for $r in SQL
+			('
+			       SELECT count(I.oi_instance) as cantidad
+			       FROM WRK02_INSTANCES AS I
+			       WHERE now() &gt;= I.f_vencimiento 
+			       AND I.c_estado_ej = \'R\' 
+			       AND I.oi_wf IN (	SELECT WF.oi_wf
+															FROM WRK01_WF as WF
+															WHERE WF.c_wf = \'{%=$PARAM/@c_wf%}\')
+			 ')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:attribute name="cant-V" value="$r/@cantidad"/>
+			</qry:out>
+		</qry:select>
+	</html:query>
+</html:html>

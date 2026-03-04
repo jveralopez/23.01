@@ -1,0 +1,416 @@
+<html:html xmlns:html="nomad_engine.html" xmlns:qry="nomad_engine.qry" xmlns:xsl="http://www.w3.org/1999/XSL/Transform" doc="source" extends="NucleusRH.Base.Configuracion.GadgetBASE.rpt" name="Tarea">
+	<html:query declare="&lt;PARAMS  oi_tarea=&quot;5&quot;/&gt;">
+		<qry:main doc="SOURCE">
+			<qry:element name="MAIN">
+				<qry:element name="DATA">
+					<qry:attribute name="oi_tarea" value="#SOURCE:PARAMS/@oi_tarea"/>
+					<qry:insert-select name="qryTarea" doc-path="."/>
+				</qry:element>
+			</qry:element>
+		</qry:main>
+		<qry:select doc="SOURCE" name="qryTarea">
+			<qry:xquery>
+				for $r in sql('		
+					SELECT 
+	pt.oi_tarea,
+	pt.c_tarea AS c_tarea,
+	pt.d_tarea AS d_tarea,
+	pt.o_tarea AS o_tarea,
+	pp.c_proyecto AS c_proyecto,
+	pp.d_proyecto AS d_proyecto,
+	pp.oi_proyecto as oi_proyecto,
+	pp.oi_proyecto_parent,
+	PRY09_TIPOS_PROYECTO.c_tipo_proyecto,
+	pt.c_estado AS c_estado,
+	pt.e_prioridad AS e_prioridad,
+	pt.f_inicio AS f_inicio, 
+	pt.f_fin AS f_fin, 
+	pt.f_fin_est,
+	pt.f_limite as f_limite,
+	pt.e_estimado, 
+	put1.e_minutos,
+	pt.oi_recurso,
+	p.d_ape_y_nom
+FROM 
+	  PRY02_TAREAS AS pt
+	, PRY01_PROYECTOS AS pp
+	, PRY03_UND_TIEMPO AS put1
+	, PRY09_TIPOS_PROYECTO
+	, PRY05_RECURSOS AS r
+	, PER01_PERSONAL AS p
+JOIN
+	pp.oi_proyecto INNER pt.oi_proyecto
+  , pp.oi_tipo_proyecto INNER PRY09_TIPOS_PROYECTO.oi_tipo_proyecto
+  , put1.oi_unidad_tiempo INNER pt.oi_unidad_tiempo
+  , pt.oi_recurso INNER r.oi_recurso
+  , r.oi_personal INNER p.oi_personal						
+
+  					WHERE pt.oi_tarea = {%= #SOURCE:@oi_tarea%}
+  					
+				')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:attribute value="$r/@c_proyecto + '-' + $r/@d_proyecto" name="d_grupo_tarea"/>
+				<qry:attribute value="$r/@oi_tarea" name="oi_tarea"/>
+				<qry:attribute value="$r/@oi_recurso" name="oi_recurso"/>
+				<qry:attribute value="$r/@c_tarea" name="c_tarea"/>
+				<qry:attribute value="$r/@d_tarea" name="d_tarea"/>
+				<qry:attribute value="$r/@d_ape_y_nom" name="oi_recurso"/>
+				<qry:if test="$r/@o_tarea=''">
+					<qry:then>
+						<qry:attribute value="'No existe ning&#250;n detalle cargado para esta tarea.'" name="o_tarea"/>
+					</qry:then>
+					<qry:else>
+						<qry:attribute value="$r/@o_tarea" name="o_tarea"/>
+					</qry:else>
+				</qry:if>
+				<qry:insert-select name="qry_proyecto_padre" doc-path="$r"/>
+				<qry:insert-select name="qry_cliente" doc-path="$r"/>
+				<qry:switch test="$r/@c_estado">
+					<qry:case value="I">
+						<qry:attribute name="c_estado" value="'Inicializada'"/>
+					</qry:case>
+					<qry:case value="AP">
+						<qry:attribute name="c_estado" value="'Asignar Personas'"/>
+					</qry:case>
+					<qry:case value="T">
+						<qry:attribute name="c_estado" value="'Trabajando'"/>
+					</qry:case>
+					<qry:case value="P">
+						<qry:attribute name="c_estado" value="'Pausada'"/>
+					</qry:case>
+					<qry:case value="F">
+						<qry:attribute name="c_estado" value="'Finalizada'"/>
+					</qry:case>
+					<qry:case value="A">
+						<qry:attribute name="c_estado" value="'Anulada'"/>
+					</qry:case>
+					<qry:case value="L">
+						<qry:attribute name="c_estado" value="'Bloqueada'"/>
+					</qry:case>
+					<qry:case value="D">
+						<qry:attribute name="c_estado" value="'Derivada a Testing'"/>
+					</qry:case>
+					<qry:default>
+						<qry:attribute name="c_estado" value="''"/>
+					</qry:default>
+				</qry:switch>
+				<qry:attribute value="$r/@e_prioridad" name="e_prioridad"/>
+				<qry:switch test="$r/@e_prioridad">
+					<qry:case value="1">
+						<qry:attribute name="e_prioridad" value="'Alta'"/>
+					</qry:case>
+					<qry:case value="5">
+						<qry:attribute name="e_prioridad" value="'Media'"/>
+					</qry:case>
+					<qry:case value="9">
+						<qry:attribute name="e_prioridad" value="'Baja'"/>
+					</qry:case>
+					<qry:default>
+						<qry:attribute name="e_prioridad" value="''"/>
+					</qry:default>
+				</qry:switch>
+				<qry:attribute value="format_date($r/@f_inicio,'dd/mm/yyyy')" name="f_inicio"/>
+				<qry:attribute value="format_date($r/@f_fin,'dd/mm/yyyy')" name="f_fin"/>
+				<qry:attribute value="format_date($r/@f_limite,'dd/mm/yyyy')" name="f_limite"/>
+				<qry:attribute value="$r/@e_estimado" name="e_estimado"/>
+				<qry:attribute value="$r/@e_minutos" name="e_minutos"/>
+				<qry:attribute value="iif($r/@f_fin='',$r/@f_limite,$r/@f_fin)" name="fecha"/>
+				<qry:attribute value="iif(@fecha='','Sin Estimaci&#243;n',ceiling(number(datetime(@fecha))-number(datetime($r/@f_inicio))))" name="dias"/>
+				<qry:attribute value="(number($r/@e_estimado) * number($r/@e_minutos)) div 60" name="hs_estimadas"/>
+				<qry:attribute value="iif(@dias='Sin Estimaci&#243;n','',format_number(number(@hs_estimadas) div number(@dias),'###,###,##0.00'))" name="est_dias"/>
+				<qry:insert-select name="qry_trabajos" doc-path="$r"/>
+				<qry:insert-select name="qry_trabajos_recurso" doc-path="$r"/>
+			</qry:out>
+		</qry:select>
+		<qry:select name="qry_trabajos" doc="PARAM">
+			<qry:xquery>
+				for $r in SQL('	
+SELECT 
+	pt.e_duracion
+	, put.e_minutos
+FROM 
+	PRY04_TRABAJOS AS pt
+	, PRY03_UND_TIEMPO AS put
+JOIN
+	put.oi_unidad_tiempo INNER pt.oi_unidad_tiempo
+WHERE
+	pt.oi_tarea = {#PARAM:@oi_tarea}	
+')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:attribute value="@hs_insumidas + (number($r/@e_duracion) * number($r/@e_minutos)) div 60" name="hs_insumidas"/>
+			</qry:out>
+		</qry:select>
+		<qry:select name="qry_cliente" doc="PARAM">
+			<qry:xquery>
+				for $r in SQL('	
+SELECT 
+	pc.d_nom_cliente AS d_nom_cliente,
+	pp.oi_proyecto_parent AS oi_proyecto,
+	pp.oi_tipo_proyecto AS oi_tipo_proyecto
+
+FROM 
+	PRY01_PROYECTOS AS pp, 
+    PRY08_CLIENTES AS pc
+JOIN
+
+	pp.oi_cliente LEFT OUTER pc.oi_cliente 
+
+WHERE
+	pp.oi_proyecto = {#PARAM:@oi_proyecto}
+')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:if test="$r/@oi_tipo_proyecto!='6' AND $r/@oi_proyecto!=''">
+					<qry:then>
+						<qry:insert-select name="qry_cliente" doc-path="$r"/>
+					</qry:then>
+					<qry:else>
+						<qry:if test="$r/@oi_tipo_proyecto='6'">
+							<qry:then>
+								<qry:attribute value="$r/@d_nom_cliente" name="d_nom_cliente"/>
+							</qry:then>
+						</qry:if>
+					</qry:else>
+				</qry:if>
+			</qry:out>
+		</qry:select>
+		<qry:select name="qry_trabajos_recurso" doc="PARAM">
+			<qry:xquery>
+				for $r in SQL('	
+SELECT 
+	pt.e_duracion
+	, put.e_minutos
+FROM 
+	PRY04_TRABAJOS AS pt
+	, PRY03_UND_TIEMPO AS put
+JOIN
+	put.oi_unidad_tiempo INNER pt.oi_unidad_tiempo
+WHERE
+	pt.oi_tarea = {#PARAM:@oi_tarea}
+	and pt.oi_recurso={#PARAM:@oi_recurso}	
+')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:attribute value="@hs_insumidas_recurso + (number($r/@e_duracion) * number($r/@e_minutos)) div 60" name="hs_insumidas_recurso"/>
+			</qry:out>
+		</qry:select>
+		<qry:select name="qry_recurso" doc="PARAM">
+			<qry:xquery>
+				for $r in SQL('	
+SELECT 
+	PER01.d_ape_y_nom, 
+	P.e_dia, 
+	put1.e_minutos , 
+	op.d_posicion
+FROM 
+	PRY05_RECURSOS AS P,
+  PER01_PERSONAL AS PER01, 	
+  PER02_PERSONAL_EMP AS ppe, 
+  ORG04_POSICIONES AS op,
+  PRY03_UND_TIEMPO AS put1
+JOIN 
+	P.oi_personal INNER PER01.oi_personal,
+  ppe.oi_personal LEFT OUTER PER01.oi_personal,
+  op.oi_posicion LEFT OUTER ppe.oi_posicion_ult,
+  put1.oi_unidad_tiempo LEFT OUTER p.oi_unidad_tiempo
+WHERE
+	P.oi_recurso = {#PARAM:@oi_recurso}	
+')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:attribute value="$r/@d_ape_y_nom" name="oi_recurso"/>
+				<qry:attribute value="(number($r/@e_dia) * number($r/@e_minutos)) div 60" name="hs_jornada"/>
+				<qry:attribute value="@hs_jornada + ' hs.'" name="hs_jornada"/>
+				<qry:attribute value="$r/@d_posicion" name="d_posicion"/>
+			</qry:out>
+		</qry:select>
+		<qry:select name="qry_get_estados" doc="PARAM">
+			<qry:xquery>
+				for $r in #PARAM:C
+			</qry:xquery>
+			<qry:out>
+				<qry:attribute value="iif(@estados='', '\\\''+$r/@id+'\\\'', @estados +', '+ '\\\''+$r/@id+'\\\'')" name="estados"/>
+				<qry:append-doc name="ESTADOS" doc-path="."/>
+			</qry:out>
+		</qry:select>
+		<qry:select name="qry_proyecto_padre" doc="PARAM">
+			<qry:xquery>
+				for $r in SQL('	
+SELECT 
+	pp.c_proyecto AS c_proyecto,
+	pp.d_proyecto AS d_proyecto,
+	pp.oi_proyecto_parent AS oi_proyecto,
+	pp.oi_tipo_proyecto AS oi_tipo_proyecto
+
+FROM 
+	PRY01_PROYECTOS AS pp
+
+WHERE
+	pp.oi_proyecto = {#PARAM:@oi_proyecto}
+')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:if test="$r/@oi_tipo_proyecto!='1' AND $r/@oi_proyecto!=''">
+					<qry:then>
+						<qry:insert-select name="qry_proyecto_padre" doc-path="$r"/>
+					</qry:then>
+					<qry:else>
+						<qry:if test="$r/@oi_tipo_proyecto='1'">
+							<qry:then>
+								<qry:attribute value="$r/@c_proyecto + '-' + $r/@d_proyecto" name="d_proyecto"/>
+							</qry:then>
+						</qry:if>
+					</qry:else>
+				</qry:if>
+			</qry:out>
+		</qry:select>
+	</html:query>
+	<html:xslt>
+		<xsl:template name="MainReport" match="DATA">
+			<body bgcolor="#F2F2EC" scroll="no">
+				<table class="tabla_detail estilo1" style="width:100%; height:30%" cellspacing="0" cellpadding="0">
+					<tr>
+						<th>
+							Datos de la Tarea
+						</th>
+					</tr>
+					<tr>
+						<td>
+							<table style="width:100%" class="tabla_noticia estilo1">
+								<tr style="font-size:14px; font-style:oblique;">
+									<td style="color:#338F52; padding-left:15px; border-bottom:1px solid #C0C0C0">
+										<label style="font-weight:bold;">
+											Cliente:
+										</label>
+										<xsl:if test="@d_nom_cliente">
+											<xsl:value-of select="concat(' ',@d_nom_cliente)"/>
+										</xsl:if>
+										<xsl:if test="not(@d_nom_cliente)">
+											<xsl:value-of select="'No tiene cliente asociado'"/>
+										</xsl:if>
+									</td>
+								</tr>
+								<tr style="font-size:14px; font-style:oblique;">
+									<td style="padding-left:15px">
+										<label style="font-weight:bold">
+											Proyecto:
+										</label>
+										<xsl:if test="@d_proyecto">
+											<xsl:value-of select="concat(' ',@d_proyecto)"/>
+										</xsl:if>
+										<xsl:if test="not(@d_proyecto)">
+											<xsl:value-of select="'No tiene proyecto asociado'"/>
+										</xsl:if>
+									</td>
+								</tr>
+								<tr style="font-size:14px; font-style:oblique;">
+									<td style="padding-left:15px">
+										<label style="font-weight:bold">
+											Carpeta Contenedora:
+										</label>
+										<xsl:value-of select="concat(' ',@d_grupo_tarea)"/>
+									</td>
+								</tr>
+								<tr style="font-size:14px; font-style:oblique;">
+									<td style="padding-left:15px">
+										<label style="font-weight:bold">
+											C&#243;digo de la Tarea:
+										</label>
+										<xsl:value-of select="concat(' ',@c_tarea)"/>
+									</td>
+								</tr>
+								<tr style="font-size:14px; font-style:oblique;">
+									<td style="padding-left:15px">
+										<label style="font-weight:bold">
+											Descripci&#243;n:
+										</label>
+										<xsl:value-of select="concat(' ',@d_tarea)"/>
+									</td>
+								</tr>
+								<tr style="font-size:14px; font-style:oblique;">
+									<td style="padding-left:15px; border-bottom:1px solid #C0C0C0">
+										<label style="font-weight:bold">
+											Recurso Asignado:
+										</label>
+										<xsl:value-of select="concat(' ',@oi_recurso)"/>
+									</td>
+								</tr>
+								<tr style="font-size:12px;">
+									<td style="padding-left:15px">
+										<label style="font-weight:bold">
+											Estado de Realizaci&#243;n
+										</label>
+									</td>
+								</tr>
+								<tr style="font-size:12px">
+									<td style="padding-left:25px; color:#808080">
+										<label style="font-weight:bold">
+											Fecha de Inicio:
+										</label>
+										<xsl:value-of select="concat(' ',@f_inicio)"/>
+									</td>
+								</tr>
+								<tr style="font-size:12px">
+									<td style="padding-left:25px; color:#808080">
+										<label style="font-weight:bold">
+											Fecha Fin:
+										</label>
+										<xsl:value-of select="concat(' ',@f_fin)"/>
+									</td>
+								</tr>
+								<tr style="font-size:12px; color:#808080">
+									<td style="padding-left:25px">
+										<label style="font-weight:bold">
+											Estado:
+										</label>
+										<xsl:value-of select="concat(' ',@c_estado)"/>
+									</td>
+								</tr>
+								<tr style="font-size:12px">
+									<td style="padding-left:25px; color:#808080">
+										<label style="font-weight:bold">
+											Horas Estimadas:
+										</label>
+										<xsl:value-of select="concat(' ',@hs_estimadas)"/>
+									</td>
+								</tr>
+								<tr style="font-size:12px">
+									<td style="padding-left:25px; color:#808080">
+										<label style="font-weight:bold">
+											Horas Insumidas:
+										</label>
+										<xsl:value-of select="concat(' ',@hs_insumidas)"/>
+									</td>
+								</tr>
+								<tr style="font-size:12px">
+									<td style="padding-left:25px; color:#808080; border-bottom:1px solid #C0C0C0">
+										<label style="font-weight:bold">
+											D&#237;as:
+										</label>
+										<xsl:value-of select="concat(' ',@dias)"/>
+									</td>
+								</tr>
+								<tr style="font-size:12px;">
+									<td style="padding-left:15px">
+										<label style="font-weight:bold">
+											Detalle de la Tarea
+										</label>
+									</td>
+								</tr>
+								<tr style="font-size:12px">
+									<td style="padding-left:25px; color:#808080">
+										<xsl:value-of select="@o_tarea"/>
+									</td>
+								</tr>
+							</table>
+						</td>
+					</tr>
+				</table>
+			</body>
+		</xsl:template>
+		<xsl:template name="ReportSCRIPT"/>
+		<xsl:template name="GADGET_PARAM"/>
+	</html:xslt>
+</html:html>

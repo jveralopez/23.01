@@ -1,0 +1,562 @@
+<form:Form xmlns:form="nomad_engine.form" xmlns:qry="nomad_engine.qry" default_mode="DEBUG" mess="&#191;Est&#225; seguro que desa cancelar la operaci&#243;n?" doc="source" name="NucleusRH.Base.Tiempos_Trabajados.Personal.LEVEL2">
+	<form:Resources>
+		<form:Resource name="TIPOS_DE_HORAS">
+			<qry:main>
+				<qry:element name="ROWS">
+					<qry:insert-select name="SQL1"/>
+				</qry:element>
+			</qry:main>
+			<qry:select name="SQL1">
+				<qry:xquery>
+					for $r in SQL('
+				SELECT
+					t.l_requiereaut, 
+					t.c_color, 
+					t.oi_tipohora, 
+					t.d_tipohora, 
+					t.oi_licencia, 
+					t.e_sumariza_aus 
+				FROM 
+					TTA01_TIPOHORAS as t
+				ORDER BY d_tipohora ASC
+			')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:element name="ROW">
+						<qry:attribute name="id" value="$r/@oi_tipohora"/>
+						<qry:attribute name="label" value="$r/@d_tipohora"/>
+						<qry:attribute name="lic" value="$r/@oi_licencia"/>
+						<qry:attribute name="color" value="iif($r/@c_color='',iif($r/@e_sumariza_aus=0,'C0C000',iif($r/@e_sumariza_aus=1,'C00000','0000C0')),$r/@c_color)"/>
+						<qry:attribute name="auth" value="$r/@l_requiereaut"/>
+					</qry:element>
+				</qry:out>
+			</qry:select>
+		</form:Resource>
+		<form:Resource declare="&lt;PARAM oi_personal_emp=&quot;11566&quot; semana=&quot;683&quot; /&gt;" name="QRY_FICHADAS">
+			<qry:main name="" doc="SOURCE">
+				<ROWS>
+					<qry:attribute name="FD" value="DateTime(Number(DateTime('20000101')) + (7 * Number($SOURCE/PARAM/@semana) ))"/>
+					<qry:attribute name="FH" value="DateTime(Number(DateTime('20000107')) + (7 * Number($SOURCE/PARAM/@semana) +3))"/>
+					<qry:insert-select name="SQL1" doc-path="$SOURCE/PARAM"/>
+				</ROWS>
+			</qry:main>
+			<qry:select name="SQL1" doc="SOURCE">
+				<qry:xquery>
+					for $r in SQL('
+select 
+F.oi_fichadasing,                
+F.oi_personal_emp,  
+F.c_tipo, 
+F.f_fechahora,
+F.c_estado
+from 
+TTA07_FICHADASING as F
+where
+F.c_estado!=\'A\' and
+F.f_fechahora&gt;={DateTime(Number(DateTime(\'20000101\')) + (7 * Number($SOURCE/@semana) )) } and
+F.f_fechahora&lt;={DateTime(Number(DateTime(\'20000107\')) + (7 * Number($SOURCE/@semana) +3)) } and
+F.oi_personal_emp={$SOURCE/@oi_personal_emp}
+')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:insert-element doc-path="$r"/>
+				</qry:out>
+			</qry:select>
+		</form:Resource>
+	</form:Resources>
+	<form:Title width="90%">
+		<form:RowAligner name="ralTitle">
+			<form:Row name="row1">
+				<form:Label nowrap="1" align="center" visible="NEW" style="S3 LCol_w" label="Crear" name="GEN_NEW"/>
+				<form:Label visible="EDIT|DEBUG" nowrap="1" align="center" style="S3 LCol_w" label="Modificar" name="GEN_EDIT"/>
+				<form:Label nowrap="1" align="center" visible="DELETE" style="S3 LCol_w" label="Eliminar" name="GEN_DEL"/>
+				<form:Label nowrap="1" align="center" visible="SHOW|LIST|LIST_EDIT" style="S3 LCol_w" label="Consultar" name="GEN_SHOW"/>
+				<form:Label dynamic="1" nvalue="#PARENTSOURCE:../@descr" nowrap="1" align="right" style="S3 LCol_w" name="ti_01"/>
+			</form:Row>
+		</form:RowAligner>
+	</form:Title>
+	<form:Center height="100%" width="90%">
+		<form:Columns height="280px" width="900px" name="cols1">
+			<form:Column name="col1" separation="2" align="left" valign="top">
+				<form:RowAligner name="RowsPeriodo">
+					<form:Row name="RowPeriodo">
+						<form:SButton descrip="Ir a la Semana Anterior" img="PREV" label="Previo" name="PREV">
+							<form:Event action="PrevWeek" name="OnClick" runat="client"/>
+						</form:SButton>
+						<form:DateTime xsize="10" pattern="YYYYMMDD" name="ESPERANZA_PERIODO">
+							<form:Event action="RefreshWeek" name="onChange" runat="client"/>
+						</form:DateTime>
+						<form:SButton descrip="Ir a la Semana Pr&#243;xima" img="NEXT" label="Proximo" name="NEXT">
+							<form:Event action="NextWeek" name="OnClick" runat="client"/>
+						</form:SButton>
+					</form:Row>
+				</form:RowAligner>
+				<form:Div height="250px" width="900px" border="2" rheight="190px" rwidth="850px" label="Horario Esperado" name="ESPERANZA" borderwidth="2">
+					<form:SButtons>
+						<form:SButton descrip="Hora Anterior" img="PREV" label="Previo" name="PREV">
+							<form:Event action="PrevHour" name="OnClick" runat="client"/>
+						</form:SButton>
+						<form:SButton descrip="Hora Proxima" img="NEXT" label="Proximo" name="NEXT">
+							<form:Event action="NextHour" name="OnClick" runat="client"/>
+						</form:SButton>
+					</form:SButtons>
+				</form:Div>
+			</form:Column>
+		</form:Columns>
+		<form:Blank height="5px" name="refBlank"/>
+		<form:Columns height="300px" width="100%" name="ColsDatos">
+			<form:Column width="50%" valign="top" align="right" name="ColDato"/>
+			<form:Column width="50%" align="left" valign="top" name="ColRef">
+				<form:Div width="400px" border="1" height="200px" rheight="200px" rwidth="300px" borderwidth="2" label="Tipos de Hora" name="REFERENCIA"/>
+			</form:Column>
+		</form:Columns>
+		<form:Hidden name="oi_personal_emp" nvalue="#DDO:@id"/>
+		<form:Hidden nvalue="#FILTERDATA:@fecha" name="fecha"/>
+		<form:Hidden nvalue="#PAR:@CantidadDiasModificar" name="CantidadDiasModificar"/>
+	</form:Center>
+	<form:Scripts>
+		var Licencias;
+var LiqCloses;
+var MyHOR;
+var MyHORDef=null;
+var MyHORSEL="";
+var HOPE=new Array();
+var FICH=new Array();          
+var MyOBJ;   
+var HoraInicial=0;
+
+function ObtenerTiposHoras()
+{ 
+	var proxy;
+	var TIPOSHORA;
+	var retval;
+	var t;
+
+	proxy=new NomadProxy();
+	TIPOSHORA=proxy.SQLService().GetOBJ(Ctrl("main").getResource("TIPOS_DE_HORAS"),"");
+	
+	retval=new Array();
+	for (t=0; t&lt;TIPOSHORA.Child.length; t++)
+	{
+		retval[TIPOSHORA.Child[t].id.toString()]=TIPOSHORA.Child[t];
+		if (MyHORDef==null) MyHORDef=TIPOSHORA.Child[t];
+	}
+		
+	return retval;
+}
+
+function SetHorario(id)
+{             
+	MyHORDef=MyHOR[id];
+	if (!Edit) return;
+	Ctrl("oi_tipohora").SetXValue(id);
+}
+
+function DrawReference(arr, ContainerName, KeySelect)
+{                         
+	var HTMLoutput="", key;
+	var TrgObj=document.getElementById(ContainerName);
+	
+	
+	TrgObj.style.height=TrgObj.offsetHeight+"px";
+	
+	HTMLoutput+="&lt;TABLE style='width:99%;height:100%;cursor:default;font-family:arial;font-size:10px;font-weight:bold;color:#000000;background-color:#F0F0D0;' &gt;";
+	for (key in arr)
+	{
+		HTMLoutput+="&lt;TR style='height:20px;"+(key==KeySelect?"background-color:#F0F0A0;":"")+"' &gt;"
+		           +"&lt;TD onclick='SetHorario(\""+key+"\");' style='border-bottom:1px dotted #808080;width:30px;font-size:1px;' &gt;&lt;div style='padding:0px;height:12px;border-left:2px solid #"+arr[key].color+";border-right:2px solid #"+arr[key].color+";' &gt;&lt;div style='position:relative;top:4px;height:4px;width:100%;background-color:#"+arr[key].color+";' &gt;&lt;/div&gt;&lt;/div&gt;&lt;/TD&gt;"
+		           +"&lt;TD onclick='SetHorario(\""+key+"\");' style='border-bottom:1px dotted #808080;' &gt;"+arr[key].label+"&lt;/TD&gt;"
+		           +"&lt;/TR&gt;";
+	}
+	HTMLoutput+="&lt;/TABLE&gt;";
+	
+	TrgObj.innerHTML=HTMLoutput;
+}        
+
+function LoadReferences()
+{
+	//Referencias
+	MyHOR=ObtenerTiposHoras();
+	DrawReference(MyHOR, "REFERENCIA", MyHORSEL);
+	
+	//Cargo el Rango
+	NomadTimeout("OnChangePeriodo(); RefreshControls();", 100, "Cargando la Esperanza...");
+}
+
+function RefreshWeek()
+{
+	NomadTimeout("OnChangePeriodo();", 100, "Cargando la Esperanza...");
+}                   
+
+function OnLoad()
+{              
+	//Inicio el Periodo		
+	var now = NowDate();	
+	if (Ctrl('fecha'))
+	{
+		now = Ctrl('fecha').GetXValue()!=''?str2date(Ctrl('fecha').GetXValue()):NowDate();
+	}	
+	
+	now.setDate(now.getDate()-now.getDay());
+	Ctrl("ESPERANZA_PERIODO").SetTypedValue(now);
+
+	//Calculo el Periodo
+	var sd=Ctrl("ESPERANZA_PERIODO").TypedValue(); sd.setDate(sd.getDate()-sd.getDay()+0);
+	var ed=Ctrl("ESPERANZA_PERIODO").TypedValue(); ed.setDate(ed.getDate()-ed.getDay()+6);
+
+	//Inicio el Sistema
+	MyOBJ=HTMLTimeBarSelected("ESPERANZA","",ChangeTime,OnClickHorarioBack, OnClickHitoBack);
+	MyOBJ.SetAxisMode("DATE/TIME");
+	MyOBJ.SetAxisDate2(date2str(sd), date2str(ed));
+	MyOBJ.SetAxisTime(HoraInicial, HoraInicial+1440, 60, 15, 4);      
+
+	//Dibujo la Semana Vacia	
+	MyOBJ.Draw();
+
+	//Obtengo los Documentos
+	if (Ctrl('main').GetMode()=="DEBUG")
+	{                     
+		Edit=false;            
+		Ctrl("oi_personal_emp").SetXValue("11566");  
+
+		LiqCloses=new NomadXML("&lt;ROWS /&gt;");
+		Licencias=new NomadXML("&lt;LICEN_PER /&gt;");      
+	} else
+	{
+		LiqCloses=new NomadXML(Ctrl("main").GetLastDoc("LIQ"  ));
+		Licencias=new NomadXML(Ctrl("main").GetLastDoc("LICEN"));	
+	}
+	
+	//Cargo las Referencias
+	NomadTimeout("LoadReferences();", 100, "Cargando Referencias...");
+}                   
+
+function PrevWeek()
+{
+	var day=Ctrl("ESPERANZA_PERIODO").TypedValue();
+	day.setDate(day.getDate()-7);
+	Ctrl("ESPERANZA_PERIODO").SetTypedValue(day);
+	RefreshWeek();
+}
+
+function NextWeek()
+{
+	var day=Ctrl("ESPERANZA_PERIODO").TypedValue();
+	day.setDate(day.getDate()+7);
+	Ctrl("ESPERANZA_PERIODO").SetTypedValue(day);
+	RefreshWeek();
+}                
+
+function PrevHour()
+{                  
+	if (HoraInicial&gt;-720)
+	{
+		HoraInicial-=60;
+		MyOBJ.SetAxisTime(HoraInicial, HoraInicial+1440, 60, 15, 4);      
+	
+		//Dibujo la Semana Vacia	
+		MyOBJ.Draw();
+	}
+}
+
+function NextHour()
+{
+	if (HoraInicial&lt;720)
+	{
+		HoraInicial+=60;
+		MyOBJ.SetAxisTime(HoraInicial, HoraInicial+1440, 60, 15, 4);      
+	
+		//Dibujo la Semana Vacia	
+		MyOBJ.Draw();   
+	}
+}                
+
+function RefreshDay(MyOBJ, mydate)
+{    
+	var t, cur, horfound, key, ff, he, hs, newval, MyHopeDay;
+	
+	//Limpio el DIA
+	MyOBJ.ClearValue(mydate);
+	
+	//Bloqueo el DIA?       
+	
+	var dias;    
+	if(Ctrl('CantidadDiasModificar') != undefined &amp;&amp; Ctrl('CantidadDiasModificar').GetXValue() !='')
+		dias = Ctrl('CantidadDiasModificar').GetXValue();
+	else
+		dias = 180;
+	
+	now=NowDate();
+	if ((NowDate()-str2date(mydate))/86400000&gt;dias)
+		//alert("No se puede editar. Es anterior a "+dias+" dias.");
+		MyOBJ.SetLock(mydate,"Es anterior a "+dias+" dias.");
+     
+	for (cur=LiqCloses.FirstChild(); cur!=null; cur=cur.Next())
+	{       
+		fi=cur.GetAttrDateTime("f_ini");
+		ff=cur.GetAttrDateTime("f_fin");
+		
+		for (ff=cur.GetAttrDateTime("f_ini"); ff&lt;=cur.GetAttrDateTime("f_fin"); ff.setDate(ff.getDate()+1))
+			MyOBJ.SetLock(date2str(ff),"Hay una liquidacion cerrada.");	
+	}  
+	
+	//Obtengo la esperanza
+	MyHopeDay=GetHope(Math.floor((str2date(mydate)-str2date("20000102"))/604800000)).FindElement2("DIA","f_dia",mydate);
+
+	if (MyHopeDay!=null)
+	for (cur=MyHopeDay.FindElement("DETALLE").FirstChild(); cur!=null; cur=cur.Next())
+	{            
+		horfound=MyHOR[cur.FindElement("oi_tipohora").GetAttr("value")]; 
+		he=parseInt(cur.GetAttr("e_horainicio"),10);
+		hs=parseInt(cur.GetAttr("e_horafin"),10);
+		
+		MyOBJ.SetValue(
+			mydate,
+			he,
+			hs,
+			"ESP "+horfound.label,
+			horfound.color,
+			horfound.color,
+			"Esperanza: "+horfound.label+" desde "+int2time(he)+" a "+int2time(hs),
+			(cur.GetAttr("l_autorizada")=="1"?"STD":"DASH")
+		); 
+	}     
+	           
+	//Licencias
+	for (cur=Licencias.FirstChild(); cur!=null; cur=cur.Next())
+	{              
+		if ((cur.GetAttr("f_inicio")&lt;=mydate) &amp;&amp; (cur.GetAttr("f_fin")&gt;mydate))
+		{ 
+		     
+		  horfound=null;
+			for (key in MyHOR)
+				if (MyHOR[key].lic==cur.FindElement("oi_licencia").GetAttr("value")) 
+					horfound=MyHOR[key];
+		          
+			if (horfound)
+			{
+				MyOBJ.SetValue(
+					mydate,
+					-480,
+					1920,
+					"LIC "+horfound.label,
+					horfound.color,
+					horfound.color,
+					"Licencia: "+horfound.label,
+					"STD"
+				); 
+			} else
+			{               
+				MyOBJ.SetValue(
+					mydate,
+					-480,
+					1920,
+					"Licencia",
+					"A00000",
+					"A00000",
+					"Licencia: tipo de hora especificado.",
+					"STD"
+				); 
+			}
+		}
+	}
+
+	RefreshCustomDay(MyOBJ, mydate);
+}
+
+function CalcDay(mydate)
+{    
+	var cur, he, hs, MyHopeDay, minMinute, maxMinute;
+	
+	//Limpio el DIA
+	minMinute=720;
+	maxMinute=720;
+	
+	//Obtengo la esperanza
+	MyHopeDay=GetHope(Math.floor((str2date(mydate)-str2date("20000102"))/604800000)).FindElement2("DIA","f_dia",mydate);
+
+	if (MyHopeDay!=null)
+	for (cur=MyHopeDay.FindElement("DETALLE").FirstChild(); cur!=null; cur=cur.Next())
+	{            
+		he=parseInt(cur.GetAttr("e_horainicio"),10);
+		hs=parseInt(cur.GetAttr("e_horafin"),10);
+		
+		if (he&lt;minMinute) minMinute=Math.floor(he/60)*60;
+		if (hs&gt;maxMinute) maxMinute=Math.ceil(hs/60)*60;
+	}            
+	if (minMinute     &lt;HoraInicial) HoraInicial=minMinute;
+	if (maxMinute-1440&gt;HoraInicial) HoraInicial=maxMinute-1440;
+
+	CustomCalcDay(mydate);
+}                      
+
+function CustomCalcDay(mydate)
+{
+}
+
+function ReDraw(MyOBJ, mydate)
+{    
+	var t;                        
+	if (mydate==null) return;
+	
+	//Calcula Hora Inicial....
+	for (t=0; t&lt;mydate.length; t++) 
+	if (mydate[t]!="") 
+		CalcDay(mydate[t]);
+	MyOBJ.SetAxisTime(HoraInicial, HoraInicial+1440, 60, 15, 4);      		
+	
+	//Redibujo todos los dias
+	for (t=0; t&lt;mydate.length; t++) 
+	if (mydate[t]!="") 
+	{
+		RefreshDay(MyOBJ, mydate[t]);
+		MyOBJ.ReDraw(mydate[t]);
+	}          
+}          
+
+var MyREDRAW=null;         
+
+function ReDrawWait(MyOBJ, mydate, refreshday, refreshcontrol)
+{                            
+	if (mydate=="") return;     
+	           
+	MyREDRAW=new Object();
+	MyREDRAW.MyOBJ =MyOBJ;
+	MyREDRAW.mydate=mydate;
+	
+	NomadTimeout((refreshday?"ReDraw(MyREDRAW.MyOBJ, MyREDRAW.mydate);":"")+(refreshcontrol?"RefreshControls();":""),100,"Actualizando la vista...");
+}          
+
+function GetHope(semana)
+{                                              
+	//Busca en el CACHE
+	if (HOPE["K"+semana]) return HOPE["K"+semana];
+
+  //Cargo la HOPE
+	var proxy=new NomadProxy();
+	var RPC=proxy.RPCService();
+	var retval;
+ 
+	RPC.AddParam(new NomadRPCParam("week"    , "IN" , parseInt(semana,10)));
+	RPC.AddParam(new NomadRPCParam("personal", "IN" , parseInt(Ctrl("oi_personal_emp").GetXValue(),10)));
+	RPC.AddParam(new NomadRPCParamOut("retval", "Nomad.NSystem.Object", "NucleusRH.Base.Tiempos_Trabajados.Esperanzaper.ESPERANZAPER"));
+
+	RPC.Execute("NucleusRH.Base.Tiempos_Trabajados.Esperanzaper.ESPERANZAPER","GetHope");
+	retval=new NomadXML(RPC.GetParam("retval").Data); 
+
+	//Agrego el elemento al CACHE
+	HOPE["K"+semana]=retval.FirstChild().FindElement("DIAS");
+	return HOPE["K"+semana];
+}
+
+function RefreshFichadas(semana)
+{
+	//Busca en el CACHE
+	if (FICH["K"+semana]) return;
+	
+  //Cargo la HOPE
+	var proxy=new NomadProxy();
+	var retval=proxy.SQLService().GetXML(Ctrl("main").getResource("QRY_FICHADAS"),'&lt;PARAM oi_personal_emp="'+Ctrl("oi_personal_emp").GetXValue()+'" semana="'+semana+'" /&gt;');
+	
+	
+	for (var cur=retval.FirstChild(); cur!=null; cur=cur.Next())
+	{                                         
+		var curDate=cur.GetAttr("f_fechahora").substr(0,8);
+		var curTime=Math.round((cur.GetAttrDateTime("f_fechahora")-str2date(curDate)) / 60000);
+		var estado="desconodico";
+		
+		switch(cur.GetAttr("c_estado"))
+		{
+			case "P": estado="pendiente"; break;
+			case "E": estado="error"; break;
+			case "A": estado="anulada"; break;
+			case "C": estado="correcta"; break;
+			case "F": estado="fichada"; break;
+		}
+		
+
+		switch(cur.GetAttr("c_tipo"))
+		{
+			case "E":
+				MyOBJ.SetHito(curDate, curTime, "Entrada: "+int2time(curTime), "background-color:#00FF00;bottom:1px;height:8px;", cur.GetAttr("oi_fichadasing"));
+				break;
+				
+			case "S":
+				MyOBJ.SetHito(curDate, curTime, "Salida: "+int2time(curTime), "background-color:#FF0000;top:0px;height:8px;", cur.GetAttr("oi_fichadasing"));
+				break;
+				
+			default:
+				MyOBJ.SetHito(curDate, curTime, "Indefinida: "+int2time(curTime), "background-color:#FF00FF;top:0px;height:23px;", cur.GetAttr("oi_fichadasing"));
+				break;
+		}
+	}
+
+	//Agrego el elemento al CACHE
+	FICH["K"+semana]=1;
+}
+
+
+function OnChangePeriodo()
+{
+	var sd=Ctrl("ESPERANZA_PERIODO").TypedValue(); sd.setDate(sd.getDate()-sd.getDay()+0);
+	var ed=Ctrl("ESPERANZA_PERIODO").TypedValue(); ed.setDate(ed.getDate()-ed.getDay()+6);
+	var MyROW, mydate, arr;
+
+	MyOBJ.SetAxisDate2(date2str(sd), date2str(ed));
+	
+	//Calcula Hora Inicial....
+	for(mydate=str2date(date2str(sd)); mydate&lt;=ed; mydate.setDate(mydate.getDate()+1))
+		CalcDay(date2str(mydate));
+	MyOBJ.SetAxisTime(HoraInicial, HoraInicial+1440, 60, 15, 4);      		
+	           
+	arr=new Array();             
+	for(mydate=str2date(date2str(sd)); mydate&lt;=ed; mydate.setDate(mydate.getDate()+1))
+		RefreshDay(MyOBJ, date2str(mydate));
+	
+	//Actualizo la Semana	
+	RefreshFichadas(Math.floor((str2date(Ctrl("ESPERANZA_PERIODO").GetXValue())-str2date("20000102"))/604800000));
+ 
+	if (Edit) MyOBJ.EditEnd();
+	MyOBJ.Draw();
+	if (Edit) MyOBJ.EditStart(); 
+}
+
+var TimeOutOBJ;
+function OnClickHorarioBack(obj, dte, value)
+{                                          
+	TimeOutOBJ=new Object();
+	TimeOutOBJ.obj=obj;
+	TimeOutOBJ.dte=dte;
+	TimeOutOBJ.value=value;
+	NomadTimeout("OnClickHorario(TimeOutOBJ.obj, TimeOutOBJ.dte, TimeOutOBJ.value)",100,"Cargando Informacion...");
+}
+ 
+function OnClickHitoBack(curDate, idx)
+{        
+	var objHito=MyOBJ.GetHito(curDate, idx);
+	OnClickHito(objHito.Tag);
+}
+
+//Functiones Customs a Implementar.....
+function RefreshControls()
+{
+}
+
+function RefreshCustomDay(MyOBJ, mydate)
+{
+}
+
+function OnClickHorario(obj, dte, value)
+{      
+}
+
+function OnClickHito(oi_fichadaing)
+{      
+}
+
+function ChangeTime(obj, dte, timestart, timeend)
+{
+}
+	</form:Scripts>
+	<form:Event action="OnLoad" name="onLoad" runat="client"/>
+</form:Form>

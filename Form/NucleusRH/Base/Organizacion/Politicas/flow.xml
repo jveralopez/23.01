@@ -1,0 +1,64 @@
+<flow:flow xmlns:flow="nomad_engine.flow" xmlns:doc="nomad_engine.doc" xmlns:qry="nomad_engine.qry" extends="Nomad.Base.flow" name="NucleusRH.Base.Organizacion.Politicas.flow">
+	<flow:info label="flow para NucleusRH.Base.Organizacion.Politicas"/>
+	<flow:declare>
+		<doc:define name="CLASE">
+			<CLASE id=""/>
+		</doc:define>
+		<qry:define name="QRY_CLASE">
+			<qry:main>
+				<qry:element name="CLASE">
+					<qry:insert-select name="RS1"/>
+				</qry:element>
+			</qry:main>
+			<qry:select name="RS1">
+				<qry:xquery>
+					for $r in sql('
+				SELECT 
+					ORG02_CLASES_ORG.oi_clase_org 
+				FROM 
+					ORG02_CLASES_ORG 
+				WHERE 
+					ORG02_CLASES_ORG.c_clase_org IN 
+						(SELECT 
+							ORG26_PARAMETROS.d_valor 
+ 						FROM 
+ 							ORG26_PARAMETROS 
+						WHERE 
+							ORG26_PARAMETROS.c_parametro = \'ClsPol\')
+			 ')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:attribute name="id" value="$r/@oi_clase_org"/>
+				</qry:out>
+			</qry:select>
+		</qry:define>
+	</flow:declare>
+	<flow:main doc="SOURCE">
+		<flow:action name="initialize">
+			<doc:load-qry output-doc="CLASE" qry="QRY_CLASE"/>
+			<flow:open-form mode="FILTER" form-class="NucleusRH.Base.Organizacion.Politicas.form" doc-path="#CLASE:"/>
+		</flow:action>
+		<flow:action name="updatetree">
+			<doc:load-qry output-doc="CLASE" qry="QRY_CLASE"/>
+			<flow:exec-method method="UpdateTreePolicy" class="NucleusRH.Base.Organizacion.Clases_Organizativas.CLASE_ORG" priority="5" out-type="String" out-attr-path="#BATCHDOC:@batch-id">
+				<flow:param attr-path="#CLASE:@id" type="Nomad.NSystem.Int" mode="in" name="claseID"/>
+			</flow:exec-method>
+			<flow:open-form form-class="nomad.base.batchtolist.form" mode="BATCH" doc-path="#BATCHDOC:"/>
+		</flow:action>
+	</flow:main>
+	<flow:form parent-doc="PARENTSOURCE" mode="FILTER" name="NucleusRH.Base.Organizacion.Politicas.form:FILTER" form-class="NucleusRH.Base.Organizacion.Politicas.form" doc="SOURCE">
+		<flow:action name="ACCEPT">
+			<flow:exec-method method="GenerarPolitica2" class="NucleusRH.Base.Organizacion.Clases_Organizativas.CLASE_ORG" priority="5" out-type="String" out-attr-path="#BATCHDOC:@batch-id">
+				<flow:param attr-path="#SOURCE:@id" type="Nomad.NSystem.Int" mode="in" name="claseID"/>
+				<flow:param attr-path="#SOURCE:@segLeg" type="Nomad.NSystem.Boolean" mode="in" name="chgLeg"/>
+			</flow:exec-method>
+			<flow:open-form form-class="nomad.base.batchtolist.form" mode="BATCH" doc-path="#BATCHDOC:"/>
+		</flow:action>
+		<flow:action name="BACK">
+			<flow:close-form/>
+		</flow:action>
+		<flow:action name="on-show">
+			<doc:set-attribute from-value="1" to-attr-path="#SOURCE:@segLeg"/>
+		</flow:action>
+	</flow:form>
+</flow:flow>

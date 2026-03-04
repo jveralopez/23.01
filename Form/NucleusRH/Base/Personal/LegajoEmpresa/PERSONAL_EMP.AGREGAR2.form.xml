@@ -1,0 +1,340 @@
+<form:Form xmlns:form="nomad_engine.form" extends="NucleusRH.Base.Personal.LegajoEmpresa.PERSONAL_EMP.BUSCAR2.form" name="NucleusRH.Base.Personal.LegajoEmpresa.PERSONAL_EMP.AGREGAR2.form" doc="source" default_mode="SHOW">
+	<form:Help/>
+	<form:Scripts>
+		var arrFILTER;
+var arrSELECTED;
+
+
+//Actualiza la lista con el nuevo ARRAY
+function refreshSelected()
+{              
+ 	var page=Ctrl("listSELECTED").Page;
+	Ctrl("listSELECTED").IDs=arrSELECTED;
+	Ctrl("listSELECTED").ResetSQL();
+	Ctrl("listSELECTED").GotoPage(page);
+	
+	enable_buttons();
+}
+
+function enable_buttons(msg)
+{ 
+	if (Ctrl("listFILTER").SetMessage) Ctrl("listFILTER").SetMessage(null);
+  CtrlEnabled("listFILTER_Delete", Ctrl("arrcheckFILTER").CountRow()==0?false:true);
+  CtrlEnabled("listFILTER_Clear" , true);
+	CtrlEnabled("ADD_ALL"          , arrFILTER.length==0?false:true);
+	CtrlEnabled("ADD"              , Ctrl("arrcheckFILTER").CountRow()==0?false:true);
+
+	CtrlEnabled("listSELECTED_Delete", Ctrl("arrcheckSELECTED").CountRow()==0?false:true);
+	CtrlEnabled("listSELECTED_Clear" , true);
+	CtrlEnabled("DEL_ALL"            , arrSELECTED.length==0?false:true);
+	CtrlEnabled("DEL"                , Ctrl("arrcheckSELECTED").CountRow()==0?false:true);
+  
+  CtrlEnabled("vgroupDatosPers"  , true);
+  CtrlEnabled("vgroupDatosCustom", true);        
+
+  enable_custom_buttons();
+  loadingMessage(false, null);
+  formEnabled = true;
+  
+  Ctrl("filtrados").SetXValue("Legajos Filtrados: "+arrFILTER.length+(msg?msg:""));
+	Ctrl("incluidos").SetXValue("Legajos Incluidos: "+arrSELECTED.length);
+}
+
+function internal_find()
+{ 
+  var auxArr, auxArr2;
+	auxArr = exec_qry();
+	if (auxArr==null) return;  
+	
+	auxArr2=new Array();
+	copiar(auxArr2, auxArr);
+
+	//Obtiene los Elementos en Comun.
+	intersect(auxArr , arrFILTER);
+	intersect(auxArr2, arrSELECTED);		
+	
+	if (auxArr.length==0 &amp;&amp; auxArr2.length==0) 
+	{
+		alert("No se encontro ningun registro.");
+		return;
+	}
+
+	if (auxArr.length!=0)
+		Ctrl("listFILTER").SetXValue(auxArr[0]);
+		
+	if (auxArr2.length!=0)
+		Ctrl("listSELECTED").SetXValue(auxArr2[0]);
+}
+
+
+function ONLOAD()
+{
+	var t, ROW, VALUES;
+	arrFILTER = new Array();
+	arrSELECTED = new Array();
+ 
+	//Valores Iniciales
+	for (t=0; t&lt;Ctrl("arrSELECTED").CountRow(); t++)
+	{
+		ROW=Ctrl("arrSELECTED").GetRow(t);
+		VALUES=ROW.GetAttr("VALUES").split(",");
+		for (d=0; d&lt;VALUES.length; d++)
+			if (VALUES[d]!="")
+				arrSELECTED.push(VALUES[d]);
+	} 
+	
+	refreshSelected();
+	refreshList();
+}
+
+function ONLOAD_custom()
+{
+}
+
+function POST_exec_qry(resultArray)
+{
+	remove(resultArray, arrSELECTED);
+}
+
+function FillArray(numByRow)
+{
+	var t,n,values,sep,row,p;
+	
+	Ctrl("arrSELECTED").DelAllRow(); 
+	
+	values=""; sep="";
+	for (t=0,n=0,p=0; t&lt;arrSELECTED.length; t++, n++)
+	{
+		if (n&gt;=numByRow)
+		{              
+			p++;
+			row=Ctrl("arrSELECTED").AddRow()
+			row.SetAttr("id", p);
+			row.SetAttr("VALUES", values);
+			values=""; sep=""; n=0;
+		}                  
+		
+		values+=sep+arrSELECTED[t];
+		sep=",";
+	}
+	if (values!="") 
+	{      
+		p++;
+		row=Ctrl("arrSELECTED").AddRow()
+		row.SetAttr("id", p);
+		row.SetAttr("VALUES", values);
+	}
+	
+}
+
+function ADD()
+{           
+	for (var X=0; X&lt;arrFILTER.length; X++)
+	{
+		if (Ctrl("arrcheckFILTER").GetRowByAttr("ID",arrFILTER[X])!=null)
+		{                        
+			arrSELECTED.push(arrFILTER[X]);
+			arrFILTER.splice(X,1);
+			X--;
+		}
+	}
+ 
+	Ctrl("listFILTER").SetXValue("");
+ 	Ctrl("arrcheckFILTER").DelAllRow();
+	refreshList();
+	refreshSelected();
+}
+
+function ADD_ALL()
+{                 
+	Ctrl("listFILTER").SetXValue("");
+	Ctrl("listSELECTED").SetXValue(""); 
+	Ctrl("arrcheckFILTER").DelAllRow();
+	
+	union(arrSELECTED, arrFILTER);
+	arrFILTER=new Array();
+	refreshSelected();
+	refreshList();
+}
+
+function DEL()
+{              
+	for (var X=0; X&lt;arrSELECTED.length; X++)
+	{
+		if (Ctrl("arrcheckSELECTED").GetRowByAttr("ID",arrSELECTED[X])!=null)
+		{                        
+			arrFILTER.push(arrSELECTED[X]);
+			arrSELECTED.splice(X,1);
+			X--;
+		}
+	}
+ 
+	Ctrl("listSELECTED").SetXValue("");
+ 	Ctrl("arrcheckSELECTED").DelAllRow();
+	refreshList();
+	refreshSelected();
+}
+
+function DEL_ALL()
+{
+	Ctrl("listFILTER").SetXValue("");
+	Ctrl("listSELECTED").SetXValue("");
+	Ctrl("arrcheckSELECTED").DelAllRow();
+
+	union(arrFILTER, arrSELECTED);
+	arrSELECTED=new Array();
+	refreshSelected();
+	refreshList();
+}
+
+
+//Elimino iten del FILTRO
+function delSELECTED()
+{                      
+	for (var X=0; X&lt;arrSELECTED.length; X++)
+	{
+		if (Ctrl("arrcheckSELECTED").GetRowByAttr("ID",arrSELECTED[X])!=null)
+		{                        
+			arrSELECTED.splice(X,1);
+			X--;
+		}
+	}
+ 
+	Ctrl("listSELECTED").SetXValue("");
+ 	Ctrl("arrcheckSELECTED").DelAllRow();
+	refreshSelected();
+}
+
+//Limpio la Lista del FILTRO
+function clearSELECTED()
+{  
+	for (var X=0; X&lt;arrSELECTED.length; X++)
+	{
+		if (Ctrl("arrcheckSELECTED").GetRowByAttr("ID",arrSELECTED[X])==null)
+		{                        
+			arrSELECTED.splice(X,1);
+			X--;
+		}
+	}
+ 
+	Ctrl("listSELECTED").SetXValue("");
+ 	Ctrl("arrcheckSELECTED").DelAllRow();
+	refreshSelected();
+}                 
+
+function checkSELECTED()
+{    
+	var X=Ctrl("listSELECTED").GetXValue();
+	if (X!="" &amp;&amp; Ctrl("listSELECTED").LastColumnClick!="SEL")
+	{                                                  
+		if (Ctrl("arrcheckSELECTED").GetRowByAttr("ID",X)==null) Ctrl("arrcheckSELECTED").AddRow().SetAttr("ID",X);
+		                                                    else Ctrl("arrcheckSELECTED").DelRowByAttr("ID",X);    
+		                                                  
+		Ctrl("listSELECTED").SetXValue("");
+		refreshSelected();
+	} else           
+		enable_buttons();
+}
+
+//Deschequeo TOTAL
+function unmarkSELECTED()
+{
+	Ctrl("listSELECTED").SetXValue("");
+ 	Ctrl("arrcheckSELECTED").DelAllRow();
+	refreshSelected();
+}
+
+
+function ACCEPT()
+{
+	Ctrl("main").DoEvent("ACCEPT");
+}
+
+function CANCEL()
+{
+	Ctrl("main").DoEvent("CANCEL");
+}
+	</form:Scripts>
+	<form:Resources/>
+	<form:Event action="ONLOAD" name="onload" runat="client"/>
+	<form:Center width="100%">
+		<form:VGroup nvalue="#source:@gpers" border="1" width="90%" collapse="1" label="Criterios de selecci&#243;n de personas" name="vgroupDatosPers">
+			<form:Columns width="100%" name="columns1">
+				<form:Column valign="top" align="center" name="col1">
+					<form:Rower name="rwer11">
+						<form:Label dynamic="1" style="S3 LCol_t" name="incluidos" label="Legajos Incluidos"/>
+					</form:Rower>
+					<form:RecordSet select-show="0" arr-control="arrcheckSELECTED" nvalue="#source:@legSEL" name="listSELECTED" xquery="qry" descrip="Legajos Filtrados" mode="IDS" height="200" row-height="20" width="500px" label="Legajos Filtrados">
+						<form:RSColumns>
+							<form:RSColumn show="S" orderby="0" arr-control="arrcheckSELECTED" width="25px" type="check" descrip="Seleccionado" name="SEL"/>
+							<form:RSColumn show="S" orderby="0" width="150px" type="string" align="left" descrip="Empresa" label="Empresa" name="EMPRESA"/>
+							<form:RSColumn orderby="0" show="S" dec="0" width="50px" type="number" align="right" descrip="Legajo" label="Legajo" name="LEGAJO"/>
+							<form:RSColumn label="Apellido y Nombre" show="S" orderby="0" width="275px" align="left" type="string" descrip="Apellido y Nombre" name="APE_Y_NOM"/>
+						</form:RSColumns>
+						<form:SButtons>
+							<form:SButton img="table_uncheck" descrip="Desmarcar los Elementos" name="UnMark">
+								<form:Event action="unmarkSELECTED" name="OnClick" runat="client"/>
+							</form:SButton>
+							<form:SButton img="table_delete" descrip="Eliminar el elemento de la Lista" name="Delete">
+								<form:Event action="delSELECTED" name="OnClick" runat="client"/>
+							</form:SButton>
+							<form:SButton img="table_mul_delete" descrip="Limpiar la Lista" name="Clear">
+								<form:Event action="clearSELECTED" name="OnClick" runat="client"/>
+							</form:SButton>
+						</form:SButtons>
+						<form:Event action="checkSELECTED" name="OnClick" runat="client"/>
+					</form:RecordSet>
+					<form:HiddenArr name="arrcheckSELECTED" proto="&lt;ROW /&gt;"/>
+					<form:HiddenArr name="arrSELECTED" nvalue="#source:PERSONAS" proto="&lt;ROW /&gt;">
+						<form:Attr source="@VALUES" name="VALUES"/>
+					</form:HiddenArr>
+				</form:Column>
+				<form:Column valign="middle" align="center" name="colbuttons">
+					<form:Button img="fr" descrip="Agregar todos los Legajos." name="ADD_ALL" label="">
+						<form:Event action="ADD_ALL" name="onclick" runat="client"/>
+					</form:Button>
+					<form:Button descrip="Agregar el Legajo Seleccionado." img="prev" name="ADD" label="">
+						<form:Event action="ADD" name="onclick" runat="client"/>
+					</form:Button>
+					<form:Blank name="blank5"/>
+					<form:Button descrip="Eliminar el Legajo Seleccionado." img="next" name="DEL" label="">
+						<form:Event action="DEL" name="onclick" runat="client"/>
+					</form:Button>
+					<form:Button descrip="Eliminar Todos los Legajos." name="DEL_ALL" img="ff" label="">
+						<form:Event action="DEL_ALL" name="onclick" runat="client"/>
+					</form:Button>
+				</form:Column>
+				<form:Column valign="top" align="center" name="col3">
+					<form:Rower name="rwer21">
+						<form:Label dynamic="1" descrip="Variar la lista" style="S3 LCol_t" name="filtrados" label="Legajos Filtrados"/>
+					</form:Rower>
+					<form:RecordSet select-show="0" nvalue="#source:@legID" xquery="qry" arr-control="arrcheckFILTER" name="listFILTER" descrip="Legajos Filtrados" mode="IDS" height="200" row-height="20" width="500px" label="Legajos Filtrados">
+						<form:RSColumns>
+							<form:RSColumn show="S" orderby="0" arr-control="arrcheckFILTER" width="25px" type="check" descrip="Seleccionado" name="SEL"/>
+							<form:RSColumn show="S" orderby="0" width="150px" type="string" align="left" descrip="Empresa" label="Empresa" name="EMPRESA"/>
+							<form:RSColumn orderby="0" show="S" dec="0" width="50px" type="number" align="right" descrip="Legajo" label="Legajo" name="LEGAJO"/>
+							<form:RSColumn label="Apellido y Nombre" show="S" orderby="0" width="275px" align="left" type="string" descrip="Apellido y Nombre" name="APE_Y_NOM"/>
+						</form:RSColumns>
+						<form:SButtons>
+							<form:SButton img="table_uncheck" descrip="Desmarcar los Elementos" name="UnMark">
+								<form:Event action="unmarkFILTER" name="OnClick" runat="client"/>
+							</form:SButton>
+							<form:SButton img="table_delete" descrip="Eliminar el elemento de la Lista" name="Delete">
+								<form:Event action="delFILTER" name="OnClick" runat="client"/>
+							</form:SButton>
+							<form:SButton img="table_mul_delete" descrip="Limpiar la Lista" name="Clear">
+								<form:Event action="clearFILTER" name="OnClick" runat="client"/>
+							</form:SButton>
+						</form:SButtons>
+						<form:Event name="OnClick" action="checkFILTER" runat="client"/>
+					</form:RecordSet>
+					<form:HiddenArr proto="&lt;ROW /&gt;" name="arrcheckFILTER"/>
+					<form:HiddenArr proto="&lt;ROW /&gt;" name="arrFILTER">
+						<form:Attr source="@VALUES" name="VALUES"/>
+					</form:HiddenArr>
+				</form:Column>
+				<form:Column visible="0" name="col2" separation="2" align="center" valign="top"/>
+			</form:Columns>
+		</form:VGroup>
+	</form:Center>
+</form:Form>

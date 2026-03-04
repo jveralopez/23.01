@@ -1,0 +1,141 @@
+<form:Form xmlns:form="nomad_engine.form" xmlns:qry="nomad_engine.qry" default_mode="FILTER" doc="source" name="NucleusProject.Base.Project.Tareas.TAREA.TableroDeTareas.STD_FIL.autoform" extends="">
+	<form:Title width="90%">
+		<form:Label name="lbl_titulo" visible="0"/>
+		<form:RowAligner name="ralTitle">
+			<form:Row name="row1">
+				<form:Label nowrap="1" align="center" style="S3 LCol_w" name="GEN_NEW" label="Filtrar Tareas de la Pizarra Scrum"/>
+				<form:Label nowrap="1" align="center" style="S3 LCol_w" dynamic="1" name="OBJ"/>
+				<form:Label nowrap="1" align="center" style="S2 LCol_w" dynamic="1" name="PAR"/>
+			</form:Row>
+		</form:RowAligner>
+	</form:Title>
+	<form:Center width="95%">
+		<form:Columns name="main_cols">
+			<form:Column name="main_col">
+				<form:Blank name="main_BB" height="15px"/>
+				<form:ComboBox xsize="40" mode="QRY" name="oi_recurso" prev="" nvalue="#source:@oi_recurso" required="0" label="Recurso:" descrip="Recurso:" enabled="" visible="" queryname1="NucleusProject.Base.Project.Recursos.RECURSO.INFO" where1=""/>
+				<form:ComboBox xsize="40" mode="QRY" name="oi_proyecto" prev="" nvalue="#source:@oi_proyecto" required="0" label="Proyecto:" descrip="Proyecto:" enabled="" visible="" queryname1="NucleusProject.Base.Project.Proyectos.PROYECTO.INFO_TIPO_PROYECTO" where1=""/>
+				<form:DateTime mask="dd/mm/yyyy" pattern="YYYYMMDD" name="fecha_desde" prev="" nvalue="#source:@fecha_desde" required="0" label="Fecha Desde:" descrip="Fecha Desde:" enabled="" visible="" max="" min="">
+					<form:SButtons>
+						<form:SButton name="Calendar" label="Calendar" visible="" img="Calendar" descrip="">
+							<form:Event runat="client" name="onclick" action="SHOW_HELPER"/>
+						</form:SButton>
+					</form:SButtons>
+				</form:DateTime>
+				<form:DateTime mask="dd/mm/yyyy" pattern="YYYYMMDD" name="fecha_hasta" prev="" nvalue="#source:@fecha_hasta" required="0" label="Fecha Hasta:" descrip="Fecha Hasta:" enabled="" visible="" max="" min="">
+					<form:SButtons>
+						<form:SButton name="Calendar" label="Calendar" visible="" img="Calendar" descrip="">
+							<form:Event runat="client" name="onclick" action="SHOW_HELPER"/>
+						</form:SButton>
+					</form:SButtons>
+				</form:DateTime>
+			</form:Column>
+		</form:Columns>
+		<form:Hidden name="PARENT" nvalue="#source:@PARENT"/>
+		<form:Hidden name="ID" nvalue="#source:@ID"/>
+	</form:Center>
+	<form:Bottom>
+		<form:RowAligner name="buttonlinks">
+			<form:Row name="row1">
+				<form:Button name="ACCEPT" descrip="Aceptar" img="OK" label="Aceptar" startvalidate="1">
+					<form:Event action="ACCEPT" name="onclick" runat="server"/>
+				</form:Button>
+				<form:Blank name="BB2" width="20px"/>
+				<form:Button name="BACK" descrip="Volver" img="BACK" label="Volver">
+					<form:Event action="BACK" name="onclick" runat="server"/>
+				</form:Button>
+			</form:Row>
+		</form:RowAligner>
+	</form:Bottom>
+	<form:Scripts>
+		var CFG,CHLCFG;
+var TIT=null;
+var T2T=null;
+
+///////////////////////////////////////////////////////////////////////////////          
+//EVENTOS
+function ONLOAD_custom()
+{                
+	//Cargo la Configuracion
+	CFG=new NomadXML(Ctrl("main").getResource("QRY_CFG"));
+	CHLCFG=new NomadXML(Ctrl("main").getResource("QRY_CHILD"));
+
+	//Modifico los Recursos
+	ReplaceResource("QRY_IDS_OBJECT");
+	ReplaceResource("QRY_IDS_PARENT");
+
+	//Actualizo el Titulo
+	if ((Ctrl("PAR"))&amp;&amp; (CFG.GetAttr("RESOURCE-PARENT")!="") &amp;&amp; (Ctrl("PARENT").GetXValue()!=""))
+	{
+		if (TIT==null)
+			TIT=GetProxy().SQLService().GetXML(Ctrl("main").getResource("QRY_IDS_PARENT"), '&lt;PARAM IDS="'+Ctrl("PARENT").GetXValue()+'"/&gt;');
+
+		while(TIT!=null) 
+		{
+			if (TIT.GetAttr("descr")!="")
+				Ctrl("PAR").SetXValue(" ("+TIT.GetAttr("descr")+")");
+			TIT=TIT.FirstChild();
+		}
+	}
+
+	if ((Ctrl("OBJ"))&amp;&amp; (CFG.GetAttr("RESOURCE-OBJECT")!="") &amp;&amp; (Ctrl("ID").GetXValue()!=""))
+	{
+		if (T2T==null)
+			T2T=GetProxy().SQLService().GetXML(Ctrl("main").getResource("QRY_IDS_OBJECT"), '&lt;PARAM IDS="'+Ctrl("ID").GetXValue()+'"/&gt;');
+
+		while(T2T!=null) 
+		{
+			if (T2T.GetAttr("descr")!="")
+				Ctrl("OBJ").SetXValue(" '"+T2T.GetAttr("descr")+"'");
+			T2T=T2T.FirstChild();
+		}
+	}
+}
+
+function ReplaceResource(recID)
+{
+	var recValue=Ctrl("main").getResource(recID);
+	recValue=Replace(recValue,"#RESOURCE-PARENT#",CFG.GetAttr("RESOURCE-PARENT"));
+	recValue=Replace(recValue,"#RESOURCE-OBJECT#",CFG.GetAttr("RESOURCE-OBJECT"  ));
+
+	Ctrl("main").setResource(recValue, recID);
+}
+
+function DependCall(obj)
+{
+  var flowId=CHLCFG.FindElement2("CHILD","name",obj.ID()).GetAttr("flow");
+  var flag  =CHLCFG.FindElement2("CHILD","name",obj.ID()).GetAttr("flag");
+
+  if (flowId.indexOf(":")&gt;=0)
+    appendFormInMain(flowId.split(":")[0], flowId.split(":")[1], '&lt;DATA PARENT="'+Ctrl("ID").GetXValue()+'" GRAND="'+Ctrl("PARENT").GetXValue()+'" /&gt;');
+  else
+    appendFormInMain(flowId              , "LIST"              , '&lt;DATA PARENT="'+Ctrl("ID").GetXValue()+'" GRAND="'+Ctrl("PARENT").GetXValue()+'" /&gt;');
+}
+	</form:Scripts>
+	<form:Scripts/>
+	<form:Resources>
+		<form:Resource declare="" name="QRY_IDS_OBJECT">
+			<qry:include name="#RESOURCE-OBJECT#"/>
+			<qry:main maxdeep="2" doc="PARAMIN">
+				<qry:element name="ROWS">
+					<qry:insert-select name="sql1" doc-path="#PARAMIN:/PARAM"/>
+				</qry:element>
+			</qry:main>
+		</form:Resource>
+		<form:Resource declare="" name="QRY_IDS_PARENT">
+			<qry:include name="#RESOURCE-PARENT#"/>
+			<qry:main maxdeep="2" doc="PARAMIN">
+				<qry:element name="ROWS">
+					<qry:insert-select name="sql1" doc-path="#PARAMIN:/PARAM"/>
+				</qry:element>
+			</qry:main>
+		</form:Resource>
+		<form:Resource name="QRY_CFG">
+			<CFG resource-object="" resource-parent=""/>
+		</form:Resource>
+		<form:Resource name="QRY_CHILD">
+			<CFG/>
+		</form:Resource>
+	</form:Resources>
+	<form:Event action="ONLOAD_custom" name="OnLoad" runat="client"/>
+</form:Form>

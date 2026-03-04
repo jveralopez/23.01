@@ -1,0 +1,259 @@
+<form:Form xmlns:form="nomad_engine.form" xmlns:qry="nomad_engine.qry" name="NucleusRH.Base.Tiempos_Trabajados.Liquidacion.RESULTADO.form" doc="source">
+	<form:Scripts>
+		var TIPOSHORA=null;
+
+function FindHora(id_hora)
+{
+	var t;
+	if (TIPOSHORA==null)
+	{
+		proxy=new NomadProxy();
+		TIPOSHORA=proxy.SQLService().GetOBJ(Ctrl("main").getResource("TIPOS_DE_HORAS"),"");
+	}
+
+	for (t=0; t&lt;TIPOSHORA.Child.length; t++)
+		if (TIPOSHORA.Child[t].id==id_hora) return TIPOSHORA.Child[t];
+		
+	return null;
+} 
+
+function DrawReference(arr, ContainerName)
+{                         
+	var HTMLoutput="", key;
+	var TrgObj=document.getElementById(ContainerName);
+	
+	HTMLoutput+="&lt;TABLE style='width:100%;height:100%cursor:default;font-family:arial;font-size:10px;font-weight:bold;color:#000000;background-color:#F0F0D0;border: 1px solid black;' &gt;";
+	for (key in arr)
+		HTMLoutput+="&lt;TR style='height:20px;' &gt;"
+		           +"&lt;TD style='border-bottom:1px dotted #808080;width:30px;font-size:1px;' &gt;&lt;div style='padding:0px;height:12px;border-left:2px solid #"+arr[key].color+";border-right:2px solid #"+arr[key].color+";' &gt;&lt;div style='position:relative;top:4px;height:4px;width:100%;background-color:#"+arr[key].color+";' &gt;&lt;/div&gt;&lt;/div&gt;&lt;/TD&gt;"
+		           +"&lt;TD style='border-bottom:1px dotted #808080;' &gt;"+arr[key].label+"&lt;/TD&gt;"
+		           +"&lt;TD style='border-bottom:1px dotted #808080;' &gt;"+arr[key].value+"&lt;/TD&gt;"
+		           +"&lt;/TR&gt;";
+	HTMLoutput+="&lt;/TABLE&gt;";
+	
+	TrgObj.innerHTML=HTMLoutput;
+}
+
+function DrawGraphics()
+{        
+
+	var HTMLoutput="", TrgObj;
+	HTMLoutput+="&lt;TABLE style='width:100%;height:100%cursor:default;font-family:arial;font-size:10px;font-weight:bold;color:#000000;' &gt;";
+	HTMLoutput+="&lt;TR&gt;"
+	           +"&lt;TD&gt;Cargando...&lt;/TD&gt;"
+	           +"&lt;/TR&gt;";
+	HTMLoutput+="&lt;/TABLE&gt;";
+
+
+	TrgObj=document.getElementById("Reference1");
+	TrgObj.innerHTML=HTMLoutput;
+	
+	TrgObj=document.getElementById("Reference2");
+	TrgObj.innerHTML=HTMLoutput;      
+	
+	TrgObj=document.getElementById("Contenedor");
+	TrgObj.innerHTML=HTMLoutput;      
+
+	window.setTimeout("ReDrawGraphics();", 500);
+}
+
+function ReDrawGraphics()
+{
+	proxy=new NomadProxy();
+	PERSONA    =proxy.DDOService().GetOBJ("NucleusRH.Base.Tiempos_Trabajados.Liquidacion_Personas.LIQUIDACIONPERS", Ctrl("oi_liquidacionpers").GetXValue());
+	LIQUIDACION=proxy.DDOService().GetOBJ("NucleusRH.Base.Tiempos_Trabajados.Liquidacion.LIQUIDACION", PERSONA.LIQUIDACIONPERS.oi_liquidacion.value);
+	
+	MyOBJ=HTMLTimeBar("Contenedor","",null,null);
+	MyOBJ.AddSerie("ESTADO","Est");
+	
+	
+	MyOBJ.SetAxisDate2(LIQUIDACION.LIQUIDACION.f_fechainicio,LIQUIDACION.LIQUIDACION.f_fechafin);
+	MyOBJ.SetAxisTime(-6*60, 30*60, 60, 15, 3);
+	
+	ValAnt="00";
+	FechaDesde=str2date(LIQUIDACION.LIQUIDACION.f_fechainicio);
+	FechaHasta=str2date(LIQUIDACION.LIQUIDACION.f_fechainicio);
+	   
+	HorariosList=new Array();
+	DiasList    =new Array();
+	Dias		    =new Array();
+			
+	for (d=str2date(LIQUIDACION.LIQUIDACION.f_fechainicio); d&lt;=str2date(LIQUIDACION.LIQUIDACION.f_fechafin); d.setDate(d.getDate() + 1)) 
+	{
+		MyJOR=new Object();
+		MyJOR.l_esperado="0";
+		MyJOR.l_presente="0";
+		MyJOR.f_fecjornada=date2str(d);
+		Dias[d] = MyJOR;
+	}	 
+	MyJOR=new Object();
+	MyJOR.l_esperado="0";
+	MyJOR.l_presente="0";
+	MyJOR.f_fecjornada="19760115";
+
+	Dias[str2date("19760115")] = MyJOR;
+	
+	for (t=0; t&lt;PERSONA.LIQUIDACIONPERS.LIQUIDACJOR.Child.length; t++)
+	{ 
+		MyJOR=PERSONA.LIQUIDACIONPERS.LIQUIDACJOR.Child[t];
+		Dias[str2date(MyJOR.f_fecjornada)] = MyJOR;	
+	}
+		
+	for (d in Dias)
+	{		
+		MyJOR=Dias[d];
+
+		ValNew=MyJOR.l_esperado+MyJOR.l_presente;
+		
+		if (ValAnt==ValNew)
+			FechaHasta=str2date(MyJOR.f_fecjornada);
+		else
+		{						
+			switch(ValAnt)
+			{
+				case "00": //No tiene que venir y no vino (no hay que hacer nada)         					
+					MyOBJDIA = new Object();
+				break;
+				case "10": //Tiene que venir y no vino (AUSENTE)
+					MyOBJ.SetSerieValue("ESTADO",date2str(FechaDesde),date2str(FechaHasta),"&#160;", "C0A0A0", "000000", "Ausente desde "+FechaDesde.getDate()+"/"+(FechaDesde.getMonth()+1)+"/"+FechaDesde.getFullYear()+" hasta "+FechaHasta.getDate()+"/"+(FechaHasta.getMonth()+1)+"/"+FechaHasta.getFullYear());
+					if (DiasList["AUS"]?false:true) DiasList["AUS"]=new Object();
+					MyOBJDIA=DiasList["AUS"];
+					MyOBJDIA.label="Ausente";
+					MyOBJDIA.color="C0A0A0";
+				break;
+				case "11": //Tiene que venir y vino (PRESENTE)
+					MyOBJ.SetSerieValue("ESTADO",date2str(FechaDesde),date2str(FechaHasta),"&#160;", "80C080", "000000", "Presente desde "+FechaDesde.getDate()+"/"+(FechaDesde.getMonth()+1)+"/"+FechaDesde.getFullYear()+" hasta "+FechaHasta.getDate()+"/"+(FechaHasta.getMonth()+1)+"/"+FechaHasta.getFullYear());
+					if (DiasList["PRE"]?false:true) DiasList["PRE"]=new Object();
+					MyOBJDIA=DiasList["PRE"];
+					MyOBJDIA.label="Presente";
+					MyOBJDIA.color="80C080";
+				break;
+				case "01": //No tiene que venir y vino! (EXEDENTE)
+					MyOBJ.SetSerieValue("ESTADO",date2str(FechaDesde),date2str(FechaHasta),"&#160;", "AAAA40", "000000", "Excedente desde "+FechaDesde.getDate()+"/"+(FechaDesde.getMonth()+1)+"/"+FechaDesde.getFullYear()+" hasta "+FechaHasta.getDate()+"/"+(FechaHasta.getMonth()+1)+"/"+FechaHasta.getFullYear());
+					if (DiasList["EXE"]?false:true) DiasList["EXE"]=new Object();
+					MyOBJDIA=DiasList["EXE"];
+					MyOBJDIA.label="Excedente";
+					MyOBJDIA.color="AAAA40";
+					
+				break;
+			}         
+			
+			if (MyOBJDIA.Total?false:true) MyOBJDIA.Total=0;
+			MyOBJDIA.Total+=1+Math.floor((FechaHasta-FechaDesde)/86400000);
+			
+			ValAnt=ValNew;
+			FechaDesde=str2date(MyJOR.f_fecjornada);
+			FechaHasta=str2date(MyJOR.f_fecjornada);
+		}         
+		
+		if (MyJOR.LIQUIDACPROC)                          
+		{           
+			for (d=0; d&lt;MyJOR.LIQUIDACPROC.Child.length; d++)
+			{
+				MyDET=MyJOR.LIQUIDACPROC.Child[d];
+				MyHOR=FindHora(MyDET.oi_tipohora.value);
+				
+				if (MyHOR==null)
+				{
+					MyHOR=new Object();
+					MyHOR.color="000000";
+					MyHOR.label="Desconocida";
+				}
+				
+				HD=(str2datetime(MyDET.f_fechoraentrada)-str2date(MyJOR.f_fecjornada))/60000;
+				HH=(str2datetime(MyDET.f_fechorasalida )-str2date(MyJOR.f_fecjornada))/60000;
+				
+				HDtxt=parseInt((HD+1440)%1440/60,10)+":"+FillLeft(((HD+1440)%60).toString(),2,"0");
+				HHtxt=parseInt((HH+1440)%1440/60,10)+":"+FillLeft(((HH+1440)%60).toString(),2,"0");
+	   
+	   		//Agrego el Horario a la Lista de Referencias
+				HorariosList[MyHOR.id.toString()]=MyHOR;
+				if (MyHOR.Total?false:true) MyHOR.Total=0;
+				MyHOR.Total+=Math.floor(HH-HD);
+
+				MyOBJ.SetValue(MyJOR.f_fecjornada, 
+				               HD, 
+				               HH, 
+				               "&#160;", 
+				               MyHOR.color, 
+				               "000000", 
+				               MyHOR.label+" desde "+HDtxt+" hasta "+HHtxt);
+							     
+			}
+		}
+		
+	}     
+	
+	for (key in DiasList) DiasList[key].value=DiasList[key].Total+" dias.";
+	for (key in HorariosList) HorariosList[key].value=Math.floor(HorariosList[key].Total/60)+":"+FillLeft((HorariosList[key].Total%60).toString(),2,"0")+" Hs.";
+	
+	DrawReference(DiasList    ,"Reference1");
+	DrawReference(HorariosList,"Reference2");
+	MyOBJ.Draw();
+}
+	</form:Scripts>
+	<form:Title width="90%">
+		<form:RowAligner name="ralTitle">
+			<form:Row name="row1">
+				<form:Label label="Procesamiento de Horas - Visualizar" nowrap="1" name="lblTitulo" style="S3 LCol_w"/>
+				<form:Label nvalue="#source:@descr" dynamic="1" nowrap="1" align="right" style="S3 LCol_w" name="ti_01"/>
+			</form:Row>
+		</form:RowAligner>
+	</form:Title>
+	<form:Center>
+		<form:Columns name="colCenter">
+			<form:Column name="col1">
+				<form:Blank name="bl4" width="100%" visible=""/>
+				<form:FKInput enabled="0" label="Procesamiento - Legajo" name="oi_liquidacionpers" nvalue="#source:@oi_liquidacionpers" required="1" xsize="30" length="30">
+					<form:STexts>
+						<form:SText xsize="80" name="txt1"/>
+					</form:STexts>
+					<form:Helper name="NucleusRH.Base.Tiempos_Trabajados.Liquidacion_Personas.LIQUIDACIONPERS.Guia.autoflow" help="HELP" x2c="X2C" c2x="C2X">
+						<helper-mess text="{this.Text.1}" id="{this.XVal}" code="{this.CVal}"/>
+					</form:Helper>
+				</form:FKInput>
+				<form:Blank width="100%" name="bl1"/>
+				<form:Container rheight="50" rwidth="95" label="Resultado del Procesamiento" name="Contenedor" borderwidth="2"/>
+				<form:Blank name="bl3"/>
+				<form:RowAligner width="100%" name="rowRef">
+					<form:Row name="rowRef1">
+						<form:Container rheight="20" rwidth="45" label="Estados por Dia" name="Reference1" borderwidth="2"/>
+						<form:Blank name="bl2" width="100%"/>
+						<form:Container rheight="20" rwidth="45" label="Tipos de Hora" name="Reference2" borderwidth="2"/>
+					</form:Row>
+				</form:RowAligner>
+			</form:Column>
+		</form:Columns>
+	</form:Center>
+	<form:Bottom width="60%">
+		<form:RowAligner name="botonera" columns="3">
+			<form:Row name="fila6">
+				<form:Button visible="" note="" descrip="" img="BACK" label="Volver" name="Volver">
+					<form:Event action="BACK" name="onclick" runat="server"/>
+				</form:Button>
+			</form:Row>
+		</form:RowAligner>
+	</form:Bottom>
+	<form:Event action="DrawGraphics" name="OnLoad" runat="client"/>
+	<form:Resources>
+		<form:Resource name="TIPOS_DE_HORAS">
+			<qry:main>
+				<qry:element name="ROWS">
+					<qry:insert-select name="SQL1"/>
+				</qry:element>
+			</qry:main>
+			<qry:select name="SQL1">
+				<qry:xquery>
+					for $r in SQL('select t.c_color, t.oi_tipohora, t.d_tipohora from TTA01_TIPOHORAS as t')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:element name="ROW">
+						<qry:attribute name="id" value="$r/@oi_tipohora"/>
+						<qry:attribute name="color" value="$r/@c_color"/>
+						<qry:attribute name="label" value="$r/@d_tipohora"/>
+					</qry:element>
+				</qry:out>
+			</qry:select>
+		</form:Resource>
+	</form:Resources>
+</form:Form>

@@ -1,0 +1,377 @@
+<form:Form xmlns:form="nomad_engine.form" name="NucleusRH.Base.Liquidacion.Legajo_Liquidacion.EMBARGO.form" default_mode="EDIT" extends="NucleusRH.Base.Liquidacion.Legajo_Liquidacion.EMBARGO.autoform" doc="source" mess="&#191;Est&#225; seguro que desa cancelar la operaci&#243;n?">
+	<form:Scripts>
+		function SueldoBruto()
+{                               
+	if (Ctrl('l_sueldo_bruto').GetXValue() == "1")
+	{                                  
+		Ctrl('l_sueldo_neto').SetCValue("");
+		CtrlEnabled('l_sueldo_neto', false);
+	}else
+	{
+		CtrlEnabled('l_sueldo_neto', true);
+	}
+}
+
+function SueldoNeto()
+{    
+	if (Ctrl('l_sueldo_neto').GetXValue() == "1")
+	{                                                  
+		Ctrl('l_sueldo_bruto').SetCValue("");
+		CtrlEnabled('l_sueldo_bruto', false);
+	}else
+	{
+		CtrlEnabled('l_sueldo_bruto', true);
+	}
+}
+
+function CallDescuentos(me)
+{
+	if (Ctrl('main').GetMode() == "EDIT" &amp;&amp; Ctrl('l_liquida').GetCValue() == "0")
+	{
+		if (Ctrl('c_estado').GetXValue() == "I" || Ctrl('c_estado').GetXValue() == "A")
+		{
+	  	me.DoEvent("CALL_EDIT");
+	  	return;
+	  }
+	}
+	me.DoEvent("CALL_SHOW");
+}
+
+function ONLOAD()
+{	
+	if (Ctrl('main').GetMode() == "NEW")
+	{
+		Ctrl('c_estado').SetXValue("I");
+	}
+	
+	/*
+	CtrlEnabled('oi_concepto', false);
+	if (Ctrl('l_liquida').GetCValue() == "1" &amp;&amp; Ctrl('c_tipo_embargo').GetXValue() == "CAC")
+	{
+		CtrlEnabled('oi_concepto', true);	
+	} */                              
+	
+	if (Ctrl('main').GetMode() == "EDIT")
+	{
+		CambioTipo();
+		
+		if (Ctrl('c_estado').GetXValue() != "I" &amp;&amp; Ctrl('c_estado').GetXValue() != "A")
+		{
+			CtrlEnabled('e_nro_oficio', false);
+			CtrlEnabled('f_oficio' , false);
+			CtrlEnabled('o_embargo' , false);
+			CtrlEnabled('n_monto_pend', false);
+			CtrlEnabled('n_monto_total', false);
+			CtrlEnabled('n_monto_fijo', false);
+			CtrlEnabled('l_sueldo_neto', false);
+			CtrlEnabled('n_porc_emb', false);
+			CtrlEnabled('f_recepcion', false);
+			CtrlEnabled('l_liquida', false);
+			CtrlEnabled('o_caratula', false);
+			CtrlEnabled('d_actor', false);
+			CtrlEnabled('d_causa', false);
+			CtrlEnabled('c_tipo_embargo', false);
+			CtrlEnabled('oi_sucursal', false);
+			CtrlEnabled('oi_sucursal_2', false);
+			CtrlEnabled('d_juzgado', false);
+			CtrlEnabled('d_juez', false);
+			CtrlEnabled('d_secretaria', false);
+			CtrlEnabled('c_nro_expediente', false);
+			CtrlEnabled('c_nro_cuenta', false);
+			CtrlEnabled('f_inicio', false);
+			CtrlEnabled('f_inactivo', false);
+			CtrlEnabled('f_finalizado', false);
+			CtrlEnabled('c_estado', false); 	
+			CtrlEnabled('l_sueldo_bruto', false);
+			CtrlEnabled('oi_concepto', false);
+		}
+		
+		if (Ctrl('c_tipo_embargo').GetXValue() == "OC" &amp;&amp; Ctrl('l_liquida').GetCValue() == "0")
+		{
+	 		Ctrl('n_monto_pend').SetTypedValue(Ctrl('n_monto_total').TypedValue() - str2number(Ctrl('suma').GetXValue()));
+	 		if (Ctrl('n_monto_pend').TypedValue() == 0)
+	 		{
+	 			Ctrl('c_estado').SetXValue("F");
+	 			Ctrl('f_finalizado').SetXValue(date2str(Now()));
+	 		}else if (Ctrl('n_monto_pend').TypedValue() &gt; 0)
+	 		{
+	 			if (Ctrl('n_monto_pend').TypedValue() &lt; Ctrl('n_monto_total').TypedValue())
+	 				Ctrl('c_estado').SetXValue("A");
+	 				Ctrl('f_finalizado').SetXValue("");
+	 			if (Ctrl('n_monto_pend').TypedValue() == Ctrl('n_monto_total').TypedValue())
+	 				Ctrl('c_estado').SetXValue("I");
+	 				Ctrl('f_finalizado').SetXValue("");
+	 		}else
+	 		{
+	 			alert('El monto de los descuentos excede el monto total del embargo');
+	 		}
+	 	}
+	}
+
+ 	CtrlEnabled('DELETE', false);
+ 	if (Ctrl('c_estado').GetXValue() == "I")
+ 	{
+ 		CtrlEnabled('DELETE', true) 
+ 	}
+ 	
+
+ 	CtrlEnabled('FINALIZAR', false);
+ 	if (Ctrl('l_liquida').GetCValue() == "0")
+ 	{
+ 		if (Ctrl('c_estado').GetXValue() == "I" || Ctrl('c_estado').GetXValue() == "A" )
+ 		{
+ 			CtrlEnabled('FINALIZAR', true);
+	 	}
+ 	}
+
+ 	CtrlEnabled('INACTIVAR', false);	
+	if (Ctrl('c_estado').GetXValue() == "I" || Ctrl('c_estado').GetXValue() == "A" || Ctrl('c_estado').GetXValue() == "N")
+	{
+		CtrlEnabled('INACTIVAR', true);
+	}
+}
+
+function Aceptar()
+{        
+	if (Ctrl('c_tipo_embargo').GetXValue() == "CA")
+	{
+		if (Ctrl('n_porc_emb').TypedValue() != 0 &amp;&amp; Ctrl('n_porc_emb').TypedValue() != null &amp;&amp; Ctrl('l_sueldo_bruto').GetCValue() == 0 &amp;&amp; Ctrl('l_sueldo_neto').GetCValue() == 0 &amp;&amp; Ctrl('oi_concepto').GetXValue() == "")
+		{
+			alert("Al cargar un porcentaje de descuento debe indicar si la base es el sueldo neto, el bruto, o un concepto.");
+		 	return false;
+		}
+		if ((Ctrl('n_porc_emb').TypedValue() == 0 || Ctrl('n_porc_emb').TypedValue() == null) &amp;&amp; (Ctrl('n_monto_fijo').TypedValue() == 0 || Ctrl('n_monto_fijo').TypedValue() == null))
+		{
+			alert("Debe cargar un porcentaje y/o un monto fijo a embargar");
+		 	return false;
+		}
+		return true;
+	}
+	if (Ctrl('c_tipo_embargo').GetXValue() == "OC")
+	{
+		if (Ctrl('n_monto_total').TypedValue() == 0 || Ctrl('n_monto_total').TypedValue() == null)
+		{
+			alert("Al Cargar un embargo de tipo Otra Causa debe cargar el monto total");
+		 	return false;
+		}else
+		{
+			if (Ctrl('n_monto_pend').GetXValue() == "")
+				Ctrl('n_monto_pend').SetCValue(Ctrl('n_monto_total').GetXValue());
+		}
+		return true;
+	}	
+}
+
+function Finalizar()
+{
+	Ctrl('c_estado').SetXValue("F");
+	Ctrl('f_finalizado').SetXValue(date2str(Now()));
+	ONLOAD();
+}
+
+function Inactivar()
+{
+	if (Ctrl('c_estado').GetXValue() == "I" || Ctrl('c_estado').GetXValue() == "A")
+	{
+		Ctrl('c_estado').SetXValue("N");
+		Ctrl('f_inactivo').SetXValue(date2str(Now()));
+		ONLOAD();
+		return;
+	}
+	if (Ctrl('c_estado').GetXValue() == "N")
+	{
+		Ctrl('c_estado').SetXValue("A");
+		Ctrl('f_inactivo').SetXValue("");
+		ONLOAD();
+		return;
+	}
+	
+}    
+
+function CambioTipo()
+{
+	if (Ctrl('c_tipo_embargo').GetXValue() == "CA")
+ 	{ 		
+ 		//Ctrl('n_monto_fijo').SetCValue("");
+ 		Ctrl('n_monto_total').SetCValue("");
+ 		Ctrl('n_monto_pend').SetCValue("");
+ 		//Ctrl('oi_concepto').SetXValue("");
+ 		CtrlEnabled('n_monto_fijo'  , true);
+ 		CtrlEnabled('n_monto_total' , false);
+ 		CtrlEnabled('n_monto_pend'  , false);
+ 		CtrlEnabled('n_porc_emb'    , true);
+ 		CtrlEnabled('l_sueldo_bruto', true);
+ 		CtrlEnabled('l_sueldo_neto' , true);
+ 		CtrlEnabled('oi_concepto'   , true);
+ 	}                            
+ 	if (Ctrl('c_tipo_embargo').GetXValue() == "OC")
+ 	{
+ 			//Ctrl('n_monto_total').SetCValue("");
+ 		//Ctrl('n_monto_pend').SetCValue("");
+ 		Ctrl('n_porc_emb').SetCValue("");
+ 		//Ctrl('oi_concepto').SetXValue("");
+ 		Ctrl('l_sueldo_bruto').SetCValue("0");
+ 		Ctrl('l_sueldo_neto').SetCValue("0");
+ 		//Ctrl('n_monto_fijo').SetCValue(""); 
+ 		CtrlEnabled('n_monto_fijo'  , true); 
+ 		CtrlEnabled('n_monto_total' , true);
+ 		CtrlEnabled('n_monto_pend'  , true);
+ 		CtrlEnabled('n_porc_emb'    , false);
+ 		CtrlEnabled('l_sueldo_bruto', false);
+ 		CtrlEnabled('l_sueldo_neto' , false);
+ 		CtrlEnabled('oi_concepto'   , false);
+ 		
+ 		
+ 		
+ 		
+ 		//Ctrl('n_monto_total').SetCValue("");
+ 		//Ctrl('n_monto_pend').SetCValue("");
+ 		Ctrl('n_porc_emb').SetCValue("");
+ 		//Ctrl('n_monto_total').SetCValue("");
+ 		//Ctrl('n_monto_pend').SetCValue("");
+ 		
+ 		//Ctrl('oi_concepto').SetXValue("");
+ 		//Ctrl('l_sueldo_bruto').SetCValue("0");
+ 		//Ctrl('l_sueldo_neto').SetCValue("0");
+ 		//Ctrl('n_monto_fijo').SetCValue(""); 
+ 		CtrlEnabled('n_monto_fijo'  , true); 
+ 		CtrlEnabled('n_monto_total' , true);
+ 		CtrlEnabled('n_monto_pend'  , true);
+ 		CtrlEnabled('n_porc_emb'    , true);
+ 		CtrlEnabled('l_sueldo_bruto', true);
+ 		CtrlEnabled('l_sueldo_neto' , true);
+ 		CtrlEnabled('oi_concepto'   , true);
+	}
+}
+	</form:Scripts>
+	<form:Event runat="client" name="onload" action="ONLOAD"/>
+	<form:Right visible="SHOW|EDIT">
+		<form:VGroup visible="SHOW|EDIT" name="vgChildsEMBARGO" width="90%" collapse="1" label="Dependencias">
+			<form:Link name="DESC_EMB" label="Descuentos por Embargo" visible="EDIT|SHOW|DELETE" allowimg="1">
+				<form:Event runat="client" name="onclick" action="CallDescuentos"/>
+				<form:Event name="CALL_SHOW" action="CALL:DESC_EMB_SHOW" runat="server"/>
+				<form:Event name="CALL_EDIT" runat="server" action="CALL:DESC_EMB"/>
+			</form:Link>
+		</form:VGroup>
+	</form:Right>
+	<form:Center width="95%">
+		<form:Columns visible="SHOW|EDIT|NEW" name="main_columnsEMBARGO">
+			<form:Column name="main_columnsEMBARGOcolumn1">
+				<form:NumberBox name="oi_personal_emp" nvalue="#source:@oi_personal_emp" label="OID Personal Empresa" xsize="12" mask="###.###.##0" enabled="NEW|EDIT" required="0" visible="0"/>
+				<form:NumberBox name="e_nro_oficio" nvalue="#source:@e_nro_oficio" label="N&#250;mero de Oficio" xsize="12" mask="###.###.##0" enabled="NEW|EDIT" required="1"/>
+				<form:DateTime name="f_oficio" nvalue="#source:@f_oficio" label="Fecha Oficio" mask="dd/mm/yyyy" enabled="NEW|EDIT" required="1" pattern="YYYYMMDD">
+					<form:SButtons>
+						<form:SButton name="Calendar" label="Calendar" img="Calendar" visible="EDIT|NEW">
+							<form:Event runat="client" name="onclick" action="SHOW_HELPER"/>
+						</form:SButton>
+					</form:SButtons>
+				</form:DateTime>
+				<form:DateTime name="f_recepcion" nvalue="#source:@f_recepcion" label="Fecha Recepci&#243;n" mask="dd/mm/yyyy" enabled="NEW|EDIT" required="1" pattern="YYYYMMDD">
+					<form:SButtons>
+						<form:SButton name="Calendar" label="Calendar" img="Calendar" visible="EDIT|NEW">
+							<form:Event runat="client" name="onclick" action="SHOW_HELPER"/>
+						</form:SButton>
+					</form:SButtons>
+				</form:DateTime>
+				<form:ComboBox xsize="40" mode="OPT" required="1" enabled="NEW" descr="Definicion del Tipo del Embago - Cuota alimentaria u Otras Causas" label="Tipo Embargo" nvalue="#source:@c_tipo_embargo" name="c_tipo_embargo">
+					<options>
+						<option text="Cuota Alimentaria" value="CA"/>
+						<option text="Otra Causa" value="OC"/>
+					</options>
+					<form:Event runat="client" name="onchange" action="CambioTipo"/>
+				</form:ComboBox>
+				<form:CheckBox name="l_liquida" nvalue="#source:@l_liquida" label="Se Liquida Automaticamente?" descr="Indica se es debe ser consideraro por la liquidacion de haberes" enabled="NEW" required="0"/>
+				<form:ComboBox queryname2="NucleusRH.Base.Liquidacion.Bancos.BANCO.INFO" queryname1="NucleusRH.Base.Liquidacion.Bancos.SUCURSAL.INFO" xsize="30" mode="QRY" required="0" enabled="NEW|EDIT" label="Sucursal" nvalue="#source:oi_sucursal/@value" name="oi_sucursal"/>
+				<form:TextBox required="0" enabled="NEW|EDIT" ysize="4" xsize="50" length="1000" label="Car&#225;tula" nvalue="#source:@o_caratula" name="o_caratula"/>
+				<form:TextBox required="0" enabled="NEW|EDIT" ysize="1" xsize="50" length="100" label="Actor" nvalue="#source:@d_actor" name="d_actor"/>
+				<form:TextBox required="0" enabled="NEW|EDIT" ysize="1" xsize="50" length="100" label="Causa" nvalue="#source:@d_causa" name="d_causa"/>
+				<form:TextBox required="0" enabled="NEW|EDIT" ysize="1" xsize="50" length="100" label="Juzgado" nvalue="#source:@d_juzgado" name="d_juzgado"/>
+				<form:TextBox required="0" enabled="NEW|EDIT" ysize="1" xsize="50" length="100" label="Juez" nvalue="#source:@d_juez" name="d_juez"/>
+				<form:TextBox required="0" enabled="NEW|EDIT" ysize="1" xsize="50" length="100" label="Secretar&#237;a" nvalue="#source:@d_secretaria" name="d_secretaria"/>
+				<form:TextBox required="0" enabled="NEW|EDIT" ysize="1" xsize="50" length="100" label="Ciudad" nvalue="#source:@d_ciudad" name="d_ciudad" X-POLICY="./FORM/NucleusRH/Base/Liquidacion/Legajo/Legajo/Embargos/form/d_ciudad"/>
+				<form:TextBox required="0" enabled="NEW|EDIT" ysize="1" xsize="30" length="30" label="N&#250;mero de Expediente" nvalue="#source:@c_nro_expediente" name="c_nro_expediente"/>
+				<form:TextBox required="0" enabled="NEW|EDIT" ysize="1" xsize="30" length="30" label="N&#250;mero Cuenta Bancaria" nvalue="#source:@c_nro_cuenta" name="c_nro_cuenta"/>
+				<form:TextBox required="0" enabled="NEW|EDIT" ysize="1" xsize="30" length="30" label="CBU" nvalue="#source:@c_cbu" name="c_cbu" X-POLICY="./FORM/NucleusRH/Base/Liquidacion/Legajo/Legajo/Embargos/form/c_cbu"/>
+				<form:DateTime pattern="YYYYMMDD" required="0" enabled="0" descr="Fecha que se realiza el primer descuento del embargo" mask="dd/mm/yyyy" label="Fecha Inicio" nvalue="#source:@f_inicio" name="f_inicio"/>
+				<form:DateTime pattern="YYYYMMDD" required="0" enabled="0" descr="Fecha en que el embargo pasa manualmente a estado incativo" mask="dd/mm/yyyy" label="Fecha Inactivo" nvalue="#source:@f_inactivo" name="f_inactivo"/>
+				<form:DateTime pattern="YYYYMMDD" required="0" enabled="0" descr="Fecha en que el ambargo pasa manual o automaticamente a estado Finalizado." mask="dd/mm/yyyy" label="Fecha Finalizado" nvalue="#source:@f_finalizado" name="f_finalizado"/>
+				<form:ComboBox xsize="40" mode="OPT" required="1" enabled="0" descr="Estados posibles del embargo:&#13;&#10;I&#9;Iniciado &#13;&#10;A&#9;Activo &#13;&#10;F&#9;Finalizado&#13;&#10;N&#9;Inactivo" label="Estado" nvalue="#source:@c_estado" name="c_estado">
+					<options>
+						<option text="Iniciado" value="I"/>
+						<option text="Activo" value="A"/>
+						<option text="Inactivo" value="N"/>
+						<option text="Finalizado" value="F"/>
+					</options>
+				</form:ComboBox>
+				<form:NumberBox required="0" enabled="NEW|EDIT" descr="Embargo Cuota Alimentaria -&#9;Porcentaje" mask="###.###.##0.00" xsize="15" precision="3" max="100" min="0" label="Porcentaje a Embargar" nvalue="#source:@n_porc_emb" name="n_porc_emb"/>
+				<form:CheckBox required="0" enabled="NEW|EDIT" descr="Embargo Cuota Alimentaria-&#9;Porcentaje" label="Sobre Sueldo Bruto" nvalue="#source:@l_sueldo_bruto" name="l_sueldo_bruto">
+					<form:Event runat="client" name="onclick" action="SueldoBruto"/>
+				</form:CheckBox>
+				<form:CheckBox required="0" enabled="NEW|EDIT" descr="Embargo Cuota Alimentaria-&#9;Porcentaje" label="Sobre Sueldo Neto" nvalue="#source:@l_sueldo_neto" name="l_sueldo_neto">
+					<form:Event runat="client" name="onclick" action="SueldoNeto"/>
+				</form:CheckBox>
+				<form:ComboBox nvalue="#source:oi_concepto/@value" label="Concepto Base de C&#225;lculo" queryname1="NucleusRH.Base.Liquidacion.Conceptos.CONCEPTO.INFO2" xsize="40" mode="QRY" required="0" enabled="NEW|EDIT" name="oi_concepto"/>
+				<form:NumberBox required="0" enabled="NEW|EDIT" descr="Embargo Cuota Alimentaria - Monto Fijo" mask="###.###.##0.00" xsize="15" precision="3" label="Monto Fijo a Embargar" nvalue="#source:@n_monto_fijo" name="n_monto_fijo"/>
+				<form:NumberBox required="0" enabled="NEW|EDIT" descr="Embargo Otras Causas" mask="###.###.##0.00" xsize="15" precision="3" label="Monto Total Embargo" nvalue="#source:@n_monto_total" name="n_monto_total">
+					<form:Event action="ONLOAD" name="onchange" runat="client"/>
+				</form:NumberBox>
+				<form:NumberBox enabled="NEW|EDIT" required="0" descr="Embargo Otras Causas" mask="###.###.##0.00" xsize="15" precision="3" label="Monto Pendiente" nvalue="#source:@n_monto_pend" name="n_monto_pend"/>
+				<form:TextBox required="0" enabled="NEW|EDIT" ysize="4" xsize="50" length="1000" label="Observaciones" nvalue="#source:@o_embargo" name="o_embargo"/>
+				<form:Hidden name="suma" nvalue="#SUMA_IMPORTE_EMBARGO:@Total"/>
+				<form:RowAligner width="100%" visible="EDIT" name="ra1">
+					<form:Row name="row1">
+						<form:Label label="La suma de los descuentos cargados es: $" nowrap="1" style="M2 LCol_t" align="rigth" name="lbl1"/>
+						<form:Label nowrap="1" style="M2 LCol_t" nvalue="#SUMA_IMPORTE_EMBARGO:@Total" name="lbl2" align="left" dynamic="1"/>
+						<form:Blank name="bl2" width="100%"/>
+					</form:Row>
+				</form:RowAligner>
+				<form:Blank name="blank99"/>
+			</form:Column>
+		</form:Columns>
+		<form:ListView visible="LIST|LIST_EDIT" paging="1" rows="-250" docname="RS" name="LIST">
+			<form:LVColumns>
+				<form:LVColumn additional="###,###,##0" align="right" sorteable="1" width="50px" type="number" label="N&#250;mero de Oficio" attrname="e_nro_oficio" name="e_nro_oficio"/>
+				<form:LVColumn additional="dd/mm/yyyy" align="center" sorteable="1" width="50px" type="datetime" label="Fecha Oficio" attrname="f_oficio" name="f_oficio"/>
+				<form:LVColumn additional="dd/mm/yyyy" align="center" sorteable="1" width="50px" type="datetime" label="Fecha Recepci&#243;n" attrname="f_recepcion" name="f_recepcion"/>
+				<form:LVColumn align="left" sorteable="1" descr="Definicion del Tipo del Embago - Cuota alimentaria u Otras Causas" width="100px" type="string" label="Tipo Embargo" attrname="c_tipo_embargo" name="c_tipo_embargo"/>
+				<form:LVColumn additional="Listas/check.ico|Listas/uncheck.ico" align="center" sorteable="1" descr="Indica se es debe ser consideraro por la liquidacion de haberes" width="20px" type="bool" label="Se Liquida Automaticamente?" attrname="l_liquida" name="l_liquida"/>
+				<form:LVColumn visible="0" additional="&lt;fk action=&quot;X2C&quot; flow=&quot;NucleusRH.Base.Liquidacion.Bancos.SUCURSAL.guia.autoflow&quot; /&gt;" align="left" sorteable="1" width="50px" type="fk" label="Sucursal" attrname="oi_sucursal" name="oi_sucursal"/>
+				<form:LVColumn visible="0" align="left" sorteable="1" width="100px" type="string" label="Juzgado" attrname="d_juzgado" name="d_juzgado"/>
+				<form:LVColumn visible="0" align="left" sorteable="1" width="100px" type="string" label="Juez" attrname="d_juez" name="d_juez"/>
+				<form:LVColumn visible="0" align="left" sorteable="1" width="100px" type="string" label="Secretar&#237;a" attrname="d_secretaria" name="d_secretaria"/>
+				<form:LVColumn visible="0" align="left" sorteable="1" width="100px" type="string" label="N&#250;mero de Expediente" attrname="c_nro_expediente" name="c_nro_expediente"/>
+				<form:LVColumn visible="0" align="left" sorteable="1" width="100px" type="string" label="N&#250;mero Cuenta Bancaria" attrname="c_nro_cuenta" name="c_nro_cuenta"/>
+				<form:LVColumn visible="0" additional="dd/mm/yyyy" align="center" sorteable="1" descr="Fecha que se realiza el primer descuento del embargo" width="50px" type="datetime" label="Fecha Inicio" attrname="f_inicio" name="f_inicio"/>
+				<form:LVColumn visible="0" additional="dd/mm/yyyy" align="center" sorteable="1" descr="Fecha en que el embargo pasa manualmente a estado incativo" width="50px" type="datetime" label="Fecha Inactivo" attrname="f_inactivo" name="f_inactivo"/>
+				<form:LVColumn additional="dd/mm/yyyy" align="center" sorteable="1" descr="Fecha en que el ambargo pasa manual o automaticamente a estado Finalizado." width="50px" type="datetime" label="Fecha Finalizado" attrname="f_finalizado" name="f_finalizado"/>
+				<form:LVColumn align="left" sorteable="1" descr="Estados posibles del embargo:&#13;&#10;I&#9;Iniciado &#13;&#10;A&#9;Activo &#13;&#10;F&#9;Finalizado&#13;&#10;N&#9;Inactivo" width="100px" type="string" label="Estado" attrname="c_estado" name="c_estado"/>
+				<form:LVColumn visible="0" additional="###,###,##0.00" align="right" sorteable="1" descr="Embargo Cuota Alimentaria -&#9;Porcentaje" width="50px" type="number" label="Porcentaje a Embargar" attrname="n_porc_emb" name="n_porc_emb"/>
+				<form:LVColumn visible="0" additional="Listas/check.ico|Listas/uncheck.ico" align="center" sorteable="1" descr="Embargo Cuota Alimentaria-&#9;Porcentaje" width="20px" type="bool" label="Sobre Sueldo Bruto" attrname="l_sueldo_bruto" name="l_sueldo_bruto"/>
+				<form:LVColumn visible="0" additional="Listas/check.ico|Listas/uncheck.ico" align="center" sorteable="1" descr="Embargo Cuota Alimentaria-&#9;Porcentaje" width="20px" type="bool" label="Sobre Sueldo Neto" attrname="l_sueldo_neto" name="l_sueldo_neto"/>
+				<form:LVColumn visible="0" additional="###,###,##0.00" align="right" sorteable="1" descr="Embargo Cuota Alimentaria - Monto Fijo" width="50px" type="number" label="Monto Fijo a Embargar" attrname="n_monto_fijo" name="n_monto_fijo"/>
+				<form:LVColumn visible="0" additional="###,###,##0.00" align="right" sorteable="1" descr="Embargo Otras Causas" width="50px" type="number" label="Monto Total Embargo" attrname="n_monto_total" name="n_monto_total"/>
+				<form:LVColumn visible="0" additional="###,###,##0.00" align="right" sorteable="1" descr="Embargo Otras Causas" width="50px" type="number" label="Monto Pendiente" attrname="n_monto_pend" name="n_monto_pend"/>
+				<form:LVColumn visible="0" align="left" sorteable="1" width="40px" type="string" label="Concepto Base de C&#225;lculo" attrname="oi_concepto" name="oi_concepto"/>
+				<form:LVColumn visible="0" align="left" sorteable="1" width="100px" type="string" label="Actor" attrname="d_actor" name="d_actor"/>
+				<form:LVColumn visible="0" align="left" sorteable="1" width="100px" type="string" label="Causa" attrname="d_causa" name="d_causa"/>
+			</form:LVColumns>
+		</form:ListView>
+	</form:Center>
+	<form:Bottom>
+		<form:RowAligner name="buttonlinks">
+			<form:Row name="row1">
+				<form:Button visible="NEW" startvalidate="1" note="Acepta la operacion sobre el formulario" descrip="Acepta la operaci&#243;n" img="ok" label="Aceptar" name="ACCEPT">
+					<form:Event name="onclick" action="Aceptar" runat="client"/>
+					<form:Event action="ACCEPT" name="onclick" runat="server"/>
+				</form:Button>
+				<form:Blank name="blanco1" width="40%"/>
+				<form:Button descrip="Finaliza un Embargo" img="ok" infomess="0" mess="Est&#225; seguro que desea finalizar el Embargo?" name="FINALIZAR" label="Finalizar" visible="EDIT">
+					<form:Event runat="client" action="Finalizar" name="onclick"/>
+				</form:Button>
+				<form:Button descrip="Pasa a inactivo / activo al Embargo" mess="Est&#225; seguro que desea inactivar / activar el Embargo?" label="Inactivar / Activar" visible="EDIT" startvalidate="0" name="INACTIVAR" infomess="0" img="CANCEL">
+					<form:Event action="Inactivar" name="onclick" runat="client"/>
+				</form:Button>
+			</form:Row>
+		</form:RowAligner>
+	</form:Bottom>
+</form:Form>

@@ -1,0 +1,905 @@
+<form:Form xmlns:form="nomad_engine.form" xmlns:qry="nomad_engine.qry" default_mode="SHOW" name="NucleusRH.Base.Tiempos_Trabajados.Personal.HORARIOPERS.form" extends="NucleusRH.Base.Tiempos_Trabajados.Personal.LEVEL1.form" mess="&#191;Est&#225; seguro que desa cancelar la operaci&#243;n?" doc="source">
+	<form:Resources>
+		<form:Resource resource="FORM.NucleusRH.Base.Tiempos_Trabajados.Personal.LEVEL1.form.002" name="GUIAS">
+			<qry:main doc="PARAM">
+				<qry:element name="GUIAS">
+					<qry:insert-select name="CONT_HOR"/>
+					<qry:attribute name="CantidadDiasModificar" value="'180'"/>
+					<qry:insert-select name="qry_param"/>
+					<qry:attribute name="f_desde" value="Datetime(Number(now-date())-Number(@CantidadDiasModificar))"/>
+					<qry:append-doc name="GLOBAL" doc-path="."/>
+					<qry:insert-select name="CONT_HOR_PER" doc-path="#PARAM:DATO"/>
+					<qry:append-doc name="CONT" doc-path="."/>
+					<qry:element name="TURNOS">
+						<qry:insert-select name="TURNOS" doc-path="#PARAM:DATO"/>
+					</qry:element>
+					<qry:element name="TIPOS_DE_HORA">
+						<qry:insert-select name="TIPOS_DE_HORA" doc-path="#PARAM:DATO"/>
+					</qry:element>
+					<qry:element name="HORARIOS">
+						<qry:insert-select name="HORARIOS" doc-path="#PARAM:DATO"/>
+					</qry:element>
+				</qry:element>
+			</qry:main>
+			<qry:select name="CONT_HOR">
+				<qry:xquery>
+					for $r in SQL('
+			SELECT
+				COUNT(t.oi_horario) as cont
+			FROM
+				TTA02_HORARIOS as t
+		')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:attribute name="cont" value="$r/@cont"/>
+				</qry:out>
+			</qry:select>
+			<qry:select name="CONT_HOR_PER" doc="PARAM">
+				<qry:xquery>
+					for $r in SQL('
+				SELECT
+					COUNT(TTA04_HORARIOSPERS.oi_horariopers) as cper
+				FROM
+					TTA04_HORARIOSPERS
+				WHERE 
+					TTA04_HORARIOSPERS.oi_personal_emp = {#PARAM:@oi_personal_emp}
+					AND (ISNULL(TTA04_HORARIOSPERS.f_fechafin) 
+					OR TTA04_HORARIOSPERS.f_fechafin &gt;= {Datetime(#GLOBAL:@f_desde)})							
+			')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:attribute value="$r/@cper" name="cper"/>
+				</qry:out>
+			</qry:select>
+			<qry:select name="TURNOS" doc="PARAM">
+				<qry:xquery>
+					for $r in SQL('
+					SELECT
+						t.c_color, 
+						t.oi_turno, 
+						t.d_turno, 
+						t.c_turno
+					FROM
+						TTA14_TURNOS as t
+						{%? (#CONT:@cont &gt;200 AND #CONT:@cper != 0)	
+							{%		
+								,TTA04_HORARIOSPERS,
+								TTA02_HORA_TUR_DET
+							JOIN
+								t.oi_turno INNER TTA02_HORA_TUR_DET.oi_turno,
+								TTA04_HORARIOSPERS.oi_horario INNER TTA02_HORA_TUR_DET.oi_horario 
+							WHERE 
+								TTA04_HORARIOSPERS.oi_personal_emp = {#PARAM:@oi_personal_emp}
+								AND (ISNULL(TTA04_HORARIOSPERS.f_fechafin) 
+										OR TTA04_HORARIOSPERS.f_fechafin &gt;= {Datetime(#GLOBAL:@f_desde)})
+							GROUP BY
+								t.c_color, 
+								t.oi_turno, 
+								t.d_turno, 
+								t.c_turno
+							%}
+							{% 
+							%} 
+						%}
+					ORDER BY 
+						d_turno ASC 						
+')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:element name="ROW">
+						<qry:attribute name="id" value="$r/@oi_turno"/>
+						<qry:attribute name="color" value="$r/@c_color"/>
+						<qry:attribute name="label" value="$r/@d_turno"/>
+						<qry:attribute name="st" value="$r/@st"/>
+						<qry:attribute name="ed" value="$r/@ed"/>
+					</qry:element>
+				</qry:out>
+			</qry:select>
+			<qry:select name="TIPOS_DE_HORA" doc="PARAM">
+				<qry:xquery>
+					for $r in SQL('
+					SELECT
+						t.l_requiereaut, 
+						t.c_color, 
+						t.oi_tipohora, 
+						t.d_tipohora, 
+						t.oi_licencia, 
+						t.e_sumariza_aus 
+					FROM 
+						TTA01_TIPOHORAS as t
+					{%? (#CONT:@cont&gt;200 AND #CONT:@cper != 0)	
+						{%
+							,	PER02_LICEN_PER
+							JOIN
+								t.oi_licencia INNER PER02_LICEN_PER.oi_licencia							
+							WHERE 
+								PER02_LICEN_PER.oi_personal_emp = {#PARAM:@oi_personal_emp}
+								AND PER02_LICEN_PER.f_fin &gt;= {Datetime(#GLOBAL:@f_desde)}
+							GROUP BY
+								t.l_requiereaut, 
+								t.c_color, 
+								t.oi_tipohora, 
+								t.d_tipohora, 
+								t.oi_licencia, 
+								t.e_sumariza_aus
+							%}
+							{% 
+							%} 
+						%}
+					ORDER BY 
+						d_tipohora ASC
+				')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:element name="ROW">
+						<qry:attribute name="id" value="$r/@oi_tipohora"/>
+						<qry:attribute name="label" value="$r/@d_tipohora"/>
+						<qry:attribute name="lic" value="$r/@oi_licencia"/>
+						<qry:attribute name="color" value="iif($r/@c_color='',iif($r/@e_sumariza_aus=0,'C0C000',iif($r/@e_sumariza_aus=1,'C00000','0000C0')),$r/@c_color)"/>
+						<qry:attribute name="auth" value="$r/@l_requiereaut"/>
+					</qry:element>
+				</qry:out>
+			</qry:select>
+			<qry:select name="HORARIOS" doc="PARAM">
+				<qry:xquery>
+					for $r in SQL('
+				   SELECT
+						h.c_color, 
+						h.oi_horario, 
+						h.d_horario, 
+						h.c_horario, 
+						h.d_tipohorario, 
+						h.e_dias
+					FROM
+						TTA02_HORARIOS as h 
+						
+					WHERE h.l_convenio=0
+					
+					UNION 
+					
+					SELECT
+						h.c_color, 
+						h.oi_horario, 
+						h.d_horario, 
+						h.c_horario, 
+						h.d_tipohorario, 
+						h.e_dias
+					FROM
+						TTA02_HORARIOS as h,
+						TTA02_HORARIOS_CONVENIOS as hc,
+						ORG18_CONVENIOS as c,
+						ORG18_CATEGORIAS as cat,
+						PER02_PERSONAL_EMP as pe 
+						
+					JOIN
+					pe.oi_categoria_ult INNER cat.oi_categoria,
+					c.oi_convenio INNER cat.oi_convenio,
+					hc.oi_convenio INNER c.oi_convenio,
+					h.oi_horario INNER hc.oi_horario
+					
+					
+						
+					WHERE h.l_convenio=1 AND
+					pe.oi_personal_emp={#PARAM:@oi_personal_emp}
+					
+					
+						
+						
+					ORDER BY d_horario ASC
+					
+				')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:element name="ROW">
+						<qry:attribute value="$r/@oi_horario" name="id"/>
+						<qry:attribute name="color" value="iif($r/@c_color='','AAAA00',$r/@c_color)"/>
+						<qry:attribute value="$r/@d_horario" name="label"/>
+						<qry:attribute value="$r/@d_tipohorario" name="tipo"/>
+						<qry:attribute value="$r/@e_dias" name="largo"/>
+						<qry:element name="OPTS">
+							<qry:insert-select doc-path="$r" name="ESCUADRAS"/>
+						</qry:element>
+						<qry:element name="TURS">
+							<qry:insert-select doc-path="$r" name="HORARIOS-TURNOS"/>
+						</qry:element>
+					</qry:element>
+				</qry:out>
+			</qry:select>
+			<qry:select name="ESCUADRAS" doc="PARAM">
+				<qry:xquery>
+					for $r in SQL('
+					SELECT
+						t.oi_escuadra, 
+						t.d_escuadra, 
+						t.c_escuadra, 
+						t.e_avance
+					FROM
+						TTA02_ESCUADRAS as t
+					WHERE
+						t.oi_horario={#PARAM:@oi_horario}
+					ORDER BY d_escuadra ASC
+				')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:element name="OPT">
+						<qry:attribute value="$r/@oi_escuadra" name="id"/>
+						<qry:attribute value="$r/@oi_escuadra" name="value"/>
+						<qry:attribute value="$r/@d_escuadra" name="text"/>
+						<qry:attribute value="$r/@e_avance" name="avance"/>
+					</qry:element>
+				</qry:out>
+			</qry:select>
+			<qry:select name="HORARIOS-TURNOS" doc="PARAM">
+				<qry:xquery>
+					for $r in SQL('
+					SELECT
+						t.e_posicion, 
+						t.oi_turno
+					FROM 
+						TTA02_HORA_TUR_DET as t
+					WHERE
+						t.oi_horario={#PARAM:@oi_horario}
+					ORDER BY	
+						e_posicion asc
+				')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:element name="TUR">
+						<qry:attribute value="$r/@e_posicion" name="pos"/>
+						<qry:attribute value="$r/@oi_turno" name="tur"/>
+					</qry:element>
+				</qry:out>
+			</qry:select>
+			<qry:select name="qry_param">
+				<qry:xquery>
+					for $r in SQL('
+			SELECT  
+			ORG26_PARAMETROS.d_valor
+			FROM 
+			ORG26_PARAMETROS
+			WHERE 
+			ORG26_PARAMETROS.c_parametro = \'CantidadDiasModificar\'
+			')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:attribute name="CantidadDiasModificar" value="$r/@d_valor"/>
+				</qry:out>
+			</qry:select>
+		</form:Resource>
+	</form:Resources>
+	<form:Title width="90%">
+		<form:RowAligner name="ralTitle">
+			<form:Row name="row1">
+				<form:Label label="Crear Horarios" nowrap="1" align="center" visible="NEW" style="S3 LCol_w" name="GEN_NEW"/>
+				<form:Label label="Modificar Horarios" nowrap="1" align="center" visible="EDIT" style="S3 LCol_w" name="GEN_EDIT"/>
+				<form:Label label="Eliminar Horarios" nowrap="1" align="center" visible="DELETE" style="S3 LCol_w" name="GEN_DEL"/>
+				<form:Label label="Consultar Horarios" nowrap="1" align="center" visible="SHOW|LIST|LIST_EDIT" style="S3 LCol_w" name="GEN_SHOW"/>
+				<form:Label dynamic="1" nvalue="#PARENTSOURCE:../@descr" nowrap="1" align="right" style="S3 LCol_w" name="ti_01"/>
+			</form:Row>
+		</form:RowAligner>
+	</form:Title>
+	<form:Scripts>
+		var Edit=false;
+var New=false;
+
+function xxx_adddays(strdate, cant)
+{                           
+	if (strdate=="") return "";
+	strdate=str2date(strdate);
+	strdate=date2int(strdate)+cant;
+	
+	auxdate=str2date("20000102");
+	auxdate.setDate(auxdate.getDate()+strdate);
+	
+	return date2str(auxdate);
+}
+
+function RefreshControls()
+{
+	//Desactivo los Controles de Cambio
+	if (MyHORSel==null)
+	{
+		CtrlEnabled("DATA"  , false);
+		CtrlEnabled("ADD"   , true );
+		CtrlEnabled("EDIT"  , false);
+		CtrlEnabled("DELETE", false);
+		CtrlEnabled("BACK"  , true );
+		CtrlEnabled("ACCEPT", false);
+		CtrlEnabled("CANCEL", false);
+	} else 
+	if (Edit)
+	{
+		CtrlEnabled("DATA"  , true );
+		CtrlEnabled("ADD"   , false);
+		CtrlEnabled("EDIT"  , false);
+		CtrlEnabled("DELETE", false);
+		CtrlEnabled("BACK"  , false);
+		CtrlEnabled("ACCEPT", true );
+		CtrlEnabled("CANCEL", true );
+	} else
+	{
+		CtrlEnabled("DATA"  , false);
+		CtrlEnabled("ADD"   , true );
+		CtrlEnabled("EDIT"  , true );
+		CtrlEnabled("DELETE", true );
+		CtrlEnabled("BACK"  , true );
+		CtrlEnabled("ACCEPT", false);
+		CtrlEnabled("CANCEL", false);
+	}
+}
+
+function RefreshCustomSerie(MyOBJ, myserie)
+{   
+	var objMONTH=Ctrl("ESPERANZA_PERIODO");
+	var ff, fi, now, cur, MyROW, t, d, oi_licencia, oi_horario, oi_escuadra, horDef;
+	var firstDate=date2int(new Date(parseInt(objMONTH.GetXValue().substr(0,4),10), parseInt(objMONTH.GetXValue().substr(4,2),10)-1, 1));
+	var lastDate =date2int(new Date(parseInt(objMONTH.GetXValue().substr(0,4),10), parseInt(objMONTH.GetXValue().substr(4,2),10), 1));
+
+	//Limpio el DIA
+	if (myserie=="HOR")	
+	{    
+		MyOBJ.ClearValue("HOR");     
+	
+		for (t=0; t&lt;Ctrl("arrHorarios").CountRow(); t++)
+		{
+			MyROW=Ctrl("arrHorarios").GetRow(t);
+			
+			if ((MyHORSel==null) || (MyHORSel.GetAttr("id")!=MyROW.GetAttr("id")))
+			{
+				fi =date2int(str2date(MyROW.GetAttr("f_fechaInicio")));
+				fff=MyROW.GetAttr("f_fechaFin");
+				oi_horario=MyROW.GetAttr("oi_horario");
+				c=-1;
+			} else
+			{
+				fi =date2int(str2date(Ctrl("f_fechaInicio").GetXValue()));
+				fff=Ctrl("f_fechaFin").GetXValue();
+				oi_horario=Ctrl("oi_horario").GetXValue();
+				c=0;
+			}
+			
+			if (fff=="") ff=lastDate;
+		          else ff=date2int(str2date(fff))+c;
+			if (ff&lt;firstDate) continue;
+			if (fi&gt;lastDate) continue;        
+						
+			GetDataSel(MyDAT, oi_horario);
+			dd=MyDAT["HOR"].arr[oi_horario];
+			
+			newval=MyOBJ.SetValue(
+				"HOR",
+				fi,
+				ff+1,
+				"Horario",
+				dd.color,
+				dd.color,
+				"Horario "+dd.label+" desde " + int2date(fi)+((fff=="")?"":" hasta "+int2date(ff)),
+				"BAR"
+			);
+	
+			newval.MyID    =MyROW.GetAttr("id");
+			newval.selected=MyHORSel?((MyROW.GetAttr("id")==MyHORSel.GetAttr("id"))?true:false):false;
+		}       
+	}
+	
+	if (myserie=="TUR")	
+	{    
+		MyOBJ.ClearValue("TUR");     
+
+		arr =new Array();
+		
+		//inicializo el Array
+		for (t=0; t&lt;lastDate-firstDate; t++) arr[t]="0";
+		
+		//recorro los dias
+		for (t=0; t&lt;lastDate-firstDate; t++)
+		{      
+		
+			oi_horario ="";
+			oi_escuadra="";
+			
+			//obtengo el Horario
+			for (d=0; d&lt;Ctrl("arrHorarios").CountRow(); d++)
+			{
+				MyROW=Ctrl("arrHorarios").GetRow(d);
+				
+				if ((MyHORSel==null) || (MyHORSel.GetAttr("id")!=MyROW.GetAttr("id")))
+				{
+					fi =date2int(str2date(MyROW.GetAttr("f_fechaInicio")));
+					ff =MyROW.GetAttr("f_fechaFin");
+					if (ff=="") ff=lastDate; else ff=date2int(str2date(ff))-1;
+
+					if (t+firstDate&gt;=fi &amp;&amp; t+firstDate&lt;=ff)
+					{
+						oi_horario =MyROW.GetAttr("oi_horario");
+						oi_escuadra=MyROW.GetAttr("oi_escuadra");
+					}
+				} else
+				{
+					fi =date2int(str2date(Ctrl("f_fechaInicio").GetXValue()));
+					ff =Ctrl("f_fechaFin").GetXValue();
+					if (ff=="") ff=lastDate; else ff=date2int(str2date(ff));
+
+					if (t+firstDate&gt;=fi &amp;&amp; t+firstDate&lt;=ff)
+					{
+						oi_horario =Ctrl("oi_horario").GetXValue();
+						oi_escuadra=Ctrl("oi_escuadra").GetXValue();
+						break;
+					}
+				}
+				
+			}                             
+			if (oi_horario=="") continue; 
+			
+			//Obtengo la definicion del Horario
+			horDef=MyDAT["HOR"].arr[oi_horario];
+			
+			//calculo posision
+			escA=0;      
+			if (oi_escuadra!="")
+			{
+				for (d=0; d&lt;horDef.OPTS.Child.length; d++)
+				if (oi_escuadra==horDef.OPTS.Child[d].id)
+					escA=parseInt(horDef.OPTS.Child[d].avance,10);
+			}
+			pos=(t+firstDate+escA) % horDef.largo;     
+			
+			if (horDef.TURS.Child[pos]) arr[t]=horDef.TURS.Child[pos].tur;
+		}
+		arr[arr.length]="0";                    
+		
+		//dibujo
+		for (d=t=0; t&lt;arr.length; t++)
+		{
+			if (arr[d]!=arr[t])
+			{                 
+				if (arr[d]!="0")
+				{
+					dd=MyDAT["TUR"].arr[arr[d]];
+					                  
+					MyOBJ.SetValue(
+						"TUR",
+						firstDate+d,
+						firstDate+t,
+						"Turno",
+						dd?dd.color:"AA0000",
+						dd?dd.color:"AA0000",
+						"Turno "+(dd?dd.label:"")+" desde " + int2date(d+firstDate)+" hasta "+int2date(t+firstDate)
+					);
+				}
+			
+				d=t;
+			}
+		}
+	}
+	
+}
+
+function OnClickHorario(obj, dte, value)
+{               
+	var MyROW;                            
+	
+	if (value.MyID?false:true) return;
+	if (Edit) return;   
+
+	MyROW=Ctrl("arrHorarios").GetRowByAttr("id", value.MyID);
+	Ctrl("oi_horario"   ).SetXValue(MyROW.GetAttr("oi_horario"   ));
+	Ctrl("f_fechaInicio").SetXValue(MyROW.GetAttr("f_fechaInicio"));
+	Ctrl("f_fechaFin"   ).SetXValue(xxx_adddays(MyROW.GetAttr("f_fechaFin"),-1));
+	Ctrl("o_horariopers").SetXValue(MyROW.GetAttr("o_horariopers"));
+	SetData("HOR", MyROW.GetAttr("oi_horario"));
+	
+	MyHORSel=MyROW;
+	
+	New=false;
+	ChangeHorario();
+	Ctrl("oi_escuadra"  ).SetXValue(MyROW.GetAttr("oi_escuadra"  ));
+}
+
+
+function AddHorario()
+{
+	NomadTimeout("internalAddHorario();",100,"Generando el Horario...");
+}   
+   
+function internalAddHorario()
+{	
+	var hor;
+	if (Ctrl("arrHorarios").CountRow()&gt;0)
+	{	
+		var MyROWHOR=Ctrl("arrHorarios").GetRow(Ctrl("arrHorarios").CountRow()-1);
+		hor = MyROWHOR.GetAttr("oi_horario");
+	}
+	else	
+		hor = MyDAT["HOR"].def.id;    		
+		
+	var newDate=new Date();
+	MyROW=Ctrl("arrHorarios").AddRow();
+	MyROW.SetAttr("id"            ,"#"+datetime2str(newDate));
+	MyROW.SetAttr("oi_horario"    ,hor);	
+	MyROW.SetAttr("oi_escuadra"   ,"");
+	MyROW.SetAttr("f_fechaInicio" ,"");
+	MyROW.SetAttr("f_fechaFin"    ,"");
+	MyROW.SetAttr("o_horariopers" ,"");
+	
+	Ctrl("oi_horario"   ).SetXValue(MyROW.GetAttr("oi_horario"   ));
+	Ctrl("oi_escuadra"  ).SetXValue(MyROW.GetAttr("oi_escuadra"  ));
+	Ctrl("f_fechaInicio").SetXValue(MyROW.GetAttr("f_fechaInicio"));
+	Ctrl("f_fechaFin"   ).SetXValue(xxx_adddays(MyROW.GetAttr("f_fechaFin"),-1));
+	Ctrl("o_horariopers").SetXValue(MyROW.GetAttr("o_horariopers"));
+	
+	SetData("HOR", MyROW.GetAttr("oi_horario"));
+	
+	MyHORSel=MyROW;
+	StartEdit();
+	New=true;
+	
+	ChangeHorario();
+} 
+
+
+function StartEdit()
+{            
+	var now, cur;
+
+	//Verifico si el rango de dias esta bloqueado
+	if (MyHORSel.GetAttr("f_fechaInicio")!="")
+	{
+		now=NowDate();    
+		var dias = Ctrl('CantidadDiasModificar').GetXValue();
+
+		if ((NowDate()-str2date(MyHORSel.GetAttr("f_fechaInicio")))/86400000&gt;dias)
+		{
+			alert("No se puede modificar.\r\nLa fecha inicial es anterior a "+dias+" dias.");
+			return false;
+		}
+	
+		for (cur=LiqCloses.FirstChild(); cur!=null; cur=cur.Next())
+		{                                
+			if (MyHORSel.GetAttr("f_fechaInicio")&gt;cur.GetAttr("f_fin")) continue;
+			if ((MyHORSel.GetAttr("f_fechaFin")!="") &amp;&amp; (MyHORSel.GetAttr("f_fechaFin")&lt;=cur.GetAttr("f_ini"))) continue;
+			
+			alert("No se puede modificar.\r\nExisten procesamientos cerrados en el rango de fechas.");
+			return false;
+		}
+	}  
+
+	Edit=true;
+	
+	MyOBJ.EditStart();           
+	MyOBJ.SelectStyle("00AA00","BAR");
+
+	RefreshControls();
+}          
+
+
+function EditCancel()
+{         
+	if (New)
+	{
+		Ctrl("arrHorarios").DelRowByAttr("id", MyHORSel.GetAttr("id"));
+		MyHORSel=null;
+	} else
+	{
+		Ctrl("oi_horario"   ).SetXValue(MyHORSel.GetAttr("oi_horario"   ));
+		Ctrl("oi_escuadra"  ).SetXValue(MyHORSel.GetAttr("oi_escuadra"  ));
+		Ctrl("f_fechaInicio").SetXValue(MyHORSel.GetAttr("f_fechaInicio"));
+		Ctrl("f_fechaFin"   ).SetXValue(xxx_adddays(MyHORSel.GetAttr("f_fechaFin"),-1));
+		Ctrl("o_horariopers").SetXValue(MyHORSel.GetAttr("o_horariopers"));
+		SetData("HOR", MyHORSel.GetAttr("oi_horario"));
+	}
+	Edit=false;
+	New=false;
+	
+	MyOBJ.EditEnd();          
+	ReDrawWait(MyOBJ, "HOR|TUR", true, true);
+}       
+
+function ChangeTime(obj, myserie, timestart, timeend)
+{                               
+	if (myserie!="HOR") return;
+	                            
+	aux=str2date("20000102"); aux.setDate(aux.getDate()+timestart); Ctrl("f_fechaInicio").SetXValue(date2str(aux));
+	aux=str2date("20000102"); aux.setDate(aux.getDate()+timeend-1); Ctrl("f_fechaFin"   ).SetXValue(date2str(aux));
+	
+	ReDrawWait(MyOBJ, "HOR|TUR", true, true);
+}
+
+function EditAccept()
+{    
+	var t, cur; 
+    
+    var dias = Ctrl('CantidadDiasModificar').GetXValue();
+
+	if ((NowDate()-str2date(Ctrl("f_fechaInicio").GetXValue()))/86400000&gt;dias)
+	{
+		alert("No se puede modificar.\r\nEl inicio del rango es anterior a "+dias+" dias.");       
+		return false;
+	}
+			
+	if (Ctrl("f_fechaInicio").GetXValue() &lt; Ctrl("f_ingreso").GetXValue().substr(0,8))
+	{
+		alert("No se puede modificar.\r\nEl inicio del horario es anterior a la fecha de ingreso del legajo - " + formatdatetime2str(Ctrl("f_ingreso").GetXValue(), 'YYYYMMDD'));
+		return false;
+	}
+
+	for (cur=LiqCloses.FirstChild(); cur!=null; cur=cur.Next())
+	{                                
+		if (Ctrl("f_fechaInicio").GetXValue()&gt;cur.GetAttr("f_fin")) continue;
+		if ((MyHORSel.GetAttr("f_fechaFin")!="") &amp;&amp; (MyHORSel.GetAttr("f_fechaFin")&lt;=cur.GetAttr("f_ini"))) continue;
+		
+		alert("No se puede modificar.\r\nExisten procesamientos cerrados en el rango de fechas.");
+		return false;
+	}
+  
+  
+  arrDel=new Array();
+  FI=Ctrl("f_fechaInicio").GetXValue();
+  FF=xxx_adddays(Ctrl("f_fechaFin").GetXValue(),+1);
+ 	
+	for (t=0; t&lt;Ctrl("arrHorarios").CountRow(); t++)
+	{		
+		MyROW=Ctrl("arrHorarios").GetRow(t);
+				
+		if (MyROW.GetAttr("id")==MyHORSel.GetAttr("id")) continue;
+		if ((MyROW.GetAttr("f_fechaFin")!="") &amp;&amp; (FI&gt;=MyROW.GetAttr("f_fechaFin")   ))
+		{		 
+		 continue;
+		}
+		if ((FF                         !="") &amp;&amp; (FF&lt;=MyROW.GetAttr("f_fechaInicio")))
+		{
+		 continue;
+		}
+				
+		if (FF=="")
+		{ //caso 1: el nuevo no tiene fecha fin			
+			if (MyROW.GetAttr("f_fechaInicio")&gt;=FI)
+			{ //caso 1.1: la fecha de inicio es mayor.... tiene que ser eliminado				
+				arrDel.push(MyROW);
+			} else
+			{ //case 1.2: la fecha de inicio es menor.... cambiar la fecha de fin....				
+				MyROW.SetAttr("f_fechaFin", FI);
+			}
+		} else
+		{ //caso 2: el nuevo tiene fecha fin			
+			if (MyROW.GetAttr("f_fechaInicio")&gt;=FI)
+			{ //caso 2.1: la fecha de inicio es mayor....				
+				if (MyROW.GetAttr("f_fechaFin")!="" &amp;&amp; FF&gt;=MyROW.GetAttr("f_fechaFin"))
+				{ //caso 2.1.1: la fecha de fin es Mayor.... tiene que ser eliminado					
+					arrDel.push(MyROW);
+				} else
+				{ //caso 2.1.2: la fecha de fin es Menor.... cambiar la fecha de inicio....					
+					MyROW.SetAttr("f_fechaInicio", FF); 
+				}
+			} else
+			{ //case 2.2: la fecha de inicio es menor.... 				
+				if (MyROW.GetAttr("f_fechaFin")!="" &amp;&amp; FF&gt;=MyROW.GetAttr("f_fechaFin"))
+				{ //caso 2.2.1: la fecha de fin es Menor.... cambiar la fecha de fin....					
+					MyROW.SetAttr("f_fechaFin", FI);	
+				} else
+				{ //caso 2.2.2: la fecha de fin es Mayor.... duplicar el registro....					
+					var newDate=new Date();
+					MyNEWROW=Ctrl("arrHorarios").AddRow();
+					MyNEWROW.SetAttr("id"            ,"#"+datetime2str(newDate)+Ctrl("arrHorarios").CountRow());
+					MyNEWROW.SetAttr("oi_horario"    ,MyROW.GetAttr("oi_horario"   ));
+					MyNEWROW.SetAttr("oi_escuadra"   ,MyROW.GetAttr("oi_escuadra"  ));
+					MyNEWROW.SetAttr("f_fechaInicio" ,FF);
+					MyNEWROW.SetAttr("f_fechaFin"    ,MyROW.GetAttr("f_fechaFin"   ));
+					MyNEWROW.SetAttr("o_horariopers" ,MyROW.GetAttr("o_horariopers"));
+
+					MyROW.SetAttr("f_fechaFin", FI);	
+				}
+			}
+		}
+	} 
+	
+	while (MyROW=arrDel.pop())
+	{
+		Ctrl("arrHorarios").DelRowByAttr("id", MyROW.GetAttr("id"));
+	} 
+	
+	NomadTimeout("internalEditAccept()",100,"Actualizando la Vista...");
+}
+
+function internalEditAccept()
+{
+	MyHORSel.SetAttr("oi_horario"   , Ctrl("oi_horario"   ).GetXValue());
+	MyHORSel.SetAttr("oi_escuadra"  , Ctrl("oi_escuadra"  ).GetXValue());
+	MyHORSel.SetAttr("f_fechaInicio", Ctrl("f_fechaInicio").GetXValue());
+	MyHORSel.SetAttr("f_fechaFin"   , xxx_adddays(Ctrl("f_fechaFin").GetXValue(),+1));
+	MyHORSel.SetAttr("o_horariopers", Ctrl("o_horariopers").GetXValue());
+
+	Edit=false;
+	New=false;
+	
+	MyOBJ.EditEnd();  
+	OnChangePeriodo();
+	RefreshControls();     
+}
+
+
+
+function DelHorario()
+{  
+	var now, maxfecha;
+	
+	//Verifico si el dia esta bloqueado 
+	var dias = Ctrl('CantidadDiasModificar').GetXValue();
+
+	if ((NowDate()-str2date(MyHORSel.GetAttr("f_fechaFin")))/86400000&gt;=dias)
+	{       
+		alert("No se puede Eliminar.\r\nLa fecha final es anterior a "+dias+" dias.");
+		return false;
+	}
+    
+	if ((NowDate()-str2date(MyHORSel.GetAttr("f_fechaInicio")))/86400000&gt;dias)
+	{
+		alert("No se puede Eliminar.\r\nExisten procesamientos cerrados en el rango de fechas.");       
+		return false;
+	}
+
+	for (cur=LiqCloses.FirstChild(); cur!=null; cur=cur.Next())
+	{                                
+		if (Ctrl("f_fechaInicio").GetXValue()&gt;cur.GetAttr("f_fin")) continue;
+		if ((MyHORSel.GetAttr("f_fechaFin")!="") &amp;&amp; (MyHORSel.GetAttr("f_fechaFin")&lt;=cur.GetAttr("f_ini"))) continue;
+		
+		alert("No se puede Eliminar.\r\nExisten procesamientos cerrados en el rango de fechas.");       
+		return false;
+	}
+
+	Ctrl("arrHorarios").DelRowByAttr("id", MyHORSel.GetAttr("id"));
+	
+	MyHORSel=null;
+	ReDrawWait(MyOBJ, "HOR|TUR", true, true);
+}
+
+
+function ChangeFInicio()
+{ 
+	if (Ctrl("f_fechaInicio").GetXValue()=="") 
+		return true;
+
+	ReDrawWait(MyOBJ, "HOR|TUR", true, false);
+}
+
+function ChangeFFin()
+{
+	if (Ctrl("f_fechaFin").GetXValue()=="") 
+	{
+		ReDrawWait(MyOBJ, "HOR|TUR", true, false);
+		return true;
+	}
+	
+	ReDrawWait(MyOBJ, "HOR|TUR", true, false);
+}
+
+function ChangeEscuadra()
+{
+	ReDrawWait(MyOBJ, "HOR|TUR", true, false);
+}
+
+function ValidateFFin()
+{
+	if (Ctrl("f_fechaFin").GetXValue()!="") 
+	{
+		if (Ctrl("f_fechaFin").GetXValue()&lt;Ctrl("f_fechaInicio").GetXValue())
+		{                                 
+			Ctrl("f_fechaFin").SetError("La 'fecha fin' tiene que ser mayor o igual a la fecha de inicio");
+			return false;
+		}
+	}
+		
+	return true;
+}
+
+function ValidateEscuadra()
+{
+	if (MyDAT["HOR"].arr[Ctrl("oi_horario").GetXValue()].tipo=="R")
+	{ //es rotativo
+		if (Ctrl("oi_escuadra").GetXValue()=="")
+		{             
+			Ctrl("oi_escuadra").SetError("La escuadra es requerida en horarios Rotativos.");
+			return false;
+		}
+	}
+	
+	return true;
+}
+
+function ChangeHorario()
+{  
+ 	if(Ctrl("oi_horario").GetXValue()!='')
+ 	{
+	GetDataSel(MyDAT, Ctrl("oi_horario").GetXValue());
+	Ctrl("oi_escuadra").SetXValue("");
+	Ctrl("oi_escuadra").SetEnabled(MyDAT["HOR"].arr[Ctrl("oi_horario").GetXValue()].tipo=="R");
+	Ctrl("oi_escuadra").setOptions(MyDAT["HOR"].arr[Ctrl("oi_horario").GetXValue()].OPTS.associatedELE);
+	ReDrawWait(MyOBJ, "HOR|TUR", true, true); 
+	}  
+	else
+	{
+	Ctrl("oi_escuadra").SetEnabled(false);
+	}
+}
+
+
+function SetData(NAME, KEY)
+{
+	if (Ctrl("main").GetMode()!="EDIT") return;
+	
+	MyDAT[NAME].sel=KEY;     
+	if (MyDAT[NAME].cont!="") DrawReference(MyDAT[NAME], MyDAT[NAME].cont);
+
+	if ((NAME=="HOR") &amp;&amp; (Edit))
+	{
+		Ctrl("oi_horario").SetXValue(MyDAT[NAME].arr[KEY].id);
+		ChangeHorario();
+	}
+}
+	</form:Scripts>
+	<form:Center height="100%" width="100%">
+		<form:Columns height="100%" width="90%" name="ColsDatos">
+			<form:Column width="50%" valign="top" align="right" name="ColDato">
+				<form:Container height="200px" width="600px" border="2" enabled="NEW|EDIT" rheight="200px" rwidth="600px" label="Datos" name="DATA" borderwidth="2">
+					<form:Blank name="datBlank2"/>
+					<form:DateTime pattern="YYYYMMDD" required="1" enabled="NEW|EDIT" descr="Fecha de Inicio del Horario para una Persona" mask="dd/mm/yyyy" label="Fecha Inicio" name="f_fechaInicio">
+						<form:SButtons>
+							<form:SButton visible="EDIT|NEW" descrip="Fecha de Inicio del Horario para una Persona" img="Calendar" label="Calendar" name="Calendar">
+								<form:Event action="SHOW_HELPER" name="onclick" runat="client"/>
+							</form:SButton>
+						</form:SButtons>
+						<form:Event action="ChangeFInicio" name="OnChange" runat="client"/>
+					</form:DateTime>
+					<form:DateTime pattern="YYYYMMDD" required="0" enabled="NEW|EDIT" descr="Fecha-Hora de Fin de esta asignaci&#243;n" mask="dd/mm/yyyy" label="Fecha Fin" name="f_fechaFin">
+						<form:SButtons>
+							<form:SButton visible="EDIT|NEW" descrip="Fecha-Hora de Fin de esta asignaci&#243;n" img="Calendar" label="Calendar" name="Calendar">
+								<form:Event action="SHOW_HELPER" name="onclick" runat="client"/>
+							</form:SButton>
+						</form:SButtons>
+						<form:Event action="ChangeFFin" name="OnChange" runat="client"/>
+						<form:Event action="ValidateFFin" name="OnValidate" runat="client"/>
+					</form:DateTime>
+					<form:ComboBox prev="oi_personal_emp" name="oi_horario" xsize="50" enabled="NEW|EDIT" label="Horario:" queryname1="NucleusRH.Base.Tiempos_Trabajados.Horarios.HORARIO.INFO_VALIDA_CONVENIO" mode="QRY">
+						<form:Event action="ChangeHorario" name="OnChange" runat="client"/>
+					</form:ComboBox>
+					<form:Combo enabled="NEW|EDIT" required="0" label="Escuadra" name="oi_escuadra">
+						<form:Event action="ValidateEscuadra" name="OnValidate" runat="client"/>
+						<form:Event runat="client" name="OnChange" action="ChangeEscuadra"/>
+					</form:Combo>
+					<form:TextBox required="0" enabled="NEW|EDIT" ysize="4" xsize="50" length="1000" label="Observaciones" name="o_horariopers"/>
+					<form:Hidden name="id"/>
+				</form:Container>
+				<form:RowAligner name="rowbuts">
+					<form:Row name="rowbut1">
+						<form:Button startvalidate="1" policy="NucleusRH/Base/Tiempos_Trabajados/Personal/HORARIOPERS/EDIT" descrip="Aceptar los Cambios" name="ACCEPT" visible="EDIT" img="ok" label="Aceptar">
+							<form:Event action="EditAccept" name="onclick" runat="client"/>
+						</form:Button>
+						<form:Button startvalidate="0" img="cancel" label="Cancelar" name="CANCEL" policy="NucleusRH/Base/Tiempos_Trabajados/Personal/HORARIOPERS/EDIT" descrip="Ignorar los Cambios" visible="EDIT">
+							<form:Event action="EditCancel" name="onclick" runat="client"/>
+						</form:Button>
+					</form:Row>
+				</form:RowAligner>
+			</form:Column>
+		</form:Columns>
+		<form:Hidden nvalue="#source:../@f_ingreso" visible="EDIT" name="f_ingreso"/>
+		<form:Hidden nvalue="#PAR:@CantidadDiasModificar" name="CantidadDiasModificar"/>
+	</form:Center>
+	<form:Bottom>
+		<form:RowAligner name="buttonlinks">
+			<form:Row name="row2">
+				<form:Button visible="EDIT" policy="NucleusRH/Base/Tiempos_Trabajados/Personal/HORARIOPERS/NEW" descrip="Agregar la Novedad" img="new" label="Agregar" name="ADD">
+					<form:Event action="AddHorario" name="onclick" runat="client"/>
+				</form:Button>
+				<form:Button img="edit" policy="NucleusRH/Base/Tiempos_Trabajados/Personal/HORARIOPERS/EDIT" descrip="Modificar la Novedad" label="Modificar" name="EDIT" visible="EDIT">
+					<form:Event action="StartEdit" name="onclick" runat="client"/>
+				</form:Button>
+				<form:Button mess="&#191;Est&#225; seguro que desea eliminar el Horario?" policy="NucleusRH/Base/Tiempos_Trabajados/Personal/HORARIOPERS/DELETE" visible="EDIT" descrip="Eliminar un Registro" img="del" label="Eliminar" name="DELETE">
+					<form:Event action="DelHorario" name="onclick" runat="client"/>
+				</form:Button>
+				<form:Button visible="!NEW" name="BACK" label="Volver" img="back" descrip="Volver a la pantalla anterior" note="Vuelve a la pantalla anterior del formulario" startvalidate="0">
+					<form:Event runat="server" name="onclick" action="BACK"/>
+				</form:Button>
+			</form:Row>
+		</form:RowAligner>
+	</form:Bottom>
+</form:Form>

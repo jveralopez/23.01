@@ -1,0 +1,87 @@
+<INTERFACE-DEF xmlns:qry="nomad_engine.qry" finalenter="1" entermode="DOS">
+	<QUERY declare="&lt;DATA oi_empresa=&quot;164&quot; oi_banco=&quot;12&quot; oi_sucursal=&quot;&quot; f_acreditacion=&quot;20080501&quot; interface=&quot;Aplicativo Frances&quot;&gt;&#13;&#10;&lt;LIQS&gt;&#13;&#10;&#9;&lt;LIQ oi_liquidacion=&quot;102&quot; /&gt;&#13;&#10;&#9;&lt;LIQ oi_liquidacion=&quot;40&quot; /&gt;&#13;&#10;&#9;&lt;LIQ oi_liquidacion=&quot;59&quot; /&gt;&#9;&#13;&#10;&lt;/LIQS&gt;&#13;&#10;&lt;/DATA&gt;">
+		<qry:main doc="SOURCE">
+			<qry:element name="DATA">
+				<qry:element name="DETAILS">
+					<qry:insert-select doc-path="#SOURCE:/DATA" name="SQL1"/>
+				</qry:element>
+			</qry:element>
+		</qry:main>
+		<qry:select doc="SOURCE" name="SQL1">
+			<qry:xquery>
+				&#9;for $r in SQL('
+SELECT     
+
+	LIQ97_PERSONAL_EMP.e_numero_legajo,
+	LIQ97_PERSONAL_EMP.d_ape_y_nom,
+	LIQ20_TOT_LIQ_PER.n_totpag,
+	LIQ97_PERSONAL_EMP.c_cta_bancaria,
+	LIQ97_PERSONAL_EMP.c_nro_documento,
+	PER31_FORMAS_PAGO.c_forma_pago,
+	LIQ97_PERSONAL_EMP.c_cbu, LIQ15_EMPRESA_BCOS.c_convenio
+
+FROM         
+	LIQ15_EMPRESA_BCOS,
+	LIQ15_EMPRESAS,
+	ORG03_EMPRESAS, 
+	LIQ22_BANCOS,
+	LIQ22_BANCOS_SUCUR,
+	LIQ99_RECIBOS,
+	LIQ20_TOT_LIQ_PER,
+	LIQ97_PERSONAL_EMP,
+	LIQ93_EMPRESAS,
+	LIQ99_LIQUIDACION,
+	LIQ19_EJECUCIONES,
+	LIQ19_LIQUIDACION, 
+	PER31_FORMAS_PAGO
+JOIN
+	LIQ15_EMPRESA_BCOS.oi_empresa        INNER LIQ15_EMPRESAS.oi_empresa  ,
+	LIQ15_EMPRESAS.oi_empresa            INNER ORG03_EMPRESAS.oi_empresa  ,
+	LIQ15_EMPRESA_BCOS.oi_banco          INNER LIQ22_BANCOS.oi_banco  ,
+	LIQ22_BANCOS.oi_banco                INNER LIQ22_BANCOS_SUCUR.oi_banco  ,
+	LIQ20_TOT_LIQ_PER.oi_per_emp_ddo     INNER LIQ97_PERSONAL_EMP.oi_per_emp_ddo  ,
+	LIQ99_RECIBOS.oi_tot_liq_per         INNER LIQ20_TOT_LIQ_PER.oi_tot_liq_per  ,
+	LIQ93_EMPRESAS.oi_empresa_ddo        INNER LIQ99_LIQUIDACION.oi_empresa_ddo ,
+	LIQ99_RECIBOS.oi_liquidacion_ddo     INNER LIQ99_LIQUIDACION.oi_liquidacion_ddo ,
+	ORG03_EMPRESAS.c_empresa             INNER LIQ93_EMPRESAS.c_empresa  ,
+	LIQ99_LIQUIDACION.oi_liquidacion_ddo INNER LIQ19_EJECUCIONES.oi_liquidacion_ddo  ,
+	LIQ19_EJECUCIONES.oi_liquidacion     INNER LIQ19_LIQUIDACION.oi_liquidacion ,
+	LIQ22_BANCOS_SUCUR.c_sucursal        INNER LIQ97_PERSONAL_EMP.c_sucursal  , 
+	LIQ22_BANCOS.c_banco                 INNER LIQ97_PERSONAL_EMP.c_banco,
+	PER31_FORMAS_PAGO.c_forma_pago       INNER LIQ20_TOT_LIQ_PER.c_forma_pago
+WHERE     
+	LIQ99_LIQUIDACION.c_estado = \'F\'     
+	and 
+ 	LIQ19_LIQUIDACION.oi_liquidacion IN ({%= STRING(#SOURCE:LIQS/LIQ/@oi_liquidacion) %})
+ 	and
+ 	LIQ22_BANCOS.oi_banco = {%= #SOURCE:@oi_banco%}
+ 	and
+	PER31_FORMAS_PAGO.l_banco = 1
+				')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:element name="DETAIL">
+					<qry:attribute name="e_numero_legajo" value="SUBSTRING(FILL_LEFT($r/@e_numero_legajo, '0', 10), 0, 10)"/>
+					<qry:attribute name="d_ape_y_nom" value="$r/@d_ape_y_nom"/>
+					<qry:attribute name="d_ape_y_nom" value="SUBSTRING(FILL_RIGHT($r/@d_ape_y_nom, ' ', 30), 0, 30)"/>
+					<qry:attribute name="n_totpag" value="SUBSTRING(FORMAT_NUMBER($r/@n_totpag, 16, 2, '', '', '0'), 0, 18)"/>
+					<qry:attribute name="c_cta_bancaria" value="SUBSTRING(FILL_LEFT($r/@c_cta_bancaria, '0', 10), 0, 10)"/>
+					<qry:attribute name="c_nro_documento" value="SUBSTRING(FILL_LEFT($r/@c_nro_documento, '0', 11), 0, 11)"/>
+					<qry:attribute name="c_cbu" value="SUBSTRING(FILL_LEFT($r/@c_cbu, '0', 22), 0, 22)"/>
+					<qry:attribute name="c_convenio" value="SUBSTRING(FILL_LEFT($r/@c_convenio, '0', 3), 0, 3)"/>
+					<qry:if test="$r/@c_forma_pago='5'">
+						<qry:then>
+							<qry:attribute name="c_forma_pago" value="1"/>
+						</qry:then>
+						<qry:else>
+							<qry:attribute name="c_forma_pago" value="0"/>
+						</qry:else>
+					</qry:if>
+				</qry:element>
+			</qry:out>
+		</qry:select>
+	</QUERY>
+	<DETAIL>
+		{e_numero_legajo:10}{d_ape_y_nom:30}{n_totpag:18}{c_forma_pago:1}{c_cta_bancaria:10}00{c_nro_documento:11}D0000000000{c_cbu:22}
+	</DETAIL>
+</INTERFACE-DEF>

@@ -1,0 +1,503 @@
+<form:Form xmlns:form="nomad_engine.form" doc="source" name="NucleusRH.Base.Tiempos_Trabajados.Interfaces.NOVEDADES_GRILLA.form">
+	<form:Title>
+		<form:Label label="Carga Masiva de Novedades" style="S3 LCol_w" align="center" visible="" name="lbl"/>
+	</form:Title>
+	<form:Center height="100%" width="100%">
+		<form:Blank height="10px" visible="" width="100%" name="b1"/>
+		<form:RowAligner name="RR">
+			<form:Row name="R1">
+				<form:Combo nvalue="#PAGE:@oi_terminal" required="1" flow="NucleusRH.Base.Tiempos_Trabajados.Terminales.TERMINAL.combo.autoflow" action="COMBO" label="Terminal" name="oi_terminal"/>
+			</form:Row>
+		</form:RowAligner>
+		<form:Blank width="100%" height="10px" name="b2"/>
+		<form:UrlControl border="0" height="100%" width="100%" name="PAGINA_INTERFAZ"/>
+		<form:Hidden name="topage"/>
+		<form:Hidden nvalue="#PAGE:@num" name="numpage"/>
+		<form:Hidden nvalue="#PAGE:@max" name="maxpage"/>
+		<form:HiddenArr proto="&lt;ROW /&gt;" nvalue="#PAGE:ROWS" name="rows">
+			<form:Attr name="id"/>
+			<form:Attr name="EMP"/>
+			<form:Attr name="EMP_DESC"/>
+			<form:Attr name="LEG"/>
+			<form:Attr name="LEG_DESC"/>
+			<form:Attr name="HOR"/>
+			<form:Attr name="HOR_DESC"/>
+			<form:Attr name="FECDESDE"/>
+			<form:Attr name="FECHASTA"/>
+			<form:Attr name="DES"/>
+			<form:Attr name="OBS"/>
+			<form:Attr name="ERR"/>
+			<form:Attr name="EST"/>
+		</form:HiddenArr>
+	</form:Center>
+	<form:Bottom width="95%">
+		<form:RowAligner columns="4" name="botonera">
+			<form:Row name="fila6">
+				<form:Button label="Primera" img="first" descrip="Primer P&#225;gina" visible="" enabled="" name="btnFirst" startvalidate="0">
+					<form:Event action="First" name="onclick" runat="client"/>
+				</form:Button>
+				<form:Button img="prev" descrip="P&#225;gina previa" visible="" enabled="" name="btnPrev" label="Anterior" startvalidate="0">
+					<form:Event action="Prev" name="onclick" runat="client"/>
+				</form:Button>
+				<form:Button img="next" descrip="P&#225;gina siguiente" visible="" enabled="" name="btnNext" label="Siguiente" startvalidate="0">
+					<form:Event action="Next" name="onclick" runat="client"/>
+				</form:Button>
+				<form:Button img="last" descrip="Ultima P&#225;gina" visible="" enabled="" name="btnLast" label="Ultima" startvalidate="0">
+					<form:Event action="Last" name="onclick" runat="client"/>
+				</form:Button>
+				<form:Blank visible="" width="20px" name="bb1"/>
+				<form:Button img="table_add" descrip="Subir Informacion" visible="" enabled="" name="btnUpload" label="Cargar" startvalidate="0">
+					<form:Event name="OnClick" action="UPLOAD" runat="server"/>
+				</form:Button>
+				<form:Button mess="Se perderan los datos cargados. &#191;Esta seguro que desea continuar" img="table_delete" descrip="Limpiar Pantalla" visible="" enabled="" name="btnClean" label="Limpiar" startvalidate="0">
+					<form:Event name="OnClick" action="Clean" runat="server"/>
+				</form:Button>
+				<form:Button img="table_check" descrip="Verificar Pantalla" visible="" enabled="" name="btnCheck" label="Verificar" startvalidate="0">
+					<form:Event action="Refresh" name="onclick" runat="client"/>
+				</form:Button>
+				<form:Blank visible="" width="20px" name="bb2"/>
+				<form:Button mess="&#191;Esta seguro que desea cargar las novedades?" img="execute" descrip="" visible="" enabled="" name="btnExecute" label="Ejecutar" startvalidate="1">
+					<form:Event action="EXECUTE" name="OnClick" runat="server"/>
+				</form:Button>
+				<form:Button mess="Se perderan los datos cargados. &#191;Esta seguro que desea continuar?" descrip="" note="" img="back" label="Volver" name="btnBack" visible="" enabled="">
+					<form:Event action="BACK" name="OnClick" runat="server"/>
+				</form:Button>
+			</form:Row>
+		</form:RowAligner>
+	</form:Bottom>
+	<form:Scripts>
+		var numPage, maxPage, isSync;
+
+function EnableBottons()
+{
+	 if (numPage==0)
+	 {
+			CtrlEnabled("btnFirst", false);
+			CtrlEnabled("btnPrev" , false);
+	 } else
+	 {
+			CtrlEnabled("btnFirst", true );
+			CtrlEnabled("btnPrev" , true );
+	 } 
+	 if (numPage==maxPage)
+	 {
+			CtrlEnabled("btnNext", GetRow("19").GetAttr("EST")==""?false:true);
+			CtrlEnabled("btnLast", false);
+	 } else
+	 {                            
+			CtrlEnabled("btnNext", true);
+			CtrlEnabled("btnLast", true );
+	 }    
+	 
+	 if (isSync)
+	 {
+			CtrlEnabled("btnDownload", true );
+	 } else
+	 {
+			CtrlEnabled("btnDownload", false);
+	 }
+}
+
+function OnLoad()
+{ 
+  Page=Ctrl("main").GetLastDocXML("PAGE");
+  numPage=parseInt(Ctrl("numpage").GetXValue(),10);
+  maxPage=parseInt(Ctrl("maxpage").GetXValue(),10)-1;
+    
+  isSync=true;
+  EnableBottons();
+	Ctrl("PAGINA_INTERFAZ").SetURL("../../../ReportViewer.aspx?ut="+GetProxy().UserToken()+"&amp;file=NucleusRH.Base.Tiempos_Trabajados.NovedadesGrilla.rpt&amp;now="+(new Date()).toString());
+}      
+
+function GetRow(id)
+{                 
+	return Ctrl("rows").GetRow(parseInt(id,10));
+}                           
+
+function OnLostFocusEmpresa(id, value)
+{                  
+	myROW=GetRow(id);
+	if (myROW==null) return;
+	
+	//Obtengo el Viejo y Nuevo Valor
+	var oldVal=myROW.GetAttr("EMP");
+	var newVal=value;
+	     
+	//Actualize el VALOR           
+	myROW.SetAttr("EMP",newVal);
+	if (newVal!=oldVal)
+	{
+		myROW.SetAttr("EST"     ,"1"  ); //Modificado
+		myROW.SetAttr("EMP_DESC","..."); //Descriptcion Desconocida
+		isSync=false; 
+		EnableBottons();
+	}
+}
+
+
+function OnLostFocusLegajo(id, value)
+{                  
+	myROW=GetRow(id);
+	if (myROW==null) return;
+	
+	//Obtengo el Viejo y Nuevo Valor
+	var oldVal=myROW.GetAttr("LEG");
+	var newVal=parseInt(value,10); if (isNaN(newVal)) newVal=""; 
+	                                             else newVal=newVal.toString();
+	//Actualize el VALOR           
+	myROW.SetAttr("LEG",newVal);
+	if (newVal!=oldVal)
+	{
+		myROW.SetAttr("EST"     ,"1"  ); //Modificado
+		myROW.SetAttr("LEG_DESC","..."); //Descriptcion Desconocida
+		isSync=false; 
+		EnableBottons();
+	}
+}
+
+function OnLostFocusHorario(id, value)
+{	
+	myROW=GetRow(id);
+	if (myROW==null) return;
+	
+	//Obtengo el Viejo y Nuevo Valor
+	var oldVal=myROW.GetAttr("HOR");
+	var newVal=Trim(value); 
+	              
+	//Actualize el VALOR           
+	myROW.SetAttr("HOR",newVal);
+	if (newVal!=oldVal)
+	{
+		myROW.SetAttr("EST"     ,"1"  ); //Modificado
+		myROW.SetAttr("HOR_DESC","..."); //Descriptcion Desconocida
+ 
+		isSync=false; 
+		EnableBottons();
+	}
+}
+
+function ValidarFecha(tipo,id,value)
+{            
+    myROW=GetRow(id);
+	if (myROW==null) return;
+	
+	//Obtengo el Viejo y Nuevo Valor
+	var oldVal=myROW.GetAttr(tipo);
+	var newVal=Trim(value); 
+
+	if (newVal!="")
+	{  
+		var year=0, month=0, day=0;
+					
+		if (newVal.toUpperCase()=="HOY")
+		{       
+			year =Now().getFullYear();
+			month=Now().getMonth()+1;
+			day  =Now().getDate();
+		} 
+		else
+		if ((newVal.indexOf("-")&gt;=0) || (newVal.indexOf("/")&gt;=0))
+		{
+			var aValue;      
+					
+			if (newVal.indexOf("-")&gt;=0)
+				aValue=newVal.split('-');
+			else 
+				aValue=newVal.split('/');
+						
+			if (aValue.length==3)
+			{
+				year =parseInt(aValue[2],10);
+				month=parseInt(aValue[1],10);
+				day  =parseInt(aValue[0],10);
+			}
+			else if (aValue.length==2)
+			{         
+				year =Now().getFullYear();
+				month=parseInt(aValue[1],10);
+				day  =parseInt(aValue[0],10);
+			} 
+			else
+				year=0;
+							
+			if (month==0 &amp;&amp; aValue.length&gt;=2)
+			{         
+				month="|ENE|FEB|MAR|ABR|MAY|JUN|JUL|AGO|SEP|OCT|NOV|DIC|".indexOf("|"+aValue[1].toUpperCase()+"|");
+				if (month==-1)
+					year=0;
+				else     
+					month=month/4+1;
+			}    
+			        
+			var retornoMin = 0;
+			var retornoHoras = 0;
+			if(newVal.indexOf(" ")&gt;=0)
+			{        
+				var horas;
+				var minutos;
+		
+				var horas = newVal.split(" ")[1];
+				if (horas.indexOf(":")&gt;=0)
+				{ //HH:SS
+					hora =parseInt(horas.split(":")[0],10); 
+					if (!isNaN(hora) &amp;&amp; ((horas.split(":")[0]).length == 2 || (horas.split(":")[0]).length == 1))  
+					{                             
+						minutos = parseInt(horas.split(":")[1],10);  
+						if (!isNaN(minutos) &amp;&amp; (horas.split(":")[1]).length == 2) 
+						{ 
+							if(minutos &gt;=0 &amp;&amp; minutos &lt;=59 &amp;&amp; hora &gt;=0 &amp;&amp; hora &lt;=23)
+							{      
+								retornoHoras = hora;           
+								retornoMin = minutos;
+							}  	 
+						} 
+					}  
+				} 	
+			}
+			
+		}
+			
+		if (year==0)
+			value="";
+		else
+		{
+			if (year&lt;50)
+			{       
+				year+=2000;
+			}
+			else if (year&lt;100)
+			{           
+				year+=1900;
+			}     
+				
+			var mes=month-1;
+   			// Establecemos un objeto Data con los valore recibidos
+   			var dteDate=new Date(year,mes,day,retornoHoras,retornoMin);  
+   		    var m = dteDate.getMonth();
+   		    var d = dteDate.getDate();
+   		    var y = dteDate.getFullYear();  
+   		    var h = dteDate.getHours();  
+   		    var min = dteDate.getMinutes();
+			if ((day==dteDate.getDate()) &amp;&amp; (mes==dteDate.getMonth()) &amp;&amp; (year==dteDate.getFullYear()))
+			{
+				value=(day+month*100+year*10000).toString();
+				value=value.substr(6,2)+"/"+value.substr(4,2)+"/"+value.substr(0,4)+" "+h.toString().padStart(2,'0')+":"+min.toString().padStart(2,'0');			 				
+			}
+			else
+			{
+				value = "";
+			}
+		}		
+		
+		
+		
+  	}
+  	
+  	//Actualize el VALOR           
+	myROW.SetAttr(tipo,value);
+	if (newVal!=oldVal)
+	{
+		myROW.SetAttr("EST","1"); //Modificado
+		isSync=false; 
+		EnableBottons();
+	}       
+}
+function OnLostFocusFechaDesde(id, value)
+{	
+	 ValidarFecha("FECDESDE",id,value);	
+}   
+
+function OnLostFocusFechaHasta(id, value)
+{	 
+	 ValidarFecha("FECHASTA",id,value);
+}
+
+function OnLostFocusDescripcion(id, value)
+{    
+	myROW=GetRow(id);
+	if (myROW==null) return;
+	
+	//Obtengo el Viejo y Nuevo Valor
+	var oldVal=myROW.GetAttr("DES");
+	var newVal=Trim(value); 
+	              
+	//Actualize el VALOR           
+	myROW.SetAttr("DES",newVal);
+} 
+
+function OnLostFocusObservacion(id, value)
+{    
+	myROW=GetRow(id);
+	if (myROW==null) return;
+	
+	//Obtengo el Viejo y Nuevo Valor
+	var oldVal=myROW.GetAttr("OBS");
+	var newVal=Trim(value); 
+	              
+	//Actualize el VALOR           
+	myROW.SetAttr("OBS",newVal);
+}
+   
+/*
+function OnLostFocusHoraDesde(id, value)
+{
+    ValidarHora("HDESDE",id,value);
+}
+      
+function OnLostFocusHoraHasta(id, value)
+{             
+	ValidarHora("HHASTA",id,value);
+}          
+function ValidarHora(tipo,id,value)
+{   
+	var retorno = ""; 	
+	var minutos, hora;
+	myROW=GetRow(id);        
+	var oldVal=myROW.GetAttr(tipo); 
+	var newVal=Trim(value); 
+     
+	if (myROW==null) return;
+ 
+	if (newVal.indexOf(":")&gt;=0)
+	{ //HH:SS
+		hora =parseInt(newVal.split(":")[0],10); 
+		if (!isNaN(hora) &amp;&amp; ((newVal.split(":")[0]).length == 2 || (newVal.split(":")[0]).length == 1))  
+		{                             
+			minutos = parseInt(newVal.split(":")[1],10);  
+			if (!isNaN(minutos) &amp;&amp; (newVal.split(":")[1]).length == 2) 
+			{ 
+				if(minutos &gt;=0 &amp;&amp; minutos &lt;=59 &amp;&amp; hora &gt;=0 &amp;&amp; hora &lt;=23)
+				{      
+					retorno = newVal;
+				}  	 
+			} 
+		}  
+	} 
+	
+	myROW.SetAttr(tipo,retorno); 
+	if (newVal!=oldVal)
+	{
+		myROW.SetAttr("EST", "1"); //Modificado
+		isSync=false; 
+		EnableBottons();
+	}
+
+}
+  */
+function CleanRow(id)
+{
+	myROW=GetRow(id);
+	if (myROW==null) return;
+	if (myROW.GetAttr("EST")=="") return;
+
+	//Cambio el Estado
+	myROW.SetAttr("EST","1");
+	isSync=false; 
+	EnableBottons();  
+	
+	//Limpio los Registros    
+	myROW.SetAttr("EMP","");
+	myROW.SetAttr("EMP_DESC","");
+	myROW.SetAttr("LEG","");
+	myROW.SetAttr("LEG_DESC","");
+	myROW.SetAttr("HOR","");
+	myROW.SetAttr("HOR_DESC","");
+	myROW.SetAttr("FECDESDE","");
+	myROW.SetAttr("FECHASTA","");
+	//myROW.SetAttr("HDESDE","");
+	//myROW.SetAttr("HHASTA","");
+	myROW.SetAttr("DES","");
+	myROW.SetAttr("OBS","");
+	myROW.SetAttr("ERR","");
+}
+
+function Refresh()
+{ 
+	if(Ctrl("oi_terminal").GetXValue() != "")                               
+		Ctrl("main").DoEvent("Refresh");
+	else
+		alert("La terminal es requerida");
+}
+
+function First()
+{                                
+	if (numPage&lt;=0) return;            
+
+	Ctrl("topage").SetXValue("0");
+	Ctrl("main").DoEvent("ToPage");
+}
+
+function Prev()
+{                                
+	if (numPage&lt;=0) return;            
+
+	Ctrl("topage").SetXValue((numPage-1).toString());
+	Ctrl("main").DoEvent("ToPage");
+}
+
+function Next()
+{                                
+	Ctrl("topage").SetXValue((numPage+1).toString());
+	Ctrl("main").DoEvent("ToPage");
+}
+
+function Last()
+{    
+	if (numPage&gt;=maxPage) return;            
+	
+	Ctrl("topage").SetXValue(maxPage.toString());
+	Ctrl("main").DoEvent("ToPage");
+}
+
+function Download()
+{
+	DownloadFile("INTERFACES\\"+GetProxy().UserName()+".intvar.xml", "intvar.xml");
+}
+
+function ObjectUpload(MyOBJ, fileName)
+{
+	var retval=MyOBJ;                   
+	retval.FileName=fileName;
+	
+	retval.processResult= function(xmlin)
+	{  
+		var proxy=GetProxy(); //as NomadProxy
+
+		//Eliminar el Archivo
+		if (proxy.FileSystem().FileExist(".\\Nomad\\INTERFACES\\"+GetProxy().UserName()+".intvar.xml"))
+			proxy.FileSystem().Delete(".\\Nomad\\INTERFACES\\"+GetProxy().UserName()+".intvar.xml");
+		
+		//Mover el ARCHIVO
+		proxy.FileSystem().Move(".\\Nomad\\Temp\\"+fileName,".\\Nomad\\INTERFACES\\"+GetProxy().UserName()+".intvar.xml");
+		
+		//Reset
+		Ctrl("main").DoEvent("Reset");
+	}     
+	return retval;
+}  
+
+function Upload(MyOBJ)
+{
+	var arrParams = new Array();
+	arrParams[0] = "FOLDER";
+	arrParams[1] = "TEMP";
+	arrParams[2] = datetime2str(new Date()) + ".intvar.xml";
+	
+	showBrowse(ObjectUpload(MyOBJ, datetime2str(new Date()) + ".intvar.xml"), arrParams);
+}
+
+/*function CheckLiq(obj)
+{
+	if (Ctrl("Liquidacion").GetXValue()=="")
+	{            
+		obj.SetError("La liquidacion es Requerida.");	
+		return false;
+	} 
+	return true;
+} */
+	</form:Scripts>
+	<form:Event action="OnLoad" name="OnLoad" runat="client"/>
+	<form:Event action="Refresh" name="Refresh" runat="server"/>
+	<form:Event action="ToPage" name="ToPage" runat="server"/>
+	<form:Event action="Reset" name="Reset" runat="server"/>
+</form:Form>

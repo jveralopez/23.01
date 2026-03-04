@@ -1,0 +1,104 @@
+<class-package xmlns:qry="nomad_engine.qry" DDOBase="NucleusRH\Base\Organizacion" root-class="ORGANIGRAMA" name="InterfaceOrganigrama" meta-class="DB" languaje="SP">
+	<class name="ORGANIGRAMA" description="Interface Organigrama" access="direct">
+		<meta-properties/>
+		<resource declare="&lt;PARAM oi_estructura=&quot;502&quot; legajos=&quot;1&quot; /&gt;" name="QRY_ORGANIGRAMA" description="Devuelve las estructuras del organigrama.">
+			<qry:main name="" doc="PARAM">
+				<qry:element name="ROWS">
+					<qry:append-doc name="PARAMIN" doc-path="#PARAM:."/>
+					<qry:insert-select name="sql1" doc-path="#PARAM:."/>
+				</qry:element>
+			</qry:main>
+			<qry:select name="sql1" doc="SOURCE">
+				<qry:xquery>
+					for $r in sql('
+SELECT 
+ORG02_ESTRUCTURAS.oi_estructura,
+ORG01_UNI_ORG.oi_unidad_org,
+ORG01_UNI_ORG.d_unidad_org
+FROM 
+ORG02_ESTRUCTURAS,
+ORG01_UNI_ORG
+JOIN
+ORG02_ESTRUCTURAS.oi_unidad_org INNER ORG01_UNI_ORG.oi_unidad_org 					
+WHERE 
+ORG02_ESTRUCTURAS.oi_estructura={#SOURCE:@oi_estructura}
+')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:element name="ROW">
+						<qry:attribute name="oi_estructura" value="$r/@oi_estructura"/>
+						<qry:attribute name="oi_unidad_org" value="$r/@oi_unidad_org"/>
+						<qry:attribute name="d_unidad_org" value="$r/@d_unidad_org"/>
+						<qry:if test="#PARAMIN:@legajos='1'">
+							<qry:then>
+								<qry:insert-select doc-path="$r" name="sql_per"/>
+							</qry:then>
+							<qry:else/>
+						</qry:if>
+					</qry:element>
+					<qry:insert-select doc-path="$r" name="sql2"/>
+				</qry:out>
+			</qry:select>
+			<qry:select name="sql2" doc="SOURCE">
+				<qry:xquery>
+					for $r in sql('
+SELECT 
+es.oi_estructura,
+u.d_unidad_org,
+u.oi_unidad_org
+FROM 
+ORG02_ESTRUCTURAS as es,
+ORG01_UNI_ORG as u 
+JOIN
+es.oi_unidad_org INNER u.oi_unidad_org
+WHERE 
+es.oi_estr_padre = {#SOURCE:@oi_estructura}
+')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:element name="ROW">
+						<qry:attribute name="oi_estructura" value="$r/@oi_estructura"/>
+						<qry:attribute name="d_unidad_org" value="$r/@d_unidad_org"/>
+						<qry:attribute name="oi_unidad_org" value="$r/@oi_unidad_org"/>
+						<qry:attribute name="oi_estr_padre" value="#SOURCE:@oi_estructura"/>
+						<qry:if test="#PARAMIN:@legajos='1'">
+							<qry:then>
+								<qry:insert-select doc-path="$r" name="sql_per"/>
+							</qry:then>
+							<qry:else/>
+						</qry:if>
+					</qry:element>
+					<qry:insert-select doc-path="$r" name="sql2"/>
+				</qry:out>
+			</qry:select>
+			<qry:select name="sql_per" doc="SOURCE">
+				<qry:xquery>
+					for $r in sql('
+SELECT 
+ep.oi_personal_emp,
+SEC.policy as policy
+FROM 
+ORG02_ESTRUC_PERS as ep LEFT OUTER NMD_SECURITY as SEC on (ep.oi_personal_emp = SEC.id and SEC.class = \'NucleusRH.Base.Personal.LegajoEmpresa.PERSONAL_EMP\')
+
+WHERE 
+ep.oi_estructura = {#SOURCE:@oi_estructura}
+
+')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:attribute name="legajos" value="iif(@legajos!='', @legajos + ', ' + $r/@oi_personal_emp, $r/@oi_personal_emp)"/>
+				</qry:out>
+			</qry:select>
+		</resource>
+		<method description="Exporta las estructuras del Organigrama en Excel" name="ExportOrg" modifier="static" access="public">
+			<meta-properties>
+				<dotnet11-properties class="NucleusRH.Base.Organizacion.InterfaceOrganigrama.ORGANIGRAMA" type="lib"/>
+			</meta-properties>
+			<arguments>
+				<argument name="oi_estructura" type="Nomad.NSystem.String" pass="byval"/>
+				<argument type="Nomad.NSystem.Boolean" name="l_legajos" pass="byval"/>
+				<argument type="Nomad.NSystem.Boolean" name="l_ingreso" pass="byval"/>
+			</arguments>
+		</method>
+	</class>
+</class-package>

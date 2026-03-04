@@ -1,0 +1,461 @@
+<html:html xmlns:html="nomad_engine.html" xmlns:qry="nomad_engine.qry" xmlns:xsl="http://www.w3.org/1999/XSL/Transform" name="NucleusWF.Base.Ejecucion.WF_Domicilios.rpt" doc="source" extends="NucleusWF.Base.Ejecucion.BaseInicioWF.rpt">
+	<html:query declare="&lt;PARAMS oi_usuario_sistema=&quot;acenci&quot;/&gt;">
+		<qry:include name="NucleusRH.Base.Personal.Legajo.PERSONAL.QRY_INICIO_WFs"/>
+		<qry:main doc="SOURCE">
+			<qry:append-doc name="FILTER" doc-path="#SOURCE:PARAMS"/>
+			<qry:element name="REPORTE">
+				<qry:element name="PERSONAS">
+					<qry:insert-select name="qry_DatosPersonales" doc-path="#SOURCE:PARAMS"/>
+				</qry:element>
+				<qry:element name="DOMICILIOS">
+					<qry:attribute name="cant_leg" value="0"/>
+					<qry:insert-select name="qry_GetDomicilios" doc-path="#SOURCE:PARAMS"/>
+				</qry:element>
+			</qry:element>
+		</qry:main>
+		<qry:select name="qry_GetDomicilios" doc="">
+			<qry:xquery>
+				for $r in SQL('
+     SELECT
+DOM.oi_domic_per, DOM.oi_tipo_domicilio, TIP_DOM.c_tipo_domicilio, TIP_DOM.d_tipo_domicilio, DOM.d_calle, DOM.e_numero, DOM.d_piso, DOM.d_departamento,
+DOM.d_entre_calle_1, DOM.d_entre_calle_2, DOM.c_postal, DOM.te_1, DOM.te_2, DOM.te_celular,
+DOM.d_partido, DOM.o_domicilio, DOM.oi_localidad, LOC.d_localidad, PROV.oi_provincia, 
+PROV.d_provincia, PAIS.oi_pais, PAIS.d_pais,DOM.l_domic_fiscal
+
+FROM
+PER01_DOMIC_PER as DOM,
+PER09_TIPOS_DOMIC as TIP_DOM,
+PER01_PERSONAL as PER,
+ORG19_LOCALIDADES as LOC,
+ORG35_PROVINCIAS as PROV,
+ORG35_PAISES as PAIS
+
+JOIN
+PER.oi_personal INNER DOM.oi_personal,
+DOM.oi_tipo_domicilio INNER TIP_DOM.oi_tipo_domicilio,
+DOM.oi_localidad LEFT OUTER LOC.oi_localidad,
+LOC.oi_provincia LEFT OUTER PROV.oi_provincia,
+PROV.oi_pais LEFT OUTER PAIS.oi_pais
+
+WHERE
+PER.oi_usuario_sistema = \'{%= #FILTER:@oi_usuario_sistema %}\'
+')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:attribute name="cant_leg" value="@cant_leg + 1"/>
+				<DOMICILIO>
+					<qry:attribute name="n_leg" value="../@cant_leg"/>
+					<qry:attribute name="OI_DOM" value="$r/@oi_domic_per"/>
+					<qry:attribute name="TIPO_VAL" value="$r/@oi_tipo_domicilio"/>
+					<qry:attribute name="TIPO_DES" value="$r/@c_tipo_domicilio +' - '+ $r/@d_tipo_domicilio"/>
+					<qry:attribute name="CALLE" value="$r/@d_calle"/>
+					<qry:attribute name="NUMERO" value="$r/@e_numero"/>
+					<qry:attribute name="PISO" value="$r/@d_piso"/>
+					<qry:attribute name="DEPTO" value="$r/@d_departamento"/>
+					<qry:attribute name="ENTRE_1" value="$r/@d_entre_calle_1"/>
+					<qry:attribute name="ENTRE_2" value="$r/@d_entre_calle_2"/>
+					<qry:attribute name="C_POSTAL" value="$r/@c_postal"/>
+					<qry:attribute name="TE_1" value="$r/@te_1"/>
+					<qry:attribute name="TE_2" value="$r/@te_2"/>
+					<qry:attribute name="CEL" value="$r/@te_celular"/>
+					<qry:attribute name="PARTIDO" value="$r/@d_partido"/>
+					<qry:attribute name="OBS" value="$r/@o_domicilio"/>
+					<qry:attribute name="OI_LOC" value="$r/@oi_localidad"/>
+					<qry:attribute name="DES_LOC" value="$r/@d_localidad"/>
+					<qry:attribute name="OI_PRO" value="$r/@oi_provincia"/>
+					<qry:attribute name="DES_PRO" value="$r/@d_provincia"/>
+					<qry:attribute name="OI_PAIS" value="$r/@oi_pais"/>
+					<qry:attribute name="DES_PAIS" value="$r/@d_pais"/>
+					<qry:attribute name="FISCAL" value="$r/@l_domic_fiscal"/>
+					<qry:attribute name="desc_tipo" value="$r/@d_tipo_domicilio"/>
+					<qry:attribute name="id_legajo" value="$r/@oi_domic_per"/>
+					<qry:attribute name="id_empresa" value="$r/@oi_tipo_domicilio"/>
+					<qry:attribute name="href" value="'#'+@id_empresa"/>
+					<qry:attribute name="id_input_radio" value="'legajo_'+@id_legajo"/>
+					<qry:attribute name="id_div_collapse" value="'heading_'+@id_legajo"/>
+				</DOMICILIO>
+			</qry:out>
+		</qry:select>
+	</html:query>
+	<html:xslt>
+		<xsl:template name="DATA_DOMI">
+			<div class="row">
+				<div class="col-md-6">
+					<form class="form-horizontal form-fiscal">
+						<div class="form-group">
+							<label class="control-label">
+								Tipo Domicilio:
+							</label>
+							<div>
+								<p class="form-control-static">
+									<xsl:value-of select="@TIPO_DES"/>
+								</p>
+							</div>
+						</div>
+						<div class="form-group">
+							<label class="control-label">
+								Calle:
+							</label>
+							<div>
+								<p class="form-control-static">
+									<xsl:value-of select="@CALLE"/>
+								</p>
+							</div>
+						</div>
+						<div class="form-group">
+							<label class="control-label">
+								Nro:
+							</label>
+							<div>
+								<p class="form-control-static">
+									<xsl:value-of select="@NUMERO"/>
+								</p>
+							</div>
+						</div>
+						<div class="form-group">
+							<label class="control-label">
+								Piso:
+							</label>
+							<div>
+								<p class="form-control-static">
+									<xsl:value-of select="@PISO"/>
+								</p>
+							</div>
+						</div>
+						<div class="form-group">
+							<label class="control-label">
+								Departamento:
+							</label>
+							<div>
+								<p class="form-control-static">
+									<xsl:value-of select="@DEPTO"/>
+								</p>
+							</div>
+						</div>
+						<div class="form-group">
+							<label class="control-label">
+								Entre Calles:
+							</label>
+							<div>
+								<p class="form-control-static">
+									<xsl:value-of select="@ENTRE_1"/>
+									<xsl:if test="@ENTRE_1 != ''">
+										<xsl:if test="@ENTRE_2 != ''">
+											<xsl:text>
+												&#160;y&#160;
+											</xsl:text>
+										</xsl:if>
+									</xsl:if>
+									<xsl:value-of select="@ENTRE_2"/>
+								</p>
+							</div>
+						</div>
+					</form>
+				</div>
+				<div class="col-md-6">
+					<form class="form-horizontal form-fiscal">
+						<div class="form-group">
+							<label class="control-label">
+								Pais/Prov/Loc:
+							</label>
+							<div>
+								<p class="form-control-static">
+									<xsl:if test="@OI_LOC != ''">
+										<xsl:value-of select="@DES_PAIS"/>
+										<xsl:text>
+											&#160;-&#160;
+										</xsl:text>
+										<xsl:value-of select="@DES_PRO"/>
+										<xsl:text>
+											&#160;- &#160;
+										</xsl:text>
+										<xsl:value-of select="@DES_LOC"/>
+									</xsl:if>
+								</p>
+							</div>
+						</div>
+						<div class="form-group">
+							<label class="control-label">
+								CP:
+							</label>
+							<div>
+								<p class="form-control-static">
+									<xsl:value-of select="@C_POSTAL"/>
+								</p>
+							</div>
+						</div>
+						<div class="form-group">
+							<label class="control-label">
+								TE particular:
+							</label>
+							<div>
+								<p class="form-control-static">
+									<xsl:value-of select="@TE_1"/>
+								</p>
+							</div>
+						</div>
+						<div class="form-group">
+							<label class="control-label">
+								TE Alternativo:
+							</label>
+							<div>
+								<p class="form-control-static">
+									<xsl:value-of select="@TE_2"/>
+								</p>
+							</div>
+						</div>
+						<div class="form-group">
+							<label class="control-label">
+								Celular:
+							</label>
+							<div>
+								<p class="form-control-static">
+									<xsl:value-of select="@CEL"/>
+								</p>
+							</div>
+						</div>
+						<div class="form-group">
+							<label class="control-label">
+								Partido:
+							</label>
+							<div>
+								<p class="form-control-static">
+									<xsl:value-of select="@PARTIDO"/>
+								</p>
+							</div>
+						</div>
+					</form>
+				</div>
+			</div>
+		</xsl:template>
+		<xsl:template name="JAVASCRIPT_CUSTOM">
+			<script type="text/javascript">
+				function SetParam(param,valor){
+this.parent.SetParam(param,valor);
+}   
+
+function SetMsgError(id_wf,msgError){
+this.parent.SetMsgError(id_wf,msgError);
+}
+
+function BlanquearParam2(id){
+var oi_domic_per = id.substr(8);
+
+//Desabilito todos los radio y habilito solamente el que tengo seleccioanado
+$("input[type=radio]").prop("disabled", true);
+$("#legajo_"+oi_domic_per).prop("disabled", false);
+
+//Selecciono el radio del legajo.
+$("#legajo_"+oi_domic_per).prop("checked", true); 
+
+//Seteo el valor del legajo que iniciara el WF
+this.SetParam("oi_domic_per",oi_domic_per);
+}
+
+$(document).ready(function(){
+var oi_domic_per = $("#oi_domic_per").attr("value");
+SetParam("oi_domic_per",oi_domic_per);
+
+var cant_dom = $("#cant_dom").attr("value");
+
+switch(cant_dom){
+case 0:
+SetMsgError("DOMI_BAJA_DOMICILIO","No puede dar de baja un domicilio ya que no tiene ninguno asignado");
+SetMsgError("DOMI_EDICION_DOMICILIO","No puede editar un domicilio ya que no tiene ninguno asignado");
+break;
+case 4:
+SetMsgError("DOMI_ALTA_DOMICILIO","No puede dar de alta un nuevo domicilio ya que tiene todos los tipos posibles asignados");
+break;
+}
+});
+
+function addDomi(){
+console.log("addDomi");
+this.parent.startWf("DOMI_ALTA_DOMICILIO");
+}
+			</script>
+		</xsl:template>
+		<xsl:template name="CSS_CUSTOM">
+			.wfDomicilios{
+margin-top: 10px;
+}
+
+.radio-legajo{
+float:right!important;
+}
+
+.pointer{
+cursor: pointer;
+}
+
+form.form-fiscal div label{
+margin-right: 7px;
+float: left;
+}
+
+form.form-fiscal div.form-group{
+margin-bottom: 0px;
+margin-left: 0px;
+}
+
+.form-horizontal.form-fiscal{
+margin-bottom: 0px;
+}
+
+div.panel-heading.pointer{
+background-color: #337AB7;
+color: #fff;
+}
+
+.panel-body{
+background-color: #f5f5f5;
+}
+
+.sinFiscal{
+text-align: center;
+color: #004A5F;
+}
+
+.sinFiscal h2{
+font-weight: 600;
+}
+
+.btn-add-domi{
+color: #fff;
+background-color: #004A5F;
+border-color: #004A5F;
+font-size: 20px;
+margin-top: 10px;
+}
+
+.btn-add-domi:hover{
+color: #fff;
+}
+		</xsl:template>
+		<xsl:template name="BODY_CUSTOM">
+			<div class="row wfDomicilios">
+				<xsl:choose>
+					<xsl:when test="DOMICILIOS/@cant_leg = 0">
+						<input type="hidden" id="cant_dom">
+							<xsl:attribute name="value">
+								<xsl:text>
+									0
+								</xsl:text>
+							</xsl:attribute>
+						</input>
+						<div class="sinFiscal">
+							<h2>
+								No se encontraron domicilios
+							</h2>
+							<h4>
+								Si desea agregar uno elija la opci&#243;n correspondiente abajo e inicie la solicitud
+							</h4>
+							<button type="button" class="btn btn-add-domi" onclick="addDomi()">
+								+ Domicilio
+							</button>
+						</div>
+					</xsl:when>
+					<xsl:otherwise>
+						<xsl:choose>
+							<xsl:when test="DOMICILIOS/@cant_leg = 4">
+								<input type="hidden" id="cant_dom">
+									<xsl:attribute name="value">
+										<xsl:text>
+											4
+										</xsl:text>
+									</xsl:attribute>
+								</input>
+							</xsl:when>
+							<xsl:otherwise>
+								<input type="hidden" id="cant_dom">
+									<xsl:attribute name="value">
+										<xsl:text>
+											1
+										</xsl:text>
+									</xsl:attribute>
+								</input>
+							</xsl:otherwise>
+						</xsl:choose>
+						<div class="panel-group" id="accordion" role="tablist" aria-multiselectable="false">
+							<xsl:apply-templates select="DOMICILIOS/DOMICILIO"/>
+						</div>
+					</xsl:otherwise>
+				</xsl:choose>
+			</div>
+		</xsl:template>
+		<xsl:template match="DOMICILIO">
+			<xsl:if test="@n_leg = 1">
+				<input type="hidden" id="oi_domic_per">
+					<xsl:attribute name="value">
+						<xsl:value-of select="@id_legajo"/>
+					</xsl:attribute>
+				</input>
+			</xsl:if>
+			<div class="panel panel-default">
+				<div class="panel-heading pointer" role="button" data-toggle="collapse" data-parent="#accordion" aria-expanded="true" aria-controls="collapseOne" onclick="BlanquearParam2(this.id)">
+					<xsl:attribute name="id">
+						<xsl:value-of select="@id_div_collapse"/>
+					</xsl:attribute>
+					<xsl:attribute name="href">
+						<xsl:value-of select="@href"/>
+					</xsl:attribute>
+					<h4 class="panel-title">
+						<a>
+							<xsl:attribute name="name">
+								<xsl:value-of select="@id_input_radio"/>
+							</xsl:attribute>
+							<xsl:value-of select="@desc_tipo"/>
+							<xsl:if test="@FISCAL = 1">
+								<xsl:text>
+									&#160;[FISCAL]
+								</xsl:text>
+							</xsl:if>
+						</a>
+						<div class="radio-legajo">
+							<input name="legajo" type="radio">
+								<xsl:attribute name="id">
+									<xsl:value-of select="@id_input_radio"/>
+								</xsl:attribute>
+								<xsl:choose>
+									<xsl:when test="@n_leg = 1">
+										<xsl:attribute name="checked">
+											true
+										</xsl:attribute>
+									</xsl:when>
+									<xsl:otherwise>
+										<xsl:attribute name="disabled">
+											true
+										</xsl:attribute>
+									</xsl:otherwise>
+								</xsl:choose>
+							</input>
+						</div>
+					</h4>
+				</div>
+				<div role="tabpanel" aria-expanded="false">
+					<xsl:attribute name="id">
+						<xsl:value-of select="@id_empresa"/>
+					</xsl:attribute>
+					<xsl:attribute name="aria-labelledby">
+						<xsl:value-of select="@id_div_collapse"/>
+					</xsl:attribute>
+					<xsl:choose>
+						<xsl:when test="@n_leg = 1">
+							<xsl:attribute name="class">
+								panel-collapse collapse in
+							</xsl:attribute>
+						</xsl:when>
+						<xsl:otherwise>
+							<xsl:attribute name="class">
+								panel-collapse collapse
+							</xsl:attribute>
+						</xsl:otherwise>
+					</xsl:choose>
+					<div class="panel-body">
+						<xsl:call-template name="DATA_DOMI"/>
+					</div>
+				</div>
+			</div>
+		</xsl:template>
+	</html:xslt>
+</html:html>

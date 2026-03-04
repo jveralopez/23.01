@@ -1,0 +1,145 @@
+<INTERFACE-DEF xmlns:qry="nomad_engine.qry" code="" desc="" entermode="DOS" finalenter="1">
+	<QUERY declare="&lt;DATA interface=&quot;SICORE&quot; c_empresa=&quot;1&quot; p_periodo=&quot;200901&quot; /&gt;">
+		<qry:main doc="SOURCE">
+			<qry:element name="DATA">
+				<qry:element name="DETAILS">
+					<!--------------------------------------->
+					<qry:insert-select name="qryParam" doc-path="#SOURCE:/DATA"/>
+					<qry:insert-select name="qryDetail" doc-path="#SOURCE:/DATA"/>
+					<!-- Inserta el registro FINAL solo si existe el registro ----------->
+					<qry:insert-select name="qryDetail-ADDreg" doc-path=".[@ultLeg !='']"/>
+				</qry:element>
+			</qry:element>
+		</qry:main>
+		<qry:select name="qryParam" doc="PARAM">
+			<qry:xquery>
+				for $r in SQL('
+select org26.d_valor , org26.c_parametro from org26_parametros as org26 
+						where org26.c_parametro =\'noValidarCerradas\'
+						')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:append-doc doc-path="$r" name="Param_Filtro"/>
+			</qry:out>
+		</qry:select>
+		<qry:select name="qryDetail" doc="SOURCE">
+			<qry:xquery>
+				for $r in SQL('
+						SELECT
+	TLP.oi_tot_liq_per,
+	PE.c_nro_cuil,
+	PE.e_numero_legajo,
+	PE.d_ape_y_nom, 
+	domic.d_calle, 
+	domic.e_numero, 
+	domic.d_departamento, 
+	domic.d_piso, 
+	loc.d_localidad, 
+	loc.c_postal, 
+	pro.c_provincia_sicore
+FROM
+	LIQ20_TOT_LIQ_PER as TLP, LIQ97_PERSONAL_EMP as PE,   							
+	LIQ99_LIQUIDACION as LIQ, LIQ19_EJECUCIONES as E19,
+	LIQ19_LIQUIDACION as L19, LIQ96_CONCEPTOS as LCON, 
+	LIQ20_CONC_LIQ_PER as CON, LIQ20_VAR_LIQ_CONC as VAR, 
+	LIQ99_RECIBOS as REC, PER02_PERSONAL_EMP AS PER, 
+	PER01_DOMIC_PER AS domic, ORG19_LOCALIDADES AS loc, 
+	ORG35_PROVINCIAS AS pro
+JOIN
+	domic.oi_localidad INNER loc.oi_localidad ,
+	loc.oi_provincia INNER pro.oi_provincia ,
+	PER.oi_personal INNER domic.oi_personal ,
+	PE.e_numero_legajo INNER PER.e_numero_legajo ,
+	L19.oi_empresa INNER PER.oi_empresa ,
+  	L19.oi_liquidacion INNER E19.oi_liquidacion ,
+  	E19.oi_liquidacion_ddo INNER LIQ.oi_liquidacion_ddo ,
+  	LIQ.oi_liquidacion_ddo INNER REC.oi_liquidacion_ddo ,
+  	REC.oi_tot_liq_per INNER TLP.oi_tot_liq_per ,						  
+	TLP.oi_per_emp_ddo INNER PE.oi_per_emp_ddo ,
+	LCON.oi_concepto_ddo INNER CON.oi_concepto_ddo ,							
+	TLP.oi_tot_liq_per INNER CON.oi_tot_liq_per ,
+	CON.oi_conc_liq_per INNER VAR.oi_conc_liq_per												
+WHERE	
+	LCON.c_concepto = \'99999996\'
+	AND LIQ.c_empresa = { #SOURCE:@c_empresa }
+	AND LIQ.e_periodo = { #SOURCE:@p_periodo }
+	AND LIQ.c_estado = \'F\'
+		{%? (string(#Param_Filtro:@d_valor)!='1') 
+		{% AND L19.c_estado = \'C\' %} 
+		{%  %} 
+	%}
+	AND domic.l_domic_fiscal = 1
+	
+GROUP BY 	
+	TLP.oi_tot_liq_per,
+	PE.c_nro_cuil,
+	PE.e_numero_legajo,
+	PE.d_ape_y_nom,
+	domic.d_calle, 
+	domic.e_numero, 
+	domic.d_departamento, 
+	domic.d_piso, 
+	loc.d_localidad, 
+	loc.c_postal, 
+	pro.c_provincia_sicore
+
+ORDER BY 
+	c_nro_cuil ASC,
+	oi_tot_liq_per ASC
+						')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:insert-select name="qryDetail-ADDreg" doc-path=".[@ultLeg != $r/@e_numero_legajo AND @ultLeg !='']"/>
+				<!-- Actualiza Campos del Proceso ------->
+				<qry:attribute name="oi_per_emp_ddo" value="$r/@oi_per_emp_ddo"/>
+				<!-- Actualiza Campos ------------------->
+				<qry:attribute name="vs_sicoreNumeroDocRete" value="TRANSLATE($r/@c_nro_cuil,'-','')"/>
+				<qry:attribute name="vs_sicoreRazonSocial" value="$r/@d_ape_y_nom"/>
+				<qry:attribute name="vs_sicoreDomicilioFizcal" value="$r/@d_calle"/>
+				<qry:attribute name="vs_sicoreDomicilioFizcal" value="iif($r/@e_numero!='',@vs_sicoreDomicilioFizcal + '-'+ $r/@e_numero,@vs_sicoreDomicilioFizcal)"/>
+				<qry:attribute name="vs_sicoreDomicilioFizcal" value="iif($r/@d_departamento!='',@vs_sicoreDomicilioFizcal + '-'+ $r/@d_departamento,@vs_sicoreDomicilioFizcal)"/>
+				<qry:attribute name="vs_sicoreDomicilioFizcal" value="iif($r/@d_piso!='',@vs_sicoreDomicilioFizcal + '-'+ $r/@d_piso,@vs_sicoreDomicilioFizcal)"/>
+				<qry:attribute name="vs_sicoreLocalidad" value="$r/@d_localidad"/>
+				<qry:attribute name="vs_sicoreProvincia" value="$r/@c_provincia_sicore"/>
+				<qry:attribute name="vs_sicorePostal" value="$r/@c_postal"/>
+				<qry:attribute name="vs_sicoreTidoDocRete" value="86"/>
+				<!-- -->
+				<!-- BANDERAS --------------------------->
+				<qry:attribute name="ultLeg" value="$r/@e_numero_legajo"/>
+				<qry:attribute name="oi_tot_liq_per" value="$r/@oi_tot_liq_per"/>
+			</qry:out>
+		</qry:select>
+		<!--------------------------------------------->
+		<!-- qryDetail-ADDreg ------------------------->
+		<qry:select name="qryDetail-ADDreg" doc="SOURCE">
+			<qry:out>
+				<qry:element name="DETAIL">
+					<!--------------------------------------------->
+					<!--------------------------------------------->
+					<qry:attribute name="e_numero_legajo" value="#SOURCE:@e_numero_legajo"/>
+					<qry:attribute name="vs_sicoreNumeroDocRete" value="FORMAT_NUMBER(#SOURCE:@vs_sicoreNumeroDocRete, 11, 0, '', '', '0')"/>
+					<qry:attribute name="vs_sicoreRazonSocial" value="NMD_FILLRIGHT(#SOURCE:/@vs_sicoreRazonSocial, ' ', 20, 'R')"/>
+					<qry:attribute name="vs_sicoreDomicilioFizcal" value="NMD_FILLRIGHT(#SOURCE:/@vs_sicoreDomicilioFizcal, ' ', 20, 'R')"/>
+					<qry:attribute name="vs_sicoreLocalidad" value="NMD_FILLRIGHT(#SOURCE:/@vs_sicoreLocalidad, ' ', 20, 'R')"/>
+					<qry:attribute name="vs_sicoreProvincia" value="NMD_FILLRIGHT(#SOURCE:/@vs_sicoreProvincia, ' ', 2, 'R')"/>
+					<qry:attribute name="vs_sicorePostal" value="NMD_FILLRIGHT(#SOURCE:/@vs_sicorePostal, ' ', 8, 'R')"/>
+					<qry:attribute name="vs_sicoreTidoDocRete" value="FORMAT_NUMBER(#SOURCE:@vs_sicoreTidoDocRete, 2, 0, '', '', '0')"/>
+				</qry:element>
+				<!-- Pone las VARIABLES en Blanco -------->
+				<qry:attribute name="vs_sicoreNumeroDocRete" value="''"/>
+				<qry:attribute name="vs_sicoreRazonSocial" value="''"/>
+				<qry:attribute name="vs_sicoreDomicilioFizcal" value="''"/>
+				<qry:attribute name="vs_sicoreLocalidad" value="''"/>
+				<qry:attribute name="vs_sicoreProvincia" value="''"/>
+				<qry:attribute name="vs_sicorePostal" value="''"/>
+				<qry:attribute name="vs_sicoreTidoDocRete" value="''"/>
+			</qry:out>
+		</qry:select>
+	</QUERY>
+	<DETAIL>
+		{vs_sicoreNumeroDocRete:11}{vs_sicoreRazonSocial:20}{vs_sicoreDomicilioFizcal:20}{vs_sicoreLocalidad:20}{vs_sicoreProvincia:2}{vs_sicorePostal:8}{vs_sicoreTidoDocRete:2}
+	</DETAIL>
+	<MESS>
+		<EMPTY mess="No se encontraron registros"/>
+	</MESS>
+</INTERFACE-DEF>

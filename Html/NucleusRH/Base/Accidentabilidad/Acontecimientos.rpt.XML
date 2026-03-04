@@ -1,0 +1,623 @@
+<html:html xmlns:html="nomad_engine.html" xmlns:qry="nomad_engine.qry" xmlns:xsl="http://www.w3.org/1999/XSL/Transform" doc="source" name="NucleusRH.Base.Accidentabilidad.Acontecimientos">
+	<html:query declare="&lt;DATA  f_desde=&quot;20070101&quot; f_hasta=&quot;20140101&quot; c_group=&quot;sinagrup&quot; l_acciones=&quot;1&quot;/&gt;">
+		<qry:main doc="SOURCE">
+			<DATOS>
+				<qry:append-doc name="PARAMETRO" doc-path="#SOURCE:DATA"/>
+				<qry:attribute value="format_date(now(),'dd/mm/yyyy HH:MM')" name="date"/>
+				<qry:attribute name="f_desde" value="format_date(#PARAMETRO:@f_desde,'dd/mm/yyyy')"/>
+				<qry:attribute name="f_hasta" value="format_date(#PARAMETRO:@f_hasta,'dd/mm/yyyy')"/>
+				<qry:attribute name="c_group" value="#PARAMETRO:@c_group"/>
+				<qry:attribute name="l_acciones" value="#PARAMETRO:@l_acciones"/>
+				<qry:if test="#PARAMETRO:@c_group!='causa'">
+					<qry:then>
+						<qry:insert-select name="qryAcontecimientos" doc-path="#SOURCE:DATA"/>
+					</qry:then>
+					<qry:else>
+						<qry:insert-select name="qryGroup" doc-path="#SOURCE:DATA"/>
+					</qry:else>
+				</qry:if>
+			</DATOS>
+		</qry:main>
+		<qry:select name="qryGroup" doc="PARAM">
+			<qry:xquery>
+				for $r in SQL('
+				SELECT
+					ACC12_ACONTEC.o_causa_acontec
+				FROM
+					ACC12_ACONTEC
+				WHERE
+					ACC12_ACONTEC.f_fechahora_acont &gt;= {Datetime(#PARAM:@f_desde)}
+				AND ACC12_ACONTEC.f_fechahora_acont &lt;= {Datetime(#PARAM:@f_hasta)}
+				
+				GROUP BY
+					ACC12_ACONTEC.o_causa_acontec	
+					')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<CAUSA>
+					<qry:attribute name="o_causa_acontec" value="$r/@o_causa_acontec"/>
+					<qry:attribute name="f_desde" value="#PARAM:@f_desde"/>
+					<qry:attribute name="f_hasta" value="#PARAM:@f_hasta"/>
+					<qry:attribute name="l_acciones" value="#PARAM:@l_acciones"/>
+					<qry:attribute name="c_group" value="#PARAM:@c_group"/>
+					<qry:insert-select name="qryAcontecimientos" doc-path="."/>
+				</CAUSA>
+			</qry:out>
+		</qry:select>
+		<qry:select name="qryAcontecimientos" doc="PARAM">
+			<qry:xquery>
+				for $r in SQL('
+				SELECT
+					ACC12_ACONTEC.oi_acontecimiento,
+					ACC12_ACONTEC.c_acontecimiento,
+					ACC12_ACONTEC.d_acontecimiento,
+					ACC12_ACONTEC.f_fechahora_acont,
+					ACC12_ACONTEC.o_causa_acontec,
+					ACC12_ACONTEC.e_gravedad,
+					ACC12_ACONTEC.n_probabilidad,
+					ACC12_ACONTEC.o_acontecimiento
+				FROM
+					ACC12_ACONTEC
+				WHERE
+					ACC12_ACONTEC.f_fechahora_acont &gt;= {Datetime(#PARAM:@f_desde)}
+				AND ACC12_ACONTEC.f_fechahora_acont &lt;= {Datetime(#PARAM:@f_hasta)}
+					{%? (#PARAM:@c_group = 'causa') 
+						{% AND ACC12_ACONTEC.o_causa_acontec = {#PARAM:@o_causa_acontec} %} 
+						{% %} 
+					%}
+				
+				ORDER BY
+					f_fechahora_acont DESC		
+					')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<ACONTECIMIENTO>
+					<qry:attribute name="oi_acontecimiento" value="$r/@oi_acontecimiento"/>
+					<qry:attribute name="c_acontecimiento" value="$r/@c_acontecimiento"/>
+					<qry:attribute name="d_acontecimiento" value="$r/@d_acontecimiento"/>
+					<qry:attribute name="f_fechahora_acont" value="format-date($r/@f_fechahora_acont,'dd/mm/yyyy HH:MM')"/>
+					<qry:attribute name="o_causa_acontec" value="$r/@o_causa_acontec"/>
+					<qry:attribute name="e_gravedad" value="$r/@e_gravedad"/>
+					<qry:attribute name="n_probabilidad" value="$r/@n_probabilidad"/>
+					<qry:attribute name="o_acontecimiento" value="$r/@o_acontecimiento"/>
+					<qry:insert-select name="qryAccionesCorrectivas" doc-path="."/>
+				</ACONTECIMIENTO>
+			</qry:out>
+		</qry:select>
+		<qry:select name="qryAccionesCorrectivas" doc="PARAM">
+			<qry:xquery>
+				for $r in SQL('    
+				SELECT
+					ACC12_ACC_CORREC.c_acc_correc,
+					ACC12_ACC_CORREC.d_acc_correc,
+					ACC12_ACC_CORREC.f_prog_accion, 
+					ACC12_ACC_CORREC.f_ejec_accion,
+					ACC12_ACC_CORREC.o_acc_correc,
+					PER02_PERSONAL_EMP.e_numero_legajo,  
+					PER01_PERSONAL.d_ape_y_nom
+				FROM
+					ACC12_ACC_CORREC,
+					PER02_PERSONAL_EMP,
+					PER01_PERSONAL 
+				JOIN
+					ACC12_ACC_CORREC.oi_personal_resp INNER PER02_PERSONAL_EMP.oi_personal_emp,
+					PER02_PERSONAL_EMP.oi_personal INNER PER01_PERSONAL.oi_personal
+				WHERE
+					ACC12_ACC_CORREC.oi_acontecimiento = {#PARAM:@oi_acontecimiento}
+		
+					')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<ACCION_CORRECTIVA>
+					<qry:attribute name="c_acc_correc" value="$r/@c_acc_correc"/>
+					<qry:attribute name="d_acc_correc" value="$r/@d_acc_correc"/>
+					<qry:attribute name="f_prog_accion" value="format-date($r/@f_prog_accion,'dd/mm/yyyy')"/>
+					<qry:attribute name="f_ejec_accion" value="format-date($r/@f_ejec_accion,'dd/mm/yyyy')"/>
+					<qry:attribute name="o_acc_correc" value="$r/@o_acc_correc"/>
+					<qry:attribute name="usuario_resp" value="concat($r/@e_numero_legajo,'-',$r/@d_ape_y_nom)"/>
+				</ACCION_CORRECTIVA>
+			</qry:out>
+		</qry:select>
+	</html:query>
+	<html:xslt>
+		<xsl:template match="DATOS">
+			<html>
+				<xsl:attribute name="x:HOLA" namespace="urn:schemas-microsoft-com:office:excel">
+					HOLA
+				</xsl:attribute>
+				<head>
+					<meta http-equiv="Content-Type" content="text/html; charset=utf-8"/>
+					<style media="print">
+						BODY
+						{
+							background-color: #FFFFFF;
+							
+							font-size: 6pt;
+							font-family: Verdana;
+							color: #000000;
+						}
+						.CABECERA_TITLE
+						{
+							background-color: #FFFFFF;
+
+							font-size: 120%;  
+							font-family: Verdana;
+							color: #000000;
+							text-align:left;
+							
+							width:100%;
+							border:none;    
+							
+							padding-top:5px;
+							padding-bottom:5px;
+							
+						}
+						.CABECERA_TITLE TH
+						{
+							font-size: 160%;  
+							text-align:center;
+						}   
+						.CABECERA_TITLE TD
+						{
+							font-weight: bold; 
+						}     
+						.CABECERA_NOREG
+						{
+							background-color: #FFFFFF;
+
+							font-size: 120%;  
+							font-family: Verdana;
+							color: #000000;
+							text-align:center;
+							
+							width:100%;
+							border:none;    
+							
+							padding-top:5px;
+							padding-bottom:5px;
+							
+						}
+						.PLANTILLA
+						{
+							border-collapse:collapse;
+							background-color: #FFFFFF;
+
+							font-size: 100%;  
+							font-family: Verdana;
+							color: #000000;
+							font-weight: normal;  
+							text-align:left;
+						 
+							
+							
+							width:100%;
+							border:2px solid #000000;
+						}
+						.PLANTILLA TH
+						{
+							font-size: 120%;  
+							text-align:center;
+							font-weight: bold;     
+							border: solid 2px black;
+							padding-left:5px;
+							padding-right:5px;
+						
+						}
+						.PLANTILLA TD
+						{
+							font-size: 100%;  
+							text-align:left;
+							font-weight: normal;   
+							border: solid 2px black;
+						}
+						.screen
+						{      
+							display:none;
+						}
+					</style>
+					<style media="screen">
+						BODY
+						{
+							background-color: #FFFFFF;
+							
+							font-size: 10px;
+							font-family: Verdana;
+							color: #000000;
+						}
+						.CABECERA_TITLE
+						{
+							background-color: #FFFFFF;
+
+							font-size: 12px;  
+							font-family: Verdana;
+							color: #000000;
+							text-align:left;
+							font-weight: normal;
+							
+							width:100%;
+							border:none;    
+							
+							padding-top:5px;
+							padding-bottom:5px;
+							
+						}
+						.CABECERA_TITLE TH
+						{
+							font-size: 16px;  
+							text-align:center;
+						}
+						.CABECERA_TITLE TD
+						{
+							font-weight: bold; 
+						}     
+						.CABECERA_NOREG
+						{
+							background-color: #FFFFFF;
+
+							font-size: 120%;  
+							font-family: Verdana;
+							color: #000000;
+							text-align:center;
+							
+							width:100%;
+							border:none;    
+							
+							padding-top:5px;
+							padding-bottom:5px;
+							
+						}
+						.PLANTILLA
+						{
+							border-collapse:collapse;
+							background-color: #FFFFFF;
+
+							font-size: 10px;  
+							font-family: Verdana;
+							color: #000000;
+							font-weight: normal;  
+							text-align:left;
+			
+							
+							
+							width:100%;
+							border: solid 2px black;
+							 
+						}
+						.PLANTILLA TH
+						{
+							font-size: 12px;  
+							text-align:center;
+							font-weight: bold;     
+							border: solid 2px black;
+							padding-left:5px;
+							padding-right:5px; 
+						
+					  
+						}
+						.PLANTILLA TD
+						{
+							font-size: 10px;  
+							text-align:left;
+							font-weight: normal;   
+							border: solid 2px black;
+						}
+						.screen
+						{
+						}
+					</style>
+					<style media="all">
+						.CABECERA_TITLE
+						{
+							background-color: #FFFFFF;
+
+							font-size: 12px;  
+							font-family: Verdana;
+							color: #000000;
+							text-align:left;
+							
+							width:100%;
+							border:none;    
+							
+							padding-top:5px;
+							padding-bottom:5px;
+							
+						}
+						.CABECERA_TITLE TH
+						{
+							font-size: 16px;  
+							text-align:center;
+						}   
+						.CABECERA_TITLE TD
+						{
+							font-weight: bold; 
+						}    
+						.CABECERA_NOREG
+						{
+							background-color: #FFFFFF;
+
+							font-size: 120%;  
+							font-family: Verdana;
+							color: #000000;
+							text-align:center;
+							
+							width:100%;
+							border:none;    
+							
+							padding-top:5px;
+							padding-bottom:5px;
+							
+						}
+						.PLANTILLA
+						{
+							border-collapse:collapse;
+							background-color: #FFFFFF;
+
+							font-size: 13px;  
+							font-family: Calibri;
+							color: #000000;
+							font-weight: normal;  
+							text-align:left;
+							
+							
+							width:100%;
+							border: solid 1px black;
+							 
+						}
+						.PLANTILLA TH
+						{
+							font-size: 13px;  
+							text-align:center;
+							font-weight: bold;     
+							border: solid 1px black;
+							padding-left:5px;
+							padding-right:5px;  
+					
+ 
+					  
+						}
+						.PLANTILLA TD
+						{
+							font-size: 13px;  
+							text-align:left;
+							font-weight: normal;   
+							border: solid 1px black; 
+						 
+						}
+						.text-vertical 
+						{
+							
+						}
+					</style>
+				</head>
+				<body>
+					<table class="CABECERA_TITLE" CELLPADDING="0" CELLSPACING="0">
+						<tr>
+							<th>
+								Listado de Acontecimientos
+							</th>
+						</tr>
+						<table class="CABECERA_TITLE" CELLPADDING="0" CELLSPACING="0">
+							<tr>
+								<td>
+									<br/>
+									<br/>
+									<div style="font-weight:normal">
+										<b>
+											<xsl:value-of select="'Fecha Desde: '"/>
+										</b>
+										<xsl:value-of select="@f_desde"/>
+									</div>
+								</td>
+							</tr>
+							<tr>
+								<td>
+									<div style="font-weight:normal">
+										<b>
+											<xsl:value-of select="'Fecha Hasta: '"/>
+										</b>
+										<xsl:value-of select="@f_hasta"/>
+									</div>
+									<br/>
+									<br/>
+								</td>
+							</tr>
+							<xsl:if test="@c_group!='causa'">
+								<xsl:call-template name="ACONTECIMIENTO"/>
+							</xsl:if>
+							<xsl:if test="@c_group='causa'">
+								<xsl:for-each select="./CAUSA">
+									<table class="CABECERA_TITLE" CELLPADDING="0" CELLSPACING="0">
+										<tr>
+											<td>
+												<xsl:value-of select="concat('Causa: ',' ',@o_causa_acontec)"/>
+											</td>
+										</tr>
+									</table>
+									<xsl:call-template name="ACONTECIMIENTO"/>
+								</xsl:for-each>
+							</xsl:if>
+						</table>
+						<br/>
+						<br/>
+						<br/>
+					</table>
+				</body>
+			</html>
+		</xsl:template>
+		<xsl:template name="ACONTECIMIENTO">
+			<xsl:if test="./ACONTECIMIENTO">
+				<xsl:if test="@l_acciones=0">
+					<table class="PLANTILLA" CELLPADDING="0" CELLSPACING="0" style="width:100%;">
+						<tr>
+							<th style="background-color:#D8D8D8;width:10%;">
+								<xsl:value-of select="'C&#243;digo'"/>
+							</th>
+							<th style="background-color:#D8D8D8;width:20%;">
+								<xsl:value-of select="'Descripci&#243;n'"/>
+							</th>
+							<th style="background-color:#D8D8D8;width:10%;">
+								<xsl:value-of select="'Fecha - Hora'"/>
+							</th>
+							<th style="background-color:#D8D8D8;width:20%;">
+								<xsl:value-of select="'Causa'"/>
+							</th>
+							<th style="background-color:#D8D8D8;width:10%;">
+								<xsl:value-of select="'Gravedad'"/>
+							</th>
+							<th style="background-color:#D8D8D8;width:10%;">
+								<xsl:value-of select="'Probabilidad'"/>
+							</th>
+							<th style="background-color:#D8D8D8;width:20%;">
+								<xsl:value-of select="'Observaciones'"/>
+							</th>
+						</tr>
+						<xsl:for-each select="./ACONTECIMIENTO">
+							<tr>
+								<th style="white-space:nowrap;font-weight: normal;text-align:left;">
+									<xsl:value-of select="./@c_acontecimiento"/>
+								</th>
+								<th style="white-space:nowrap;font-weight: normal;text-align:left;">
+									<xsl:value-of select="./@d_acontecimiento"/>
+								</th>
+								<th style="white-space:nowrap;font-weight: normal;text-align:left;">
+									<xsl:value-of select="./@f_fechahora_acont"/>
+								</th>
+								<th style="white-space:nowrap;font-weight: normal;text-align:left;">
+									<xsl:value-of select="./@o_causa_acontec"/>
+								</th>
+								<th style="white-space:nowrap;font-weight: normal;text-align:left;">
+									<xsl:value-of select="./@e_gravedad"/>
+								</th>
+								<th style="white-space:nowrap;font-weight: normal;text-align:left;">
+									<xsl:value-of select="./@n_probabilidad"/>
+								</th>
+								<th style="white-space:nowrap;font-weight: normal;text-align:left;">
+									<xsl:value-of select="./@o_acontecimiento"/>
+								</th>
+							</tr>
+						</xsl:for-each>
+					</table>
+				</xsl:if>
+				<xsl:if test="@l_acciones=1">
+					<xsl:for-each select="./ACONTECIMIENTO">
+						<table class="PLANTILLA" CELLPADDING="0" CELLSPACING="0" style="width:100%;">
+							<tr>
+								<th style="background-color:#D8D8D8;width:10%;">
+									<xsl:value-of select="'C&#243;digo'"/>
+								</th>
+								<th style="background-color:#D8D8D8;width:20%;">
+									<xsl:value-of select="'Descripci&#243;n'"/>
+								</th>
+								<th style="background-color:#D8D8D8;width:10%;">
+									<xsl:value-of select="'Fecha - Hora'"/>
+								</th>
+								<th style="background-color:#D8D8D8;width:20%;">
+									<xsl:value-of select="'Causa'"/>
+								</th>
+								<th style="background-color:#D8D8D8;width:10%;">
+									<xsl:value-of select="'Gravedad'"/>
+								</th>
+								<th style="background-color:#D8D8D8;width:10%;">
+									<xsl:value-of select="'Probabilidad'"/>
+								</th>
+								<th style="background-color:#D8D8D8;width:20%;">
+									<xsl:value-of select="'Observaciones'"/>
+								</th>
+							</tr>
+							<tr>
+								<th style="white-space:nowrap;font-weight: normal;text-align:left;">
+									<xsl:value-of select="./@c_acontecimiento"/>
+								</th>
+								<th style="white-space:nowrap;font-weight: normal;text-align:left;">
+									<xsl:value-of select="./@d_acontecimiento"/>
+								</th>
+								<th style="white-space:nowrap;font-weight: normal;text-align:left;">
+									<xsl:value-of select="./@f_fechahora_acont"/>
+								</th>
+								<th style="white-space:nowrap;font-weight: normal;text-align:left;">
+									<xsl:value-of select="./@o_causa_acontec"/>
+								</th>
+								<th style="white-space:nowrap;font-weight: normal;text-align:left;">
+									<xsl:value-of select="./@e_gravedad"/>
+								</th>
+								<th style="white-space:nowrap;font-weight: normal;text-align:left;">
+									<xsl:value-of select="./@n_probabilidad"/>
+								</th>
+								<th style="white-space:nowrap;font-weight: normal;text-align:left;">
+									<xsl:value-of select="./@o_acontecimiento"/>
+								</th>
+							</tr>
+						</table>
+						<br/>
+						<xsl:call-template name="ACCION_CORRECTIVA"/>
+						<br/>
+					</xsl:for-each>
+				</xsl:if>
+			</xsl:if>
+		</xsl:template>
+		<xsl:template name="ACCION_CORRECTIVA">
+			<table class="CABECERA_TITLE" CELLPADDING="0" CELLSPACING="0" style="margin-left:80px">
+				<tr>
+					<td>
+						<xsl:value-of select="'Acciones Correctivas: '"/>
+					</td>
+				</tr>
+			</table>
+			<table class="PLANTILLA" CELLPADDING="0" CELLSPACING="0" style="width:80%; margin-left:80px">
+				<tr>
+					<th style="background-color:#D8D8D8;width:10%;">
+						<xsl:value-of select="'C&#243;digo'"/>
+					</th>
+					<th style="background-color:#D8D8D8;width:20%;">
+						<xsl:value-of select="'Descripci&#243;n'"/>
+					</th>
+					<th style="background-color:#D8D8D8;width:10%;">
+						<xsl:value-of select="'Fecha Programada'"/>
+					</th>
+					<th style="background-color:#D8D8D8;width:20%;">
+						<xsl:value-of select="'Usuario Responsable'"/>
+					</th>
+					<th style="background-color:#D8D8D8;width:10%;">
+						<xsl:value-of select="'Fecha Ejecuci&#243;n'"/>
+					</th>
+					<th style="background-color:#D8D8D8;width:30%;">
+						<xsl:value-of select="'Observaciones'"/>
+					</th>
+				</tr>
+				<xsl:for-each select="./ACCION_CORRECTIVA">
+					<tr>
+						<th style="white-space:nowrap;font-weight: normal;text-align:left;">
+							<xsl:value-of select="./@c_acc_correc"/>
+						</th>
+						<th style="white-space:nowrap;font-weight: normal;text-align:left;">
+							<xsl:value-of select="./@d_acc_correc"/>
+						</th>
+						<th style="white-space:nowrap;font-weight: normal;text-align:left;">
+							<xsl:value-of select="./@f_prog_accion"/>
+						</th>
+						<th style="white-space:nowrap;font-weight: normal;text-align:left;">
+							<xsl:value-of select="./@usuario_resp"/>
+						</th>
+						<th style="white-space:nowrap;font-weight: normal;text-align:left;">
+							<xsl:value-of select="./@f_ejec_accion"/>
+						</th>
+						<th style="white-space:nowrap;font-weight: normal;text-align:left;">
+							<xsl:value-of select="./@o_acc_correc"/>
+						</th>
+					</tr>
+				</xsl:for-each>
+			</table>
+			<xsl:if test="not(./ACCION_CORRECTIVA)">
+				<table class="CABECERA_NOREG" CELLPADDING="0" CELLSPACING="0">
+					<tr>
+						<th>
+							<xsl:value-of select="'No se encontraron Acciones Correctivas para este Acontecimiento'"/>
+						</th>
+					</tr>
+				</table>
+			</xsl:if>
+			<br/>
+			<br/>
+		</xsl:template>
+	</html:xslt>
+</html:html>

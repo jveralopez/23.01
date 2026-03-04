@@ -1,0 +1,400 @@
+<html:html xmlns:html="nomad_engine.html" xmlns:qry="nomad_engine.qry" xmlns:xsl="http://www.w3.org/1999/XSL/Transform" doc="source" name="NucleusRH.Base.Liquidacion.Recibo">
+	<html:query declare="&lt;PARAMS oi_tot_liq_per=&quot;148&quot; c_variable=&quot;vs_totsretcargo&quot; cargo=&quot;&quot; /&gt;">
+		<qry:main doc="PARAM">
+			<qry:element name="datos">
+				<qry:attribute name="oi_tot_liq_per" value="#PARAM:/PARAMS/@oi_tot_liq_per"/>
+				<qry:attribute name="c_variable" value="#PARAM:/PARAMS/@c_variable"/>
+				<qry:insert-select doc-path="#PARAM:/PARAMS" name="qry_variables"/>
+			</qry:element>
+		</qry:main>
+		<qry:select name="qry_variables" doc="PARAM">
+			<qry:xquery>
+				for $r in FILEIO('RECIBOS\\{%=#PROXY:@App %}\\{%=$PARAM/@oi_tot_liq_per %}.recibo.xml')/RECIBO
+			</qry:xquery>
+			<qry:out>
+				<qry:if test="$PARAM/@cargo!=''">
+					<qry:then>
+						<qry:attribute name="show" value="1"/>
+						<qry:attribute name="materia" value="$r/CARGOS/CARGO[number($PARAM/@cargo)]/@Materia"/>
+						<qry:attribute name="categoria" value="$r/CARGOS/CARGO[number($PARAM/@cargo)]/@Categoria"/>
+						<qry:attribute name="centrocosto" value="$r/CARGOS/CARGO[number($PARAM/@cargo)]/@CentroCosto"/>
+						<qry:insert-select name="qry_conceptos" doc-path="$r/CONCEPTOS/CONCEPTO[@CARGO=$PARAM/@CARGO]/VAR[@NOMBRE=$PARAM/@c_variable and (@TIPO='OUT' or @TIPO='ACV' or @TIPO='ACC' or @TIPO='AUTO')]"/>
+					</qry:then>
+					<qry:else>
+						<qry:insert-select name="qry_conceptos" doc-path="$r/CONCEPTOS/CONCEPTO/VAR[@NOMBRE=$PARAM/@c_variable and (@TIPO='OUT' or @TIPO='ACV' or @TIPO='ACC' or @TIPO='AUTO')]"/>
+					</qry:else>
+				</qry:if>
+			</qry:out>
+		</qry:select>
+		<qry:select name="qry_conceptos" doc="r">
+			<qry:out>
+				<qry:attribute name="VAL" value="iif(@VAL='',$r/@valor_e,@VAL)"/>
+				<qry:attribute name="OUT" value="$r/@valor_s"/>
+				<qry:if test="not(contains(@PER,$r/../@periodo))">
+					<qry:then>
+						<qry:attribute name="PER" value="iif(@PER='','',@PER+';')+$r/../@periodo"/>
+						<qry:attribute name="PERL" value="iif(@PERL='','',@PERL+',')+format_date(concat($r/../@periodo,'01'), 'mm/yyyy')"/>
+						<PER>
+							<qry:attribute name="PER" value="$r/../@periodo"/>
+							<qry:attribute name="PERL" value="format_date(concat($r/../@periodo,'01'), 'mm/yyyy')"/>
+							<qry:attribute name="VAL" value="$r/@valor_e"/>
+						</PER>
+					</qry:then>
+				</qry:if>
+				<CONCEPTO>
+					<qry:attribute name="COD" value="$r/../@COD"/>
+					<qry:attribute name="DES" value="$r/../@DES"/>
+					<qry:attribute name="IN" value="$r/@valor_e"/>
+					<qry:attribute name="VAL" value="$r/@valor_s"/>
+					<qry:attribute name="PER" value="$r/../@periodo"/>
+					<qry:attribute name="PERL" value="format_date(concat($r/../@periodo,'01'), 'mm/yyyy')"/>
+					<qry:if test="$r/../@cargo!='' and ../../@show=''">
+						<qry:then>
+							<qry:attribute name="show" value="1"/>
+							<qry:attribute name="materia" value="$r/../../../CARGOS/CARGO[number($r/../@cargo)]/@Materia"/>
+							<qry:attribute name="categoria" value="$r/../../../CARGOS/CARGO[number($r/../@cargo)]/@Categoria"/>
+							<qry:attribute name="centrocosto" value="$r/../../../CARGOS/CARGO[number($r/../@cargo)]/@CentroCosto"/>
+						</qry:then>
+					</qry:if>
+					<qry:insert-element doc-path="$r/VAR"/>
+				</CONCEPTO>
+			</qry:out>
+		</qry:select>
+	</html:query>
+	<html:xslt>
+		<xsl:template match="/datos">
+			<html>
+				<head>
+					<LINK href="../Skins/_Default/Styles/GReport.css" type="text/css" rel="stylesheet"/>
+					<STYLE>
+						body{background-color:#FFFFFF;}
+.img
+{
+width:1px;
+font-size:1px;
+}
+
+.tabla
+{
+cellpadding: 0;
+cellspacing: 0;
+border-collapse: collapse;
+font-family:verdana;
+font-weight: normal;
+font-style: normal;
+font-size: 10px;
+}
+.tabla td
+{
+text-align:left;
+border: 1px solid black;
+padding: 2px;	
+}
+.tabla th
+{
+text-align:center;
+font-weight: bold;
+font-size: 12px;
+border: 1px solid black;
+padding: 2px;	
+}
+.tabla pre
+{
+text-align:left;
+font-family:verdana;
+font-weight: normal;
+font-size: 10px;
+font-style: normal;
+padding: 2px;	
+}
+.mute
+{
+cellpadding: 0;
+cellspacing: 0;
+border-collapse: collapse;
+
+font-family:verdana;
+font-weight: normal;
+font-style: normal;
+font-size: 10px;
+
+border: none;
+padding: 0px;	
+}
+.mute td
+{
+border: none;
+padding: 0px;	
+}
+
+.tablain
+{
+cellpadding: 0;
+cellspacing: 0;
+border-collapse: collapse;
+font-family:verdana;
+font-weight: normal;
+font-style: normal;
+font-size: 10px;
+}
+.tablain td
+{
+text-align:left;               
+border: none;
+border-bottom: 1px solid black;
+padding: 2px;	
+}
+.tablain th
+{
+text-align:center;
+font-weight: bold;
+font-size: 12px;
+border: none;
+border-bottom: 1px solid black;
+padding: 2px;	
+}
+					</STYLE>
+				</head>
+				<body>
+					<table style="border:none;text-align:center;">
+						<tr>
+							<td class="mute" style="text-align:left;">
+								<b>
+									Variable:&#160;
+								</b>
+								<xsl:value-of select="@c_variable"/>
+								<xsl:if test="@PERL!=''">
+									<xsl:value-of select="concat('[',@PERL,']')"/>
+								</xsl:if>
+							</td>
+						</tr>
+						<xsl:if test="@show=1">
+							<xsl:if test="@centrocosto">
+								<tr>
+									<td class="mute" style="text-align:left;">
+										<b>
+											Centro de Costo:&#160;
+										</b>
+										<xsl:value-of select="@centrocosto"/>
+									</td>
+								</tr>
+							</xsl:if>
+							<xsl:if test="@categoria">
+								<tr>
+									<td class="mute" style="text-align:left;">
+										<b>
+											Categoria:&#160;
+										</b>
+										<xsl:value-of select="@categoria"/>
+									</td>
+								</tr>
+							</xsl:if>
+							<xsl:if test="@materia and @materia!=''">
+								<tr>
+									<td class="mute" style="text-align:left;">
+										<b>
+											Materia:&#160;
+										</b>
+										<xsl:value-of select="@materia"/>
+									</td>
+								</tr>
+							</xsl:if>
+						</xsl:if>
+						<xsl:if test="count(PER)=1">
+							<tr>
+								<td class="mute" style="text-align:left;">
+									<b>
+										Valor Inicial:&#160;
+									</b>
+									<xsl:value-of select="@VAL"/>
+								</td>
+							</tr>
+						</xsl:if>
+						<xsl:if test="count(PER)=1">
+							<tr>
+								<td class="mute" style="text-align:left;">
+									<b>
+										Valor Final:&#160;
+									</b>
+									<xsl:value-of select="@OUT"/>
+								</td>
+							</tr>
+						</xsl:if>
+						<tr>
+							<td>
+								&#160;
+							</td>
+						</tr>
+						<tr>
+							<td>
+								<xsl:choose>
+									<xsl:when test="count(PER)=1">
+										<table class="tabla" width="100px" align="center">
+											<tr>
+												<td style="text-align:center;">
+													<xsl:value-of select="@VAL"/>
+												</td>
+											</tr>
+										</table>
+									</xsl:when>
+									<xsl:otherwise>
+										<table class="tabla" width="150px" align="center">
+											<xsl:for-each select="PER">
+												<tr>
+													<td style="text-align:center;">
+														<xsl:value-of select="@PERL"/>
+													</td>
+													<td style="text-align:center;">
+														<xsl:value-of select="@VAL"/>
+													</td>
+												</tr>
+											</xsl:for-each>
+										</table>
+									</xsl:otherwise>
+								</xsl:choose>
+							</td>
+						</tr>
+						<xsl:for-each select="CONCEPTO">
+							<tr>
+								<td>
+									<img src="./images/reports/down.jpg"/>
+								</td>
+							</tr>
+							<tr>
+								<td>
+									<table class="tabla">
+										<xsl:if test="@VAL!=@IN">
+											<xsl:attribute name="style">
+												border:3px solid black
+											</xsl:attribute>
+										</xsl:if>
+										<col width="20px"/>
+										<col width="150px"/>
+										<col width="250px"/>
+										<xsl:if test="count(../PER)!=1">
+											<col width="100px"/>
+										</xsl:if>
+										<xsl:if test="@show=1">
+											<xsl:if test="@centrocosto">
+												<col width="250px"/>
+											</xsl:if>
+											<xsl:if test="@categoria">
+												<col width="250px"/>
+											</xsl:if>
+											<xsl:if test="@materia and @materia!=''">
+												<col width="250px"/>
+											</xsl:if>
+										</xsl:if>
+										<tr>
+											<td class="img" rowspan="2">
+												<img src="./Images/Reports/search_n.gif" title="detalles de la Variable" style="cursor:pointer;">
+													<xsl:attribute name="onclick">
+														<xsl:value-of select="concat('opener.ShowREPORT(&quot;NucleusRH.Base.Liquidacion.ReciboConcepto.rpt&quot;,&quot;oi_tot_liq_per=',../@oi_tot_liq_per,'|c_concepto=',@COD,'&quot;);')"/>
+													</xsl:attribute>
+												</img>
+											</td>
+											<td>
+												Codigo
+											</td>
+											<td>
+												Descripcion
+											</td>
+											<xsl:if test="count(../PER)!=1">
+												<td>
+													Periodo
+												</td>
+											</xsl:if>
+											<xsl:if test="@show=1">
+												<xsl:if test="@centrocosto">
+													<td>
+														Centro de Costo
+													</td>
+												</xsl:if>
+												<xsl:if test="@categoria">
+													<td>
+														Categoria
+													</td>
+												</xsl:if>
+												<xsl:if test="@materia and @materia!=''">
+													<td>
+														Materia
+													</td>
+												</xsl:if>
+											</xsl:if>
+										</tr>
+										<tr>
+											<td>
+												<xsl:value-of select="@COD"/>
+											</td>
+											<td>
+												<xsl:value-of select="@DES"/>
+											</td>
+											<xsl:if test="count(../PER)!=1">
+												<td>
+													<xsl:value-of select="@PERL"/>
+												</td>
+											</xsl:if>
+											<xsl:if test="@show=1">
+												<xsl:if test="@centrocosto">
+													<td>
+														<xsl:value-of select="@centrocosto"/>
+													</td>
+												</xsl:if>
+												<xsl:if test="@categoria">
+													<td>
+														<xsl:value-of select="@categoria"/>
+													</td>
+												</xsl:if>
+												<xsl:if test="@materia and @materia!=''">
+													<td>
+														<xsl:value-of select="@materia"/>
+													</td>
+												</xsl:if>
+											</xsl:if>
+										</tr>
+									</table>
+								</td>
+							</tr>
+							<tr>
+								<td>
+									<img src="./images/reports/down.jpg" align="CENTER"/>
+								</td>
+							</tr>
+							<tr>
+								<td>
+									<xsl:choose>
+										<xsl:when test="count(../PER)=1">
+											<table class="tabla" width="100px" align="center">
+												<tr>
+													<td style="text-align:center;">
+														<xsl:value-of select="@VAL"/>
+													</td>
+												</tr>
+											</table>
+										</xsl:when>
+										<xsl:otherwise>
+											<table class="tabla" width="150px" align="center">
+												<xsl:variable name="conc" select="."/>
+												<xsl:for-each select="../PER">
+													<xsl:variable name="per" select="."/>
+													<tr>
+														<td style="text-align:center;">
+															<xsl:value-of select="@PERL"/>
+														</td>
+														<td style="text-align:center;">
+															<xsl:value-of select="$conc/VAR[@nombre=$per/@PER]/@valor_s"/>
+														</td>
+													</tr>
+												</xsl:for-each>
+											</table>
+										</xsl:otherwise>
+									</xsl:choose>
+								</td>
+							</tr>
+						</xsl:for-each>
+					</table>
+				</body>
+			</html>
+		</xsl:template>
+	</html:xslt>
+</html:html>

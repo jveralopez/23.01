@@ -1,0 +1,93 @@
+<flow:flow name="NucleusRH.Base.Liquidacion.Sindicato.Sindicatos.guia" xmlns:flow="nomad_engine.form" xmlns:qry="nomad_engine.form" xmlns:doc="nomad_engine.form">
+	<flow:main doc="SOURCE">
+		<flow:action name="HELP">
+			<doc:load-qry qry="HELP" input-doc-path="#SOURCE:" output-doc="RS"/>
+			<flow:open-form form-class="NucleusRH.Base.Liquidacion.Sindicato.Sindicatos.LM.guia.form" mode="SHOW" doc-path="#RS:" parent-doc-path="#SOURCE:"/>
+		</flow:action>
+	</flow:main>
+	<flow:declare>
+		<doc:define name="RS"/>
+		<doc:define name="OUT"/>
+		<qry:define name="HELP">
+			<qry:main doc="SOURCE">
+				<qry:element name="ROWS">
+					<qry:insert-select doc-path="#SOURCE:" name="RS1"/>
+					<qry:insert-select doc-path="#SOURCE:" name="RS2"/>
+				</qry:element>
+			</qry:main>
+			<qry:select name="RS1" doc="SOURCE">
+				<qry:xquery>
+					for $r in sql('
+				SELECT
+					s.oi_sindicato,
+					s.c_sindicato,
+					s.d_sindicato 
+				FROM
+					Per30_sindicatos as s
+				WHERE
+					{%? (string(#SOURCE:helper-mess/rows/row/@oi_sindicato)!='') {%  s.oi_sindicato in ({%=string(#SOURCE:helper-mess/rows/row/@oi_sindicato) %}) %} {% 1 = 2 %} %}')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:element name="ROW">
+						<qry:attribute name="id" value="$r/@oi_sindicato" type="Nomad.NSystem.Int"/>
+						<qry:attribute name="value" value="$r/@oi_sindicato" type="Nomad.NSystem.Int"/>
+						<qry:attribute name="code" value="$r/@c_sindicato" type="Nomad.NSystem.String"/>
+						<qry:attribute name="text" value="$r/@d_sindicato" type="Nomad.NSystem.String"/>
+						<qry:attribute name="check" value="1" type="Nomad.NSystem.Boolean"/>
+					</qry:element>
+				</qry:out>
+			</qry:select>
+			<qry:select name="RS2" doc="SOURCE">
+				<qry:xquery>
+					for $r in sql('
+				SELECT
+					s.oi_sindicato,
+					s.c_sindicato,
+					s.d_sindicato
+				FROM
+					per30_sindicatos as s
+				WHERE
+					{%? (string(#SOURCE:helper-mess/rows/row/@oi_sindicato)!='') {%  s.oi_sindicato not in ({%=string(#SOURCE:helper-mess/rows/row/@oi_sindicato) %}) %} {% 1 = 1 %} %} ')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:element name="ROW">
+						<qry:attribute name="id" value="$r/@oi_sindicato" type="Nomad.NSystem.Int"/>
+						<qry:attribute name="value" value="$r/@oi_sindicato" type="Nomad.NSystem.Int"/>
+						<qry:attribute name="code" value="$r/@c_sindicato" type="Nomad.NSystem.String"/>
+						<qry:attribute name="text" value="$r/@d_sindicato" type="Nomad.NSystem.String"/>
+						<qry:attribute name="check" value="0" type="Nomad.NSystem.Boolean"/>
+					</qry:element>
+				</qry:out>
+			</qry:select>
+		</qry:define>
+		<qry:define name="PRUEBA">
+			<qry:main doc="SOURCE">
+				<qry:element name="helper-mess">
+					<qry:element name="rows">
+						<qry:insert-select doc-path="#SOURCE:" name="RS1"/>
+					</qry:element>
+				</qry:element>
+			</qry:main>
+			<qry:select name="RS1" doc="SOURCE">
+				<qry:xquery>
+					for $r in #SOURCE:ROWS/ROW[@check=1]
+				</qry:xquery>
+				<qry:out>
+					<qry:element name="row">
+						<qry:attribute name="oi_sindicato" value="$r/@id" type="Nomad.NSystem.Int"/>
+					</qry:element>
+				</qry:out>
+			</qry:select>
+		</qry:define>
+	</flow:declare>
+	<flow:form form-class="NucleusRH.Base.Liquidacion.Sindicato.Sindicatos.LM.guia.form" mode="SHOW" doc="SOURCE" parent-doc="INVAL">
+		<flow:action name="on-show"/>
+		<flow:action name="ACCEPT">
+			<doc:load-qry qry="PRUEBA" input-doc-path="#SOURCE:" output-doc="OUT"/>
+			<flow:exit-flow return-path="#OUT:"/>
+		</flow:action>
+		<flow:action name="CANCEL">
+			<flow:exit-flow return-path="#INVAL:"/>
+		</flow:action>
+	</flow:form>
+</flow:flow>

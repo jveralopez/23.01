@@ -1,0 +1,90 @@
+<html:html xmlns:html="nomad_engine.html" xmlns:qry="nomad_engine.qry" extends="Nomad.Base.BaseReport.rpt" doc="source" name="NucleusRH.Base.Liquidacion.ConceptosSegunIG">
+	<html:query declare="&lt;DATOS oi_liquidacion=&quot;49&quot; oi_variable=&quot;&quot; l_activo=&quot;1&quot;/&gt;">
+		<qry:main doc="SOURCE">
+			<qry:append-doc name="PARAMIN" doc-path="#SOURCE:DATOS"/>
+			<REPORT label="CONCEPTOS SEGUN IMPUESTO A LA GANANCIA">
+				<qry:attribute name="date" value="format_date(Now(),'dd/mm/yyyy HH:MM')"/>
+				<GROUPS>
+					<GROUP tag="DATOS" type="title">
+						<GROUP tag="LIQ" type="title_collapse">
+							<COLS>
+								<COL name="Acumula" label="Acumula"/>
+							</COLS>
+							<GROUP tag="CONC" style="padding-left:50px;" type="table">
+								<COLS>
+									<COL name="c_concepto" label="Codigo" style="width:15%"/>
+									<COL name="d_concepto" label="Descripcion" style="width:40%"/>
+									<COL name="e_secuencia" label="Secuencia" style="text-align:right;width:15%;" type="string"/>
+									<COL name="d_tipo_concepto" label="Tipo de Concepto" style="text-align:center; width:20%;" type="string"/>
+									<COL name="l_activo" label="Activo" style="text-align:center; width:10%;" type="string">
+										<OPT value="No" id="0"/>
+										<OPT value="Si" id="1"/>
+									</COL>
+								</COLS>
+							</GROUP>
+						</GROUP>
+					</GROUP>
+				</GROUPS>
+				<qry:element name="DATA">
+					<qry:element name="DATOS">
+						<qry:element name="LIQ">
+							<qry:attribute name="Acumula" value="'Acumula Haberes'" type="Nomad.NSystem.String"/>
+							<qry:attribute name="visible" value="0" type="Nomad.NSystem.String"/>
+							<qry:attribute name="temp" value="'H'" type="Nomad.NSystem.Int"/>
+							<qry:insert-select name="qry_cabecera" doc-path="."/>
+						</qry:element>
+						<qry:element name="LIQ">
+							<qry:attribute name="Acumula" value="'Acumula Deducciones'" type="Nomad.NSystem.String"/>
+							<qry:attribute name="visible" value="0" type="Nomad.NSystem.String"/>
+							<qry:attribute name="temp" value="'D'" type="Nomad.NSystem.Int"/>
+							<qry:insert-select name="qry_cabecera" doc-path="."/>
+						</qry:element>
+						<qry:element name="LIQ">
+							<qry:attribute name="Acumula" value="'No Acumula'" type="Nomad.NSystem.String"/>
+							<qry:attribute name="visible" value="0" type="Nomad.NSystem.String"/>
+							<qry:attribute name="temp" value="'N'" type="Nomad.NSystem.Int"/>
+							<qry:insert-select name="qry_cabecera" doc-path="."/>
+						</qry:element>
+					</qry:element>
+				</qry:element>
+			</REPORT>
+		</qry:main>
+		<qry:select name="qry_cabecera" doc="SOURCE">
+			<qry:xquery>
+				for $r in sql('
+				SELECT     
+LIQ12_TIPOS_CONC.d_tipo_concepto, 
+LIQ14_CONCEPTOS.c_concepto,
+LIQ14_CONCEPTOS.oi_concepto,  
+LIQ14_CONCEPTOS.d_concepto, 
+LIQ14_CONCEPTOS.ca_acum_ganancia, 
+LIQ14_CONCEPTOS.l_activo, 
+LIQ14_CONCEPTOS.e_secuencia
+FROM         
+LIQ14_CONCEPTOS , LIQ12_TIPOS_CONC 
+join
+LIQ14_CONCEPTOS.oi_tipo_concepto INNER LIQ12_TIPOS_CONC.oi_tipo_concepto
+where
+LIQ14_CONCEPTOS.ca_acum_ganancia = {#SOURCE:@temp}
+{%? (#PARAMIN:@l_activo!='')	{% AND LIQ14_CONCEPTOS.l_activo= {%=#PARAMIN:@l_activo %} %} {% %} %}
+ORDER BY        			
+{%? (#PARAMIN:@ATRIB_ORDEN1!='')	{% {%=#PARAMIN:@ATRIB_ORDEN1%} {%? (#PARAMIN:@ORDEN1!='') {% {%=#PARAMIN:@ORDEN1%}, %} {% ASC, %}	%} %} {% %} %}
+{%? (#PARAMIN:@ATRIB_ORDEN2!='')	{% {%=#PARAMIN:@ATRIB_ORDEN2%} {%? (#PARAMIN:@ORDEN2!='') {% {%=#PARAMIN:@ORDEN2%}, %} {% ASC, %}	%} %} {% %} %}
+{%? (#PARAMIN:@ATRIB_ORDEN3!='')	{% {%=#PARAMIN:@ATRIB_ORDEN3%} {%? (#PARAMIN:@ORDEN3!='') {% {%=#PARAMIN:@ORDEN3%}, %} {% ASC, %}	%} %} {% %} %}
+d_tipo_concepto ASC	
+
+			')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:element name="CONC">
+					<qry:attribute name="d_tipo_concepto" value="$r/@d_tipo_concepto" type="Nomad.NSystem.Int"/>
+					<qry:attribute name="c_concepto" value="$r/@c_concepto" type="Nomad.NSystem.String"/>
+					<qry:attribute name="d_concepto" value="$r/@d_concepto" type="Nomad.NSystem.String"/>
+					<qry:attribute name="e_secuencia" value="$r/@e_secuencia" type="Nomad.NSystem.String"/>
+					<qry:attribute name="l_activo" value="$r/@l_activo" type="Nomad.NSystem.String"/>
+				</qry:element>
+				<qry:attribute name="visible" value="1" type="Nomad.NSystem.String"/>
+			</qry:out>
+		</qry:select>
+	</html:query>
+</html:html>

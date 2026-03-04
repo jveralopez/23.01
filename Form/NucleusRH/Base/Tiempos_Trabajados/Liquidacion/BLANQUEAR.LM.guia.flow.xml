@@ -1,0 +1,149 @@
+<flow:flow name="NucleusRH.Base.Tiempos_Trabajados.Liquidacion.BLANQUEAR.LM.guia.flow" xmlns:doc="nomad_engine.form" xmlns:qry="nomad_engine.form" xmlns:flow="nomad_engine.form">
+	<flow:main doc="SOURCE">
+		<flow:action name="HELP">
+			<doc:load-qry output-doc="RS" input-doc-path="#SOURCE:" qry="HELP"/>
+			<flow:open-form form-class="NucleusRH.Base.Tiempos_Trabajados.Liquidacion.BLANQUEAR.LM.guia.form" parent-doc-path="#SOURCE:" doc-path="#RS:" mode="SHOW"/>
+		</flow:action>
+	</flow:main>
+	<flow:declare>
+		<doc:define name="RS"/>
+		<doc:define name="OUT"/>
+		<qry:define declare="&lt;helper-mess oi_liquidacion=&quot;3&quot;/&gt;" name="HELP">
+			<qry:main doc="SOURCE">
+				<qry:append-doc name="FILTRO" doc-path="#SOURCE:"/>
+				<qry:element name="ROWS">
+					<qry:insert-select name="RSA" doc-path="#SOURCE:"/>
+					<qry:insert-select name="RSB" doc-path="#SOURCE:"/>
+				</qry:element>
+			</qry:main>
+			<qry:select doc="SOURCE" name="RSA">
+				<qry:xquery>
+					for $r in sql('
+				SELECT TTA09_LIQUIDACION.oi_empresa FROM TTA09_LIQUIDACION
+				WHERE TTA09_LIQUIDACION.oi_liquidacion = {#SOURCE:helper-mess/@oi_liquidacion}
+			')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:insert-select name="RS1" doc-path="$r"/>
+				</qry:out>
+			</qry:select>
+			<qry:select doc="SOURCE" name="RS1">
+				<qry:xquery>
+					for $r in sql('
+				SELECT PER02_PERSONAL_EMP.oi_personal_emp, PER02_PERSONAL_EMP.e_numero_legajo,
+				PER01_PERSONAL.d_ape_y_nom
+				FROM PER02_PERSONAL_EMP, PER01_PERSONAL
+				JOIN PER02_PERSONAL_EMP.oi_personal INNER PER01_PERSONAL.oi_personal
+				WHERE PER02_PERSONAL_EMP.oi_empresa = {#SOURCE:@oi_empresa} 					
+				AND PER02_PERSONAL_EMP.oi_personal_emp IN 
+					(SELECT TTA10_LIQUIDACPERS.oi_personal_emp FROM TTA10_LIQUIDACPERS
+					WHERE TTA10_LIQUIDACPERS.oi_liquidacion = {%= #FILTRO:helper-mess/@oi_liquidacion %})	
+				{%? (string(#SOURCE:helper-mess/rows/row/@oi_personal_emp)!='') {%  AND TTA10_LIQUIDACPERS.oi_personal_emp in ({%=string(#FILTRO:helper-mess/rows/row/@oi_personal_emp) %}) %} {% AND 1=2 %} %}
+			')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:element name="ROW">
+						<qry:attribute type="Nomad.NSystem.Int" value="$r/@oi_personal_emp" name="id"/>
+						<qry:attribute type="Nomad.NSystem.Int" value="$r/@oi_personal_emp" name="value"/>
+						<qry:attribute type="Nomad.NSystem.String" value="$r/@e_numero_legajo" name="code"/>
+						<qry:attribute type="Nomad.NSystem.String" value="$r/@d_ape_y_nom" name="text"/>
+						<qry:attribute type="Nomad.NSystem.Boolean" value="1" name="check"/>
+						<qry:insert-select doc-path="." name="SECURITY_SI"/>
+					</qry:element>
+				</qry:out>
+			</qry:select>
+			<qry:select doc="PARAM" name="SECURITY_SI">
+				<qry:xquery>
+					for $r in sql('
+					SELECT NMD_SECURITY.policy 
+					FROM NMD_SECURITY 
+					WHERE NMD_SECURITY.class=\'NucleusRH.Base.Personal.LegajoEmpresa.PERSONAL_EMP\' 
+					AND NMD_SECURITY.id={#PARAM:@id}
+				')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:attribute value="$r/@policy" name="policy"/>
+				</qry:out>
+			</qry:select>
+			<qry:select doc="SOURCE" name="RSB">
+				<qry:xquery>
+					for $r in sql('
+				SELECT TTA09_LIQUIDACION.oi_empresa 
+				FROM TTA09_LIQUIDACION
+				WHERE TTA09_LIQUIDACION.oi_liquidacion = {#FILTRO:helper-mess/@oi_liquidacion}				
+			')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:insert-select name="RS2" doc-path="$r"/>
+				</qry:out>
+			</qry:select>
+			<qry:select doc="SOURCE" name="RS2">
+				<qry:xquery>
+					for $r in sql('
+			 	SELECT PER02_PERSONAL_EMP.oi_personal_emp, PER02_PERSONAL_EMP.e_numero_legajo,
+				PER01_PERSONAL.d_ape_y_nom
+				FROM PER02_PERSONAL_EMP, PER01_PERSONAL
+				JOIN PER02_PERSONAL_EMP.oi_personal INNER PER01_PERSONAL.oi_personal
+				WHERE PER02_PERSONAL_EMP.oi_empresa = {#SOURCE:@oi_empresa}
+				AND PER02_PERSONAL_EMP.oi_personal_emp IN 
+					(SELECT TTA10_LIQUIDACPERS.oi_personal_emp FROM TTA10_LIQUIDACPERS
+					WHERE TTA10_LIQUIDACPERS.oi_liquidacion = {%= #FILTRO:helper-mess/@oi_liquidacion %})	
+				{%? (string(#SOURCE:helper-mess/rows/row/@oi_personal_emp)!='') {% AND TTA10_LIQUIDACPERS.oi_personal_emp not in ({%=string(#FILTRO:helper-mess/rows/row/@oi_personal_emp) %}) %} {% AND 1=1  %} %} 
+			')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:element name="ROW">
+						<qry:attribute type="Nomad.NSystem.Int" value="$r/@oi_personal_emp" name="id"/>
+						<qry:attribute type="Nomad.NSystem.Int" value="$r/@oi_personal_emp" name="value"/>
+						<qry:attribute type="Nomad.NSystem.String" value="$r/@e_numero_legajo" name="code"/>
+						<qry:attribute type="Nomad.NSystem.String" value="$r/@d_ape_y_nom" name="text"/>
+						<qry:attribute type="Nomad.NSystem.Boolean" value="0" name="check"/>
+						<qry:insert-select doc-path="." name="SECURITY_NO"/>
+					</qry:element>
+				</qry:out>
+			</qry:select>
+			<qry:select doc="PARAM" name="SECURITY_NO">
+				<qry:xquery>
+					for $r in sql('
+				SELECT NMD_SECURITY.policy 
+				FROM NMD_SECURITY 
+				WHERE NMD_SECURITY.class=\'NucleusRH.Base.Personal.LegajoEmpresa.PERSONAL_EMP\' 
+				AND NMD_SECURITY.id={#PARAM:@id}
+			')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:attribute value="$r/@policy" name="policy"/>
+				</qry:out>
+			</qry:select>
+		</qry:define>
+		<qry:define name="PRUEBA">
+			<qry:main doc="SOURCE">
+				<qry:element name="helper-mess">
+					<qry:element name="rows">
+						<qry:insert-select name="RS1" doc-path="#SOURCE:"/>
+					</qry:element>
+				</qry:element>
+			</qry:main>
+			<qry:select doc="SOURCE" name="RS1">
+				<qry:xquery>
+					for $r in #SOURCE:ROWS/ROW[@check=1]
+				</qry:xquery>
+				<qry:out>
+					<qry:element name="row">
+						<qry:attribute type="Nomad.NSystem.Int" value="$r/@id" name="oi_personal_emp"/>
+					</qry:element>
+				</qry:out>
+			</qry:select>
+		</qry:define>
+	</flow:declare>
+	<flow:form name="NucleusRH.Base.Tiempos_Trabajados.Liquidacion.BLANQUEAR.LM.guia.form:SHOW" form-class="NucleusRH.Base.Tiempos_Trabajados.Liquidacion.BLANQUEAR.LM.guia.form" parent-doc="INVAL" doc="SOURCE" mode="SHOW">
+		<flow:action name="on-show"/>
+		<flow:action name="ACCEPT">
+			<doc:load-qry output-doc="OUT" input-doc-path="#SOURCE:" qry="PRUEBA"/>
+			<flow:exit-flow return-path="#OUT:"/>
+		</flow:action>
+		<flow:action name="CANCEL">
+			<flow:exit-flow return-path="#INVAL:"/>
+		</flow:action>
+	</flow:form>
+</flow:flow>

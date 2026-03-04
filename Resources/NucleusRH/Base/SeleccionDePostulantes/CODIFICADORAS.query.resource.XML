@@ -1,0 +1,540 @@
+<qry:define xmlns:qry="nomad_engine.qry" name="CODIFICADORAS" declare="&lt;DATOS /&gt;" include="true">
+	<qry:select name="qry_cod">
+		<qry:out>
+			<ROWS>
+				<ROW id="TIPOS_DOC" label="Tipos de Documento"/>
+				<ROW id="EST_CIVIL" label="Estado Civil"/>
+				<ROW id="PAISES" label="Paises"/>
+				<ROW id="PROVINCIAS" label="Provincias"/>
+				<ROW id="LOCALIDADES" label="Localidades"/>
+				<ROW id="NIVELES_EST" label="Niveles de Estudio"/>
+				<ROW id="ESTADOS_EST" label="Estados de Estudio"/>
+				<ROW id="ESTUDIOS" label="Estudios"/>
+				<ROW id="AREAS_LAB" label="Areas Laborales"/>
+				<ROW id="IDIOMAS" label="Idiomas"/>
+				<ROW id="NIV_IDIOMA" label="Niveles de Idioma"/>
+				<ROW id="CONOCIMIENTOS" label="Conocimientos"/>
+				<ROW id="NIV_CONOCIMIENTOS" label="Niveles de Conocimientos"/>
+				<ROW id="EMPRESAS" label="Empresas"/>
+				<!--<ROW id="TIPOS_SERV" label="Tipos de Servicio"/> -->
+				<ROW id="TIPOS_PUESTO" label="Tipos de Puestos"/>
+				<ROW id="SENIORITY" label="Seniority"/>
+				<ROW id="UNIDADES_TPO" label="Unidades de Tiempo"/>
+				<!--<ROW id="ORIGEN_AVISO" label="Origen de Aviso"/> -->
+				<ROW id="NACIONALIDADES" label="Nacionalidades"/>
+			</ROWS>
+		</qry:out>
+	</qry:select>
+	<qry:select doc="SOURCE" name="TIPOS_DOC">
+		<qry:xquery>
+			for $r in SQL
+			(' 
+			    SELECT
+			    TD.oi_tipo_documento,
+			    TD.c_tipo_documento,
+			    TD.d_tipo_documento
+			    
+			    FROM
+			    PER20_TIPOS_DOC as TD
+                 
+                ORDER BY d_tipo_documento asc
+			    
+			')/ROWS/ROW
+		</qry:xquery>
+		<qry:out>
+			<ROW>
+				<qry:attribute name="external_id" value="$r/@oi_tipo_documento"/>
+				<qry:attribute name="code" value="$r/@c_tipo_documento"/>
+				<qry:attribute name="description" value="$r/@d_tipo_documento"/>
+				<qry:attribute name="type" value="#SOURCE:@tipoCodificadora"/>
+			</ROW>
+		</qry:out>
+	</qry:select>
+	<qry:select doc="SOURCE" name="EST_CIVIL">
+		<qry:xquery>
+			for $r in SQL
+			(' 
+			    SELECT
+			    ECV.oi_estado_civil,
+			    ECV.c_estado_civil,
+			    ECV.d_estado_civil
+			    
+			    FROM
+			    ORG22_EST_CIVIL as ECV
+
+			    ORDER BY d_estado_civil asc 
+			     
+			')/ROWS/ROW
+		</qry:xquery>
+		<qry:out>
+			<ROW>
+				<qry:attribute name="external_id" value="$r/@oi_estado_civil"/>
+				<qry:attribute name="code" value="$r/@c_estado_civil"/>
+				<qry:attribute name="description" value="$r/@d_estado_civil"/>
+				<qry:attribute name="type" value="#SOURCE:@tipoCodificadora"/>
+			</ROW>
+		</qry:out>
+	</qry:select>
+	<qry:select doc="SOURCE" name="PAISES">
+		<qry:xquery>
+			for $r in SQL
+			(' 
+			    SELECT
+			    PAIS.oi_pais,
+			    PAIS.c_pais,
+			    PAIS.d_pais
+			    
+			    FROM
+			    ORG35_PAISES as PAIS
+                                 
+               ORDER BY d_pais asc 
+			    
+			')/ROWS/ROW
+		</qry:xquery>
+		<qry:out>
+			<ROW>
+				<qry:attribute name="external_id" value="$r/@oi_pais"/>
+				<qry:attribute name="code" value="$r/@c_pais"/>
+				<qry:attribute name="description" value="$r/@d_pais"/>
+				<qry:attribute name="type" value="#SOURCE:@tipoCodificadora"/>
+			</ROW>
+		</qry:out>
+	</qry:select>
+	<qry:select name="PROVINCIAS" doc="SOURCE">
+		<qry:xquery>
+			for $r in SQL('
+			SELECT
+				PCIA.oi_provincia,				
+				PCIA.c_provincia,
+				PCIA.d_provincia,
+				PAIS.c_pais,
+				PAIS.oi_pais
+			FROM
+				ORG35_PROVINCIAS as PCIA,
+				ORG35_PAISES as PAIS
+			JOIN
+				PCIA.oi_pais INNER PAIS.oi_pais
+			ORDER BY d_provincia asc  
+			')/ROWS/ROW
+		</qry:xquery>
+		<qry:out>
+			<ROW>
+				<qry:attribute name="external_id" value="$r/@oi_provincia"/>
+				<qry:attribute name="code" value="$r/@c_provincia"/>
+				<qry:attribute name="description" value="$r/@d_provincia"/>
+				<qry:attribute name="parentId" value="$r/@oi_pais"/>
+				<qry:attribute name="type" value="#SOURCE:@tipoCodificadora"/>
+			</ROW>
+			<qry:attribute name="claseParent" value="'PAISES'"/>
+		</qry:out>
+	</qry:select>
+	<qry:select name="LOCALIDADES" doc="SOURCE">
+		<qry:xquery>
+			for $r in SQL
+			(' 
+			     SELECT
+				    LOC.oi_localidad,
+				    LOC.c_localidad,
+				    LOC.d_localidad,
+			      PCIA.oi_provincia
+			    FROM
+				    ORG19_LOCALIDADES as LOC,
+				    ORG35_PROVINCIAS as PCIA
+			     
+			    JOIN
+			    	LOC.oi_provincia INNER PCIA.oi_provincia			     
+			    ORDER BY 
+			    	d_localidad asc  
+			    
+			')/ROWS/ROW
+		</qry:xquery>
+		<qry:out>
+			<ROW>
+				<qry:if test="substring-before($r/@d_localidad,' (') != ../@desc_anterior">
+					<qry:then>
+						<qry:attribute name="external_id" value="$r/@oi_localidad"/>
+						<qry:attribute name="code" value="$r/@c_localidad"/>
+						<qry:attribute name="description" value="substring-before($r/@d_localidad,' (')"/>
+						<qry:attribute name="parentId" value="$r/@oi_provincia"/>
+						<qry:attribute name="type" value="#SOURCE:@tipoCodificadora"/>
+					</qry:then>
+					<qry:else>
+						<qry:attribute name="hts:delete" value="1"/>
+					</qry:else>
+				</qry:if>
+			</ROW>
+			<qry:attribute name="desc_anterior" value="substring-before($r/@d_localidad,' (')"/>
+			<qry:attribute name="claseParent" value="'PROVINCIAS'"/>
+		</qry:out>
+	</qry:select>
+	<qry:select doc="SOURCE" name="NIVELES_EST">
+		<qry:xquery>
+			for $r in SQL
+			(' 
+			    SELECT
+			    NIVEST.oi_nivel_estudio,
+			    NIVEST.c_nivel_estudio,
+			    NIVEST.d_nivel_estudio
+			    
+			    FROM
+			    PER12_NIVELES_EST as NIVEST 
+			     
+			    ORDER BY d_nivel_estudio asc
+			     
+			')/ROWS/ROW
+		</qry:xquery>
+		<qry:out>
+			<ROW>
+				<qry:attribute name="external_id" value="$r/@oi_nivel_estudio"/>
+				<qry:attribute name="code" value="$r/@c_nivel_estudio"/>
+				<qry:attribute name="description" value="$r/@d_nivel_estudio"/>
+				<qry:attribute name="type" value="#SOURCE:@tipoCodificadora"/>
+			</ROW>
+		</qry:out>
+	</qry:select>
+	<qry:select doc="SOURCE" name="ESTADOS_EST">
+		<qry:out>
+			<ROW>
+				<qry:attribute name="external_id" value="1"/>
+				<qry:attribute name="code" value="1"/>
+				<qry:attribute name="description" value="'Completo'"/>
+				<qry:attribute name="type" value="#SOURCE:@tipoCodificadora"/>
+			</ROW>
+			<ROW>
+				<qry:attribute name="external_id" value="2"/>
+				<qry:attribute name="code" value="2"/>
+				<qry:attribute name="description" value="'Incompleto'"/>
+				<qry:attribute name="type" value="#SOURCE:@tipoCodificadora"/>
+			</ROW>
+			<ROW>
+				<qry:attribute name="external_id" value="3"/>
+				<qry:attribute name="code" value="3"/>
+				<qry:attribute name="description" value="'En Curso'"/>
+				<qry:attribute name="type" value="#SOURCE:@tipoCodificadora"/>
+			</ROW>
+		</qry:out>
+	</qry:select>
+	<qry:select doc="SOURCE" name="ESTUDIOS">
+		<qry:xquery>
+			for $r in SQL
+			(' 
+			    SELECT
+			    EST.oi_estudio,
+			    EST.c_estudio,
+			    EST.d_estudio,
+			    NIVEST.oi_nivel_estudio
+			    FROM
+			    ORG11_ESTUDIOS as EST,
+	            PER12_NIVELES_EST as NIVEST  
+			    JOIN
+			    NIVEST.oi_nivel_estudio INNER EST.oi_nivel_estudio
+ 		    
+			     ORDER BY d_estudio ASC
+			')/ROWS/ROW
+		</qry:xquery>
+		<qry:out>
+			<ROW>
+				<qry:attribute name="external_id" value="$r/@oi_estudio"/>
+				<qry:attribute name="code" value="$r/@c_estudio"/>
+				<qry:attribute name="description" value="$r/@d_estudio"/>
+				<qry:attribute name="parentId" value="$r/@oi_nivel_estudio"/>
+				<qry:attribute name="type" value="#SOURCE:@tipoCodificadora"/>
+			</ROW>
+			<qry:attribute name="claseParent" value="'NIVELES_EST'"/>
+		</qry:out>
+	</qry:select>
+	<qry:select doc="SOURCE" name="AREAS_LAB">
+		<qry:xquery>
+			for $r in SQL
+			(' 
+			    SELECT
+			    PEXP.oi_puesto_exp,
+			    PEXP.c_puesto_exp,
+			    PEXP.d_puesto_exp
+			    
+			    FROM
+			    SDP09_PUESTO_EXP as PEXP 
+			    
+			    ORDER BY d_puesto_exp ASC
+			    
+			')/ROWS/ROW
+		</qry:xquery>
+		<qry:out>
+			<ROW>
+				<qry:attribute name="external_id" value="$r/@oi_puesto_exp"/>
+				<qry:attribute name="code" value="$r/@c_puesto_exp"/>
+				<qry:attribute name="description" value="$r/@d_puesto_exp"/>
+				<qry:attribute name="type" value="#SOURCE:@tipoCodificadora"/>
+			</ROW>
+		</qry:out>
+	</qry:select>
+	<qry:select doc="SOURCE" name="IDIOMAS">
+		<qry:xquery>
+			for $r in SQL
+			(' 
+			    SELECT
+			    IDIOMA.oi_idioma,
+			    IDIOMA.c_idioma,
+			    IDIOMA.d_idioma
+			    
+			    FROM
+			    ORG20_IDIOMAS as IDIOMA 
+			    
+			    ORDER BY d_idioma ASC
+			    
+			    
+			')/ROWS/ROW
+		</qry:xquery>
+		<qry:out>
+			<ROW>
+				<qry:attribute name="external_id" value="$r/@oi_idioma"/>
+				<qry:attribute name="code" value="$r/@c_idioma"/>
+				<qry:attribute name="description" value="$r/@d_idioma"/>
+				<qry:attribute name="type" value="#SOURCE:@tipoCodificadora"/>
+			</ROW>
+		</qry:out>
+	</qry:select>
+	<qry:select doc="SOURCE" name="NIV_IDIOMA">
+		<qry:out>
+			<ROW>
+				<qry:attribute name="external_id" value="1"/>
+				<qry:attribute name="code" value="1"/>
+				<qry:attribute name="description" value="'B&#225;sico'"/>
+				<qry:attribute name="type" value="#SOURCE:@tipoCodificadora"/>
+			</ROW>
+			<ROW>
+				<qry:attribute name="external_id" value="2"/>
+				<qry:attribute name="code" value="2"/>
+				<qry:attribute name="description" value="'Intermedio'"/>
+				<qry:attribute name="type" value="#SOURCE:@tipoCodificadora"/>
+			</ROW>
+			<ROW>
+				<qry:attribute name="external_id" value="3"/>
+				<qry:attribute name="code" value="3"/>
+				<qry:attribute name="description" value="'Avanzado'"/>
+				<qry:attribute name="type" value="#SOURCE:@tipoCodificadora"/>
+			</ROW>
+		</qry:out>
+	</qry:select>
+	<qry:select doc="SOURCE" name="CONOCIMIENTOS">
+		<qry:xquery>
+			for $r in SQL
+			(' 
+			    SELECT
+			    INFO.oi_informatica,
+			    INFO.c_informatica,
+			    INFO.d_informatica
+			    
+			    FROM
+			    SDP08_INFORMATICA as INFO 
+			 
+			    ORDER BY d_informatica ASC
+			    
+			')/ROWS/ROW
+		</qry:xquery>
+		<qry:out>
+			<ROW>
+				<qry:attribute name="external_id" value="$r/@oi_informatica"/>
+				<qry:attribute name="code" value="$r/@c_informatica"/>
+				<qry:attribute name="description" value="$r/@d_informatica"/>
+				<qry:attribute name="type" value="#SOURCE:@tipoCodificadora"/>
+			</ROW>
+		</qry:out>
+	</qry:select>
+	<qry:select doc="SOURCE" name="EMPRESAS">
+		<qry:xquery>
+			for $r in SQL
+			(' 
+			    SELECT
+			    EMP.oi_empresa,
+			    EMP.c_empresa,
+			    EMP.d_empresa
+			    
+			    FROM
+			    ORG03_EMPRESAS as EMP 
+			    
+			    ORDER BY d_empresa ASC
+			    
+			')/ROWS/ROW
+		</qry:xquery>
+		<qry:out>
+			<ROW>
+				<qry:attribute name="external_id" value="$r/@oi_empresa"/>
+				<qry:attribute name="code" value="$r/@c_empresa"/>
+				<qry:attribute name="description" value="$r/@d_empresa"/>
+				<qry:attribute name="type" value="#SOURCE:@tipoCodificadora"/>
+			</ROW>
+		</qry:out>
+	</qry:select>
+	<qry:select doc="SOURCE" name="TIPOS_SERV">
+		<qry:xquery>
+			for $r in SQL
+			(' 
+			    SELECT
+			    PROD.oi_tipos_serv,
+			    PROD.c_tipos_serv,
+			    PROD.d_tipos_serv
+			    
+			    FROM
+			 
+			    CLI15_TIPOS_SERV as PROD		    
+	            
+	            ORDER BY d_tipos_serv ASC
+			    
+			    
+			    
+			')/ROWS/ROW
+		</qry:xquery>
+		<qry:out>
+			<ROW>
+				<qry:attribute name="external_id" value="$r/@oi_tipos_serv"/>
+				<qry:attribute name="code" value="$r/@c_tipos_serv"/>
+				<qry:attribute name="description" value="$r/@d_tipos_serv"/>
+				<qry:attribute name="type" value="#SOURCE:@tipoCodificadora"/>
+			</ROW>
+		</qry:out>
+	</qry:select>
+	<qry:select doc="SOURCE" name="TIPOS_PUESTO">
+		<qry:xquery>
+			for $r in SQL
+			(' 
+			    SELECT
+			    TJ.oi_tipo_jor_lab,
+			    TJ.c_tipo_jor_lab,
+			    TJ.d_tipo_jor_lab
+			                    			    
+			    FROM
+			    SDP16_TIPOS_JORNADA as TJ 		    
+			    
+			    ORDER BY d_tipo_jor_lab ASC
+			')/ROWS/ROW
+		</qry:xquery>
+		<qry:out>
+			<ROW>
+				<qry:attribute name="external_id" value="$r/@oi_tipo_jor_lab"/>
+				<qry:attribute name="code" value="$r/@c_tipo_jor_lab"/>
+				<qry:attribute name="description" value="$r/@d_tipo_jor_lab"/>
+				<qry:attribute name="type" value="#SOURCE:@tipoCodificadora"/>
+			</ROW>
+		</qry:out>
+	</qry:select>
+	<qry:select doc="SOURCE" name="SENIORITY">
+		<qry:xquery>
+			for $r in SQL
+			(' 
+			    SELECT
+			    S.oi_jerarquia,
+			    S.c_jerarquia,
+			    S.d_jerarquia
+			                    			    
+			    FROM
+			    SDP07_JERARQUIA as S 		    
+			    
+			    ORDER BY d_jerarquia ASC
+			')/ROWS/ROW
+		</qry:xquery>
+		<qry:out>
+			<ROW>
+				<qry:attribute name="external_id" value="$r/@oi_jerarquia"/>
+				<qry:attribute name="code" value="$r/@c_jerarquia"/>
+				<qry:attribute name="description" value="$r/@d_jerarquia"/>
+				<qry:attribute name="type" value="#SOURCE:@tipoCodificadora"/>
+			</ROW>
+		</qry:out>
+	</qry:select>
+	<qry:select doc="SOURCE" name="UNIDADES_TPO">
+		<qry:xquery>
+			for $r in SQL
+			(' 
+			    SELECT
+			    UT.oi_unidad_tiempo,
+			    UT.c_unidad_tiempo,
+			    UT.d_unidad_tiempo
+			                    			    
+			    FROM
+			    ORG25_UNIDADES_TPO as UT 		    
+			    
+			    ORDER BY d_unidad_tiempo ASC
+			    
+			')/ROWS/ROW
+		</qry:xquery>
+		<qry:out>
+			<ROW>
+				<qry:attribute name="external_id" value="$r/@oi_unidad_tiempo"/>
+				<qry:attribute name="code" value="$r/@c_unidad_tiempo"/>
+				<qry:attribute name="description" value="$r/@d_unidad_tiempo"/>
+				<qry:attribute name="type" value="#SOURCE:@tipoCodificadora"/>
+			</ROW>
+		</qry:out>
+	</qry:select>
+	<qry:select doc="SOURCE" name="ORIGEN_AVISO">
+		<qry:xquery>
+			for $r in SQL
+			(' 
+			    SELECT
+			    O.oi_origen_aviso,
+			    O.c_origen_aviso,
+			    O.d_origen_aviso
+			                    			    
+			    FROM
+			    POS30_ORIGENES_AVISO as O 		    
+			    
+			    ORDER BY d_origen_aviso ASC
+			')/ROWS/ROW
+		</qry:xquery>
+		<qry:out>
+			<ROW>
+				<qry:attribute name="external_id" value="$r/@oi_origen_aviso"/>
+				<qry:attribute name="code" value="$r/@c_origen_aviso"/>
+				<qry:attribute name="description" value="$r/@d_origen_aviso"/>
+				<qry:attribute name="type" value="#SOURCE:@tipoCodificadora"/>
+			</ROW>
+		</qry:out>
+	</qry:select>
+	<qry:select doc="SOURCE" name="NACIONALIDADES">
+		<qry:xquery>
+			for $r in SQL
+			(' 
+			    SELECT
+			    N.oi_nacionalidad,
+			    N.c_nacionalidad,
+			    N.d_nacionalidad
+			                    			    
+			    FROM
+			    ORG12_NACIONALID as N 		    
+			    
+			    ORDER BY d_nacionalidad ASC
+			')/ROWS/ROW
+		</qry:xquery>
+		<qry:out>
+			<ROW>
+				<qry:attribute name="external_id" value="$r/@oi_nacionalidad"/>
+				<qry:attribute name="code" value="$r/@c_nacionalidad"/>
+				<qry:attribute name="description" value="$r/@d_nacionalidad"/>
+				<qry:attribute name="type" value="#SOURCE:@tipoCodificadora"/>
+			</ROW>
+		</qry:out>
+	</qry:select>
+	<qry:select doc="SOURCE" name="NIV_CONOCIMIENTOS">
+		<qry:out>
+			<ROW>
+				<qry:attribute name="external_id" value="1"/>
+				<qry:attribute name="code" value="1"/>
+				<qry:attribute name="description" value="'B&#225;sico'"/>
+				<qry:attribute name="type" value="#SOURCE:@tipoCodificadora"/>
+			</ROW>
+			<ROW>
+				<qry:attribute name="external_id" value="2"/>
+				<qry:attribute name="code" value="2"/>
+				<qry:attribute name="description" value="'Intermedio'"/>
+				<qry:attribute name="type" value="#SOURCE:@tipoCodificadora"/>
+			</ROW>
+			<ROW>
+				<qry:attribute name="external_id" value="3"/>
+				<qry:attribute name="code" value="3"/>
+				<qry:attribute name="description" value="'Avanzado'"/>
+				<qry:attribute name="type" value="#SOURCE:@tipoCodificadora"/>
+			</ROW>
+		</qry:out>
+	</qry:select>
+</qry:define>

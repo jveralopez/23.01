@@ -1,0 +1,203 @@
+<flow:flow xmlns:flow="nomad_engine.flow" xmlns:qry="nomad_engine.qry" xmlns:doc="nomad_engine.doc" extends="NucleusRH.Base.Portal_Empleado.Novedades.autoflow" name="NucleusRH.Base.Portal_Empleado.Novedades">
+	<flow:info label="Flow para NucleusRH.Base.Portal_Empleado.Novedades"/>
+	<flow:declare>
+		<qry:define declare="&lt;DATOS oi_tiponovedad=&quot;1&quot; f_desde=&quot;&quot; f_hasta=&quot;&quot; /&gt;" name="FILTER">
+			<qry:main doc="SOURCE">
+				<qry:element name="ROWS">
+					<qry:insert-select name="sql1" doc-path="#SOURCE:DATOS"/>
+				</qry:element>
+			</qry:main>
+			<qry:select doc="SOURCE" name="sql1">
+				<qry:xquery>
+					for $r in sql('
+				SELECT 
+					t0.oi_novedad as oi_novedad
+				FROM 
+					POR02_NOVEDADES as t0
+				WHERE 
+					1=1
+					{%? 
+						(#SOURCE:@f_desde!='')	
+						{% AND t0.f_fecha &gt;= {Datetime(#SOURCE:@f_desde)} %} 
+						{% %} 
+					%}                    
+					{%? 
+						(#SOURCE:@f_hasta!='')	
+						{% AND t0.f_fecha &lt;= {Datetime(#SOURCE:@f_hasta)} %} 
+						{% %} 
+					%} 
+					{%? 
+						(#SOURCE:@oi_tiponovedad!='')	
+						{% AND t0.oi_tiponovedad = {#SOURCE:@oi_tiponovedad}%} 
+						{% %} 
+					%}
+				ORDER BY 
+					oi_novedad asc
+			')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:element name="ROW">
+						<qry:attribute name="id" value="$r/@oi_novedad"/>
+					</qry:element>
+				</qry:out>
+			</qry:select>
+		</qry:define>
+		<qry:define name="LIST">
+			<qry:include name="NucleusRH.Base.Portal_Empleado.Tipos_Novedades.TIPONOVEDAD.INFO"/>
+			<qry:main doc="SOURCE">
+				<qry:element name="ROWS">
+					<qry:insert-select name="sql1" doc-path="#SOURCE:DATOS"/>
+				</qry:element>
+			</qry:main>
+			<qry:select doc="SOURCE" name="sql1">
+				<qry:xquery>
+					for $r in sql('
+				SELECT 
+					t0.oi_novedad as oi_novedad, 
+					t0.d_novedad as d_novedad, 
+					t0.f_fecha as f_fecha, 
+					t0.f_desde as f_desde, 
+					t0.f_hasta as f_hasta, 
+					t0.c_estado as c_estado, 
+					t0.oi_novedad as CODE, 
+					t0.d_novedad as TEXT, 
+					t0.oi_tiponovedad as oi_tiponovedad, 
+					t0.oi_imagen_por as oi_imagen_por 
+				FROM 
+					POR02_NOVEDADES as t0
+				WHERE 
+					1=1
+					{%? 
+						(#SOURCE:@f_desde!='')	
+						{% AND t0.f_fecha &lt;= {#SOURCE:@f_desde} %} 
+						{% %} 
+					%}
+					{%? 
+						(#SOURCE:@f_hasta!='')	
+						{% AND t0.f_fecha &gt;= {#SOURCE:@f_hasta} %} 
+						{% %} 
+					%} 
+					{%? 
+						(#SOURCE:@oi_tiponovedad!='')	
+						{% AND t0.oi_tiponovedad = {#SOURCE:@oi_tiponovedad}%} 
+						{% %} 
+					%}
+				ORDER BY 
+					oi_novedad asc
+			')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:element name="ROW">
+						<qry:attribute name="id" value="$r/@oi_novedad"/>
+						<qry:attribute name="d_novedad" value="$r/@d_novedad"/>
+						<qry:attribute name="f_fecha" value="$r/@f_fecha"/>
+						<qry:attribute name="f_desde" value="$r/@f_desde"/>
+						<qry:attribute name="f_hasta" value="$r/@f_hasta"/>
+						<qry:attribute name="c_estado" value="$r/@c_estado"/>
+						<qry:attribute name="CODE" value="$r/@CODE"/>
+						<qry:attribute name="TEXT" value="$r/@TEXT"/>
+						<qry:if test="$r/@oi_tiponovedad!=''">
+							<qry:then>
+								<qry:element name="oi_tiponovedad">
+									<qry:attribute name="OI_FIND" value="$r/@oi_tiponovedad"/>
+									<qry:insert-select name="NucleusRH.Base.Portal_Empleado.Tipos_Novedades.TIPONOVEDAD.QUERY" doc-path="."/>
+								</qry:element>
+								<qry:attribute name="oi_tiponovedad" value="'['+oi_tiponovedad/ROW/@COD+'] '+oi_tiponovedad/ROW/@DES"/>
+							</qry:then>
+						</qry:if>
+						<qry:attribute name="oi_imagen_por" value="$r/@oi_imagen_por"/>
+					</qry:element>
+				</qry:out>
+			</qry:select>
+		</qry:define>
+		<doc:define name="FILTERDATA">
+			<DATOS oi_tiponovedad="" f_desde="" f_hasta=""/>
+		</doc:define>
+	</flow:declare>
+	<flow:main doc="SOURCE">
+		<flow:action name="initialize">
+			<flow:open-form doc-path="#FILTERDATA:" form-class="NucleusRH.Base.Portal_Empleado.Novedades.NOVEDAD.filter.form" mode="FILTER"/>
+		</flow:action>
+	</flow:main>
+	<flow:group Name="NOVEDAD">
+		<flow:form extends="NucleusRH.Base.Portal_Empleado.Novedades.NOVEDAD.filter.autoform:FILTER" parent-doc="PARENTSOURCE" doc="SOURCE" name="NucleusRH.Base.Portal_Empleado.Novedades.NOVEDAD.filter.form:FILTER" form-class="NucleusRH.Base.Portal_Empleado.Novedades.NOVEDAD.filter.form" mode="FILTER">
+			<flow:action name="on-show">
+				<flow:call-action action="inits-DDO"/>
+			</flow:action>
+		</flow:form>
+		<flow:form extends="CLASSROOT:NOREG:EDIT" parent-doc="PARENTSOURCE" doc="SOURCE" name="NucleusRH.Base.Portal_Empleado.Novedades.NOVEDAD.noreg.autoform:EDIT" form-class="NucleusRH.Base.Portal_Empleado.Novedades.NOVEDAD.noreg.autoform" mode="EDIT">
+			<flow:action name="new-DDO">
+				<doc:new-object doc="NEWDDOROOT" class="NucleusRH.Base.Portal_Empleado.Novedades.NOVEDAD"/>
+			</flow:action>
+			<flow:action name="load-DDO">
+				<doc:load-object id-path="#QRY:ROW[1]/@id" class="NucleusRH.Base.Portal_Empleado.Novedades.NOVEDAD" doc="DDO"/>
+			</flow:action>
+			<flow:action name="open-flow-SHOW">
+				<flow:open-form iter-index="#QRY:ROW/@id" parent-doc-path="#QRY:" doc-path="#DDO:" mode="SHOW" form-class="NucleusRH.Base.Portal_Empleado.Novedades.NOVEDAD.autoform"/>
+			</flow:action>
+			<flow:action name="open-flow-ADD">
+				<flow:open-form doc-path="#NEWDDOROOT:" mode="NEW" form-class="NucleusRH.Base.Portal_Empleado.Novedades.NOVEDAD.autoform"/>
+			</flow:action>
+			<flow:action name="open-flow-LIST">
+				<flow:open-form iter-index="#QRY_LIST:ROW/@id" parent-doc-path="#QRY_LIST:" doc-path="#DDO:" mode="LIST" form-class="NucleusRH.Base.Portal_Empleado.Novedades.NOVEDAD.autoform"/>
+			</flow:action>
+		</flow:form>
+		<flow:form extends="CLASSROOT:SHOW" parent-doc="PARENTSOURCE" doc="SOURCE" name="NucleusRH.Base.Portal_Empleado.Novedades.NOVEDAD.autoform:SHOW" form-class="NucleusRH.Base.Portal_Empleado.Novedades.NOVEDAD.autoform" mode="SHOW">
+			<flow:action name="new-DDO">
+				<doc:new-object doc="NEWDDOROOT" class="NucleusRH.Base.Portal_Empleado.Novedades.NOVEDAD"/>
+			</flow:action>
+			<flow:action name="load-DDO">
+				<doc:load-object id-path="#iter-cursor:@value" class="NucleusRH.Base.Portal_Empleado.Novedades.NOVEDAD" doc="DDO"/>
+			</flow:action>
+			<flow:action name="save-DDO">
+				<doc:save-object class="NucleusRH.Base.Portal_Empleado.Novedades.NOVEDAD" doc="DDO"/>
+			</flow:action>
+			<flow:action name="delete-DDO">
+				<doc:delete-object doc-path="#DDO:" class="NucleusRH.Base.Portal_Empleado.Novedades.NOVEDAD" doc="DDO"/>
+				<doc:save-object class="NucleusRH.Base.Portal_Empleado.Novedades.NOVEDAD" doc="DDO"/>
+			</flow:action>
+			<flow:action name="open-flow-EDIT">
+				<flow:open-form doc-path="#DDO:" mode="EDIT" form-class="NucleusRH.Base.Portal_Empleado.Novedades.NOVEDAD.autoform"/>
+			</flow:action>
+			<flow:action name="open-flow-ADD">
+				<flow:open-form doc-path="#NEWDDOROOT:" mode="NEW" form-class="NucleusRH.Base.Portal_Empleado.Novedades.NOVEDAD.autoform"/>
+			</flow:action>
+		</flow:form>
+		<flow:form extends="CLASSROOT:LIST" parent-doc="PARENTSOURCE" doc="SOURCE" name="NucleusRH.Base.Portal_Empleado.Novedades.NOVEDAD.autoform:LIST" form-class="NucleusRH.Base.Portal_Empleado.Novedades.NOVEDAD.autoform" mode="LIST">
+			<flow:action name="new-DDO">
+				<doc:new-object doc="NEWDDOROOT" class="NucleusRH.Base.Portal_Empleado.Novedades.NOVEDAD"/>
+			</flow:action>
+			<flow:action name="load-DDO">
+				<doc:load-object id-path="#FORM:ctrl[@id='LIST']/@xval" class="NucleusRH.Base.Portal_Empleado.Novedades.NOVEDAD" doc="DDO"/>
+			</flow:action>
+			<flow:action name="save-DDO">
+				<doc:save-object class="NucleusRH.Base.Portal_Empleado.Novedades.NOVEDAD" doc="DDO"/>
+			</flow:action>
+			<flow:action name="delete-DDO">
+				<doc:delete-object doc-path="#DDO:" class="NucleusRH.Base.Portal_Empleado.Novedades.NOVEDAD" doc="DDO"/>
+				<doc:save-object class="NucleusRH.Base.Portal_Empleado.Novedades.NOVEDAD" doc="DDO"/>
+			</flow:action>
+			<flow:action name="open-flow-EDIT">
+				<flow:open-form doc-path="#DDO:" mode="EDIT" form-class="NucleusRH.Base.Portal_Empleado.Novedades.NOVEDAD.autoform"/>
+			</flow:action>
+			<flow:action name="open-flow-ADD">
+				<flow:open-form doc-path="#NEWDDOROOT:" mode="NEW" form-class="NucleusRH.Base.Portal_Empleado.Novedades.NOVEDAD.autoform"/>
+			</flow:action>
+		</flow:form>
+		<flow:form extends="CLASSROOT:EDIT" parent-doc="PARENTSOURCE" doc="SOURCE" name="NucleusRH.Base.Portal_Empleado.Novedades.NOVEDAD.autoform:EDIT" form-class="NucleusRH.Base.Portal_Empleado.Novedades.NOVEDAD.autoform" mode="EDIT">
+			<flow:action name="save-DDO">
+				<doc:save-object class="NucleusRH.Base.Portal_Empleado.Novedades.NOVEDAD" doc="DDO"/>
+			</flow:action>
+			<flow:action name="delete-DDO">
+				<doc:delete-object doc-path="#DDO:" class="NucleusRH.Base.Portal_Empleado.Novedades.NOVEDAD" doc="DDO"/>
+				<doc:save-object class="NucleusRH.Base.Portal_Empleado.Novedades.NOVEDAD" doc="DDO"/>
+			</flow:action>
+		</flow:form>
+		<flow:form extends="CLASSROOT:NEW" parent-doc="PARENTSOURCE" doc="SOURCE" name="NucleusRH.Base.Portal_Empleado.Novedades.NOVEDAD.autoform:NEW" form-class="NucleusRH.Base.Portal_Empleado.Novedades.NOVEDAD.autoform" mode="NEW">
+			<flow:action name="save-DDO">
+				<doc:save-object class="NucleusRH.Base.Portal_Empleado.Novedades.NOVEDAD" doc="NEWDDOROOT"/>
+				<doc:load-object id-path="#NEWDDOROOT:@id" class="NucleusRH.Base.Portal_Empleado.Novedades.NOVEDAD" doc="DDO"/>
+			</flow:action>
+		</flow:form>
+	</flow:group>
+</flow:flow>

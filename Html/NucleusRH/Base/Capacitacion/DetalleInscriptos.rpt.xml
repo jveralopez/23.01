@@ -1,0 +1,150 @@
+<html:html xmlns:html="nomad_engine.html" xmlns:qry="nomad_engine.qry" extends="Nomad.Base.BaseReport.rpt" name="NucleusRH.Base.Capacitacion.DetalleInscriptos" doc="source">
+	<html:query declare="&lt;FILTRO oi_curso=&quot;5782&quot; f_desde=&quot;&quot; &gt;&lt;DICTADOS&gt;&lt;/DICTADOS&gt;&lt;/FILTRO&gt;">
+		<qry:main doc="SOURCE">
+			<qry:append-doc name="PARAMIN" doc-path="#SOURCE:FILTRO"/>
+			<REPORT label="Detalle de Inscriptos" style="font-size:16px;font-weight:bold;width:900px">
+				<qry:attribute value="format_date(now(), 'dd/mm/yyyy HH:MM')" name="date"/>
+				<GROUPS>
+					<GROUP tag="DIC" type="title">
+						<COLS>
+							<COL name="curso" label="Curso"/>
+							<COL name="dictado" label="Dictado"/>
+							<COL name="f_inicio_fin" label="Fecha Inicio - Fin" type="date"/>
+						</COLS>
+						<GROUP tag="INS" label="Inscriptos" type="table">
+							<COLS>
+								<COL name="e_numero_legajo" label="Legajo" style="width:150px;"/>
+								<COL name="d_ape_y_nom" label="Apellido y Nombre" style="width:400px;"/>
+								<COL name="c_estado" label="Estado" style="width:80px;">
+									<OPT id="INS" value="Inscripto"/>
+									<OPT id="CUR" value="Cursado"/>
+									<OPT id="CAN" value="Cancelado"/>
+								</COL>
+								<COL name="f_estado" label="Fecha Estado" style="width:80px;" type="date"/>
+								<COL name="c_estado_aprob" label="Estado Aprobaci&#243;n" style="width:80px;">
+									<OPT id="NE" value="No Evaluado"/>
+									<OPT id="A" value="Aprobado"/>
+									<OPT id="R" value="Reprobado"/>
+								</COL>
+								<COL name="n_asistencia" label="% Asistencia" style="width:80px;"/>
+							</COLS>
+						</GROUP>
+					</GROUP>
+				</GROUPS>
+				<qry:element name="DATA">
+					<qry:insert-select name="QRY_DICTADOS" doc-path="#PARAMIN:"/>
+				</qry:element>
+			</REPORT>
+		</qry:main>
+		<qry:select doc="PARAM" name="QRY_DICTADOS">
+			<qry:xquery>
+				for $r in sql('
+				SELECT CYD01_CURSOS.oi_curso,
+				CYD01_CURSOS.c_curso,
+				CYD01_CURSOS.d_curso,
+				CYD02_DICTADOS.oi_dictado,				
+				CYD02_DICTADOS.d_dictado,
+				CYD02_DICTADOS.f_inicio,
+				CYD02_DICTADOS.f_fin				
+				FROM CYD02_DICTADOS, CYD01_CURSOS
+				JOIN CYD02_DICTADOS.oi_curso INNER CYD01_CURSOS.oi_curso 
+				WHERE CYD01_CURSOS.oi_curso = {#PARAM:@oi_curso}
+		    {%? (#PARAMIN:@f_desde!='')
+					{% AND CYD02_DICTADOS.f_inicio &gt;= {Datetime(#PARAMIN:@f_desde)} %}
+					{%  %} 
+				%}
+				{%? (#PARAMIN:@f_hasta!='')
+					{% AND CYD02_DICTADOS.f_inicio &lt;= {Datetime(#PARAMIN:@f_hasta)} %}
+					{%  %}
+				%}
+				{%? (string(#PARAMIN:DICTADOS/DICTADO/@id)!='') 
+					{% AND CYD02_DICTADOS.oi_dictado in ({%=string(#PARAMIN:DICTADOS/DICTADO/@id)%}) %} 
+					{%  %} 
+				%}			
+		')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:element name="DIC">
+					<qry:attribute value="0" name="visible"/>
+					<qry:attribute value="$r/@oi_curso" name="oi_curso"/>
+					<qry:attribute value="$r/@c_curso + ' - ' + $r/@d_curso" name="curso"/>
+					<qry:attribute value="$r/@oi_dictado" name="oi_dictado"/>
+					<qry:attribute value="$r/@d_dictado" name="dictado"/>
+					<qry:attribute value="format_date($r/@f_inicio, 'dd/mm/yyyy') + ' - ' + format_date($r/@f_fin, 'dd/mm/yyyy')" name="f_inicio_fin"/>
+					<qry:insert-select doc-path="$r" name="QRY_INSCRIPTOS"/>
+				</qry:element>
+			</qry:out>
+		</qry:select>
+		<qry:select doc="PARAM" name="QRY_INSCRIPTOS">
+			<qry:xquery>
+				for $r in sql('
+				SELECT 
+					CYD02_INSCRIPTOS.oi_inscripto,
+					CYD02_INSCRIPTOS.c_estado,
+					CYD02_INSCRIPTOS.f_estado,
+					CYD02_INSCRIPTOS.c_estado_aprob,
+					CYD02_INSCRIPTOS.n_asistencia,
+					CYD17_TERCEROS.c_tercero as code,
+					CYD17_TERCEROS.d_ape_y_nom,
+					\'\' as c_empresa
+				FROM 
+					CYD02_INSCRIPTOS, 
+					CYD17_TERCEROS
+				JOIN
+					CYD02_INSCRIPTOS.oi_tercero INNER CYD17_TERCEROS.oi_tercero
+				WHERE
+					CYD02_INSCRIPTOS.oi_dictado = {#PARAM:@oi_dictado}
+				UNION
+				SELECT 
+					INS.oi_inscripto,
+					INS.c_estado,
+					INS.f_estado,
+					INS.c_estado_aprob,
+					INS.n_asistencia,
+					UCASE(PER02_PERSONAL_EMP.e_numero_legajo) as code,
+					PER01_PERSONAL.d_ape_y_nom,
+					ORG03_EMPRESAS.c_empresa
+				FROM 
+					CYD02_INSCRIPTOS as INS, 
+					PER02_PERSONAL_EMP, 
+					PER01_PERSONAL,
+					ORG03_EMPRESAS
+				JOIN 
+					INS.oi_personal_emp INNER PER02_PERSONAL_EMP.oi_personal_emp,
+					PER02_PERSONAL_EMP.oi_personal INNER PER01_PERSONAL.oi_personal,
+					PER02_PERSONAL_EMP.oi_empresa INNER ORG03_EMPRESAS.oi_empresa
+				WHERE 
+					INS.oi_dictado = {#PARAM:@oi_dictado}
+				ORDER BY code ASC 
+			')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:element name="INS">
+					<qry:attribute value="$r/@oi_inscripto" name="oi_inscripto"/>
+					<qry:attribute value="$r/@oi_personal_emp" name="oi_personal_emp"/>
+					<qry:attribute value="$r/@d_ape_y_nom" name="d_ape_y_nom"/>
+					<qry:attribute value="$r/@c_estado" name="c_estado"/>
+					<qry:attribute value="format_date($r/@f_estado, 'dd/mm/yyyy')" name="f_estado"/>
+					<qry:attribute value="$r/@c_estado_aprob" name="c_estado_aprob"/>
+					<qry:attribute value="$r/@n_asistencia" name="n_asistencia"/>
+					<qry:attribute value="$r/@code" name="e_numero_legajo"/>
+					<qry:insert-select doc-path="$r" name="SECURITY"/>
+				</qry:element>
+				<qry:attribute value="1" name="visible"/>
+			</qry:out>
+		</qry:select>
+		<qry:select doc="PARAM" name="SECURITY">
+			<qry:xquery>
+				for $r in sql('
+			SELECT NMD_SECURITY.policy 
+			FROM NMD_SECURITY 
+			WHERE NMD_SECURITY.class=\'NucleusRH.Base.Personal.LegajoEmpresa.PERSONAL_EMP\' 
+			AND NMD_SECURITY.id={#PARAM:@oi_personal_emp}
+		')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:attribute value="$r/@policy" name="policy"/>
+			</qry:out>
+		</qry:select>
+	</html:query>
+</html:html>

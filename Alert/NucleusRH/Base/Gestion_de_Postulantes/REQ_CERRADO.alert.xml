@@ -1,0 +1,166 @@
+<ALERT xmlns:qry="nomad_engine.qry" label="Cierre de Requerimientos" name="REQ_CERRADO.alert">
+	<PARAMS>
+		<PARAM event-key="NucleusRH.Base.Gestion_de_Postulantes.Requerimientos.REQ" label="Requerimiento" name="Req" type="string" req="0"/>
+	</PARAMS>
+	<QRY declare="&lt;PARAMS&gt;&#13;&#10;  &lt;EVE IDS=&quot;551&quot;/&gt;&#13;&#10;&lt;/PARAMS&gt;">
+		<qry:include name="Nomad.Base.Login.Entidades.ENTIDAD.INFO"/>
+		<qry:main doc="PARAMS">
+			<qry:append-doc name="PARAMIN" doc-path="$PARAMS/PARAMS"/>
+			<qry:element name="ROWS">
+				<qry:element name="TODOS">
+					<qry:insert-select name="QRY_RECLUTADOS" doc-path="$PARAMIN/EVE"/>
+				</qry:element>
+			</qry:element>
+		</qry:main>
+		<qry:select name="QRY_RECLUTADOS" doc="PARAM">
+			<qry:xquery>
+				for $r in SQL('
+		SELECT
+			SEL13_RECLUTADOS.oi_reclutado,
+			SEL13_RECLUTADOS.oi_personal_emp,
+			SEL02_REQ.c_req,
+			SEL02_REQ.d_req,
+			SEL02_REFERENCIAS.oi_referencia
+		FROM
+			SEL02_REQ,
+			SEL13_RECLUTADOS,
+			SEL02_REFERENCIAS
+		JOIN
+			SEL13_RECLUTADOS.oi_referencia INNER SEL02_REFERENCIAS.oi_referencia,
+			SEL02_REFERENCIAS.oi_req INNER SEL02_REQ.oi_req
+		WHERE
+			SEL02_REQ.ca_estado = \'C\' AND
+			SEL13_RECLUTADOS.c_estado = \'S\'	
+			{%? (#PARAM:@IDS!='')                         
+			{% AND SEL02_REQ.oi_req in ({%=#PARAM:@IDS%}) %}  
+			{% %} %}
+	  GROUP BY
+		 	SEL13_RECLUTADOS.oi_reclutado,
+			SEL13_RECLUTADOS.oi_personal_emp,
+			SEL02_REQ.c_req,
+			SEL02_REQ.d_req,
+			SEL02_REFERENCIAS.oi_referencia
+	')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:element name="RECLUTADO">
+					<qry:attribute name="oi_reclutado" value="$r/@oi_reclutado"/>
+					<qry:attribute name="REQ" value="'[' + $r/@c_req + '] ' + $r/@d_req"/>
+					<qry:insert-select name="QRY_PUESTO_POS" doc-path="$r"/>
+					<qry:if test="$r/@oi_personal_emp!=''">
+						<qry:then>
+							<qry:insert-select name="QRY_DATOS_REC" doc-path="$r"/>
+						</qry:then>
+						<qry:else>
+							<qry:insert-select name="QRY_DATOS_POST" doc-path="$r"/>
+						</qry:else>
+					</qry:if>
+				</qry:element>
+			</qry:out>
+		</qry:select>
+		<qry:select name="QRY_PUESTO_POS" doc="PARAM">
+			<qry:xquery>
+				for $r in SQL('
+		SELECT
+			ORG04_POSICIONES.c_posicion,
+			ORG04_POSICIONES.d_posicion,
+			ORG04_PUESTOS.c_puesto,
+			ORG04_PUESTOS.d_puesto
+		FROM
+			ORG04_PUESTOS,
+			ORG04_POSICIONES,
+			SEL02_REFERENCIAS
+		JOIN
+			SEL02_REFERENCIAS.oi_puesto INNER ORG04_PUESTOS.oi_puesto,
+			SEL02_REFERENCIAS.oi_posicion INNER ORG04_POSICIONES.oi_posicion
+		WHERE
+		  SEL02_REFERENCIAS.oi_referencia = {#PARAM:@oi_referencia}
+	')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:attribute name="PUESTO" value="'[' + $r/@c_puesto + '] ' + $r/@d_puesto"/>
+				<qry:attribute name="POSICION" value="'[' + $r/@c_posicion + '] ' + $r/@d_posicion"/>
+			</qry:out>
+		</qry:select>
+		<qry:select name="QRY_DATOS_REC" doc="PARAM">
+			<qry:xquery>
+				for $r in SQL('
+		SELECT
+			PER01_PERSONAL.d_ape_y_nom,
+	    PER01_PERSONAL.oi_usuario_sistema,
+	    PER01_PERSONAL.d_email
+		FROM
+			PER02_PERSONAL_EMP,
+			PER01_PERSONAL
+		JOIN
+			PER02_PERSONAL_EMP.oi_personal INNER PER01_PERSONAL.oi_personal
+		WHERE
+		  PER02_PERSONAL_EMP.oi_personal_emp = {#PARAM:@oi_personal_emp}
+	')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:attribute name="NOMYAP" value="$r/@d_ape_y_nom"/>
+				<qry:attribute name="MAIL" value="$r/@d_email"/>
+				<qry:insert-select name="sql1" doc-path="$r"/>
+			</qry:out>
+		</qry:select>
+		<qry:select name="QRY_DATOS_POST" doc="PARAM">
+			<qry:xquery>
+				for $r in SQL('
+		SELECT
+	    SEL01_POSTULANTE.d_email,
+	    SEL01_POSTULANTE.d_postulante
+		FROM
+			SEL13_RECLUTADOS,
+			SEL01_POSTULANTE
+		JOIN
+			SEL13_RECLUTADOS.oi_postulante INNER SEL01_POSTULANTE.oi_postulante
+		WHERE
+		  SEL13_RECLUTADOS.oi_reclutado = {#PARAM:@oi_reclutado}
+	')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:attribute name="NOMYAP" value="$r/@d_postulante"/>
+				<qry:attribute name="MAIL" value="$r/@d_email"/>
+			</qry:out>
+		</qry:select>
+		<qry:select doc="PARAM" name="sql1">
+			<qry:xquery>
+				for $r in file('Nomad\\Base\\Login\\Entidades\\{%=#PARAM:@oi_usuario_sistema%}.ENTIDAD.XML')/ENTIDAD
+			</qry:xquery>
+			<qry:out>
+				<qry:attribute name="MAIL" value="@MAIL + ';' + nmd-replace(string($r/MAILS/MAIL[@PRINCIPAL=1]/@EMAIL),',',';')"/>
+			</qry:out>
+		</qry:select>
+	</QRY>
+	<MAILS>
+		<MAIL suject="Notificaci&#243;n del Grupo Sancor Seguros" group="RECLUTADO">
+			{{ ?711x131 }}\\ 
+//Estimado://
+
+//Nos comunicamos para informarle que en esta oportunidad no continuaremos avanzando con las etapas siguientes del proceso de selecci&#243;n.//
+
+//De todos modos, es importante que sepa que tanto su C.V. como toda la informaci&#243;n de entrevista ser&#225;n incorporados a nuestra base de datos.\\ En tal sentido, ante una b&#250;squeda que requiera un perfil similar al suyo, volveremos a contactarlo.//
+
+//Agradecemos mucho su participaci&#243;n y el inter&#233;s por nuestra organizaci&#243;n.//
+
+//Cordialmente.//
+
+
+//&#193;rea Recursos Humanos//\\ 
+//RRHHSeleccion@sancorseguros.com//
+
+{{ ?711x57 }}
+		</MAIL>
+	</MAILS>
+	<GROUPS>
+		<GROUP label="Por Reclutado" name="RECLUTADO">
+			<FIELD type="string" label="Requerimiento" name="REQ"/>
+			<FIELD type="string" label="Puesto" name="PUESTO"/>
+			<FIELD type="string" label="Posici&#243;n" name="POSICION"/>
+			<FIELD type="string" label="Nombre y Apellido" name="NOMYAP"/>
+			<FIELD type="string" label="E-mail" name="MAIL"/>
+		</GROUP>
+	</GROUPS>
+	<ENUMS/>
+</ALERT>

@@ -1,0 +1,251 @@
+<form:Form xmlns:form="nomad_engine.form" xmlns:qry="nomad_engine.qry" extends="NucleusRH.Base.Personal.LegajoEmpresa.PERSONAL_EMP.BUSCAR.form" name="NucleusRH.Base.Capacitacion.Inscripcion.filter.form" doc="source">
+	<form:Title>
+		<form:Label name="lbl_titulo" label="Inscripci&#243;n a Dictado" align="center" style="S3 LCol_w" visible=""/>
+	</form:Title>
+	<form:Center width="100%">
+		<form:VGroup width="98%" nvalue="#source:@gcustom" border="1" label="Criterios de selecci&#243;n del proceso" name="vgroupDatosCustom" collapse="1">
+			<form:Columns width="100%" name="1">
+				<form:Column valign="middle" name="2" separation="2" align="left">
+					<form:FKInput enabled="0" label="Curso - Dictado" required="1" xsize="15" length="30" nvalue="#source:@oi_dictado" name="oi_dictado">
+						<form:STexts>
+							<form:SText xsize="50" name="txt1"/>
+						</form:STexts>
+						<form:Helper name="NucleusRH.Base.Capacitacion.Dictados.DICTADO.Guia.autoflow" help="HELP" x2c="X2C" c2x="C2X">
+							<helper-mess text="{this.Text.1}" id="{this.XVal}" code="{this.CVal}"/>
+						</form:Helper>
+						<form:SButtons>
+							<form:SButton visible="0" img="SEARCH" label="Search" name="SEARCH">
+								<form:Event action="SHOW_HELPER" name="onclick" runat="client"/>
+							</form:SButton>
+						</form:SButtons>
+					</form:FKInput>
+				</form:Column>
+			</form:Columns>
+		</form:VGroup>
+		<form:HiddenArr nvalue="#source:ROWS" proto="&lt;ROW id=&quot;&quot;/&gt;" name="legajos">
+			<form:Attr name="id"/>
+		</form:HiddenArr>
+	</form:Center>
+	<form:Bottom>
+		<form:RowAligner name="rowaligner1">
+			<form:Row name="row1">
+				<form:Button img="save" descrip="Guarda los inscriptos seleccionados" label="Guardar" name="btnSAVE" note="Consultar los Legajos seleccionados">
+					<form:Event action="Guardar" runat="client" name="onclick"/>
+				</form:Button>
+				<form:Button img="back" label="Volver" name="btnBACK" descrip="Volver al Menu princial" note="Volver al Menu princial">
+					<form:Event action="BACK" runat="server" name="onclick"/>
+				</form:Button>
+			</form:Row>
+		</form:RowAligner>
+	</form:Bottom>
+	<form:Resources>
+		<form:Resource declare="&lt;PARAM oi_dictado=&quot;1&quot; oi_empresa=&quot;8&quot;/&gt;" name="qry_externo">
+			<qry:main doc="SOURCE" name="qry">
+				<qry:element name="DATOS">
+					<qry:element name="ROWS">
+						<qry:append-doc name="DOCNIVEL" doc-path=""/>
+						<qry:append-doc name="DOCPADRE" doc-path=""/>
+						<qry:element name="EST">
+							<qry:append-doc name="ESTRUCTURAS" doc-path="."/>
+							<qry:element name="E">
+								<!--<qry:attribute value="" name="desc1"/>-->
+								<qry:attribute value="0" name="id"/>
+								<qry:attribute value="1" name="nivel"/>
+							</qry:element>
+							<qry:append-doc name="PARAM_GLOBALES" doc-path="#SOURCE:PARAM"/>
+							<qry:insert-select name="sql1"/>
+						</qry:element>
+					</qry:element>
+					<!--<qry:attribute name="ids" value="string($ESTRUCTURAS/E/@id)"/>-->
+					<qry:insert-select name="split" doc-path="."/>
+				</qry:element>
+			</qry:main>
+			<qry:select name="sql1">
+				<qry:xquery>
+					for $r in sql('			
+					SELECT CYD02_DEST_DICTADO.oi_estructura, CYD02_DEST_DICTADO.l_recursivo
+					FROM CYD02_DEST_DICTADO
+					WHERE CYD02_DEST_DICTADO.oi_dictado = {%=string(#PARAM_GLOBALES:@oi_dictado)%}
+		')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<!--<qry:append-doc name="ESTRS" doc-path="$r"/>-->
+					<qry:element name="E">
+						<qry:attribute value="$r/@oi_estructura" name="id"/>
+						<qry:attribute value="1" name="nivel"/>
+					</qry:element>
+					<qry:attribute-doc doc="DOCNIVEL" name="nivel" value="1"/>
+					<qry:if test="$r/@l_recursivo='1'">
+						<qry:then>
+							<qry:insert-select name="qry_estructura1"/>
+						</qry:then>
+					</qry:if>
+				</qry:out>
+			</qry:select>
+			<qry:select name="qry_estructura1">
+				<qry:xquery>
+					for $r in sql('				
+		SELECT 
+			ORG02_ESTRUCTURAS.oi_estructura,
+			ORG01_UNI_ORG.d_unidad_org,  
+			ORG02_ESTRUCTURAS.oi_estr_padre,
+			tablaCantidad.cantidad
+		FROM
+			ORG02_ESTRUCTURAS,
+			ORG01_UNI_ORG,
+			(SELECT count(ORG02_ESTRUCTURAS.oi_estructura) as cantidad
+				FROM
+				ORG02_ESTRUCTURAS,
+				ORG01_UNI_ORG			
+				JOIN
+				ORG02_ESTRUCTURAS.oi_unidad_org INNER ORG01_UNI_ORG.oi_unidad_org
+				WHERE
+				ORG02_ESTRUCTURAS.oi_estr_padre in ({%=string(#ESTRUCTURAS:E[@nivel=#DOCNIVEL:@nivel]/@id)%})) as tablaCantidad			
+		JOIN
+			ORG02_ESTRUCTURAS.oi_unidad_org INNER ORG01_UNI_ORG.oi_unidad_org	
+		WHERE				
+			ORG02_ESTRUCTURAS.oi_estr_padre in ({%=string(#ESTRUCTURAS:E[@nivel=#DOCNIVEL:@nivel]/@id)%})														
+	')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:element name="E">
+						<qry:attribute value="number(#DOCNIVEL:@nivel) + 1" name="nivel"/>
+						<!--<qry:attribute value="$r/@d_unidad_org" name-calc="'desc' + (number(#DOCNIVEL:@nivel) + 1)"/>-->
+						<qry:attribute value="$r/@oi_estructura" name="id"/>
+						<qry:attribute value="$r/@oi_estr_padre" name="oi_estr_padre"/>
+						<qry:attribute-doc doc="DOCPADRE" name="oi_estr_padre" value="$r/@oi_estr_padre"/>
+						<!--<qry:insert-select name="qry_DESC"/>-->
+					</qry:element>
+					<qry:attribute name="cantidad_reg" value="$r/@cantidad"/>
+					<qry:attribute value="count(#ESTRUCTURAS:E[@nivel=(number(#DOCNIVEL:@nivel) + 1)])" name="cantidad_doc"/>
+					<qry:if test="@cantidad_reg = @cantidad_doc">
+						<qry:then>
+							<qry:insert-select name="qry_estructura2"/>
+						</qry:then>
+					</qry:if>
+				</qry:out>
+			</qry:select>
+			<qry:select name="qry_estructura2">
+				<qry:out>
+					<qry:attribute value="count(#ESTRUCTURAS:E[@nivel=#DOCNIVEL:@nivel])" name="cantidad"/>
+					<qry:if test="@cantidad &gt; 0">
+						<qry:then>
+							<qry:attribute-doc doc="DOCNIVEL" name="nivel" value="number(#DOCNIVEL:@nivel) + 1"/>
+							<qry:insert-select name="qry_estructura1"/>
+						</qry:then>
+					</qry:if>
+				</qry:out>
+			</qry:select>
+			<qry:select name="split" doc="SOURCE">
+				<qry:xquery>
+					for $r in split('100;{%=string($ESTRUCTURAS/E/@id) %}')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:insert-select name="sql2" doc-path="$r"/>
+					<!--<qry:element name="PRUEBA">
+<qry:attribute name="aa" value="$r/@value"/>
+</qry:element>-->
+				</qry:out>
+			</qry:select>
+			<qry:select doc="SOURCE" name="sql2">
+				<qry:xquery>
+					for $r in sql('
+			SELECT 
+				PER02_PERSONAL_EMP.oi_personal_emp 
+			FROM 
+				PER02_PERSONAL_EMP 
+				{%? (string(#SOURCE:@value)!='0') 
+						{%, ORG02_ESTRUC_PERS %} 
+						{% %} 
+				%}
+			WHERE
+			1=1
+			AND PER02_PERSONAL_EMP.oi_empresa = {%=string(#PARAM_GLOBALES:@oi_empresa)%}
+			{%?(string(#SOURCE:@value)!='0') 
+					{% AND PER02_PERSONAL_EMP.oi_personal_emp = ORG02_ESTRUC_PERS.oi_personal_emp
+							AND ORG02_ESTRUC_PERS.oi_estructura IN ({%=string(#SOURCE:@value)%}) %} 
+					{% %} 
+			%}
+			GROUP BY PER02_PERSONAL_EMP.oi_personal_emp 
+		')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:element name="ROW">
+						<qry:attribute name="id" value="$r/@oi_personal_emp"/>
+					</qry:element>
+				</qry:out>
+			</qry:select>
+		</form:Resource>
+	</form:Resources>
+	<form:Scripts>
+		function Guardar()
+{ 
+ 	Ctrl('legajos').DelAllRow();
+ 	for (key in arrA) Ctrl('legajos').AddRow().SetAttr('id', key.substr(1));
+ 	
+	Ctrl("main").DoEvent("SAVE");
+}                   
+
+//Ejecuta el Query Seleccionado y devuelve un ARRAY con el resultado
+function exec_qry()
+{
+	var np, nSQL, i;
+
+	np = new NomadProxy("", ut);
+	nSQL = np.SQLService();
+
+	var qry = Ctrl("main").getResource("qry_" + Ctrl("tab_filtro").GetSelectedPanelID());
+	
+	var qryMembers = qry.split("##");
+	for (i=1; i&lt;qryMembers.length; i+=2)
+	{
+		if (Ctrl(qryMembers[i]).m_Required &amp;&amp; Ctrl(qryMembers[i]).GetXValue()=="")
+		{
+			alert("El valor es requerido");
+			Ctrl(qryMembers[i]).SetFocus();
+			return null;
+		}				
+
+		qryMembers[i]=EncodeXML(Ctrl(qryMembers[i]).GetXValue());
+	}
+  
+  qry = qryMembers.join("");
+  if (Ctrl("DEBUG")) Ctrl("DEBUG").SetXValue(qry);
+     
+  var result = nSQL.Get(qry, "");
+ 	var resultArray = string2array(result);
+ 	// Ejecuta query EXTERNO
+ 	if (Ctrl("main").getResource("qry_externo"))
+ 	{
+ 		qry = Ctrl("main").getResource("qry_externo");
+ 		qryMembers = qry.split("##");
+		for (i=1; i&lt;qryMembers.length; i+=2)
+		{
+			qryMembers[i]=EncodeXML(Ctrl(qryMembers[i]).GetXValue());
+		}
+	  qry = qryMembers.join("");
+	  if (Ctrl("DEBUG")) Ctrl("DEBUG").SetXValue(Ctrl("DEBUG").GetXValue() + "\n\nQuery Externo:\n" + qry);
+	  result = nSQL.Get(qry, "&lt;PARAM oi_dictado=\""+Ctrl("oi_dictado").GetXValue()+"\" oi_empresa=\""+Ctrl("empresa").GetXValue()+"\"  /&gt;");
+	  var auxResult = string2array(result);
+	  intersect(resultArray, auxResult);
+	}
+	// Ejecuta query de ATRIBUTOS EXTERNOS
+ 	if (Ctrl("main").getResource("qry_externo_attr"))
+ 	{
+ 		qry = Ctrl("main").getResource("qry_externo_attr");
+ 		qryMembers = qry.split("##");
+		for (i=1; i&lt;qryMembers.length; i+=2)
+		{
+			qryMembers[i]=EncodeXML(Ctrl(qryMembers[i]).GetXValue());
+		}
+	  qry = qryMembers.join("");
+	  if (Ctrl("DEBUG")) Ctrl("DEBUG").SetXValue(Ctrl("DEBUG").GetXValue() + "\n\nQuery de Atributos Externos:\n" + qry);
+	  result = nSQL.Get(qry, array2string(resultArray));
+	  resultArray = string2array(result);
+	}
+ 	 		
+  return resultArray;
+}
+	</form:Scripts>
+	<form:Event action="SAVE" name="SAVE" runat="server"/>
+</form:Form>

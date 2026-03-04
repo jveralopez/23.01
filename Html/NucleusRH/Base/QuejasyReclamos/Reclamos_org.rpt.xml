@@ -1,0 +1,769 @@
+<html:html xmlns:html="nomad_engine.html" xmlns:qry="nomad_engine.qry" xmlns:xsl="http://www.w3.org/1999/XSL/Transform" name="NucleusRH.Base.QuejasyReclamos.Reclamos.rpt" extends="Nomad.Base.BaseReport.rpt" doc="source">
+	<html:query declare="&lt;ROW c_nivel=&quot;&quot; c_origen=&quot;CRE&quot; salida=&quot;HTML&quot; /&gt;" name="">
+		<qry:main doc="SOURCE">
+			<qry:append-doc name="NIVEL" doc-path="#SOURCE:ROW"/>
+			<qry:element name="LEGAJO_RESP">
+				<qry:element name="YO">
+					<qry:insert-select doc-path="" name="sql1"/>
+					<!--qry:attribute name="hts:delete" value="1"/-->
+				</qry:element>
+				<qry:if test="#NIVEL:@c_origen = 'CRE'">
+					<qry:then>
+						<qry:attribute name="c_origen" value="'Creados'"/>
+						<qry:insert-select doc-path="YO" name="RECLAMOS_CREADOS"/>
+					</qry:then>
+					<qry:else>
+						<qry:attribute name="c_origen" value="'Derivados'"/>
+						<qry:insert-select doc-path="." name="RECLAMOS_DERIVADOS"/>
+					</qry:else>
+				</qry:if>
+				<qry:insert-select doc-path="YO" name="ordenar"/>
+			</qry:element>
+		</qry:main>
+		<qry:select name="sql1" doc="SOURCE">
+			<qry:xquery>
+				for $r in sql('
+				SELECT  
+					ORG03_EMPRESAS.d_empresa,
+					ORG03_EMPRESAS.c_empresa,
+					PER01_PERSONAL.d_ape_y_nom,
+					PER01_PERSONAL.d_email,
+					PER02_PERSONAL_EMP.e_numero_legajo,
+					PER02_PERSONAL_EMP.oi_ubicacion,
+					PER01_PERSONAL.oi_usuario_sistema,
+					ORG02_ESTRUC_PERS.oi_estructura
+				FROM 
+					ORG02_CLASES_ORG,
+					ORG02_ESTRUC_PERS, 
+					PER02_PERSONAL_EMP, 
+					PER01_PERSONAL, 
+					ORG03_EMPRESAS
+				JOIN
+					 ORG02_CLASES_ORG.oi_clase_org INNER ORG02_ESTRUC_PERS.oi_clase_org
+					,PER02_PERSONAL_EMP.oi_personal_emp INNER ORG02_ESTRUC_PERS.oi_personal_emp
+					,PER01_PERSONAL.oi_personal INNER PER02_PERSONAL_EMP.oi_personal
+					,ORG03_EMPRESAS.oi_empresa INNER PER02_PERSONAL_EMP.oi_empresa
+				WHERE 
+					ORG02_CLASES_ORG.c_clase_org =  \'QYR\'
+					AND PER01_PERSONAL.oi_usuario_sistema = {#PROXY:@etty} 
+			')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:attribute name="e_numero_legajo" value="$r/@e_numero_legajo"/>
+				<qry:attribute name="d_usuario" value="$r/@oi_usuario_sistema"/>
+				<qry:attribute name="c_oficina" value="$r/@c_empresa+'-'+$r/@e_numero_legajo"/>
+				<qry:attribute name="oi_ubicacion" value="$r/@oi_ubicacion"/>
+				<qry:attribute name="oi_usuario_sistema" value="$r/@oi_usuario_sistema"/>
+				<qry:attribute name="ape_y_nom" value="$r/@d_ape_y_nom"/>
+				<qry:attribute name="d_email" value="$r/@d_email"/>
+				<qry:attribute name="d_ape_y_nom" value="'['+$r/@c_empresa+'-'+$r/@d_empresa+'] '+$r/@d_ape_y_nom"/>
+				<qry:attribute name="oi_estructura" value="$r/@oi_estructura"/>
+				<qry:insert-select doc-path="." name="sql4"/>
+				<!--qry:if test="#NIVEL:@c_origen = 'CRE'">
+				<qry:then>
+					<qry:attribute name="c_origen" value="'Creados'"/>
+					<qry:insert-select doc-path="." name="RECLAMOS_CREADOS"/>
+				</qry:then>
+				<qry:else>
+					<qry:attribute name="c_origen" value="'Derivados'"/>
+					<qry:insert-select doc-path="." name="RECLAMOS_DERIVADOS"/>
+				</qry:else>
+			</qry:if-->
+				<!--qry:insert-select doc-path="." name="sql3"/-->
+				<qry:insert-select doc-path="." name="sql2"/>
+			</qry:out>
+		</qry:select>
+		<qry:select name="sql2" doc="SOURCE">
+			<qry:xquery>
+				for $r in sql('
+				SELECT 
+					ORG02_ESTRUCTURAS.oi_estructura as oi_estructura
+				FROM 
+					ORG02_ESTRUCTURAS
+				WHERE 
+					ORG02_ESTRUCTURAS.oi_estr_padre = {#SOURCE:@oi_estructura}
+			')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<!--qry:element name="SUBORDINADOS"-->
+				<qry:attribute name="oi_estructura" value="$r/@oi_estructura"/>
+				<qry:attribute name="nivel" value="1+Number(../@nivel)"/>
+				<qry:if test="#NIVEL:@c_nivel &gt;= @nivel or #NIVEL:@c_nivel = ''">
+					<qry:then>
+						<qry:insert-select doc-path="." name="sql3"/>
+						<qry:insert-select doc-path="." name="sql2"/>
+					</qry:then>
+				</qry:if>
+				<!--/qry:element-->
+			</qry:out>
+		</qry:select>
+		<qry:select name="sql3" doc="SOURCE">
+			<qry:xquery>
+				for $r in sql('
+				SELECT  
+					ORG03_EMPRESAS.d_empresa,
+					ORG03_EMPRESAS.c_empresa,
+					PER01_PERSONAL.d_ape_y_nom,
+					PER01_PERSONAL.d_email,
+					PER02_PERSONAL_EMP.e_numero_legajo,
+					PER02_PERSONAL_EMP.oi_ubicacion,
+					PER01_PERSONAL.oi_usuario_sistema,
+					ORG02_ESTRUC_PERS.oi_estructura
+				FROM 
+					ORG02_CLASES_ORG,
+					ORG02_ESTRUC_PERS, 
+					PER02_PERSONAL_EMP, 
+					PER01_PERSONAL, 
+					ORG03_EMPRESAS
+				JOIN
+					 ORG02_CLASES_ORG.oi_clase_org INNER ORG02_ESTRUC_PERS.oi_clase_org
+					,PER02_PERSONAL_EMP.oi_personal_emp INNER ORG02_ESTRUC_PERS.oi_personal_emp
+					,PER01_PERSONAL.oi_personal INNER PER02_PERSONAL_EMP.oi_personal
+					,ORG03_EMPRESAS.oi_empresa INNER PER02_PERSONAL_EMP.oi_empresa
+				WHERE 
+					ORG02_ESTRUC_PERS.oi_estructura = {#SOURCE:@oi_estructura}
+					AND PER01_PERSONAL.oi_usuario_sistema != {#PROXY:@etty}
+					AND PER01_PERSONAL.oi_usuario_sistema !=  \'\'
+			')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:element name="LEGAJO_SUBOR">
+					<qry:attribute name="oi_estructura" value="$r/@oi_estructura"/>
+					<qry:attribute name="nivel" value="1+Number(../@nivel)"/>
+					<qry:attribute name="e_numero_legajo" value="$r/@e_numero_legajo"/>
+					<qry:attribute name="d_usuario" value="$r/@oi_usuario_sistema"/>
+					<qry:attribute name="c_oficina" value="$r/@c_empresa+'-'+$r/@e_numero_legajo"/>
+					<qry:attribute name="oi_ubicacion" value="$r/@oi_ubicacion"/>
+					<qry:attribute name="oi_usuario_sistema" value="$r/@oi_usuario_sistema"/>
+					<qry:attribute name="ape_y_nom" value="$r/@d_ape_y_nom"/>
+					<qry:attribute name="d_email" value="$r/@d_email"/>
+					<qry:attribute name="d_ape_y_nom" value="'['+$r/@c_empresa+'-'+$r/@d_empresa+'] '+$r/@d_ape_y_nom"/>
+					<qry:insert-select doc-path="." name="sql4"/>
+					<!--qry:if test="#NIVEL:@c_origen = 'CRE'">
+					<qry:then>
+						<qry:insert-select doc-path="." name="RECLAMOS_CREADOS"/>
+					</qry:then>
+					<qry:else>
+						<qry:insert-select doc-path="." name="RECLAMOS_DERIVADOS"/>
+					</qry:else>
+				</qry:if-->
+				</qry:element>
+			</qry:out>
+		</qry:select>
+		<qry:select name="sql4" doc="SOURCE">
+			<qry:xquery>
+				for $r in sql('
+				SELECT  
+					QYR08_OFICINAS.oi_oficina
+				FROM 
+					QYR08_OFICINAS
+				WHERE 
+					QYR08_OFICINAS.c_oficina = {#SOURCE:@c_oficina}
+			')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:attribute name="oi_oficina" value="iif($r/@oi_oficina='','0',$r/@oi_oficina)"/>
+			</qry:out>
+		</qry:select>
+		<qry:select name="RECLAMOS_CREADOS" doc="SOURCE">
+			<qry:xquery>
+				for $r in sql('
+				SELECT  
+					QYR01_RECLAMOS.oi_reclamo,
+					QYR01_RECLAMOS.f_reclamo,
+					QYR01_RECLAMOS.d_usuario,
+					QYR01_RECLAMOS.c_estado,
+					QYR01_RECLAMOS.f_ult_estado,
+					QYR01_RECLAMOS.c_asunto,
+					QYR01_RECLAMOS.n_criticidad,
+					QYR01_RECLAMOS.f_vencimiento
+					,QYR08_OFICINAS.c_oficina
+					,QYR08_OFICINAS.d_oficina
+					,QYR01_HISTORICOS.f_reclamo as f_historico
+					,COUNT(QYR01_MENSAJES.oi_mensaje) as cant_mensaje
+				FROM 
+					QYR01_RECLAMOS,
+					QYR01_HISTORICOS,
+					QYR01_MENSAJES,
+					QYR08_OFICINAS
+				JOIN
+					QYR01_RECLAMOS.oi_reclamo INNER QYR01_HISTORICOS.oi_reclamo,
+					QYR01_HISTORICOS.oi_ofi_hasta LEFT OUTER QYR08_OFICINAS.oi_oficina,
+					QYR01_RECLAMOS.oi_reclamo LEFT OUTER QYR01_MENSAJES.oi_reclamo
+				WHERE
+					QYR01_RECLAMOS.n_historico = QYR01_HISTORICOS.n_historico AND
+					QYR01_RECLAMOS.d_usuario = {#SOURCE:@oi_usuario_sistema}
+				GROUP BY
+						QYR01_RECLAMOS.oi_reclamo,
+						QYR01_RECLAMOS.f_reclamo,
+						QYR01_RECLAMOS.d_usuario,
+						QYR01_RECLAMOS.c_estado,
+						QYR01_RECLAMOS.f_ult_estado,
+						QYR01_RECLAMOS.c_asunto,
+						QYR01_RECLAMOS.n_criticidad,
+						QYR01_RECLAMOS.f_vencimiento,
+						QYR08_OFICINAS.c_oficina,
+						QYR08_OFICINAS.d_oficina,
+						QYR01_HISTORICOS.f_reclamo
+				
+			')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:element name="RECLAMO">
+					<qry:attribute name="cantidad" value="$r/@cantidad"/>
+					<qry:attribute name="mensaje" value="iif($r/@cant_mensaje!=0, $r/@cant_mensaje+' mensaje(s)', 'Sin mensajes')"/>
+					<qry:attribute name="ut" value="#PROXY:@token"/>
+					<qry:attribute name="app" value="#PROXY:@app"/>
+					<qry:attribute name="oi_reclamo" value="$r/@oi_reclamo"/>
+					<qry:attribute name="f_order" value="format_date(Now(), 'yyyymmdd')"/>
+					<qry:attribute name="f_reclamo" value="format_date($r/@f_reclamo, 'dd/mm/yyyy HH:MM')"/>
+					<qry:attribute name="f_solucion" value="format_date($r/@f_solucion, 'dd/mm/yyyy HH:MM')"/>
+					<qry:insert-select name="ENTIDAD" doc-path="$r"/>
+					<qry:insert-select name="ORIGEN" doc-path="$r"/>
+					<qry:attribute name="c_estado" value="$r/@c_estado"/>
+					<qry:attribute name="f_ult_estado" value="format_date($r/@f_ult_estado, 'dd/mm/yyyy HH:MM')"/>
+					<qry:attribute name="c_asunto" value="$r/@c_asunto"/>
+					<qry:attribute name="d_oficina" value="$r/@d_oficina"/>
+					<qry:attribute name="c_oficina" value="$r/@c_oficina"/>
+					<qry:attribute name="f_vencimiento" value="format_date($r/@f_vencimiento, 'dd/mm/yyyy HH:MM')"/>
+					<qry:switch test="$r/@n_criticidad">
+						<qry:default>
+							<qry:attribute name="n_criticidad" value="'-'"/>
+						</qry:default>
+						<qry:case value="1">
+							<qry:attribute name="n_criticidad" value="'Muy Baja'"/>
+						</qry:case>
+						<qry:case value="2">
+							<qry:attribute name="n_criticidad" value="'Baja'"/>
+						</qry:case>
+						<qry:case value="3">
+							<qry:attribute name="n_criticidad" value="'Normal'"/>
+						</qry:case>
+						<qry:case value="4">
+							<qry:attribute name="n_criticidad" value="'Alta'"/>
+						</qry:case>
+						<qry:case value="5">
+							<qry:attribute name="n_criticidad" value="'Muy Alta'"/>
+						</qry:case>
+					</qry:switch>
+				</qry:element>
+			</qry:out>
+		</qry:select>
+		<qry:select name="RECLAMOS_DERIVADOS" doc="SOURCE">
+			<qry:xquery>
+				for $r in sql('
+				SELECT  
+					QYR01_RECLAMOS.oi_reclamo,
+					QYR01_RECLAMOS.f_reclamo,
+					QYR01_RECLAMOS.d_usuario,
+					QYR01_RECLAMOS.c_estado,
+					QYR01_RECLAMOS.f_ult_estado,
+					QYR01_RECLAMOS.c_asunto,
+					QYR01_RECLAMOS.n_criticidad,
+					QYR01_RECLAMOS.f_vencimiento
+					,QYR08_OFICINAS.c_oficina
+					,QYR08_OFICINAS.d_oficina
+					,QYR01_HISTORICOS.f_reclamo as f_historico
+					,COUNT(QYR01_MENSAJES.oi_mensaje) as cant_mensaje
+				FROM 
+					QYR01_RECLAMOS,
+					QYR01_HISTORICOS,
+					QYR01_MENSAJES,
+					QYR08_OFICINAS
+				JOIN
+					QYR01_RECLAMOS.oi_reclamo INNER QYR01_HISTORICOS.oi_reclamo,
+					QYR01_HISTORICOS.oi_ofi_hasta LEFT OUTER QYR08_OFICINAS.oi_oficina,
+					QYR01_RECLAMOS.oi_reclamo LEFT OUTER QYR01_MENSAJES.oi_reclamo
+				WHERE
+					QYR01_RECLAMOS.n_historico = QYR01_HISTORICOS.n_historico AND
+					QYR01_RECLAMOS.c_estado = \'Derivado\' AND
+					QYR01_HISTORICOS.oi_ofi_hasta = {#SOURCE:@oi_oficina} 
+				GROUP BY
+						QYR01_RECLAMOS.oi_reclamo,
+						QYR01_RECLAMOS.f_reclamo,
+						QYR01_RECLAMOS.d_usuario,
+						QYR01_RECLAMOS.c_estado,
+						QYR01_RECLAMOS.f_ult_estado,
+						QYR01_RECLAMOS.c_asunto,
+						QYR01_RECLAMOS.n_criticidad,
+						QYR01_RECLAMOS.f_vencimiento,
+						QYR08_OFICINAS.c_oficina,
+						QYR08_OFICINAS.d_oficina,
+						QYR01_HISTORICOS.f_reclamo
+			')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:element name="RECLAMO">
+					<qry:attribute name="cantidad" value="$r/@cantidad"/>
+					<qry:attribute name="mensaje" value="iif($r/@cant_mensaje!=0, $r/@cant_mensaje+' mensaje(s)', 'Sin mensajes')"/>
+					<qry:attribute name="ut" value="#PROXY:@token"/>
+					<qry:attribute name="app" value="#PROXY:@app"/>
+					<qry:attribute name="oi_reclamo" value="$r/@oi_reclamo"/>
+					<qry:attribute name="f_order" value="format_date(Now(), 'yyyymmdd')"/>
+					<!--qry:if test="#PARAM:@origen = 'CER'">
+					<qry:then>
+						<qry:attribute name="f_historico" value="format_date($r/@f_historico, 'yyyymmdd')"/>
+						<qry:attribute name="diff_dias" value="(Number(DateTime(@f_order)) - Number(DateTime(@f_historico)))"/>
+					</qry:then>
+					<qry:else>
+						<qry:attribute name="fec_rec" value="format_date($r/@f_reclamo, 'yyyymmdd')"/>
+						<qry:attribute name="diff_dias" value="(Number(DateTime(@f_order)) - Number(DateTime(@fec_rec)))"/>
+					</qry:else>
+				</qry:if-->
+					<qry:attribute name="f_reclamo" value="format_date($r/@f_reclamo, 'dd/mm/yyyy HH:MM')"/>
+					<qry:attribute name="f_solucion" value="format_date($r/@f_solucion, 'dd/mm/yyyy HH:MM')"/>
+					<qry:insert-select name="ENTIDAD" doc-path="$r"/>
+					<qry:insert-select name="ORIGEN" doc-path="$r"/>
+					<qry:attribute name="c_estado" value="$r/@c_estado"/>
+					<qry:attribute name="f_ult_estado" value="format_date($r/@f_ult_estado, 'dd/mm/yyyy HH:MM')"/>
+					<qry:attribute name="c_asunto" value="$r/@c_asunto"/>
+					<qry:attribute name="d_oficina" value="$r/@d_oficina"/>
+					<qry:attribute name="c_oficina" value="$r/@c_oficina"/>
+					<qry:attribute name="f_vencimiento" value="format_date($r/@f_vencimiento, 'dd/mm/yyyy HH:MM')"/>
+					<qry:switch test="$r/@n_criticidad">
+						<qry:default>
+							<qry:attribute name="n_criticidad" value="'-'"/>
+						</qry:default>
+						<qry:case value="1">
+							<qry:attribute name="n_criticidad" value="'Muy Baja'"/>
+						</qry:case>
+						<qry:case value="2">
+							<qry:attribute name="n_criticidad" value="'Baja'"/>
+						</qry:case>
+						<qry:case value="3">
+							<qry:attribute name="n_criticidad" value="'Normal'"/>
+						</qry:case>
+						<qry:case value="4">
+							<qry:attribute name="n_criticidad" value="'Alta'"/>
+						</qry:case>
+						<qry:case value="5">
+							<qry:attribute name="n_criticidad" value="'Muy Alta'"/>
+						</qry:case>
+					</qry:switch>
+				</qry:element>
+			</qry:out>
+		</qry:select>
+		<qry:select name="ENTIDAD" doc="DOC">
+			<qry:xquery>
+				for $r in FILE('Nomad\\Base\\Login\\Entidades\\{%=#DOC:@d_usuario %}.ENTIDAD.XML')/ENTIDAD
+			</qry:xquery>
+			<qry:out>
+				<qry:attribute name="d_usuario" value="$r/@DES"/>
+			</qry:out>
+		</qry:select>
+		<qry:select name="ORIGEN" doc="DOC">
+			<qry:xquery>
+				for $r in SQL('
+				SELECT
+					QYR01_DETALLES.d_detalle
+				FROM
+					QYR01_DETALLES
+				WHERE
+					QYR01_DETALLES.oi_reclamo = {#DOC:@oi_reclamo}
+			')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:element name="ORIGEN">
+					<qry:attribute name="d_detalle" value="$r/@d_detalle + '- '"/>
+				</qry:element>
+			</qry:out>
+		</qry:select>
+		<qry:select name="ordenar" doc="DOC">
+			<qry:xquery>
+				for $r in #DOC:LEGAJO_SUBOR
+			ORDERBY $r/@oi_usuario_sistema ASC
+			</qry:xquery>
+			<qry:out>
+				<qry:if test="@oi_usuario_sistema != $r/@oi_usuario_sistema">
+					<qry:then>
+						<qry:attribute name="oi_usuario_sistema" value="$r/@oi_usuario_sistema"/>
+						<qry:if test="#NIVEL:@c_origen = 'CRE'">
+							<qry:then>
+								<qry:attribute name="c_origen" value="'Creados'"/>
+								<qry:insert-select doc-path="$r" name="RECLAMOS_CREADOS"/>
+							</qry:then>
+							<qry:else>
+								<qry:attribute name="c_origen" value="'Derivados'"/>
+								<qry:insert-select doc-path="$r" name="RECLAMOS_DERIVADOS"/>
+							</qry:else>
+						</qry:if>
+					</qry:then>
+				</qry:if>
+			</qry:out>
+		</qry:select>
+	</html:query>
+	<html:xslt>
+		<xsl:template match="/LEGAJO_RESP">
+			<html>
+				<head>
+					<script languaje="javascript">
+						function openReclamo(ut, oi_reclamo) {    
+						window.open("../ReportViewer.aspx?ut="+ut+String.fromCharCode(38)+"file=NucleusRH.Base.QuejasyReclamos.Workflow.Reclamo.DB_CONSULTA.rpt"+String.fromCharCode(38)+"oi_reclamo="+oi_reclamo, '', 'channelmode=no,directories=no,fullscreen=no,location=no,menubar=no,resizable=yes,scrollbars=yes,status=no,titlebar=no,toolbar=no,left=0,top=0,width='+(screen.width-12)+',height='+(screen.height-60)); 
+					}
+					function openMensaje(mensaje, oi_reclamo) {
+						if(mensaje != "Sin mensajes")
+							parent.openNewFlow("NucleusRH.Base.QuejasyReclamos.Workflow.Reclamo.autoflow","SHOW-MSJ",String.fromCharCode(60)+'DATA ID="'+oi_reclamo+'" /'+String.fromCharCode(62),null,"L");
+						else
+							alert("El reclamo Nro. " +oi_reclamo+ " no tiene mensajes para visualizar");
+					}
+					</script>
+					<meta http-equiv="Content-Type" content="text/html; charset=utf-8"/>
+					<style media="screen">
+						body {
+          font-family:verdana;
+          font-weight:normal;
+          background-color:#FFFFFF;
+          font-size:11px;
+          margin:30px;   
+          cursor:default;
+          PADDING-RIGHT: 0px; 
+          PADDING-LEFT: 0px; 
+          PADDING-BOTTOM: 0px; 
+          MARGIN: 0px; 
+          BORDER-TOP-STYLE: none; 
+          PADDING-TOP: 0px; 
+          BORDER-RIGHT-STYLE: none; 
+          BORDER-LEFT-STYLE: none; 
+          BORDER-BOTTOM-STYLE: none;
+          }
+
+          .title {
+          font-size:15px;
+          font-weight:bold;}
+
+          .table_table_style {
+          border: none;
+          border-collapse: collapse;
+          background-color:#FFFFFF;
+          font-size: 11px;
+          font-family: verdana;
+          width:100%;}
+
+          .table_title_style {
+          border:none;
+          font-family:verdana;
+          background-color:#FFFFFF;
+          font-size:12px;
+          font-weight:normal;
+          width:100%;}
+
+          .group_td {
+          padding-left:30px; }
+
+          .coll_img {
+          padding:0px; margin:0px;
+          font-weight:bold;
+          text-align:center;
+          cursor:pointer;
+          
+          font-size:8px;
+          width:12px;
+          height:12px;}
+
+          .table_span_style {
+          font-weight:bold;
+
+          }
+
+          tfoot {
+          font-weight:bold;
+          }
+
+          .stitle {
+          width:100%;
+          background-color:#FFFFFF; 
+          }
+          
+          .divmarco {
+          
+          
+          
+          background-color:white;
+          margin:0px; 
+          padding:20px;
+          width:100%;
+          height:100%}
+ 
+          .scontent {
+          width:100%;
+          aheight:100%;
+          background-color:#FFFFFF; }
+					</style>
+					<style media="print">
+						body {
+					font-family:verdana;
+					font-weight:normal; 
+					background-color:white; 
+					font-size:8pt;
+					width:20cm;}
+					
+					.titulo {
+					font-size:11pt;
+					font-weight:bold;}
+					
+					.stitle {
+					background-color:#FFFFFF; 
+					border:none;}
+					
+					.table_table_style {
+					border: none; 
+					border-collapse: collapse; 
+					font-size: 8pt; 
+					font-family: verdana;
+					width:100%;}
+					
+					.table_title_style {
+					border:none; 
+					font-family:verdana;
+					font-size:9pt;
+					font-weight:normal;
+					width:100%;}
+					</style>
+					<style media="all">
+						.table_table_style td {
+					border: solid 1px black; 
+					padding-left: 3px; 
+					padding-right: 3px;
+					text-align: left;}
+					
+					.table_table_style td#num{
+					mso-number-format:0.00;
+					text-align:right;}
+					
+					.table_table_style th {
+					border:solid 1px black;
+					background-color:#BBBBBB; 
+					border-bottom:solid 2px black;
+					padding-left: 3px; 
+					padding-right: 3px;
+					text-align: center;} 
+					
+					.table_title_style span#label {
+					font-weight: bold; }
+					</style>
+				</head>
+				<body style="PADDING: 10px; MARGIN: 0px; BORDER-TOP-STYLE: none; BORDER-RIGHT-STYLE: none; BORDER-LEFT-STYLE: none; BORDER-BOTTOM-STYLE: none;" scroll="yes">
+					<table width="100%" class="stitle" border="0" style="">
+						<tr>
+							<th>
+								<span style="font-weight:bold;">
+									<a>
+										Seguimiento de Reclamos&#160;
+									</a>
+									<xsl:value-of select="@c_origen"/>
+								</span>
+							</th>
+						</tr>
+						<tr>
+							<th>
+								<br/>
+							</th>
+						</tr>
+					</table>
+					<table class="table_title_style" border="0">
+						<thead style="display: table-header-group;">
+							<tr>
+								<td colspan="3">
+									<span style="font-weight:bold;">
+										Datos Legajo
+									</span>
+								</td>
+							</tr>
+							<tr valign="left">
+								<td width="10px"/>
+								<td>
+									<b>
+										Nombre y Apellido:&#160;
+									</b>
+									<xsl:value-of select="YO/@ape_y_nom"/>
+									<br/>
+									<b>
+										Legajo:&#160;
+									</b>
+									<xsl:value-of select="YO/@e_numero_legajo"/>
+									<br/>
+									<xsl:if test="YO/@d_email">
+										<b>
+											Mail:&#160;
+										</b>
+										<xsl:value-of select="YO/@d_email"/>
+										<br/>
+									</xsl:if>
+								</td>
+							</tr>
+						</thead>
+					</table>
+					<br/>
+					<xsl:if test="RECLAMO">
+						<!--table class="table_title_style" border="0">
+		<tr>
+			<td width="2%"/>
+			<td nowrap="1"-->
+						<b>
+							Reclamos del Solicitante
+						</b>
+						<!--/td>
+		</tr>
+		<tr>
+			<td colspan="2"-->
+						<table VALIGN="top" class="table_table_style" cellspacing="0" cellpadding="0" border="0" style="width:100%">
+							<thead style="display: table-header-group;">
+								<span class="table_span_style"/>
+								<tr>
+									<th>
+										Nro. Reclamo
+									</th>
+									<th>
+										Asunto
+									</th>
+									<th>
+										Usuario
+									</th>
+									<th>
+										Fecha creaci&#243;n
+									</th>
+									<th>
+										Origen
+									</th>
+									<th>
+										Estado
+									</th>
+									<th>
+										Fecha &#250;ltimo estado
+									</th>
+									<th>
+										Criticidad
+									</th>
+									<th>
+										Fecha vencimiento
+									</th>
+									<th>
+										Oficina
+									</th>
+									<th>
+										Mensajes
+									</th>
+								</tr>
+							</thead>
+							<tbody>
+								<xsl:apply-templates select="RECLAMO"/>
+							</tbody>
+						</table>
+						<!--/td>
+		</tr>
+	</table-->
+						<br/>
+					</xsl:if>
+					<!--xsl:if test="//LEGAJO_SUBOR/RECLAMO">
+					<b>
+						Otros Reclamos
+					</b>
+					<table VALIGN="top" class="table_table_style" cellspacing="0" cellpadding="0" border="0" style="width:100%">
+						<thead style="display: table-header-group;">
+							<span class="table_span_style"/>
+							<tr>
+								<th>
+									Nro. Reclamo
+								</th>
+								<th>
+									Asunto
+								</th>
+								<th>
+									Usuario
+								</th>
+								<th>
+									Fecha creaci&#243;n
+								</th>
+								<th>
+									Origen
+								</th>
+								<th>
+									Estado
+								</th>
+								<th>
+									Fecha &#250;ltimo estado
+								</th>
+								<th>
+									Criticidad
+								</th>
+								<th>
+									Fecha vencimiento
+								</th>
+								<th>
+									Oficina
+								</th>
+								<th>
+									Mensajes
+								</th>
+							</tr>
+						</thead>
+						<tbody>
+							<xsl:for-each select="//LEGAJO_SUBOR">
+								<xsl:if test="RECLAMO">
+									<xsl:apply-templates select="RECLAMO"/>
+								</xsl:if>
+							</xsl:for-each>
+						</tbody>
+					</table>
+				</xsl:if-->
+					<br/>
+				</body>
+			</html>
+		</xsl:template>
+		<xsl:template match="RECLAMO">
+			<tr>
+				<td>
+					<xsl:value-of select="@oi_reclamo"/>
+				</td>
+				<td>
+					<xsl:value-of select="@c_asunto"/>
+				</td>
+				<td>
+					<xsl:value-of select="@d_usuario"/>
+				</td>
+				<td>
+					<xsl:value-of select="@f_reclamo"/>
+				</td>
+				<td>
+					<xsl:for-each select="ORIGEN">
+						<xsl:value-of select="@d_detalle"/>
+					</xsl:for-each>
+				</td>
+				<td>
+					<xsl:value-of select="@c_estado"/>
+				</td>
+				<td>
+					<xsl:value-of select="@f_ult_estado"/>
+				</td>
+				<td>
+					<xsl:value-of select="@n_criticidad"/>
+				</td>
+				<td>
+					<xsl:value-of select="@f_vencimiento"/>
+				</td>
+				<td>
+					<xsl:value-of select="@d_oficina"/>
+				</td>
+				<td>
+					<xsl:value-of select="@mensaje"/>
+				</td>
+			</tr>
+		</xsl:template>
+		<xsl:template match="LEGAJO_RESP">
+			<tr>
+				<td title="Ver historial" style="cursor:pointer;">
+					<xsl:attribute name="onclick">
+						<xsl:value-of select="concat('javascript:openReclamo(&quot;', @ut, '&quot;,&quot;', @oi_reclamo, '&quot;)')"/>
+					</xsl:attribute>
+					<xsl:value-of select="@d_ape_y_nom"/>
+				</td>
+				<td title="Ver historial" style="cursor:pointer;">
+					<xsl:attribute name="onclick">
+						<xsl:value-of select="concat('javascript:openReclamo(&quot;', @ut, '&quot;,&quot;', @oi_reclamo, '&quot;)')"/>
+					</xsl:attribute>
+					<xsl:value-of select="@e_numero_legajo"/>
+				</td>
+			</tr>
+		</xsl:template>
+	</html:xslt>
+</html:html>

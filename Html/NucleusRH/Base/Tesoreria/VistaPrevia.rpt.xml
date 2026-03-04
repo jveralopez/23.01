@@ -1,0 +1,70 @@
+<html:html xmlns:html="nomad_engine.html" xmlns:qry="nomad_engine.qry" name="NucleusRH.Base.Tesoreria.AcreditacionHaberes" extends="Nomad.Base.BaseReport.rpt" doc="source">
+	<html:query declare="&lt;DATOS id=&quot;1-200807&quot; /&gt;">
+		<qry:main doc="SOURCE">
+			<REPORT label="Vista Previa de Orden de Pago" style="width:80%;">
+				<qry:attribute name="date" value="format_date(now(), 'dd/mm/yyyy')"/>
+				<GROUPS>
+					<GROUP tag="EMP" type="title">
+						<COLS>
+							<COL name="d_liquidacion" label="Liquidaci&#243;n"/>
+							<COL name="d_orden_pago" label="Orden de Pago"/>
+							<COL name="f_pago" label="Fecha de Pago" type="date"/>
+							<COL name="d_forma_pago" label="Forma de Pago"/>
+						</COLS>
+						<GROUP tag="REC" type="table" style="width:100%;">
+							<COLS>
+								<COL name="persona" label="Legajo" style="width:40%;"/>
+								<COL name="totpag" label="Total Recibo" style="width:15%;" type="num"/>
+								<COL name="totpen_org" label="Pendiente" style="width:15%;" type="num"/>
+								<COL name="pagado" label="Monto Pagado" style="width:15%;" type="num"/>
+								<COL name="totpen" label="Saldo" style="width:15%" type="num"/>
+							</COLS>
+							<FCOLS>
+								<COL label="Totales" style="text-align:RIGHT;"/>
+								<COL name="totpag" type="num"/>
+								<COL name="totpen_org" type="num"/>
+								<COL name="pagado" type="num"/>
+								<COL name="totpen" type="num"/>
+							</FCOLS>
+						</GROUP>
+					</GROUP>
+				</GROUPS>
+				<qry:element name="DATA">
+					<qry:element name="EMP">
+						<qry:insert-select name="qry_cabecera" doc-path="#SOURCE:DATOS"/>
+					</qry:element>
+				</qry:element>
+			</REPORT>
+		</qry:main>
+		<qry:select doc="SOURCE" name="qry_cabecera">
+			<qry:xquery>
+				for $r in FILEIO('TEMP\\{%=#SOURCE:@ID %}.orden.xml')/ORDEN
+			</qry:xquery>
+			<qry:out>
+				<qry:attribute name="f_pago" value="format_date($r/@f_pago, 'dd/mm/yyyy')"/>
+				<qry:attribute name="d_orden_pago" value="$r/@d_orden_pago"/>
+				<qry:attribute name="d_forma_pago" value="$r/@d_forma_pago"/>
+				<qry:attribute name="d_liquidacion" value="$r/@c_liquidacion + ' - ' + $r/@d_titulo"/>
+				<qry:insert-select name="qry_recibos" doc-path="$r"/>
+			</qry:out>
+		</qry:select>
+		<qry:select doc="SOURCE" name="qry_recibos">
+			<qry:xquery>
+				for $r in #SOURCE:legajos/legajo/recibos/recibo
+			</qry:xquery>
+			<qry:out>
+				<qry:element name="REC">
+					<qry:attribute name="persona" value="$r/../../@legajo + ' - ' + $r/../../@d_ape_y_nom"/>
+					<qry:attribute name="totpen_org" value="$r/@totpen_org"/>
+					<qry:attribute name="totpag" value="$r/@totpag"/>
+					<qry:attribute name="pagado" value="number($r/@totpen_org) - number($r/@totpen)"/>
+					<qry:attribute name="totpen" value="$r/@totpen"/>
+				</qry:element>
+				<qry:attribute name="totpen_org" value="number(./@totpen_org) + number($r/@totpen_org)"/>
+				<qry:attribute name="totpag" value="number(./@totpag) + number($r/@totpag)"/>
+				<qry:attribute name="pagado" value="number(./@pagado) + number($r/@totpen_org) - number($r/@totpen)"/>
+				<qry:attribute name="totpen" value="number(./@totpen) + number($r/@totpen)"/>
+			</qry:out>
+		</qry:select>
+	</html:query>
+</html:html>

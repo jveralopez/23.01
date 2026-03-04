@@ -1,0 +1,846 @@
+<form:Form xmlns:form="nomad_engine.form" xmlns:qry="nomad_engine.qry" default_mode="SHOW" name="NucleusRH.Base.Tiempos_Trabajados.Horarios.HORARIO_DETALLE" mess="&#191;Est&#225; seguro que desa cancelar la operaci&#243;n?" doc="source">
+	<form:Title width="90%">
+		<form:RowAligner name="ralTitle">
+			<form:Row name="row1">
+				<form:Label label="Detalles del Horario" nowrap="1" name="lblTitulo" style="S3 LCol_w"/>
+				<form:Label nvalue="#source:@descr" dynamic="1" nowrap="1" align="right" style="S3 LCol_w" name="ti_01"/>
+			</form:Row>
+		</form:RowAligner>
+	</form:Title>
+	<form:Center height="100%" width="100%">
+		<form:Columns width="95%" height="100%" name="cols1">
+			<form:Column name="col1" separation="2" align="left" valign="top">
+				<form:RowAligner name="rowIter">
+					<form:Row name="rowIter">
+						<form:Button name="MONTH_PREV" label="" img="prev" descrip="Mes Anterior" note="Ir al Mes Anterior">
+							<form:Event action="MONTH_PREV" runat="client" name="onclick"/>
+						</form:Button>
+						<form:DateTime pattern="YYYYMM" name="MONTH_POS">
+							<form:Event action="MONTH_CHANGE" runat="client" name="OnChange"/>
+						</form:DateTime>
+						<form:Button name="MONTH_NEXT" label="" img="next" descrip="Proximo Mes" note="Ir al Mes Proximo">
+							<form:Event action="MONTH_NEXT" runat="client" name="onclick"/>
+						</form:Button>
+						<form:Blank name="ha" width="100%"/>
+					</form:Row>
+				</form:RowAligner>
+				<form:Container label="Definici&#243;n del Horario" borderwidth="0" name="CONT_HORARIO" rheight="40" rwidth="95"/>
+			</form:Column>
+		</form:Columns>
+		<form:Columns width="90%" height="100%" name="cols2">
+			<form:Column name="col1" separation="2" align="left" valign="top">
+				<form:Div border="2" height="250px" width="400px" name="CONT_TUR_REFER" label="Referencias de Turnos" borderwidth="2" rheight="35" rwidth="45">
+					<form:SButtons>
+						<form:SButton visible="EDIT|DEBUG" img="add.gif" label="ABM de Turnos." name="LIST" descrip="ABM de Turnos.">
+							<form:Event action="ABMTurnos" name="OnClick" runat="client"/>
+						</form:SButton>
+					</form:SButtons>
+				</form:Div>
+			</form:Column>
+			<form:Column align="right" name="col2" separation="2" valign="top">
+				<form:Div border="2" height="250px" width="400px" label="Referencias de Estructuras" name="CONT_EST_REFER" borderwidth="2" rheight="35" rwidth="45">
+					<form:SButtons>
+						<form:SButton visible="EDIT|DEBUG" img="NEW" descrip="Agregar una estructura a la lista para poder utilizarla." label="Agregar una estructura a la lista." name="ADD">
+							<form:Event action="AddEstruct" name="OnClick" runat="client"/>
+						</form:SButton>
+						<form:SButton mess="Esta seguro que quiere eliminar todas las estructuras sin usar?" descrip="Quita todas las estructuras que no esta usadas." label="Quita todas las estructuras sin uso." visible="EDIT|DEBUG" img="DEL" name="DEL">
+							<form:Event action="CleanEstruct" name="OnClick" runat="client"/>
+						</form:SButton>
+					</form:SButtons>
+				</form:Div>
+			</form:Column>
+		</form:Columns>
+		<form:Hidden xsize="80" label="TUR" name="TUR"/>
+		<form:Hidden xsize="80" label="EST" name="EST"/>
+		<form:Hidden xsize="80" label="ESQ" name="ESQ"/>
+	</form:Center>
+	<form:Bottom>
+		<form:RowAligner name="buttonlinks">
+			<form:Row name="row1">
+				<form:Button startvalidate="1" visible="EDIT|DEBUG" descrip="" img="OK" label="Aceptar" name="Aceptar">
+					<form:Event action="CheckDef" name="onvalidate" runat="client"/>
+					<form:Event action="ACCEPT" runat="server" name="onclick"/>
+				</form:Button>
+				<form:Button visible="EDIT|DEBUG" note="" descrip="" img="CANCEL" label="Cancelar" name="Cancelar">
+					<form:Event action="CANCEL" name="onclick" runat="server"/>
+				</form:Button>
+				<form:Button visible="!EDIT" note="" descrip="" img="BACK" label="Volver" name="Volver">
+					<form:Event action="BACK" name="onclick" runat="server"/>
+				</form:Button>
+			</form:Row>
+		</form:RowAligner>
+	</form:Bottom>
+	<form:Scripts>
+		var MyDDO;       
+var MyOBJ;
+var MyTURList;   
+var MyTURSelect;
+var MyESTList;
+var MyESTSelect;
+
+function ObtenerTurnos()
+{	
+var proxy;
+var TURNOS;
+var retval;
+var t;
+
+proxy=new NomadProxy();
+TURNOS=proxy.SQLService().GetOBJ(Ctrl("main").getResource("TIPOS_DE_HORAS"),"&lt;DATOS /&gt;");
+
+retval=new Array();
+if (Ctrl("main").GetMode()=="EDIT" || Ctrl("main").GetMode()=="DEBUG")
+{
+	retval[""]=new Object();
+	retval[""].id   ="";
+	retval[""].label="Eliminar";
+	retval[""].color="";
+}
+
+for (t=0; t&lt;TURNOS.Child.length; t++)
+	retval[TURNOS.Child[t].id.toString()]=TURNOS.Child[t];
+	
+	
+return retval;
+}             
+
+function ObtenerEstructuras(ids)
+{	
+var proxy;
+var ESTRUCTURAS;
+var retval;
+var t,newids,key,sep;
+ 
+newids=new Array();	      
+ids=ids.split("|");
+for (t=0; t&lt;ids.length; t++)
+	if (ids[t])
+		newids[ids[t]]=1;
+
+ids=""; sep="";		
+for (key in newids)
+{
+	ids+=sep+key;
+	sep=",";
+}
+
+retval=new Array();
+if (ids!="")
+{
+	proxy=new NomadProxy();
+	ESTRUCTURAS=proxy.SQLService().GetOBJ(Ctrl("main").getResource("ESTRUCTURAS"),"&lt;DATOS ids=\""+ids+"\"/&gt;");
+	
+	for (t=0; t&lt;ESTRUCTURAS.Child.length; t++)
+		retval[ESTRUCTURAS.Child[t].id.toString()]=ESTRUCTURAS.Child[t];
+}
+	
+return retval;
+}             
+
+function SetTurno(myId)
+{ 
+if (Ctrl("main").GetMode()!="EDIT" &amp;&amp; Ctrl("main").GetMode()!="DEBUG") return;
+
+MyTURSelect=myId;
+DrawReference(MyTURList, "CONT_TUR_REFER", MyTURSelect, "SetTurno");
+
+if (MyTURSelect=="")
+	MyOBJ.SelectStyle("000000","BAR");
+else
+	MyOBJ.SelectStyle(MyTURList[MyTURSelect].color,"TIME");
+}
+
+function SetEstruct(myId)
+{ 
+if (Ctrl("main").GetMode()!="EDIT" &amp;&amp; Ctrl("main").GetMode()!="DEBUG") return;
+
+MyESTSelect=myId;
+DrawReference(MyESTList, "CONT_EST_REFER", MyESTSelect, "SetEstruct");
+
+if (MyESTSelect=="")
+	MyOBJ.SelectStyle("000000","BAR");
+else
+	MyOBJ.SelectStyle(MyESTList[MyESTSelect].color,"TIME");
+}
+
+function DrawReference(arr, ContainerName, KeySelect, funcName)
+{                         
+var HTMLoutput="", key;
+var TrgObj=document.getElementById(ContainerName);
+
+HTMLoutput+="&lt;TABLE style='width:100%;height:100%cursor:default;font-family:arial;font-size:10px;font-weight:bold;color:#000000;background-color:#F0F0D0;' &gt;";
+for (key in arr)
+{
+	if (arr[key].color=="")
+		HTMLoutput+="&lt;TR style='height:20px;"+(key==KeySelect?"background-color:#F0F0A0;":"")+"' &gt;"
+		           +"&lt;TD onclick='"+funcName+"(\""+key+"\");' style='border-bottom:1px dotted #808080;' &gt;&lt;img src='../Images/Buttons/cancel_n.gif' /&gt;&lt;/TD&gt;"
+		           +"&lt;TD onclick='"+funcName+"(\""+key+"\");' style='border-bottom:1px dotted #808080;' &gt;"+arr[key].label+"&lt;/TD&gt;"
+		           +"&lt;/TR&gt;";
+	else
+		HTMLoutput+="&lt;TR style='height:20px;"+(key==KeySelect?"background-color:#F0F0A0;":"")+"' &gt;"
+		           +"&lt;TD onclick='"+funcName+"(\""+key+"\");' style='border-bottom:1px dotted #808080;width:30px;font-size:1px;' &gt;&lt;div style='padding:0px;height:12px;background-color:#"+arr[key].color+";' &gt;&lt;/div&gt;&lt;/TD&gt;"
+		           +"&lt;TD onclick='"+funcName+"(\""+key+"\");' style='border-bottom:1px dotted #808080;' &gt;"+arr[key].label+"&lt;/TD&gt;"
+		           +"&lt;/TR&gt;";
+}
+HTMLoutput+="&lt;/TABLE&gt;";
+
+TrgObj.style.height=TrgObj.offsetHeight;
+TrgObj.innerHTML=HTMLoutput;
+}      
+
+function ColorAssign(arr)
+{
+var t, MyCols="DD0000|00DD00|0000DD|00DDDD|DD00DD|DDDD00|0099DD|9900DD|99DD00|00DD99|DD0099|DD9900".split("|");
+
+t=0;
+for (key in arr)
+{
+	arr[key].color=MyCols[t];
+	t++;
+}
+}
+            
+
+function Initialize()
+{
+	var strini, t, c; 
+	if (Ctrl("main").GetMode()=="DEBUG") 
+		MyDDO=new nomadDOM(Ctrl("main").getResource("DEBUG"));
+	else
+		MyDDO=new nomadDOM(DOM2String(Ctrl("main").GetLastDoc("RS")));
+
+	//Inicio las Variables
+	strini="";
+	for (t=0; t&lt;MyDDO.e_dias; t++)    
+	{
+		if (t!=0) strini+="|";  
+		c="";
+		for (d=0; d&lt;MyDDO.HORA_TUR_DET.Child.length; d++)
+		{               
+			if (MyDDO.HORA_TUR_DET.Child[d].e_posicion==t.toString())                    
+					c=MyDDO.HORA_TUR_DET.Child[d].oi_turno.value.toString();  			
+		}                                                            
+		strini+=c;
+	}
+	Ctrl("TUR").SetXValue(strini);
+
+	strini="";
+	for (t=0; t&lt;MyDDO.e_dias; t++)    
+	{
+		if (t!=0) strini+="|";         
+		c="";
+		for (d=0; d&lt;MyDDO.HORA_TUR_DET.Child.length; d++)
+		{               
+			if (MyDDO.HORA_TUR_DET.Child[d].e_posicion==t.toString())
+				c=MyDDO.HORA_TUR_DET.Child[d].oi_estructura.value.toString();
+		} 
+		strini+=c;       
+	}
+	Ctrl("EST").SetXValue(strini);		
+
+
+	strini="";
+	if (MyDDO.d_tipohorario=="R")
+		for (t=0; t&lt;MyDDO.ESCUADRAS.Child.length; t++)
+			strini+=(t==0?"":"|")+MyDDO.ESCUADRAS.Child[t].e_avance;
+	Ctrl("ESQ").SetXValue(strini);		
+
+
+	//Horarios	
+	MyTURSelect="";   
+	MyTURList=ObtenerTurnos();	   
+	DrawReference(MyTURList, "CONT_TUR_REFER", MyTURSelect,"SetTurno");
+	
+	//Estructuras
+	MyESTSelect="";              
+	MyESTList=ObtenerEstructuras(Ctrl("EST").GetXValue());
+	ColorAssign(MyESTList);
+	DrawReference(MyESTList, "CONT_EST_REFER", MyESTSelect,"SetEstruct");
+	
+	//Creo el Objeto de Edicion
+	MyOBJ=HTMLTimeBarSelected("CONT_HORARIO","",AddData,null);
+	MyOBJ.SetAxisMode("SERIE/DATE");
+	MyOBJ.SetAxisDate("20000101","20000102", 1, 1, 12);
+	MyOBJ.ShowMonth=false;
+	MyOBJ.OnSelect=OnSelectData;
+	
+	MyOBJ.AddSerie("TUR","Turnos","Definicion del Horario");
+	MyOBJ.AddSerie("EST","Terminal" ,"Terminal donde debe Marcar");
+	
+	//Series Adicionales
+	if (MyDDO.d_tipohorario=="R")
+		for (t=0; t&lt;MyDDO.ESCUADRAS.Child.length; t++)
+			MyOBJ.AddSerie("ESC "+MyDDO.ESCUADRAS.Child[t].c_escuadra, MyDDO.ESCUADRAS.Child[t].d_escuadra, "Previsualizacion de la Escuadra "+MyDDO.ESCUADRAS.Child[t].d_escuadra);
+	
+	//Dibujo la Series		
+	MyOBJ.Draw(); 
+	
+	//Modo Edicion
+	if (Ctrl("main").GetMode()=="EDIT" || Ctrl("main").GetMode()=="DEBUG") 
+	{
+		MyOBJ.EditStart();           
+		MyOBJ.SelectStyle("000000","BAR");
+	}
+	               
+	//otros               
+	var Now=new Date();
+	
+	Ctrl("MONTH_POS").SetXValue((Now.getFullYear()*100+(Now.getMonth()+1)).toString());
+	MONTH_CHANGE(Ctrl("MONTH_POS"));
+}
+
+function MONTH_PREV()
+{
+var objMONTH=Ctrl("MONTH_POS");
+var NewDate=new Date(parseInt(objMONTH.GetXValue().substr(0,4),10), parseInt(objMONTH.GetXValue().substr(4,2),10)-2, 1);
+objMONTH.SetXValue((NewDate.getFullYear()*100+(NewDate.getMonth()+1)).toString());
+MONTH_CHANGE(objMONTH);
+}
+
+function MONTH_NEXT()
+{             
+var objMONTH=Ctrl("MONTH_POS");
+var NewDate=new Date(parseInt(objMONTH.GetXValue().substr(0,4),10), parseInt(objMONTH.GetXValue().substr(4,2),10), 1);
+objMONTH.SetXValue((NewDate.getFullYear()*100+(NewDate.getMonth()+1)).toString());
+MONTH_CHANGE(objMONTH);
+}
+
+function AddData(obj, seccion, he, hs)
+{        
+var t, MyData;
+
+//Agregar Turno             
+switch(seccion)
+{
+	case "TUR": 
+		MyData=Ctrl("TUR").GetXValue().split("|");
+		
+	 	for (t=he; t&lt;hs; t++)
+	 		MyData[t % MyData.length]=MyTURSelect;  
+	 		
+	 	Ctrl("TUR").SetXValue(MyData.join("|"));
+	 	DrawTurno();
+	break;
+	
+	case "EST":
+		MyData=Ctrl("EST").GetXValue().split("|");
+		
+	 	for (t=he; t&lt;hs; t++)
+	 		MyData[t % MyData.length]=MyESTSelect;  
+	 		
+	 	Ctrl("EST").SetXValue(MyData.join("|"));
+	 	DrawEstructura();
+	break;   
+	
+	default:                                                                                     
+		MyData=Ctrl("ESQ").GetXValue().split("|");   
+		len   =Ctrl("TUR").GetXValue().split("|").length;
+		
+		for (d=0; d&lt;MyDDO.ESCUADRAS.Child.length; d++)
+		{
+			id="ESC "+MyDDO.ESCUADRAS.Child[d].c_escuadra;
+		 	 
+		 	if (id==seccion)
+		 	{          
+		 		val=(parseInt(MyData[d],10)-MyOBJ.SelectEndTime+MyOBJ.SelectStartTime) % len;
+		 		if (val&lt;0) val+=len;
+				MyData[d]=val.toString();
+			}
+		}
+		
+	 	Ctrl("ESQ").SetXValue(MyData.join("|"));
+	 	DrawTurno();
+	break;
+}
+}
+
+function MONTH_CHANGE(objMONTH)
+{                             
+var objMONTH=Ctrl("MONTH_POS");
+
+var lastDate=new Date(parseInt(objMONTH.GetXValue().substr(0,4),10), parseInt(objMONTH.GetXValue().substr(4,2),10), 1);
+MyOBJ.SetAxisDate(objMONTH.GetXValue()+"01",date2str(lastDate), 1, 1, 12);
+MyOBJ.Draw();               
+          
+//Dibujo	          
+DrawTurno();
+DrawEstructura();
+}            
+
+function DrawTurno()
+{
+var t,d,horpre,horact,MyData,horantval;
+
+//Limpio los Valores	
+MyOBJ.ClearValue("TUR");
+MyData=Ctrl("TUR").GetXValue().split("|");
+
+horpre="";
+horact="";                                   
+horantval=0;
+
+//Actualizo los Turnos	
+for (t=MyOBJ.StartTime; t&lt;=MyOBJ.EndTime; t++)
+{      
+	horact=MyData[t % MyData.length];
+	
+	if ((horact!=horpre) || (t==MyOBJ.EndTime))
+	{                                                
+		
+		if (horpre!="")
+			MyOBJ.SetValue(
+				"TUR",
+				horantval,
+				t,
+				MyTURList[horpre].label,
+				MyTURList[horpre].color,
+				MyTURList[horpre].color,
+				"Turno: "+MyTURList[horpre].label+" desde "+int2date(horantval)+" a "+int2date(t)	
+			);
+			
+		horantval=t; horpre=horact;
+	}
+}
+MyOBJ.ReDraw("TUR");
+
+//Actualizo los Rotativos	
+if (MyDDO.d_tipohorario=="R")
+{                          
+	MyESQ=Ctrl("ESQ").GetXValue().split("|");
+	for (d=0; d&lt;MyDDO.ESCUADRAS.Child.length; d++)
+	{
+		id="ESC "+MyDDO.ESCUADRAS.Child[d].c_escuadra;
+		av=parseInt(MyESQ[d],10);
+		
+		horpre="";
+		horact="";                                   
+		horantval=0;
+	
+		//Actualizo los Turnos	
+		MyOBJ.ClearValue(id);
+		for (t=MyOBJ.StartTime; t&lt;=MyOBJ.EndTime; t++)
+		{      
+			horact=MyData[(t+av) % MyData.length];
+							
+			if ((horact!=horpre) || (t==MyOBJ.EndTime))
+			{                                                
+				
+				if (horpre!="")
+					MyOBJ.SetValue(
+						id,
+						horantval,
+						t,
+						MyTURList[horpre].label,
+						MyTURList[horpre].color,
+						MyTURList[horpre].color,
+						"Turno: "+MyTURList[horpre].label+" desde "+int2date(horantval)+" a "+int2date(t)	
+					);
+					
+				horantval=t; horpre=horact;
+			}
+		}
+		
+		MyOBJ.ReDraw(id);
+	}
+}
+
+}
+
+function DrawEstructura()
+{
+var t,d,horpre,horact,MyData,horantval;
+
+//Limpio los Valores	
+MyOBJ.ClearValue("EST");
+MyData=Ctrl("EST").GetXValue().split("|");
+
+horpre="";
+horact="";                                   
+horantval=0;
+
+//Actualizo los Turnos	
+for (t=MyOBJ.StartTime; t&lt;=MyOBJ.EndTime; t++)
+{      
+	horact=MyData[t % MyData.length];
+	
+	if ((horact!=horpre) || (t==MyOBJ.EndTime))
+	{                                                
+		
+		if (horpre!="")
+			MyOBJ.SetValue(
+				"EST",
+				horantval,
+				t,
+				MyESTList[horpre].label,
+				MyESTList[horpre].color,
+				MyESTList[horpre].color,
+				"Terminal: "+MyESTList[horpre].label+" desde "+int2date(horantval)+" a "+int2date(t)	
+			);
+			
+		horantval=t; horpre=horact;
+	}
+}
+MyOBJ.ReDraw("EST");
+}
+
+function CleanEstruct()
+{                                          
+var newESTList=new Array();
+ 
+ 	MyESTSelect="";
+MyData=Ctrl("EST").GetXValue().split("|");
+for (t=MyOBJ.StartTime; t&lt;=MyOBJ.EndTime; t++)
+{      
+	horact=MyData[t % MyData.length];
+	if (horact)
+	{
+		if (MyESTSelect=="") MyESTSelect=horact;
+		newESTList[horact]=MyESTList[horact];
+	}
+}
+  
+MyESTList=newESTList;
+
+ColorAssign(MyESTList);
+DrawReference(MyESTList, "CONT_EST_REFER", MyESTSelect,"SetEstruct");
+
+DrawEstructura();
+}
+
+function AddEstruct()
+{
+openNewFlowWait(
+	"NucleusRH.Base.Tiempos_Trabajados.Terminales.TERMINAL.combo.flow",
+	"HELP",
+	"&lt;helper-mess/&gt;",
+	new ObjEstr(),
+	"M"
+);
+}
+
+function ObjEstr()
+{                 
+this.processResult=function(xmlstring)
+{                           
+	MyXML=new nomadDOM(xmlstring);
+	                          
+	if (MyXML.id)
+	{		                          
+		MyESTList[MyXML.id]=new Object();
+		MyESTList[MyXML.id].id   =MyXML.id;
+		MyESTList[MyXML.id].label=MyXML.text;
+		MyESTList[MyXML.id].color="000000";
+		
+		ColorAssign(MyESTList);
+		DrawReference(MyESTList, "CONT_EST_REFER", MyESTSelect,"SetEstruct");
+	}
+}
+}
+
+function OnSelectData(obj, seccion)
+{                       
+ 	switch(seccion)
+ 	{
+ 		case "TUR":                        
+ 			if (MyTURSelect=="") MyOBJ.SelectStyle("000000","BAR");
+ 			              else MyOBJ.SelectStyle(MyTURList[MyTURSelect].color,"TIME");
+ 		break;
+ 		
+ 		case "EST":
+ 			if (MyESTSelect=="") MyOBJ.SelectStyle("000000","BAR");
+ 			                else MyOBJ.SelectStyle(MyESTList[MyESTSelect].color,"TIME");
+ 		break;
+ 			
+ 		default:
+ 			MyOBJ.SelectStyle("000000","ARROW");
+ 		break;
+ 			
+ 	}
+}
+
+function CheckDef(MyObj)
+{
+//Verificacion de Turnos
+MyData=Ctrl("TUR").GetXValue().split("|");
+for (t=0; t&lt;MyData.length; t++)
+	if (MyData[t]=="")
+	{
+      MyObj.SetError("Existen Dias sin Definicion de Horario");
+		return false;			
+	}
+
+//Verificacion de Estructura
+MyData=Ctrl("EST").GetXValue().split("|");
+for (t=0; t&lt;MyData.length; t++)
+	if (MyData[t]=="")
+	{
+      MyObj.SetError("Existen Dias sin Definicion de Estructura");
+		return false;			
+	}
+
+//Comprobacion de compatibilidad de Turnos
+MyData=Ctrl("TUR").GetXValue().split("|");
+for (t=0; t&lt;MyData.length; t++)
+{                   
+  d=(t==0?MyData.length-1:t-1);
+ 
+ 	if (MyTURList[MyData[d]].ed?false:true) continue;
+ 	if (MyTURList[MyData[t]].st?false:true) continue;
+ 	if (
+	 		parseInt(MyTURList[MyData[d]].ed,10) &gt; parseInt(MyTURList[MyData[t]].st,10)+1440
+ 		)
+ 	{
+      MyObj.SetError("El turno '"+MyTURList[MyData[d]].label+"' no puede estar antes del turno '"+MyTURList[MyData[t]].label+"'.");
+		return false;			
+ 	}
+
+}
+
+
+return true;
+}
+
+function ABMTurnos()
+{
+openNewFlowWait(
+	"NucleusRH.Base.Tiempos_Trabajados.Turnos.flow",
+	"initialize",
+	"",
+	new ObjTurno(),
+	"L"
+);
+}
+
+function ShowTurno()
+{
+if (MyTURSelect=="") return;
+openNewFlowWait(
+	"NucleusRH.Base.Tiempos_Trabajados.Turnos.flow",
+	"SHOW",
+	"&lt;ROWS&gt;&lt;ROW id=\""+MyTURSelect+"\" /&gt;&lt;/ROWS&gt;",
+	new ObjTurno(),
+	"L"
+);
+}
+
+function ObjTurno()
+{                 
+this.processResult=function(xmlstring)
+{
+	//Horarios	
+	MyTURSelect="";   
+	MyTURList=ObtenerTurnos();	   
+	DrawReference(MyTURList, "CONT_TUR_REFER", MyTURSelect,"SetTurno");
+}
+}
+	</form:Scripts>
+	<form:Event action="Initialize" name="onload" runat="client"/>
+	<form:Resources>
+		<form:Resource declare="&lt;DATOS /&gt;" name="TIPOS_DE_HORAS">
+			<qry:main doc="PARAM">
+				<qry:element name="ROWS">
+					<qry:insert-select doc-path="#PARAM:DATOS" name="SQL1"/>
+				</qry:element>
+			</qry:main>
+			<qry:select name="SQL1" doc="PARAM">
+				<qry:xquery>
+					for $r in SQL('select 
+t.c_color, t.oi_turno, t.d_turno, t.c_turno,
+min(d.e_hora_inicio) as st, max(d.e_hora_fin) as ed
+from 
+TTA14_TURNOS as t,
+TTA14_TURNOS_DET as d
+join 
+t.oi_turno left outer d.oi_turno
+group by
+t.c_color, t.oi_turno, t.d_turno, t.c_turno
+order by d_turno asc 
+')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:element name="ROW">
+						<qry:attribute name="id" value="$r/@oi_turno"/>
+						<qry:attribute name="color" value="$r/@c_color"/>
+						<qry:attribute name="label" value="$r/@d_turno"/>
+						<qry:attribute name="st" value="$r/@st"/>
+						<qry:attribute name="ed" value="$r/@ed"/>
+					</qry:element>
+				</qry:out>
+			</qry:select>
+		</form:Resource>
+		<form:Resource declare="&lt;DATOS ids=&quot;1,2&quot; /&gt;" name="ESTRUCTURAS">
+			<qry:main doc="PARAM">
+				<qry:element name="ROWS">
+					<qry:insert-select doc-path="#PARAM:DATOS" name="RS1"/>
+				</qry:element>
+			</qry:main>
+			<qry:select doc="SOURCE" name="RS1">
+				<qry:xquery>
+					for $r in sql('
+SELECT 
+es.oi_estructura as ID
+FROM 
+ORG02_ESTRUCTURAS as es               
+WHERE
+es.oi_estructura in ({%= #SOURCE:@ids %})
+')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:element name="OPT">
+						<qry:attribute value="$r/@ID" name="id"/>
+						<qry:attribute value="$r/@ID" name="value"/>
+						<qry:attribute value="''" name="text"/>
+						<qry:insert-select name="RS2" doc-path="$r"/>
+						<qry:attribute value="iif(./@text='','desconocido',substring(./@text,1))" name="label"/>
+					</qry:element>
+				</qry:out>
+			</qry:select>
+			<qry:select doc="SOURCE" name="RS2">
+				<qry:xquery>
+					for $r in sql('
+SELECT 
+t.d_terminal as txt
+FROM 
+TTA05_TERMINALES as t
+WHERE
+t.oi_estructura = {#SOURCE:@id}
+')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:attribute value="./@text+','+$r/@txt" name="text"/>
+				</qry:out>
+			</qry:select>
+		</form:Resource>
+		<form:Resource name="DEBUG">
+			<HORARIO descr="[BP80] Borax Puna 80" o_planilla="Borax Puna 80" l_cambio_turno="1" l_controla_fic="0" c_color="A12020" c_estado="C" d_tipohorario="R" e_dias="30" d_horario="Borax Puna 80" c_horario="BP80" id="46">
+				<ESCUADRAS nmd-col="1">
+					<ESCUADRA descr="[BP80] Borax Puna 80 - [A] A" e_avance="0" d_escuadra="A" c_escuadra="A" oi_horario="46" id="39"/>
+					<ESCUADRA descr="[BP80] Borax Puna 80 - [B] B" e_avance="10" d_escuadra="B" c_escuadra="B" oi_horario="46" id="40"/>
+					<ESCUADRA descr="[BP80] Borax Puna 80 - [C] C" e_avance="23" d_escuadra="C" c_escuadra="C" oi_horario="46" id="41"/>
+				</ESCUADRAS>
+				<HORA_TUR_DET nmd-col="1">
+					<TURNO_DET descr="[BP80] Borax Puna 80 - [0] 0" e_posicion="0" oi_horario="46" id="79">
+						<oi_turno value="13" nmd-agr="1"/>
+						<oi_estructura value="227" nmd-agr="1"/>
+					</TURNO_DET>
+					<TURNO_DET descr="[BP80] Borax Puna 80 - [1] 1" e_posicion="1" oi_horario="46" id="80">
+						<oi_turno value="13" nmd-agr="1"/>
+						<oi_estructura value="227" nmd-agr="1"/>
+					</TURNO_DET>
+					<TURNO_DET descr="[BP80] Borax Puna 80 - [2] 2" e_posicion="2" oi_horario="46" id="81">
+						<oi_turno value="13" nmd-agr="1"/>
+						<oi_estructura value="227" nmd-agr="1"/>
+					</TURNO_DET>
+					<TURNO_DET descr="[BP80] Borax Puna 80 - [3] 3" e_posicion="3" oi_horario="46" id="82">
+						<oi_turno value="12" nmd-agr="1"/>
+						<oi_estructura value="227" nmd-agr="1"/>
+					</TURNO_DET>
+					<TURNO_DET descr="[BP80] Borax Puna 80 - [4] 4" e_posicion="4" oi_horario="46" id="83">
+						<oi_turno value="12" nmd-agr="1"/>
+						<oi_estructura value="227" nmd-agr="1"/>
+					</TURNO_DET>
+					<TURNO_DET descr="[BP80] Borax Puna 80 - [5] 5" e_posicion="5" oi_horario="46" id="84">
+						<oi_turno value="12" nmd-agr="1"/>
+						<oi_estructura value="227" nmd-agr="1"/>
+					</TURNO_DET>
+					<TURNO_DET descr="[BP80] Borax Puna 80 - [6] 6" e_posicion="6" oi_horario="46" id="85">
+						<oi_turno value="12" nmd-agr="1"/>
+						<oi_estructura value="227" nmd-agr="1"/>
+					</TURNO_DET>
+					<TURNO_DET descr="[BP80] Borax Puna 80 - [7] 7" e_posicion="7" oi_horario="46" id="86">
+						<oi_turno value="12" nmd-agr="1"/>
+						<oi_estructura value="227" nmd-agr="1"/>
+					</TURNO_DET>
+					<TURNO_DET descr="[BP80] Borax Puna 80 - [8] 8" e_posicion="8" oi_horario="46" id="87">
+						<oi_turno value="12" nmd-agr="1"/>
+						<oi_estructura value="227" nmd-agr="1"/>
+					</TURNO_DET>
+					<TURNO_DET descr="[BP80] Borax Puna 80 - [9] 9" e_posicion="9" oi_horario="46" id="88">
+						<oi_turno value="12" nmd-agr="1"/>
+						<oi_estructura value="227" nmd-agr="1"/>
+					</TURNO_DET>
+					<TURNO_DET descr="[BP80] Borax Puna 80 - [10] 10" e_posicion="10" oi_horario="46" id="89">
+						<oi_turno value="12" nmd-agr="1"/>
+						<oi_estructura value="227" nmd-agr="1"/>
+					</TURNO_DET>
+					<TURNO_DET descr="[BP80] Borax Puna 80 - [11] 11" e_posicion="11" oi_horario="46" id="90">
+						<oi_turno value="12" nmd-agr="1"/>
+						<oi_estructura value="227" nmd-agr="1"/>
+					</TURNO_DET>
+					<TURNO_DET descr="[BP80] Borax Puna 80 - [12] 12" e_posicion="12" oi_horario="46" id="91">
+						<oi_turno value="12" nmd-agr="1"/>
+						<oi_estructura value="227" nmd-agr="1"/>
+					</TURNO_DET>
+					<TURNO_DET descr="[BP80] Borax Puna 80 - [13] 13" e_posicion="13" oi_horario="46" id="92">
+						<oi_turno value="12" nmd-agr="1"/>
+						<oi_estructura value="227" nmd-agr="1"/>
+					</TURNO_DET>
+					<TURNO_DET descr="[BP80] Borax Puna 80 - [14] 14" e_posicion="14" oi_horario="46" id="93">
+						<oi_turno value="14" nmd-agr="1"/>
+						<oi_estructura value="227" nmd-agr="1"/>
+					</TURNO_DET>
+					<TURNO_DET descr="[BP80] Borax Puna 80 - [15] 15" e_posicion="15" oi_horario="46" id="94">
+						<oi_turno value="14" nmd-agr="1"/>
+						<oi_estructura value="227" nmd-agr="1"/>
+					</TURNO_DET>
+					<TURNO_DET descr="[BP80] Borax Puna 80 - [16] 16" e_posicion="16" oi_horario="46" id="95">
+						<oi_turno value="14" nmd-agr="1"/>
+						<oi_estructura value="227" nmd-agr="1"/>
+					</TURNO_DET>
+					<TURNO_DET descr="[BP80] Borax Puna 80 - [17] 17" e_posicion="17" oi_horario="46" id="96">
+						<oi_turno value="14" nmd-agr="1"/>
+						<oi_estructura value="227" nmd-agr="1"/>
+					</TURNO_DET>
+					<TURNO_DET descr="[BP80] Borax Puna 80 - [18] 18" e_posicion="18" oi_horario="46" id="97">
+						<oi_turno value="14" nmd-agr="1"/>
+						<oi_estructura value="227" nmd-agr="1"/>
+					</TURNO_DET>
+					<TURNO_DET descr="[BP80] Borax Puna 80 - [19] 19" e_posicion="19" oi_horario="46" id="98">
+						<oi_turno value="14" nmd-agr="1"/>
+						<oi_estructura value="227" nmd-agr="1"/>
+					</TURNO_DET>
+					<TURNO_DET descr="[BP80] Borax Puna 80 - [20] 20" e_posicion="20" oi_horario="46" id="99">
+						<oi_turno value="14" nmd-agr="1"/>
+						<oi_estructura value="227" nmd-agr="1"/>
+					</TURNO_DET>
+					<TURNO_DET descr="[BP80] Borax Puna 80 - [21] 21" e_posicion="21" oi_horario="46" id="100">
+						<oi_turno value="14" nmd-agr="1"/>
+						<oi_estructura value="227" nmd-agr="1"/>
+					</TURNO_DET>
+					<TURNO_DET descr="[BP80] Borax Puna 80 - [22] 22" e_posicion="22" oi_horario="46" id="101">
+						<oi_turno value="14" nmd-agr="1"/>
+						<oi_estructura value="227" nmd-agr="1"/>
+					</TURNO_DET>
+					<TURNO_DET descr="[BP80] Borax Puna 80 - [23] 23" e_posicion="23" oi_horario="46" id="102">
+						<oi_turno value="14" nmd-agr="1"/>
+						<oi_estructura value="227" nmd-agr="1"/>
+					</TURNO_DET>
+					<TURNO_DET descr="[BP80] Borax Puna 80 - [24] 24" e_posicion="24" oi_horario="46" id="103">
+						<oi_turno value="12" nmd-agr="1"/>
+						<oi_estructura value="227" nmd-agr="1"/>
+					</TURNO_DET>
+					<TURNO_DET descr="[BP80] Borax Puna 80 - [25] 25" e_posicion="25" oi_horario="46" id="104">
+						<oi_turno value="13" nmd-agr="1"/>
+						<oi_estructura value="227" nmd-agr="1"/>
+					</TURNO_DET>
+					<TURNO_DET descr="[BP80] Borax Puna 80 - [26] 26" e_posicion="26" oi_horario="46" id="105">
+						<oi_turno value="13" nmd-agr="1"/>
+						<oi_estructura value="227" nmd-agr="1"/>
+					</TURNO_DET>
+					<TURNO_DET descr="[BP80] Borax Puna 80 - [27] 27" e_posicion="27" oi_horario="46" id="106">
+						<oi_turno value="13" nmd-agr="1"/>
+						<oi_estructura value="227" nmd-agr="1"/>
+					</TURNO_DET>
+					<TURNO_DET descr="[BP80] Borax Puna 80 - [28] 28" e_posicion="28" oi_horario="46" id="107">
+						<oi_turno value="13" nmd-agr="1"/>
+						<oi_estructura value="227" nmd-agr="1"/>
+					</TURNO_DET>
+					<TURNO_DET descr="[BP80] Borax Puna 80 - [29] 29" e_posicion="29" oi_horario="46" id="108">
+						<oi_turno value="13" nmd-agr="1"/>
+						<oi_estructura value="227" nmd-agr="1"/>
+					</TURNO_DET>
+				</HORA_TUR_DET>
+			</HORARIO>
+		</form:Resource>
+	</form:Resources>
+</form:Form>

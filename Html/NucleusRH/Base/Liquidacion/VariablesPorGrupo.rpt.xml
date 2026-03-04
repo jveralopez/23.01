@@ -1,0 +1,144 @@
+<html:html xmlns:html="nomad_engine.html" xmlns:qry="nomad_engine.qry" extends="Nomad.Base.BaseReport.rpt" name="NucleusRH.Base.Liquidacion.variablesPorGrupo" doc="source">
+	<html:query declare="&lt;FILTRO oi_empresa=&quot;1&quot; oi_liquidacion=&quot;107&quot; oi_grupo=&quot;1&quot;&gt;&lt;PERSONAS /&gt;&lt;LIQUIDACIONES /&gt;&lt;/FILTRO&gt;">
+		<qry:main doc="PARAM">
+			<qry:append-doc name="FILTRO" doc-path="#PARAM:."/>
+			<REPORT label="Reportes de Variables Por Grupo">
+				<qry:attribute name="date" value="format_date(Now(),'dd/mm/yyyy HH:MM')"/>
+				<GROUPS>
+					<GROUP tag="LIQ" type="title">
+						<COLS>
+							<COL name="empresa" label="Empresa"/>
+							<COL name="liquidacion" label="Liquidacion"/>
+							<COL name="grupo" label="Grupo"/>
+						</COLS>
+						<GROUP tag="ROW" type="table">
+							<COLS>
+								<COL name="E_NUMERO_LEGAJO" label="Legajo" style="width:10%"/>
+								<COL name="D_APE_Y_NOM" nowrap="1" label="Apellido y Nombre" style=" width:25%"/>
+								<qry:insert-select name="qry_columnas"/>
+								<qry:attribute-doc doc="FILTRO" name="c_columnas" value="substring-after(@c_columnas,',')"/>
+								<qry:attribute-doc doc="FILTRO" name="c_grupo" value="@c_grupo"/>
+								<qry:attribute-doc doc="FILTRO" name="d_grupo" value="@d_grupo"/>
+							</COLS>
+						</GROUP>
+					</GROUP>
+				</GROUPS>
+				<qry:element name="DATA">
+					<qry:insert-select name="QRY_EMPRESA"/>
+				</qry:element>
+			</REPORT>
+		</qry:main>
+		<qry:select doc="PARAM" name="qry_columnas">
+			<qry:xquery>
+				for $r in sql('
+SELECT
+LIQ31_GRUPO_var.c_columna,
+LIQ09_VARIABLES.c_variable,
+LIQ31_GRUPOS.c_grupo,
+LIQ31_GRUPOS.d_grupo
+FROM 
+LIQ31_GRUPOS,
+LIQ31_GRUPO_var,
+LIQ09_VARIABLES   
+JOIN
+LIQ31_GRUPOS.oi_grupo INNER LIQ31_GRUPO_var.oi_grupo,
+LIQ09_VARIABLES.oi_variable INNER LIQ31_GRUPO_var.oi_variable
+WHERE 
+LIQ31_GRUPOS.oi_grupo = {#FILTRO:@oi_grupo}
+')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:element name="COL">
+					<qry:attribute name="name" value="upper-case($r/@c_columna)"/>
+					<!--qry:attribute name="label" value="substring_after(substring_before($r/@o_variable, ']]'), '[[')"/-->
+					<qry:attribute name="label" value="$r/@c_variable"/>
+					<qry:attribute name="style" value=""/>
+					<qry:attribute name="type" value="'num'"/>
+					<qry:attribute name="nowrap" value=""/>
+				</qry:element>
+				<qry:attribute name="c_columnas" value="concat(@c_columnas,',V.',upper-case($r/@c_columna))"/>
+				<qry:attribute name="c_grupo" value="$r/@c_grupo"/>
+				<qry:attribute name="d_grupo" value="$r/@d_grupo"/>
+			</qry:out>
+		</qry:select>
+		<qry:select doc="PARAM" name="QRY_EMPRESA">
+			<qry:xquery>
+				for $r in sql('
+SELECT 
+ 	O03.c_empresa as c_empresa,
+ 	O03.d_empresa as d_empresa,
+ 	L19.c_liquidacion as c_liquidacion,
+ 	L19.d_titulo as d_titulo,
+ 	L19.e_periodo as e_periodo,
+ 	L99.oi_liquidacion_ddo  
+ FROM 
+  LIQ99_LIQUIDACION AS L99,
+  	LIQ19_LIQUIDACION AS L19,
+  	ORG03_EMPRESAS as O03    
+  JOIN 
+  L99.c_liquidacion INNER  L19.c_liquidacion,
+  O03.c_empresa INNER  L99.c_empresa   
+  WHERE    
+   L19.oi_liquidacion = {#FILTRO:@oi_liquidacion} and 
+   L99.c_estado = \'F\'   
+   
+				')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:element name="LIQ">
+					<qry:attribute name="empresa" value="$r/@c_empresa + ' - ' +$r/@d_empresa"/>
+					<qry:attribute name="liquidacion" value="$r/@c_liquidacion + ' - ' +$r/@d_titulo"/>
+					<qry:attribute name="grupo" value="concat(#FILTRO:@c_grupo,' - ',#FILTRO:@d_grupo)"/>
+					<qry:attribute name="e_periodo" value="$r/@e_periodo"/>
+					<qry:insert-select doc-path="$r" name="qry_personas"/>
+				</qry:element>
+			</qry:out>
+		</qry:select>
+		<qry:select doc="PARAM" name="qry_personas">
+			<qry:xquery>
+				for $r in sql('		
+					SELECT 
+   L97.e_numero_legajo
+   , L97.d_ape_y_nom 
+   , L20.oi_tot_liq_per
+FROM 
+   LIQ99_RECIBOS AS L99
+   , LIQ20_TOT_LIQ_PER AS L20
+   , LIQ97_PERSONAL_EMP AS L97
+JOIN
+   L99.oi_tot_liq_per INNER L20.oi_tot_liq_per
+   , L20.oi_per_emp_ddo INNER L97.oi_per_emp_ddo
+WHERE
+   L99.oi_liquidacion_ddo = {#PARAM:@oi_liquidacion_ddo}
+				')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:insert-select doc-path="$r" name="qry_variables"/>
+			</qry:out>
+		</qry:select>
+		<qry:select doc="PARAM" name="qry_variables">
+			<qry:xquery>
+				for $r in sql('		
+			SELECT
+{%=#FILTRO:@c_columnas%},
+   L97.E_NUMERO_LEGAJO, 
+   L97.D_APE_Y_NOM
+FROM
+LIQ20_VAR_GR_CONC AS V,  
+LIQ20_TOT_LIQ_PER,
+LIQ97_PERSONAL_EMP AS L97       
+JOIN        
+LIQ20_TOT_LIQ_PER.oi_tot_liq_per INNER V.oi_tot_liq_per,
+L97.oi_per_emp_ddo INNER LIQ20_TOT_LIQ_PER.oi_per_emp_ddo
+WHERE
+V.oi_tot_liq_per = {#PARAM:@oi_tot_liq_per}
+and V.c_grupo = {#FILTRO:@c_grupo}
+
+		')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:insert-element doc-path="$r"/>
+			</qry:out>
+		</qry:select>
+	</html:query>
+</html:html>

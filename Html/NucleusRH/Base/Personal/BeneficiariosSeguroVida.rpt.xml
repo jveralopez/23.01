@@ -1,0 +1,109 @@
+<html:html xmlns:html="nomad_engine.html" xmlns:qry="nomad_engine.qry" xmlns:QRY="nomad_engine.QRY" name="NucleusRH.Base.Personal.BeneficiariosSeguroVida" doc="source" extends="Nomad.Base.BaseReport.rpt">
+	<html:for-each declare="&lt;DATA&gt;&#13;&#10;&#9;&lt;PERSONAS&gt;&#13;&#10;&#9;&#9;&lt;ROW VALUES=&quot;1,5,7,15,20,21,30,36,37,38&quot; /&gt;&#13;&#10;&#9;&#9;&lt;ROW VALUES=&quot;39,40,64,68,69,71,72,74,75,100&quot; /&gt;&#13;&#10;&#9;&#9;&lt;ROW VALUES=&quot;101,146,165,182,202,208,209,210,212,213&quot; /&gt;&#13;&#10;&#9;&lt;/PERSONAS&gt;&#13;&#10;&lt;/DATA&gt;">
+		<qry:main doc="SOURCE">
+			<REPORT label="Beneficiarios de Seguros de Vida">
+				<qry:attribute name="date" value="format_date(Now(),'dd/mm/yyyy HH:MM')"/>
+				<GROUPS>
+					<GROUP tag="PER" type="title">
+						<COLS>
+							<COL label="Persona" name="d_ape_y_nom"/>
+						</COLS>
+						<GROUP tag="BENEF" type="table" style="width:100%" noreg="Sin beneficiarios">
+							<COLS>
+								<COL name="d_ape_y_nom" label="Apellido y nombre"/>
+								<COL name="n_porc_seguro" label="Porcentaje" style="text-align:center"/>
+								<COL name="parentesco" label="Parentesco"/>
+							</COLS>
+						</GROUP>
+					</GROUP>
+				</GROUPS>
+				<qry:element name="DATA">
+					<qry:insert-select name="qryPersonas" doc-path="$SOURCE/DATA/PERSONAS/ROW"/>
+				</qry:element>
+			</REPORT>
+		</qry:main>
+		<qry:select name="qryPersonas" doc="PARAM">
+			<qry:out>
+				<QRY:CALL>
+					<DATA>
+						<qry:attribute name="VALUES" value="$PARAM/@VALUES"/>
+					</DATA>
+				</QRY:CALL>
+			</qry:out>
+		</qry:select>
+	</html:for-each>
+	<html:query>
+		<qry:main doc="SOURCE">
+			<qry:append-doc name="FILTRO" doc-path="$SOURCE/DATA"/>
+			<QRY:NO-SHOW>
+				<qry:insert-select name="qryPersona" doc-path=""/>
+			</QRY:NO-SHOW>
+		</qry:main>
+		<qry:select name="qryPersona" doc="">
+			<qry:xquery>
+				for $r in SQL(' 
+			  
+			  SELECT					
+					p.oi_personal,
+					p.d_ape_y_nom
+						
+				FROM
+					PER01_PERSONAL as p,
+					PER02_PERSONAL_EMP as pe				
+				
+				JOIN
+					p.oi_personal INNER pe.oi_personal					
+					
+				WHERE
+					pe.oi_personal_emp IN ({%=$FILTRO/@VALUES%})				
+		
+			')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<PER>
+					<qry:attribute name="oi_personal" value="$r/@oi_personal"/>
+					<qry:attribute name="d_ape_y_nom" value="$r/@d_ape_y_nom"/>
+					<qry:insert-select name="qryBeneficiarios" doc-path="."/>
+				</PER>
+			</qry:out>
+		</qry:select>
+		<qry:select name="qryBeneficiarios" doc="PARAM">
+			<qry:xquery>
+				for $r in SQL('
+			  
+				SELECT
+					fp.d_ape_y_nom,
+					fp.n_porc_seguro,					
+					tf.d_tipo_familiar,
+					fp.d_parentesco										
+				
+				FROM					
+					PER01_FLIARES_PER as fp,
+					PER15_TIPOS_FAM as tf
+				
+				JOIN
+					fp.oi_tipo_familiar INNER	tf.oi_tipo_familiar			
+								
+				WHERE					
+					fp.oi_personal = {$PARAM/@oi_personal}
+					AND fp.l_acargo_SV = 1
+			
+			')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<BENEF>
+					<qry:attribute name="d_ape_y_nom" value="$r/@d_ape_y_nom"/>
+					<qry:attribute name="n_porc_seguro" value="$r/@n_porc_seguro + '%'"/>
+					<qry:if test="$r/@d_parentesco != ''">
+						<qry:then>
+							<qry:attribute name="parentesco" value="$r/@d_parentesco"/>
+						</qry:then>
+						<qry:else>
+							<qry:attribute name="parentesco" value="$r/@d_tipo_familiar"/>
+						</qry:else>
+					</qry:if>
+				</BENEF>
+			</qry:out>
+		</qry:select>
+	</html:query>
+</html:html>

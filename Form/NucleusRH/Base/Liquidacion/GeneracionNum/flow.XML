@@ -1,0 +1,123 @@
+<flow:flow extends="NucleusRH.Base.Liquidacion.GeneracionNum.autoflow" default_action="initialize" xmlns:doc="nomad_engine.doc" xmlns:qry="nomad_engine.qry" xmlns:flow="nomad_engine.flow" name="NucleusRH.Base.Liquidacion.GeneracionNum">
+	<flow:info label="Flow para NucleusRH.Base.Liquidacion.GeneracionNum"/>
+	<flow:declare>
+		<doc:define name="QRY_LIST"/>
+		<doc:define name="FILTERDATA"/>
+		<qry:define name="FILTER">
+			<qry:main maxdeep="2">
+				<qry:element name="ROW">
+					<qry:insert-select name="sql1"/>
+				</qry:element>
+			</qry:main>
+			<qry:select doc="PARAM" name="sql1">
+				<qry:xquery>
+					for $r in sql('SELECT 
+			t0.d_valor, t0.c_parametro, t0.oi_parametro 
+			FROM ORG26_PARAMETROS as t0
+			WHERE t0.c_parametro = \'ProxNumDesde\'
+			')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:attribute name="d_valor" value="$r/@d_valor"/>
+					<qry:attribute name="oi_parametro" value="$r/@oi_parametro"/>
+				</qry:out>
+			</qry:select>
+		</qry:define>
+		<qry:define name="LIST">
+			<qry:main maxdeep="2">
+				<qry:element name="ROWS">
+					<qry:insert-select name="sql1"/>
+				</qry:element>
+			</qry:main>
+			<qry:select doc="PARAM" name="sql1">
+				<qry:xquery>
+					for $r in sql('
+			SELECT 
+				t0.oi_generacion as oi_generacion, 
+				t0.f_generacion as f_generacion, 
+				t0.c_empresa as c_empresa, 
+				t0.d_empresa as d_empresa, 
+				t0.c_liquidacion as c_liquidacion, 
+				t0.d_liquidacion as d_liquidacion, 
+				t0.c_num_desde as c_num_desde, 
+				t0.c_num_hasta as c_num_hasta, 
+				t0.e_ult_ejecucion as e_ult_ejecucion, 
+				t0.oi_generacion as CODE, 
+				t0.oi_generacion as TEXT 
+			FROM 
+				LIQ27_GEN_NUM as t0 				
+			ORDER BY 
+				f_generacion DESC')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:element name="ROW">
+						<qry:attribute name="policy" value="$r/@policy"/>
+						<qry:attribute name="id" value="$r/@oi_generacion"/>
+						<qry:attribute name="f_generacion" value="$r/@f_generacion"/>
+						<qry:attribute name="c_empresa" value="'[' + $r/@c_empresa + ']' + $r/@d_empresa"/>
+						<qry:attribute name="c_liquidacion" value="'[' + $r/@c_liquidacion + ']' + $r/@d_liquidacion"/>
+						<qry:attribute name="c_num_desde" value="$r/@c_num_desde"/>
+						<qry:attribute name="c_num_hasta" value="$r/@c_num_hasta"/>
+						<qry:attribute name="e_ult_ejecucion" value="$r/@e_ult_ejecucion"/>
+						<qry:attribute name="CODE" value="$r/@CODE"/>
+						<qry:attribute name="TEXT" value="$r/@TEXT"/>
+						<qry:attribute name="Actualizado" value="0"/>
+						<qry:insert-select doc-path="." name="sql2"/>
+					</qry:element>
+				</qry:out>
+			</qry:select>
+			<qry:select doc="PARAM" name="sql2">
+				<qry:xquery>
+					for $r in sql('SELECT 
+				t0.oi_liquidacion_ddo 
+			FROM LIQ99_LIQUIDACION as t0 
+			WHERE
+				t0.c_estado = \'F\'
+				and
+				t0.oi_liquidacion_ddo = {#PARAM:@e_ult_ejecucion}
+			')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:attribute name="Actualizado" value="1"/>
+				</qry:out>
+			</qry:select>
+		</qry:define>
+	</flow:declare>
+	<flow:main doc="FILTERDATA">
+		<flow:action name="initialize">
+			<flow:open-form doc-path="#FILTERDATA:" mode="SHOW" form-class="NucleusRH.Base.Liquidacion.GeneracionNum.GENERACION.noreg.autoform"/>
+		</flow:action>
+	</flow:main>
+	<flow:group Name="GENERACION">
+		<flow:form parent-doc="PARENTSOURCE" doc="SOURCE" name="NucleusRH.Base.Liquidacion.GeneracionNum.GENERACION.noreg.form:EDIT" form-class="NucleusRH.Base.Liquidacion.GeneracionNum.GENERACION.noreg.autoform" mode="SHOW">
+			<flow:action name="open-flow-SHOW">
+				<doc:load-qry output-doc="FILTERDATA" qry="FILTER"/>
+				<doc:load-qry output-doc="QRY_LIST" qry="LIST" input-doc-path="#FILTERDATA:"/>
+				<flow:open-form parent-doc-path="#FILTERDATA:" doc-path="#FILTERDATA:" mode="SHOW" form-class="NucleusRH.Base.Liquidacion.GeneracionNum.GENERACION.form"/>
+			</flow:action>
+			<flow:action name="on-show">
+				<flow:call-action action="open-flow-SHOW"/>
+			</flow:action>
+		</flow:form>
+		<flow:form parent-doc="PARENTSOURCE" doc="SOURCE" name="NucleusRH.Base.Liquidacion.GeneracionNum.GENERACION.form" form-class="NucleusRH.Base.Liquidacion.GeneracionNum.GENERACION.form" mode="SHOW">
+			<flow:action name="EJECUTAR">
+				<flow:log text-path="#FILTERDATA:" text="FFileter"/>
+				<flow:exec-method priority="7" out-attr-path="#BATCHDOC:@batch-id" class="NucleusRH.Base.Liquidacion.GeneracionNum.GENERACION" method="GenerarNumero">
+					<flow:param attr-path="#FILTERDATA:@oi_liquidacion" type="Nomad.NSystem.Int" mode="in" name="idLiquidacion"/>
+					<flow:param attr-path="#FILTERDATA:@d_valor" type="Nomad.NSystem.Int" mode="in" name="NumDesde"/>
+					<flow:param attr-path="#FILTERDATA:@oi_parametro" type="Nomad.NSystem.Int" mode="in" name="idParametro"/>
+				</flow:exec-method>
+				<flow:open-form doc-path="#BATCHDOC:" mode="BATCH" form-class="nomad.base.batchtolist.form"/>
+			</flow:action>
+			<flow:action name="on-show">
+				<flow:attach-doc attach-id="RS" doc-path="#QRY_LIST:"/>
+			</flow:action>
+			<flow:action name="BACK">
+				<flow:exit-flow return-path="#SOURCE:"/>
+			</flow:action>
+		</flow:form>
+		<flow:action name="on-show">
+			<flow:attach-doc attach-id="RS" doc-path="#QRY_LIST:"/>
+		</flow:action>
+	</flow:group>
+</flow:flow>

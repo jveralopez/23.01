@@ -1,0 +1,138 @@
+<flow:flow xmlns:flow="nomad_engine.flow" xmlns:doc="nomad_engine.doc" xmlns:qry="nomad_engine.qry" name="AsociarVarConc.flow" default_action="initialize" extends="Nomad.Base.flow">
+	<flow:info label="Flow para NucleusRH.Base.Liquidacion.Conceptos"/>
+	<flow:declare>
+		<doc:define name="QRY"/>
+		<doc:define name="FILTERDATA">
+			<FILTRO oi_variable="" tipo="">
+				<ROWS/>
+			</FILTRO>
+		</doc:define>
+		<qry:define declare="&lt;FILTRO oi_variable=&quot;1&quot; tipo=&quot;ACV&quot; /&gt;" name="FILTER">
+			<qry:main doc="SOURCE">
+				<qry:element name="CONCEPTOS">
+					<qry:attribute type="Nomad.NSystem.String" value="#SOURCE:FILTRO/@oi_variable" name="oi_variable"/>
+					<qry:attribute type="Nomad.NSystem.String" value="#SOURCE:FILTRO/@tipo" name="tipo"/>
+					<qry:element name="SI">
+						<qry:insert-select name="si" doc-path="#SOURCE:FILTRO"/>
+					</qry:element>
+					<qry:element name="NO">
+						<qry:insert-select name="no" doc-path="#SOURCE:FILTRO"/>
+					</qry:element>
+				</qry:element>
+			</qry:main>
+			<qry:select doc="SOURCE" name="si">
+				<qry:xquery>
+					for $r in sql('
+				SELECT 
+					c.oi_concepto,
+					c.c_concepto,
+					c.d_concepto,					
+					q.d_tipo_concepto,
+					c.ca_fig_recibo,
+					c.l_activo, L.c_tipo_parametro
+				FROM 
+					LIQ14_CONCEPTOS as c, LIQ14_CONC_VAR as L, LIQ12_TIPOS_CONC AS Q					
+				JOIN                                                             
+					Q.oi_tipo_concepto INNER C.oi_tipo_concepto,
+					c.oi_concepto INNER L.oi_concepto
+				WHERE
+				  L.oi_variable = {#SOURCE:@oi_variable}
+       	ORDER BY        			
+      		c_concepto ASC	        			        	
+        	')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:element name="ROW">
+						<qry:attribute type="Nomad.NSystem.String" value="$r/@oi_concepto" name="oi_concepto"/>
+						<qry:attribute type="Nomad.NSystem.String" value="$r/@c_concepto" name="c_concepto"/>
+						<qry:attribute type="Nomad.NSystem.String" value="$r/@d_concepto" name="d_concepto"/>
+						<qry:attribute type="Nomad.NSystem.String" value="$r/@d_tipo_concepto" name="d_tipo_concepto"/>
+						<qry:attribute type="Nomad.NSystem.String" value="iif($r/@ca_fig_recibo='S','Si',$r/@ca_fig_recibo)" name="ca_fig_recibo"/>
+						<qry:attribute type="Nomad.NSystem.String" value="iif($r/@ca_fig_recibo='N','No',@ca_fig_recibo)" name="ca_fig_recibo"/>
+						<qry:attribute type="Nomad.NSystem.String" value="iif($r/@ca_fig_recibo='I','Importe',@ca_fig_recibo)" name="ca_fig_recibo"/>
+						<qry:attribute type="Nomad.NSystem.String" value="$r/@l_activo" name="l_activo"/>
+						<qry:attribute type="Nomad.NSystem.String" value="iif($r/@c_tipo_parametro='IN','Entrada',$r/@c_tipo_parametro)" name="tipo"/>
+						<qry:attribute type="Nomad.NSystem.String" value="iif($r/@c_tipo_parametro='OUT','Salida',@c_tipo_parametro)" name="tipo"/>
+						<qry:attribute type="Nomad.NSystem.String" value="iif($r/@c_tipo_parametro='ACV','Acumula Valor',@c_tipo_parametro)" name="tipo"/>
+						<qry:attribute type="Nomad.NSystem.String" value="iif($r/@c_tipo_parametro='ACC','Acumula Canridad',@c_tipo_parametro)" name="tipo"/>
+					</qry:element>
+				</qry:out>
+			</qry:select>
+			<qry:select doc="SOURCE" name="no">
+				<qry:xquery>
+					for $r in sql('
+				SELECT 
+					c.oi_concepto,
+					c.c_concepto,
+					c.d_concepto,					
+					q.d_tipo_concepto,
+					c.ca_fig_recibo,
+					c.l_activo
+				FROM 
+					LIQ14_CONCEPTOS as c, LIQ12_TIPOS_CONC AS Q					
+				JOIN                                                             
+					Q.oi_tipo_concepto INNER C.oi_tipo_concepto					
+				WHERE
+				  c.oi_concepto not in (Select L.oi_concepto FROM LIQ14_CONC_VAR as L WHERE L.oi_variable = {%= #SOURCE:@oi_variable %})				  
+       	ORDER BY        			
+      		c_concepto ASC	        			        	
+        	')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:element name="ROW">
+						<qry:attribute type="Nomad.NSystem.String" value="'0'" name="selected"/>
+						<qry:attribute type="Nomad.NSystem.String" value="$r/@oi_concepto" name="oi_concepto"/>
+						<qry:attribute type="Nomad.NSystem.String" value="$r/@c_concepto" name="c_concepto"/>
+						<qry:attribute type="Nomad.NSystem.String" value="$r/@d_concepto" name="d_concepto"/>
+						<qry:attribute type="Nomad.NSystem.String" value="$r/@d_tipo_concepto" name="d_tipo_concepto"/>
+						<qry:attribute type="Nomad.NSystem.String" value="iif($r/@ca_fig_recibo='S','Si',$r/@ca_fig_recibo)" name="ca_fig_recibo"/>
+						<qry:attribute type="Nomad.NSystem.String" value="iif($r/@ca_fig_recibo='N','No',@ca_fig_recibo)" name="ca_fig_recibo"/>
+						<qry:attribute type="Nomad.NSystem.String" value="iif($r/@ca_fig_recibo='I','Importe',@ca_fig_recibo)" name="ca_fig_recibo"/>
+						<qry:attribute type="Nomad.NSystem.String" value="$r/@l_activo" name="l_activo"/>
+					</qry:element>
+				</qry:out>
+			</qry:select>
+		</qry:define>
+	</flow:declare>
+	<flow:main doc="SOURCE">
+		<flow:action name="initialize">
+			<flow:open-form form-class="NucleusRH.Base.Liquidacion.Conceptos.AsociarVarConc.filter.form" doc-path="#FILTERDATA:" mode="FILTER"/>
+		</flow:action>
+	</flow:main>
+	<flow:form form-class="NucleusRH.Base.Liquidacion.Conceptos.AsociarVarConc.filter.form" name="NucleusRH.Base.Liquidacion.Conceptos.AsociarVarConc.filter.form:FILTER" doc="FILTERDATA" mode="FILTER">
+		<flow:action name="on-open">
+			<flow:call-action action="Load-FILTER"/>
+		</flow:action>
+		<flow:action name="open-flow-SHOW">
+			<flow:log text-path="#FILTERDATA:" text="qry1"/>
+			<flow:log text-path="#QRY:" text="qry2"/>
+			<flow:open-form iter-index="#QRY:ROW/@id" parent-doc-path="#QRY:" doc-path="#QRY:" mode="SHOW" form-class="NucleusRH.Base.Liquidacion.Conceptos.AsociarVarConc.form"/>
+		</flow:action>
+		<flow:action name="Load-FILTER">
+			<flow:load-user-data name="FILTER-NucleusRH.Base.Liquidacion.ConceptosAsociarVarConc..CONCEPTO" doc="FILTERDATA"/>
+		</flow:action>
+		<flow:action name="Save-FILTER">
+			<flow:save-user-data name="FILTER-NucleusRH.Base.Liquidacion.ConceptosAsociarVarConc..CONCEPTO" doc-path="#FILTERDATA:"/>
+		</flow:action>
+		<flow:action name="FILTER">
+			<doc:load-qry output-doc="QRY" qry="FILTER" input-doc-path="#FILTERDATA:"/>
+			<flow:call-action action="Save-FILTER"/>
+			<flow:call-action action="open-flow-SHOW"/>
+		</flow:action>
+		<flow:action name="BACK">
+			<flow:close-form/>
+		</flow:action>
+	</flow:form>
+	<flow:form name="NucleusRH.Base.Liquidacion.Conceptos.AsociarVarConc.form" form-class="NucleusRH.Base.Liquidacion.Conceptos.AsociarVarConc.form" doc="SOURCE" mode="SHOW" parent-doc="PARENTSOURCE">
+		<flow:action name="SAVE">
+			<flow:log text-path="#QRY:" text="qry3"/>
+			<flow:exec-method method="CargarVariables" class="NucleusRH.Base.Liquidacion.Conceptos.CONCEPTO">
+				<flow:param type="Nomad.NSystem.Proxy.NomadXML" doc="QRY" mode="in" name="pobjParametros"/>
+			</flow:exec-method>
+			<flow:close-form/>
+		</flow:action>
+		<flow:action name="BACK">
+			<flow:close-form/>
+		</flow:action>
+	</flow:form>
+</flow:flow>

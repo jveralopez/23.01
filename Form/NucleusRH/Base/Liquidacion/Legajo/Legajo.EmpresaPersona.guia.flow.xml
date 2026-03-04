@@ -1,0 +1,85 @@
+<flow:flow xmlns:doc="nomad_engine.form" xmlns:qry="nomad_engine.form" xmlns:flow="nomad_engine.form" name="NucleusRH.Base.Liquidacion.Empresa_Liquidacion.EMPRESA.guia">
+	<flow:info label="Flow guia para NucleusRH.Base.Liquidacion.Empresa_Liquidacion.EMPRESA"/>
+	<flow:main doc="SOURCE">
+		<flow:action name="C2X">
+			<doc:load-qry output-doc="RS" input-doc-path="#SOURCE:" qry="C2X"/>
+			<flow:exit-flow return-path="#RS:"/>
+		</flow:action>
+		<flow:action name="X2C">
+			<doc:load-qry output-doc="RS" input-doc-path="#SOURCE:" qry="X2C"/>
+			<flow:exit-flow return-path="#RS:"/>
+		</flow:action>
+	</flow:main>
+	<flow:declare>
+		<doc:define name="RS"/>
+		<qry:define declare="&lt;helper-mess VALUE=&quot;1&quot; /&gt;" name="C2X">
+			<qry:main doc="SOURCE">
+				<qry:element name="ROW">
+					<qry:insert-select doc-path="#SOURCE:" name="RS1"/>
+				</qry:element>
+			</qry:main>
+			<qry:select doc="SOURCE" name="RS1">
+				<qry:xquery>
+					for $r in sql('
+					SELECT
+						e.OI_EMPRESA,
+						e.C_EMPRESA,
+						e.D_EMPRESA
+					FROM
+						ORG03_EMPRESAS as e,
+						PER02_PERSONAL_EMP as pe,
+						liq07_personal as p
+					WHERE
+						p.oi_personal_emp = pe.oi_personal_emp 
+						AND e.OI_EMPRESA = pe.OI_EMPRESA 
+						AND pe.OI_PERSONAL_EMP = {#SOURCE:helper-mess/@VALUE}
+						
+			')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:attribute type="Nomad.NSystem.Int" value="$r/@OI_EMPRESA" name="id"/>
+					<qry:attribute type="Nomad.NSystem.String" value="$r/@C_EMPRESA" name="code"/>
+					<qry:attribute type="Nomad.NSystem.String" value="$r/@D_EMPRESA" name="text"/>
+				</qry:out>
+			</qry:select>
+		</qry:define>
+		<qry:define declare="&lt;helper-mess ID=&quot;1&quot; /&gt;" name="X2C">
+			<qry:main doc="SOURCE">
+				<qry:element name="ROW">
+					<qry:insert-select doc-path="#SOURCE:" name="RS1"/>
+				</qry:element>
+			</qry:main>
+			<qry:select doc="SOURCE" name="RS1">
+				<qry:xquery>
+					for $r in sql('
+				SELECT
+					oe.OI_EMPRESA,
+					oe.C_EMPRESA,
+					oe.D_EMPRESA
+				FROM
+					LIQ15_EMPRESAS as le,
+					ORG03_EMPRESAS as oe
+				WHERE
+					oe.OI_EMPRESA = le.OI_EMPRESA 
+					AND oe.OI_EMPRESA = {#SOURCE:helper-mess/@ID}
+				')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:attribute type="Nomad.NSystem.Int" value="$r/@OI_EMPRESA" name="id"/>
+					<qry:attribute type="Nomad.NSystem.Int" value="$r/@OI_EMPRESA" name="value"/>
+					<qry:attribute type="Nomad.NSystem.String" value="$r/@C_EMPRESA" name="code"/>
+					<qry:attribute type="Nomad.NSystem.String" value="$r/@D_EMPRESA" name="text"/>
+				</qry:out>
+			</qry:select>
+		</qry:define>
+	</flow:declare>
+	<flow:form parent-doc="INVAL" doc="SOURCE" mode="SHOW" form-class="NucleusRH.Base.Liquidacion.Empresa_Liquidacion.EMPRESA.guia.autoform">
+		<flow:action name="on-show"/>
+		<flow:action name="ACCEPT">
+			<flow:exit-flow return-path="#RS:ROW[@id={#FORM:ctrl[@id='GRID']/@selectedRow}]"/>
+		</flow:action>
+		<flow:action name="CANCEL">
+			<flow:exit-flow return-path="#INVAL:"/>
+		</flow:action>
+	</flow:form>
+</flow:flow>

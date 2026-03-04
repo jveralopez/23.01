@@ -1,0 +1,131 @@
+<class-package xmlns:qry="nomad_engine.qry" name="Bandas_Salariales" meta-class="DB" languaje="SP" root-class="BANDA_SAL" DDOBase="NucleusRH\Base\Migracion">
+	<class size="L" note="Tabla codificadora de Bandas Salariales, en donde se registrar&#225; para cada una el C&#243;digo, la Descripci&#243;n, el Orden, el Salario M&#237;nimo, el Salario M&#225;ximo y Observaciones." description="Bandas Salariales" access="direct" label="Banda Salarial" name="BANDA_SAL">
+		<meta-properties>
+			<interface-properties file="ORG04_BandasSalariales.dat" mode="1" enter="1" separator=";" decimal="."/>
+		</meta-properties>
+		<attribute null="false" readonly="false" default="''" length="30" type="Nomad.NSystem.String" description="C&#243;digo de Banda Salarial. Puede ser un alfanum&#233;rico de hasta 30 caracteres." label="C&#243;digo" name="c_banda_sal" OriginalName="c_banda_sal">
+			<meta-properties>
+				<interface-properties/>
+			</meta-properties>
+		</attribute>
+		<attribute null="false" readonly="false" default="''" length="100" type="Nomad.NSystem.String" description="Descripci&#243;n de Banda Salarial. Puede ser un alfanum&#233;rico de hasta 100 caracteres." label="Descripci&#243;n" name="d_banda_sal" OriginalName="d_banda_sal">
+			<meta-properties>
+				<interface-properties/>
+			</meta-properties>
+		</attribute>
+		<attribute null="true" readonly="false" default="''" type="Nomad.NSystem.Int" description="Orden de la Banda Salarial. Es un n&#250;mero entero." label="Orden" name="e_orden" OriginalName="e_orden">
+			<meta-properties>
+				<interface-properties/>
+			</meta-properties>
+		</attribute>
+		<attribute null="true" readonly="false" precision="3" type="Nomad.NSystem.Double" description="Corresponde al Salario M&#237;nimo de la Banda Salarial." label="Salario M&#237;nimo" name="n_sal_minimo" OriginalName="n_sal_minimo">
+			<meta-properties>
+				<interface-properties/>
+			</meta-properties>
+		</attribute>
+		<attribute null="true" readonly="false" default="''" precision="3" type="Nomad.NSystem.Double" description="Corresponde al Salario M&#225;ximo de la Banda Salarial." label="Salario M&#225;ximo" name="n_sal_maximo" OriginalName="n_sal_maximo">
+			<meta-properties>
+				<interface-properties/>
+			</meta-properties>
+		</attribute>
+		<attribute null="true" readonly="false" default="''" length="1000" type="Nomad.NSystem.String" description="Observaciones de la Banda Salarial. Puede ser un alfanum&#233;rico de hasta 1000 caracteres." label="Observaciones" name="o_banda_sal" OriginalName="o_banda_sal">
+			<meta-properties>
+				<interface-properties/>
+			</meta-properties>
+		</attribute>
+		<method description="Importar Bandas Salariales desde Archivo" name="ImportarBandasSalariales" modifier="static" access="public">
+			<meta-properties>
+				<dotnet11-properties class="NucleusRH.Base.Migracion.Organizacion.BandasSalariales.BANDA_SAL" type="lib">
+					int Linea=0, Errores=0;
+
+NomadBatch objBatch;
+objBatch = NomadBatch.GetBatch("Iniciando...", "Importaci&#243;n de Bandas Salariales");
+
+NomadXML IDCur;
+NomadXML IDList = new NomadXML();                             
+NucleusRH.Base.Migracion.Organizacion.Bandas_Salariales.BANDA_SAL objRead;
+string PersonalOI, LegajoOI;
+
+IDList.SetText(NomadProxy.GetProxy().SQLService().Get(Resources.QRY_REGISTROS,""));
+
+ArrayList lista = (ArrayList)IDList.FirstChild().GetElements("ROW");
+//RECORRO LOS IDS QUE ENTRAN Y PREGUNTO SI ALGUN ID NO ESTA EN LA HASH, PORQ DE SER ASI HAY QUE AGREGARLO
+for (int xml =0; xml&lt;lista.Count; xml++)
+{
+	Linea++;
+	NomadXML row = (NomadXML)lista[xml];	
+	objBatch.SetPro(0, 100, lista.Count, xml);
+	objBatch.SetMess("Incorporando registro " + (xml + 1) + " de " + lista.Count);
+                                                  
+	//Inicio la Transaccion
+	try
+	{
+  	objRead=NucleusRH.Base.Migracion.Organizacion.Bandas_Salariales.BANDA_SAL.Get(row.GetAttr("id"));	
+  	//Me fijo si ya existe la Banda Salarial
+  	string oiVal = NomadEnvironment.QueryValue("ORG17_BANDAS_SAL", "oi_banda_sal", "c_banda_sal", objRead.c_banda_sal, "", true);
+  	if (oiVal!=null)
+  	{
+  		objBatch.Err("Ya existe un registro para la Banda Salarial '" + objRead.c_banda_sal + " - " + objRead.d_banda_sal + "' - Linea: " + Linea.ToString());
+  		Errores++;
+  		continue;
+  	}
+  	else
+  	{
+  		//Creo la Banda Salarial
+			NucleusRH.Base.Organizacion.Bandas_Salariales.BANDA_SAL DDOBS;
+			DDOBS = new NucleusRH.Base.Organizacion.Bandas_Salariales.BANDA_SAL();
+			
+			if (objRead.c_banda_sal == "" || objRead.d_banda_sal == "" )
+	  	{
+	  		objBatch.Err("El C&#243;digo o la Descripci&#243;n de la Banda Salarial no es v&#225;lido, se rechaza el registro '" + objRead.c_banda_sal + " - " + objRead.d_banda_sal + "' - Linea: " + Linea.ToString());
+	  		Errores++;  				
+	  		continue;	
+	  	}
+			
+			DDOBS.c_banda_sal = objRead.c_banda_sal;
+			DDOBS.d_banda_sal = objRead.d_banda_sal;			
+			DDOBS.e_orden = objRead.e_orden;
+			DDOBS.n_sal_maximo = objRead.n_sal_maximo;			
+			DDOBS.n_sal_minimo = objRead.n_sal_minimo;						
+			DDOBS.o_banda_sal = objRead.o_banda_sal;  		
+							
+	  	//Grabo
+			try
+			{				
+				NomadEnvironment.GetCurrentTransaction().Save(DDOBS);	  			  		  
+	  	}
+	  	catch (Exception e)
+			{				
+				objBatch.Err("Error al grabar registro " + objRead.c_banda_sal + " - " + objRead.d_banda_sal + "' - Linea: " + Linea.ToString() + " - " + e.Message);
+				Errores++;
+			}	  	
+  	}
+  }
+	catch (Exception e)
+	{                                       
+		objBatch.Err("Error desconocido en registro, por favor verifique el formato del archivo y la correcta asignaci&#243;n de los campos - Linea: " + Linea.ToString() + " - " + e.Message);
+		Errores++;
+ 	}
+}
+
+objBatch.Log("Registros Procesados: "+Linea.ToString()+" - Importados: "+(Linea-Errores).ToString());
+objBatch.Log("Finalizado...");
+				</dotnet11-properties>
+			</meta-properties>
+			<arguments/>
+		</method>
+		<resource name="QRY_REGISTROS">
+			<qry:main>
+				<qry:insert-select name="sql1"/>
+			</qry:main>
+			<qry:select name="sql1">
+				<qry:xquery>
+					for $r in INTERFACE('GET_PTR:ORG04_BandasSalariales.dat')/ROWS
+				</qry:xquery>
+				<qry:out>
+					<qry:insert-element doc-path="$r"/>
+				</qry:out>
+			</qry:select>
+		</resource>
+	</class>
+</class-package>

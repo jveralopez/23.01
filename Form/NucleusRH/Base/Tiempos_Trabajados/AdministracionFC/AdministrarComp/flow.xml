@@ -1,0 +1,216 @@
+<flow:flow xmlns:flow="nomad_engine.flow" xmlns:doc="nomad_engine.doc" xmlns:qry="nomad_engine.qry" name="NucleusRH.Base.Tiempos_Trabajados.AdministracionFC.AdministrarComp.flow" default_action="initialize" extends="Nomad.Base.flow">
+	<flow:declare>
+		<doc:define name="FILTERDATA">
+			<FILTRO>
+				<ROWS/>
+			</FILTRO>
+		</doc:define>
+		<qry:define declare="&lt;FILTRO fecha_vencimiento=&quot;20150503&quot; gcustom=&quot;&quot; f_desde=&quot;20160101&quot; f_hasta=&quot;20160426&quot; gpers=&quot;&quot; empresa=&quot;10&quot; activos=&quot;&quot; nombre=&quot;&quot; documento=&quot;&quot; sexo=&quot;&quot; grupo_sanguineo=&quot;&quot; listlegajos=&quot;&quot; oi_indic_activo=&quot;&quot; egresado=&quot;&quot; oi_forma_pago=&quot;&quot; oi_tipo_personal=&quot;&quot; fecha_desde=&quot;&quot; fecha_hasta=&quot;&quot; oi_centro_costo=&quot;&quot; oi_convenio=&quot;&quot; soloconvenio=&quot;&quot; oi_categoria=&quot;&quot; oi_ubicacion_desde=&quot;&quot; oi_ubicacion_hasta=&quot;&quot; oi_estructura=&quot;&quot; escructura_childs=&quot;&quot; oi_contrato=&quot;&quot; oi_afjp=&quot;&quot; oi_obra_social=&quot;&quot; oi_sindicato=&quot;&quot; l_afiliado_sind=&quot;0&quot; legajo_reloj_desde=&quot;&quot; legajo_reloj_hasta=&quot;&quot; chksinreloj=&quot;&quot; tarjeta_desde=&quot;&quot; tarjeta_hasta=&quot;&quot; chksintarjeta=&quot;&quot; oi_horario=&quot;&quot; oi_escuadra=&quot;&quot; tipo=&quot;&quot; oi_grupo_horario=&quot;&quot;&gt;&lt;ROWS&gt;&lt;ROW id=&quot;15958&quot; /&gt;&lt;/ROWS&gt;&lt;/FILTRO&gt;&#13;&#10;" name="LIST">
+			<qry:include name="NucleusRH.Base.Tiempos_Trabajados.BancosHoras.BANCO_HORA.INFO"/>
+			<qry:main doc="SOURCE" maxdeep="2">
+				<qry:element name="ROWS">
+					<qry:insert-select name="sql1" doc-path="#SOURCE:"/>
+				</qry:element>
+			</qry:main>
+			<qry:select doc="SOURCE" name="sql1">
+				<qry:xquery>
+					for $r in sql('   			
+					SELECT 	
+						TTA20_COMP_FC.oi_comp_fc,	
+						TTA20_REGISTRO_FC.oi_personal_emp,
+						PER02_PERSONAL_EMP.e_numero_legajo,
+						PER01_PERSONAL.d_ape_y_nom,
+						ORG03_EMPRESAS.c_empresa,
+						ORG03_EMPRESAS.d_empresa,
+						TTA20_COMP_FC.f_comp,       
+						TTA20_COMP_FC.n_cant_comp,
+						TTA20_COMP_FC.c_rango,
+						TTA20_REGISTRO_FC.f_registro_fc, 
+						TTA20_REGISTRO_FC.f_registro_s, 
+						TTA20_REGISTRO_FC.f_blanqueo,
+						TTA20_REGISTRO_FC.oi_banco_hora
+					FROM 
+						TTA20_REGISTRO_FC,  
+						TTA20_COMP_FC,
+						PER02_PERSONAL_EMP,
+						PER01_PERSONAL,
+						ORG03_EMPRESAS,
+						TTA21_BANCO_HORA
+					JOIN              
+						TTA20_REGISTRO_FC.oi_registro_fc INNER TTA20_COMP_FC.oi_registro_fc, 
+						TTA20_REGISTRO_FC.oi_banco_hora INNER TTA21_BANCO_HORA.oi_banco_hora,
+					    TTA20_REGISTRO_FC.oi_personal_emp INNER PER02_PERSONAL_EMP.oi_personal_emp,
+					    PER02_PERSONAL_EMP.oi_personal INNER PER01_PERSONAL.oi_personal,
+					    PER02_PERSONAL_EMP.oi_empresa INNER ORG03_EMPRESAS.oi_empresa
+					WHERE 
+						TTA20_REGISTRO_FC.oi_personal_emp in ({%=string(#SOURCE:FILTRO/ROWS/ROW/@id) %})
+						AND TTA20_COMP_FC.f_comp &gt;= {Datetime(#SOURCE:FILTRO/@f_desde)} 
+						AND TTA20_COMP_FC.f_comp &lt;= {Datetime(#SOURCE:FILTRO/@f_hasta)} 
+                  	ORDER BY
+                  		e_numero_legajo ASC
+						
+     	')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:element name="ROW">
+						<qry:attribute value="$r/@oi_comp_fc" name="id"/>
+						<qry:attribute value="$r/@COD+'-'+$r/@DES" name="descr"/>
+						<qry:attribute value="concat('[',$r/@e_numero_legajo,'] ',$r/@d_ape_y_nom)" name="legajo"/>
+						<qry:attribute value="concat('[',$r/@c_empresa,'] ',$r/@d_empresa)" name="empresa"/>
+						<qry:attribute value="$r/@f_comp" name="f_comp"/>
+						<qry:attribute value="$r/@n_cant_comp" name="n_cant_comp"/>
+						<qry:attribute value="$r/@c_rango" name="c_rango"/>
+						<qry:attribute value="$r/@f_registro_fc" name="f_registro_fc"/>
+						<qry:if test="$r/@oi_banco_hora!=''">
+							<qry:then>
+								<qry:element name="oi_banco_hora">
+									<qry:attribute name="OI_FIND" value="$r/@oi_banco_hora"/>
+									<qry:insert-select name="NucleusRH.Base.Tiempos_Trabajados.BancosHoras.BANCO_HORA.QUERY" doc-path="."/>
+								</qry:element>
+								<qry:attribute name="oi_banco_hora" value="'['+oi_banco_hora/ROW/@COD+'] '+oi_banco_hora/ROW/@DES"/>
+							</qry:then>
+						</qry:if>
+						<qry:attribute value="$r/@f_registro_s" name="f_registro_s"/>
+						<qry:attribute value="$r/@f_blanqueo" name="f_blanqueo"/>
+					</qry:element>
+				</qry:out>
+			</qry:select>
+		</qry:define>
+		<doc:define name="QRY_LIST"/>
+		<doc:define name="DOC">
+			<ROWS>
+				<ROW/>
+			</ROWS>
+		</doc:define>
+		<qry:define name="VENCIMIENTO">
+			<qry:main doc="SOURCE">
+				<qry:element name="VENCIMIENTO">
+					<qry:insert-select name="VencimientoFC"/>
+				</qry:element>
+			</qry:main>
+			<qry:select name="VencimientoFC">
+				<qry:xquery>
+					for $r in sql('
+				SELECT 
+					ORG26_PARAMETROS.oi_parametro, 
+					ORG26_PARAMETROS.d_valor,
+					ADDMONTHS(NOW(),STRING2NUMBER(ORG26_PARAMETROS.d_valor)*(-1)) as fecha
+				FROM 
+					ORG26_PARAMETROS
+				WHERE 
+					ORG26_PARAMETROS.c_parametro = \'VencimientoFC\'
+				')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:attribute name="fecha_vencimiento" value="substring($r/@fecha,0,8)"/>
+				</qry:out>
+			</qry:select>
+		</qry:define>
+		<doc:define name="F_VENCIMIENTO"/>
+		<qry:define name="COUNT" declare="&lt;FILTRO&gt;&#13;&#10;&#9;&lt;ROWS&gt;&#13;&#10;&#9;&#9;&lt;ROW id=&quot;15958&quot;/&gt;&#13;&#10;&#9;&lt;/ROWS&gt;           &#13;&#10;&lt;/FILTRO&gt;">
+			<qry:main doc="SOURCE" maxdeep="2">
+				<qry:element name="RESULT">
+					<qry:insert-select name="sql1" doc-path="#SOURCE:"/>
+				</qry:element>
+			</qry:main>
+			<qry:select doc="SOURCE" name="sql1">
+				<qry:xquery>
+					for $r in sql('   
+					SELECT 		
+						COUNT(TTA20_COMP_FC.oi_comp_fc) as count
+					FROM 
+						TTA20_REGISTRO_FC,  
+						TTA20_COMP_FC
+					JOIN              
+						TTA20_REGISTRO_FC.oi_registro_fc INNER TTA20_COMP_FC.oi_registro_fc
+					WHERE 
+						TTA20_REGISTRO_FC.oi_personal_emp in ({%=string(#SOURCE:FILTRO/ROWS/ROW/@id) %})
+						AND TTA20_COMP_FC.f_comp &gt;= {Datetime(#SOURCE:FILTRO/@f_desde)} 
+						AND TTA20_COMP_FC.f_comp &lt;= {Datetime(#SOURCE:FILTRO/@f_hasta)} 		
+     	')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:attribute name="count" value="$r/@count"/>
+				</qry:out>
+			</qry:select>
+		</qry:define>
+		<doc:define name="QRY_COUNT"/>
+		<doc:define name="BATCHDOC"/>
+	</flow:declare>
+	<flow:main doc="SOURCE">
+		<flow:action name="initialize">
+			<flow:open-form form-class="NucleusRH.Base.Tiempos_Trabajados.AdministracionFC.AdministrarComp.filter.form" doc-path="#FILTERDATA:" mode="FILTER"/>
+		</flow:action>
+	</flow:main>
+	<flow:form name="NucleusRH.Base.Tiempos_Trabajados.AdministracionFC.AdministrarComp.filter.form:FILTER" form-class="NucleusRH.Base.Tiempos_Trabajados.AdministracionFC.AdministrarComp.filter.form" parent-doc="PARENTSOURCE" doc="SOURCE" mode="FILTER">
+		<flow:action name="Save-FILTER">
+			<flow:save-user-data name="FILTER-NucleusRH.Base.Tiempos_Trabajados.AdministracionFC.AdministrarComp" doc-path="#FILTERDATA:"/>
+		</flow:action>
+		<flow:action name="Load-FILTER">
+			<flow:load-user-data name="FILTER-NucleusRH.Base.Tiempos_Trabajados.AdministracionFC.AdministrarComp" doc="FILTERDATA"/>
+			<flow:attach-doc attach-id="ARRB" doc-path="#FILTERDATA:ROWS"/>
+			<doc:set-attribute to-attr-path="#SOURCE:@fecha_vencimiento" from-attr-path="#F_VENCIMIENTO:@fecha_vencimiento"/>
+		</flow:action>
+		<flow:action name="on-show">
+			<doc:load-qry output-doc="F_VENCIMIENTO" qry="VENCIMIENTO"/>
+			<flow:call-action action="Load-FILTER"/>
+		</flow:action>
+		<flow:action name="BACK">
+			<flow:close-form/>
+		</flow:action>
+		<flow:action name="open-flow-LIST">
+			<flow:open-form iter-index="#QRY_LIST:ROW/@id " parent-doc-path="#QRY_LIST:" doc-path="#DOC:" form-class="NucleusRH.Base.Tiempos_Trabajados.AdministracionFC.AdministrarComp.form" mode="LIST"/>
+		</flow:action>
+		<flow:action name="noreg">
+			<flow:open-form form-class="NucleusRH.Base.Tiempos_Trabajados.AdministracionFC.AdministrarComp.noreg.form" doc-path="#SOURCE:" mode="EDIT"/>
+		</flow:action>
+		<flow:action name="ACCEPT">
+			<flow:call-action action="Save-FILTER"/>
+			<doc:load-qry output-doc="QRY_LIST" qry="LIST" input-doc-path="#FILTERDATA:"/>
+			<doc:load-qry output-doc="QRY_COUNT" qry="COUNT" input-doc-path="#FILTERDATA:"/>
+			<flow:call-action eq="0" action="noreg" if="#QRY_COUNT:@count" else="open-flow-LIST"/>
+		</flow:action>
+	</flow:form>
+	<flow:form form-class="NucleusRH.Base.Tiempos_Trabajados.AdministracionFC.AdministrarComp.noreg.form" name="NucleusRH.Base.Tiempos_Trabajados.AdministracionFC.AdministrarComp.noreg.form:EDIT" mode="EDIT" doc="SOURCE">
+		<flow:action name="BACK">
+			<flow:close-form next-action="on-show"/>
+		</flow:action>
+	</flow:form>
+	<flow:form name="NucleusRH.Base.Tiempos_Trabajados.AdministracionFC.AdministrarComp.form:LIST" form-class="NucleusRH.Base.Tiempos_Trabajados.AdministracionFC.AdministrarComp.form" parent-doc="PARENTSOURCE" doc="SOURCE" mode="LIST">
+		<flow:action name="CANCEL">
+			<flow:close-form next-action="on-show"/>
+		</flow:action>
+		<flow:action name="DELETE">
+			<flow:exec-method method="EliminarComp" priority="3" out-attr-path="#BATCHDOC:@batch-id" class="NucleusRH.Base.Tiempos_Trabajados.AdministracionFC.COMP_FC">
+				<flow:param doc-path="#SOURCE:" type="Nomad.NSystem.Proxy.NomadXML" mode="in" name="param"/>
+			</flow:exec-method>
+			<flow:open-form form-class="nomad.base.batchtolist.form" mode="BATCH" doc-path="#BATCHDOC:"/>
+		</flow:action>
+		<flow:action name="on-show">
+			<flow:attach-doc attach-id="RS" doc-path="#QRY_LIST:"/>
+			<flow:log text-path="#FILTERDATA:" text="JP_FILTERDATA"/>
+		</flow:action>
+		<flow:action name="refresh">
+			<doc:load-qry output-doc="QRY_LIST" qry="LIST" input-doc-path="#FILTERDATA:"/>
+			<flow:call-action action="on-show"/>
+		</flow:action>
+		<flow:action name="report">
+			<flow:exec-method method="ExecReportHTML" out-attr-path="#BATCHDOC:@batch-id" priority="9" class="Nomad.Base.Report.GeneralReport.REPORT">
+				<flow:param value="NucleusRH.Base.Tiempos_Trabajados.FrancosCompensatorios.rpt" type="Nomad.NSystem.String" mode="in" name="ReportName"/>
+				<flow:param doc-path="#FILTERDATA:" name="paramIN" type="Nomad.NSystem.Proxy.NomadXML" mode="in"/>
+			</flow:exec-method>
+			<flow:open-form form-class="Nomad.base.HTML_XLS.form" parent-doc-path="#SOURCE:" mode="SHOW" doc-path="#BATCHDOC:"/>
+		</flow:action>
+	</flow:form>
+	<flow:form mode="BATCH" name="nomad.base.batchtolist.form:BATCH" form-class="nomad.base.batchtolist.form" doc="SOURCE">
+		<flow:action name="on-show"/>
+		<flow:action name="EXIT">
+			<flow:close-form next-action="refresh"/>
+		</flow:action>
+	</flow:form>
+	<flow:form form-class="Nomad.base.HTML_XLS.form" name="Nomad.base.HTML_XLS.form:SHOW" mode="SHOW" doc="SOURCE">
+		<flow:action name="BACK">
+			<flow:close-form/>
+		</flow:action>
+	</flow:form>
+</flow:flow>

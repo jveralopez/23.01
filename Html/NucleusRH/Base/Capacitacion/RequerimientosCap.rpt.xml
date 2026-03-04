@@ -1,0 +1,360 @@
+<html:html xmlns:html="nomad_engine.html" xmlns:qry="nomad_engine.qry" xmlns:QRY="nomad_engine.QRY" name="NucleusRH.Base.Capacitacion.RequerimientosCap.rpt" doc="source" extends="Nomad.Base.BaseReport.rpt">
+	<html:for-each declare="&lt;DATA f_desde='' f_hasta='' oi_curso='' c_estado='' c_urgencia=''&gt;&#13;&#10;&#9;&lt;PERSONAS&gt;&#13;&#10;&#9;&#9;&lt;ROW VALUES=&quot;10028&quot;/&gt;&#9;&#9;&#9;&#9;&#13;&#10;&#9;&lt;/PERSONAS&gt;&#13;&#10;&lt;/DATA&gt;">
+		<qry:main doc="SOURCE">
+			<REPORT label="Requerimientos de capacitaci&#243;n">
+				<qry:attribute name="date" value="format_date(Now(),'dd/mm/yyyy HH:MM')"/>
+				<GROUPS>
+					<GROUP tag="FILTRO" type="title">
+						<COLS>
+							<COL label="Fecha desde" name="f_desde"/>
+							<COL label="Fecha hasta" name="f_hasta"/>
+							<qry:if test="$SOURCE/DATA/@oi_curso != ''">
+								<qry:then>
+									<COL label="&#193;rea - Curso" name="area_curso"/>
+								</qry:then>
+							</qry:if>
+							<qry:if test="$SOURCE/DATA/@c_estado != ''">
+								<qry:then>
+									<COL label="Estado" name="estado"/>
+								</qry:then>
+							</qry:if>
+							<qry:if test="$SOURCE/DATA/@c_urgencia != ''">
+								<qry:then>
+									<COL label="Urgencia" name="urgencia"/>
+								</qry:then>
+							</qry:if>
+						</COLS>
+						<GROUP tag="REQ" type="table" style="width:100%" noreg="No se encontraron registros">
+							<COLS>
+								<qry:if test="$SOURCE/DATA/@oi_curso = ''">
+									<qry:then>
+										<COL name="area" label="&#193;rea"/>
+									</qry:then>
+								</qry:if>
+								<COL name="empresa" label="Empresa"/>
+								<COL name="legajo" label="Legajo solicitante"/>
+								<COL name="d_sector" label="Depto/sector"/>
+								<COL name="o_descripcion" label="Descripci&#243;n"/>
+								<qry:if test="$SOURCE/DATA/@c_estado = ''">
+									<qry:then>
+										<COL name="estado" label="Estado" style="text-align:center"/>
+									</qry:then>
+								</qry:if>
+								<COL name="f_solicitud" label="Fecha solicitud" style="text-align:center"/>
+								<COL name="o_motivo" label="Motivo"/>
+								<qry:if test="$SOURCE/DATA/@c_urgencia = ''">
+									<qry:then>
+										<COL name="urgencia" label="Urgencia" style="text-align:center"/>
+									</qry:then>
+								</qry:if>
+								<COL name="dictados" label="Dictados"/>
+							</COLS>
+						</GROUP>
+					</GROUP>
+				</GROUPS>
+				<qry:element name="DATA">
+					<FILTRO qry-orderby="f_solicitud">
+						<qry:attribute name="f_desde" value="format-date($SOURCE/DATA/@f_desde, 'dd/mm/yyyy')"/>
+						<qry:attribute name="f_hasta" value="format-date($SOURCE/DATA/@f_hasta, 'dd/mm/yyyy')"/>
+						<qry:if test="$SOURCE/DATA/@oi_curso != ''">
+							<qry:then>
+								<qry:insert-select name="qryAreaCurso" doc-path="$SOURCE/DATA"/>
+							</qry:then>
+						</qry:if>
+						<qry:if test="$SOURCE/DATA/@c_estado != ''">
+							<qry:then>
+								<qry:insert-select name="attEstado" doc-path="$SOURCE/DATA"/>
+							</qry:then>
+						</qry:if>
+						<qry:if test="$SOURCE/DATA/@c_urgencia != ''">
+							<qry:then>
+								<qry:insert-select name="attUrgencia" doc-path="$SOURCE/DATA"/>
+							</qry:then>
+						</qry:if>
+						<qry:insert-select name="qryRequerimientos" doc-path="$SOURCE/DATA/PERSONAS/ROW"/>
+					</FILTRO>
+				</qry:element>
+			</REPORT>
+		</qry:main>
+		<qry:select name="qryAreaCurso" doc="PARAM">
+			<qry:xquery>
+				for $r in SQL('
+			
+				SELECT
+					CYD01_CURSOS.d_curso,
+					ORG06_CURSOS.d_curso as d_area										
+					
+				FROM
+					CYD01_CURSOS,
+					ORG06_CURSOS
+				
+				JOIN
+					CYD01_CURSOS.oi_area INNER ORG06_CURSOS.oi_curso	
+					
+				WHERE
+					CYD01_CURSOS.oi_curso = {$PARAM/@oi_curso}
+			
+			')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:attribute name="area_curso" value="$r/@d_area + ' - ' + $r/@d_curso"/>
+			</qry:out>
+		</qry:select>
+		<qry:select name="qryRequerimientos" doc="PARAM">
+			<qry:out>
+				<QRY:CALL>
+					<DATA>
+						<qry:attribute name="f_desde" value="$PARAM/../../@f_desde"/>
+						<qry:attribute name="f_hasta" value="$PARAM/../../@f_hasta"/>
+						<qry:attribute name="oi_curso" value="$PARAM/../../@oi_curso"/>
+						<qry:attribute name="c_estado" value="$PARAM/../../@c_estado"/>
+						<qry:attribute name="c_urgencia" value="$PARAM/../../@c_urgencia"/>
+						<qry:attribute name="VALUES" value="$PARAM/@VALUES"/>
+					</DATA>
+				</QRY:CALL>
+			</qry:out>
+		</qry:select>
+		<qry:select name="attEstado" doc="r">
+			<qry:out>
+				<qry:if test="$r/@c_estado = 'S'">
+					<qry:then>
+						<qry:attribute name="estado" value="'Solicitado'"/>
+					</qry:then>
+					<qry:else>
+						<qry:if test="$r/@c_estado = 'A'">
+							<qry:then>
+								<qry:attribute name="estado" value="'Aprobado'"/>
+							</qry:then>
+							<qry:else>
+								<qry:if test="$r/@c_estado = 'R'">
+									<qry:then>
+										<qry:attribute name="estado" value="'Rechazado'"/>
+									</qry:then>
+									<qry:else>
+										<qry:if test="$r/@c_estado = 'C'">
+											<qry:then>
+												<qry:attribute name="estado" value="'Cubierto'"/>
+											</qry:then>
+										</qry:if>
+									</qry:else>
+								</qry:if>
+							</qry:else>
+						</qry:if>
+					</qry:else>
+				</qry:if>
+			</qry:out>
+		</qry:select>
+		<qry:select name="attUrgencia" doc="r">
+			<qry:out>
+				<qry:if test="$r/@c_urgencia = 'A'">
+					<qry:then>
+						<qry:attribute name="urgencia" value="'Alta'"/>
+					</qry:then>
+					<qry:else>
+						<qry:if test="$r/@c_urgencia = 'M'">
+							<qry:then>
+								<qry:attribute name="urgencia" value="'Media'"/>
+							</qry:then>
+							<qry:else>
+								<qry:if test="$r/@c_urgencia = 'B'">
+									<qry:then>
+										<qry:attribute name="urgencia" value="'Baja'"/>
+									</qry:then>
+								</qry:if>
+							</qry:else>
+						</qry:if>
+					</qry:else>
+				</qry:if>
+			</qry:out>
+		</qry:select>
+	</html:for-each>
+	<html:query>
+		<qry:main doc="SOURCE">
+			<qry:append-doc name="FILTRO" doc-path="$SOURCE/DATA"/>
+			<QRY:NO-SHOW>
+				<qry:insert-select name="qryRequerimientos" doc-path=""/>
+			</QRY:NO-SHOW>
+		</qry:main>
+		<qry:select name="qryRequerimientos" doc="">
+			<qry:xquery>
+				for $r in SQL(' 
+			  
+			  SELECT
+			  	rc.oi_curso,
+			  	{%? ($FILTRO/@oi_curso = '')
+						{% a.d_curso as d_area, %}
+						{% %}
+					%}			    
+			    e.d_empresa,			    
+			    pe.e_numero_legajo,
+			  	p.d_ape_y_nom,
+					rc.d_sector,
+					rc.o_descripcion,
+			  	rc.c_estado,
+					rc.f_solicitud,
+					rc.o_motivo,
+					rc.c_urgencia
+					
+				FROM
+					{%? ($FILTRO/@oi_curso = '')
+						{% CYD01_CURSOS as c, ORG06_CURSOS as a, %}
+						{% %}
+					%}				
+					CYD15_REQS_CAP as rc,
+					PER02_PERSONAL_EMP as pe,
+					PER01_PERSONAL as p,
+					ORG03_EMPRESAS as e
+				
+				JOIN
+					{%? ($FILTRO/@oi_curso = '')
+						{% rc.oi_curso INNER c.oi_curso, c.oi_area INNER a.oi_curso, %}
+						{% %}
+					%}
+					rc.oi_personal_emp INNER pe.oi_personal_emp, 
+					pe.oi_personal INNER p.oi_personal,
+					pe.oi_empresa INNER e.oi_empresa
+									
+				WHERE
+				  rc.oi_personal_emp IN ({%=$FILTRO/@VALUES%})
+					
+					{%? ($FILTRO/@f_desde != '')
+						{% AND rc.f_solicitud &gt;= {datetime($FILTRO/@f_desde)} %}
+						{% %}
+					%}
+					
+					{%? ($FILTRO/@f_hasta != '')
+						{% AND rc.f_solicitud &lt;= {datetime($FILTRO/@f_hasta)} %}
+						{% %}
+					%}
+					
+					{%? ($FILTRO/@oi_curso != '')
+						{% AND rc.oi_curso = {$FILTRO/@oi_curso} %}
+						{% %}
+					%}
+					
+					{%? ($FILTRO/@c_estado != '')
+						{% AND rc.c_estado &lt;= {$FILTRO/@c_estado} %}
+						{% %}
+					%}
+					
+					{%? ($FILTRO/@c_urgencia != '')
+						{% AND rc.c_urgencia = {$FILTRO/@c_urgencia} %}
+						{% %}
+					%}				
+		
+			')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<REQ>
+					<qry:attribute name="area" value="$r/@d_area"/>
+					<qry:attribute name="empresa" value="$r/@d_empresa"/>
+					<qry:attribute name="legajo" value="$r/@e_numero_legajo + ' - ' + $r/@d_ape_y_nom"/>
+					<qry:attribute name="d_sector" value="$r/@d_sector"/>
+					<qry:attribute name="o_descripcion" value="$r/@o_descripcion"/>
+					<qry:insert-select name="attEstado" doc-path="$r"/>
+					<qry:attribute name="f_solicitud" value="format-date($r/@f_solicitud, 'dd/mm/yyyy')"/>
+					<qry:attribute name="o_motivo" value="$r/@o_motivo"/>
+					<qry:insert-select name="attUrgencia" doc-path="$r"/>
+					<qry:insert-select name="qryDictados" doc-path="$r"/>
+				</REQ>
+			</qry:out>
+		</qry:select>
+		<qry:select name="attEstado" doc="r">
+			<qry:out>
+				<qry:if test="$r/@c_estado = 'S'">
+					<qry:then>
+						<qry:attribute name="estado" value="'Solicitado'"/>
+					</qry:then>
+					<qry:else>
+						<qry:if test="$r/@c_estado = 'A'">
+							<qry:then>
+								<qry:attribute name="estado" value="'Aprobado'"/>
+							</qry:then>
+							<qry:else>
+								<qry:if test="$r/@c_estado = 'R'">
+									<qry:then>
+										<qry:attribute name="estado" value="'Rechazado'"/>
+									</qry:then>
+									<qry:else>
+										<qry:if test="$r/@c_estado = 'C'">
+											<qry:then>
+												<qry:attribute name="estado" value="'Cubierto'"/>
+											</qry:then>
+										</qry:if>
+									</qry:else>
+								</qry:if>
+							</qry:else>
+						</qry:if>
+					</qry:else>
+				</qry:if>
+			</qry:out>
+		</qry:select>
+		<qry:select name="attUrgencia" doc="r">
+			<qry:out>
+				<qry:if test="$r/@c_urgencia = 'A'">
+					<qry:then>
+						<qry:attribute name="urgencia" value="'Alta'"/>
+					</qry:then>
+					<qry:else>
+						<qry:if test="$r/@c_urgencia = 'M'">
+							<qry:then>
+								<qry:attribute name="urgencia" value="'Media'"/>
+							</qry:then>
+							<qry:else>
+								<qry:if test="$r/@c_urgencia = 'B'">
+									<qry:then>
+										<qry:attribute name="urgencia" value="'Baja'"/>
+									</qry:then>
+								</qry:if>
+							</qry:else>
+						</qry:if>
+					</qry:else>
+				</qry:if>
+			</qry:out>
+		</qry:select>
+		<qry:select name="qryDictados" doc="PARAM">
+			<qry:xquery>
+				for $r in SQL('
+			
+				SELECT
+					d.c_dictado,
+					d.c_estado
+					
+				FROM
+					CYD02_DICTADOS as d
+			  
+			  WHERE
+			  	d.oi_curso = {$PARAM/@oi_curso}
+			
+			')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:insert-select name="attEstadoDictado" doc-path="$r"/>
+				<qry:attribute name="dictados" value="@dictados + '- ' + $r/@c_dictado + ' (' + ./@estadoDictado + ')' + '&lt;br/&gt;'"/>
+			</qry:out>
+		</qry:select>
+		<qry:select name="attEstadoDictado" doc="r">
+			<qry:out>
+				<qry:if test="$r/@c_estado = 'P'">
+					<qry:then>
+						<qry:attribute name="estadoDictado" value="'Planificado'"/>
+					</qry:then>
+					<qry:else>
+						<qry:if test="$r/@c_estado = 'F'">
+							<qry:then>
+								<qry:attribute name="estadoDictado" value="'Finalizado'"/>
+							</qry:then>
+							<qry:else>
+								<qry:if test="$r/@c_estado = 'C'">
+									<qry:then>
+										<qry:attribute name="estadoDictado" value="'Cancelado'"/>
+									</qry:then>
+								</qry:if>
+							</qry:else>
+						</qry:if>
+					</qry:else>
+				</qry:if>
+			</qry:out>
+		</qry:select>
+	</html:query>
+</html:html>

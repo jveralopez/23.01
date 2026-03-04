@@ -1,0 +1,3361 @@
+<html:html xmlns:html="nomad_engine.html" xmlns:qry="nomad_engine.qry" xmlns:xsl="http://www.w3.org/1999/XSL/Transform" name="Evaluacion Base" doc="source">
+	<html:query declare="&lt;PARAMS mode=&quot;INSTANCE&quot; oi_instance=&quot;4996&quot; show=&quot;L0&quot; paso=&quot;123&quot; DEBUGETTY=&quot;001AA0E914F9-4EE6463C019B-00012FD810CF&quot; DEBUG=&quot;0&quot;/&gt;" name="qry_report">
+		<qry:main doc="SOURCE">
+			<INSTANCE>
+				<qry:attribute name="etty" value="$PROXY/@ETTY"/>
+				<qry:attribute name="ut" value="$PROXY/@TOKEN"/>
+				<qry:attribute name="admin" value="$PROXY/@ADMIN"/>
+				<qry:attribute name="mode" value="$SOURCE/PARAMS/@mode"/>
+				<qry:attribute name="show" value="iif($SOURCE/PARAMS/@show='','L0',$SOURCE/PARAMS/@show)"/>
+				<qry:switch test="@mode">
+					<qry:case value="SHOW">
+						<qry:attribute name="oi_instance" value="$SOURCE/PARAMS/@oi_instance"/>
+						<qry:insert-select name="INSTANCE" doc-path="."/>
+						<REPORTS>
+							<qry:insert-select name="REPORTS" doc-path="."/>
+						</REPORTS>
+					</qry:case>
+					<qry:case value="INSTANCE">
+						<qry:attribute name="oi_instance" value="$SOURCE/PARAMS/@oi_instance"/>
+						<qry:insert-select name="INSTANCE" doc-path="."/>
+						<qry:if test="estado/@c_estado_ej='E'">
+							<qry:then>
+								<qry:attribute name="l_delega" value="1"/>
+								<qry:insert-select name="DELEGA_ERROR" doc-path="."/>
+							</qry:then>
+						</qry:if>
+						<REPORTS>
+							<qry:insert-select name="REPORTS" doc-path="."/>
+						</REPORTS>
+						<qry:if test="@show='L0'">
+							<qry:then>
+								<THREADS>
+									<qry:insert-select name="THREADS" doc-path="$SOURCE/PARAMS"/>
+								</THREADS>
+							</qry:then>
+						</qry:if>
+						<qry:if test="@show='L1'">
+							<qry:then>
+								<LOGS>
+									<qry:insert-select name="LOGS" doc-path="."/>
+								</LOGS>
+							</qry:then>
+						</qry:if>
+					</qry:case>
+					<qry:case value="THREAD">
+						<qry:attribute name="oi_thread" value="$SOURCE/PARAMS/@oi_thread"/>
+						<qry:insert-select name="DELEGA" doc-path="."/>
+						<qry:insert-select name="THREAD" doc-path="."/>
+						<qry:insert-select name="INSTANCE" doc-path="."/>
+						<REPORTS>
+							<qry:insert-select name="REPORTS" doc-path="."/>
+						</REPORTS>
+						<ETAPAS>
+							<qry:insert-select name="ETAPAS" doc-path="."/>
+							<ETAPA>
+								<qry:attribute name="c_tipo" value="'IFO'"/>
+								<qry:attribute name="c_type" value="'INI'"/>
+								<qry:attribute name="d_entidad" value="../../OWNER/@d_owner"/>
+								<qry:attribute name="d_entidad_ayn" value="../../OWNER/@d_owner_ayn"/>
+								<qry:attribute name="f_accion" value="../../fecha-globales/@f_inicio2"/>
+								<qry:attribute name="d_label" value="'Inicio del Workflow'"/>
+							</ETAPA>
+						</ETAPAS>
+					</qry:case>
+					<qry:case value="THREAD-DETAIL">
+						<qry:attribute name="oi_thread" value="$SOURCE/PARAMS/@oi_thread"/>
+						<qry:insert-select name="THREAD" doc-path="."/>
+					</qry:case>
+					<qry:case value="FORM-DETAIL">
+						<qry:attribute name="oi_instance" value="$SOURCE/PARAMS/@oi_instance"/>
+						<qry:attribute name="oi_thread" value="$SOURCE/PARAMS/@oi_thread"/>
+						<qry:attribute name="oi_node" value="$SOURCE/PARAMS/@oi_node"/>
+						<!--<qry:attribute name="crc" value="nmd-crc(concat('PARAMS:file=NucleusWF.Base.Ejecucion.ConsolaInstancia.rpt|mode=FORM-DETAIL|oi_node=',@oi_node,'|oi_instance=',@oi_instance,'|oi_thread=',@oi_thread,'|debugetty=',@etty,'|debug='))"/>-->
+						<qry:insert-select name="FORM-DETAIL" doc-path="."/>
+					</qry:case>
+					<qry:case value="ROLE-DETAIL">
+						<qry:attribute name="oi_instance" value="$SOURCE/PARAMS/@oi_instance"/>
+						<qry:attribute name="oi_thread" value="$SOURCE/PARAMS/@oi_thread"/>
+						<qry:attribute name="c_rol" value="$SOURCE/PARAMS/@c_rol"/>
+						<qry:attribute name="l_delega" value="1"/>
+						<qry:insert-select name="DELEGA_ERROR" doc-path="."/>
+						<qry:insert-select name="ROLE-DETAIL" doc-path="."/>
+					</qry:case>
+					<qry:case value="MORE-LOG">
+						<qry:attribute name="start_oi_log" value="$SOURCE/PARAMS/@start_oi_log"/>
+						<qry:attribute name="oi_instance" value="$SOURCE/PARAMS/@oi_instance"/>
+						<LOGS>
+							<qry:insert-select name="LOGS" doc-path="."/>
+						</LOGS>
+					</qry:case>
+					<qry:case value="LOG-DETAIL">
+						<qry:attribute name="oi_log" value="$SOURCE/PARAMS/@oi_log"/>
+						<qry:insert-select name="LOG-DETAIL" doc-path="."/>
+					</qry:case>
+				</qry:switch>
+			</INSTANCE>
+		</qry:main>
+		<qry:select doc="SOURCE" name="THREAD">
+			<qry:xquery>
+				for $r in SQL('
+select           
+	I.oi_wf,
+	T.oi_instance,
+	T.oi_inst_child,
+	T.oi_thread,
+	T.oi_node,
+	T.f_inicio,
+	T.f_ejecucion,
+	T.f_advertencia,
+	T.f_vencimiento,
+	T.c_estado,
+	T.c_asign_rol,
+	T.d_asign_titulo,
+	T.d_asign_etty,
+	T.d_asign_ayn,
+	T.d_deleg_etty,
+	T.d_deleg_ayn,
+	T.o_deleg_coment,
+	N.d_label,
+	N.c_type
+from
+	wrk02_instances as I, wrk02_threads as T, wrk01_nodes as N
+join
+	I.oi_instance inner T.oi_instance,
+	N.oi_node inner T.oi_node
+where         
+	T.oi_thread={#SOURCE:@oi_thread}
+')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:attribute name="oi_instance" value="$r/@oi_instance"/>
+				<qry:attribute name="oi_inst_child" value="$r/@oi_inst_child"/>
+				<qry:attribute name="oi_wf" value="$r/@oi_wf"/>
+				<qry:attribute name="oi_node" value="$r/@oi_node"/>
+				<qry:attribute name="c_estado" value="$r/@c_estado"/>
+				<qry:attribute name="c_asign_rol" value="$r/@c_asign_rol"/>
+				<qry:attribute name="d_asign_titulo" value="$r/@d_asign_titulo"/>
+				<qry:attribute name="d_asign_etty" value="$r/@d_asign_etty"/>
+				<qry:attribute name="d_asign_ayn" value="$r/@d_asign_ayn"/>
+				<qry:attribute name="d_deleg_etty" value="$r/@d_deleg_etty"/>
+				<qry:attribute name="d_deleg_ayn" value="$r/@d_deleg_ayn"/>
+				<qry:attribute name="o_deleg_coment" value="$r/@o_deleg_coment"/>
+				<qry:attribute name="d_label" value="$r/@d_label"/>
+				<qry:attribute name="c_type" value="$r/@c_type"/>
+				<fecha-thread>
+					<qry:attribute name="f_inicio" value="format-date($r/@f_inicio,'dd/mm/yyyy&#160;HH:MM')"/>
+					<qry:attribute name="f_advertencia" value="format-date($r/@f_advertencia,'dd/mm/yyyy&#160;HH:MM')"/>
+					<qry:attribute name="f_vencimiento" value="format-date($r/@f_vencimiento,'dd/mm/yyyy&#160;HH:MM')"/>
+					<qry:attribute name="f_ejecucion" value="format-date($r/@f_ejecucion,'dd/mm/yyyy&#160;HH:MM')"/>
+					<qry:if test="$r/@f_vencimiento!='' and Now()&gt;DateTime($r/@f_vencimiento)">
+						<qry:then>
+							<qry:attribute name="AUX" value="Now()-DateTime($r/@f_vencimiento)"/>
+							<qry:attribute name="f_vencido-TIME" value="iif(number(@AUX)&gt;=1,floor(@AUX)+'d ','')"/>
+							<qry:attribute name="f_vencido-TIME" value="iif(@f_vencido-TIME='','',@f_vencido-TIME+'d ') + format_date(number(@AUX)-floor(@AUX),'HH:MM')"/>
+						</qry:then>
+					</qry:if>
+					<qry:if test="$r/@f_vencimiento!='' and Now()&lt;DateTime($r/@f_vencimiento)">
+						<qry:then>
+							<qry:attribute name="AUX" value="DateTime($r/@f_vencimiento)-Now()"/>
+							<qry:attribute name="f_vencimiento-TIME" value="iif(number(@AUX)&gt;=1,floor(@AUX)+'d ','')"/>
+							<qry:attribute name="f_vencimiento-TIME" value="iif(@f_vencimiento-TIME='','',@f_vencimiento-TIME+'d ') + format_date(number(@AUX)-floor(@AUX),'HH:MM')"/>
+						</qry:then>
+					</qry:if>
+					<qry:attribute name="flag" value="'green'"/>
+					<qry:if test="$r/@f_advertencia!='' and $r/@f_advertencia &lt; Now()">
+						<qry:then>
+							<qry:attribute name="flag" value="'yellow'"/>
+						</qry:then>
+					</qry:if>
+					<qry:if test="$r/@f_vencimiento!='' and $r/@f_vencimiento &lt; Now()">
+						<qry:then>
+							<qry:attribute name="flag" value="'red'"/>
+						</qry:then>
+					</qry:if>
+					<qry:if test="Now()&gt;DateTime($r/@f_ejecucion)">
+						<qry:then>
+							<qry:attribute name="AUX" value="Now()-DateTime($r/@f_ejecucion)"/>
+							<qry:attribute name="f_ejecucion-TIME" value="iif(number(@AUX)&gt;=1,floor(@AUX)+'d ','')"/>
+							<qry:attribute name="f_ejecucion-TIME" value="iif(@f_ejecucion-TIME='','',@f_ejecucion-TIME+'d ') + format_date(number(@AUX)-floor(@AUX),'HH:MM')"/>
+						</qry:then>
+					</qry:if>
+					<qry:switch test="$r/@c_estado">
+						<qry:case value="R">
+							<qry:if test="Now()&gt;DateTime($r/@f_ejecucion)+(1 div 24)">
+								<qry:then>
+									<qry:attribute name="f_ejecucion-ERROR" value="1"/>
+								</qry:then>
+							</qry:if>
+						</qry:case>
+						<qry:case value="WE">
+							<qry:if test="Now()&gt;DateTime($r/@f_ejecucion)+(5 div 1440)">
+								<qry:then>
+									<qry:attribute name="f_ejecucion-ERROR" value="1"/>
+								</qry:then>
+							</qry:if>
+						</qry:case>
+						<qry:case value="WX">
+							<qry:if test="Now()&gt;DateTime($r/@f_ejecucion)+(5 div 1440)">
+								<qry:then>
+									<qry:attribute name="f_ejecucion-ERROR" value="1"/>
+								</qry:then>
+							</qry:if>
+						</qry:case>
+						<qry:case value="WI">
+							<qry:if test="Now()&gt;DateTime($r/@f_ejecucion)+(5 div 1440)">
+								<qry:then>
+									<qry:attribute name="f_ejecucion-ERROR" value="1"/>
+								</qry:then>
+							</qry:if>
+						</qry:case>
+					</qry:switch>
+				</fecha-thread>
+				<form>
+					<qry:if test="$r/@c_type='FORM'">
+						<qry:then>
+							<qry:insert-select name="FORM" doc-path=".."/>
+						</qry:then>
+						<qry:else/>
+					</qry:if>
+				</form>
+			</qry:out>
+		</qry:select>
+		<qry:select doc="SOURCE" name="INSTANCE">
+			<qry:xquery>
+				for $r in SQL('
+select           
+I.oi_instance,
+I.d_instance,
+I.d_owner_ayn,
+I.d_owner_mail,
+I.d_owner_tel,
+I.d_owner_rol,
+I.c_estado_ej,
+I.c_estado_wf,
+I.f_inicio,
+I.f_advertencia,
+I.f_vencimiento,
+I.f_fin,
+I.e_pasos,
+W.oi_wf,
+W.d_wf
+from
+wrk02_instances as I,
+wrk01_wf as W
+join
+I.oi_wf inner W.oi_wf
+where         
+I.oi_instance={#SOURCE:@oi_instance}
+')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:attribute name="d_instance" value="translate(translate($r/@d_instance,' ','&#160;'),'-','&#160;')"/>
+				<qry:attribute name="d_wf" value="translate(translate($r/@d_wf,' ','&#160;'),'-','&#160;')"/>
+				<qry:attribute name="oi_wf" value="$r/@oi_wf"/>
+				<qry:attribute name="paso" value="$r/@e_pasos"/>
+				<owner>
+					<qry:attribute name="d_owner_ayn" value="$r/@d_owner_ayn"/>
+					<qry:attribute name="d_owner_mail" value="$r/@d_owner_mail"/>
+					<qry:attribute name="d_owner_tel" value="$r/@d_owner_tel"/>
+					<qry:attribute name="d_owner_rol" value="$r/@d_owner_rol"/>
+				</owner>
+				<estado>
+					<qry:attribute name="c_estado_ej" value="$r/@c_estado_ej"/>
+					<qry:attribute name="c_estado_wf" value="$r/@c_estado_wf"/>
+					<qry:attribute name="d_estado_wf" value="'Sin&#160;estado'"/>
+					<qry:attribute name="col_estado_wf" value="'FFFFFF'"/>
+					<qry:insert-select name="ESTADO" doc-path="."/>
+				</estado>
+				<fecha-globales>
+					<qry:attribute name="f_inicio" value="format-date($r/@f_inicio,'dd/mm/yyyy&#160;HH:MM')"/>
+					<qry:attribute name="f_inicio2" value="format-date($r/@f_inicio,'dd/mm/yyyy HH:MM')"/>
+					<qry:attribute name="f_advertencia" value="format-date($r/@f_advertencia,'dd/mm/yyyy&#160;HH:MM')"/>
+					<qry:attribute name="f_vencimiento" value="format-date($r/@f_vencimiento,'dd/mm/yyyy&#160;HH:MM')"/>
+					<qry:attribute name="f_fin" value="format-date($r/@f_fin,'dd/mm/yyyy&#160;HH:MM')"/>
+					<qry:attribute name="flag" value="'green'"/>
+					<qry:if test="$r/@f_advertencia!='' and $r/@f_advertencia &lt; Now()">
+						<qry:then>
+							<qry:attribute name="flag" value="'yellow'"/>
+						</qry:then>
+					</qry:if>
+					<qry:if test="$r/@f_vencimiento!='' and $r/@f_vencimiento &lt; Now()">
+						<qry:then>
+							<qry:attribute name="flag" value="'red'"/>
+						</qry:then>
+					</qry:if>
+				</fecha-globales>
+			</qry:out>
+		</qry:select>
+		<qry:select name="ESTADO" doc="SOURCE">
+			<qry:xquery>
+				for $r in SQL('
+select
+WE.c_estado,
+WE.d_estado,
+WE.c_color,
+WE.l_pause,
+WE.l_stop,
+WE.l_delete
+from
+wrk01_estados as WE
+where
+WE.oi_wf = {$SOURCE/../@oi_wf} and WE.c_estado={$SOURCE/@c_estado_wf}
+
+')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:attribute name="d_estado_wf" value="translate($r/@d_estado,' ','&#160;')"/>
+				<qry:attribute name="col_estado_wf" value="$r/@c_color"/>
+				<qry:attribute name="l_pause" value="$r/@l_pause"/>
+				<qry:attribute name="l_stop" value="$r/@l_stop"/>
+				<qry:attribute name="l_delete" value="$r/@l_delete"/>
+			</qry:out>
+		</qry:select>
+		<qry:select name="FORM" doc="SOURCE">
+			<qry:xquery>
+				for $r in SQL('
+select
+WF.d_form
+from
+wrk01_forms as WF,
+wrk01_nodes as WN
+join
+WF.c_form inner WN.d_param_1
+where
+WF.oi_wf = {$SOURCE/@oi_wf} and
+WN.oi_node = {$SOURCE/@oi_node}  
+
+')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:attribute name="d_form" value="$r/@d_form"/>
+			</qry:out>
+		</qry:select>
+		<qry:select name="THREADS" doc="SOURCE">
+			<qry:xquery>
+				for $r in SQL('
+select           
+	I.oi_wf,
+	T.oi_instance,
+	T.oi_inst_child,
+	T.oi_thread,
+	T.oi_node,
+	T.f_inicio,
+	T.f_ejecucion,
+	T.f_advertencia,
+	T.f_vencimiento,
+	T.c_estado,
+	T.c_asign_rol,
+	T.d_asign_titulo,
+	T.d_asign_etty,
+	T.d_asign_ayn,
+	T.d_deleg_etty,
+	T.d_deleg_ayn,
+	T.o_deleg_coment,
+	N.d_label,
+	N.c_type
+from
+	wrk02_instances as I, wrk02_threads as T, wrk01_nodes as N
+join
+	I.oi_instance inner T.oi_instance,
+	N.oi_node inner T.oi_node
+where         
+	T.oi_instance={iif($SOURCE/@oi_inst_child=\'\',$SOURCE/@oi_instance,$SOURCE/@oi_inst_child)} and
+	T.c_estado!=\'D\' and T.c_estado!=\'I\'
+')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<thread>
+					<qry:attribute name="oi_wf" value="$r/@oi_wf"/>
+					<qry:attribute name="oi_thread" value="$r/@oi_thread"/>
+					<qry:attribute name="oi_inst_child" value="$r/@oi_inst_child"/>
+					<qry:attribute name="c_estado" value="$r/@c_estado"/>
+					<qry:attribute name="c_asign_rol" value="$r/@c_asign_rol"/>
+					<qry:attribute name="d_asign_titulo" value="$r/@d_asign_titulo"/>
+					<qry:attribute name="d_asign_etty" value="$r/@d_asign_etty"/>
+					<qry:attribute name="d_asign_ayn" value="$r/@d_asign_ayn"/>
+					<qry:attribute name="d_deleg_etty" value="$r/@d_deleg_etty"/>
+					<qry:attribute name="d_deleg_ayn" value="$r/@d_deleg_ayn"/>
+					<qry:attribute name="o_deleg_coment" value="$r/@o_deleg_coment"/>
+					<qry:attribute name="d_label" value="$r/@d_label"/>
+					<qry:attribute name="c_type" value="$r/@c_type"/>
+					<qry:attribute name="f_inicio" value="format-date($r/@f_inicio,'dd/mm/yyyy HH:MM')"/>
+					<qry:attribute name="f_advertencia" value="format-date($r/@f_advertencia,'dd/mm/yyyy HH:MM')"/>
+					<qry:attribute name="f_vencimiento" value="format-date($r/@f_vencimiento,'dd/mm/yyyy HH:MM')"/>
+					<qry:attribute name="f_ejecucion" value="format-date($r/@f_ejecucion,'dd/mm/yyyy HH:MM')"/>
+					<qry:attribute name="flag" value="'green'"/>
+					<qry:if test="$r/@f_advertencia!='' and $r/@f_advertencia &lt; Now()">
+						<qry:then>
+							<qry:attribute name="flag" value="'yellow'"/>
+						</qry:then>
+					</qry:if>
+					<qry:if test="$r/@f_vencimiento!='' and $r/@f_vencimiento &lt; Now()">
+						<qry:then>
+							<qry:attribute name="flag" value="'red'"/>
+						</qry:then>
+					</qry:if>
+				</thread>
+				<qry:if test="$r/@oi_inst_child!=''">
+					<qry:then>
+						<qry:insert-select name="THREADS" doc-path="$r"/>
+					</qry:then>
+				</qry:if>
+			</qry:out>
+		</qry:select>
+		<qry:select name="ROLE-DETAIL" doc="SOURCE">
+			<qry:xquery>
+				for $r in SQL('
+select
+  T.oi_instance,
+  T.oi_thread,
+  U.c_rol,
+  U.d_etty
+from  
+WRK02_THREADS as T,
+WRK02_USERS as U
+join
+T.oi_thread inner U.oi_thread
+where
+U.l_resolve = 1 and
+U.f_resolve &lt; {Now()} and
+U.c_rol = {$SOURCE/@c_rol} and
+T.oi_thread = {$SOURCE/@oi_thread}
+
+')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<ENTIDAD>
+					<qry:attribute name="entidad" value="$r/@d_etty"/>
+					<qry:attribute name="rol" value="$r/@c_rol"/>
+				</ENTIDAD>
+			</qry:out>
+		</qry:select>
+		<qry:select name="REPORTS" doc="SOURCE">
+			<qry:xquery>
+				for $r in SQL('
+select           
+R.e_orden,
+R.o_text
+from
+wrk02_report as R
+where         
+R.oi_instance={$SOURCE/../@oi_instance}
+order by
+e_orden ASC
+')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<text>
+					<qry:attribute name="o_text" value="$r/@o_text"/>
+					<qry:attribute name="e_orden" value="$r/@e_orden"/>
+				</text>
+			</qry:out>
+		</qry:select>
+		<qry:select name="LOGS" doc="SOURCE">
+			<qry:xquery>
+				for $r in SQL('
+select           
+L.oi_log,
+L.c_tipo,
+L.oi_node,
+L.o_comentario,
+L.f_accion,
+N.c_type,
+E.oi_etapa
+from
+WRK02_LOGS as L,    
+WRK02_ETAPA as E, 
+WRK01_NODES as N
+join
+L.oi_node left outer N.oi_node,
+L.oi_log left outer E.oi_log
+
+where         
+L.oi_instance={$SOURCE/../@oi_instance}
+order by
+f_accion DESC, oi_log DESC
+')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:attribute name="show-log" value="iif($SOURCE/../@start_oi_log='',1,@show-log)"/>
+				<qry:attribute name="show-log" value="iif($SOURCE/../@start_oi_log=$r/@oi_log,1,@show-log)"/>
+				<qry:if test="@show-log='1'">
+					<qry:then>
+						<qry:attribute name="show-log" value="1"/>
+						<qry:attribute name="cnt" value="number(@cnt)+1"/>
+						<qry:attribute name="oi_log" value="iif(number(@cnt)=6,$r/@oi_log,@oi_log)"/>
+						<qry:if test="number(@cnt)&lt;=5">
+							<qry:then>
+								<LOG>
+									<qry:attribute name="oi_log" value="$r/@oi_log"/>
+									<qry:attribute name="oi_etapa" value="$r/@oi_etapa"/>
+									<qry:attribute name="c_tipo" value="$r/@c_tipo"/>
+									<qry:attribute name="c_type" value="$r/@c_type"/>
+									<qry:attribute name="oi_node" value="$r/@oi_node"/>
+									<qry:attribute name="f_accion" value="format-date($r/@f_accion,'dd/mm/yyyy HH:MM')"/>
+									<qry:attribute name="o_comentario" value="$r/@o_comentario"/>
+								</LOG>
+							</qry:then>
+						</qry:if>
+					</qry:then>
+					<qry:else>
+						<LOG>
+							<qry:attribute name="oi_log" value="$r/@oi_log"/>
+							<qry:attribute name="oi_etapa" value="$r/@oi_etapa"/>
+							<qry:attribute name="c_tipo" value="$r/@c_tipo"/>
+							<qry:attribute name="c_type" value="$r/@c_type"/>
+							<qry:attribute name="oi_node" value="$r/@oi_node"/>
+							<qry:attribute name="f_accion" value="format-date($r/@f_accion,'dd/mm/yyyy HH:MM')"/>
+							<qry:attribute name="o_comentario" value="$r/@o_comentario"/>
+						</LOG>
+					</qry:else>
+				</qry:if>
+			</qry:out>
+		</qry:select>
+		<qry:select name="LOG-DETAIL" doc="SOURCE">
+			<qry:xquery>
+				for $r in SQL('
+select           
+L.oi_log,
+L.c_tipo,
+L.oi_node,
+L.o_comentario,
+L.f_accion,
+N.c_type,
+E.f_inicio as ET_f_inicio,
+E.f_resolucion as ET_f_resolucion,
+E.d_entidad as ET_d_entidad,
+E.d_entidad_ayn as ET_d_entidad_ayn,
+E.o_coment as ET_o_coment
+from
+WRK02_LOGS as L,
+WRK02_ETAPA as E, 
+WRK01_NODES as N
+join
+L.oi_node left outer N.oi_node,
+L.oi_log inner E.oi_log
+where         
+L.oi_log={$SOURCE/@oi_log}
+')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<LOG>
+					<qry:attribute name="oi_log" value="$r/@oi_log"/>
+					<qry:attribute name="c_tipo" value="$r/@c_tipo"/>
+					<qry:attribute name="c_type" value="$r/@c_type"/>
+					<qry:attribute name="oi_node" value="$r/@oi_node"/>
+					<qry:attribute name="f_accion" value="format-date($r/@f_accion,'dd/mm/yyyy HH:MM')"/>
+					<qry:attribute name="o_comentario" value="$r/@o_comentario"/>
+				</LOG>
+				<ETAPA>
+					<qry:attribute name="f_inicio" value="format-date($r/@ET_f_inicio,'dd/mm/yyyy HH:MM')"/>
+					<qry:attribute name="f_resolucion" value="format-date($r/@ET_f_resolucion,'dd/mm/yyyy HH:MM')"/>
+					<qry:attribute name="d_entidad" value="$r/@ET_d_entidad"/>
+					<qry:attribute name="d_entidad_ayn" value="$r/@ET_d_entidad_ayn"/>
+					<qry:attribute name="o_coment" value="$r/@ET_o_coment"/>
+					<qry:attribute name="AUX" value="DateTime($r/@ET_f_resolucion)-DateTime($r/@ET_f_inicio)"/>
+					<qry:attribute name="f_resolucion-TIME" value="iif(number(@AUX)&gt;=1,floor(@AUX)+'d ','')"/>
+					<qry:attribute name="f_resolucion-TIME" value="iif(@f_resolucion-TIME='','',@f_resolucion-TIME+'d ') + format_date(number(@AUX)-floor(@AUX),'HH:MM')"/>
+				</ETAPA>
+			</qry:out>
+		</qry:select>
+		<qry:select name="ETAPAS" doc="SOURCE">
+			<qry:xquery>
+				for $r in SQL('
+select           
+L.oi_log,
+L.c_tipo,
+L.oi_node,
+L.o_comentario,
+L.f_accion,
+N.c_type, 
+N.d_label,
+E.oi_etapa,
+E.f_inicio as ET_f_inicio,
+E.f_resolucion as ET_f_resolucion,
+E.d_entidad as ET_d_entidad,
+E.d_entidad_ayn as ET_d_entidad_ayn,
+E.o_coment as ET_o_coment
+from
+WRK02_LOGS as L,    
+WRK02_ETAPA as E, 
+WRK01_NODES as N
+join
+L.oi_node left outer N.oi_node,
+L.oi_log inner E.oi_log
+where         
+L.oi_instance={$SOURCE/../@oi_instance}
+order by
+f_accion DESC, oi_log DESC
+')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<ETAPA>
+					<qry:attribute name="oi_log" value="$r/@oi_log"/>
+					<qry:attribute name="oi_etapa" value="$r/@oi_etapa"/>
+					<qry:attribute name="c_tipo" value="$r/@c_tipo"/>
+					<qry:attribute name="c_type" value="$r/@c_type"/>
+					<qry:attribute name="oi_node" value="$r/@oi_node"/>
+					<qry:attribute name="f_accion" value="format-date($r/@f_accion,'dd/mm/yyyy HH:MM')"/>
+					<qry:attribute name="o_comentario" value="$r/@o_comentario"/>
+					<qry:attribute name="f_inicio" value="format-date($r/@ET_f_inicio,'dd/mm/yyyy HH:MM')"/>
+					<qry:attribute name="f_resolucion" value="format-date($r/@ET_f_resolucion,'dd/mm/yyyy HH:MM')"/>
+					<qry:attribute name="d_entidad" value="$r/@ET_d_entidad"/>
+					<qry:attribute name="d_entidad_ayn" value="$r/@ET_d_entidad_ayn"/>
+					<qry:attribute name="o_coment" value="$r/@ET_o_coment"/>
+					<qry:attribute name="d_label" value="$r/@d_label"/>
+					<qry:attribute name="AUX" value="DateTime($r/@ET_f_resolucion)-DateTime($r/@ET_f_inicio)"/>
+					<qry:attribute name="f_resolucion-TIME" value="iif(number(@AUX)&gt;=1,floor(@AUX)+'d ','')"/>
+					<qry:attribute name="f_resolucion-TIME" value="iif(@f_resolucion-TIME='','',@f_resolucion-TIME+'d ') + format_date(number(@AUX)-floor(@AUX),'HH:MM')"/>
+				</ETAPA>
+			</qry:out>
+		</qry:select>
+		<qry:select name="FORM-DETAIL" doc="SOURCE">
+			<qry:xquery>
+				for $r in SQL('
+select
+WRN.c_resolver,
+WRN.c_rol,
+OA.d_role,
+OA.d_color
+from
+WRK01_WF as WF,
+WRK01_PROCESS as WP,
+WRK01_NODES as WN,
+WRK01_ROLES_NODE as WRN,
+
+WRK05_ORGANIGRAMAS as OG,
+WRK05_ORGANIGRAMAS as OP,
+WRK05_ROLES as OA
+join
+WF.oi_wf inner WP.oi_wf,
+WP.oi_process inner WN.oi_process,
+WN.oi_node inner WRN.oi_node,
+WF.oi_organigrama inner OG.oi_organigrama,
+OP.c_organigrama inner OG.c_organigrama, 
+OP.e_version inner OG.e_version_pub,
+OP.oi_organigrama inner OA.oi_organigrama,
+OA.c_role inner WRN.c_rol
+where                      
+OP.l_automatica=1 and
+WRN.c_resolver != \'NO\' and
+WRN.c_resolver != \'\' and
+IsNotNull(WRN.c_resolver) and
+WN.oi_node = {$SOURCE/@oi_node}  
+
+')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<ROLE>
+					<qry:attribute name="c_resolver" value="$r/@c_resolver"/>
+					<qry:attribute name="c_rol" value="$r/@c_rol"/>
+					<qry:attribute name="d_rol" value="$r/@d_role"/>
+					<qry:attribute name="c_color" value="$r/@d_color"/>
+				</ROLE>
+			</qry:out>
+		</qry:select>
+		<qry:select name="DELEGA" doc="SOURCE">
+			<qry:xquery>
+				for $r in SQL('
+
+select
+	T.oi_thread, N.c_rol, N.c_puede_deleg
+from
+	wrk02_threads as T,
+	wrk02_users as U,
+	WRK01_ROLES_NODE as N
+join
+	T.oi_thread inner U.oi_thread,
+	T.oi_node inner N.oi_node,
+	U.c_rol inner N.c_rol
+where
+	T.oi_thread={%= $SOURCE/@oi_thread %} and N.c_puede_deleg!=\'NO\'
+
+UNION
+
+select
+T.oi_thread, N.c_rol, N.c_puede_deleg
+from
+wrk02_threads as T,
+WRK01_ROLES_NODE as N
+join
+T.oi_node inner N.oi_node,
+T.c_asign_rol inner N.c_rol
+where
+T.oi_thread={%= $SOURCE/@oi_thread %} and N.c_puede_deleg!=\'NO\'
+
+')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:attribute name="l_delega" value="1"/>
+			</qry:out>
+		</qry:select>
+		<qry:select name="DELEGA_ERROR" doc="SOURCE">
+			<qry:xquery>
+				for $r in SQL('
+select
+T.oi_thread
+from
+wrk02_threads as T,wrk02_instances as I
+join
+T.oi_instance inner I.oi_instance
+
+where       
+I.c_estado_ej=\'E\' and
+T.c_estado=\'E\' and 
+T.oi_instance={%= $SOURCE/@oi_instance %}
+
+')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:attribute name="l_delega" value="0"/>
+			</qry:out>
+		</qry:select>
+	</html:query>
+	<html:xslt>
+		<xsl:template match="INSTANCE[@mode='INSTANCE' or @mode='THREAD'or @mode='SHOW']">
+			<html>
+				<head>
+					<style media="print">
+						.TABLE_HEAD
+{          
+table-layout:fixed;
+font-size: 7pt;
+font-family: Verdana;
+color: #000000;          
+border-collapse:collapse;
+width:100%;  
+height:100%;
+cursor:default;
+}
+					</style>
+					<style media="screen">
+						.TABLE_HEAD
+{          
+table-layout:fixed;
+font-size: 9px;
+font-family: Verdana;
+color: #000000;          
+border-collapse:collapse;
+width:100%;  
+height:100%;
+cursor:default;
+}
+					</style>
+					<style media="all">
+						BODY
+{
+background-color: #FFFFFF; 
+cursor: default;
+PADDING-RIGHT: 0px; 
+PADDING-LEFT: 0px; 
+PADDING-TOP: 0px; 
+PADDING-BOTTOM: 0px; 
+MARGIN: 0px; 
+BORDER-TOP-STYLE: none; 
+BORDER-RIGHT-STYLE: none; 
+BORDER-LEFT-STYLE: none; 
+BORDER-BOTTOM-STYLE: none; 
+}
+.DIV_HEAD
+{
+background-color: #FFFFFF;
+background-image:url(Skins/_Default/Images/Workflow/CONSOLE/title_back.gif);
+ 
+  border-top:1px solid #A0A0A0;
+border-bottom:1px solid #A0A0A0;
+border-collapse:collapse;
+
+width:100%;  
+height:30px;
+}
+.TABLE_HEAD_TD
+{               
+padding-left:3px;
+padding-right:3px;
+}
+.TABLE_HEAD_TD_BUTTONS
+{               
+padding-left:2px;
+padding-right:2px;
+}
+.TABLE_BODY
+{
+font-size: 9px;
+font-family: Verdana;
+color: #000000;          
+border-collapse:collapse;
+width:100%;  
+height:100%;
+cursor:default;
+}
+.DIV_BODY
+{
+background-color: #FFFFFF;
+
+border:none;
+border-collapse:collapse;
+
+width:100%;  
+height:100%;
+}
+.TABLE_THREAD
+{
+font-size: 9px;
+font-family: Verdana;
+color: #000000;          
+border-collapse:collapse;
+border:1px solid #A0A0A0;
+width:100%;  
+cursor:default;
+}               
+.TABLE_THREAD_TR
+{
+background-color: #FFFFFF;
+cursor:default;
+}               
+.TABLE_THREAD_TR_OVER
+{
+background-color: #F0F0FF;
+cursor:pointer;
+}               
+.TABLE_THREAD_TH
+{
+background-image:url(Skins/_Default/Images/Workflow/CONSOLE/title_back.gif);
+border:1px solid #E0E0E0;
+
+height:30px;
+text-align:left;
+padding-left:2px;
+padding-right:2px;
+}
+.TABLE_THREAD_TD
+{
+border:1px solid #E0E0E0;
+
+height:30px;    
+text-align:left;
+padding-left:2px;
+padding-right:2px;
+}
+.TABLE_DETAIL
+{
+font-size: 9px;
+font-family: Verdana;
+color: #000000;          
+border-collapse:collapse;
+border:none;
+width:100%;  
+cursor:default;
+}               
+.TABLE_DETAIL_TH
+{
+text-align:left;
+}               
+.TD_SEP_VERT
+{           
+width:20px;
+font-size:1px;
+border:none;
+border-right:1px solid #BBB;
+background-color:#FFFFFF; 
+cursor:default;  
+background-image:url(./Skins/_Default/Images/Panel/BackGroundRight.gif);
+}           
+.TD_SEP_VERT_HIDE
+{           
+width:20px;
+font-size:1px;
+border:none;
+background-color:#FFFFFF; 
+cursor:default;
+background-image:url(./Skins/_Default/Images/Panel/BackGroundRight.gif);
+}           
+
+
+.TD_SEP_HORZ
+{           
+height:5px;
+font-size:1px;
+border-top:1px solid #BBB;
+border-bottom:1px solid #BBB;
+background-color: #DDD; 
+cursor:ns-resize;
+}
+					</style>
+					<script src="./scripts/clsWikiObj.js">
+						X1
+					</script>
+					<script>
+						var SelectedMODE="TASK";
+
+function Replace(strin, strfnd, strrpl)
+{
+var strout="", lastpos;
+
+for (lastpos=0, pos=strin.indexOf(strfnd); pos!=-1; lastpos=pos+strfnd.length, pos=strin.indexOf(strfnd,lastpos))
+{                
+strout+=strin.substr(lastpos,pos-lastpos);
+strout+=strrpl;
+} 		
+strout+=strin.substr(lastpos);
+
+return strout;
+} 
+
+function GenerateWIKI(strin, parentPath)
+{
+var t,d,mode,mode2=0;
+var sections=new Array();
+var new_section=null;
+var mode="";
+var lineas="";
+var text;
+
+lineas=Replace(strin,"\r\n","\n").split("\n");
+
+for (t=0; t{#CHAR.LT#}lineas.length; t++)
+{
+mylin=lineas[t];
+
+x=0; mylintrim=mylin;
+while(mylintrim.length{#CHAR.GT#}0 {#CHAR.amp#}{#CHAR.amp#} mylintrim.charCodeAt(0){#CHAR.LT#}=32 {#CHAR.amp#}{#CHAR.amp#} mylintrim.charCodeAt(0){#CHAR.GT#}0) { mylintrim=mylintrim.substr(1); x++; }
+mylintrim=Trim(mylintrim)
+
+if (mode2!=0)
+{
+if (mylintrim=="{#CHAR.LT#}/code{#CHAR.GT#}") mode2=0;
+if (mylintrim=="{#CHAR.LT#}/file{#CHAR.GT#}") mode2=0;
+if (mylintrim=="{#CHAR.LT#}/nowiki{#CHAR.GT#}") mode2=0;
+}
+
+if (mode2!=0)
+text+=(text!=""?"\n":"")+mylin;
+
+if (mode2==0)
+{
+if (mylin.length==0)
+new_section=null;
+else
+{
+mode=1; //comun
+if (mylin.substr(0,2)=="  ")
+{
+	if ((mylintrim.substr(0,1)!="*") {#CHAR.amp#}{#CHAR.amp#} (mylintrim.substr(0,1)!="-")) mode=2; //CODE
+	                                                             else mode=3; //LISTA
+} else
+{
+	for (HeadMode=6; HeadMode{#CHAR.GT#}0; HeadMode--)
+		if ((mylin.substr(0,HeadMode+1)=="======".substr(0,HeadMode)+" ") {#CHAR.amp#}{#CHAR.amp#} (mylin.substr(mylin.length-(HeadMode+1),HeadMode+1)==" "+"======".substr(0,HeadMode)))
+			mode=4; //HEAD
+			
+	if (mylin.substr(0,4)=="----")
+		mode=6; //LINEA
+		
+	if (mylin.substr(0,1)=="{#CHAR.GT#}")
+		mode=8; //DIALOGO
+		
+	if ((mylin.substr(0,1)=="|") || (mylin.substr(0,1)=="^"))
+		mode=9; //TABLA
+}
+
+if (mode==1)
+{
+	if (mylintrim=="{#CHAR.LT#}code{#CHAR.GT#}")             { mode2= 2; text=""; continue; }
+	if (mylintrim.substr(0,6)=="{#CHAR.LT#}code ") { mode2= 2; text=""; continue; }
+	if (mylintrim=="{#CHAR.LT#}file{#CHAR.GT#}")             { mode2= 5; text=""; continue; }
+	if (mylintrim=="{#CHAR.LT#}nowiki{#CHAR.GT#}")           { mode2= 7; text=""; continue; }
+	
+	if (mylintrim=="{#CHAR.LT#}/nowiki{#CHAR.GT#}") 
+	{ 
+		mode=7; //CODE
+		mylintrim=text;
+	}
+	if (mylintrim=="{#CHAR.LT#}/code{#CHAR.GT#}") 
+	{ 
+		mode=2; //CODE
+		mylintrim=text;
+	}
+	if (mylintrim=="{#CHAR.LT#}/file{#CHAR.GT#}")
+	{ 
+		mode=5; //FILE
+		mylintrim=text;
+	}
+}
+
+//controlo que el modo anterior sea igual al actual
+if (new_section!=null)
+	if (new_section.mode!=mode) 
+		new_section=null; 
+		
+//creo el modo si este no existe
+if (new_section==null)
+{
+	new_section=new Object();
+	new_section.mode=mode;
+	new_section.HTML="";
+	new_section.Level=0;
+	new_section.Items=null;
+	new_section.Start=t;
+	new_section.End=t;
+	
+	sections[sections.length]=new_section;
+} else
+	new_section.End=t;
+	
+
+//Analizo los distintos modos
+switch(mode)
+{
+	case 1: //Texto WIKI
+		new_section.HTML+=WIKIEncode(t, x, mylintrim,'parent.Ctrl("'+this.m_ID+'").',"../images/Wiki/")+" ";
+	break;
+	case 7: //Texto NO WIKI
+		new_section.HTML+=HTMLEncode(mylintrim)+" "; 
+	break;
+
+	case 2: //Code
+	case 5: //File
+		new_section.HTML+=(new_section.HTML!=""?"{#CHAR.LT#}br/{#CHAR.GT#}":"")+HTMLEncode(mylintrim)+" ";
+	break;
+
+	case 10: //Nomad Code
+		new_section.HTML+=(new_section.HTML!=""?"\n":"")+mylintrim+" ";
+	break;
+
+	case 9: //Tabla
+		if (new_section.Items==null) new_section.Items=new Array();
+		new_section.Items[new_section.Items.length]=mylin;
+	break;
+	
+	case 8: //Dialogo
+		for (d=0; d{#CHAR.LT#}mylin.length {#CHAR.amp#}{#CHAR.amp#} mylin.substr(d,1)=='{#CHAR.GT#}'; d++);
+	
+		newItem=new Object();
+		newItem.spaces=d;
+		newItem.HTML  =WIKIEncode(t, d, Trim(mylin.substr(d)),'parent.Ctrl("'+this.m_ID+'").',"../images/Wiki/");
+		
+		//Agrego el Item
+		if (new_section.Items==null) new_section.Items=new Array();
+		new_section.Items[new_section.Items.length]=newItem;
+	break;
+
+	case 3: //Lista 
+		newItem=new Object();
+		newItem.spaces=mylin.indexOf(mylintrim);
+		newItem.mode  =mylintrim.substr(0,1);
+		newItem.HTML  =WIKIEncode(t, newItem.spaces+1, mylintrim.substr(1),'parent.Ctrl("'+this.m_ID+'").',"../images/Wiki/");
+		
+		//Agrego el Item
+		if (new_section.Items==null) new_section.Items=new Array();
+		new_section.Items[new_section.Items.length]=newItem;
+	break;
+	
+	case 4: //Cabezera
+		for (HeadMode=6; HeadMode{#CHAR.GT#}0; HeadMode--)
+			if ((mylin.substr(0,HeadMode+1)=="======".substr(0,HeadMode)+" ") {#CHAR.amp#}{#CHAR.amp#} (mylin.substr(mylin.length-(HeadMode+1),HeadMode+1)==" "+"======".substr(0,HeadMode)))
+			{
+				new_section.Level=(7-HeadMode);
+				new_section.HTML+=WIKIEncode(t, HeadMode+1, mylin.substr(HeadMode+1,mylin.length-(HeadMode+1)*2),'parent.Ctrl("'+this.m_ID+'").',"../images/Wiki/")+" ";
+			}
+		new_section=null;
+	break;
+	
+	case 6: //LINEA
+	break;
+}
+
+}
+}
+}
+
+///////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// Genero el HTML
+var HTMLresult="{#CHAR.LT#}div class='dokuwiki'{#CHAR.GT#}";
+var section,Niveles,n,d,Item,newNivel, divLevel=0, linStart=0;
+
+for (t=0; t{#CHAR.LT#}sections.length; t++)
+{
+section=sections[t];
+switch(section.mode)
+{
+case 1: //Texto WIKI
+case 7: //Texto NO WIKI
+	HTMLresult+="{#CHAR.LT#}p{#CHAR.GT#}"+section.HTML+"{#CHAR.LT#}/p{#CHAR.GT#}";
+break;
+
+case 2: //Code
+	HTMLresult+="{#CHAR.LT#}pre class='code' {#CHAR.GT#}"+section.HTML+"{#CHAR.LT#}/pre{#CHAR.GT#}";  
+break;
+
+case 5: //File
+	HTMLresult+="{#CHAR.LT#}pre class='file' {#CHAR.GT#}"+section.HTML+"{#CHAR.LT#}/pre{#CHAR.GT#}";  
+break;
+
+case 9: //Tabla
+	HTMLresult+="{#CHAR.LT#}table class='inline' {#CHAR.GT#}";  
+	for (d=0; d{#CHAR.LT#}section.Items.length; d++)
+	{
+		HTMLresult+="{#CHAR.LT#}tr{#CHAR.GT#}";
+		 
+		Item=section.Items[d];
+		
+		x=0;
+		while (Item.length{#CHAR.GT#}1)
+		{
+			if (Item.substr(0,1)=="^") mode=1;
+			if (Item.substr(0,1)=="|") mode=0;
+			
+			Item=Item.substr(1); mylin=""; x++; x2=x;
+			while (Item.substr(0,1)!="|" {#CHAR.amp#}{#CHAR.amp#} Item.substr(0,1)!="^" {#CHAR.amp#}{#CHAR.amp#} Item.length{#CHAR.GT#}0)
+			{
+				mylin+=Item.substr(0,1); Item=Item.substr(1); x++;
+			}
+			
+			count=0;
+			while ((Item.substr(count,1)=="|" || Item.substr(count,1)=="^") {#CHAR.amp#}{#CHAR.amp#} Item.length{#CHAR.GT#}count) count++;
+			if (count) { Item=Item.substr(count-1); x+=count-1; }
+			
+			HTMLresult+=mode?"{#CHAR.LT#}th":"{#CHAR.LT#}td";
+			if (count{#CHAR.GT#}1) HTMLresult+=" colspan='"+count+"' ";        
+			if (mylin.substr(0,1)!=" ") HTMLresult+=" class='leftalign' "; else
+			if (mylin.substr(mylin.length-1,1)!=" ") HTMLresult+=" class='rightalign' "; else
+			if (mylin.substr(0,2)=="  ") HTMLresult+=" align='centeralign' ";
+			
+			while(mylin.length{#CHAR.GT#}0 {#CHAR.amp#}{#CHAR.amp#} mylin.charCodeAt(0){#CHAR.LT#}=32 {#CHAR.amp#}{#CHAR.amp#} mylin.charCodeAt(0){#CHAR.GT#}0) { mylin=mylin.substr(1); x2++; }
+			
+			HTMLresult+="{#CHAR.GT#}";
+			HTMLresult+=WIKIEncode(section.Start+d, x2, Trim(mylin),'parent.Ctrl("'+this.m_ID+'").',"../images/Wiki/");
+			HTMLresult+=mode?"{#CHAR.LT#}/th{#CHAR.GT#}":"{#CHAR.LT#}/td{#CHAR.GT#}";
+			
+		}
+		
+		HTMLresult+="{#CHAR.LT#}/tr{#CHAR.GT#}";  
+	}
+	HTMLresult+="{#CHAR.LT#}/table{#CHAR.GT#}";  
+break;
+
+case 3: //Lista
+	Niveles=new Array();
+	for (d=0; d{#CHAR.LT#}section.Items.length; d++)
+	{
+		Item=section.Items[d];
+		
+		newNivel=null;
+		for (n=0; n{#CHAR.LT#}Niveles.length; n++)
+		{
+			if (Niveles[n].spaces{#CHAR.GT#}Item.spaces)
+			{
+				while (Niveles.length{#CHAR.GT#}n)
+				{
+					if (Niveles[Niveles.length-1].mode=="*") HTMLresult+="{#CHAR.LT#}/ul{#CHAR.GT#}";
+					if (Niveles[Niveles.length-1].mode=="-") HTMLresult+="{#CHAR.LT#}/ol{#CHAR.GT#}";
+					Niveles.length--;
+				}
+			} else
+			if (Niveles[n].spaces==Item.spaces)
+				newNivel=Niveles[n];
+		}
+		
+		if (newNivel==null)
+		{
+			Niveles[Niveles.length]=newNivel=Item;
+			if (newNivel.mode=="*") HTMLresult+="{#CHAR.LT#}ul{#CHAR.GT#}";
+			if (newNivel.mode=="-") HTMLresult+="{#CHAR.LT#}ol{#CHAR.GT#}";
+		}
+		HTMLresult+="{#CHAR.LT#}li{#CHAR.GT#}{#CHAR.LT#}div class='li'{#CHAR.GT#}"+Item.HTML+"{#CHAR.LT#}/div{#CHAR.GT#}{#CHAR.LT#}/li{#CHAR.GT#}";
+	}
+	while (Niveles.length{#CHAR.GT#}0)
+	{   
+		if (Niveles[Niveles.length-1].mode=="*") HTMLresult+="{#CHAR.LT#}/ul{#CHAR.GT#}";
+		if (Niveles[Niveles.length-1].mode=="-") HTMLresult+="{#CHAR.LT#}/ol{#CHAR.GT#}";
+		Niveles.length--;
+	}
+
+break;
+
+case 8: //Dialogo 
+	Niveles=0;
+	
+	for (d=0; d{#CHAR.LT#}section.Items.length; d++)
+	{
+		Item=section.Items[d];
+
+		while(Niveles{#CHAR.GT#}Item.spaces)
+		{
+				HTMLresult+="{#CHAR.LT#}/div{#CHAR.GT#}{#CHAR.LT#}/blockquote{#CHAR.GT#}";
+				Niveles--;
+		}
+		
+		while(Niveles{#CHAR.LT#}Item.spaces)
+		{
+				HTMLresult+="{#CHAR.LT#}blockquote{#CHAR.GT#}{#CHAR.LT#}div class='no'{#CHAR.GT#}";
+				Niveles++;
+		}
+		HTMLresult+=Item.HTML;
+	}
+	
+	while (Niveles{#CHAR.GT#}0)
+	{   
+		HTMLresult+="{#CHAR.LT#}/div{#CHAR.GT#}{#CHAR.LT#}/blockquote{#CHAR.GT#}";
+		Niveles--;
+	}
+break;
+
+case 4: //Cabecera
+	if (divLevel!=0) HTMLresult+="{#CHAR.LT#}/div{#CHAR.GT#}{#CHAR.LT#}/div{#CHAR.GT#}";
+	divLevel=section.Level;
+	linStart=section.Start;
+	HTMLresult+="{#CHAR.LT#}div class='secedit' {#CHAR.GT#}";
+	HTMLresult+="{#CHAR.LT#}H"+divLevel+"{#CHAR.GT#}"+section.HTML+"{#CHAR.LT#}/H"+divLevel+"{#CHAR.GT#}";
+	HTMLresult+="{#CHAR.LT#}div class='level"+divLevel+"' {#CHAR.GT#}";
+break;
+
+case 6: //Linea
+	HTMLresult+="{#CHAR.LT#}hr/{#CHAR.GT#}";
+break;
+}
+}
+
+if (divLevel!=0) HTMLresult+="{#CHAR.LT#}/div{#CHAR.GT#}{#CHAR.LT#}/div{#CHAR.GT#}";
+HTMLresult+="{#CHAR.LT#}/div{#CHAR.GT#}";
+
+
+return HTMLresult;
+}
+
+function amp()
+{
+return String.fromCharCode(38);
+}
+
+function eventClickOnPlay()
+{
+var obj=document.getElementById("DIV_HEAD");
+var oi_instance=obj.getAttribute("nmd-instance");
+parent.NomadTimeout("ClickPlay("+oi_instance+");",10,"Continuar...");
+}
+
+function eventClickOnPause()
+{
+var obj=document.getElementById("DIV_HEAD");
+var oi_instance=obj.getAttribute("nmd-instance");
+parent.NomadTimeout("ClickPause("+oi_instance+");",10,"Pausar...");
+}
+
+function eventClickOnStop()
+{
+var obj=document.getElementById("DIV_HEAD");
+var oi_instance=obj.getAttribute("nmd-instance");
+parent.NomadTimeout("ClickStop("+oi_instance+");",10,"Deteniendo...");
+}
+
+function eventClickOnDelete()
+{
+var obj=document.getElementById("DIV_HEAD");
+var oi_instance=obj.getAttribute("nmd-instance");
+parent.NomadTimeout("ClickDelete("+oi_instance+");",10,"Eliminando...");
+}                          
+
+function eventClickOnRetry()
+{
+var obj=document.getElementById("DIV_HEAD");
+var oi_instance=obj.getAttribute("nmd-instance");
+parent.NomadTimeout("ClickRetry("+oi_instance+");",10,"Reintentando...");
+}                          
+
+function eventClickOnIgnore()
+{
+var obj=document.getElementById("DIV_HEAD");
+var oi_instance=obj.getAttribute("nmd-instance");
+parent.NomadTimeout("ClickIgnore("+oi_instance+");",10,"Ignorando el Paso...");
+}                          
+
+function eventClickOnSetError(oi_thread)
+{
+var obj=document.getElementById("DIV_HEAD");
+var oi_instance=obj.getAttribute("nmd-instance");
+parent.NomadTimeout("ClickSetError("+oi_instance+", "+oi_thread+");",10,"Marcando con ERROR...");
+}                          
+
+function eventClickOnDelega()
+{
+var obj=document.getElementById("DIV_HEAD");
+var oi_thread=obj.getAttribute("nmd-thread");
+var oi_node=obj.getAttribute("nmd-node");
+var paso=obj.getAttribute("nmd-paso");
+	parent.NomadTimeout("ClickDelega("+oi_thread+", "+oi_node+", "+paso+");",10,"Delegando...");
+}              
+
+function eventClickOnAssign(oi_thread)
+{
+var obj=document.getElementById("DIV_HEAD");
+var paso=obj.getAttribute("nmd-paso");
+parent.NomadTimeout("ClickAsign("+oi_thread+", "+paso+");",10,"Asignando...");
+}              
+
+function eventClickOnResolve()
+{
+var obj=document.getElementById("DIV_HEAD");
+var oi_thread=obj.getAttribute("nmd-thread");
+var oi_node=obj.getAttribute("nmd-node");
+parent.NomadTimeout("ClickResolve("+oi_thread+", "+oi_node+");",10,"Resolviendo...");
+}             
+
+function eventClickShowInstance(oi_instance)
+{ 
+	parent.ShowInstance(oi_instance, 0);
+}             
+
+function SetHTML(controlName, txt)
+{
+var obj;
+
+//Agrego el HTML
+obj=document.getElementById(controlName);
+obj.innerHTML=txt;
+}
+
+
+function ShowThreadDetail(obj)
+{                       
+var oi_thread=obj.getAttribute("nmd-thread");
+var objTR, objI;
+
+objTR=document.getElementById("TR_THREAD_DETAIL_"+oi_thread);
+if (objTR.style.display=="") 
+objTR.style.display="none";
+else 
+{
+objTR.style.display="";
+objI=document.getElementById("backLoad");    
+var crc = parent.CRC32("PARAMS:file=NucleusWF.Base.Ejecucion.ConsolaInstancia.rpt|mode=THREAD-DETAIL|oi_thread="+oi_thread+"|debugetty="+objI.getAttribute("nmd-etty")+"|debug="+objI.getAttribute("nmd-debug"));    
+objI.src="ReportViewer.aspx?file=NucleusWF.Base.Ejecucion.ConsolaInstancia.rpt"+amp()+"mode=THREAD-DETAIL"+amp()+"ut="+objI.getAttribute("nmd-ut")+amp()+"oi_thread="+oi_thread+amp()+"debugetty="+objI.getAttribute("nmd-etty")+amp()+"debug="+objI.getAttribute("nmd-debug")+amp()+"crc="+crc;
+}
+} 
+
+function ShowFormDetail(obj)
+{                       
+var oi_node=obj.getAttribute("nmd-node");
+var oi_instance=obj.getAttribute("nmd-instance");
+var oi_thread=obj.getAttribute("nmd-thread");
+var objTR, objI, objIMG;
+
+
+objTR=document.getElementById("TR_FORM_DETAIL_"+oi_node);
+if (objTR.style.display=="") 
+{
+objTR.style.display="none";                             
+
+objIMG=document.getElementById("TR_FORM_DETAIL_PLUS_"+oi_node);
+objIMG.style.display="";
+
+objIMG=document.getElementById("TR_FORM_DETAIL_MINUS_"+oi_node);
+objIMG.style.display="none";
+} else 
+{
+objTR.style.display="";
+objI=document.getElementById("backLoad"); 
+var crc = parent.CRC32("PARAMS:file=NucleusWF.Base.Ejecucion.ConsolaInstancia.rpt|mode=FORM-DETAIL|oi_node="+oi_node+"|oi_instance="+oi_instance+"|oi_thread="+oi_thread+"|debugetty="+objI.getAttribute("nmd-etty")+"|debug="+objI.getAttribute("nmd-debug"));    
+objI.src="ReportViewer.aspx?file=NucleusWF.Base.Ejecucion.ConsolaInstancia.rpt"+amp()+"mode=FORM-DETAIL"+amp()+"ut="+objI.getAttribute("nmd-ut")+amp()+"oi_node="+oi_node+amp()+"oi_instance="+oi_instance+amp()+"oi_thread="+oi_thread+amp()+"debugetty="+objI.getAttribute("nmd-etty")+amp()+"debug="+objI.getAttribute("nmd-debug")+amp()+"crc="+crc;
+
+objIMG=document.getElementById("TR_FORM_DETAIL_PLUS_"+oi_node);
+objIMG.style.display="none";
+
+objIMG=document.getElementById("TR_FORM_DETAIL_MINUS_"+oi_node);
+objIMG.style.display="";
+}
+}
+
+function ShowRoleDetail(obj)
+{
+var objDIV=document.getElementById("DIV_HEAD");
+
+var c_rol=obj.getAttribute("nmd-rol");
+var oi_instance=obj.getAttribute("nmd-instance");
+var oi_thread=obj.getAttribute("nmd-thread");
+var objTR, objI, objIMG;
+
+
+objTR=document.getElementById("TR_ROLE_DETAIL_"+c_rol);
+if (objTR.style.display=="") 
+{
+objTR.style.display="none";                             
+
+objIMG=document.getElementById("TR_ROLE_DETAIL_PLUS_"+c_rol);
+objIMG.style.display="";
+
+objIMG=document.getElementById("TR_ROLE_DETAIL_MINUS_"+c_rol);
+objIMG.style.display="none";
+} else 
+{
+objTR.style.display="";        
+
+objI=document.getElementById("backLoad");   
+var crc = parent.CRC32("PARAMS:file=NucleusWF.Base.Ejecucion.ConsolaInstancia.rpt|mode=ROLE-DETAIL|c_rol="+c_rol+"|oi_instance="+oi_instance+"|oi_thread="+oi_thread+"|debugetty="+objI.getAttribute("nmd-etty")+"|debug="+objI.getAttribute("nmd-debug"));    
+objI.src="ReportViewer.aspx?file=NucleusWF.Base.Ejecucion.ConsolaInstancia.rpt"+amp()+"mode=ROLE-DETAIL"+amp()+"ut="+objI.getAttribute("nmd-ut")+amp()+"c_rol="+c_rol+amp()+"oi_instance="+oi_instance+amp()+"oi_thread="+oi_thread+amp()+"debugetty="+objI.getAttribute("nmd-etty")+amp()+"debug="+objI.getAttribute("nmd-debug")+amp()+"crc="+crc;
+
+objIMG=document.getElementById("TR_ROLE_DETAIL_PLUS_"+c_rol);
+objIMG.style.display="none";
+
+objIMG=document.getElementById("TR_ROLE_DETAIL_MINUS_"+c_rol);
+objIMG.style.display="";
+}
+}
+
+function ShowLogDetail(obj)
+{
+var oi_log=obj.getAttribute("nmd-log");
+
+var objDIV=document.getElementById("DIV_HEAD");     
+var oi_instance=objDIV.getAttribute("nmd-instance");
+
+objTR=document.getElementById("LOG_DETAIL_"+oi_log);
+if (objTR.style.display=="") 
+{
+objTR.style.display="none";                             
+} else 
+{
+objTR.style.display="";        
+
+objI=document.getElementById("backLoad");    
+var crc = parent.CRC32("PARAMS:file=NucleusWF.Base.Ejecucion.ConsolaInstancia.rpt|mode=LOG-DETAIL|oi_instance="+oi_instance+"|oi_log="+oi_log+"|debugetty="+objI.getAttribute("nmd-etty")+"|debug="+objI.getAttribute("nmd-debug"));    
+
+objI.src="ReportViewer.aspx?file=NucleusWF.Base.Ejecucion.ConsolaInstancia.rpt"+amp()+"mode=LOG-DETAIL"+amp()+"ut="+objI.getAttribute("nmd-ut")+amp()+"oi_instance="+oi_instance+amp()+"oi_log="+oi_log+amp()+"debugetty="+objI.getAttribute("nmd-etty")+amp()+"debug="+objI.getAttribute("nmd-debug")+amp()+"crc="+crc;
+}
+}  
+
+function ShowExternLog(obj)
+{
+var errID=obj.getAttribute("nmd-err");
+var nmdUT=document.getElementById("backLoad").getAttribute("nmd-ut");   
+var crc = parent.CRC32("PARAMS:file=Nomad.Base.ERROR.rpt|id="+errID);    
+
+window.open("ReportViewer.aspx?ut="+nmdUT+""+amp()+"file=Nomad.Base.ERROR.rpt"+amp()+"id="+errID+amp()+"crc="+crc);
+
+}
+
+function ResizeHORZ()
+{
+parent.ResizeHORZ();
+}
+
+function ResizeVERT()
+{
+parent.ResizeVERT();
+}
+
+function ShowMoreLog(obj)
+{
+var oi_log=obj.getAttribute("nmd-log");        
+
+var objDIV=document.getElementById("DIV_HEAD");     
+var oi_instance=objDIV.getAttribute("nmd-instance");
+
+objI=document.getElementById("backLoad");    
+var crc = parent.CRC32("PARAMS:file=NucleusWF.Base.Ejecucion.ConsolaInstancia.rpt|mode=MORE-LOG|oi_instance="+oi_instance+"|start_oi_log="+oi_log+"|debugetty="+objI.getAttribute("nmd-etty")+"|debug="+objI.getAttribute("nmd-debug"));    
+
+objI.src="ReportViewer.aspx?file=NucleusWF.Base.Ejecucion.ConsolaInstancia.rpt"+amp()+"mode=MORE-LOG"+amp()+"ut="+objI.getAttribute("nmd-ut")+amp()+"oi_instance="+oi_instance+amp()+"start_oi_log="+oi_log+amp()+"debugetty="+objI.getAttribute("nmd-etty")+amp()+"debug="+objI.getAttribute("nmd-debug")+amp()+"crc="+crc;
+}    
+ 
+function Refresh()
+{                                      
+parent.RefreshReport();
+}                   
+
+function Ctrl()
+{                                      
+return new ObjWiki();
+}                   
+
+function ObjWiki()
+{
+this.GetWikiText=function()
+{
+  var t;       
+  var obj;
+  var str="";
+  
+t=0;
+do     
+{
+obj=document.getElementById("TXT_"+t);
+if (obj) str+=obj.value;
+t++;
+} while (obj);
+
+return GenerateWIKI(str,"XXX");
+}
+}
+					</script>
+				</head>
+				<body scroll="no" style="height:100%;width:100%;">
+					<table CELLPADDING="0" CELLSPACING="0" style="table-layout:fixed;border-collapse:collapse;height:100%;width:100%;">
+						<xsl:choose>
+							<xsl:when test="@mode='SHOW'">
+								<col/>
+							</xsl:when>
+							<xsl:when test="@show='L0'">
+								<col/>
+								<col width="20px"/>
+								<col width="300px"/>
+								<col width="20px"/>
+							</xsl:when>
+							<xsl:when test="@show='L1'">
+								<col/>
+								<col width="20px"/>
+								<col width="300px"/>
+							</xsl:when>
+							<xsl:otherwise>
+								<col/>
+								<col width="20px"/>
+							</xsl:otherwise>
+						</xsl:choose>
+						<tr height="30px">
+							<td>
+								<xsl:choose>
+									<xsl:when test="@mode='SHOW'"/>
+									<xsl:when test="@show='L0'">
+										<xsl:attribute name="colspan">
+											4
+										</xsl:attribute>
+									</xsl:when>
+									<xsl:when test="@show='L1'">
+										<xsl:attribute name="colspan">
+											3
+										</xsl:attribute>
+									</xsl:when>
+									<xsl:otherwise>
+										<xsl:attribute name="colspan">
+											2
+										</xsl:attribute>
+									</xsl:otherwise>
+								</xsl:choose>
+								<div class="DIV_HEAD" id="DIV_HEAD" name="DIV_HEAD">
+									<xsl:attribute name="nmd-instance">
+										<xsl:value-of select="@oi_instance"/>
+									</xsl:attribute>
+									<xsl:attribute name="nmd-thread">
+										<xsl:value-of select="@oi_thread"/>
+									</xsl:attribute>
+									<xsl:attribute name="nmd-node">
+										<xsl:value-of select="@oi_node"/>
+									</xsl:attribute>
+									<xsl:attribute name="nmd-show">
+										<xsl:value-of select="@show"/>
+									</xsl:attribute>
+									<xsl:attribute name="nmd-paso">
+										<xsl:value-of select="@paso"/>
+									</xsl:attribute>
+									<table CELLPADDING="0" CELLSPACING="0" class="TABLE_HEAD" border="0">
+										<xsl:if test="@mode!='SHOW'">
+											<col width="50px"/>
+											<col/>
+											<col width="200px"/>
+											<col width="160px"/>
+											<col width="100px"/>
+											<xsl:if test="@mode='INSTANCE'">
+												<col width="20px"/>
+												<col width="20px"/>
+												<col width="20px"/>
+												<col width="20px"/>
+											</xsl:if>
+											<xsl:if test="@mode='THREAD'">
+												<col width="20px"/>
+												<xsl:if test="@l_delega='1'">
+													<col width="20px"/>
+												</xsl:if>
+											</xsl:if>
+											<xsl:if test="estado/@c_estado_ej='E' and @l_delega='0'">
+												<col width="20px"/>
+												<col width="20px"/>
+											</xsl:if>
+											<col width="20px"/>
+										</xsl:if>
+										<xsl:if test="@mode='SHOW'">
+											<col width="50pt"/>
+											<col/>
+											<col width="160pt"/>
+											<col width="120pt"/>
+											<col width="90pt"/>
+										</xsl:if>
+										<tr>
+											<td class="TABLE_HEAD_TD" style="text-align:center;valign:middle;">
+												<img>
+													<xsl:attribute name="src">
+														<xsl:choose>
+															<xsl:when test="estado/@c_estado_ej='R'">
+																<xsl:if test="@mode='THREAD'">
+																	<xsl:value-of select="concat('Skins/_Default/Images/Workflow/CONSOLE/flag_',fecha-thread/@flag,'.gif')"/>
+																</xsl:if>
+																<xsl:if test="@mode='INSTANCE' or @mode='SHOW'">
+																	<xsl:value-of select="concat('Skins/_Default/Images/Workflow/CONSOLE/flag_',fecha-globales/@flag,'.gif')"/>
+																</xsl:if>
+															</xsl:when>
+															<xsl:when test="estado/@c_estado_ej='F'">
+																Skins/_Default/Images/Workflow/CONSOLE/accept.gif
+															</xsl:when>
+															<xsl:when test="estado/@c_estado_ej='S'">
+																Skins/_Default/Images/Workflow/CONSOLE/cancel.gif
+															</xsl:when>
+															<xsl:when test="estado/@c_estado_ej='E'">
+																Skins/_Default/Images/Workflow/CONSOLE/error.gif
+															</xsl:when>
+															<xsl:when test="estado/@c_estado_ej='P'">
+																Skins/_Default/Images/Workflow/CONSOLE/pause.gif
+															</xsl:when>
+														</xsl:choose>
+													</xsl:attribute>
+												</img>
+											</td>
+											<td class="TABLE_HEAD_TD" style="font-weight:bold;">
+												<xsl:value-of select="@d_wf"/>
+											</td>
+											<td class="TABLE_HEAD_TD">
+												<b>
+													Due&#241;o:&#160;
+												</b>
+												<xsl:value-of select="owner/@d_owner_ayn"/>
+											</td>
+											<td class="TABLE_HEAD_TD">
+												<xsl:if test="@mode='THREAD'">
+													<b>
+														Asignaci&#243;n:&#160;
+													</b>
+													<xsl:value-of select="fecha-thread/@f_ejecucion"/>
+												</xsl:if>
+												<xsl:if test="@mode='INSTANCE'or @mode='SHOW'">
+													<b>
+														Inicio:&#160;
+													</b>
+													<xsl:value-of select="fecha-globales/@f_inicio"/>
+												</xsl:if>
+											</td>
+											<td class="TABLE_HEAD_TD" style="text-align:center;padding-top:2px;padding-left:40px;padding-right:40px;">
+												<div>
+													<xsl:attribute name="style">
+														<xsl:value-of select="concat('border:1px solid black;left:0px;right:0px;background-color:#',estado/@col_estado_wf,';')"/>
+													</xsl:attribute>
+													&#160;
+												</div>
+											</td>
+											<xsl:if test="@mode='INSTANCE'">
+												<xsl:choose>
+													<xsl:when test="estado/@c_estado_ej='R'">
+														<td class="TABLE_HEAD_TD_BUTTONS" rowspan="2">
+															<img src="Skins/_Default/Images/Workflow/CONSOLE/play_d.gif" title="Despausar/Continuar"/>
+														</td>
+														<xsl:if test="estado/@l_pause=1">
+															<td class="TABLE_HEAD_TD_BUTTONS" rowspan="2">
+																<img src="Skins/_Default/Images/Workflow/CONSOLE/pause.gif" title="Pausar" onclick="eventClickOnPause();" style="cursor:pointer;"/>
+															</td>
+														</xsl:if>
+														<xsl:if test="estado/@l_pause=0">
+															<td class="TABLE_HEAD_TD_BUTTONS" rowspan="2">
+																<img src="Skins/_Default/Images/Workflow/CONSOLE/pause_d.gif" title="Pausar"/>
+															</td>
+														</xsl:if>
+														<xsl:if test="estado/@l_stop=1">
+															<td class="TABLE_HEAD_TD_BUTTONS" rowspan="2">
+																<img src="Skins/_Default/Images/Workflow/CONSOLE/stop.gif" title="Terminar" onclick="eventClickOnStop();" style="cursor:pointer;"/>
+															</td>
+														</xsl:if>
+														<xsl:if test="estado/@l_stop=0">
+															<td class="TABLE_HEAD_TD_BUTTONS" rowspan="2">
+																<img src="Skins/_Default/Images/Workflow/CONSOLE/stop_d.gif" title="Terminar"/>
+															</td>
+														</xsl:if>
+														<xsl:if test="estado/@l_delete=1">
+															<td class="TABLE_HEAD_TD_BUTTONS" rowspan="2">
+																<img src="Skins/_Default/Images/Workflow/CONSOLE/cancel.gif" title="Eliminar" onclick="eventClickOnDelete();" style="cursor:pointer;"/>
+															</td>
+														</xsl:if>
+														<xsl:if test="estado/@l_delete=0">
+															<td class="TABLE_HEAD_TD_BUTTONS" rowspan="2">
+																<img src="Skins/_Default/Images/Workflow/CONSOLE/cancel_d.gif" title="Eliminar"/>
+															</td>
+														</xsl:if>
+													</xsl:when>
+													<xsl:when test="estado/@c_estado_ej='P'">
+														<td class="TABLE_HEAD_TD_BUTTONS" rowspan="2">
+															<img src="Skins/_Default/Images/Workflow/CONSOLE/play.gif" title="Despausar/Continuar" onclick="eventClickOnPlay();" style="cursor:pointer;"/>
+														</td>
+														<td class="TABLE_HEAD_TD_BUTTONS" rowspan="2">
+															<img src="Skins/_Default/Images/Workflow/CONSOLE/pause_d.gif" title="Pausar"/>
+														</td>
+														<xsl:if test="estado/@l_stop=1">
+															<td class="TABLE_HEAD_TD_BUTTONS" rowspan="2">
+																<img src="Skins/_Default/Images/Workflow/CONSOLE/stop.gif" title="Terminar" onclick="eventClickOnStop();" style="cursor:pointer;"/>
+															</td>
+														</xsl:if>
+														<xsl:if test="estado/@l_stop=0">
+															<td class="TABLE_HEAD_TD_BUTTONS" rowspan="2">
+																<img src="Skins/_Default/Images/Workflow/CONSOLE/stop_d.gif" title="Terminar"/>
+															</td>
+														</xsl:if>
+														<xsl:if test="estado/@l_delete=1">
+															<td class="TABLE_HEAD_TD_BUTTONS" rowspan="2">
+																<img src="Skins/_Default/Images/Workflow/CONSOLE/cancel.gif" title="Eliminar" onclick="eventClickOnDelete();" style="cursor:pointer;"/>
+															</td>
+														</xsl:if>
+														<xsl:if test="estado/@l_delete=0">
+															<td class="TABLE_HEAD_TD_BUTTONS" rowspan="2">
+																<img src="Skins/_Default/Images/Workflow/CONSOLE/cancel_d.gif" title="Eliminar"/>
+															</td>
+														</xsl:if>
+													</xsl:when>
+													<xsl:when test="estado/@c_estado_ej='S' or estado/@c_estado_ej='F'">
+														<td class="TABLE_HEAD_TD_BUTTONS" rowspan="2">
+															<img src="Skins/_Default/Images/Workflow/CONSOLE/play_d.gif" title="Despausar/Continuar"/>
+														</td>
+														<td class="TABLE_HEAD_TD_BUTTONS" rowspan="2">
+															<img src="Skins/_Default/Images/Workflow/CONSOLE/pause_d.gif" title="Pausar"/>
+														</td>
+														<td class="TABLE_HEAD_TD_BUTTONS" rowspan="2">
+															<img src="Skins/_Default/Images/Workflow/CONSOLE/stop_d.gif" title="Terminar"/>
+														</td>
+														<xsl:if test="estado/@l_delete=1">
+															<td class="TABLE_HEAD_TD_BUTTONS" rowspan="2">
+																<img src="Skins/_Default/Images/Workflow/CONSOLE/cancel.gif" title="Eliminar" onclick="eventClickOnDelete();" style="cursor:pointer;"/>
+															</td>
+														</xsl:if>
+														<xsl:if test="estado/@l_delete=0">
+															<td class="TABLE_HEAD_TD_BUTTONS" rowspan="2">
+																<img src="Skins/_Default/Images/Workflow/CONSOLE/cancel_d.gif" title="Eliminar"/>
+															</td>
+														</xsl:if>
+													</xsl:when>
+													<xsl:when test="estado/@c_estado_ej='E'">
+														<td class="TABLE_HEAD_TD_BUTTONS" rowspan="2">
+															<img src="Skins/_Default/Images/Workflow/CONSOLE/play_d.gif" title="Despausar/Continuar"/>
+														</td>
+														<td class="TABLE_HEAD_TD_BUTTONS" rowspan="2">
+															<img src="Skins/_Default/Images/Workflow/CONSOLE/pause_d.gif" title="Pausar"/>
+														</td>
+														<xsl:if test="estado/@l_stop=1">
+															<td class="TABLE_HEAD_TD_BUTTONS" rowspan="2">
+																<img src="Skins/_Default/Images/Workflow/CONSOLE/stop.gif" title="Terminar" onclick="eventClickOnStop();" style="cursor:pointer;"/>
+															</td>
+														</xsl:if>
+														<xsl:if test="estado/@l_stop=0">
+															<td class="TABLE_HEAD_TD_BUTTONS" rowspan="2">
+																<img src="Skins/_Default/Images/Workflow/CONSOLE/stop_d.gif" title="Terminar"/>
+															</td>
+														</xsl:if>
+														<xsl:if test="estado/@l_delete=1">
+															<td class="TABLE_HEAD_TD_BUTTONS" rowspan="2">
+																<img src="Skins/_Default/Images/Workflow/CONSOLE/cancel.gif" title="Eliminar" onclick="eventClickOnDelete();" style="cursor:pointer;"/>
+															</td>
+														</xsl:if>
+														<xsl:if test="estado/@l_delete=0">
+															<td class="TABLE_HEAD_TD_BUTTONS" rowspan="2">
+																<img src="Skins/_Default/Images/Workflow/CONSOLE/cancel_d.gif" title="Eliminar"/>
+															</td>
+														</xsl:if>
+														<xsl:if test="@l_delega='0'">
+															<td class="TABLE_HEAD_TD_BUTTONS" rowspan="2">
+																<img src="Skins/_Default/Images/Workflow/CONSOLE/error_ignore.gif" title="Ingorar este Paso" onclick="eventClickOnIgnore();" style="cursor:pointer;"/>
+															</td>
+															<td class="TABLE_HEAD_TD_BUTTONS" rowspan="2">
+																<img src="Skins/_Default/Images/Workflow/CONSOLE/error_retry.gif" title="Reintentar este Paso" onclick="eventClickOnRetry();" style="cursor:pointer;"/>
+															</td>
+														</xsl:if>
+													</xsl:when>
+												</xsl:choose>
+											</xsl:if>
+											<xsl:if test="@mode='THREAD'">
+												<xsl:choose>
+													<xsl:when test="estado/@c_estado_ej='R'">
+														<td class="TABLE_HEAD_TD_BUTTONS" rowspan="2">
+															<img src="Skins/_Default/Images/Workflow/CONSOLE/resolve.gif" title="Resolver" onclick="eventClickOnResolve();" style="cursor:pointer;"/>
+														</td>
+														<xsl:if test="@l_delega='1'">
+															<td class="TABLE_HEAD_TD_BUTTONS" rowspan="2">
+																<img src="Skins/_Default/Images/Workflow/CONSOLE/delega.gif" title="Delegar" onclick="eventClickOnDelega();" style="cursor:pointer;"/>
+															</td>
+														</xsl:if>
+													</xsl:when>
+													<xsl:when test="estado/@c_estado_ej='E'">
+														<td class="TABLE_HEAD_TD_BUTTONS" rowspan="2">
+															<img src="Skins/_Default/Images/Workflow/CONSOLE/resolver_d.gif" title="Resolver"/>
+														</td>
+														<td class="TABLE_HEAD_TD_BUTTONS" rowspan="2">
+															<img src="Skins/_Default/Images/Workflow/CONSOLE/delegar_d.gif" title="Delegar"/>
+														</td>
+														<td class="TABLE_HEAD_TD_BUTTONS" rowspan="2">
+															<img src="Skins/_Default/Images/Workflow/CONSOLE/error_ignore.gif" title="Ingorar este Paso" onclick="eventClickOnIgnore();" style="cursor:pointer;"/>
+														</td>
+														<td class="TABLE_HEAD_TD_BUTTONS" rowspan="2">
+															<img src="Skins/_Default/Images/Workflow/CONSOLE/error_retry.gif" title="Reintentar este Paso" onclick="eventClickOnRetry();" style="cursor:pointer;"/>
+														</td>
+													</xsl:when>
+												</xsl:choose>
+											</xsl:if>
+											<xsl:if test="@mode!='SHOW'">
+												<td class="TABLE_HEAD_TD_BUTTONS" rowspan="2">
+													<img src="Skins/_Default/Images/Workflow/CONSOLE/refresh.gif" title="Actualizar la Vista" onclick="Refresh();" style="cursor:pointer;"/>
+												</td>
+											</xsl:if>
+										</tr>
+										<tr>
+											<td class="TABLE_HEAD_TD" style="font-weight:bold;">
+												<b>
+													Nr:&#160;
+												</b>
+												<xsl:value-of select="@oi_instance"/>
+											</td>
+											<td class="TABLE_HEAD_TD" style="font-weight:bold;">
+												<xsl:value-of select="@d_instance"/>
+											</td>
+											<td class="TABLE_HEAD_TD">
+												<b>
+													Mail:&#160;
+												</b>
+												<xsl:value-of select="owner/@d_owner_mail"/>
+											</td>
+											<td class="TABLE_HEAD_TD">
+												<xsl:if test="@mode='THREAD'">
+													<b>
+														Venc:&#160;
+													</b>
+													<xsl:value-of select="fecha-thread/@f_vencimiento"/>
+												</xsl:if>
+												<xsl:if test="@mode='INSTANCE' or @mode='SHOW'">
+													<xsl:if test="not(fecha-globales/@f_fin) or fecha-globales/@f_fin=''">
+														<b>
+															Venc:&#160;
+														</b>
+														<xsl:value-of select="fecha-globales/@f_vencimiento"/>
+													</xsl:if>
+													<xsl:if test="fecha-globales/@f_fin!=''">
+														<b>
+															Fin:&#160;
+														</b>
+														<xsl:value-of select="fecha-globales/@f_fin"/>
+													</xsl:if>
+												</xsl:if>
+											</td>
+											<td class="TABLE_HEAD_TD" style="text-align:center;">
+												<xsl:value-of select="estado/@d_estado_wf"/>
+											</td>
+										</tr>
+									</table>
+								</div>
+							</td>
+						</tr>
+						<tr>
+							<td>
+								<iframe src="Skins/_Default/Pages/Wiki.SPA.htm?ctrl=ANY" style="width:100%;height:100%;border:none;">
+									&#160;
+								</iframe>
+							</td>
+							<xsl:choose>
+								<xsl:when test="@mode='SHOW'"/>
+								<xsl:when test="@show='L0'">
+									<td class="TD_SEP_VERT" valign="top">
+										<img src="./Skins/_Default/Images/Panel/TabExpRight_o.gif" style="cursor:pointer;" onclick="ResizeHORZ();" valign="top" title="Ocultar el Detalle"/>
+									</td>
+									<td valign="top">
+										<xsl:if test="@mode='INSTANCE' or @mode='SHOW'">
+											<xsl:call-template name="THREADS"/>
+										</xsl:if>
+										<xsl:if test="@mode='THREAD'">
+											<xsl:call-template name="PASO_DETAIL"/>
+										</xsl:if>
+									</td>
+									<td class="TD_SEP_VERT_HIDE" valign="top">
+										<img src="./Skins/_Default/Images/Panel/TabColRight_o.gif" style="cursor:pointer;" onclick="ResizeVERT();" valign="top" title="Mostrar el Log"/>
+									</td>
+								</xsl:when>
+								<xsl:when test="@show='L1'">
+									<td class="TD_SEP_VERT" valign="top">
+										<img src="./Skins/_Default/Images/Panel/TabExpRight_o.gif" style="cursor:pointer;" onclick="ResizeVERT();" valign="top" title="Ocultar el Log"/>
+									</td>
+									<td valign="top">
+										<div class="DIV_BODY" style="height:100%;width:100%;overflow-y:auto;" name="DIV_LOG" id="DIV_LOG">
+											<xsl:call-template name="LOGS"/>
+										</div>
+									</td>
+								</xsl:when>
+								<xsl:otherwise>
+									<td class="TD_SEP_VERT_HIDE" valign="top">
+										<img src="./Skins/_Default/Images/Panel/TabColRight_o.gif" style="cursor:pointer;" onclick="ResizeHORZ();" valign="top" title="Mostrar el Detalle"/>
+									</td>
+								</xsl:otherwise>
+							</xsl:choose>
+						</tr>
+					</table>
+					<iframe src="about:blank" name="backLoad" id="backLoad" style="display:none;">
+						<xsl:attribute name="nmd-ut">
+							<xsl:value-of select="@ut"/>
+						</xsl:attribute>
+						<xsl:attribute name="nmd-debug">
+							<xsl:value-of select="@debug"/>
+						</xsl:attribute>
+						<xsl:attribute name="nmd-etty">
+							<xsl:value-of select="@etty"/>
+						</xsl:attribute>
+						&#160;
+					</iframe>
+					<xsl:for-each select="REPORTS/text">
+						<textarea style="display:none;">
+							<xsl:attribute name="id">
+								<xsl:value-of select="concat('TXT_',@e_orden)"/>
+							</xsl:attribute>
+							<xsl:attribute name="name">
+								<xsl:value-of select="concat('TXT_',@e_orden)"/>
+							</xsl:attribute>
+							<xsl:value-of select="@o_text"/>
+						</textarea>
+					</xsl:for-each>
+				</body>
+			</html>
+		</xsl:template>
+		<xsl:template match="INSTANCE[@mode='THREAD-DETAIL']">
+			<html>
+				<head>
+					<style media="screen">
+						BODY
+{
+background-color: #FFFFFF; 
+cursor: default;
+PADDING-RIGHT: 0px; 
+PADDING-LEFT: 0px; 
+PADDING-TOP: 0px; 
+PADDING-BOTTOM: 0px; 
+MARGIN: 0px; 
+BORDER-TOP-STYLE: none; 
+BORDER-RIGHT-STYLE: none; 
+BORDER-LEFT-STYLE: none; 
+BORDER-BOTTOM-STYLE: none; 
+}
+.DIV_HEAD
+{
+background-color: #FFFFFF;
+background-image:url(Skins/_Default/Images/Workflow/CONSOLE/title_back.gif);
+
+border:1px solid #A0A0A0;
+border-collapse:collapse;
+
+width:100%;  
+height:30px;
+}
+.TABLE_HEAD
+{
+font-size: 9px;
+font-family: Verdana;
+color: #000000;          
+border-collapse:collapse;
+width:100%;  
+height:100%;
+cursor:default;
+}
+.TABLE_HEAD_TD
+{               
+padding-left:6px;
+padding-right:6px;
+}
+.DIV_BODY
+{
+background-color: #FFFFFF;
+
+border:1px solid #A0A0A0;
+border-collapse:collapse;
+
+width:100%;  
+height:100%;
+}
+.TABLE_BODY
+{
+font-size: 9px;
+font-family: Verdana;
+color: #000000;          
+border-collapse:collapse;
+width:100%;  
+height:100%;
+cursor:default;
+}               
+
+.TABLE_THREAD
+{
+font-size: 9px;
+font-family: Verdana;
+color: #000000;          
+border-collapse:collapse;
+border:1px solid #A0A0A0;
+width:100%;  
+cursor:default;
+}               
+.TABLE_THREAD_TR
+{
+background-color: #FFFFFF;
+cursor:default;
+}               
+.TABLE_THREAD_TR_OVER
+{
+background-color: #F0F0FF;
+cursor:pointer;
+}               
+.TABLE_THREAD_TH
+{
+background-image:url(Skins/_Default/Images/Workflow/CONSOLE/title_back.gif);
+border:1px solid #E0E0E0;
+
+height:30px;
+text-align:left;
+padding-left:2px;
+padding-right:2px;
+}
+.TABLE_THREAD_TD
+{
+border:1px solid #E0E0E0;
+
+height:30px;    
+text-align:left;
+padding-left:2px;
+padding-right:2px;
+}
+.TABLE_DETAIL
+{
+font-size: 9px;
+font-family: Verdana;
+color: #000000;          
+border-collapse:collapse;
+border:none;
+width:100%;  
+cursor:default;
+}               
+.TABLE_DETAIL_TH
+{
+text-align:left;
+}
+					</style>
+					<script>
+						function amp()
+{
+return String.fromCharCode(38);
+}
+function HTMLOnLoad()
+{        
+obj=document.getElementById("INNER_DATA");
+
+parent.SetHTML("THREAD_DETAIL_"+obj.getAttribute("nmd-thread"), ""+obj.innerHTML);
+
+//alert("HTMLOnLoad: thread: "+obj.getAttribute("nmd-thread"));
+}
+					</script>
+				</head>
+				<body scroll="no" onload="HTMLOnLoad();">
+					<div id="INNER_DATA" name="INNER_DATA">
+						<xsl:attribute name="nmd-thread">
+							<xsl:value-of select="@oi_thread"/>
+						</xsl:attribute>
+						<xsl:call-template name="PASO_DETAIL"/>
+					</div>
+				</body>
+			</html>
+		</xsl:template>
+		<xsl:template name="THREADS">
+			<xsl:for-each select="THREADS">
+				<table CELLPADDING="0" CELLSPACING="0" class="TABLE_THREAD" valign="top" border="0">
+					<col width="20px"/>
+					<col/>
+					<col width="70px"/>
+					<col width="70px"/>
+					<tr height="20px">
+						<th class="TABLE_THREAD_TH">
+							&#160;
+						</th>
+						<th class="TABLE_THREAD_TH">
+							Descripci&#243;n
+						</th>
+						<th class="TABLE_THREAD_TH" style="text-align:center;">
+							Fecha Asignaci&#243;n
+						</th>
+						<th class="TABLE_THREAD_TH" style="text-align:center;">
+							Fecha Vencimiento
+						</th>
+					</tr>
+					<xsl:for-each select="thread">
+						<tr class="TABLE_THREAD_TR" onmouseover="this.className='TABLE_THREAD_TR_OVER';" onmouseout="this.className='TABLE_THREAD_TR';" onclick="ShowThreadDetail(this);">
+							<xsl:attribute name="nmd-thread">
+								<xsl:value-of select="@oi_thread"/>
+							</xsl:attribute>
+							<td class="TABLE_THREAD_TD" style="text-align:center;">
+								<img>
+									<xsl:attribute name="src">
+										<xsl:choose>
+											<xsl:when test="@c_estado='WP'">
+												<xsl:value-of select="concat('Skins/_Default/Images/Workflow/CONSOLE/flag_',@flag,'.gif')"/>
+											</xsl:when>
+											<xsl:when test="@c_estado='R'">
+												Skins/_Default/Images/Workflow/DEFINE/SUB_PROCESS.gif
+											</xsl:when>
+											<xsl:when test="@c_estado='E'">
+												Skins/_Default/Images/Workflow/CONSOLE/error.gif
+											</xsl:when>
+											<xsl:when test="@c_estado='WE' or @c_estado='WI' or @c_estado='WX' or @c_estado='WF'">
+												Skins/_Default/Images/Workflow/DEFINE/WAIT_TIME.gif
+											</xsl:when>
+											<xsl:when test="@c_estado='D'">
+												Skins/_Default/Images/Workflow/DEFINE/WAIT_TO.gif
+											</xsl:when>
+											<xsl:otherwise>
+												Skins/_Default/Images/Workflow/DEFINE/STOP.gif
+											</xsl:otherwise>
+										</xsl:choose>
+									</xsl:attribute>
+								</img>
+							</td>
+							<td class="TABLE_THREAD_TD" style="text-align:left;">
+								<xsl:value-of select="@d_label"/>
+							</td>
+							<td class="TABLE_THREAD_TD" style="text-align:center;">
+								<xsl:value-of select="@f_ejecucion"/>
+							</td>
+							<xsl:if test="@c_estado='WP'">
+								<td class="TABLE_THREAD_TD" style="text-align:center;">
+									<xsl:value-of select="@f_vencimiento"/>
+								</td>
+							</xsl:if>
+							<xsl:if test="@c_estado!='WP'">
+								<td class="TABLE_THREAD_TD" style="text-align:center;">
+									n/a
+								</td>
+							</xsl:if>
+						</tr>
+						<tr class="TABLE_THREAD_TR" style="display:none;">
+							<xsl:attribute name="name">
+								<xsl:value-of select="concat('TR_THREAD_DETAIL_',@oi_thread)"/>
+							</xsl:attribute>
+							<xsl:attribute name="id">
+								<xsl:value-of select="concat('TR_THREAD_DETAIL_',@oi_thread)"/>
+							</xsl:attribute>
+							<td class="TABLE_THREAD_TD" colspan="4" style="padding-left:30px;">
+								<xsl:attribute name="name">
+									<xsl:value-of select="concat('THREAD_DETAIL_',@oi_thread)"/>
+								</xsl:attribute>
+								<xsl:attribute name="id">
+									<xsl:value-of select="concat('THREAD_DETAIL_',@oi_thread)"/>
+								</xsl:attribute>
+								Cargando...
+							</td>
+						</tr>
+					</xsl:for-each>
+				</table>
+			</xsl:for-each>
+		</xsl:template>
+		<xsl:template name="PASO_DETAIL">
+			<table CELLPADDING="0" CELLSPACING="0" class="TABLE_DETAIL" border="0">
+				<tr>
+					<td>
+						<b>
+							Estado:&#160;
+						</b>
+						<xsl:choose>
+							<xsl:when test="@c_estado='I'">
+								Inactiva.
+							</xsl:when>
+							<xsl:when test="@c_estado='R'">
+								Ejecutandose...
+							</xsl:when>
+							<xsl:when test="@c_estado='D'">
+								Control Delegado al Thread Hijo.
+							</xsl:when>
+							<xsl:when test="@c_estado='E'">
+								Detenido por ERROR.
+							</xsl:when>
+							<xsl:when test="@c_estado='WP'">
+								Esperando la Resolucion del Usuario.
+							</xsl:when>
+							<xsl:when test="@c_estado='WF'">
+								Esperando a que Finalize el Workflow.
+							</xsl:when>
+							<xsl:otherwise>
+								Esperando.
+							</xsl:otherwise>
+						</xsl:choose>
+					</td>
+				</tr>
+				<tr>
+					<td>
+						<b>
+							Descripci&#243;n:&#160;
+						</b>
+						<xsl:value-of select="@d_label"/>
+					</td>
+				</tr>
+				<xsl:choose>
+					<xsl:when test="@c_estado='WE' or @c_estado='WI' or @c_estado='WX' ">
+						<tr>
+							<td>
+								<b>
+									Solitidado:&#160;
+								</b>
+								<xsl:value-of select="fecha-thread/@f_ejecucion"/>
+							</td>
+						</tr>
+						<xsl:if test="fecha-thread/@f_ejecucion-TIME!=''">
+							<tr>
+								<td>
+									<b>
+										Tiempo Esperando:&#160;
+									</b>
+									<xsl:value-of select="fecha-thread/@f_ejecucion-TIME"/>
+								</td>
+							</tr>
+						</xsl:if>
+						<xsl:if test="fecha-thread/@f_ejecucion-ERROR!=''">
+							<tr>
+								<td style="padding-top:5px;">
+									<img src="Skins/_Default/Images/Workflow/CONSOLE/error.gif"/>
+									<span>
+										&#160;Se ha exedido el tiempo de espera, es posible que exista algun problema con el Subproceso, puede marcarlo con error haciendo click&#160;
+									</span>
+									<a>
+										<xsl:attribute name="href">
+											<xsl:value-of select="concat('javascript:eventClickOnSetError(',@oi_thread,');')"/>
+										</xsl:attribute>
+										aqui
+									</a>
+								</td>
+							</tr>
+						</xsl:if>
+					</xsl:when>
+					<xsl:when test="@c_estado='R'">
+						<tr>
+							<td>
+								<b>
+									Ejecuci&#243;n:&#160;
+								</b>
+								<xsl:value-of select="fecha-thread/@f_ejecucion"/>
+							</td>
+						</tr>
+						<xsl:if test="fecha-thread/@f_ejecucion-TIME!=''">
+							<tr>
+								<td>
+									<b>
+										Tiempo Ejecutandose:&#160;
+									</b>
+									<xsl:value-of select="fecha-thread/@f_ejecucion-TIME"/>
+								</td>
+							</tr>
+						</xsl:if>
+						<xsl:if test="fecha-thread/@f_ejecucion-ERROR!=''">
+							<tr>
+								<td style="padding-top:5px;">
+									<img src="Skins/_Default/Images/Workflow/CONSOLE/error.gif"/>
+									<span>
+										&#160;Se ha exedido el tiempo de ejecucion, es posible que exista algun problema con el Subproceso, puede marcarlo con error haciendo click&#160;
+									</span>
+									<a>
+										<xsl:attribute name="href">
+											<xsl:value-of select="concat('javascript:eventClickOnSetError(',@oi_thread,');')"/>
+										</xsl:attribute>
+										aqui
+									</a>
+								</td>
+							</tr>
+						</xsl:if>
+					</xsl:when>
+					<xsl:when test="@c_estado='WF'">
+						<tr>
+							<td>
+								<b>
+									Inicio:&#160;
+								</b>
+								<xsl:value-of select="fecha-thread/@f_ejecucion"/>
+							</td>
+						</tr>
+						<xsl:if test="fecha-thread/@f_ejecucion-TIME!=''">
+							<tr>
+								<td>
+									<b>
+										Tiempo Esperando:&#160;
+									</b>
+									<xsl:value-of select="fecha-thread/@f_ejecucion-TIME"/>
+								</td>
+							</tr>
+						</xsl:if>
+						<tr>
+							<td style="cursor:pointer;">
+								<xsl:attribute name="onclick">
+									<xsl:value-of select="concat('eventClickShowInstance(',@oi_inst_child,');')"/>
+								</xsl:attribute>
+								<img src="Skins/_Default/Images/Workflow/search.gif"/>
+								<span>
+									&#160;Consultar Workflow
+								</span>
+							</td>
+						</tr>
+					</xsl:when>
+					<xsl:when test="@c_estado='WP'">
+						<xsl:if test="fecha-thread/@f_inicio">
+							<tr>
+								<td>
+									<b>
+										Inicio:&#160;
+									</b>
+									<xsl:value-of select="fecha-thread/@f_inicio"/>
+								</td>
+							</tr>
+						</xsl:if>
+						<tr>
+							<td>
+								<b>
+									Asignaci&#243;n:&#160;
+								</b>
+								<xsl:value-of select="fecha-thread/@f_ejecucion"/>
+							</td>
+						</tr>
+						<xsl:if test="fecha-thread/@f_vencimiento">
+							<tr>
+								<td>
+									<b>
+										Vencimiento:&#160;
+									</b>
+									<xsl:value-of select="fecha-thread/@f_vencimiento"/>
+								</td>
+							</tr>
+						</xsl:if>
+						<xsl:if test="fecha-thread/@f_vencimiento-TIME">
+							<tr>
+								<td>
+									<b>
+										Tiempo Restante:&#160;
+									</b>
+									<xsl:value-of select="fecha-thread/@f_vencimiento-TIME"/>
+								</td>
+							</tr>
+						</xsl:if>
+						<xsl:if test="fecha-thread/@f_vencido-TIME">
+							<tr>
+								<td>
+									<b>
+										Tiempo Vencido:&#160;
+									</b>
+									<xsl:value-of select="fecha-thread/@f_vencido-TIME"/>
+								</td>
+							</tr>
+						</xsl:if>
+						<tr>
+							<td>
+								<b>
+									Formulario:&#160;
+								</b>
+								<xsl:value-of select="form/@d_form"/>
+							</td>
+						</tr>
+						<xsl:if test="not(@c_asign_rol) or @c_asign_rol=''">
+							<tr onclick="ShowFormDetail(this);" style="cursor:pointer;">
+								<xsl:attribute name="nmd-node">
+									<xsl:value-of select="@oi_node"/>
+								</xsl:attribute>
+								<xsl:attribute name="nmd-instance">
+									<xsl:value-of select="@oi_instance"/>
+								</xsl:attribute>
+								<xsl:attribute name="nmd-thread">
+									<xsl:value-of select="@oi_thread"/>
+								</xsl:attribute>
+								<td>
+									<img src="Skins/_Default/Images/Workflow/CONSOLE/plus.gif">
+										<xsl:attribute name="name">
+											<xsl:value-of select="concat('TR_FORM_DETAIL_PLUS_',@oi_node)"/>
+										</xsl:attribute>
+										<xsl:attribute name="id">
+											<xsl:value-of select="concat('TR_FORM_DETAIL_PLUS_',@oi_node)"/>
+										</xsl:attribute>
+									</img>
+									<img src="Skins/_Default/Images/Workflow/CONSOLE/minus.gif" style="display:none;">
+										<xsl:attribute name="name">
+											<xsl:value-of select="concat('TR_FORM_DETAIL_MINUS_',@oi_node)"/>
+										</xsl:attribute>
+										<xsl:attribute name="id">
+											<xsl:value-of select="concat('TR_FORM_DETAIL_MINUS_',@oi_node)"/>
+										</xsl:attribute>
+									</img>
+									<b>
+										&#160;Roles Asignados
+									</b>
+								</td>
+							</tr>
+							<tr style="display:none;">
+								<xsl:attribute name="name">
+									<xsl:value-of select="concat('TR_FORM_DETAIL_',@oi_node)"/>
+								</xsl:attribute>
+								<xsl:attribute name="id">
+									<xsl:value-of select="concat('TR_FORM_DETAIL_',@oi_node)"/>
+								</xsl:attribute>
+								<td style="padding-left:10px;">
+									<xsl:attribute name="name">
+										<xsl:value-of select="concat('FORM_DETAIL_',@oi_node)"/>
+									</xsl:attribute>
+									<xsl:attribute name="id">
+										<xsl:value-of select="concat('FORM_DETAIL_',@oi_node)"/>
+									</xsl:attribute>
+									Cargando...
+								</td>
+							</tr>
+						</xsl:if>
+						<xsl:if test="@c_asign_rol!=''">
+							<xsl:if test="not(@d_asign_etty) or @d_asign_etty=''">
+								<tr onclick="ShowRoleDetail(this);" style="cursor:pointer;" nmd-rol="ASIGN">
+									<xsl:attribute name="nmd-instance">
+										<xsl:value-of select="@oi_instance"/>
+									</xsl:attribute>
+									<xsl:attribute name="nmd-thread">
+										<xsl:value-of select="@oi_thread"/>
+									</xsl:attribute>
+									<td>
+										<img src="Skins/_Default/Images/Workflow/CONSOLE/plus.gif" name="TR_ROLE_DETAIL_PLUS_ASIGN" id="TR_ROLE_DETAIL_PLUS_ASIGN"/>
+										<img src="Skins/_Default/Images/Workflow/CONSOLE/minus.gif" name="TR_ROLE_DETAILMINUS_ASIGN" id="TR_ROLE_DETAIL_MINUS_ASIGN" style="display:none;"/>
+										<b>
+											&#160;Rol Asignado:
+										</b>
+										<xsl:value-of select="@d_asign_titulo"/>
+									</td>
+								</tr>
+								<tr name="TR_ROLE_DETAIL_ASIGN" id="TR_ROLE_DETAIL_ASIGN" style="display:none;">
+									<td style="padding-left:10px;" name="ROLE_DETAIL_ASIGN" id="ROLE_DETAIL_ASIGN">
+										Cargando...
+									</td>
+								</tr>
+							</xsl:if>
+							<xsl:if test="@d_asign_etty!=''">
+								<tr>
+									<td>
+										<b>
+											&#160;Rol Asignado:
+										</b>
+										<xsl:value-of select="@d_asign_titulo"/>
+									</td>
+								</tr>
+								<tr>
+									<td>
+										<b>
+											Entidad Asignada:
+										</b>
+										<xsl:value-of select="@d_asign_ayn"/>
+									</td>
+								</tr>
+							</xsl:if>
+							<tr>
+								<td>
+									<b>
+										Entidad Delegadora:
+									</b>
+									<xsl:value-of select="@d_deleg_ayn"/>
+								</td>
+							</tr>
+							<xsl:if test="@o_deleg_coment!=''">
+								<tr>
+									<td>
+										<b>
+											Motivo de Delegaci&#243;n:
+										</b>
+									</td>
+								</tr>
+								<tr>
+									<td>
+										<xsl:value-of select="@o_deleg_coment"/>
+									</td>
+								</tr>
+							</xsl:if>
+						</xsl:if>
+					</xsl:when>
+				</xsl:choose>
+			</table>
+		</xsl:template>
+		<xsl:template match="INSTANCE[@mode='FORM-DETAIL']">
+			<html>
+				<head>
+					<style media="screen">
+						BODY
+{
+background-color: #FFFFFF; 
+cursor: default;
+PADDING-RIGHT: 0px; 
+PADDING-LEFT: 0px; 
+PADDING-TOP: 0px; 
+PADDING-BOTTOM: 0px; 
+MARGIN: 0px; 
+BORDER-TOP-STYLE: none; 
+BORDER-RIGHT-STYLE: none; 
+BORDER-LEFT-STYLE: none; 
+BORDER-BOTTOM-STYLE: none; 
+}
+.DIV_HEAD
+{
+background-color: #FFFFFF;
+background-image:url(Skins/_Default/Images/Workflow/CONSOLE/title_back.gif);
+
+border:1px solid #A0A0A0;
+border-collapse:collapse;
+
+width:100%;  
+height:30px;
+}
+.TABLE_HEAD
+{
+font-size: 9px;
+font-family: Verdana;
+color: #000000;          
+border-collapse:collapse;
+width:100%;  
+height:100%;
+cursor:default;
+}
+.TABLE_HEAD_TD
+{               
+padding-left:6px;
+padding-right:6px;
+}
+.DIV_BODY
+{
+background-color: #FFFFFF;
+
+border:1px solid #A0A0A0;
+border-collapse:collapse;
+
+width:100%;  
+height:100%;
+}
+.TABLE_BODY
+{
+font-size: 9px;
+font-family: Verdana;
+color: #000000;          
+border-collapse:collapse;
+width:100%;  
+height:100%;
+cursor:default;
+}               
+
+.TABLE_THREAD
+{
+font-size: 9px;
+font-family: Verdana;
+color: #000000;          
+border-collapse:collapse;
+border:1px solid #A0A0A0;
+width:100%;  
+cursor:default;
+}               
+.TABLE_THREAD_TR
+{
+background-color: #FFFFFF;
+cursor:default;
+}               
+.TABLE_THREAD_TR_OVER
+{
+background-color: #F0F0FF;
+cursor:pointer;
+}               
+.TABLE_THREAD_TH
+{
+background-image:url(Skins/_Default/Images/Workflow/CONSOLE/title_back.gif);
+border:1px solid #E0E0E0;
+
+height:30px;
+text-align:left;
+padding-left:2px;
+padding-right:2px;
+}
+.TABLE_THREAD_TD
+{
+border:1px solid #E0E0E0;
+
+height:30px;    
+text-align:left;
+padding-left:2px;
+padding-right:2px;
+}
+.TABLE_DETAIL
+{
+font-size: 9px;
+font-family: Verdana;
+color: #000000;          
+border-collapse:collapse;
+border:none;
+width:100%;  
+cursor:default;
+}               
+.TABLE_DETAIL_TH
+{
+text-align:left;
+}
+					</style>
+					<script>
+						function amp()
+{
+return String.fromCharCode(38);
+}
+function HTMLOnLoad()
+{        
+obj=document.getElementById("INNER_DATA");
+parent.SetHTML("FORM_DETAIL_"+obj.getAttribute("nmd-node"), ""+obj.innerHTML);
+}
+					</script>
+				</head>
+				<body scroll="no" onload="HTMLOnLoad();">
+					<div id="INNER_DATA" name="INNER_DATA">
+						<xsl:attribute name="nmd-node">
+							<xsl:value-of select="@oi_node"/>
+						</xsl:attribute>
+						<table class="TABLE_DETAIL">
+							<col width="15px"/>
+							<col width="20px"/>
+							<col/>
+							<xsl:for-each select="ROLE">
+								<tr onclick="ShowRoleDetail(this);" style="cursor:pointer;">
+									<xsl:attribute name="nmd-rol">
+										<xsl:value-of select="@c_rol"/>
+									</xsl:attribute>
+									<xsl:attribute name="nmd-instance">
+										<xsl:value-of select="../@oi_instance"/>
+									</xsl:attribute>
+									<xsl:attribute name="nmd-thread">
+										<xsl:value-of select="../@oi_thread"/>
+									</xsl:attribute>
+									<td>
+										<img src="Skins/_Default/Images/Workflow/CONSOLE/plus.gif">
+											<xsl:attribute name="name">
+												<xsl:value-of select="concat('TR_ROLE_DETAIL_PLUS_',@c_rol)"/>
+											</xsl:attribute>
+											<xsl:attribute name="id">
+												<xsl:value-of select="concat('TR_ROLE_DETAIL_PLUS_',@c_rol)"/>
+											</xsl:attribute>
+										</img>
+										<img src="Skins/_Default/Images/Workflow/CONSOLE/minus.gif" style="display:none;">
+											<xsl:attribute name="name">
+												<xsl:value-of select="concat('TR_ROLE_DETAIL_MINUS_',@c_rol)"/>
+											</xsl:attribute>
+											<xsl:attribute name="id">
+												<xsl:value-of select="concat('TR_ROLE_DETAIL_MINUS_',@c_rol)"/>
+											</xsl:attribute>
+										</img>
+									</td>
+									<td style="width:20px;">
+										<div>
+											<xsl:attribute name="style">
+												<xsl:value-of select="concat('width:15px;height:10px;border:2px solid black;background-color:#',@c_color,';')"/>
+											</xsl:attribute>
+										</div>
+									</td>
+									<td>
+										<xsl:value-of select="@d_rol"/>
+									</td>
+								</tr>
+								<tr style="display:none">
+									<xsl:attribute name="name">
+										<xsl:value-of select="concat('TR_ROLE_DETAIL_',@c_rol)"/>
+									</xsl:attribute>
+									<xsl:attribute name="id">
+										<xsl:value-of select="concat('TR_ROLE_DETAIL_',@c_rol)"/>
+									</xsl:attribute>
+									<td colspan="3" style="padding-left:15px;">
+										<xsl:attribute name="name">
+											<xsl:value-of select="concat('ROLE_DETAIL_',@c_rol)"/>
+										</xsl:attribute>
+										<xsl:attribute name="id">
+											<xsl:value-of select="concat('ROLE_DETAIL_',@c_rol)"/>
+										</xsl:attribute>
+										cargando...
+									</td>
+								</tr>
+							</xsl:for-each>
+						</table>
+					</div>
+				</body>
+			</html>
+		</xsl:template>
+		<xsl:template match="INSTANCE[@mode='ROLE-DETAIL']">
+			<html>
+				<head>
+					<style media="screen">
+						BODY
+{
+background-color: #FFFFFF; 
+cursor: default;
+PADDING-RIGHT: 0px; 
+PADDING-LEFT: 0px; 
+PADDING-TOP: 0px; 
+PADDING-BOTTOM: 0px; 
+MARGIN: 0px; 
+BORDER-TOP-STYLE: none; 
+BORDER-RIGHT-STYLE: none; 
+BORDER-LEFT-STYLE: none; 
+BORDER-BOTTOM-STYLE: none; 
+}
+.DIV_HEAD
+{
+background-color: #FFFFFF;
+background-image:url(Skins/_Default/Images/Workflow/CONSOLE/title_back.gif);
+
+border:1px solid #A0A0A0;
+border-collapse:collapse;
+
+width:100%;  
+height:30px;
+}
+.TABLE_HEAD
+{
+font-size: 9px;
+font-family: Verdana;
+color: #000000;          
+border-collapse:collapse;
+width:100%;  
+height:100%;
+cursor:default;
+}
+.TABLE_HEAD_TD
+{               
+padding-left:6px;
+padding-right:6px;
+}
+.DIV_BODY
+{
+background-color: #FFFFFF;
+
+border:1px solid #A0A0A0;
+border-collapse:collapse;
+
+width:100%;  
+height:100%;
+}
+.TABLE_BODY
+{
+font-size: 9px;
+font-family: Verdana;
+color: #000000;          
+border-collapse:collapse;
+width:100%;  
+height:100%;
+cursor:default;
+}               
+
+.TABLE_THREAD
+{
+font-size: 9px;
+font-family: Verdana;
+color: #000000;          
+border-collapse:collapse;
+border:1px solid #A0A0A0;
+width:100%;  
+cursor:default;
+}               
+.TABLE_THREAD_TR
+{
+background-color: #FFFFFF;
+cursor:default;
+}               
+.TABLE_THREAD_TR_OVER
+{
+background-color: #F0F0FF;
+cursor:pointer;
+}               
+.TABLE_THREAD_TH
+{
+background-image:url(Skins/_Default/Images/Workflow/CONSOLE/title_back.gif);
+border:1px solid #E0E0E0;
+
+height:30px;
+text-align:left;
+padding-left:2px;
+padding-right:2px;
+}
+.TABLE_THREAD_TD
+{
+border:1px solid #E0E0E0;
+
+height:30px;    
+text-align:left;
+padding-left:2px;
+padding-right:2px;
+}
+.TABLE_DETAIL
+{
+font-size: 9px;
+font-family: Verdana;
+color: #000000;          
+border-collapse:collapse;
+border:none;
+width:100%;  
+cursor:default;
+}               
+.TABLE_DETAIL_TH
+{
+text-align:left;
+}
+					</style>
+					<script>
+						function amp()
+{
+return String.fromCharCode(38);
+}
+function HTMLOnLoad()
+{        
+obj=document.getElementById("INNER_DATA");
+parent.SetHTML("ROLE_DETAIL_"+obj.getAttribute("nmd-role"), ""+obj.innerHTML);
+}
+					</script>
+				</head>
+				<body scroll="no" onload="HTMLOnLoad();">
+					<div id="INNER_DATA" name="INNER_DATA">
+						<xsl:attribute name="nmd-role">
+							<xsl:value-of select="@c_rol"/>
+						</xsl:attribute>
+						<table class="TABLE_DETAIL">
+							<col/>
+							<xsl:if test="ENTIDAD">
+								<xsl:for-each select="ENTIDAD">
+									<tr>
+										<td>
+											<xsl:value-of select="@entidad"/>
+										</td>
+									</tr>
+								</xsl:for-each>
+							</xsl:if>
+							<xsl:if test="not(ENTIDAD)">
+								<tr>
+									<td>
+										<xsl:if test="@l_delega=1">
+											<span>
+												&#160;No hay Personas Definidas, puede asignar personas haciendo click&#160;
+											</span>
+											<a>
+												<xsl:attribute name="href">
+													<xsl:value-of select="concat('javascript:eventClickOnAssign(',@oi_thread,');')"/>
+												</xsl:attribute>
+												aqui
+											</a>
+										</xsl:if>
+										<xsl:if test="@l_delega=0">
+											No hay Personas Definidas
+										</xsl:if>
+									</td>
+								</tr>
+							</xsl:if>
+						</table>
+					</div>
+				</body>
+			</html>
+		</xsl:template>
+		<xsl:template match="INSTANCE[@mode='MORE-LOG']">
+			<html>
+				<head>
+					<style media="screen">
+						BODY
+{
+background-color: #FFFFFF; 
+cursor: default;
+PADDING-RIGHT: 0px; 
+PADDING-LEFT: 0px; 
+PADDING-TOP: 0px; 
+PADDING-BOTTOM: 0px; 
+MARGIN: 0px; 
+BORDER-TOP-STYLE: none; 
+BORDER-RIGHT-STYLE: none; 
+BORDER-LEFT-STYLE: none; 
+BORDER-BOTTOM-STYLE: none; 
+}
+.DIV_HEAD
+{
+background-color: #FFFFFF;
+background-image:url(Skins/_Default/Images/Workflow/CONSOLE/title_back.gif);
+
+border:1px solid #A0A0A0;
+border-collapse:collapse;
+
+width:100%;  
+height:30px;
+}
+.TABLE_HEAD
+{
+font-size: 9px;
+font-family: Verdana;
+color: #000000;          
+border-collapse:collapse;
+width:100%;  
+height:100%;
+cursor:default;
+}
+.TABLE_HEAD_TD
+{               
+padding-left:6px;
+padding-right:6px;
+}
+.DIV_BODY
+{
+background-color: #FFFFFF;
+
+border:1px solid #A0A0A0;
+border-collapse:collapse;
+
+width:100%;  
+height:100%;
+}
+.TABLE_BODY
+{
+font-size: 9px;
+font-family: Verdana;
+color: #000000;          
+border-collapse:collapse;
+width:100%;  
+height:100%;
+cursor:default;
+}               
+
+.TABLE_THREAD
+{
+font-size: 9px;
+font-family: Verdana;
+color: #000000;          
+border-collapse:collapse;
+border:1px solid #A0A0A0;
+width:100%;  
+cursor:default;
+}               
+.TABLE_THREAD_TR
+{
+background-color: #FFFFFF;
+cursor:default;
+}               
+.TABLE_THREAD_TR_OVER
+{
+background-color: #F0F0FF;
+cursor:pointer;
+}               
+.TABLE_THREAD_TH
+{
+background-image:url(Skins/_Default/Images/Workflow/CONSOLE/title_back.gif);
+border:1px solid #E0E0E0;
+
+height:30px;
+text-align:left;
+padding-left:2px;
+padding-right:2px;
+}
+.TABLE_THREAD_TD
+{
+border:1px solid #E0E0E0;
+
+height:30px;    
+text-align:left;
+padding-left:2px;
+padding-right:2px;
+}
+.TABLE_DETAIL
+{
+font-size: 9px;
+font-family: Verdana;
+color: #000000;          
+border-collapse:collapse;
+border:none;
+width:100%;  
+cursor:default;
+}               
+.TABLE_DETAIL_TH
+{
+text-align:left;
+}
+					</style>
+					<script>
+						function amp()
+{
+return String.fromCharCode(38);
+}
+function HTMLOnLoad()
+{        
+obj=document.getElementById("INNER_DATA");
+parent.SetHTML("DIV_LOG", ""+obj.innerHTML);
+}
+					</script>
+				</head>
+				<body scroll="no" onload="HTMLOnLoad();">
+					<div id="INNER_DATA" name="INNER_DATA">
+						<xsl:call-template name="LOGS"/>
+					</div>
+				</body>
+			</html>
+		</xsl:template>
+		<xsl:template name="LOGS">
+			<xsl:for-each select="LOGS">
+				<table CELLPADDING="0" CELLSPACING="0" class="TABLE_THREAD" valign="top" border="0">
+					<col width="20px"/>
+					<col width="20px"/>
+					<col width="70px"/>
+					<col/>
+					<tr height="20px">
+						<th class="TABLE_THREAD_TH">
+							&#160;
+						</th>
+						<th class="TABLE_THREAD_TH">
+							&#160;
+						</th>
+						<th class="TABLE_THREAD_TH" style="text-align:center;">
+							Fecha
+						</th>
+						<th class="TABLE_THREAD_TH">
+							Descripci&#243;n
+						</th>
+					</tr>
+					<xsl:for-each select="LOG">
+						<xsl:choose>
+							<xsl:when test="@c_tipo='INT'">
+								<tr class="TABLE_THREAD_TR" onmouseover="this.className='TABLE_THREAD_TR_OVER';" onmouseout="this.className='TABLE_THREAD_TR';" onclick="ShowExternLog(this);">
+									<xsl:attribute name="nmd-log">
+										<xsl:value-of select="@oi_log"/>
+									</xsl:attribute>
+									<xsl:attribute name="nmd-err">
+										<xsl:value-of select="@o_comentario"/>
+									</xsl:attribute>
+									<td class="TABLE_THREAD_TD" style="text-align:center;">
+										<img src="Skins/_Default/Images/Workflow/Logs/ERR.gif"/>
+									</td>
+									<td class="TABLE_THREAD_TD" style="text-align:center;">
+										<xsl:if test="@c_type!=''">
+											<img>
+												<xsl:attribute name="src">
+													<xsl:value-of select="concat('Skins/_Default/Images/Workflow/Define/',@c_type,'.gif')"/>
+												</xsl:attribute>
+											</img>
+										</xsl:if>
+										<xsl:if test="not(@c_type) or @c_type=''">
+											&#160;
+										</xsl:if>
+									</td>
+									<td class="TABLE_THREAD_TD" style="text-align:center;">
+										<xsl:value-of select="@f_accion"/>
+									</td>
+									<td class="TABLE_THREAD_TD" style="background-image:url(Skins/_Default/Images/Workflow/search.gif);background-repeat:no-repeat;background-position:2px center;padding-left:15px;">
+										ERROR AL PROCESAR EL COMANDO
+									</td>
+								</tr>
+							</xsl:when>
+							<xsl:when test="@oi_etapa!=''">
+								<tr class="TABLE_THREAD_TR" onmouseover="this.className='TABLE_THREAD_TR_OVER';" onmouseout="this.className='TABLE_THREAD_TR';" onclick="ShowLogDetail(this);">
+									<xsl:attribute name="nmd-log">
+										<xsl:value-of select="@oi_log"/>
+									</xsl:attribute>
+									<td class="TABLE_THREAD_TD" style="text-align:center;">
+										<img>
+											<xsl:attribute name="src">
+												<xsl:value-of select="concat('Skins/_Default/Images/Workflow/Logs/',@c_tipo,'.gif')"/>
+											</xsl:attribute>
+										</img>
+									</td>
+									<td class="TABLE_THREAD_TD" style="text-align:center;">
+										<xsl:if test="@c_type!=''">
+											<img>
+												<xsl:attribute name="src">
+													<xsl:value-of select="concat('Skins/_Default/Images/Workflow/Define/',@c_type,'.gif')"/>
+												</xsl:attribute>
+											</img>
+										</xsl:if>
+										<xsl:if test="not(@c_type) or @c_type=''">
+											&#160;
+										</xsl:if>
+									</td>
+									<td class="TABLE_THREAD_TD" style="text-align:center;">
+										<xsl:value-of select="@f_accion"/>
+									</td>
+									<td class="TABLE_THREAD_TD" style="background-image:url(Skins/_Default/Images/Workflow/CONSOLE/plus.gif);background-repeat:no-repeat;background-position:2px center;padding-left:15px;">
+										<xsl:value-of select="@o_comentario"/>
+									</td>
+								</tr>
+								<tr>
+									<td colspan="4" style="display:none;padding-left:20px;">
+										<xsl:attribute name="id">
+											<xsl:value-of select="concat('LOG_DETAIL_',@oi_log)"/>
+										</xsl:attribute>
+										<xsl:attribute name="name">
+											<xsl:value-of select="concat('LOG_DETAIL_',@oi_log)"/>
+										</xsl:attribute>
+										Cargando...
+									</td>
+								</tr>
+							</xsl:when>
+							<xsl:otherwise>
+								<tr class="TABLE_THREAD_TR">
+									<xsl:attribute name="nmd-log">
+										<xsl:value-of select="@oi_log"/>
+									</xsl:attribute>
+									<td class="TABLE_THREAD_TD" style="text-align:center;">
+										<img>
+											<xsl:attribute name="src">
+												<xsl:value-of select="concat('Skins/_Default/Images/Workflow/Logs/',@c_tipo,'.gif')"/>
+											</xsl:attribute>
+										</img>
+									</td>
+									<td class="TABLE_THREAD_TD" style="text-align:center;">
+										<xsl:if test="@c_type!=''">
+											<img>
+												<xsl:attribute name="src">
+													<xsl:value-of select="concat('Skins/_Default/Images/Workflow/Define/',@c_type,'.gif')"/>
+												</xsl:attribute>
+											</img>
+										</xsl:if>
+										<xsl:if test="not(@c_type) or @c_type=''">
+											&#160;
+										</xsl:if>
+									</td>
+									<td class="TABLE_THREAD_TD" style="text-align:center;">
+										<xsl:value-of select="@f_accion"/>
+									</td>
+									<td class="TABLE_THREAD_TD">
+										<xsl:value-of select="@o_comentario"/>
+									</td>
+								</tr>
+							</xsl:otherwise>
+						</xsl:choose>
+					</xsl:for-each>
+					<xsl:if test="@cnt &gt; 5">
+						<tr onclick="ShowMoreLog(this);" style="cursor:pointer;">
+							<xsl:attribute name="nmd-log">
+								<xsl:value-of select="@oi_log"/>
+							</xsl:attribute>
+							<td colspan="4" style="padding-left:5px;">
+								<img src="Skins/_Default/Images/Workflow/CONSOLE/plus.gif"/>
+								<b>
+									&#160;Mas LOG....
+								</b>
+							</td>
+						</tr>
+					</xsl:if>
+				</table>
+			</xsl:for-each>
+			<xsl:for-each select="ETAPAS">
+				<table CELLPADDING="0" CELLSPACING="0" class="TABLE_THREAD" valign="top" border="0">
+					<col width="20px"/>
+					<col width="70px"/>
+					<col width="70px"/>
+					<col/>
+					<tr height="20px">
+						<th class="TABLE_THREAD_TH">
+							&#160;
+						</th>
+						<th class="TABLE_THREAD_TH">
+							Fecha
+						</th>
+						<th class="TABLE_THREAD_TH" style="text-align:center;">
+							Usuario
+						</th>
+						<th class="TABLE_THREAD_TH">
+							Descripci&#243;n
+						</th>
+					</tr>
+					<xsl:for-each select="ETAPA">
+						<tr class="TABLE_THREAD_TR">
+							<td class="TABLE_THREAD_TD" style="text-align:center;">
+								<xsl:if test="@c_tipo='IFO'">
+									<img>
+										<xsl:attribute name="src">
+											<xsl:value-of select="concat('Skins/_Default/Images/Workflow/Define/',@c_type,'.gif')"/>
+										</xsl:attribute>
+									</img>
+								</xsl:if>
+								<xsl:if test="@c_tipo!='IFO'">
+									<img>
+										<xsl:attribute name="src">
+											<xsl:value-of select="concat('Skins/_Default/Images/Workflow/Logs/',@c_tipo,'.gif')"/>
+										</xsl:attribute>
+									</img>
+								</xsl:if>
+							</td>
+							<td class="TABLE_THREAD_TD" style="text-align:center;">
+								<xsl:value-of select="@f_accion"/>
+							</td>
+							<td class="TABLE_THREAD_TD">
+								<xsl:value-of select="@d_entidad_ayn"/>
+							</td>
+							<td class="TABLE_THREAD_TD">
+								<xsl:if test="@c_tipo='IFO'">
+									<xsl:value-of select="@d_label"/>
+								</xsl:if>
+								<xsl:if test="@c_tipo!='IFO'">
+									<xsl:value-of select="@o_comentario"/>
+								</xsl:if>
+							</td>
+						</tr>
+					</xsl:for-each>
+				</table>
+			</xsl:for-each>
+		</xsl:template>
+		<xsl:template match="INSTANCE[@mode='LOG-DETAIL']">
+			<html>
+				<head>
+					<style media="screen">
+						BODY
+{
+background-color: #FFFFFF; 
+cursor: default;
+PADDING-RIGHT: 0px; 
+PADDING-LEFT: 0px; 
+PADDING-TOP: 0px; 
+PADDING-BOTTOM: 0px; 
+MARGIN: 0px; 
+BORDER-TOP-STYLE: none; 
+BORDER-RIGHT-STYLE: none; 
+BORDER-LEFT-STYLE: none; 
+BORDER-BOTTOM-STYLE: none; 
+}
+.DIV_HEAD
+{
+background-color: #FFFFFF;
+background-image:url(Skins/_Default/Images/Workflow/CONSOLE/title_back.gif);
+
+border:1px solid #A0A0A0;
+border-collapse:collapse;
+
+width:100%;  
+height:30px;
+}
+.TABLE_HEAD
+{
+font-size: 9px;
+font-family: Verdana;
+color: #000000;          
+border-collapse:collapse;
+width:100%;  
+height:100%;
+cursor:default;
+}
+.TABLE_HEAD_TD
+{               
+padding-left:6px;
+padding-right:6px;
+}
+.DIV_BODY
+{
+background-color: #FFFFFF;
+
+border:1px solid #A0A0A0;
+border-collapse:collapse;
+
+width:100%;  
+height:100%;
+}
+.TABLE_BODY
+{
+font-size: 9px;
+font-family: Verdana;
+color: #000000;          
+border-collapse:collapse;
+width:100%;  
+height:100%;
+cursor:default;
+}               
+
+.TABLE_THREAD
+{
+font-size: 9px;
+font-family: Verdana;
+color: #000000;          
+border-collapse:collapse;
+border:1px solid #A0A0A0;
+width:100%;  
+cursor:default;
+}               
+.TABLE_THREAD_TR
+{
+background-color: #FFFFFF;
+cursor:default;
+}               
+.TABLE_THREAD_TR_OVER
+{
+background-color: #F0F0FF;
+cursor:pointer;
+}               
+.TABLE_THREAD_TH
+{
+background-image:url(Skins/_Default/Images/Workflow/CONSOLE/title_back.gif);
+border:1px solid #E0E0E0;
+
+height:30px;
+text-align:left;
+padding-left:2px;
+padding-right:2px;
+}
+.TABLE_THREAD_TD
+{
+border:1px solid #E0E0E0;
+
+height:30px;    
+text-align:left;
+padding-left:2px;
+padding-right:2px;
+}
+.TABLE_DETAIL
+{
+font-size: 9px;
+font-family: Verdana;
+color: #000000;          
+border-collapse:collapse;
+border:none;
+width:100%;  
+cursor:default;
+}               
+.TABLE_DETAIL_TH
+{
+text-align:left;
+}
+					</style>
+					<script>
+						function amp()
+{
+return String.fromCharCode(38);
+}
+function HTMLOnLoad()
+{        
+obj=document.getElementById("INNER_DATA");
+parent.SetHTML("LOG_DETAIL_"+obj.getAttribute("nmd-log"), ""+obj.innerHTML);
+}
+					</script>
+				</head>
+				<body scroll="no" onload="HTMLOnLoad();">
+					<div id="INNER_DATA" name="INNER_DATA">
+						<xsl:attribute name="nmd-log">
+							<xsl:value-of select="LOG/@oi_log"/>
+						</xsl:attribute>
+						<table class="TABLE_DETAIL">
+							<col/>
+							<tr>
+								<td>
+									<b>
+										Usuario:&#160;
+									</b>
+									<xsl:value-of select="ETAPA/@d_entidad_ayn"/>
+								</td>
+							</tr>
+							<tr>
+								<td>
+									<b>
+										Inicio:&#160;
+									</b>
+									<xsl:value-of select="ETAPA/@f_inicio"/>
+								</td>
+							</tr>
+							<tr>
+								<td>
+									<b>
+										Accion:&#160;
+									</b>
+									<xsl:value-of select="ETAPA/@f_resolucion"/>
+								</td>
+							</tr>
+							<tr>
+								<td>
+									<b>
+										Tiempo:&#160;
+									</b>
+									<xsl:value-of select="ETAPA/@f_resolucion-TIME"/>
+								</td>
+							</tr>
+						</table>
+					</div>
+				</body>
+			</html>
+		</xsl:template>
+	</html:xslt>
+</html:html>

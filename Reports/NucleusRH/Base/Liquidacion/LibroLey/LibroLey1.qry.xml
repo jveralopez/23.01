@@ -1,0 +1,369 @@
+<qry:define xmlns:qry="nomad_engine.qry" declare="&#9;&lt;CABECERA nro_hoja=&quot;0&quot; rem=&quot;1&quot; fam=&quot;1&quot; dom=&quot;0&quot; oi_tot_liq_per=&quot;504&quot;/&gt;" name="LibroLey">
+	<qry:main doc="PARAM">
+		<qry:insert-select name="QRY_COPY" doc-path="#PARAM:LIQUIDACIONES"/>
+		<qry:insert-select name="QRY_RECIBO" doc-path="#PARAM:CABECERA"/>
+		<qry:insert-select name="QRY_RECIBO_FANTASMA" doc-path="#PARAM:NULL"/>
+	</qry:main>
+	<qry:select name="QRY_RECIBO_FANTASMA" doc="PARAM">
+		<qry:out>
+			<CABECERA retenciones="0" totalanti="0" totalnoremsinanti="0" totalnorem="0" totalrem="0" total="0" D_CATEGORIA="0" f_nacim="0" c_nro_documento="0" nro_cuil="0" f_ingreso="0" c_personal="0" d_ape_y_nom="0" e_numero_legajo="-1" c_empresa="0" oi_per_emp_ddo="0" oi_tot_liq_per="0" f_nacim_familiar="0" doc_familiar="0" d_familiar="0" d_tipo_familiar="0">
+				<DET v1="0" c1="0" d1="0" i1="0" v2="0" c2="0" d2="0" i2="0" v3="0" c3="0" d3="0" i3="0"/>
+			</CABECERA>
+		</qry:out>
+	</qry:select>
+	<qry:select name="QRY_COPY" doc="PARAM">
+		<qry:out>
+			<qry:insert-element doc-path="#PARAM:"/>
+		</qry:out>
+	</qry:select>
+	<qry:select name="QRY_RECIBO" doc="SOURCE">
+		<qry:xquery>
+			for $r in sql('
+			SELECT 
+				LIQ20_TOT_LIQ_PER.oi_tot_liq_per,
+				PEM.oi_per_emp_ddo, 
+				PEM.e_numero_legajo,
+				PEM.c_empresa,  
+				PEM.c_personal,
+				PEM.d_ape_y_nom, 								
+				PEM.f_ingreso, 
+				PEM.f_egreso,								
+				PEM.c_nro_cuil  AS nro_cuil,
+				PEM.c_convenio,
+				PEM.c_categoria_ult as c_categoria,
+				PEM.f_nacim,
+				ORG22_EST_CIVIL.d_estado_civil,
+				PEM.c_nro_documento,
+				PEM.c_tipo_documento,
+				LIQ20_TOT_LIQ_PER.oi_liquidacion_ddo
+			FROM 
+				LIQ20_TOT_LIQ_PER,
+				LIQ97_PERSONAL_EMP as PEM,
+				ORG22_EST_CIVIL
+			JOIN
+				LIQ20_TOT_LIQ_PER.oi_per_emp_ddo INNER PEM.oi_per_emp_ddo,
+				PEM.c_estado_civil LEFT OUTER ORG22_EST_CIVIL.c_estado_civil
+			WHERE
+				LIQ20_TOT_LIQ_PER.oi_tot_liq_per = {#SOURCE:@oi_tot_liq_per}
+			')ROWS/ROW
+		</qry:xquery>
+		<qry:out>
+			<qry:attribute value="'1'" name="cant2"/>
+			<qry:element name="CABECERA">
+				<qry:attribute value="$r/@oi_tot_liq_per" name="oi_tot_liq_per"/>
+				<qry:attribute value="$r/@oi_per_emp_ddo" name="oi_per_emp_ddo"/>
+				<qry:attribute name="oi_per_emp_ddo" value="$r/@oi_per_emp_ddo"/>
+				<qry:attribute name="c_empresa" value="$r/@c_empresa"/>
+				<qry:attribute name="e_numero_legajo" value="$r/@e_numero_legajo"/>
+				<qry:attribute name="d_ape_y_nom" value="$r/@d_ape_y_nom"/>
+				<qry:attribute name="c_personal" value="$r/@c_personal"/>
+				<qry:attribute name="c_liquidacion" value="$r/@c_liquidacion"/>
+				<qry:attribute name="d_titulo" value="$r/@d_titulo"/>
+				<qry:attribute name="f_ingreso" value="format_date($r/@f_ingreso,'dd/mm/yyyy')"/>
+				<qry:attribute name="f_egreso" value="format_date($r/@f_egreso,'dd/mm/yyyy')"/>
+				<qry:attribute name="nro_cuil" value="$r/@nro_cuil"/>
+				<qry:attribute name="d_estado_civil" value="$r/@d_estado_civil"/>
+				<qry:attribute name="c_nro_documento" value="$r/@c_tipo_documento + ' ' + $r/@c_nro_documento"/>
+				<qry:attribute name="f_nacim" value="format_date($r/@f_nacim,'dd/mm/yyyy')"/>
+				<qry:if test="#SOURCE:@dom=1">
+					<qry:then>
+						<qry:insert-select doc-path="$r" name="QRY_DOMICILIO"/>
+					</qry:then>
+				</qry:if>
+				<qry:insert-select doc-path="$r" name="QRY_CATEGORIA"/>
+				<qry:element name="DET1">
+					<qry:attribute value="$r/@d_empresa" name="aa"/>
+					<qry:attribute name="hts:delete" value="1"/>
+					<qry:insert-select doc-path=".." name="QRY_DETALLE1"/>
+				</qry:element>
+				<qry:element name="DET2">
+					<qry:attribute name="hts:delete" value="1"/>
+					<qry:insert-select doc-path=".." name="QRY_DETALLE2"/>
+				</qry:element>
+				<qry:element name="DET3">
+					<qry:attribute name="hts:delete" value="1"/>
+					<qry:insert-select doc-path=".." name="QRY_DETALLE3"/>
+				</qry:element>
+				<qry:attribute name="max" value="iif(number(./DET1/@cant)&gt;number(./DET2/@cant),iif(number(./DET1/@cant) &gt; number(./DET3/@cant), number(./DET1/@cant), number(./DET3/@cant)),iif(number(./DET2/@cant) &gt; number(./DET3/@cant), number(./DET2/@cant), number(./DET3/@cant)))"/>
+				<qry:insert-select doc-path="." name="QRY_DETALLES"/>
+				<qry:if test="#SOURCE:@fam=1">
+					<qry:then>
+						<qry:insert-select doc-path="." name="QRY_FAMILIAR"/>
+					</qry:then>
+				</qry:if>
+				<qry:if test="#SOURCE:@rem=1">
+					<qry:then>
+						<qry:insert-select doc-path="." name="QRY_REMUNERACION"/>
+					</qry:then>
+				</qry:if>
+				<qry:insert-select doc-path="." name="QRY_REMUNERACIONES"/>
+			</qry:element>
+		</qry:out>
+	</qry:select>
+	<qry:select name="QRY_DOMICILIO" doc="PARAM">
+		<qry:xquery>
+			for $r in sql('
+				SELECT PER01_DOMIC_PER.d_calle,
+				PER01_DOMIC_PER.e_numero,
+				PER01_DOMIC_PER.d_piso,
+				PER01_DOMIC_PER.d_departamento,
+				PER01_DOMIC_PER.c_postal,
+				PER01_DOMIC_PER.oi_localidad
+				FROM PER01_PERSONAL, PER01_DOMIC_PER				
+				JOIN PER01_DOMIC_PER.oi_personal INNER PER01_PERSONAL.oi_personal
+				WHERE PER01_PERSONAL.c_personal = {#PARAM:@c_personal} AND
+				PER01_DOMIC_PER.l_domic_fiscal = 1
+			')/ROWS/ROW
+		</qry:xquery>
+		<qry:out>
+			<qry:attribute name="domicilio" value="$r/@d_calle + ' ' + $r/@e_numero + ' ' + $r/@d_piso + ' ' + $r/@d_departamento"/>
+			<qry:if test="$r/@c_postal!=''">
+				<qry:then>
+					<qry:attribute name="domicilio" value="@domicilio + ' - (' + $r/@c_postal + ')'"/>
+				</qry:then>
+			</qry:if>
+			<qry:insert-select name="qry_localidad" doc-path="$r/.[@oi_localidad!='']"/>
+		</qry:out>
+	</qry:select>
+	<qry:select name="qry_localidad" doc="PARAM">
+		<qry:xquery>
+			for $r in sql('
+				SELECT ORG19_LOCALIDADES.d_localidad, ORG35_PROVINCIAS.d_provincia
+				FROM ORG19_LOCALIDADES, ORG35_PROVINCIAS
+				JOIN ORG19_LOCALIDADES.oi_provincia INNER ORG35_PROVINCIAS.oi_provincia
+				WHERE ORG19_LOCALIDADES.oi_localidad = {#PARAM:@oi_localidad}
+			')/ROWS/ROW
+		</qry:xquery>
+		<qry:out>
+			<qry:attribute name="domicilio" value="@domicilio + ' ' + $r/@d_localidad + ', ' + $r/@d_provincia"/>
+		</qry:out>
+	</qry:select>
+	<qry:select name="QRY_CATEGORIA" doc="PARAM">
+		<qry:xquery>
+			for $r in sql('
+			SELECT LIQ94_CATEG.d_categoria
+			FROM LIQ94_CONVENIOS, LIQ94_CATEG, LIQ99_LIQUIDACION
+			WHERE LIQ94_CONVENIOS.oi_convenio_ddo = LIQ94_CATEG.oi_convenio_ddo AND
+			LIQ94_CONVENIOS.c_convenio = {#PARAM:@c_convenio} AND 
+			LIQ94_CATEG.c_categoria = {#PARAM:@c_categoria} AND 
+			LIQ94_CONVENIOS.oi_codif_ddo = LIQ99_LIQUIDACION.oi_codif_ddo AND
+			LIQ99_LIQUIDACION.oi_liquidacion_ddo = {#PARAM:@oi_liquidacion_ddo}
+			')/ROWS/ROW
+		</qry:xquery>
+		<qry:out>
+			<qry:attribute name="D_CATEGORIA" value="$r/@d_categoria"/>
+		</qry:out>
+	</qry:select>
+	<qry:select doc="PARAM" name="QRY_DETALLE1">
+		<qry:xquery>
+			for $r in sql('SELECT TLP.e_secuencia,
+										CLP.oi_conc_liq_per, 
+										CON.c_concepto, 
+										CON.d_concepto, 
+										CLP.n_valor    AS valor   ,
+									  CLP.n_cantidad   AS cantidad  ,
+									  CON.c_tipo_concepto
+							FROM
+										LIQ20_TOT_LIQ_PER AS TLP, 
+									 	liq20_conc_liq_per AS CLP, 
+									 	liq96_conceptos AS CON,
+									 	LIQ12_TIPOS_CONC AS TC
+							JOIN  
+										TLP.oi_tot_liq_per INNER CLP.oi_tot_liq_per ,
+								    CON.oi_concepto_ddo INNER CLP.oi_concepto_ddo,
+								    TC.c_tipo_concepto INNER CON.c_tipo_concepto
+           		  WHERE 
+           		  			TLP.oi_tot_liq_per = {#PARAM:@oi_tot_liq_per}	 							  			
+ 							  			and CON.ca_fig_recibo != \'N\'
+ 							  			and CLP.n_valor!=0 
+ 							  			and TC.l_nolistado = 0
+ 							  			and CON.c_tipo_concepto = \'1\'
+ 							  ORDER BY c_concepto ASC
+							')/ROWS/ROW
+		</qry:xquery>
+		<qry:out>
+			<qry:attribute name="cant" value="number(@cant) + 1"/>
+			<qry:element name="DET">
+				<qry:attribute name="c_concepto" value="$r/@c_concepto"/>
+				<qry:attribute name="d_concepto" value="$r/@d_concepto"/>
+				<qry:attribute value="format_number($r/@cantidad,0,2,'.','','')" name="cant"/>
+				<qry:attribute value="format_number($r/@valor,0,2,'.','','')" name="val"/>
+			</qry:element>
+		</qry:out>
+	</qry:select>
+	<qry:select doc="PARAM" name="QRY_DETALLE2">
+		<qry:xquery>
+			for $r in sql('SELECT TLP.e_secuencia,
+									CLP.oi_conc_liq_per, 
+									CON.c_concepto, 
+									CON.d_concepto, 
+									CLP.n_valor    AS valor   ,
+								  CLP.n_cantidad   AS cantidad  ,
+								  CON.c_tipo_concepto
+						FROM
+									LIQ20_TOT_LIQ_PER AS TLP, 
+								 	liq20_conc_liq_per AS CLP, 
+								 	liq96_conceptos AS CON,
+								 	LIQ12_TIPOS_CONC AS TC
+						JOIN  
+									TLP.oi_tot_liq_per INNER CLP.oi_tot_liq_per ,
+							    CON.oi_concepto_ddo INNER CLP.oi_concepto_ddo,
+							    TC.c_tipo_concepto INNER CON.c_tipo_concepto
+           		  WHERE 
+           		  			TLP.oi_tot_liq_per = {#PARAM:@oi_tot_liq_per}	 							  			
+ 							  			and CON.ca_fig_recibo != \'N\'
+ 							  			and CLP.n_valor!=0 
+ 							  			and TC.l_nolistado = 0
+ 							  			and (CON.c_tipo_concepto=\'0\' or CON.c_tipo_concepto=\'2\' or CON.c_tipo_concepto=\'8\')
+ 							  ORDER BY c_concepto ASC
+						')/ROWS/ROW
+		</qry:xquery>
+		<qry:out>
+			<qry:attribute name="cant" value="number(@cant) + 1"/>
+			<qry:element name="DET">
+				<qry:attribute name="c_concepto" value="$r/@c_concepto"/>
+				<qry:attribute name="d_concepto" value="$r/@d_concepto"/>
+				<qry:attribute value="format_number($r/@cantidad,0,2,'.','','')" name="cant"/>
+				<qry:attribute value="format_number($r/@valor,0,2,'.','','')" name="val"/>
+			</qry:element>
+		</qry:out>
+	</qry:select>
+	<qry:select doc="PARAM" name="QRY_DETALLE3">
+		<qry:xquery>
+			for $r in sql('SELECT TLP.e_secuencia,
+										CLP.oi_conc_liq_per, 
+										CON.c_concepto, 
+										CON.d_concepto, 
+										CLP.n_valor    AS valor   ,
+									  CLP.n_cantidad   AS cantidad  ,
+									  CON.c_tipo_concepto
+							FROM
+										LIQ20_TOT_LIQ_PER AS TLP, 
+									 	liq20_conc_liq_per AS CLP, 
+									 	liq96_conceptos AS CON,
+									 	LIQ12_TIPOS_CONC AS TC
+							JOIN  
+										TLP.oi_tot_liq_per INNER CLP.oi_tot_liq_per ,
+								    CON.oi_concepto_ddo INNER CLP.oi_concepto_ddo,
+								    TC.c_tipo_concepto INNER CON.c_tipo_concepto
+           		  WHERE 
+           		  			TLP.oi_tot_liq_per = {#PARAM:@oi_tot_liq_per}	 							  			
+ 							  			and CON.ca_fig_recibo != \'N\'
+ 							  			and CLP.n_valor!=0 
+ 							  			and TC.l_nolistado = 0
+ 							  			and (CON.c_tipo_concepto = \'3\' or CON.c_tipo_concepto = \'7\')
+ 							  ORDER BY c_concepto ASC
+							')/ROWS/ROW
+		</qry:xquery>
+		<qry:out>
+			<qry:attribute name="cant" value="number(@cant) + 1"/>
+			<qry:element name="DET">
+				<qry:attribute name="c_concepto" value="$r/@c_concepto"/>
+				<qry:attribute name="d_concepto" value="$r/@d_concepto"/>
+				<qry:attribute value="format_number($r/@cantidad,0,2,'.','','')" name="cant"/>
+				<qry:attribute value="format_number($r/@valor,0,2,'.','','')" name="val"/>
+			</qry:element>
+		</qry:out>
+	</qry:select>
+	<qry:select doc="PARAM" name="QRY_DETALLES">
+		<qry:xquery>
+			for $r in secuence('int,0,{%=string(number(#PARAM:@max)+1)%},1')/ROWS/ROW
+		</qry:xquery>
+		<qry:out>
+			<qry:if test="number($r/@value)&lt;number(#PARAM:@max)">
+				<qry:then>
+					<qry:element name="DET">
+						<qry:if test="number($r/@value)&lt;number(#PARAM:DET1/@cant)">
+							<qry:then>
+								<!-- Remunerativos -->
+								<qry:attribute name="i1" value="#PARAM:DET1/DET[number($r/@value)]/@c_concepto"/>
+								<qry:attribute name="d1" value="#PARAM:DET1/DET[number($r/@value)]/@d_concepto"/>
+								<qry:attribute name="c1" value="#PARAM:DET1/DET[number($r/@value)]/@cant"/>
+								<qry:attribute name="v1" value="#PARAM:DET1/DET[number($r/@value)]/@val"/>
+							</qry:then>
+						</qry:if>
+						<qry:if test="number($r/@value)&lt;number(#PARAM:DET2/@cant)">
+							<qry:then>
+								<!-- No Remunerativos -->
+								<qry:attribute name="i2" value="#PARAM:DET2/DET[number($r/@value)]/@c_concepto"/>
+								<qry:attribute name="d2" value="#PARAM:DET2/DET[number($r/@value)]/@d_concepto"/>
+								<qry:attribute name="c2" value="#PARAM:DET2/DET[number($r/@value)]/@cant"/>
+								<qry:attribute name="v2" value="#PARAM:DET2/DET[number($r/@value)]/@val"/>
+							</qry:then>
+						</qry:if>
+						<qry:if test="number($r/@value)&lt;number(#PARAM:DET3/@cant)">
+							<qry:then>
+								<!-- Descuentos -->
+								<qry:attribute name="i3" value="#PARAM:DET3/DET[number($r/@value)]/@c_concepto"/>
+								<qry:attribute name="d3" value="#PARAM:DET3/DET[number($r/@value)]/@d_concepto"/>
+								<qry:attribute name="c3" value="#PARAM:DET3/DET[number($r/@value)]/@cant"/>
+								<qry:attribute name="v3" value="#PARAM:DET3/DET[number($r/@value)]/@val"/>
+							</qry:then>
+						</qry:if>
+					</qry:element>
+				</qry:then>
+			</qry:if>
+		</qry:out>
+	</qry:select>
+	<qry:select doc="PARAM" name="QRY_REMUNERACIONES">
+		<qry:xquery>
+			for $r in sql('
+		SELECT  TLP.n_totpag as total,
+		TLP.n_totsret AS rem,
+		(TLP.n_totnsret + TLP.n_totasig + TLP.n_totant) AS norem,
+		(TLP.n_totant) AS anti,
+		(TLP.n_totdesc + TLP.n_totemb) AS retenciones				
+		FROM LIQ20_TOT_LIQ_PER as TLP
+		WHERE TLP.oi_tot_liq_per =  {#PARAM:@oi_tot_liq_per}
+	')/ROWS/ROW
+		</qry:xquery>
+		<qry:out>
+			<qry:attribute value="format_number($r/@total,0,2,'.','','')" name="total"/>
+			<qry:attribute value="format_number($r/@rem,0,2,'.','','')" name="totalrem"/>
+			<qry:attribute value="format_number($r/@norem,0,2,'.','','')" name="totalnorem"/>
+			<qry:attribute value="format_number(0-$r/@retenciones,0,2,'.','','')" name="retenciones"/>
+			<qry:attribute value="format_number($r/@anti,0,2,'.','','')" name="totalanti"/>
+			<qry:attribute value="format_number( number($r/@norem) - number($r/@anti),0,2,'.','','')" name="totalnoremsinanti"/>
+		</qry:out>
+	</qry:select>
+	<qry:select doc="PARAM" name="QRY_FAMILIAR">
+		<qry:xquery>
+			for $r in sql('
+			SELECT
+			PER15_TIPOS_FAM.d_tipo_familiar,
+			LIQ97_FLIARES_PER.d_ape_y_nom,
+			PER20_TIPOS_DOC.c_tipo_documento,
+			LIQ97_FLIARES_PER.c_nro_documento,			
+			LIQ97_FLIARES_PER.f_nacimiento
+			FROM LIQ97_FLIARES_PER, PER15_TIPOS_FAM, PER20_TIPOS_DOC
+			JOIN
+			LIQ97_FLIARES_PER.c_tipo_familiar INNER PER15_TIPOS_FAM.c_tipo_familiar,
+			LIQ97_FLIARES_PER.c_tipo_documento LEFT OUTER PER20_TIPOS_DOC.c_tipo_documento
+			WHERE
+			LIQ97_FLIARES_PER.oi_per_emp_ddo = {#PARAM:@oi_per_emp_ddo}
+			AND LIQ97_FLIARES_PER.l_vive = 1
+			')/ROWS/ROW
+		</qry:xquery>
+		<qry:out>
+			<qry:attribute value="@d_tipo_familiar + iif(@d_tipo_familiar='','','&#10;') + $r/@d_tipo_familiar" name="d_tipo_familiar"/>
+			<qry:attribute value="@d_familiar + iif(@d_familiar='','','&#10;') + $r/@d_ape_y_nom" name="d_familiar"/>
+			<qry:attribute value="@doc_familiar + iif(@doc_familiar='','','&#10;') + $r/@c_tipo_documento + ' ' + $r/@c_nro_documento" name="doc_familiar"/>
+			<qry:attribute value="@f_nacim_familiar + iif(@f_nacim_familiar='','','&#10;') + format_date($r/@f_nacimiento,'dd/mm/yyyy')" name="f_nacim_familiar"/>
+		</qry:out>
+	</qry:select>
+	<qry:select doc="PARAM" name="QRY_REMUNERACION">
+		<qry:xquery>
+			for $r in sql('
+			SELECT 
+			LIQ20_TOT_LIQ_PER.n_sbasico
+			FROM     
+			LIQ20_TOT_LIQ_PER
+			where            
+			LIQ20_TOT_LIQ_PER.oi_tot_liq_per = {#PARAM:@oi_tot_liq_per}
+			')/ROWS/ROW
+		</qry:xquery>
+		<qry:out>
+			<qry:attribute value="format_number($r/@n_sbasico,0,2,'.','','')" name="remuneracion_basica"/>
+		</qry:out>
+	</qry:select>
+</qry:define>

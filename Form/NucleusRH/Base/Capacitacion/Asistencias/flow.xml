@@ -1,0 +1,146 @@
+<flow:flow xmlns:flow="nomad_engine.flow" xmlns:qry="nomad_engine.qry" xmlns:doc="nomad_engine.doc" name="NucleusRH.Base.Capacitacion.Asistencias.flow" extends="Nomad.Base.flow">
+	<flow:info label="Flow para NucleusRH.Base.Capacitacion.Asistencias.flow"/>
+	<flow:declare>
+		<qry:define declare="&lt;FILTER oi_dictado=&quot;102&quot;/&gt;" name="QRY_CLASES">
+			<qry:main doc="SOURCE">
+				<qry:element name="ROWS">
+					<qry:insert-select name="RS1" doc-path="#SOURCE:FILTER"/>
+				</qry:element>
+			</qry:main>
+			<qry:select name="RS1" doc="SOURCE">
+				<qry:xquery>
+					for $r in sql('
+			SELECT 
+				CYD02_CLASES_DICT.oi_clase_dictado,
+				CYD02_CLASES_DICT.f_fecha_hora_ini,
+				CYD02_CLASES_DICT.f_fecha_hora_fin,
+				CYD02_CLASES_DICT.oi_lugar_dictado,
+				CYD02_DICTADOS.c_estado,
+				CYD02_DICTADOS.oi_dictado
+			FROM 
+				CYD02_CLASES_DICT, CYD02_DICTADOS
+			JOIN
+				CYD02_CLASES_DICT.oi_dictado INNER CYD02_DICTADOS.oi_dictado				
+			WHERE 
+				CYD02_CLASES_DICT.oi_dictado = {#SOURCE:@oi_dictado} 
+				AND CYD02_DICTADOS.c_estado = \'P\' 	
+			ORDER BY 
+				f_fecha_hora_ini ASC 
+		')ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:element name="ROW">
+						<qry:attribute name="id" value="$r/@oi_clase_dictado"/>
+						<qry:attribute name="f_fecha_hora_ini" value="$r/@f_fecha_hora_ini"/>
+						<qry:attribute name="f_fecha_hora_fin" value="$r/@f_fecha_hora_fin"/>
+						<qry:attribute name="oi_lugar_dictado" value="$r/@oi_lugar_dictado"/>
+					</qry:element>
+				</qry:out>
+			</qry:select>
+		</qry:define>
+		<qry:define declare="&lt;FILTER oi_dictado=&quot;5679&quot; oi_clase=&quot;5862&quot; /&gt;" name="QRY_INSCRIPTOS">
+			<qry:main doc="SOURCE">
+				<qry:element name="ROWS">
+					<qry:insert-select name="sql1" doc-path="#SOURCE:FILTER"/>
+				</qry:element>
+			</qry:main>
+			<qry:select name="sql1" doc="SOURCE">
+				<qry:xquery>
+					for $r in sql('
+			SELECT 
+				CYD02_INSCRIPTOS.oi_inscripto,
+				CYD17_TERCEROS.c_tercero as code,
+				CYD17_TERCEROS.d_ape_y_nom,
+				\'Tercero\' as empresa
+			FROM 
+				CYD02_INSCRIPTOS, 
+				CYD17_TERCEROS
+			JOIN
+				CYD02_INSCRIPTOS.oi_tercero INNER CYD17_TERCEROS.oi_tercero
+			WHERE
+				CYD02_INSCRIPTOS.oi_dictado = {#SOURCE:@oi_dictado}
+			UNION
+			SELECT 
+				INS.oi_inscripto,
+				UCASE(PER02_PERSONAL_EMP.e_numero_legajo) as code,
+				PER01_PERSONAL.d_ape_y_nom,
+				ORG03_EMPRESAS.d_empresa as empresa
+			FROM 
+				CYD02_INSCRIPTOS as INS, 
+				PER02_PERSONAL_EMP, 
+				PER01_PERSONAL,
+				ORG03_EMPRESAS
+			JOIN 
+				INS.oi_personal_emp INNER PER02_PERSONAL_EMP.oi_personal_emp,
+				PER02_PERSONAL_EMP.oi_personal INNER PER01_PERSONAL.oi_personal,
+				PER02_PERSONAL_EMP.oi_empresa INNER ORG03_EMPRESAS.oi_empresa
+			WHERE 
+				INS.oi_dictado = {#SOURCE:@oi_dictado}
+			ORDER BY empresa ASC, code ASC
+		')ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:element name="ROW">
+						<qry:attribute name="oi_inscripto" value="$r/@oi_inscripto"/>
+						<qry:attribute name="inscripto" value="$r/@empresa + ' - [' + $r/@code + '] ' + $r/@d_ape_y_nom"/>
+						<qry:attribute name="oi_clase" value="#SOURCE:@oi_clase"/>
+						<qry:attribute name="sel" value="'0'"/>
+						<qry:insert-select name="sql2" doc-path="."/>
+					</qry:element>
+				</qry:out>
+			</qry:select>
+			<qry:select name="sql2" doc="SOURCE">
+				<qry:xquery>
+					for $r in sql('
+				SELECT 1 AS sel
+				FROM CYD02_ASIST_CLASE
+				WHERE CYD02_ASIST_CLASE.oi_inscripto = {#SOURCE:@oi_inscripto} 
+				AND CYD02_ASIST_CLASE.oi_clase_dictado = {#SOURCE:@oi_clase}  
+			')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:attribute name="sel" value="'1'"/>
+				</qry:out>
+			</qry:select>
+		</qry:define>
+		<doc:define name="FILTERDATA">
+			<FILTER oi_dictado="" oi_clase=""/>
+		</doc:define>
+		<doc:define name="CLASES"/>
+		<doc:define name="INSCRIPTOS"/>
+	</flow:declare>
+	<flow:main doc="SOURCE">
+		<flow:action name="initialize">
+			<flow:open-form form-class="NucleusRH.Base.Capacitacion.Asistencias.filter.form" mode="FILTER" doc-path="#SOURCE:"/>
+		</flow:action>
+	</flow:main>
+	<flow:form name="NucleusRH.Base.Capacitacion.Asistencias.filter.form:FILTER" doc="SOURCE" form-class="NucleusRH.Base.Capacitacion.Asistencias.filter.form" mode="FILTER">
+		<flow:action name="on-show">
+			<flow:attach-doc attach-id="RS" doc-path="#CLASES:"/>
+		</flow:action>
+		<flow:action name="GET_CLASES">
+			<doc:load-qry qry="QRY_CLASES" output-doc="CLASES" input-doc-path="#FILTERDATA:"/>
+			<flow:call-action action="on-show"/>
+		</flow:action>
+		<flow:action name="ACCEPT">
+			<doc:set-attribute from-attr-path="#FORM:ctrl[@id='LIST']/@xval" to-attr-path="#FILTERDATA:@oi_clase"/>
+			<doc:load-qry output-doc="INSCRIPTOS" input-doc-path="#FILTERDATA:" qry="QRY_INSCRIPTOS"/>
+			<flow:open-form doc-path="#INSCRIPTOS:" form-class="NucleusRH.Base.Capacitacion.Asistencias.INSCRIPTOS.form" mode="EDIT"/>
+		</flow:action>
+		<flow:action name="BACK">
+			<flow:close-form/>
+		</flow:action>
+	</flow:form>
+	<flow:form mode="EDIT" doc="SOURCE" name="NucleusRH.Base.Capacitacion.Asistencias.INSCRIPTOS.form:EDIT" form-class="NucleusRH.Base.Capacitacion.Asistencias.INSCRIPTOS.form">
+		<flow:action name="SAVE">
+			<flow:exec-method class="NucleusRH.Base.Capacitacion.Dictados.ASIST_CLASE" method="AsistenciaClase">
+				<flow:param attr-path="#FILTERDATA:@oi_clase" mode="in" type="Nomad.NSystem.String" name="claseId"/>
+				<flow:param doc="INSCRIPTOS" type="Nomad.NSystem.Object" mode="in" name="InscriptosCol"/>
+			</flow:exec-method>
+			<flow:close-form/>
+		</flow:action>
+		<flow:action name="CANCEL">
+			<flow:close-form/>
+		</flow:action>
+	</flow:form>
+</flow:flow>

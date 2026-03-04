@@ -1,0 +1,105 @@
+<flow:flow xmlns:flow="nomad_engine.flow" xmlns:doc="nomad_engine.doc" xmlns:qry="nomad_engine.qry" extends="NucleusProject.Base.Project.Solicitudes.SOLICITUD.TableroDeSolicitudes.STD_REP.autoflow" default_action="FILTER" name="NucleusProject.Base.Project.Solicitudes.SOLICITUD.TableroDeSolicitudes.STD_REP.flow">
+	<flow:info label="NucleusProject.Base.Project.Solicitudes.SOLICITUD.TableroDeSolicitudes.STD_REP.autoflow"/>
+	<flow:declare>
+		<doc:define name="DATA">
+			<DATA>
+				<ROWS/>
+				<EST/>
+				<CLASIF/>
+			</DATA>
+		</doc:define>
+		<doc:define name="PARENT"/>
+		<qry:define name="GetClasificaciones">
+			<qry:main doc="SOURCE">
+				<qry:element name="ROWS">
+					<qry:insert-select name="qry_clasificaciones" doc-path=""/>
+				</qry:element>
+			</qry:main>
+			<qry:select doc="PARAM" name="qry_clasificaciones">
+				<qry:xquery>
+					for $r in SQL('          
+				SELECT 
+					pry16_clasif.oi_clasificacion,
+					pry16_clasif.c_clasificacion,
+					pry16_clasif.d_clasificacion
+				FROM 
+					pry16_clasif
+			')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:element name="ROW">
+						<qry:attribute name="id" value="$r/@oi_clasificacion"/>
+						<qry:attribute name="des" value="'['+$r/@c_clasificacion+'] '+$r/@d_clasificacion"/>
+					</qry:element>
+				</qry:out>
+			</qry:select>
+		</qry:define>
+		<doc:define name="CLASIF"/>
+		<doc:define name="EST">
+			<ROWS>
+				<ROW id="1" des="PENDIENTE"/>
+				<ROW id="2" des="DERIVADO A PMO"/>
+				<ROW id="3" des="DERIVADO PARA ESTIMACION/DESARROLLO"/>
+				<ROW id="4" des="DERIVADO A CLIENTE"/>
+				<ROW id="5" des="CERRADO"/>
+				<ROW id="6" des="CERRADO POR EL CLIENTE"/>
+				<ROW id="7" des="RECHAZADO"/>
+				<ROW id="8" des="TRABAJANDO"/>
+			</ROWS>
+		</doc:define>
+		<doc:define name="RS_EST">
+			<EST/>
+		</doc:define>
+		<doc:define name="RS_CLASIF">
+			<CLASIF/>
+		</doc:define>
+	</flow:declare>
+	<flow:main doc="SOURCE">
+		<flow:action name="FILTER">
+			<doc:set-attribute from-attr-path="#SOURCE:@ID" to-attr-path="#DATA:@ID"/>
+			<doc:set-attribute from-attr-path="#SOURCE:@PARENT" to-attr-path="#DATA:@PARENT"/>
+			<flow:open-form mode="FILTER" parent-doc-path="#SOURCE:" doc-path="#DATA:" form-class="NucleusProject.Base.Project.Solicitudes.SOLICITUD.TableroDeSolicitudes.STD_FIL.form"/>
+		</flow:action>
+		<flow:action name="EXECUTE">
+			<flow:exec-method priority="6" out-attr-path="#BATCHDOC:@batch-id" class="Nomad.Base.Report.GeneralReport.REPORT" method="ExecReportHTML">
+				<flow:param type="Nomad.NSystem.String" mode="in" name="ReportName" value="NucleusProject.Base.Project.TableroDeSolicitudes.rpt"/>
+				<flow:param doc-path="#SOURCE:" type="Nomad.NSystem.Proxy.NomadXML" mode="in" name="xmlParam"/>
+			</flow:exec-method>
+			<flow:open-form parent-doc-path="#SOURCE:" mode="SHOW" doc-path="#BATCHDOC:" form-class="Nomad.base.HTML_XLS.form"/>
+		</flow:action>
+	</flow:main>
+	<flow:form mode="FILTER" parent-doc="PARENT" doc="SOURCE" form-class="NucleusProject.Base.Project.Solicitudes.SOLICITUD.TableroDeSolicitudes.STD_FIL.form" name="NucleusProject.Base.Project.Solicitudes.SOLICITUD.TableroDeSolicitudes.STD_FIL.form:FILTER">
+		<flow:action name="on-show">
+			<flow:call-action action="Load-FILTER"/>
+			<doc:load-qry qry="GetClasificaciones" output-doc="CLASIF"/>
+			<flow:attach-doc doc-path="#CLASIF:" attach-id="CLASIF"/>
+			<flow:attach-doc doc-path="#EST:" attach-id="EST"/>
+		</flow:action>
+		<flow:action name="BACK">
+			<flow:close-form/>
+		</flow:action>
+		<flow:action name="Load-FILTER">
+			<flow:load-user-data doc="DATA" name="NucleusProject.Base.Project.Solicitudes.SOLICITUD.TableroDeSolicitudes.STD_FIL.filter"/>
+		</flow:action>
+		<flow:action name="Save-FILTER">
+			<flow:save-user-data doc-path="#DATA:" name="NucleusProject.Base.Project.Solicitudes.SOLICITUD.TableroDeSolicitudes.STD_FIL.filter"/>
+		</flow:action>
+		<flow:action name="ACCEPT">
+			<flow:call-action action="Save-FILTER"/>
+			<flow:exec-method class="NucleusProject.Base.Project.Proyectos.PROYECTO" method="REPORTE_TAREAS_PROYECTO">
+				<flow:param doc="DATA" name="pxmlDATA" type="Nomad.NSystem.Proxy.NomadXML" mode="inout"/>
+				<flow:param doc="RS_EST" name="pxmlRS_EST" type="Nomad.NSystem.Proxy.NomadXML" mode="in"/>
+			</flow:exec-method>
+			<flow:exec-method class="NucleusProject.Base.Project.Proyectos.PROYECTO" method="REPORTE_TAREAS_PROYECTO">
+				<flow:param doc="DATA" name="pxmlDATA" type="Nomad.NSystem.Proxy.NomadXML" mode="inout"/>
+				<flow:param doc="RS_CLASIF" name="pxmlRS_CLASIF" type="Nomad.NSystem.Proxy.NomadXML" mode="in"/>
+			</flow:exec-method>
+			<flow:exec-method priority="6" out-attr-path="#BATCHDOC:@batch-id" class="Nomad.Base.Report.GeneralReport.REPORT" method="ExecReportHTML">
+				<flow:param type="Nomad.NSystem.String" mode="in" name="ReportName" value="NucleusProject.Base.Project.TableroDeSolicitudes.rpt"/>
+				<flow:param doc-path="#SOURCE:" type="Nomad.NSystem.Proxy.NomadXML" mode="in" name="xmlParam"/>
+			</flow:exec-method>
+			<doc:set-attribute to-attr-path="#BATCHDOC:@title" from-value="Tablero de Solicitudes"/>
+			<flow:open-form parent-doc-path="#SOURCE:" mode="SHOW" doc-path="#BATCHDOC:" form-class="Nomad.base.HTML_XLS.form"/>
+		</flow:action>
+	</flow:form>
+</flow:flow>

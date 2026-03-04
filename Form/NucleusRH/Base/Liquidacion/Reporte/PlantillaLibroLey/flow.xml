@@ -1,0 +1,71 @@
+<flow:flow xmlns:flow="nomad_engine.flow" xmlns:doc="nomad_engine.doc" xmlns:qry="nomad_engine.qry" default_action="initialize" extends="Nomad.Base.report.Crystal.flow" name="NucleusRH.Base.Liquidacion.Reporte.PlantillaLibroLey.flow">
+	<flow:info label="Plantilla para Libro Ley"/>
+	<flow:declare>
+		<doc:define name="FILTERDATA">
+			<DATOS oi_empresa="" e_desde="" e_hasta="" FormatRPT="PDF"/>
+		</doc:define>
+		<qry:define declare="&lt;DATOS oi_empresa=&quot;1&quot; /&gt;" name="qry_numdesde">
+			<qry:main doc="SOURCE">
+				<qry:element name="ROW">
+					<qry:attribute name="value" value="'1'"/>
+					<qry:insert-select name="SQL1" doc-path="#SOURCE:DATOS"/>
+					<qry:insert-select name="SQL2" doc-path="#SOURCE:DATOS"/>
+				</qry:element>
+			</qry:main>
+			<qry:select doc="SOURCE" name="SQL1">
+				<qry:xquery>
+					for $r in sql('
+SELECT ORG26_PARAMETROS.oi_parametro
+FROM ORG26_PARAMETROS
+WHERE ORG26_PARAMETROS.c_parametro = \'numDeLibroLey\'
+	')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:attribute name="oi_parametro" value="$r/@oi_parametro"/>
+				</qry:out>
+			</qry:select>
+			<qry:select doc="SOURCE" name="SQL2">
+				<qry:xquery>
+					for $r in sql('
+SELECT LIQ15_PARAM_EMP.d_valor
+FROM LIQ15_PARAM_EMP, ORG26_PARAMETROS
+JOIN LIQ15_PARAM_EMP.oi_parametro INNER ORG26_PARAMETROS.oi_parametro
+WHERE ORG26_PARAMETROS.c_parametro = \'numDeLibroLey\'
+AND LIQ15_PARAM_EMP.oi_empresa = {#SOURCE:@oi_empresa}
+	')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:attribute name="value" value="$r/@d_valor"/>
+				</qry:out>
+			</qry:select>
+		</qry:define>
+		<doc:define name="NUM"/>
+	</flow:declare>
+	<flow:main doc="SOURCE">
+		<flow:action name="initialize">
+			<flow:open-form doc-path="#FILTERDATA:" form-class="NucleusRH.Base.Liquidacion.Reporte.PlantillaLibroLey.form" mode="FILTER"/>
+		</flow:action>
+	</flow:main>
+	<flow:form mode="FILTER" form-class="NucleusRH.Base.Liquidacion.Reporte.PlantillaLibroLey.form" name="NucleusRH.Base.Liquidacion.Reporte.PlantillaLibroLey.form:FILTER" doc="SOURCE">
+		<flow:action name="ACCEPT">
+			<flow:exec-method out-attr-path="#FILTERDATA:@batch-id" out-type="String" priority="9" method="execute" class="Nomad.NSystem.Crystal.NmdCrystalBatch">
+				<flow:param value="NucleusRH.Base.Liquidacion.PlantillaLibroLey\PlantillaLibroLeyPDF.def" name="report-name" mode="in" type="Nomad.NSystem.String"/>
+				<flow:param name="report-param" mode="in" type="Nomad.NSystem.Object" doc="FILTERDATA"/>
+				<flow:param attr-path="#FILTERDATA:@file-name" name="report-file" mode="in" type="Nomad.NSystem.String"/>
+			</flow:exec-method>
+			<flow:open-form form-class="Nomad.base.batch.report.form" mode="BATCH" doc-path="#FILTERDATA:"/>
+			<flow:exec-method class="NucleusRH.Base.Liquidacion.Empresa_Liquidacion.EMPRESA" method="ActualizarParamLibroLey">
+				<flow:param doc="FILTERDATA" type="Nomad.NSystem.Proxy.NomadXML" mode="in" name="param"/>
+			</flow:exec-method>
+		</flow:action>
+		<flow:action name="CANCEL">
+			<flow:close-form/>
+		</flow:action>
+		<flow:action name="REFRESH">
+			<doc:load-qry output-doc="NUM" input-doc-path="#FILTERDATA:" qry="qry_numdesde"/>
+			<doc:set-attribute from-attr-path="#NUM:@value" to-attr-path="#FILTERDATA:@e_desde"/>
+			<doc:set-attribute from-value="" to-attr-path="#FILTERDATA:@e_hasta"/>
+			<doc:set-attribute from-attr-path="#NUM:@oi_parametro" to-attr-path="#FILTERDATA:@oi_parametro"/>
+		</flow:action>
+	</flow:form>
+</flow:flow>

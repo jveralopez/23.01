@@ -1,0 +1,298 @@
+<html:html xmlns:html="nomad_engine.html" xmlns:qry="nomad_engine.qry" name="NucleusRH.Base.Gestion_de_Postulantes.Reportes.AgendaEvaluadores" extends="Nomad.Base.BaseReport.rpt" doc="source">
+	<html:query declare="&lt;FILTRO &#13;&#10;&#9;oi_evaluador=&quot;&quot; &#13;&#10;&#9;c_estado=&quot;&quot; &#13;&#10;&#9;oi_tipo_examen=&quot;&quot; &#13;&#10;&#9;f_desde=&quot;&quot; &#13;&#10;&#9;f_hasta=&quot;&quot; &#13;&#10;/&gt;&#13;&#10;">
+		<qry:main doc="SOURCE">
+			<qry:append-doc doc-path="#SOURCE:FILTRO" name="FILTRO"/>
+			<REPORT label="Agenda del Evaluador">
+				<qry:attribute value="format_date(now(),'dd/mm/yyyy HH:MM')" name="date"/>
+				<GROUPS>
+					<GROUP tag="REP" type="title">
+						<COLS>
+							<qry:if test="#FILTRO:@f_desde!=''">
+								<qry:then>
+									<COL name="f_desde" label="Fecha Desde" type="date"/>
+								</qry:then>
+							</qry:if>
+							<qry:if test="#FILTRO:@f_hasta!=''">
+								<qry:then>
+									<COL name="f_hasta" label="Fecha Hasta" type="date"/>
+								</qry:then>
+							</qry:if>
+							<qry:if test="#FILTRO:@c_estado!=''">
+								<qry:then>
+									<COL name="estado" label="Estado"/>
+								</qry:then>
+							</qry:if>
+						</COLS>
+						<GROUP tag="EVA" type="title">
+							<COLS>
+								<COL name="evaluador" label="Evaluador"/>
+							</COLS>
+							<GROUP tag="TIPO" type="title" noreg="No se encontraron registros.">
+								<COLS>
+									<COL name="tipo_examen" label="Tipo de Evaluaci&#243;n"/>
+								</COLS>
+								<GROUP tag="EVAL" type="table" style="width:1390px" noreg="No se encontraron registros.">
+									<COLS>
+										<COL name="d_puesto" label="Puesto" style="width:200px"/>
+										<COL name="reclutado" label="Reclutado" style="width:200px"/>
+										<COL name="eval" label="Evaluaci&#243;n" style="width:150px"/>
+										<COL name="f_fecha_hora_exa" label="Fecha y Hora" style="width:150px"/>
+										<COL name="estado" label="Estado" style="width:40px"/>
+										<COL name="d_resultado" label="Resultado" style="width:150px"/>
+										<COL name="o_observacion" label="Observaciones" style="width:500px"/>
+									</COLS>
+								</GROUP>
+							</GROUP>
+						</GROUP>
+					</GROUP>
+				</GROUPS>
+				<qry:element name="DATA">
+					<qry:element name="REP">
+						<qry:attribute name="f_desde" value="format_date(#FILTRO:@f_desde, 'dd/mm/yyyy')"/>
+						<qry:attribute name="f_hasta" value="format_date(#FILTRO:@f_hasta, 'dd/mm/yyyy')"/>
+						<qry:insert-select doc-path="#SOURCE:FILTRO" name="Evaluador"/>
+						<qry:insert-select doc-path="#FILTRO:" name="Estado"/>
+					</qry:element>
+				</qry:element>
+			</REPORT>
+		</qry:main>
+		<qry:select doc="SOURCE" name="Estado">
+			<qry:xquery>
+				for $r in sql('
+				SELECT
+					SEL13_EXA_REC.c_estado
+				FROM
+					SEL13_EXA_REC
+				WHERE
+					SEL13_EXA_REC.c_estado = {#SOURCE:@c_estado}
+			')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:switch test="$r/@c_estado">
+					<qry:case value="PL">
+						<qry:attribute name="estado" value="'Planificada'"/>
+					</qry:case>
+					<qry:case value="RE">
+						<qry:attribute name="estado" value="'Realizada'"/>
+					</qry:case>
+					<qry:case value="PO">
+						<qry:attribute name="estado" value="'Postergada'"/>
+					</qry:case>
+					<qry:case value="NR">
+						<qry:attribute name="estado" value="'Realizada'"/>
+					</qry:case>
+				</qry:switch>
+			</qry:out>
+		</qry:select>
+		<qry:select doc="SOURCE" name="Evaluador">
+			<qry:xquery>
+				for $r in sql('
+				SELECT
+					SEL11.d_evaluador
+					, SEL11.d_ape_y_nom
+					, SEL11.oi_evaluador
+				FROM
+					SEL11_EVALUADORES AS SEL11
+				WHERE
+					1=1
+					{%? (#SOURCE:@oi_evaluador!='') 
+						{% AND SEL11.oi_evaluador= {#SOURCE:@oi_evaluador} %} 
+						{% %} 
+					%}
+				ORDER BY 
+					d_ape_y_nom ASC
+			')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:element name="EVA">
+					<qry:attribute value="$r/@oi_evaluador" name="oi_evaluador"/>
+					<qry:attribute value="$r/@d_ape_y_nom" name="evaluador"/>
+					<qry:insert-select doc-path="#FILTRO:" name="Tipo_Examen"/>
+				</qry:element>
+			</qry:out>
+		</qry:select>
+		<qry:select doc="SOURCE" name="Tipo_Examen">
+			<qry:xquery>
+				for $r in sql('
+				SELECT
+					TIP_EXA.oi_tipo_examen,
+					TIP_EXA.d_tipo_examen
+				FROM
+					SEL24_TIPOS_EXAMEN AS TIP_EXA
+				WHERE
+					1=1
+					{%? (#FILTRO:@oi_tipo_examen!='') 
+  					{% 	AND TIP_EXA.oi_tipo_examen = {#FILTRO:@oi_tipo_examen} %}                               
+  					{%  %}                     
+ 					%}
+				ORDER BY 
+					d_tipo_examen	ASC
+			')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:element name="TIPO">
+					<qry:attribute value="$r/@d_tipo_examen" name="tipo_examen"/>
+					<qry:attribute value="$r/@oi_tipo_examen" name="oi_tipo_examen"/>
+					<qry:insert-select name="Examenes" doc-path="$r"/>
+				</qry:element>
+			</qry:out>
+		</qry:select>
+		<qry:select name="Examenes" doc="SOURCE">
+			<qry:xquery>
+				for $r in sql('
+				SELECT
+					SEL13_EXA_REC.c_estado,
+					SEL07_EXAMENES.oi_tipo_examen,
+					SEL07_EXAMENES.d_examen,
+					SEL13_EXA_REC.oi_reclutado,
+					SEL13_EXA_REC.oi_exa_rec,
+					SEL13_EXA_REC.f_fecha_hora_exa,
+					SEL13_EXA_REC.o_observacion,
+					SEL13_EXA_REC.oi_resultado
+				FROM
+					SEL13_EXA_REC,
+					SEL02_REF_EXAMEN,
+					SEL07_EXAMENES
+				JOIN     
+				 SEL13_EXA_REC.oi_ref_examen INNER SEL02_REF_EXAMEN.oi_ref_examen,
+					SEL02_REF_EXAMEN.oi_examen INNER SEL07_EXAMENES.oi_examen
+				WHERE
+					SEL07_EXAMENES.oi_tipo_examen = {#SOURCE:@oi_tipo_examen}
+					{%? (#FILTRO:@f_desde!='')                  
+						{% AND SEL13_EXA_REC.f_fecha_hora_exa &gt;= {DateTime(#FILTRO:@f_desde)} %} 
+						{% %} 
+					%}
+					{%? (#FILTRO:@f_hasta!='') 
+					{% AND SEL13_EXA_REC.f_fecha_hora_exa &lt;= {DateTime(#FILTRO:@f_hasta)} %} 
+						{% %} 
+					%}
+					{%? (#FILTRO:@oi_evaluador!='') 
+  					{% 	AND SEL13_EXA_REC.oi_evaluador = {#FILTRO:@oi_evaluador} %}                               
+  					{%  %}                     
+ 					%}
+					{%? (#FILTRO:@c_estado!='') 
+  					{% 	AND SEL13_EXA_REC.c_estado = {#FILTRO:@c_estado} %}                               
+  					{%  %}                     
+ 					%}
+ 					 
+				ORDER BY d_examen ASC, c_estado ASC
+			')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:element name="EVAL">
+					<qry:attribute value="$r/@d_examen" name="eval"/>
+					<qry:switch test="$r/@c_estado">
+						<qry:case value="PL">
+							<qry:attribute name="estado" value="'Planificada'"/>
+						</qry:case>
+						<qry:case value="RE">
+							<qry:attribute name="estado" value="'Realizada'"/>
+						</qry:case>
+						<qry:case value="PO">
+							<qry:attribute name="estado" value="'Postergada'"/>
+						</qry:case>
+						<qry:case value="NR">
+							<qry:attribute name="estado" value="'Realizada'"/>
+						</qry:case>
+					</qry:switch>
+					<qry:attribute name="o_observacion" value="$r/@o_observacion"/>
+					<qry:attribute value="$r/@oi_exa_rec" name="oi_exa_rec"/>
+					<qry:attribute name="f_fecha_hora_exa" value="format_date($r/@f_fecha_hora_exa,'dd/mm/yyyy HH:MM')"/>
+					<qry:attribute value="$r/@oi_tipo_examen" name="oi_tipo_examen"/>
+					<qry:attribute value="$r/@oi_resultado" name="oi_resultado"/>
+					<qry:insert-select doc-path="$r" name="Reclutado"/>
+					<qry:insert-select name="ResultadoExamen" doc-path="$r"/>
+				</qry:element>
+			</qry:out>
+		</qry:select>
+		<qry:select name="ResultadoExamen" doc="SOURCE">
+			<qry:xquery>
+				for $r in sql('
+				SELECT
+					SEL08.d_resultado
+				FROM
+					SEL08_RESULTADOS AS SEL08
+				WHERE
+					SEL08.oi_resultado={#SOURCE:@oi_resultado}
+			')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:attribute value="$r/@d_resultado" name="d_resultado"/>
+			</qry:out>
+		</qry:select>
+		<qry:select doc="SOURCE" name="Reclutado">
+			<qry:xquery>
+				for $r in sql('
+				SELECT
+					ORG04.d_puesto, 
+					SEL13R.oi_personal_emp, 
+					SEL13R.oi_postulante
+				FROM
+					SEL13_EXA_REC AS SEL13, 
+					SEL13_RECLUTADOS AS SEL13R, 
+					SEL02_REFERENCIAS AS SEL02,
+					ORG04_PUESTOS AS ORG04
+				JOIN
+					SEL13.oi_reclutado INNER SEL13R.oi_reclutado, 
+					SEL13R.oi_referencia INNER sel02.oi_referencia, 
+					SEL02.oi_puesto INNER ORG04.oi_puesto
+				WHERE
+					SEL13.oi_exa_rec={#SOURCE:@oi_exa_rec}
+			')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:attribute value="$r/@d_puesto" name="d_puesto"/>
+				<qry:insert-select doc-path="$r" name="DatosPersonal"/>
+				<qry:insert-select doc-path="$r/.[$r/@oi_personal_emp='']" name="DatosPostulantes"/>
+			</qry:out>
+		</qry:select>
+		<qry:select doc="SOURCE" name="DatosPersonal">
+			<qry:xquery>
+				for $r in sql('
+				SELECT
+					PER01.d_ape_y_nom
+					, PER02.e_numero_legajo
+				FROM
+					SEL13_RECLUTADOS AS SEL13
+					, PER01_PERSONAL AS PER01
+					, PER02_PERSONAL_EMP AS PER02
+				JOIN
+					SEL13.oi_personal_emp INNER PER02.oi_personal_emp
+					, PER02.oi_personal INNER PER01.oi_personal
+				WHERE
+					SEL13.oi_personal_emp= {#SOURCE:@oi_personal_emp}
+				GROUP BY
+					SEL13.oi_personal_emp
+					, PER01.d_ape_y_nom
+					, PER02.e_numero_legajo
+				
+			')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:attribute value="$r/@d_ape_y_nom" name="reclutado"/>
+			</qry:out>
+		</qry:select>
+		<qry:select name="DatosPostulantes" doc="SOURCE">
+			<qry:xquery>
+				for $r in sql('
+				SELECT
+					SEL01.d_postulante
+					, SEL01.c_postulante
+				FROM
+					SEL13_RECLUTADOS AS SEL13
+					, SEL01_POSTULANTE AS SEL01
+				JOIN
+					SEL13.oi_postulante INNER SEL01.oi_postulante
+				WHERE
+					SEL13.oi_postulante= {#SOURCE:@oi_postulante}
+				GROUP BY
+					SEL01.d_postulante
+					, SEL01.c_postulante
+			')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:attribute name="reclutado" value="$r/@d_postulante"/>
+			</qry:out>
+		</qry:select>
+	</html:query>
+</html:html>

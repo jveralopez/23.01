@@ -1,0 +1,150 @@
+<html:html xmlns:html="nomad_engine.html" xmlns:qry="nomad_engine.qry" name="NucleusWF.Base.Definicion.Detalle_organigrama" extends="Nomad.Base.BaseReport.rpt" doc="source">
+	<html:query declare="&lt;DATA oi_organigrama=&quot;103&quot; pers=&quot;1&quot; version=&quot;A&quot; /&gt;">
+		<qry:main doc="SOURCE">
+			<qry:append-doc name="FILTRO" doc-path="$SOURCE/DATA"/>
+			<REPORT label="Detalle de Organigrama">
+				<qry:attribute value="format_date(now(), 'dd/mm/yyyy HH:MM')" name="date"/>
+				<GROUPS>
+					<GROUP tag="Organigrama" type="title">
+						<COLS>
+							<COL name="organigrama" label="Organigrama"/>
+							<COL name="e_version" label="Versi&#243;n"/>
+						</COLS>
+						<GROUP tag="Estruct">
+							<qry:if test="$SOURCE/DATA/@pers=1">
+								<qry:then>
+									<qry:attribute name="type" value="'title'"/>
+								</qry:then>
+								<qry:else>
+									<qry:attribute name="type" value="'table'"/>
+								</qry:else>
+							</qry:if>
+							<COLS>
+								<COL name="estructura" label="Estructura"/>
+								<COL name="role" label="Rol"/>
+								<COL name="l_inicia" label="Puede Iniciar Workflow"/>
+							</COLS>
+							<qry:if test="$SOURCE/DATA/@pers=1">
+								<qry:then>
+									<GROUP tag="Entidades">
+										<COLS>
+											<COL name="d_entidad_estr" label="Entidades"/>
+										</COLS>
+									</GROUP>
+								</qry:then>
+							</qry:if>
+						</GROUP>
+					</GROUP>
+				</GROUPS>
+				<DATA>
+					<qry:insert-select name="qry_Org" doc-path="$SOURCE/DATA"/>
+				</DATA>
+			</REPORT>
+		</qry:main>
+		<qry:select name="qry_Org" doc="PARAM">
+			<qry:xquery>
+				for $r in SQL
+			('
+			   SELECT  o.oi_organigrama,
+					       o.c_organigrama,
+					       o.d_organigrama,
+					       o.e_version
+				FROM WRK05_ORGANIGRAMAS as o
+        WHERE o.c_organigrama IN (SELECT aux.c_organigrama
+                                   FROM WRK05_ORGANIGRAMAS as AUX
+                                   WHERE AUX.oi_organigrama = {%=$PARAM/@oi_organigrama%}
+                                 )
+         
+			  {%? ($PARAM/@version="A")
+					{% 
+				      AND o.l_automatica = 0
+				  %}
+				 {%
+						 AND o.e_version IN 
+						 			(SELECT AUX2.e_version_pub
+   		  					 FROM WRK05_ORGANIGRAMAS as AUX2 
+         					 WHERE AUX2.oi_organigrama = {%=$PARAM/@oi_organigrama%}
+                  ) 
+					%}
+			
+				%}
+			    
+			')
+			/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:element name="Organigrama">
+					<qry:attribute name="organigrama" value="Concat('[', $r/@c_organigrama, '] ', $r/@d_organigrama)"/>
+					<qry:attribute name="e_version" value="$r/@e_version"/>
+					<qry:insert-select name="qry_estructuras" doc-path="$r"/>
+				</qry:element>
+			</qry:out>
+		</qry:select>
+		<qry:select name="qry_estructuras" doc="PARAM">
+			<qry:xquery>
+				for $r in SQL
+			('
+			  SELECT 
+			 e.oi_estructura,
+			 e.c_estructura,
+			 e.d_estructura,
+			 r.c_role,
+			 r.d_role,
+			 e.l_inicia
+			 
+				FROM WRK05_ESTRUCTURA AS e,
+						 WRK05_ROLES AS r
+				
+				JOIN
+							e.c_role INNER r.c_role,
+							e.oi_organigrama INNER r.oi_organigrama 
+				WHERE e.oi_organigrama = {$PARAM/@oi_organigrama}
+				 
+			')
+			/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:element name="Estruct">
+					<qry:attribute name="estructura" value="Concat('[', $r/@c_estructura, '] ', $r/@d_estructura)"/>
+					<qry:attribute name="role" value="Concat('[', $r/@c_role, '] ', $r/@d_role)"/>
+					<qry:if test="$r/@l_inicia=1">
+						<qry:then>
+							<qry:attribute name="l_inicia" value="'Si'"/>
+						</qry:then>
+						<qry:else>
+							<qry:attribute name="l_inicia" value="'No'"/>
+						</qry:else>
+					</qry:if>
+					<qry:if test="$FILTRO/@pers=1">
+						<qry:then>
+							<qry:insert-select name="qry_entidades" doc-path="$r"/>
+						</qry:then>
+						<qry:else/>
+					</qry:if>
+				</qry:element>
+			</qry:out>
+		</qry:select>
+		<qry:select name="qry_entidades" doc="PARAM">
+			<qry:xquery>
+				for $r in SQL
+			('
+			    SELECT en.d_entidad_estr
+			    
+					FROM WRK05_ESTRUCTURA AS e,
+					     WRK05_ENTIDAD_ESTR AS en
+					     
+					 JOIN
+					      e.oi_estructura INNER en.oi_estructura
+					WHERE e.oi_estructura = {$PARAM/@oi_estructura} 
+					ORDER BY d_entidad_estr ASC
+			')
+			/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:element name="Entidades">
+					<qry:attribute name="d_entidad_estr" value="$r/@d_entidad_estr"/>
+				</qry:element>
+			</qry:out>
+		</qry:select>
+	</html:query>
+</html:html>

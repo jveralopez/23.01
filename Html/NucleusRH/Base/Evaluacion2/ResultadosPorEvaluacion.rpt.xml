@@ -1,0 +1,1216 @@
+<html:html xmlns:html="nomad_engine.html" xmlns:qry="nomad_engine.qry" xmlns:QRY="nomad_engine.QRY" xmlns:xsl="http://www.w3.org/1999/XSL/Transform" name="Listado de Resultados por Evaluacion" extends="Nomad.Base.BaseReport.rpt" doc="source">
+	<html:for-each declare="&lt;FILTRO evento=&quot;410&quot; tipo_salida=&quot;det&quot;&gt;&#13;&#10;&#9;&lt;PERSONAS&gt;&#13;&#10;&#9;&#9;&lt;ROW VALUES=&quot;10,11,12&quot; /&gt;&#13;&#10;&#9;&lt;/PERSONAS&gt;&#13;&#10;&#9;&lt;EVENTOS /&gt;&#13;&#10;&lt;/FILTRO&gt;">
+		<qry:main doc="SOURCE">
+			<ROWS>
+				<qry:append-doc name="PARAMIN" doc-path="#SOURCE:FILTRO"/>
+				<qry:insert-select name="SQL_EVENTO" doc-path="#SOURCE:FILTRO"/>
+				<qry:if test="#PARAMIN:@tipo_salida='std'">
+					<qry:then>
+						<qry:attribute name="tipo_salida" value="'Est&#225;ndar'"/>
+						<qry:attribute name="MAXVALUE" value="'0'"/>
+						<qry:append-doc name="PLAN" doc-path="."/>
+					</qry:then>
+					<qry:else>
+						<qry:attribute name="tipo_salida" value="'Detallada'"/>
+						<qry:insert-select name="SQL_PONDERACION" doc-path="#SOURCE:FILTRO"/>
+						<qry:append-doc name="MAXPONDERACION" doc-path="."/>
+						<qry:insert-select name="SQL_PLANTILLA" doc-path="#SOURCE:FILTRO"/>
+					</qry:else>
+				</qry:if>
+				<qry:insert-select doc-path="#SOURCE:FILTRO/PERSONAS/ROW" name="QRY_PERSONAS"/>
+			</ROWS>
+		</qry:main>
+		<qry:select doc="SOURCE" name="SQL_EVENTO">
+			<qry:xquery>
+				for $r in SQL('
+		SELECT
+			EV.c_evento,
+			EV.d_evento,
+			EV.c_estado,
+			TE.l_eva2,
+			TE.l_eva3,
+			TE.l_eva360,
+			ESC.c_escala,
+			ESC.d_escala
+		FROM
+			EDD02_EVENTOS as EV,
+			EDD01_TIPOS_EVAL as TE,
+			ORG29_ESCALAS as ESC
+		JOIN
+			EV.oi_tipo_eval INNER TE.oi_tipo_eval,
+			EV.oi_escala INNER ESC.oi_escala			
+		WHERE                  
+			EV.oi_evento = {#SOURCE:@evento}
+		')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:attribute name="d_evento" value="$r/@d_evento"/>
+				<qry:attribute name="c_evento" value="$r/@c_evento"/>
+				<qry:attribute name="d_estado" value="iif($r/@c_estado='A','Abierto',@d_estado)"/>
+				<qry:attribute name="d_estado" value="iif($r/@c_estado='H','Habilitado',@d_estado)"/>
+				<qry:attribute name="d_estado" value="iif($r/@c_estado='C','Cerrado',@d_estado)"/>
+				<qry:attribute name="l_eva2" value="$r/@l_eva2"/>
+				<qry:attribute name="l_eva3" value="$r/@l_eva3"/>
+				<qry:attribute name="l_eva360" value="$r/@l_eva360"/>
+				<qry:attribute name="c_escala" value="$r/@c_escala"/>
+				<qry:attribute name="d_escala" value="$r/@d_escala"/>
+				<qry:append-doc name="EVENTO" doc-path="."/>
+			</qry:out>
+		</qry:select>
+		<qry:select name="SQL_PLANTILLA" doc="SOURCE">
+			<qry:xquery>
+				for $r in SQL('
+SELECT 
+	E3.n_ponderacion,
+	E1.oi_plantilla,
+	E1.c_plantilla,
+	E1.d_plantilla,
+	E1.e_orden
+FROM 
+	EDD02_EVENTOS as EVE,
+	EDD03_EVALUACION as EVA,
+	EDD03_PLANTILLAS as E3,
+	EDD02_PLANTILLAS as E2,
+	EDD01_PLANTILLAS as E1
+JOIN
+  EVE.oi_evento INNER EVA.oi_evento,
+  E3.oi_evaluacion INNER EVA.oi_evaluacion,
+  E3.oi_plantilla_eve INNER E2.oi_plantilla,
+	E2.oi_plantilla_def INNER E1.oi_plantilla
+WHERE 
+	EVE.oi_evento= {#SOURCE:@evento} 
+	AND E1.l_mostrar_res=1
+GROUP BY 
+	E3.n_ponderacion,E1.oi_plantilla,E1.c_plantilla,E1.d_plantilla,E1.e_orden
+ORDER BY
+	e_orden ASC
+			')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<PLA>
+					<qry:attribute name="oi_plantilla" value="$r/@oi_plantilla"/>
+					<qry:attribute name="ponderacion" value="concat(round(100*($r/@n_ponderacion div (#MAXPONDERACION:@MAXVALUE))),'%')"/>
+					<qry:attribute name="d_plantilla" value="$r/@d_plantilla"/>
+				</PLA>
+			</qry:out>
+		</qry:select>
+		<qry:select doc="PARAM" name="QRY_PERSONAS">
+			<qry:xquery>
+				for $r in split('1;{%= string($PARAM/@values) %}')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:call>
+					<param>
+						<qry:attribute value="$r/@value" name="values"/>
+						<qry:attribute value="#PARAMIN:@evento" name="oi_evento"/>
+						<qry:attribute value="#PARAMIN:@tipo_salida" name="tipo_salida"/>
+						<qry:attribute value="#EVENTO:@l_eva2" name="l_eva2"/>
+						<qry:attribute value="#EVENTO:@l_eva3" name="l_eva3"/>
+						<qry:attribute value="#EVENTO:@l_eva360" name="l_eva360"/>
+					</param>
+				</qry:call>
+			</qry:out>
+		</qry:select>
+		<qry:select name="SQL_PONDERACION" doc="SOURCE">
+			<qry:xquery>
+				for $r in SQL('
+SELECT 
+	E3.n_ponderacion,
+	E1.oi_plantilla
+FROM 
+	EDD02_EVENTOS as EVE,
+	EDD03_EVALUACION as EVA,
+	EDD03_PLANTILLAS as E3,
+	EDD02_PLANTILLAS as E2,
+	EDD01_PLANTILLAS as E1
+JOIN
+  EVE.oi_evento INNER EVA.oi_evento,
+  E3.oi_evaluacion INNER EVA.oi_evaluacion,
+  E3.oi_plantilla_eve INNER E2.oi_plantilla,
+	E2.oi_plantilla_def INNER E1.oi_plantilla
+WHERE 
+	EVE.oi_evento= {#SOURCE:@evento} 
+	AND E1.l_mostrar_res=1
+GROUP BY 
+	E3.n_ponderacion,E1.oi_plantilla
+			')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:attribute name="MAXVALUE" value="number(@MAXVALUE)+number($r/@n_ponderacion)"/>
+			</qry:out>
+		</qry:select>
+	</html:for-each>
+	<html:query declare="&lt;param l_eva360=&quot;1&quot; l_eva3=&quot;1&quot; l_eva2=&quot;1&quot; tipo_salida=&quot;det&quot; oi_evento=&quot;410&quot; values=&quot;12&quot;/&gt;&#13;&#10;" name="qry_report">
+		<qry:main doc="SOURCE">
+			<QRY:NO-SHOW>
+				<qry:insert-select name="REPORT" doc-path="#SOURCE:param"/>
+			</QRY:NO-SHOW>
+		</qry:main>
+		<qry:select doc="SOURCE" name="REPORT">
+			<qry:xquery>
+				for $r in SQL('
+				SELECT           
+					EV.oi_escala,
+
+					E.oi_evaluacion,
+					E.c_estado,
+					E.o_evaluado,
+					E.o_evaluador,
+					E.f_evaluacion,
+					E.n_resultado,
+					E.n_resultado2,
+					E.n_resultado3,
+
+					LE.codemp as E_codemp,
+					LE.empresa as E_empresa,
+					LE.legajo as E_legajo,
+					LE.nombre as E_nombre,
+
+					EE.codemp as J_codemp,
+					EE.empresa as J_empresa,
+					EE.legajo as J_legajo,
+					EE.nombre as J_nombre,
+
+					SE.codemp as S_codemp,
+					SE.empresa as S_empresa,
+					SE.legajo as S_legajo,
+					SE.nombre as S_nombre
+
+				FROM             
+					EDD02_EVENTOS as EV,
+					EDD03_EVALUACION as E,
+					
+					(select
+						L1.oi_personal_emp as oi_personal_emp,
+						H1.oi_foto         as foto,
+						L1.f_ingreso       as fingreso,
+						E1.c_empresa       as codemp,
+						E1.d_empresa       as empresa,
+						L1.e_numero_legajo as legajo,
+						H1.d_ape_y_nom     as nombre
+					from
+						ORG03_EMPRESAS     as E1,
+						PER02_PERSONAL_EMP as L1,
+						PER01_PERSONAL     as H1
+					join
+						L1.oi_personal inner H1.oi_personal,
+						L1.oi_empresa inner E1.oi_empresa) as LE,
+					(select
+						L1.oi_personal_emp as oi_personal_emp,
+						H1.oi_foto         as foto,
+						L1.f_ingreso       as fingreso,
+						E1.c_empresa       as codemp,
+						E1.d_empresa       as empresa,
+						L1.e_numero_legajo as legajo,
+						H1.d_ape_y_nom     as nombre
+					from
+						ORG03_EMPRESAS     as E1,
+						PER02_PERSONAL_EMP as L1,
+						PER01_PERSONAL     as H1
+					join
+						L1.oi_personal inner H1.oi_personal,
+						L1.oi_empresa inner E1.oi_empresa) as EE,
+					(select
+						L1.oi_personal_emp as oi_personal_emp,
+						H1.oi_foto         as foto,
+						L1.f_ingreso       as fingreso,
+						E1.c_empresa       as codemp,
+						E1.d_empresa       as empresa,
+						L1.e_numero_legajo as legajo,
+						H1.d_ape_y_nom     as nombre
+					from
+						ORG03_EMPRESAS     as E1,
+						PER02_PERSONAL_EMP as L1,
+						PER01_PERSONAL     as H1
+					join
+						L1.oi_personal inner H1.oi_personal,
+						L1.oi_empresa inner E1.oi_empresa) as SE
+
+				join
+					EV.oi_evento inner E.oi_evento,
+					E.oi_personal_emp inner LE.oi_personal_emp,
+					E.oi_evaluador inner EE.oi_personal_emp,
+					E.oi_supervisor left outer SE.oi_personal_emp
+				WHERE            
+					E.oi_evento = {#SOURCE:@oi_evento} AND
+					E.oi_personal_emp in ({%= #SOURCE:@values %})
+			')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<REPORT>
+					<qry:attribute name="oi_evaluacion" value="$r/@oi_evaluacion"/>
+					<qry:attribute name="oi_evento" value="#SOURCE:@oi_evento"/>
+					<qry:attribute name="oi_empresa" value="$r/@oi_empresa"/>
+					<qry:attribute name="E_legajo" value="$r/@E_legajo"/>
+					<qry:attribute name="E_nombre" value="$r/@E_nombre"/>
+					<qry:attribute name="E_empresa" value="$r/@E_empresa"/>
+					<qry:attribute name="tipo_salida" value="#SOURCE:@tipo_salida"/>
+					<qry:switch test="$r/@c_estado">
+						<qry:case value="AB">
+							<qry:attribute name="d_estado" value="'Abierta'"/>
+						</qry:case>
+						<qry:case value="HA">
+							<qry:attribute name="d_estado" value="'Habilitada'"/>
+						</qry:case>
+						<qry:case value="EV">
+							<qry:attribute name="d_estado" value="'Evaluada'"/>
+						</qry:case>
+						<qry:case value="CO">
+							<qry:attribute name="d_estado" value="'Confirmada'"/>
+						</qry:case>
+						<qry:case value="AP">
+							<qry:attribute name="d_estado" value="'Aprobada'"/>
+						</qry:case>
+						<qry:case value="RZ">
+							<qry:attribute name="d_estado" value="'Rechazada'"/>
+						</qry:case>
+						<qry:case value="AN">
+							<qry:attribute name="d_estado" value="'Anulada'"/>
+						</qry:case>
+						<qry:case value="PU">
+							<qry:attribute name="d_estado" value="'Publicada'"/>
+						</qry:case>
+						<qry:case value="CE">
+							<qry:attribute name="d_estado" value="'Cerrada'"/>
+						</qry:case>
+					</qry:switch>
+					<qry:insert-select name="QRY_DECIMALES_TOT" doc-path="."/>
+					<qry:append-doc name="DECIMAL" doc-path="."/>
+					<!--Siempre habra rol EVALUADOR-->
+					<qry:element name="EVALUADOR">
+						<qry:attribute name="oi_evaluacion" value="../@oi_evaluacion"/>
+						<qry:attribute name="oi_evento" value="../@oi_evento"/>
+						<qry:attribute name="legajo" value="$r/@J_legajo"/>
+						<qry:attribute name="nombre" value="$r/@J_nombre"/>
+						<qry:attribute name="empresa" value="$r/@J_empresa"/>
+						<qry:attribute name="rol" value="'Evaluador'"/>
+						<!--Depende el tipo de salida, obtengo solo el resultado final (std) o todos los parciales y el total final (det)-->
+						<qry:if test="../@tipo_salida='std'">
+							<qry:then/>
+							<qry:else>
+								<qry:insert-select name="QRY_PLANTILLAS_VALORES_E" doc-path="."/>
+							</qry:else>
+						</qry:if>
+						<!--Siempre se informa el Total final de la Evaluacion-->
+						<qry:element name="VAL_TOT">
+							<qry:attribute name="decimales" value="fill-right('\\.','0',number(#DECIMAL:@d_cus1)+2)"/>
+							<qry:if test="$r/@n_resultado='0' or not($r/@n_resultado!='')">
+								<qry:then>
+									<qry:attribute name="resultado" value="'-'"/>
+								</qry:then>
+								<qry:else>
+									<qry:if test="#DECIMAL:@d_cus1 != '' and #DECIMAL:@d_cus1 != '0'">
+										<qry:then>
+											<qry:attribute name="resultado" value="format_number($r/@n_resultado,0,number(#DECIMAL:@d_cus1),'.','','')"/>
+										</qry:then>
+										<qry:else>
+											<qry:attribute name="resultado" value="round($r/@n_resultado)"/>
+										</qry:else>
+									</qry:if>
+								</qry:else>
+							</qry:if>
+						</qry:element>
+					</qry:element>
+					<!--Valido rol AUTOEVALUADOR-->
+					<qry:if test="#SOURCE:@l_eva2='1'">
+						<qry:then>
+							<qry:element name="EVALUADOR">
+								<qry:attribute name="oi_evaluacion" value="../@oi_evaluacion"/>
+								<qry:attribute name="oi_evento" value="../@oi_evento"/>
+								<qry:attribute name="legajo" value="$r/@E_legajo"/>
+								<qry:attribute name="nombre" value="$r/@E_nombre"/>
+								<qry:attribute name="empresa" value="$r/@E_empresa"/>
+								<qry:attribute name="rol" value="'Autoevaluaci&#243;n'"/>
+								<qry:if test="../@tipo_salida='std'">
+									<qry:then/>
+									<qry:else>
+										<qry:insert-select name="QRY_PLANTILLAS_VALORES_A" doc-path="."/>
+									</qry:else>
+								</qry:if>
+								<!--Siempre se informa el Total final de la Evaluacion-->
+								<qry:element name="VAL_TOT">
+									<qry:attribute name="decimales" value="fill-right('\\.','0',number(#DECIMAL:@d_cus1)+2)"/>
+									<qry:if test="$r/@n_resultado2='0' or not($r/@n_resultado2!='')">
+										<qry:then>
+											<qry:attribute name="resultado" value="'-'"/>
+										</qry:then>
+										<qry:else>
+											<qry:if test="#DECIMAL:@d_cus1 != '' and #DECIMAL:@d_cus1 != '0'">
+												<qry:then>
+													<qry:attribute name="resultado" value="format_number($r/@n_resultado2,0,number(#DECIMAL:@d_cus1),'.','','')"/>
+												</qry:then>
+												<qry:else>
+													<qry:attribute name="resultado" value="round($r/@n_resultado2)"/>
+												</qry:else>
+											</qry:if>
+										</qry:else>
+									</qry:if>
+								</qry:element>
+							</qry:element>
+						</qry:then>
+					</qry:if>
+					<!--Valido rol SUPERVISOR-->
+					<qry:if test="#SOURCE:@l_eva3='1'">
+						<qry:then>
+							<qry:element name="EVALUADOR">
+								<qry:attribute name="oi_evaluacion" value="../@oi_evaluacion"/>
+								<qry:attribute name="oi_evento" value="../@oi_evento"/>
+								<qry:attribute name="legajo" value="$r/@S_legajo"/>
+								<qry:attribute name="nombre" value="$r/@S_nombre"/>
+								<qry:attribute name="empresa" value="$r/@S_empresa"/>
+								<qry:attribute name="rol" value="'Supervisor'"/>
+								<qry:if test="../@tipo_salida='std'">
+									<qry:then/>
+									<qry:else>
+										<qry:insert-select name="QRY_PLANTILLAS_VALORES_S" doc-path="."/>
+									</qry:else>
+								</qry:if>
+								<!--Siempre se informa el Total final de la Evaluacion-->
+								<qry:element name="VAL_TOT">
+									<qry:attribute name="decimales" value="fill-right('\\.','0',number(#DECIMAL:@d_cus1)+2)"/>
+									<qry:if test="$r/@n_resultado3='0' or not($r/@n_resultado3!='')">
+										<qry:then>
+											<qry:attribute name="resultado" value="'-'"/>
+										</qry:then>
+										<qry:else>
+											<qry:if test="#DECIMAL:@d_cus1 != '' and #DECIMAL:@d_cus1 != '0'">
+												<qry:then>
+													<qry:attribute name="resultado" value="format_number($r/@n_resultado3,0,number(#DECIMAL:@d_cus1),'.','','')"/>
+												</qry:then>
+												<qry:else>
+													<qry:attribute name="resultado" value="round($r/@n_resultado3)"/>
+												</qry:else>
+											</qry:if>
+										</qry:else>
+									</qry:if>
+								</qry:element>
+							</qry:element>
+						</qry:then>
+					</qry:if>
+					<qry:if test="#SOURCE:@l_eva360='1'">
+						<qry:then>
+							<qry:insert-select name="QRY_360" doc-path="."/>
+						</qry:then>
+					</qry:if>
+				</REPORT>
+			</qry:out>
+		</qry:select>
+		<qry:select name="QRY_PLANTILLAS_VALORES_E" doc="SOURCE">
+			<qry:xquery>
+				for $r in SQL('
+			SELECT
+				E3.oi_evaluacion, 
+				E2.oi_escala, 
+				E3.n_ponderacion, 
+				E3.n_resultado,
+				E1.d_cus2,
+				E1.e_orden
+			FROM
+				EDD03_PLANTILLAS as E3,
+				EDD02_PLANTILLAS as E2,
+				EDD01_PLANTILLAS as E1
+			JOIN
+				E3.oi_plantilla_eve INNER E2.oi_plantilla,
+				E2.oi_plantilla_def INNER E1.oi_plantilla
+			WHERE 
+				E1.l_mostrar_res = 1 
+				AND E3.oi_evaluacion = {#SOURCE:@oi_evaluacion} 
+				AND E2.oi_evento = {#SOURCE:@oi_evento}
+			
+			ORDER BY
+				e_orden asc 
+		')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:element name="VAL">
+					<qry:attribute name="decimales" value="fill-right('\\.','0',number($r/@d_cus2)+2)"/>
+					<qry:if test="$r/@n_resultado='0' or not($r/@n_resultado!='')">
+						<qry:then>
+							<qry:attribute name="resultado" value="'-'"/>
+						</qry:then>
+						<qry:else>
+							<qry:if test="$r/@d_cus2 != ''">
+								<qry:then>
+									<qry:attribute name="resultado" value="format_number($r/@n_resultado,0,number($r/@d_cus2),'.','','')"/>
+								</qry:then>
+								<qry:else>
+									<qry:attribute name="resultado" value="round($r/@n_resultado)"/>
+								</qry:else>
+							</qry:if>
+						</qry:else>
+					</qry:if>
+				</qry:element>
+			</qry:out>
+		</qry:select>
+		<qry:select name="QRY_PLANTILLAS_VALORES_A" doc="SOURCE">
+			<qry:xquery>
+				for $r in SQL('
+			SELECT
+				E3.oi_evaluacion, 
+				E2.oi_escala, 
+				E3.n_ponderacion, 
+				E3.n_resultado2,
+				E1.d_cus2,
+				E1.e_orden
+			FROM
+				EDD03_PLANTILLAS as E3,
+				EDD02_PLANTILLAS as E2,
+				EDD01_PLANTILLAS as E1
+			JOIN
+				E3.oi_plantilla_eve INNER E2.oi_plantilla,
+				E2.oi_plantilla_def INNER E1.oi_plantilla
+			WHERE 
+				E1.l_mostrar_res = 1 
+				AND E3.oi_evaluacion = {#SOURCE:@oi_evaluacion} 
+				AND E2.oi_evento = {#SOURCE:@oi_evento}
+			ORDER BY
+				e_orden asc 
+		')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:element name="VAL">
+					<qry:attribute name="decimales" value="fill-right('\\.','0',number($r/@d_cus2)+2)"/>
+					<qry:if test="$r/@n_resultado2='0' or not($r/@n_resultado2!='')">
+						<qry:then>
+							<qry:attribute name="resultado" value="'-'"/>
+						</qry:then>
+						<qry:else>
+							<qry:if test="$r/@d_cus2 != ''">
+								<qry:then>
+									<qry:attribute name="resultado" value="format_number($r/@n_resultado2,0,number($r/@d_cus2),'.','','')"/>
+								</qry:then>
+								<qry:else>
+									<qry:attribute name="resultado" value="round($r/@n_resultado2)"/>
+								</qry:else>
+							</qry:if>
+						</qry:else>
+					</qry:if>
+				</qry:element>
+			</qry:out>
+		</qry:select>
+		<qry:select name="QRY_PLANTILLAS_VALORES_S" doc="SOURCE">
+			<qry:xquery>
+				for $r in SQL('
+			SELECT
+				E3.oi_evaluacion, 
+				E2.oi_escala, 
+				E3.n_ponderacion, 
+				E3.n_resultado3,
+				E1.d_cus2,
+				E1.e_orden
+			FROM
+				EDD03_PLANTILLAS as E3,
+				EDD02_PLANTILLAS as E2,
+				EDD01_PLANTILLAS as E1
+			JOIN
+				E3.oi_plantilla_eve INNER E2.oi_plantilla,
+				E2.oi_plantilla_def INNER E1.oi_plantilla
+			WHERE 
+				E1.l_mostrar_res = 1 
+				AND E3.oi_evaluacion = {#SOURCE:@oi_evaluacion} 
+				AND E2.oi_evento = {#SOURCE:@oi_evento}
+			ORDER BY
+				e_orden asc
+		             		')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:element name="VAL">
+					<qry:attribute name="decimales" value="fill-right('\\.','0',number($r/@d_cus2)+2)"/>
+					<qry:if test="$r/@n_resultado3='0' or not($r/@n_resultado3!='')">
+						<qry:then>
+							<qry:attribute name="resultado" value="'-'"/>
+						</qry:then>
+						<qry:else>
+							<qry:if test="$r/@d_cus2 != ''">
+								<qry:then>
+									<qry:attribute name="resultado" value="format_number($r/@n_resultado3,0,number($r/@d_cus2),'.','','')"/>
+								</qry:then>
+								<qry:else>
+									<qry:attribute name="resultado" value="round($r/@n_resultado3)"/>
+								</qry:else>
+							</qry:if>
+						</qry:else>
+					</qry:if>
+				</qry:element>
+			</qry:out>
+		</qry:select>
+		<qry:select name="QRY_360" doc="SOURCE">
+			<qry:xquery>
+				for $r in SQL('
+		SELECT 
+			EV.oi_evaluacion,			
+			EV.n_resultado,
+			EMP.oi_personal_emp,
+			EMP.e_numero_legajo as legajo,
+			ROL.d_rol as rol,			
+			ORG.d_empresa as empresa,
+			P.d_ape_y_nom as nombre
+		FROM 
+			EDD03_EVALUACION as EVA,
+			EDD03_EVA_EVALUAD as EV,  
+			PER02_PERSONAL_EMP as EMP,
+			EDD05_ROLES as ROL,
+			PER01_PERSONAL as P,
+			ORG03_EMPRESAS as ORG
+		JOIN
+			EVA.oi_evaluacion INNER EV.oi_evaluacion,
+			EV.oi_personal_emp INNER EMP.oi_personal_emp,
+			EMP.oi_personal INNER P.oi_personal,
+			EV.oi_rol INNER ROL.oi_rol,
+			EMP.oi_empresa INNER ORG.oi_empresa
+		WHERE			
+			EV.oi_evaluacion = {#SOURCE:@oi_evaluacion}
+		')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:element name="EVALUADOR">
+					<qry:attribute name="MAXVALUE" value="#SOURCE:@MAXVALUE"/>
+					<qry:attribute name="oi_evaluacion" value="../@oi_evaluacion"/>
+					<qry:attribute name="oi_evento" value="../@oi_evento"/>
+					<qry:attribute name="oi_personal_emp" value="$r/@oi_personal_emp"/>
+					<qry:attribute name="legajo" value="$r/@legajo"/>
+					<qry:attribute name="nombre" value="$r/@nombre"/>
+					<qry:attribute name="empresa" value="$r/@empresa"/>
+					<qry:attribute name="rol" value="$r/@rol"/>
+					<qry:insert-select name="QRY_DECIMALES_TOT" doc-path="."/>
+					<qry:if test="#SOURCE:@tipo_salida='std'">
+						<qry:then/>
+						<qry:else>
+							<qry:insert-select name="QRY_PLANTILLAS_EVA_360" doc-path="."/>
+						</qry:else>
+					</qry:if>
+					<qry:element name="VAL_TOT">
+						<qry:attribute name="decimales" value="fill-right('\\.','0',number(#DECIMAL:@d_cus1)+2)"/>
+						<qry:if test="$r/@n_resultado='0' or not($r/@n_resultado!='')">
+							<qry:then>
+								<qry:attribute name="resultado" value="'-'"/>
+							</qry:then>
+							<qry:else>
+								<qry:if test="../@d_cus1 != '' and ../@d_cus1 != '0'">
+									<qry:then>
+										<qry:attribute name="resultado" value="format_number($r/@n_resultado,0,number(#DECIMAL:@d_cus1),'.','','')"/>
+									</qry:then>
+									<qry:else>
+										<qry:attribute name="resultado" value="round($r/@n_resultado)"/>
+									</qry:else>
+								</qry:if>
+							</qry:else>
+						</qry:if>
+					</qry:element>
+					+
+				</qry:element>
+			</qry:out>
+		</qry:select>
+		<qry:select name="QRY_PLANTILLAS_EVA_360" doc="SOURCE">
+			<qry:xquery>
+				for $r in SQL('
+			SELECT 
+				E1.oi_plantilla as oi_plantilla_ori, 
+				E3.oi_plantilla as oi_plantilla_eva,
+				E3.n_ponderacion, 
+				E1.d_cus2,
+				E1.e_orden,
+				EVA.oi_personal_emp
+			FROM
+				EDD03_PLANTILLAS as E3,
+				EDD02_PLANTILLAS as E2,			
+				EDD01_PLANTILLAS as E1,
+				EDD03_EVALUACION as EVA
+			JOIN
+				E2.oi_plantilla INNER E3.oi_plantilla_eve,
+				E1.oi_plantilla INNER E2.oi_plantilla_def,
+				EVA.oi_evaluacion INNER E3.oi_evaluacion
+			WHERE
+				E1.l_mostrar_res=1 
+				AND EVA.oi_evaluacion= {#SOURCE:@oi_evaluacion}											
+			ORDER BY
+				e_orden asc
+		')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:element name="VAL">
+					<qry:attribute name="oi_plantilla" value="$r/@oi_plantilla_ori"/>
+					<qry:attribute name="oi_plantilla_eva" value="$r/@oi_plantilla_eva"/>
+					<qry:attribute name="oi_personal_emp" value="../@oi_personal_emp"/>
+					<qry:attribute name="resultado_aux" value="'0'"/>
+					<qry:insert-select name="QRY_VALOR_360" doc-path="."/>
+					<qry:attribute name="decimales" value="fill-right('\\.','0',number($r/@d_cus2)+2)"/>
+					<qry:if test="@resultado_aux='0' or not(@resultado_aux!='')">
+						<qry:then>
+							<qry:attribute name="resultado" value="'-'"/>
+						</qry:then>
+						<qry:else>
+							<qry:if test="$r/@d_cus2 != ''">
+								<qry:then>
+									<qry:attribute name="resultado" value="format_number(@resultado_aux,0,number($r/@d_cus2),'.','','')"/>
+								</qry:then>
+								<qry:else>
+									<qry:attribute name="resultado" value="round(@resultado_aux)"/>
+								</qry:else>
+							</qry:if>
+						</qry:else>
+					</qry:if>
+				</qry:element>
+			</qry:out>
+		</qry:select>
+		<qry:select name="QRY_VALOR_360" doc="SOURCE">
+			<qry:xquery>
+				for $r in SQL('
+			SELECT 
+				EVAPLA.n_resultado
+			FROM
+				EDD03_PLA_EVALUAD as EVAPLA							
+			WHERE
+				EVAPLA.oi_plantilla = {#SOURCE:@oi_plantilla_eva}
+				AND EVAPLA.oi_personal_emp = {#SOURCE:@oi_personal_emp}
+		')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:attribute name="resultado_aux" value="$r/@n_resultado"/>
+			</qry:out>
+		</qry:select>
+		<!--<qry:select name="QRY_MAXVALUE" doc="SOURCE">
+<qry:xquery>
+				for $r in SQL('
+			SELECT				
+				E3.n_ponderacion
+			FROM
+				EDD03_PLANTILLAS as E3,
+				EDD02_PLANTILLAS as E2,
+				EDD01_PLANTILLAS as E1
+			JOIN
+				E3.oi_plantilla_eve INNER E2.oi_plantilla,
+				E2.oi_plantilla_def INNER E1.oi_plantilla					
+			WHERE 
+				E1.l_mostrar_res = 1 
+				AND E3.oi_evaluacion = {#SOURCE:@oi_evaluacion} 
+				AND E2.oi_evento = {#SOURCE:@oi_evento}							
+		')/ROWS/ROW
+</qry:xquery>
+<qry:out>
+<qry:attribute name="MAXVALUE" value="number(@MAXVALUE)+number($r/@n_ponderacion)"/>
+</qry:out>
+</qry:select>
+<qry:select name="QRY_EVENTO_MAXVALUE" doc="SOURCE">
+<qry:xquery>
+				for $r in SQL('
+			SELECT				
+				MAX(VAL.n_val_hasta) as maximo
+			FROM
+				EDD02_EVENTOS as EVE,
+				ORG29_VAL_ESCALAS as VAL
+			JOIN
+				EVE.oi_escala INNER VAL.oi_escala
+			WHERE 
+				EVE.oi_evento = {#SOURCE:@oi_evento}							
+		')/ROWS/ROW
+</qry:xquery>
+<qry:out>
+<qry:attribute name="EVEMAXVALUE" value="$r/@maximo"/>
+</qry:out>
+</qry:select>
+<qry:select name="QRY_MAXVALUE_360" doc="SOURCE">
+<qry:xquery>
+				for $r in SQL('
+			SELECT				
+				E3.n_ponderacion
+			FROM
+				EDD03_PLANTILLAS as E3,
+				EDD02_PLANTILLAS as E2,
+				EDD01_PLANTILLAS as E1,
+				EDD03_PLA_EVALUAD as EV360
+			JOIN
+				E3.oi_plantilla_eve INNER E2.oi_plantilla,
+				E2.oi_plantilla_def INNER E1.oi_plantilla,					
+				E3.oi_plantilla INNER EV360.oi_plantilla
+			WHERE 
+				E1.l_mostrar_res = 1 
+				AND E3.oi_evaluacion = {#SOURCE:@oi_evaluacion} 
+				AND E2.oi_evento = {#SOURCE:@oi_evento}							
+				AND EV360.oi_personal_emp = {#SOURCE:@oi_personal_emp}
+		')/ROWS/ROW
+</qry:xquery>
+<qry:out>
+<qry:attribute name="MAXVALUE" value="number(@MAXVALUE)+number($r/@n_ponderacion)"/>
+</qry:out>
+</qry:select>-->
+		<qry:select name="QRY_DECIMALES_TOT" doc="SOURCE">
+			<qry:xquery>
+				for $r in SQL('			
+			maxsize 1
+			SELECT
+				E1.d_cus1,
+				MAX(E1.e_orden) as orden
+			FROM
+				EDD01_PLANTILLAS as E1,
+				EDD01_TIPOS_EVAL as TIPO,
+				EDD02_EVENTOS as EVE
+			JOIN
+				E1.oi_tipo_eval INNER TIPO.oi_tipo_eval,
+				E1.oi_tipo_eval INNER EVE.oi_tipo_eval				
+			WHERE 
+				E1.d_reporte=\'RESUMEN\'												
+				AND EVE.oi_evento = {#SOURCE:@oi_evento}
+			GROUP BY
+				E1.d_cus1
+			ORDER BY
+				orden desc							
+		')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:attribute name="d_cus1" value="$r/@d_cus1"/>
+				<!--<qry:attribute name="decimales" value="fill-right('\\.','0',number($r/@d_cus1)+2)"/>-->
+			</qry:out>
+		</qry:select>
+	</html:query>
+	<html:xslt>
+		<xsl:template match="ROWS">
+			<html>
+				<head>
+					<style media="print">
+						BODY
+						{
+							background-color: #FFFFFF;
+							
+							font-size: 6pt;
+							font-family: Verdana;
+							color: #000000;
+						}
+						.CABECERA_TITLE
+						{
+							background-color: #FFFFFF;
+							font-size: 12px;  
+							font-family: Verdana;
+							color: #000000;
+							text-align:left;						
+							width:100%;
+							border:none;    							
+							padding-top:5px;
+							padding-bottom:5px;
+							
+						}
+						.CABECERA_TITLE TH
+						{
+							font-size: 16px;  
+							text-align:center;							
+						}
+						.PLANTILLA
+						{
+							border-collapse:collapse;
+							background-color: #FFFFFF;
+              font-weight:bold;
+							font-size: 10px;  
+							font-family: Verdana;
+							
+							 
+							text-align: center;
+							
+							width:100%;
+							border:1px solid black; 
+							
+						}
+						.PLANTILLA TH
+						{
+							font-size: 12px; 
+							text-align:center;
+							font-weight:bold;    
+							border:1px solid black;
+							background-color: #BBBBBB;
+						}
+						.PLANTILLA TD
+						{
+							font-size: 10px;  
+							text-align: center;
+							font-weight: normal;   
+							border:1px solid black;
+						}
+						.screen
+						{      
+							display:none;
+						}
+						td.title
+						{
+							font-family:verdana;
+							font-size: 10px;
+							padding: 2px 2px 2px 2px;	
+							text-align: left;
+							font-style: bold;
+						}
+						td.txt
+						{	
+							font-family:verdana;
+							font-size: 12px;
+							padding: 2px 2px 2px 2px;	
+							text-align: left;
+						} 
+							th.PLAN
+						{
+							font-size: 12px;  
+							text-align:center;
+							font-weight: bold;   
+							border:1px solid black;
+							padding: 2px 2px 2px 2px; 
+							font-family: Verdana;
+						}
+					</style>
+					<style media="screen">
+						BODY
+						{
+							background-color: #FFFFFF;
+							
+							font-size: 10px;
+							font-family: Verdana;
+							color: #000000;
+						}
+						.CABECERA_TITLE
+						{
+							background-color: #FFFFFF;
+
+							font-size: 12px;  
+							font-family: Verdana;
+							color: #000000;
+							text-align:left;
+							
+							width:100%;
+							border:none;    
+							
+							padding-top:5px;
+							padding-bottom:5px;
+							
+						}
+						.CABECERA_TITLE TH
+						{
+							font-size: 16px;  
+							text-align:center;
+						}
+						.PLANTILLA
+						{
+							border-collapse:collapse;
+							background-color: #FFFFFF;
+
+							font-size: 10px;  
+							font-family: Verdana;
+							font-style: bold
+							font-weight: bold;
+							
+							
+							width:100%;
+							border:1px solid black;
+						}
+						.PLANTILLA TH
+						{							
+							background-color:#BBBBBB;
+							font-size: 12px;  
+							text-align:center;
+							font-weight:bold;    
+							border:1px solid black;
+						}
+						.PLANTILLA TD
+						{
+							font-size: 10px;  
+							text-align:left;
+							font-weight: normal;   
+							border:1px solid black;
+						}
+						.screen
+						{
+						}
+						td.txt
+						{	
+							font-family:verdana;
+							font-size: 10px;
+							padding: 2px 2px 2px 2px;	
+							text-align: left;
+						}
+						td.title
+						{
+							font-family:verdana;
+							font-size: 12px;
+							padding: 2px 2px 2px 2px;	
+							text-align: left;
+							font-style: bold;
+						} 
+							th.PLAN
+						{
+							font-size: 12px;  
+							text-align:center;
+							font-weight: bold;   
+							border:1px solid black;
+							padding: 2px 2px 2px 2px;
+							font-family: Verdana;
+						}
+					</style>
+					<style media="all">
+						BODY
+						{
+							background-color: #FFFFFF;
+							
+							font-size: 10px;
+							font-family: Verdana;
+							color: #000000;
+						}
+						.CABECERA_TITLE
+						{
+							background-color: #FFFFFF;
+
+							font-size: 12px;  
+							font-family: Verdana;
+							color: #000000;
+							text-align:left;
+							
+							width:100%;
+							border:none;    
+							
+							padding-top:5px;
+							padding-bottom:5px;
+							
+						}
+						.CABECERA_TITLE TH
+						{
+							font-size: 16px;  
+							text-align:center;
+						}
+						.PLANTILLA
+						{
+							border-collapse:collapse;
+							background-color: #FFFFFF;
+
+							font-size: 10px;  
+							font-family: Verdana;
+							font-style: bold
+							font-weight: bold;
+							text-align:left;
+							
+							width:100%;
+							border:1px solid black;
+						}
+						.PLANTILLA TH
+						{							
+							background-color:#BBBBBB;
+							font-size: 12px;  
+							text-align:center;
+							font-weight:bold;    
+							border:1px solid black;
+						}
+						.PLANTILLA TD
+						{
+							font-size: 10px;  
+							text-align:center;
+							font-weight: normal;   
+							border:1px solid black;
+						}
+						.screen
+						{
+						}
+						td.txt
+						{	
+							font-family:verdana;
+							font-size: 10px;
+							padding: 2px 2px 2px 2px;	
+							text-align: left;
+						}
+						
+						td.num
+						{	
+							font-family:verdana;
+							font-size: 10px;
+							padding: 2px 2px 2px 2px;	
+							text-align: right;
+						}
+						
+						td.title
+						{
+							font-family:verdana;
+							font-size: 12px;
+							padding: 2px 2px 2px 2px;	
+							text-align: left;
+							font-style: bold;
+						} 
+							th.PLAN
+						{
+							font-size: 12px;  
+							text-align:center;
+							font-weight: bold;   
+							border:1px solid black;
+							padding: 2px 2px 2px 2px;
+							font-family: Verdana;
+						}
+					</style>
+				</head>
+				<body>
+					<table class="CABECERA_TITLE" CELLPADDING="0" CELLSPACING="0">
+						<tr>
+							<th>
+								Reporte de Evaluaciones
+							</th>
+						</tr>
+						<tr>
+							<td>
+								<b>
+									Evento Evaluativo:&#160;
+								</b>
+								<xsl:value-of select="concat('[',@c_evento,'] ',@d_evento)"/>
+							</td>
+						</tr>
+						<tr>
+							<td>
+								<b>
+									Estado del Evento:&#160;
+								</b>
+								<xsl:value-of select="@d_estado"/>
+							</td>
+						</tr>
+						<tr>
+							<td>
+								<b>
+									Escala del Evento:&#160;
+								</b>
+								<xsl:value-of select="concat('[',@c_escala,'] ',@d_escala)"/>
+							</td>
+						</tr>
+						<tr>
+							<td>
+								<b>
+									Tipo de Salida:&#160;
+								</b>
+								<xsl:value-of select="@tipo_salida"/>
+							</td>
+						</tr>
+					</table>
+					<br/>
+					<table class="PLANTILLA">
+						<tr>
+							<th colspan="3">
+								Evaluado
+							</th>
+							<th colspan="5">
+								Evaluador
+							</th>
+							<xsl:for-each select="./PLA">
+								<th>
+									<xsl:value-of select="@d_plantilla"/>
+								</th>
+							</xsl:for-each>
+							<th rowspan="2">
+								Resultado
+							</th>
+						</tr>
+						<tr>
+							<th>
+								Empresa
+							</th>
+							<th>
+								Legajo
+							</th>
+							<th>
+								Nombre y Apellido
+							</th>
+							<th>
+								Empresa
+							</th>
+							<th>
+								Legajo
+							</th>
+							<th>
+								Nombre y Apellido
+							</th>
+							<th>
+								Rol
+							</th>
+							<th>
+								Estado
+							</th>
+							<xsl:for-each select="./PLA">
+								<th>
+									<xsl:text>
+										Resultado [Ponderaci&#243;n:&#160;
+									</xsl:text>
+									<xsl:value-of select="@ponderacion"/>
+									<xsl:text>
+										]
+									</xsl:text>
+								</th>
+							</xsl:for-each>
+						</tr>
+						<xsl:for-each select="./REPORT/EVALUADOR">
+							<tr>
+								<td class="txt">
+									<xsl:value-of select="../@E_empresa"/>
+								</td>
+								<td class="txt">
+									<xsl:value-of select="../@E_legajo"/>
+								</td>
+								<td class="txt">
+									<xsl:value-of select="../@E_nombre"/>
+								</td>
+								<td class="txt">
+									<xsl:value-of select="@empresa"/>
+								</td>
+								<td class="txt">
+									<xsl:value-of select="@legajo"/>
+								</td>
+								<td class="txt">
+									<xsl:value-of select="@nombre"/>
+								</td>
+								<td class="txt">
+									<xsl:value-of select="@rol"/>
+								</td>
+								<td class="txt">
+									<xsl:value-of select="../@d_estado"/>
+								</td>
+								<xsl:for-each select="VAL">
+									<td class="num">
+										<xsl:attribute name="style">
+											<xsl:text>
+												mso-number-format:
+											</xsl:text>
+											<xsl:if test="@decimales='\.'">
+												<xsl:text>
+													"0"
+												</xsl:text>
+											</xsl:if>
+											<xsl:if test="@decimales!='\.'">
+												<xsl:text>
+													"0
+												</xsl:text>
+												<xsl:value-of select="@decimales"/>
+												<xsl:text>
+													"
+												</xsl:text>
+											</xsl:if>
+										</xsl:attribute>
+										<xsl:value-of select="@resultado"/>
+									</td>
+								</xsl:for-each>
+								<xsl:for-each select="VAL_TOT">
+									<td class="num">
+										<xsl:attribute name="style">
+											<xsl:text>
+												mso-number-format:
+											</xsl:text>
+											<xsl:if test="@decimales='\.'">
+												<xsl:text>
+													"0"
+												</xsl:text>
+											</xsl:if>
+											<xsl:if test="@decimales!='\.'">
+												<xsl:text>
+													"0
+												</xsl:text>
+												<xsl:value-of select="@decimales"/>
+												<xsl:text>
+													"
+												</xsl:text>
+											</xsl:if>
+										</xsl:attribute>
+										<xsl:value-of select="@resultado"/>
+									</td>
+								</xsl:for-each>
+							</tr>
+						</xsl:for-each>
+					</table>
+				</body>
+			</html>
+		</xsl:template>
+	</html:xslt>
+</html:html>

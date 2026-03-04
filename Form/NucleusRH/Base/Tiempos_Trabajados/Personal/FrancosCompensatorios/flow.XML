@@ -1,0 +1,183 @@
+<flow:flow xmlns:flow="nomad_engine.flow" xmlns:doc="nomad_engine.doc" xmlns:qry="nomad_engine.qry" name="NucleusRH.Base.Tiempos_Trabajados.Personal.FrancosCompensatorios.flow" extends="NucleusRH.Base.Tiempos_Trabajados.Personal.flow" default_action="initialize">
+	<flow:info label="Flow para NucleusRH.Base.Tiempos_Trabajados.Personal.FrancosCompensatorios"/>
+	<flow:declare>
+		<doc:define name="FILTERDATA">
+			<FILTRO>
+				<ROWS/>
+			</FILTRO>
+		</doc:define>
+		<doc:define name="COMP">
+			<FILTRO>
+				<ROWS/>
+			</FILTRO>
+		</doc:define>
+		<qry:define declare="&lt;FILTRO oi_personal_emp=&quot;11566&quot;/&gt;" name="QRY_FC">
+			<qry:main doc="SOURCE">
+				<qry:element name="FILTRO">
+					<qry:attribute name="oi_personal_emp" value="#SOURCE:FILTRO/@oi_personal_emp"/>
+					<qry:insert-select name="sql2"/>
+					<qry:element name="ROWS">
+						<qry:insert-select name="sql1" doc-path="#SOURCE:FILTRO"/>
+					</qry:element>
+				</qry:element>
+			</qry:main>
+			<qry:select name="sql1" doc="SOURCE">
+				<qry:xquery>
+					for $r in SQL('
+				SELECT
+					TTA18_FRANCOS_COMP.oi_franco_comp,
+					TTA18_FRANCOS_COMP.f_franco_comp,
+					TTA18_FRANCOS_COMP.n_franco_comp,
+					TTA18_FRANCOS_COMP.n_franco_gen,
+					TTA18_FRANCOS_COMP.c_estado
+				FROM
+					TTA18_FRANCOS_COMP			
+				WHERE
+					TTA18_FRANCOS_COMP.n_franco_comp != TTA18_FRANCOS_COMP.n_franco_gen
+					AND TTA18_FRANCOS_COMP.f_franco_comp &gt;= {Datetime(now() - 180)}
+					AND TTA18_FRANCOS_COMP.oi_personal_emp = {#SOURCE:@oi_personal_emp}									
+				ORDER BY 
+					f_franco_comp DESC
+		')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:element name="ROW">
+						<qry:attribute name="oi_franco_comp" value="$r/@oi_franco_comp"/>
+						<qry:attribute name="f_franco_comp" value="$r/@f_franco_comp"/>
+						<qry:attribute name="n_franco_comp" value="$r/@n_franco_comp"/>
+						<qry:attribute name="n_franco_gen" value="$r/@n_franco_gen"/>
+						<qry:attribute name="cant" value="$r/@n_franco_gen - $r/@n_franco_comp"/>
+						<qry:attribute name="c_estado" value="$r/@c_estado"/>
+					</qry:element>
+				</qry:out>
+			</qry:select>
+			<qry:select name="sql2" doc="SOURCE">
+				<qry:xquery>
+					for $r in SQL('
+				SELECT
+					TTA01_TIPOHORAS.oi_licencia
+				FROM
+					TTA01_TIPOHORAS
+				WHERE
+					TTA01_TIPOHORAS.n_coeficiente_fc &lt; 0				
+		')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:attribute name="oi_licencia" value="$r/@oi_licencia"/>
+				</qry:out>
+			</qry:select>
+		</qry:define>
+		<qry:define name="QRY_ADMIN_COMP" declare="&lt;FILTRO oi_personal_emp=&quot;339&quot;/&gt;">
+			<qry:main doc="SOURCE">
+				<qry:element name="FILTRO">
+					<qry:attribute name="oi_personal_emp" value="#SOURCE:FILTRO/@oi_personal_emp"/>
+					<qry:element name="ROWS">
+						<qry:insert-select name="sql1" doc-path="#SOURCE:FILTRO"/>
+					</qry:element>
+				</qry:element>
+			</qry:main>
+			<qry:select name="sql1" doc="SOURCE">
+				<qry:xquery>
+					for $r in SQL('
+				SELECT
+					TTA18_COMPEN.oi_franco_comp,
+					TTA18_FRANCOS_COMP.f_franco_comp,
+					TTA18_COMPEN.oi_compen,
+					TTA18_COMPEN.f_compen,
+					TTA18_COMPEN.n_compen
+				FROM
+					TTA18_COMPEN, TTA18_FRANCOS_COMP
+				JOIN
+					TTA18_COMPEN.oi_franco_comp INNER TTA18_FRANCOS_COMP.oi_franco_comp
+				WHERE
+					TTA18_FRANCOS_COMP.oi_personal_emp = {#SOURCE:@oi_personal_emp}									
+				ORDER BY 
+					f_compen DESC
+		')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:element name="ROW">
+						<qry:attribute name="oi_franco_comp" value="$r/@oi_franco_comp"/>
+						<qry:attribute name="oi_compen" value="$r/@oi_compen"/>
+						<qry:attribute name="n_franco_comp" value="$r/@n_franco_comp"/>
+						<qry:attribute name="f_franco_comp" value="$r/@f_franco_comp"/>
+						<qry:attribute name="f_compen" value="$r/@f_compen"/>
+						<qry:attribute name="n_compen" value="$r/@n_compen"/>
+						<qry:attribute name="n_compen_old" value="$r/@n_compen"/>
+					</qry:element>
+				</qry:out>
+			</qry:select>
+		</qry:define>
+	</flow:declare>
+	<flow:main doc="SOURCE">
+		<flow:action name="initialize">
+			<flow:open-form mode="FILTER" form-class="NucleusRH.Base.Tiempos_Trabajados.Personal.FrancosCompensatorios.filter.form" parent-doc-path="#FILTERDATA:" doc-path="#FILTERDATA:"/>
+		</flow:action>
+		<flow:action name="REPORT">
+			<flow:exec-method out-type="Nomad.NSystem.String" method="ExecReportHTMLOnline" out-attr-path="#SOURCE:@report" class="Nomad.Base.Report.GeneralReport.REPORT">
+				<flow:param value="NucleusRH.Base.Tiempos_Trabajados.Compensaciones.rpt" type="Nomad.NSystem.String" mode="in" name="ReportName"/>
+				<flow:param doc-path="#SOURCE:" name="paramIN" type="Nomad.NSystem.Proxy.NomadXML" mode="in"/>
+			</flow:exec-method>
+			<flow:open-form form-class="NucleusRH.Base.Tiempos_Trabajados.Personal.FrancosCompensatorios.report.form" mode="SHOW" parent-doc-path="#SOURCE:" doc-path="#SOURCE:"/>
+		</flow:action>
+		<flow:action name="ADMIN">
+			<doc:load-qry output-doc="COMP" input-doc-path="#SOURCE:" qry="QRY_ADMIN_COMP"/>
+			<flow:open-form form-class="NucleusRH.Base.Tiempos_Trabajados.Personal.FrancosCompensatorios.admin.form" mode="EDIT" parent-doc-path="#COMP:" doc-path="#COMP:"/>
+		</flow:action>
+	</flow:main>
+	<flow:group name="FC">
+		<flow:form name="NucleusRH.Base.Tiempos_Trabajados.Personal.FrancosCompensatorios.filter.form:FILTER" form-class="NucleusRH.Base.Tiempos_Trabajados.Personal.FrancosCompensatorios.filter.form" mode="FILTER" parent-doc="PARENTSOURCE" doc="SOURCE">
+			<flow:action name="BACK">
+				<flow:close-form/>
+			</flow:action>
+			<flow:action name="Save-FILTER">
+				<flow:save-user-data doc-path="#FILTERDATA:" name="FILTER-NucleusRH.Base.Tiempos_Trabajados.Personal.FC"/>
+			</flow:action>
+			<flow:action name="Load-FILTER">
+				<flow:load-user-data doc="FILTERDATA" name="FILTER-NucleusRH.Base.Tiempos_Trabajados.Personal.FC"/>
+			</flow:action>
+			<flow:action name="FILTER">
+				<flow:call-action action="Save-FILTER"/>
+				<flow:exec-method class="NucleusRH.Base.Tiempos_Trabajados.FrancosCompensatorios.FRANCO_COMP" method="GetFrancos">
+					<flow:param type="Nomad.NSystem.Proxy.NomadXML" doc="FILTERDATA" mode="in" name="param"/>
+				</flow:exec-method>
+				<doc:load-qry output-doc="FILTERDATA" input-doc-path="#FILTERDATA:" qry="QRY_FC"/>
+				<flow:open-form parent-doc-path="#FILTERDATA:" doc-path="#FILTERDATA:" form-class="NucleusRH.Base.Tiempos_Trabajados.Personal.FrancosCompensatorios.form" mode="EDIT"/>
+			</flow:action>
+			<flow:action name="on-show">
+				<flow:call-action action="Load-FILTER"/>
+			</flow:action>
+		</flow:form>
+		<flow:form form-class="NucleusRH.Base.Tiempos_Trabajados.Personal.FrancosCompensatorios.form" name="NucleusRH.Base.Tiempos_Trabajados.Personal.FrancosCompensatorios.form:EDIT" mode="EDIT" parent-doc="PARENTSOURCE" doc="SOURCE">
+			<flow:action name="REFRESH">
+				<doc:set-attribute from-attr-path="#FORM:ctrl[@id='oi_personal_emp']/@xval" to-attr-path="#FILTERDATA:@oi_personal_emp"/>
+				<flow:close-form next-action="FILTER"/>
+			</flow:action>
+			<flow:action name="SAVE">
+				<flow:exec-method priority="5" out-attr-path="#BATCHDOC:@batch-id" class="NucleusRH.Base.Tiempos_Trabajados.FrancosCompensatorios.FRANCO_COMP" method="SetFrancos">
+					<flow:param type="Nomad.NSystem.Proxy.NomadXML" doc="FILTERDATA" mode="in" name="param"/>
+				</flow:exec-method>
+				<flow:open-form form-class="nomad.base.batchtolist.form" mode="BATCH" doc-path="#BATCHDOC:"/>
+			</flow:action>
+			<flow:action name="BACK">
+				<flow:close-form/>
+			</flow:action>
+		</flow:form>
+		<flow:form form-class="NucleusRH.Base.Tiempos_Trabajados.Personal.FrancosCompensatorios.report.form" name="NucleusRH.Base.Tiempos_Trabajados.Personal.FrancosCompensatorios.report.form:SHOW" parent-doc="PARENTSOURCE" doc="SOURCE" mode="SHOW">
+			<flow:action name="BACK">
+				<flow:exit-flow return-path="#SOURCE:"/>
+			</flow:action>
+		</flow:form>
+		<flow:form form-class="NucleusRH.Base.Tiempos_Trabajados.Personal.FrancosCompensatorios.admin.form" name="NucleusRH.Base.Tiempos_Trabajados.Personal.FrancosCompensatorios.admin.form:EDIT" mode="EDIT" parent-doc="PARENTSOURCE" doc="SOURCE">
+			<flow:action name="SAVE">
+				<flow:exec-method method="EditFrancos" class="NucleusRH.Base.Tiempos_Trabajados.FrancosCompensatorios.FRANCO_COMP">
+					<flow:param type="Nomad.NSystem.Proxy.NomadXML" doc="SOURCE" mode="in" name="param"/>
+				</flow:exec-method>
+				<flow:close-form/>
+			</flow:action>
+			<flow:action name="BACK">
+				<flow:close-form/>
+			</flow:action>
+		</flow:form>
+	</flow:group>
+</flow:flow>

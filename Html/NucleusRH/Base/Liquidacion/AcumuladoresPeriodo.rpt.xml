@@ -1,0 +1,239 @@
+<html:html xmlns:html="nomad_engine.html" xmlns:qry="nomad_engine.qry" name="NucleusRH.Base.Liquidacion.AcumuladoresPeriodo" extends="Nomad.Base.BaseReport.rpt" doc="source">
+	<html:for-each declare="&lt;DATOS oi_empresa=&quot;1&quot; per_desde=&quot;201101&quot; per_hasta=&quot;201112&quot; oi_variable=&quot;&quot; oi_personal_emp=&quot;&quot; c_variable=&quot;aa_totsret&quot; l_incluir=&quot;&quot; /&gt;">
+		<qry:main doc="SOURCE">
+			<qry:append-doc name="PARAMIN" doc-path="#SOURCE:DATOS"/>
+			<REPORT label="Datos acumulados por per&#237;odo">
+				<qry:attribute name="date" value="format_date(now(), 'dd/mm/yyyy')"/>
+				<GROUPS>
+					<GROUP tag="EMP" type="title">
+						<COLS>
+							<COL name="d_empresa" label="Empresa"/>
+						</COLS>
+						<GROUP tag="VAR" type="table" noreg="No se encontraron datos para los filtros ingresados.">
+							<COLS>
+								<COL name="l" label="Legajo" nowrap="1" style="text-align:right;"/>
+								<COL name="n" label="Nombre" nowrap="1"/>
+								<COL name="c_variable" label="Acumulador" nowrap="1"/>
+								<qry:insert-select name="sql_cols" doc-path="#SOURCE:DATOS"/>
+							</COLS>
+						</GROUP>
+					</GROUP>
+				</GROUPS>
+				<DATA>
+					<EMP>
+						<qry:insert-select name="sql0" doc-path="#SOURCE:DATOS"/>
+						<qry:insert-select name="sql1" doc-path="#SOURCE:DATOS"/>
+					</EMP>
+				</DATA>
+			</REPORT>
+		</qry:main>
+		<qry:select name="sql0" doc="PARAM">
+			<qry:xquery>
+				for $r in SQL('
+SELECT ORG03_EMPRESAS.d_empresa
+FROM
+	ORG03_EMPRESAS
+WHERE
+	ORG03_EMPRESAS.oi_empresa = {#PARAM:@oi_empresa}
+')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:attribute name="d_empresa" value="$r/@d_empresa"/>
+			</qry:out>
+		</qry:select>
+		<qry:select name="sql1" doc="PARAM">
+			<qry:xquery>
+				for $r in SQL('
+SELECT 
+PER02_PERSONAL_EMP.oi_personal_emp, 
+PER01_PERSONAL.d_ape_y_nom, 
+PER02_PERSONAL_EMP.e_numero_legajo
+FROM
+PER01_PERSONAL, PER02_PERSONAL_EMP
+JOIN
+PER01_PERSONAL.oi_personal INNER PER02_PERSONAL_EMP.oi_personal
+WHERE    
+PER02_PERSONAL_EMP.oi_empresa = {#PARAM:@oi_empresa}
+{%? (#PARAMIN:@oi_personal_emp!='') 
+	{% AND PER02_PERSONAL_EMP.oi_personal_emp = {#PARAMIN:@oi_personal_emp} %}
+	{% 
+	{%? (#PARAMIN:@l_incluir!='1') 
+	{% AND PER02_PERSONAL_EMP.oi_indic_activo = 1 %}
+	{% %} 
+%}
+	%} 
+%}
+
+{%? (#PARAMIN:@cb_confidenciales != '' and #PARAMIN:@cb_confidenciales!='T' ) 
+{%  
+{%? (#PARAMIN:@cb_confidenciales = 'C') {%	AND PER02_PERSONAL_EMP.l_confidencial = 1%}{% AND PER02_PERSONAL_EMP.l_confidencial = 0 %} %} 
+%} 
+{%	%}
+%}
+
+ 	
+ORDER BY 
+e_numero_legajo asc
+')/ROWS
+			</qry:xquery>
+			<qry:out>
+				<qry:insert-select name="qry_split" doc-path="$r"/>
+			</qry:out>
+		</qry:select>
+		<qry:select name="qry_split" doc="PARAM">
+			<qry:xquery>
+				for $r in split('100;{%=$PARAM/ROW/@oi_personal_emp%}')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:call>
+					<DATOS>
+						<qry:attribute name="ids" value="$r/@value"/>
+						<qry:attribute name="per_desde" value="$PARAMIN/@per_desde"/>
+						<qry:attribute name="per_hasta" value="$PARAMIN/@per_hasta"/>
+						<qry:attribute name="oi_variable" value="$PARAMIN/@oi_variable"/>
+						<qry:attribute name="c_variable" value="$PARAMIN/@c_variable"/>
+					</DATOS>
+				</qry:call>
+			</qry:out>
+		</qry:select>
+		<qry:select doc="PARAM" name="sql_cols">
+			<qry:xquery>
+				for $r in secuence('int,{%=substring(#PARAMIN:@per_desde,0,4) %},{%=substring(#PARAMIN:@per_hasta,0,4) %},1')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:insert-select name="MONTHS" doc-path="$r"/>
+			</qry:out>
+		</qry:select>
+		<qry:select doc="PARAM" name="MONTHS">
+			<qry:xquery>
+				for $r in secuence('int,{%=substring(#PARAM:@value,0,4) %}01,{%=substring(#PARAM:@value,0,4) %}12,1')/ROWS/ROW[@value&gt;=#PARAMIN:@per_desde and @value&lt;=#PARAMIN:@per_hasta]
+			</qry:xquery>
+			<qry:out>
+				<COL>
+					<qry:attribute name="name" value="'p'+$r/@value"/>
+					<qry:attribute name="label" value="Format_Date($r/@value+'01','mm/yyyy')"/>
+					<qry:attribute name="type" value="'num'"/>
+					<qry:attribute name="nowrap" value="'1'"/>
+				</COL>
+			</qry:out>
+		</qry:select>
+	</html:for-each>
+	<html:query declare="&lt;DATOS c_variable=&quot;aa_totsret&quot; per_hasta=&quot;201112&quot; per_desde=&quot;201101&quot; ids=&quot;12,29,37,38,44,49,56,57,65,70,78,91,95,97,102,103,105,108,110,122,123,126,128,129,131,132,137,140,147,148,149,153,158,162,165,167,170,173,174,176,179,180,181,182,185,189,190,192,193,197,199,202,204,207,209,210,211,214,215,217,219,221,222,226,228,229,234,235,236,237,238,239,242,243,250,253,255,262,267,274,276,277,279,281,282,283,284,286,289,291,299,309,311,312,315,329,331,343,344,345&quot;/&gt;">
+		<qry:main doc="SOURCE">
+			<qry:append-doc name="PARAMIN" doc-path="#SOURCE:DATOS"/>
+			<qry:no-show>
+				<qry:create-doc name="VARS"/>
+				<qry:insert-select name="sql3" to-element="$VARS"/>
+				<qry:create-doc name="VALS"/>
+				<qry:insert-select name="sql6" to-element="$VALS"/>
+				<qry:create-doc name="PERS"/>
+				<qry:insert-select name="sql1" to-element="$PERS"/>
+				<qry:insert-select name="sql_plano" doc-path="$PERS"/>
+			</qry:no-show>
+		</qry:main>
+		<qry:select name="sql1" doc="PARAM">
+			<qry:xquery>
+				for $r in SQL('
+SELECT 
+		PER02_PERSONAL_EMP.oi_personal_emp, 
+		PER01_PERSONAL.d_ape_y_nom, 
+		PER02_PERSONAL_EMP.e_numero_legajo
+	FROM
+		PER01_PERSONAL, PER02_PERSONAL_EMP
+	JOIN
+		PER01_PERSONAL.oi_personal INNER PER02_PERSONAL_EMP.oi_personal
+	WHERE
+		PER02_PERSONAL_EMP.oi_personal_emp in ({%=#PARAMIN:@ids%})
+	ORDER BY e_numero_legajo asc
+	')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<PER>
+					<qry:attribute name="oi_personal_emp" value="$r/@oi_personal_emp"/>
+					<qry:attribute name="e_numero_legajo" value="$r/@e_numero_legajo"/>
+					<qry:attribute name="d_ape_y_nom" value="$r/@d_ape_y_nom"/>
+					<qry:insert-element doc-path="$VARS/VAR"/>
+					<qry:insert-select doc-path="." name="sql2"/>
+				</PER>
+			</qry:out>
+		</qry:select>
+		<qry:select name="sql2" doc="PARAM">
+			<qry:xquery>
+				for $r in $VALS/ROW[@oi_personal_emp=$PARAM/@oi_personal_emp],
+	$s in $PARAM/VAR
+	join $r/@oi_variable inner $s/@oi_variable
+			</qry:xquery>
+			<qry:out>
+				<qry:insert-select name="sql5" doc-path="$r" to-element="$s"/>
+			</qry:out>
+		</qry:select>
+		<qry:select name="sql3" doc="PARAM">
+			<qry:xquery>
+				for $r in SQL('
+	SELECT
+		LIQ09_VARIABLES.oi_variable,
+		LIQ09_VARIABLES.c_variable
+	FROM
+		LIQ09_VARIABLES
+	WHERE
+		LIQ09_VARIABLES.c_tipo_variable = \'9\'
+	{%? (#PARAMIN:@c_variable!='') {% AND CONTAIN(LIQ09_VARIABLES.c_variable, \'{%=#PARAMIN:@c_variable%}\') %} {% %} %}
+	{%? (#PARAMIN:@oi_variable!='') {% AND LIQ09_VARIABLES.oi_variable = {#PARAMIN:@oi_variable} %} {% %} %}
+	ORDER BY c_variable asc
+	')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:element name="VAR">
+					<qry:attribute name="oi_variable" value="$r/@oi_variable"/>
+					<qry:attribute name="c_variable" value="$r/@c_variable"/>
+				</qry:element>
+			</qry:out>
+		</qry:select>
+		<qry:select name="sql5" doc="PARAM">
+			<qry:out>
+				<qry:attribute name-calc="'p'+$PARAM/@e_periodo" value="$PARAM/@n_valor"/>
+			</qry:out>
+		</qry:select>
+		<qry:select name="sql_plano" doc="PARAM">
+			<qry:xquery>
+				for $r in $PARAM/PER/VAR
+			</qry:xquery>
+			<qry:out>
+				<qry:insert-select name="sql_plano_per" doc-path="$r/.." to-element="$r"/>
+				<qry:insert-element doc-path="$r"/>
+			</qry:out>
+		</qry:select>
+		<qry:select name="sql_plano_per" doc="r">
+			<qry:out>
+				<qry:attribute name="i" value="$r/@oi_personal_emp"/>
+				<qry:attribute name="l" value="$r/@e_numero_legajo"/>
+				<qry:attribute name="n" value="$r/@d_ape_y_nom"/>
+			</qry:out>
+		</qry:select>
+		<qry:select name="sql6" doc="PARAM">
+			<qry:xquery>
+				for $r in SQL('
+	SELECT
+		LIQ07_VAL_VARPA.oi_personal_emp,
+		LIQ09_VARIABLES.oi_variable,
+		LIQ07_VAL_VARPA.e_periodo,
+		LIQ07_VAL_VARPA.n_valor
+	FROM
+		LIQ07_VAL_VARPA, LIQ09_VARIABLES
+	JOIN
+		LIQ07_VAL_VARPA.oi_variable INNER LIQ09_VARIABLES.oi_variable
+	WHERE
+		LIQ09_VARIABLES.c_tipo_variable = \'9\' AND
+		LIQ07_VAL_VARPA.e_periodo &gt;= {#PARAMIN:@per_desde} AND
+		LIQ07_VAL_VARPA.e_periodo &lt;= {#PARAMIN:@per_hasta} AND
+		LIQ07_VAL_VARPA.oi_personal_emp IN ({%=#PARAMIN:@ids%})
+		{%? (#PARAMIN:@c_variable!='') {% AND CONTAIN(LIQ09_VARIABLES.c_variable, \'{%=#PARAMIN:@c_variable%}\') %} {% %} %}
+		{%? (#PARAMIN:@oi_variable!='') {% AND LIQ09_VARIABLES.oi_variable = {#PARAMIN:@oi_variable} %} {% %} %}
+	')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:insert-element doc-path="$r"/>
+			</qry:out>
+		</qry:select>
+	</html:query>
+</html:html>

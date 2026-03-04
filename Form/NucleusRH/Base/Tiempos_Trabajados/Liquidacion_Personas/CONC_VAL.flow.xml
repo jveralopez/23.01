@@ -1,0 +1,87 @@
+<flow:flow xmlns:flow="nomad_engine.flow" xmlns:qry="nomad_engine.qry" xmlns:doc="nomad_engine.doc" name="NucleusRH.Base.Tiempos_Trabajados.Liquidacion_Personas.CONC_VAL.flow" extends="NucleusRH.Base.Tiempos_Trabajados.Liquidacion_Personas.autoflow">
+	<flow:info label="Flow para NucleusRH.Base.Tiempos_Trabajados.Liquidacion_Personas"/>
+	<flow:declare>
+		<qry:define declare="&lt;DATA oi_liquidacion=&quot;14&quot; oi_personal_emp=&quot;1164&quot; /&gt;" name="QRY_PARAMS">
+			<qry:main doc="SOURCE">
+				<qry:element name="FILTRO">
+					<qry:insert-select name="QRY_LIQUIDACION" doc-path="#SOURCE:DATA"/>
+					<PERSONAS>
+						<ROW>
+							<qry:attribute name="VALUES" value="#SOURCE:DATA/@oi_personal_emp"/>
+						</ROW>
+					</PERSONAS>
+					<CONC>
+						<qry:insert-select name="QRY_CONCEPTOS"/>
+					</CONC>
+				</qry:element>
+			</qry:main>
+			<qry:select name="QRY_LIQUIDACION" doc="SOURCE">
+				<qry:xquery>
+					for $r in SQL('
+				SELECT                        
+					TTA09_LIQUIDACION.oi_liquidacion,
+					TTA09_LIQUIDACION.f_fechainicio,
+					TTA09_LIQUIDACION.f_fechafin
+				FROM
+					TTA09_LIQUIDACION
+				WHERE
+					TTA09_LIQUIDACION.oi_liquidacion = {#SOURCE:@oi_liquidacion} 					
+		')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:attribute name="f_desde" value="$r/@f_fechainicio"/>
+					<qry:attribute name="f_hasta" value="$r/@f_fechafin"/>
+					<qry:attribute name="oi_liquidacion" value="$r/@oi_liquidacion"/>
+					<qry:attribute name="sinmarco" value="'1'"/>
+					<qry:attribute name="encabezado" value="'1'"/>
+					<qry:attribute name="legporhoja" value="'1'"/>
+					<qry:attribute name="anuladas" value="'1'"/>
+				</qry:out>
+			</qry:select>
+			<qry:select name="QRY_CONCEPTOS">
+				<qry:xquery>
+					for $r in SQL('
+				SELECT 
+					TTA15_CONCEPTOS.oi_concepto,
+					TTA15_CONCEPTOS.d_concepto as des,
+					TTA15_CONCEPTOS.c_coleccion,
+					TTA15_CONCEPTOS.e_mostrar
+				FROM 
+					TTA15_CONCEPTOS
+				WHERE 
+					TTA15_CONCEPTOS.e_mostrar != 0
+					AND TTA15_CONCEPTOS.l_activo != 0 
+				ORDER BY 
+					e_mostrar ASC 					
+		')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:element name="C">
+						<qry:attribute value="$r/@oi_concepto" name="id"/>
+					</qry:element>
+				</qry:out>
+			</qry:select>
+		</qry:define>
+		<doc:define name="FILTERDATA">
+			<FILTRO/>
+		</doc:define>
+	</flow:declare>
+	<flow:main doc="SOURCE">
+		<flow:action name="REPORT">
+			<doc:load-qry output-doc="FILTERDATA" input-doc-path="#SOURCE:" qry="QRY_PARAMS"/>
+			<flow:exec-method out-type="Nomad.NSystem.String" method="ExecReportHTMLOnline" out-attr-path="#FILTERDATA:@report" class="Nomad.Base.Report.GeneralReport.REPORT">
+				<flow:param value="NucleusRH.Base.Tiempos_Trabajados.DetalleHorasConceptos.rpt" type="Nomad.NSystem.String" mode="in" name="ReportName"/>
+				<flow:param doc-path="#FILTERDATA:" name="paramIN" type="Nomad.NSystem.Proxy.NomadXML" mode="in"/>
+			</flow:exec-method>
+			<flow:open-form mode="SHOW" parent-doc-path="#FILTERDATA:" doc-path="#FILTERDATA:" form-class="NucleusRH.Base.Tiempos_Trabajados.Liquidacion_Personas.CONC_VAL.form"/>
+		</flow:action>
+	</flow:main>
+	<flow:form parent-doc="PARENTSOURCE" doc="SOURCE" name="NucleusRH.Base.Tiempos_Trabajados.Liquidacion_Personas.CONC_VAL.form:SHOW" form-class="NucleusRH.Base.Tiempos_Trabajados.Liquidacion_Personas.CONC_VAL.form" mode="SHOW">
+		<flow:action name="BACK">
+			<flow:exit-flow return-path="#SOURCE:"/>
+		</flow:action>
+		<flow:action name="on-show">
+			<flow:log text-path="#SOURCE:" text="ppsourcerep"/>
+		</flow:action>
+	</flow:form>
+</flow:flow>

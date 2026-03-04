@@ -1,0 +1,628 @@
+<html:html xmlns:html="nomad_engine.html" xmlns:qry="nomad_engine.qry" xmlns:xsl="http://www.w3.org/1999/XSL/Transform" name="NucleusRH.Base.Vacaciones.CtaCteVacaciones2UltPer" extends="Nomad.Base.BaseReport.rpt" doc="source">
+	<html:for-each declare="&lt;DATA TIPO_PER=&quot;&quot; oi_empresa=&quot;&quot; gpers=&quot;&quot; empresa=&quot;196&quot; activos=&quot;1&quot; nombre=&quot;&quot; documento=&quot;&quot; sexo=&quot;&quot; grupo_sanguineo=&quot;&quot; listlegajos=&quot;&quot; oi_indic_activo=&quot;&quot; egresado=&quot;&quot; oi_forma_pago=&quot;&quot; oi_tipo_personal=&quot;&quot; fecha_desde=&quot;&quot; fecha_hasta=&quot;&quot; oi_centro_costo=&quot;&quot; oi_convenio=&quot;&quot; soloconvenio=&quot;&quot; oi_categoria=&quot;&quot; oi_ubicacion_desde=&quot;&quot; oi_ubicacion_hasta=&quot;&quot; oi_estructura=&quot;&quot; escructura_childs=&quot;&quot; oi_contrato=&quot;&quot; oi_afjp=&quot;&quot; oi_obra_social=&quot;&quot; oi_sindicato=&quot;&quot; legID=&quot;&quot; leg_where=&quot;&quot;&gt;&#13;&#10;&#9;&lt;PERSONAS&gt;&#13;&#10;&#9;&#9;&lt;ROW VALUES=&quot;11566,11567,11568,11569,11570,11573,11574,11575,11576,11578,11580,11581,11582,11583,13886,13887,13888,13889,13890,13891,13892,13895,13921,13922,13924,13925,13926,13927,13928,13929,13930,13941,13942,14547,13947,14647,13931,13932,13933,13935,13943,11565,13946,14047,13948,13949&quot;/&gt;&#13;&#10;&#9;&lt;/PERSONAS&gt;&#13;&#10;&lt;/DATA&gt;">
+		<qry:main doc="PARAM">
+			<qry:append-doc name="FILTRO1" doc-path="#PARAM:"/>
+			<qry:element name="DATA">
+				<EMPRESA qry-orderby="orderby">
+					<qry:attribute value="format_date(now(),'dd/mm/yyyy HH:MM')" name="date"/>
+					<qry:insert-select doc-path="#PARAM:" name="SQL_EMPRESA"/>
+					<qry:insert-select doc-path="#PARAM:DATA/PERSONAS/ROW" name="QRY_PERSONAS"/>
+				</EMPRESA>
+			</qry:element>
+		</qry:main>
+		<qry:select doc="PARAM" name="QRY_PERSONAS">
+			<qry:out>
+				<qry:call>
+					<FILTRO>
+						<qry:attribute value="$PARAM/@values" name="values"/>
+						<qry:attribute name="oi_empresa" value="$FILTRO1/DATA/@empresa"/>
+					</FILTRO>
+				</qry:call>
+			</qry:out>
+		</qry:select>
+		<qry:select doc="PARAM" name="SQL_EMPRESA">
+			<qry:xquery>
+				for $r in sql('
+					SELECT 
+						ORG03_EMPRESAS.d_empresa,
+						ORG03_EMPRESAS.c_empresa
+					FROM 
+						ORG03_EMPRESAS
+					WHERE
+						ORG03_EMPRESAS.oi_empresa = {#PARAM:DATA/@empresa} 						
+				')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:attribute name="d_empresa" value="($r/@c_empresa+' - '+$r/@d_empresa)"/>
+			</qry:out>
+		</qry:select>
+	</html:for-each>
+	<html:query declare="&lt;FILTRO oi_empresa=&quot;196&quot; values=&quot;11566,11567,11568,11569,11570,11573,11574,11575,11576,11578,11580,11581,11582,11583,13886,13887,13888,13889,13890,13891,13892,13895,13921,13922,13924,13925,13926,13927,13928,13929,13930,13941,13942,14547,13947,14647,13931,13932,13933,13935,13943,11565,13946,14047,13948,13949&quot;/&gt;">
+		<qry:main doc="PARAM">
+			<qry:no-show>
+				<qry:insert-select doc-path="#PARAM:/FILTRO" name="qry_legajos"/>
+			</qry:no-show>
+		</qry:main>
+		<qry:select name="qry_legajos" doc="PARAM">
+			<qry:xquery>
+				for $r in sql(' 
+			   SELECT
+			    emp.d_empresa
+			    , leg.e_numero_legajo as leg
+					, per.d_ape_y_nom
+					, leg.f_ingreso
+					, leg.oi_personal_emp
+					, per.c_nro_documento
+					, tipodoc.c_tipo_documento
+					, pos.d_posicion
+					, vac_per.f_ant_rec_vac
+			   FROM
+			   	ORG03_EMPRESAS as emp, 
+			   	PER02_PERSONAL_EMP as leg,
+			   	PER01_PERSONAL as per,
+			   	PER20_TIPOS_DOC as tipodoc,
+			   	ORG04_POSICIONES as pos,
+			   	VAC01_PERSONAL as vac_per			   				   	  
+			   JOIN
+			   	emp.oi_empresa INNER leg.oi_empresa
+			   	, per.oi_personal INNER leg.oi_personal
+			   	, tipodoc.oi_tipo_documento INNER per.oi_tipo_documento
+			    , leg.oi_posicion_ult LEFT OUTER pos.oi_posicion
+			    , leg.oi_personal_emp LEFT OUTER vac_per.oi_personal_emp
+			   WHERE 
+			   	leg.oi_personal_emp in ({%=#PARAM:@values%})
+				 ORDER BY
+				  leg ASC
+			 ')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:attribute name="d_empresa" value="$r/@d_empresa"/>
+				<qry:element name="LEG">
+					<qry:attribute name="legajo" value="($r/@leg+' - '+$r/@d_ape_y_nom)"/>
+					<qry:attribute name="f_ingreso" value="format_date($r/@f_ingreso, 'dd/mm/yyyy')"/>
+					<qry:attribute name="documento" value="($r/@c_tipo_documento+' - '+$r/@c_nro_documento)"/>
+					<qry:attribute name="posicion" value="$r/@d_posicion"/>
+					<qry:attribute name="f_computar" value="iif(f_ant_rec_vac=null, format_date($r/@f_ant_rec_vac, 'dd/mm/yyyy'), ' ')"/>
+					<qry:attribute name="bandera_licencia" value="'no'"/>
+					<qry:insert-select doc-path="$r" name="qry_periodos"/>
+				</qry:element>
+			</qry:out>
+		</qry:select>
+		<qry:select name="qry_periodos" doc="PARAM">
+			<qry:xquery>
+				for $r in sql(' 		   
+			   maxsize 2
+			   SELECT
+			   	cta.oi_personal_emp, 
+			   	cta.oi_periodo, 
+			   	cta.e_dias_gen,
+			   	cta.e_dias_otorg,
+			   	cta.e_dias_pend,
+			   	PERIODOS.c_periodo, 
+					PERIODOS.f_desde_periodo 
+			   FROM
+					(
+				    SELECT
+							VAC04_PERIODOS.oi_periodo  
+							, VAC04_PERIODOS.c_periodo
+							, VAC04_PERIODOS.f_desde_periodo
+						FROM
+							VAC04_PERIODOS
+						WHERE
+							VAC04_PERIODOS.oi_periodo !=1000
+					) as PERIODOS
+					, VAC01_CTA_CTE_VAC as cta
+		   	 JOIN
+			   	cta.oi_periodo INNER PERIODOS.oi_periodo
+			   WHERE
+					cta.oi_personal_emp = {#PARAM:@oi_personal_emp}
+			   ORDER BY 
+			   	c_periodo DESC, f_desde_periodo DESC
+			')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:attribute name="bandera_licencia" value="'si'"/>
+				<qry:element name="PER">
+					<qry:attribute name="oi_personal_emp" value="$r/@oi_personal_emp"/>
+					<qry:attribute name="oi_periodo" value="$r/@oi_periodo"/>
+					<qry:attribute name="c_periodo" value="$r/@c_periodo"/>
+					<qry:attribute name="e_dias_gen" value="$r/@e_dias_gen"/>
+					<qry:attribute name="e_dias_tomados_a_cuenta" value="$r/@e_dias_otorg"/>
+					<qry:attribute name="e_saldo_pendiente" value="$r/@e_dias_pend"/>
+					<!--qry:insert-select doc-path="$r" name="qry_dias_tomados_a_cuenta"/>
+			<qry:insert-select doc-path="$r" name="qry_dias_liquidados"/>
+			<qry:insert-select doc-path="$r" name="qry_dias_interrumpidos"/-->
+					<qry:attribute name="bandera_solicitudes" value="'no'"/>
+					<qry:insert-select doc-path="$r" name="qry_detalle"/>
+				</qry:element>
+			</qry:out>
+		</qry:select>
+		<qry:select name="qry_dias_tomados_a_cuenta" doc="SOURCE">
+			<qry:xquery>
+				for $r in sql('     
+				SELECT 
+					SUM (VAC01_SOLIC_PER.e_cant_dias) AS e_dias_aprobados
+				FROM 
+					VAC01_SOLIC_PER, 
+					VAC01_SOLICITUDES,
+					VAC02_ESTADOS_SOL
+				JOIN
+					VAC01_SOLICITUDES.oi_solicitud INNER VAC01_SOLIC_PER.oi_solicitud,
+					VAC01_SOLICITUDES.oi_estado_solic INNER VAC02_ESTADOS_SOL.oi_estado_solic
+				WHERE 
+					VAC01_SOLICITUDES.oi_personal_emp = {#SOURCE:@oi_personal_emp}
+					AND VAC01_SOLIC_PER.oi_periodo = {#SOURCE:@oi_periodo}				
+          AND VAC02_ESTADOS_SOL.c_estado_solic = \'A\'				  
+			')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:attribute name="e_dias_tomados_a_cuenta" value="iif($r/@e_dias_aprobados!='', $r/@e_dias_aprobados, '0')"/>
+			</qry:out>
+		</qry:select>
+		<qry:select name="qry_dias_liquidados" doc="SOURCE">
+			<qry:xquery>
+				for $r in sql('     
+				SELECT 
+				  SUM (VAC01_SOLIC_PER.e_cant_dias) AS e_dias_liquidados
+				FROM 
+					VAC01_SOLIC_PER, 
+					VAC01_SOLICITUDES,
+					VAC02_ESTADOS_SOL
+				JOIN
+					VAC01_SOLICITUDES.oi_solicitud INNER VAC01_SOLIC_PER.oi_solicitud,
+					VAC01_SOLICITUDES.oi_estado_solic INNER VAC02_ESTADOS_SOL.oi_estado_solic
+				WHERE
+					VAC01_SOLICITUDES.oi_personal_emp = {#SOURCE:@oi_personal_emp}
+					AND VAC01_SOLIC_PER.oi_periodo = {#SOURCE:@oi_periodo}
+					AND VAC02_ESTADOS_SOL.c_estado_solic = \'L\'
+			')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:attribute name="e_dias_liquidados" value="iif($r/@e_dias_liquidados!='', $r/@e_dias_liquidados, '0')"/>
+			</qry:out>
+		</qry:select>
+		<qry:select name="qry_dias_interrumpidos" doc="SOURCE">
+			<qry:xquery>
+				for $r in sql('     
+				SELECT 
+				  SUM (VAC01_SOLIC_PER.e_cant_dias) AS e_dias_interrumpidos
+				FROM 
+					VAC01_SOLIC_PER, 
+					VAC01_SOLICITUDES,
+					VAC02_ESTADOS_SOL
+				JOIN
+					VAC01_SOLICITUDES.oi_solicitud INNER VAC01_SOLIC_PER.oi_solicitud,
+					VAC01_SOLICITUDES.oi_estado_solic INNER VAC02_ESTADOS_SOL.oi_estado_solic
+				WHERE
+					VAC01_SOLICITUDES.oi_personal_emp = {#SOURCE:@oi_personal_emp}
+					AND VAC01_SOLIC_PER.oi_periodo = {#SOURCE:@oi_periodo}
+					AND VAC02_ESTADOS_SOL.c_estado_solic = \'I\'
+			')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:attribute name="e_dias_interrumpidos" value="iif($r/@e_dias_interrumpidos!='', $r/@e_dias_interrumpidos, '0')"/>
+			</qry:out>
+		</qry:select>
+		<qry:select name="qry_detalle" doc="SOURCE">
+			<qry:xquery>
+				for $r in sql('     
+				SELECT 
+					VAC01_SOLIC_PER.f_desde,
+					VAC01_SOLIC_PER.f_hasta, 
+					VAC01_SOLIC_PER.e_cant_dias, 
+					VAC01_SOLICITUDES.e_dias_bonif, 
+					VAC02_ESTADOS_SOL.d_estado_solic,
+					VAC01_SOLICITUDES.f_interrupcion
+				FROM 
+					VAC01_SOLIC_PER, 
+					VAC01_SOLICITUDES, 
+					VAC02_ESTADOS_SOL
+				JOIN
+					VAC01_SOLICITUDES.oi_estado_solic INNER VAC02_ESTADOS_SOL.oi_estado_solic,
+					VAC01_SOLICITUDES.oi_solicitud INNER VAC01_SOLIC_PER.oi_solicitud
+				WHERE 
+					VAC01_SOLICITUDES.oi_personal_emp = {#SOURCE:@oi_personal_emp}
+					AND VAC01_SOLIC_PER.oi_periodo = {#SOURCE:@oi_periodo}
+					AND VAC02_ESTADOS_SOL.c_estado_solic IN (\'A\', \'L\', \'I\')
+				ORDER BY f_desde DESC
+			')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:attribute name="bandera_solicitudes" value="'si'"/>
+				<qry:element name="SOL">
+					<qry:attribute name="f_desde" value="format_date($r/@f_desde,'dd/mm/yyyy')"/>
+					<qry:attribute name="f_hasta" value="iif($r/@f_interrupcion='', format_date($r/@f_hasta,'dd/mm/yyyy'), format_date($r/@f_interrupcion, 'dd/mm/yyyy'))"/>
+					<!--qry:attribute name="f_hasta" value="format_date($r/@f_hasta,'dd/mm/yyyy')"/-->
+					<qry:attribute name="e_cant_dias" value="$r/@e_cant_dias"/>
+					<qry:attribute name="e_dias_bonif" value="$r/@e_dias_bonif"/>
+					<!--qry:attribute name="d_estado_solic" value="$r/@d_estado_solic"/-->
+				</qry:element>
+			</qry:out>
+		</qry:select>
+	</html:query>
+	<html:xslt>
+		<xsl:template match="DATA">
+			<html>
+				<head>
+					<meta http-equiv="Content-Type" content="text/html; charset=utf-8"/>
+					<style media="screen">
+						.body {
+          font-family:verdana;
+          font-weight:normal;
+          background-color:#B0B0B0;
+          font-size:11px;
+          width:100%;
+          margin:30px;}
+          
+          .bodysinmarco {
+					PADDING-RIGHT: 0px; 
+					PADDING-LEFT: 0px; 
+					PADDING-BOTTOM: 0px; 
+					MARGIN: 0px; 
+					BORDER-TOP-STYLE: none; 
+					PADDING-TOP: 0px; 
+					BORDER-RIGHT-STYLE: none; 
+					BORDER-LEFT-STYLE: none; 
+					BORDER-BOTTOM-STYLE: none;
+          
+          font-family:verdana;
+          font-weight:normal;          
+          font-size:11px;
+          width:100%;}
+
+          .title {
+          font-size:15px;
+          font-family:verdana;
+          font-weight:bold;}
+
+          .table_table_style {
+          border: none;
+          border-collapse: collapse;
+          background-color:#FFFFFF;
+          font-size: 11px;
+          font-family: verdana;
+          width:100%;}
+
+          .table_title_style {
+          border:none;
+          font-family:verdana;
+          background-color:#FFFFFF;
+          font-size:11px;
+          font-weight:normal;
+          width:100%;}
+
+          .group_td {
+          padding-left:30px; }
+
+          .coll_img {
+          padding:0px; margin:0px;
+          font-family:verdana;
+          font-weight:bold;
+          text-align:center;
+          cursor:pointer;
+          border:1px solid black;
+          font-size:8px;
+          width:12px;
+          height:12px;}
+
+          .table_span_style {
+          font-family:verdana;
+          font-weight:bold;
+
+          }
+
+          tfoot {
+          font-family:verdana;
+          font-weight:bold;
+          }
+
+          .stitle {
+          width:100%;
+          background-color:#FFFFFF;
+          }
+          
+          .divmarco {
+          border:solid 1px #555555;
+          border-top:solid 2px #555555;
+          border-right:solid 8px #555555;
+          background-color:white;
+          margin:0px; 
+          padding:20px;
+          width:100%;
+          height:100%}
+          
+          .divsinmarco {          
+          background-color:white;
+          margin:0px;           
+          width:100%;}
+ 
+          .scontent {
+          width:100%;
+          aheight:100%;
+          background-color:#FFFFFF; }
+					</style>
+					<style media="print">
+						.body {
+					font-family:verdana;
+					font-weight:normal; 
+					background-color:white; 
+					font-size:8pt;
+					width:20cm;}
+					
+					.bodysinmarco {
+					font-family:verdana;
+					font-weight:normal; 
+					background-color:white; 
+					font-size:8pt;
+					width:20cm;}
+					
+					.titulo {
+					font-family:verdana;
+					font-size:11pt;
+					font-weight:bold;}
+					
+					.table_table_style {
+					border: none; 
+					border-collapse: collapse; 
+					font-size: 8pt; 
+					font-family: verdana;
+					width:100%;}
+					
+					.table_title_style {
+					border:none; 
+					font-family:verdana;
+					font-size:9pt;
+					font-weight:normal;
+					width:100%;}
+					
+					.table_span_style {
+					font-family:verdana;
+					font-weight:bold;
+					}
+					
+					.group_td {
+					padding-left:30px; }
+					
+					.coll_img {
+					display:none;}
+					
+					.stitle {
+					background-color:#FFFFFF; 
+					border:none;}
+					
+					.scontent {
+					background-color:#FFFFFF; 
+					border:none;}
+					</style>
+					<style media="all">
+						.table_table_style td {
+					border: solid 1px black; 
+					padding-left: 3px; 
+					padding-right: 3px;
+					text-align: left;}
+					
+					.table_table_style td#num{
+					mso-number-format:0.00;
+					text-align:right;}
+					
+					.table_table_style th {
+					border:solid 1px black;
+					background-color:#BBBBBB; 
+					border-bottom:solid 2px black;
+					padding-left: 3px; 
+					padding-right: 3px;
+					text-align: center;}
+					
+					.table_title_style span#label {
+					font-family:verdana;
+					font-weight: bold; }
+					</style>
+				</head>
+				<body>
+					<xsl:for-each select="EMPRESA/LEG">
+						<table class="table_title_style" style="width:800px;">
+							<tr>
+								<td style="text-align:right;">
+									<b>
+										Fecha de Informe:&#160;
+									</b>
+									<xsl:value-of select="/DATA/EMPRESA/@date"/>
+								</td>
+							</tr>
+						</table>
+						<table class="title" style="width:800px;">
+							<tr>
+								<td style="text-align:center;">
+									Consulta de Cuenta Corriente de los dos &#250;ltimos per&#237;odos
+								</td>
+							</tr>
+						</table>
+						<table class="table_title_style" style="width:800px;">
+							<tr>
+								<td style="text-align:left;">
+									<b>
+										Empresa:&#160;
+									</b>
+									<xsl:value-of select="/DATA/EMPRESA/@d_empresa"/>
+								</td>
+							</tr>
+						</table>
+						<table class="table_title_style" style="width:600px;">
+							<xsl:if test="position()!=last()">
+								<xsl:attribute name="style">
+									page-break-after:always; width:800px
+								</xsl:attribute>
+							</xsl:if>
+							<tr>
+								<td>
+									<b>
+										Legajo:&#160;
+									</b>
+									<xsl:value-of select="./@legajo"/>
+								</td>
+								<td>
+									<b>
+										Fecha de Ingreso:&#160;
+									</b>
+									<xsl:value-of select="./@f_ingreso"/>
+								</td>
+							</tr>
+							<tr>
+								<td>
+									<b>
+										Documento:&#160;
+									</b>
+									<xsl:value-of select="./@documento"/>
+								</td>
+								<td>
+									<b>
+										Fecha a Computar:&#160;
+									</b>
+									<xsl:value-of select="./@f_computar"/>
+								</td>
+							</tr>
+							<tr>
+								<td>
+									<b>
+										Posici&#243;n:&#160;
+									</b>
+									<xsl:value-of select="./@posicion"/>
+								</td>
+							</tr>
+							<tr>
+								<td colspan="2">
+									<xsl:choose>
+										<xsl:when test="./@bandera_licencia ='si'">
+											<table class="table_title_style" border="0" style="margin-left:10%;width:600px;">
+												<xsl:for-each select="./PER">
+													<tr>
+														<td>
+															<table class="table_title_style" border="0" style="width:60%;">
+																<tr>
+																	<td>
+																		<b>
+																			Licencia A&#241;o:&#160;
+																		</b>
+																		<xsl:value-of select="./@c_periodo"/>
+																	</td>
+																	<td style="text-align:right;">
+																		<b>
+																			D&#237;as:&#160;
+																		</b>
+																		<xsl:value-of select="./@e_dias_gen"/>
+																	</td>
+																</tr>
+																<xsl:choose>
+																	<xsl:when test="./@bandera_solicitudes ='si'">
+																		<tr>
+																			<th colspan="2">
+																				<b>
+																					Tomados a Cuenta
+																				</b>
+																			</th>
+																		</tr>
+																	</xsl:when>
+																</xsl:choose>
+															</table>
+															<choose/>
+														</td>
+													</tr>
+													<tr>
+														<td>
+															<xsl:choose>
+																<xsl:when test="./@bandera_solicitudes ='si'">
+																	<table class="table_table_style" border="1" style="width:60%;">
+																		<tr>
+																			<th>
+																				Desde
+																			</th>
+																			<th>
+																				Hasta
+																			</th>
+																			<th>
+																				D&#237;as
+																			</th>
+																			<th>
+																				D&#237;as Bonificados
+																			</th>
+																		</tr>
+																		<xsl:for-each select="./SOL">
+																			<tr>
+																				<td style="text-align:center">
+																					<xsl:value-of select="./@f_desde"/>
+																				</td>
+																				<td style="text-align:center">
+																					<xsl:value-of select="./@f_hasta"/>
+																				</td>
+																				<td style="text-align:right;">
+																					<xsl:value-of select="./@e_cant_dias"/>
+																				</td>
+																				<td style="text-align:right;">
+																					<xsl:value-of select="./@e_dias_bonif"/>
+																				</td>
+																			</tr>
+																		</xsl:for-each>
+																	</table>
+																</xsl:when>
+																<xsl:otherwise>
+																	<center>
+																		No se encontraron solicitudes de vacaciones
+																	</center>
+																</xsl:otherwise>
+															</xsl:choose>
+														</td>
+													</tr>
+													<tr>
+														<td>
+															<table class="table_title_style" border="0" style="width:60%">
+																<tr>
+																	<th colspan="2">
+																		<b>
+																			Totales
+																		</b>
+																	</th>
+																</tr>
+																<tr>
+																	<td>
+																		<b>
+																			D&#237;as tomados a cuenta:&#160;
+																		</b>
+																	</td>
+																	<td style="text-align:right;">
+																		<xsl:value-of select="./@e_dias_tomados_a_cuenta"/>
+																	</td>
+																</tr>
+																<tr>
+																	<td>
+																		<b>
+																			Saldo Pendiente:&#160;
+																		</b>
+																	</td>
+																	<td style="text-align:right;">
+																		<xsl:value-of select="./@e_saldo_pendiente"/>
+																	</td>
+																</tr>
+																<tr style="height:20px;">
+																	<td>
+																		&#160;
+																	</td>
+																</tr>
+															</table>
+														</td>
+													</tr>
+												</xsl:for-each>
+											</table>
+										</xsl:when>
+										<xsl:otherwise>
+											No se encontraron licencias
+										</xsl:otherwise>
+									</xsl:choose>
+								</td>
+							</tr>
+						</table>
+					</xsl:for-each>
+				</body>
+			</html>
+		</xsl:template>
+	</html:xslt>
+</html:html>

@@ -1,0 +1,241 @@
+<html:html xmlns:html="nomad_engine.html" xmlns:qry="nomad_engine.qry" extends="Nomad.Base.BaseReport.rpt" name="NucleusRH.Base.Tiempos_Trabajados.CambiosTurnos.rpt" doc="SOURCE">
+	<html:query declare="&lt;DATA oi_periodo=&quot;6&quot; oi_clase_org=&quot;307&quot;&gt;&lt;ESTRUCTURAS /&gt;&lt;/DATA&gt;">
+		<qry:main doc="SOURCE">
+			<qry:append-doc name="FILTRO" doc-path="#SOURCE:DATA"/>
+			<REPORT label="Presupuesto Vs. Gastos de Capacitaci&#243;n">
+				<qry:attribute value="format_date(now(), 'dd/mm/yyyy HH:MM')" name="date"/>
+				<GROUPS>
+					<GROUP tag="DATA" type="title">
+						<COLS>
+							<COL name="n_presupuesto_periodo" label="Presupuesto"/>
+							<COL name="n_monto_periodo" label="Costos"/>
+							<COL name="n_saldo_periodo" label="Saldo"/>
+						</COLS>
+						<GROUP tag="ESTRUCTURA" type="title">
+							<COLS>
+								<COL name="estructura" label="Estructura"/>
+								<COL name="pres_saldo" label="Presupuesto / Saldo"/>
+							</COLS>
+							<GROUP tag="DICTADO" type="table">
+								<COLS>
+									<COL name="d_dictado" label="Curso" style="width:40%"/>
+									<COL name="f_inicio" label="Inicio" style="text-align:center" type="date"/>
+									<COL name="f_fin" label="Fin" style="text-align:center" type="date"/>
+									<COL name="n_porcentaje" label="Porcentaje" style="text-align:right"/>
+									<COL name="monto" label="Monto" style="width:15%;text-align:right"/>
+								</COLS>
+								<FCOLS>
+									<COL colspan="3"/>
+									<COL label="Costo total"/>
+									<COL name="costo" style="text-align:right;"/>
+								</FCOLS>
+							</GROUP>
+						</GROUP>
+					</GROUP>
+				</GROUPS>
+				<DATA>
+					<qry:element name="DATA">
+						<qry:attribute name="oi_clase_org" value="#SOURCE:DATA/@oi_clase_org"/>
+						<qry:attribute name="oi_periodo" value="#SOURCE:DATA/@oi_periodo"/>
+						<qry:insert-select name="qry_periodo" doc-path="#SOURCE:DATA"/>
+						<qry:append-doc name="PERIODO" doc-path="."/>
+						<qry:insert-select name="qry_padre" doc-path="#SOURCE:DATA"/>
+						<qry:attribute name="n_presupuesto_periodo" value="format_number(Number(sum(./ESTRUCTURA/@n_presupuesto)), '$ ###,###,##0.00')"/>
+						<qry:attribute name="n_monto_periodo" value="format_number(Number(sum(./ESTRUCTURA/@n_monto)), '$ ###,###,##0.00')"/>
+						<qry:attribute name="n_saldo_periodo" value="format_number(Number(sum(./ESTRUCTURA/@n_saldo)), '$ ###,###,##0.00')"/>
+					</qry:element>
+				</DATA>
+			</REPORT>
+		</qry:main>
+		<qry:select doc="SOURCE" name="qry_periodo">
+			<qry:xquery>
+				for $r in sql('
+        SELECT 
+					CYD11_PERIODOS.oi_periodo,
+					CYD11_PERIODOS.c_periodo,
+					CYD11_PERIODOS.d_periodo,
+					CYD11_PERIODOS.f_desde,
+					CYD11_PERIODOS.f_hasta
+				FROM
+					CYD11_PERIODOS
+				WHERE
+					CYD11_PERIODOS.oi_periodo = {#SOURCE:@oi_periodo}
+		')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:attribute name="oi_periodo" value="$r/@oi_periodo"/>
+				<qry:attribute name="c_periodo" value="$r/@c_periodo"/>
+				<qry:attribute name="d_periodo" value="$r/@d_periodo"/>
+				<qry:attribute name="f_inicio" value="$r/@f_desde"/>
+				<qry:attribute name="f_fin" value="$r/@f_hasta"/>
+			</qry:out>
+		</qry:select>
+		<qry:select doc="SOURCE" name="qry_padre">
+			<qry:xquery>
+				for $r in sql('
+				SELECT ORG02_CLASES_ORG.oi_estructura_org AS oi_estructura
+				FROM ORG02_CLASES_ORG
+				WHERE ORG02_CLASES_ORG.oi_clase_org = {#SOURCE:@oi_clase_org}
+			')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:attribute name="oi_estructura" value="$r/@oi_estructura"/>
+				<qry:insert-select name="qry_insertar" doc-path="$r"/>
+				<qry:insert-select name="qry_estructuras" doc-path="$r"/>
+			</qry:out>
+		</qry:select>
+		<qry:select doc="SOURCE" name="qry_insertar">
+			<qry:xquery>
+				for $r in sql('
+				SELECT 
+        	ORG01_TIPOS_UNI.d_tipo_uni_org,
+        	ORG01_UNI_ORG.d_unidad_org,        	
+        	ORG02_ESTRUCTURAS.oi_estructura
+        FROM 
+        	ORG02_ESTRUCTURAS, 
+        	ORG01_UNI_ORG, 
+        	ORG01_TIPOS_UNI
+				JOIN 
+					ORG02_ESTRUCTURAS.oi_unidad_org INNER ORG01_UNI_ORG.oi_unidad_org,
+					ORG01_UNI_ORG.oi_tipo_uni_org INNER ORG01_TIPOS_UNI.oi_tipo_uni_org
+				WHERE 
+					ORG01_UNI_ORG.c_unidad_org != \'FIC\'
+					AND ORG02_ESTRUCTURAS.oi_estructura = {#SOURCE:@oi_estructura}
+					{%? (string(#FILTRO:ESTRUCTURAS/ESTRUCTURA/@oi_estructura)!='') 
+						{% AND ORG02_ESTRUCTURAS.oi_estructura IN ({%=string(#FILTRO:ESTRUCTURAS/ESTRUCTURA/@oi_estructura) %}) %}
+						{% %}  
+					%}
+				')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:element name="ESTRUCTURA">
+					<qry:attribute name="d_tipo_uni_org" value="$r/@d_tipo_uni_org"/>
+					<qry:attribute name="d_unidad_org" value="$r/@d_unidad_org"/>
+					<qry:attribute name="estructura" value="$r/@d_tipo_uni_org + ' - ' + $r/@d_unidad_org"/>
+					<qry:attribute name="oi_periodo" value="#PERIODO:@oi_periodo"/>
+					<qry:attribute name="c_periodo" value="#PERIODO:@c_periodo"/>
+					<qry:attribute name="d_periodo" value="#PERIODO:@d_periodo"/>
+					<qry:attribute name="f_inicio" value="#PERIODO:@f_inicio"/>
+					<qry:attribute name="f_fin" value="#PERIODO:@f_fin"/>
+					<qry:attribute name="oi_estructura" value="$r/@oi_estructura"/>
+					<qry:insert-select doc-path="." name="RS01"/>
+					<qry:insert-select doc-path="." name="RS1"/>
+					<qry:insert-select doc-path="." name="RS2"/>
+					<qry:attribute name="pres_saldo" value="format_number(@n_presupuesto, '$ ###,###,##0.00') + ' / '+ format_number(@n_saldo, '$ ###,###,##0.00')"/>
+					<qry:attribute name="costo" value="format_number(@n_monto, '$ ###,###,##0.00')"/>
+				</qry:element>
+			</qry:out>
+		</qry:select>
+		<qry:select doc="SOURCE" name="qry_estructuras">
+			<qry:xquery>
+				for $r in sql('
+		SELECT ORG02_ESTRUCTURAS.oi_estructura 
+		FROM ORG02_ESTRUCTURAS
+		WHERE ORG02_ESTRUCTURAS.oi_estr_padre = {#SOURCE:@oi_estructura}
+		')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:insert-select name="qry_insertar" doc-path="$r"/>
+				<qry:insert-select name="qry_estructuras" doc-path="$r"/>
+			</qry:out>
+		</qry:select>
+		<qry:select doc="SOURCE" name="RS01">
+			<qry:xquery>
+				for $r in sql('
+        SELECT 
+        	CYD10_PRESUPUESTOS.n_presupuesto
+        FROM 
+        	CYD10_PRESUPUESTOS				
+				WHERE 
+					CYD10_PRESUPUESTOS.oi_estructura = {#SOURCE:@oi_estructura}
+					AND CYD10_PRESUPUESTOS.oi_periodo = {#SOURCE:@oi_periodo} 
+		')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:attribute name="n_presupuesto" value="$r/@n_presupuesto"/>
+			</qry:out>
+		</qry:select>
+		<qry:select doc="SOURCE" name="RS1">
+			<qry:xquery>
+				for $r in sql('
+        SELECT 
+        	CYD02_DICTADOS.oi_estructura AS oi_estructura, 
+        	CYD02_ESTRUCT_DICT.oi_estructura AS oi_estructura_dest, 
+        	CYD02_DICTADOS.oi_dictado, 
+        	CYD02_DICTADOS.d_dictado,
+        	CYD02_DICTADOS.f_inicio, 
+        	CYD02_DICTADOS.f_fin,
+        	CYD02_ESTRUCT_DICT.n_porcentaje
+				FROM 
+					CYD02_DICTADOS, 
+					CYD02_ESTRUCT_DICT
+				JOIN 
+					CYD02_DICTADOS.oi_dictado INNER CYD02_ESTRUCT_DICT.oi_dictado
+				WHERE 
+					CYD02_ESTRUCT_DICT.oi_estructura = {#SOURCE:@oi_estructura}
+					AND CYD02_DICTADOS.f_inicio &lt; {DateTime(#source:@f_fin)}
+					AND CYD02_DICTADOS.f_fin &gt; {DateTime(#source:@f_inicio)}
+		')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:element name="DICTADO">
+					<qry:attribute name="oi_dictado" value="$r/@oi_dictado"/>
+					<qry:attribute name="d_dictado" value="$r/@d_dictado"/>
+					<qry:attribute name="f_inicio" value="format_date($r/@f_inicio,'dd/mm/yyyy')"/>
+					<qry:attribute name="f_fin" value="format_date($r/@f_fin,'dd/mm/yyyy')"/>
+					<qry:attribute name="n_porcentaje" value="$r/@n_porcentaje"/>
+					<qry:insert-select doc-path="$r" name="RS3"/>
+					<qry:attribute name="monto" value="format_number(@n_costo, '$ ###,###,##0.00')"/>
+				</qry:element>
+				<qry:attribute name="n_monto" value="Number(sum(./DICTADO/@n_costo))"/>
+				<qry:attribute name="n_saldo" value="Number(@n_presupuesto) - Number(@n_monto)"/>
+			</qry:out>
+		</qry:select>
+		<qry:select doc="SOURCE" name="RS2">
+			<qry:xquery>
+				for $r in sql('
+        SELECT 
+        	CYD02_DICTADOS.oi_dictado, 
+        	CYD02_DICTADOS.d_dictado,
+        	CYD02_DICTADOS.f_inicio, 
+        	CYD02_DICTADOS.f_fin    
+				FROM 
+					CYD02_DICTADOS
+				WHERE 
+					CYD02_DICTADOS.oi_estructura = {#SOURCE:@oi_estructura} 
+					AND CYD02_DICTADOS.f_inicio &lt; {DateTime(#SOURCE:@f_fin)}
+					AND CYD02_DICTADOS.f_fin &gt; {DateTime(#SOURCE:@f_inicio)}
+					AND CYD02_DICTADOS.oi_dictado NOT IN (SELECT CYD02_ESTRUCT_DICT.oi_dictado FROM CYD02_ESTRUCT_DICT)
+		')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:element name="DICTADO">
+					<qry:attribute name="oi_dictado" value="$r/@oi_dictado"/>
+					<qry:attribute name="d_dictado" value="$r/@d_dictado"/>
+					<qry:attribute name="f_inicio" value="format_date($r/@f_inicio,'dd/mm/yyyy')"/>
+					<qry:attribute name="f_fin" value="format_date($r/@f_fin,'dd/mm/yyyy')"/>
+					<qry:attribute name="n_porcentaje" value="'100'"/>
+					<qry:insert-select doc-path="$r" name="RS3"/>
+					<qry:attribute name="monto" value="format_number(@n_costo, '$ ###,###,##0.00')"/>
+				</qry:element>
+				<qry:attribute name="n_monto" value="Number(sum(./DICTADO/@n_costo))"/>
+				<qry:attribute name="n_saldo" value="Number(@n_presupuesto) - Number(@n_monto)"/>
+			</qry:out>
+		</qry:select>
+		<qry:select doc="SOURCE" name="RS3">
+			<qry:xquery>
+				for $r in sql('
+        SELECT 
+        	SUM (CYD02_CTOS_DICTADO.n_costo_total) AS n_costo 
+        FROM 
+        	CYD02_CTOS_DICTADO
+				WHERE 
+					CYD02_CTOS_DICTADO.oi_dictado = {#SOURCE:@oi_dictado}
+		')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:attribute name="n_costo" value="$r/@n_costo * ./@n_porcentaje div 100"/>
+			</qry:out>
+		</qry:select>
+	</html:query>
+</html:html>

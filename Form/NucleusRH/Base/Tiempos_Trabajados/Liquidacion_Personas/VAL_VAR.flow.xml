@@ -1,0 +1,56 @@
+<flow:flow xmlns:flow="nomad_engine.flow" xmlns:qry="nomad_engine.qry" xmlns:doc="nomad_engine.doc" name="NucleusRH.Base.Tiempos_Trabajados.Liquidacion_Personas.VAL_VAR.flow" extends="NucleusRH.Base.Tiempos_Trabajados.Liquidacion_Personas.autoflow">
+	<flow:info label="Flow para NucleusRH.Base.Tiempos_Trabajados.Liquidacion_Personas"/>
+	<flow:declare>
+		<qry:define name="QRY_PER_LIQ" declare="&lt;DATA oi_liquidacion=&quot;4&quot; oi_personal_emp=&quot;10&quot; /&gt;">
+			<qry:main doc="SOURCE">
+				<qry:element name="ROW">
+					<qry:insert-select name="SQL1" doc-path="#SOURCE:DATA"/>
+				</qry:element>
+			</qry:main>
+			<qry:select name="SQL1" doc="SOURCE">
+				<qry:xquery>
+					for $r in SQL('
+				SELECT
+					TTA10_LIQUIDACPERS.oi_liquidacionpers,
+					PER02_PERSONAL_EMP.e_numero_legajo,
+					PER01_PERSONAL.d_ape_y_nom
+				FROM
+					TTA10_LIQUIDACPERS,
+					PER02_PERSONAL_EMP,
+					PER01_PERSONAL
+				JOIN
+					TTA10_LIQUIDACPERS.oi_personal_emp INNER PER02_PERSONAL_EMP.oi_personal_emp,
+					PER02_PERSONAL_EMP.oi_personal INNER PER01_PERSONAL.oi_personal
+				WHERE
+					TTA10_LIQUIDACPERS.oi_liquidacion = {#SOURCE:@oi_liquidacion} 
+					AND TTA10_LIQUIDACPERS.oi_personal_emp = {#SOURCE:@oi_personal_emp}  
+		')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:attribute name="id" value="$r/@oi_liquidacionpers"/>
+					<qry:attribute name="descr" value="'[' + $r/@e_numero_legajo + '] ' + $r/@d_ape_y_nom"/>
+				</qry:out>
+			</qry:select>
+		</qry:define>
+		<doc:define name="PERLIQ">
+			<ROW/>
+		</doc:define>
+	</flow:declare>
+	<flow:main doc="SOURCE">
+		<flow:action name="VAL_VAR">
+			<doc:load-qry output-doc="PERLIQ" input-doc-path="#SOURCE:" qry="QRY_PER_LIQ"/>
+			<doc:new-object class="NucleusRH.Base.Tiempos_Trabajados.Liquidacion_Personas.LIQUIDACIONPERS" doc="DDO"/>
+			<doc:load-object id-path="#PERLIQ:@id" class="NucleusRH.Base.Tiempos_Trabajados.Liquidacion_Personas.LIQUIDACIONPERS" doc="DDO"/>
+			<flow:open-form mode="LIST" iter-index="#DDO:VAL_VAR/VAL_VAR/@id" parent-doc-path="#DDO:VAL_VAR" doc-path="#DDO:VAL_VAR" form-class="NucleusRH.Base.Tiempos_Trabajados.Liquidacion_Personas.VAL_VAR.form"/>
+		</flow:action>
+	</flow:main>
+	<flow:form parent-doc="PARENTSOURCE" doc="SOURCE" name="NucleusRH.Base.Tiempos_Trabajados.Liquidacion_Personas.VAL_VAR.form:LIST" form-class="NucleusRH.Base.Tiempos_Trabajados.Liquidacion_Personas.VAL_VAR.form" mode="LIST">
+		<flow:action name="SAVE">
+			<doc:save-object class="NucleusRH.Base.Tiempos_Trabajados.Liquidacion_Personas.LIQUIDACIONPERS" doc="DDO"/>
+			<flow:exit-flow return-path="#FILTERDATA:"/>
+		</flow:action>
+		<flow:action name="CANCEL">
+			<flow:exit-flow return-path="#FILTERDATA:"/>
+		</flow:action>
+	</flow:form>
+</flow:flow>

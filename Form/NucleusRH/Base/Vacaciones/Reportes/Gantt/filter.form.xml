@@ -1,0 +1,117 @@
+<form:Form xmlns:form="nomad_engine.form" xmlns:qry="nomad_engine.qry" extends="NucleusRH.Base.Vacaciones.LegajoVacaciones.filter.form" default_mode="SHOW" name="NucleusRH.Base.Vacaciones.Reportes.Gantt.filter.form" doc="source">
+	<form:Title>
+		<form:Label label="Gantt de Vacaciones" style="S3 LCol_w" name="lbl_titulo"/>
+	</form:Title>
+	<form:Center width="95%">
+		<form:VGroup nvalue="#source:@gpers" border="1" width="90%" collapse="1" label="Criterios de selecci&#243;n de personas" name="vgroupDatosPers">
+			<form:Columns name="colsemps" width="100%">
+				<form:Column visible="0" valign="middle" name="colemp" align="left"/>
+				<form:Column name="colemp1" valign="middle" align="left">
+					<form:DateTime pattern="YYYYMMDD" required="1" enabled="" descr="Fecha Ingreso Desde" mask="dd/mm/yyyy" label="Fecha Desde" nvalue="#source:@f_desde" name="f_desde">
+						<form:SButtons>
+							<form:SButton descrip="Fecha Desde" img="Calendar" visible="" label="Calendar" name="Calendar">
+								<form:Event action="SHOW_HELPER" name="onclick" runat="client"/>
+							</form:SButton>
+						</form:SButtons>
+					</form:DateTime>
+					<form:DateTime pattern="YYYYMMDD" required="1" enabled="" descr="Fecha Hasta" mask="dd/mm/yyyy" label="Fecha Hasta" nvalue="#source:@f_hasta" name="f_hasta">
+						<form:SButtons>
+							<form:SButton descrip="Fecha Hasta" img="Calendar" visible="" label="Calendar" name="Calendar">
+								<form:Event action="SHOW_HELPER" name="onclick" runat="client"/>
+							</form:SButton>
+						</form:SButtons>
+					</form:DateTime>
+					<form:Combo name="oi_calendario" nvalue="#source:@oi_calendario" label="Calendario" required="1" flow="NucleusRH.Base.Organizacion.Calendario_Feriados.CALENDARIO.Combo.autoflow" action="COMBO"/>
+					<form:Combo required="0" name="oi_estado_solic" nvalue="#source:@oi_estado_solic" label="Estado Solicitud" flow="NucleusRH.Base.Vacaciones.Estados_Solicitud.ESTADO_SOLIC.Combo.autoflow" action="COMBO"/>
+					<form:Combo name="empresa" nvalue="#source:@oi_empresa" label="Empresa" required="0" flow="NucleusRH.Base.Organizacion.Empresas.EMPRESA.Combo.autoflow" action="COMBO"/>
+					<form:FKInput label="Clase Organizativa - Unidad Organizativa" cache="no" required="0" enabled="" xsize="15" length="30" nvalue="#source:@oi_estructura" name="oi_estructura">
+						<form:STexts>
+							<form:SText xsize="50"/>
+						</form:STexts>
+						<form:Helper name="NucleusRH.Base.Organizacion.Clases_Organizativas.ESTRUCTURA.guia.flow" help="HELP" x2c="X2C" c2x="C2X">
+							<helper-mess text="{this.Text.1}" id="{this.XVal}" code="{this.CVal}"/>
+						</form:Helper>
+						<form:SButtons>
+							<form:SButton img="SEARCH" label="Search" name="SEARCH" enabled="">
+								<form:Event action="SHOW_HELPER" name="onclick" runat="client"/>
+							</form:SButton>
+						</form:SButtons>
+					</form:FKInput>
+				</form:Column>
+			</form:Columns>
+		</form:VGroup>
+		<form:TextBox visible="0" ysize="25" xsize="100" name="DEBUG" X-POLICY="./FORM/NucleusRH/Base/Vacaciones/Reportes/Gantt/filter/form/DEBUG"/>
+	</form:Center>
+	<form:Scripts>
+		function set_f_hasta(me){
+	var date = AddDays(me.TypedValue(), 30);  	
+ 	Ctrl('f_hasta').SetXValue(date2str(date)); 
+}
+
+function Ejecutar()
+{               
+ 	if (Ctrl("list2").TotalRowsCount()==0)
+ 	{             
+ 		alert("No hay legajos filtrados.");
+ 		return false;
+ 	}
+ 	
+ 	Ctrl('legajos').DelAllRow();
+ 	for (key in arrB) Ctrl('legajos').AddRow().SetAttr('id', key.substr(1));
+ 	
+	Ctrl("main").DoEvent("FILTER");
+}
+	</form:Scripts>
+	<form:Resources>
+		<form:Resource declare="&lt;PARAM empresa=&quot;&quot; f_desde=&quot;20220501&quot; f_hasta=&quot;20240118&quot; oi_calendario=&quot;1&quot; oi_estado_solic=&quot;&quot; oi_estructura=&quot;&quot;/&gt;" name="qry_externo">
+			<qry:main name="qry" doc="SOURCE">
+				<qry:element name="PERSONAS">
+					<qry:insert-select name="sql1" doc-path="#SOURCE:/PARAM"/>
+					<qry:attribute name="matias" value="#SOURCE:/PARAM/@oi_calendario"/>
+				</qry:element>
+			</qry:main>
+			<qry:select name="sql1" doc="SOURCE">
+				<qry:xquery>
+					for $r in sql('
+SELECT
+	per02.oi_personal_emp,
+	vac01.oi_solicitud,
+	vac01.f_desde_solicitud,
+	vac01.f_hasta_solicitud,
+	vac01.e_dias_solicitud	
+FROM
+	PER02_PERSONAL_EMP as per02,
+	VAC01_SOLICITUDES as vac01
+	{%?( #SOURCE:@oi_estructura!='') {% , ORG02_ESTRUC_PERS as org02 %} {%  %} %}
+JOIN
+	per02.oi_personal_emp INNER vac01.oi_personal_emp
+	{%? (#SOURCE:@oi_estructura!='') {% , per02.oi_personal_emp INNER org02.oi_personal_emp %} {%  %} %}
+WHERE 
+	1=1       
+	{%?(#SOURCE:@empresa!='') {% and per02.oi_empresa = {#SOURCE:@empresa} %} {% %} %}
+	and vac01.f_desde_solicitud &lt;= {DateTime(#SOURCE:@f_hasta)}
+	and vac01.f_hasta_solicitud &gt;= {DateTime(#SOURCE:@f_desde)}
+	
+	{%?(#SOURCE:@oi_calendario!='') {% and per02.oi_calendario_ult = {#SOURCE:@oi_calendario} %} {% %} %}	
+
+	{%?(#SOURCE:@oi_estado_solic!='') {% and vac01.oi_estado_solic = {#SOURCE:@oi_estado_solic} %} {% %} %}
+	{%?(#SOURCE:@oi_estructura!='') {% and org02.oi_estructura = {#SOURCE:@oi_estructura} %} {% %} %}
+')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:element name="ROW">
+						<qry:attribute name="id" value="$r/@oi_personal_emp"/>
+						<qry:attribute name="oi_solicitud" value="$r/@oi_solicitud"/>
+						<qry:attribute name="f_desde_solicitud" value="$r/@f_desde_solicitud"/>
+						<qry:attribute name="f_hasta_solicitud" value="$r/@f_hasta_solicitud"/>
+						<qry:attribute name="e_dias_solicitud" value="$r/@e_dias_solicitud"/>
+					</qry:element>
+				</qry:out>
+			</qry:select>
+			<qry:params>
+				##empresa,f_desde,f_hasta,oi_calendario,oi_estado_solic,oi_estructura##
+			</qry:params>
+		</form:Resource>
+	</form:Resources>
+	<form:Event name="FILTER" action="FILTER" runat="server"/>
+</form:Form>

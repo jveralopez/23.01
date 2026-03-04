@@ -1,0 +1,654 @@
+<html:html xmlns:html="nomad_engine.html" xmlns:qry="nomad_engine.qry" xmlns:xsl="http://www.w3.org/1999/XSL/Transform" name="NucleusRH.Base.Control_Contratistas.VehiculosHabilitados" doc="source" extends="Nomad.Base.BaseReport.rpt">
+	<html:query declare="&lt;DATOS fecha=&quot;20150101&quot; checkOT=&quot;1&quot; IDs=&quot;613&quot; /&gt;">
+		<qry:main doc="SOURCE">
+			<qry:element name="DATOS">
+				<qry:attribute value="format_date(now(),'dd/mm/yyyy HH:MM')" name="date"/>
+				<qry:append-doc name="PARAMIN" doc-path="#SOURCE:DATOS"/>
+				<qry:attribute name="fecha" value="format_date($PARAMIN/@fecha,'dd/mm/yyyy')"/>
+				<qry:insert-select doc-path="#SOURCE:DATOS" name="qry_empresas"/>
+			</qry:element>
+		</qry:main>
+		<qry:select name="qry_empresas" doc="PARAM">
+			<qry:xquery>
+				for $r in sql('
+SELECT 
+ 	CCO01_EMPRESAS_CONT.oi_empresa AS oi_empresa,
+ 	ORG03_EMPRESAS.d_empresa
+ 	
+FROM 
+CCO01_EMPRESAS_CONT,
+ORG03_EMPRESAS
+  
+JOIN
+CCO01_EMPRESAS_CONT.oi_empresa INNER ORG03_EMPRESAS.oi_empresa
+
+WHERE  1=1
+{%? (#PARAM:@IDs!='') {% AND CCO01_EMPRESAS_CONT.oi_empresa IN ( {%=#PARAM:@IDs%}) %} {%  %} %}
+
+GROUP BY CCO01_EMPRESAS_CONT.oi_empresa, ORG03_EMPRESAS.d_empresa
+
+ORDER BY d_empresa ASC
+			
+			')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:element name="EMPRESA">
+					<qry:attribute name="oi_empresa" value="$r/@oi_empresa"/>
+					<qry:attribute name="d_empresa" value="$r/@d_empresa"/>
+					<qry:insert-select doc-path="$r" name="qry_vehiculo"/>
+					<qry:attribute name="cant_vehiculos_x_empresa" value="count(VEHICULO)"/>
+					<qry:attribute name="cant_vehiculos_habilitados" value="count(VEHICULO[@habilitado=1])"/>
+				</qry:element>
+			</qry:out>
+		</qry:select>
+		<qry:select doc="PARAM" name="qry_vehiculo">
+			<qry:xquery>
+				for $r in sql('
+SELECT		
+  CCO04_VEHICULOS.oi_vehiculo as oi_vehiculo,
+  CCO04_VEHICULOS.d_modelo as d_modelo,
+  CCO06_TIPOS_VEHICULO.c_tipo_vehiculo,
+  CCO06_TIPOS_VEHICULO.d_tipo_vehiculo,
+  CCO04_VEHICULOS.c_dominio as c_dominio,
+  CCO04_VEHICULOS.c_marca as c_marca,
+  CCO04_VEHICULOS.e_anio as e_anio,
+  CCO01_EMPRESAS_CONT.oi_empresa,
+  ORG03_EMPRESAS.c_empresa,
+  ORG03_EMPRESAS.d_empresa
+
+FROM 
+  CCO04_VEHICULOS, 
+  CCO06_TIPOS_VEHICULO, 
+  CCO01_EMPRESAS_CONT,
+  ORG03_EMPRESAS
+  
+JOIN 
+  CCO04_VEHICULOS.oi_tipo_vehiculo INNER CCO06_TIPOS_VEHICULO.oi_tipo_vehiculo,
+  CCO04_VEHICULOS.oi_empresa INNER  CCO01_EMPRESAS_CONT.oi_empresa,
+  CCO01_EMPRESAS_CONT.oi_empresa INNER ORG03_EMPRESAS.oi_empresa
+
+WHERE   
+
+CCO04_VEHICULOS.oi_empresa = {#PARAM:@oi_empresa} 
+
+ORDER BY c_dominio asc
+		
+		')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:element name="VEHICULO">
+					<qry:attribute name="habilitado" value="'0'"/>
+					<qry:attribute name="f_aptitud" value="'0'"/>
+					<qry:attribute name="cant_atrib_veh" value="0"/>
+					<qry:insert-select name="qry_atrib_veh" doc-path="$r"/>
+					<!--si el vehiculo no tiene atributos de control se considera habilitado-->
+					<qry:if test="@cant_atrib_veh=0">
+						<qry:then>
+							<qry:attribute name="habilitado" value="'1'"/>
+						</qry:then>
+						<qry:else>
+							<!--si el vehiculo tiene atributos de control hay que verificar todos-->
+							<qry:attribute name="cant_atrib_veh_habilitado" value="0"/>
+							<qry:insert-select name="qry_atrib_veh_habilitado" doc-path="$r"/>
+							<qry:attribute name="f_vencimiento_min_veh" value="min(ATRIB_VEH/@f_vencimiento)"/>
+							<!--guardo fecha de aptitud parcial-->
+							<qry:attribute name="f_aptitud" value="@f_vencimiento_min_veh"/>
+							<!--si todos cumplen la condicion-->
+							<qry:if test="@cant_atrib_veh = @cant_atrib_veh_habilitado">
+								<qry:then>
+									<qry:attribute name="habilitado" value="'1'"/>
+								</qry:then>
+								<qry:else>
+									<qry:attribute name="habilitado" value="'0'"/>
+								</qry:else>
+							</qry:if>
+						</qry:else>
+					</qry:if>
+					<!--si pasa primera validacion-->
+					<qry:if test="@habilitado='1'">
+						<qry:then>
+							<qry:insert-select name="qry_atrib_emp" doc-path="$r"/>
+							<!--si la empresa no tiene atributos de control se considera habilitado-->
+							<qry:if test="@cant_atrib_emp=0">
+								<qry:then>
+									<qry:attribute name="habilitado" value="'1'"/>
+								</qry:then>
+								<qry:else>
+									<!--si la empresa tiene atributos de control hay que verificar todos-->
+									<qry:attribute name="cant_atrib_emp_habilitado" value="'0'"/>
+									<qry:insert-select name="qry_atrib_emp_habilitado" doc-path="$r"/>
+									<qry:attribute name="f_vencimiento_min_emp" value="min(ATRIB_EMP/@f_vencimiento)"/>
+									<!--si habia atributos de control de vehiculo, viene una fecha de aptitud parcial
+							y hay que comparar-->
+									<qry:if test="@f_aptitud!='0'">
+										<qry:then>
+											<qry:attribute value="iif(@f_vencimiento_min_emp &lt;= @f_aptitud, @f_vencimiento_min_emp , @f_aptitud)" name="f_aptitud"/>
+										</qry:then>
+										<qry:else>
+											<!--si no habia fecha minima, guardo la de empresas-->
+											<qry:attribute name="f_aptitud" value="@f_vencimiento_min_emp"/>
+										</qry:else>
+									</qry:if>
+									<!--si todos cumplen la condicion-->
+									<qry:if test="@cant_atrib_emp = @cant_atrib_emp_habilitado">
+										<qry:then>
+											<qry:attribute name="habilitado" value="'1'"/>
+										</qry:then>
+										<qry:else>
+											<qry:attribute name="habilitado" value="'0'"/>
+										</qry:else>
+									</qry:if>
+								</qry:else>
+							</qry:if>
+						</qry:then>
+						<qry:else/>
+					</qry:if>
+					<!--si pasa la segunda validacion-->
+					<qry:if test="@habilitado='1'">
+						<qry:then>
+							<qry:attribute name="CHECK" value="#PARAMIN:@checkOT"/>
+							<!--si se tienen en cuenta las ordenes de trabajo-->
+							<qry:if test="#PARAMIN:@checkOT='1'">
+								<qry:then>
+									<qry:insert-select name="qry_ot" doc-path="$r"/>
+									<!--si el legajo no tiene ordenes de trabajo se considera habilitado-->
+									<qry:if test="@cant_ot=0">
+										<qry:then>
+											<qry:attribute name="habilitado" value="'1'"/>
+										</qry:then>
+										<qry:else>
+											<!--si la empresa tiene ordenes de trabajo hay que verificar todas-->
+											<qry:attribute name="cant_ot_habilitada" value="'0'"/>
+											<qry:insert-select name="qry_ot_habilitada" doc-path="$r"/>
+											<qry:attribute name="f_vigencia_hasta_min" value="min(OT/@f_vigencia_hasta)"/>
+											<!--si viene una fecha de aptitud parcial, hay que comparar-->
+											<qry:if test="@f_aptitud!='0'">
+												<qry:then>
+													<qry:attribute value="iif(@f_vigencia_hasta_min &lt;= @f_aptitud, @f_vigencia_hasta_min , @f_aptitud)" name="f_aptitud"/>
+												</qry:then>
+												<qry:else>
+													<!--si no habia fecha minima, guardo la de ordenes de trabajo-->
+													<qry:attribute name="f_aptitud" value="@f_vigencia_hasta_min"/>
+												</qry:else>
+											</qry:if>
+											<!--si alguna cumple la condicion-->
+											<qry:if test="@cant_ot_habilitada &gt; 0">
+												<qry:then>
+													<qry:attribute name="habilitado" value="'1'"/>
+												</qry:then>
+												<qry:else>
+													<qry:attribute name="habilitado" value="'0'"/>
+												</qry:else>
+											</qry:if>
+										</qry:else>
+									</qry:if>
+								</qry:then>
+								<!--si no se tienen en cuenta -->
+								<qry:else>
+									<qry:attribute name="habilitado" value="'1'"/>
+								</qry:else>
+							</qry:if>
+						</qry:then>
+						<qry:else/>
+					</qry:if>
+					<qry:if test="@habilitado = '1'">
+						<qry:then>
+							<qry:attribute name="oi_empresa" value="$r/@oi_empresa"/>
+							<qry:attribute name="f_aptitud" value="iif(@f_aptitud!=0,format_date(@f_aptitud, 'dd/mm/yyyy'),'-')"/>
+							<qry:attribute value="$r/@oi_vehiculo" name="oi_vehiculo"/>
+							<qry:attribute value="$r/@d_modelo" name="d_modelo"/>
+							<qry:attribute value="$r/@c_tipo_vehiculo+'-'+$r/@d_tipo_vehiculo" name="tipo_vehiculo"/>
+							<qry:attribute value="$r/@c_empresa+'-'+$r/@d_empresa" name="empresa"/>
+							<qry:attribute value="$r/@c_dominio" name="c_dominio"/>
+							<qry:attribute value="$r/@c_marca" name="c_marca"/>
+							<qry:attribute value="$r/@e_anio" name="e_anio"/>
+						</qry:then>
+						<qry:else>
+							<!--qry:attribute name="hts:delete" value="'1'"/-->
+						</qry:else>
+					</qry:if>
+				</qry:element>
+			</qry:out>
+		</qry:select>
+		<qry:select name="qry_atrib_veh" doc="PARAM">
+			<qry:xquery>
+				for $r in sql('		
+SELECT 
+	CCO05_ATRIB_CTROL.oi_atributo_ctrol as oi_atributo_ctrol
+FROM
+	CCO05_ATRIB_CTROL
+WHERE 
+  CCO05_ATRIB_CTROL.c_aplica_veh = \'S\'
+		
+		')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:attribute name="cant_atrib_veh" value="number(@cant_atrib_veh)+1"/>
+			</qry:out>
+		</qry:select>
+		<qry:select name="qry_atrib_veh_habilitado" doc="PARAM">
+			<qry:xquery>
+				for $r in sql('		
+SELECT 
+	CCO05_ATRIB_CTROL.oi_atributo_ctrol as oi_atributo_ctrol,
+	CCO04_ATRIB_VEHIC.oi_atrib_vehic as oi_atrib_vehic,
+ 	CCO04_ATRIB_VEHIC.f_vencimiento
+FROM
+	CCO05_ATRIB_CTROL, 
+	CCO04_ATRIB_VEHIC
+JOIN         
+  CCO05_ATRIB_CTROL.oi_atributo_ctrol INNER CCO04_ATRIB_VEHIC.oi_atributo_ctrol
+WHERE 
+  CCO05_ATRIB_CTROL.c_aplica_veh = \'S\'
+AND
+  CCO04_ATRIB_VEHIC.oi_vehiculo = {#PARAM:@oi_vehiculo}
+AND 
+  CCO04_ATRIB_VEHIC.f_vencimiento &gt;= {Datetime(#PARAMIN:@fecha)} 
+		
+		')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:attribute name="habilitado" value="'1'"/>
+				<qry:attribute name="cant_atrib_veh_habilitado" value="number(@cant_atrib_veh_habilitado)+1"/>
+				<qry:element name="ATRIB_VEH">
+					<qry:attribute name="oi_atrib_vehic" value="$r/@oi_atrib_vehic"/>
+					<qry:attribute name="oi_atributo_ctrol" value="$r/@oi_atributo_ctrol"/>
+					<qry:attribute name="f_vencimiento" value="format-date($r/@f_vencimiento, 'yyyymmdd')"/>
+				</qry:element>
+			</qry:out>
+		</qry:select>
+		<qry:select name="qry_atrib_emp" doc="PARAM">
+			<qry:xquery>
+				for $r in sql('		
+SELECT 
+	CCO05_ATRIB_CTROL.oi_atributo_ctrol as oi_atributo_ctrol
+FROM
+	CCO05_ATRIB_CTROL
+WHERE 
+  CCO05_ATRIB_CTROL.c_aplica_emp = \'S\'
+		')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:attribute name="cant_atrib_emp" value="number(@cant_atrib_emp)+1"/>
+			</qry:out>
+		</qry:select>
+		<qry:select name="qry_atrib_emp_habilitado" doc="PARAM">
+			<qry:xquery>
+				for $r in sql('		
+SELECT 
+	CCO05_ATRIB_CTROL.oi_atributo_ctrol as oi_atributo_ctrol,
+	CCO01_ATRIB_EMP_CON.oi_atrib_emp_con as oi_atrib_emp_con,
+	CCO01_ATRIB_EMP_CON.oi_empresa,
+	CCO01_ATRIB_EMP_CON.f_vencimiento
+FROM
+	CCO05_ATRIB_CTROL, 
+	CCO01_ATRIB_EMP_CON
+JOIN         
+  CCO05_ATRIB_CTROL.oi_atributo_ctrol INNER CCO01_ATRIB_EMP_CON.oi_atributo_ctrol
+WHERE 
+  CCO05_ATRIB_CTROL.c_aplica_emp = \'S\'
+AND
+  CCO01_ATRIB_EMP_CON.oi_empresa = {#PARAM:@oi_empresa} 
+AND 
+  CCO01_ATRIB_EMP_CON.f_vencimiento &gt;= {Datetime(#PARAMIN:@fecha)} 
+		
+		')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:attribute name="habilitado" value="'1'"/>
+				<qry:attribute name="cant_atrib_emp_habilitado" value="number(@cant_atrib_emp_habilitado)+1"/>
+				<qry:element name="ATRIB_EMP">
+					<qry:attribute name="oi_atrib_emp_con" value="$r/@oi_atrib_emp_con"/>
+					<qry:attribute name="oi_atributo_ctrol" value="$r/@oi_atributo_ctrol"/>
+					<qry:attribute name="f_vencimiento" value="format-date($r/@f_vencimiento, 'yyyymmdd')"/>
+					<qry:attribute name="oi_empresa" value="$r/@oi_empresa"/>
+				</qry:element>
+			</qry:out>
+		</qry:select>
+		<qry:select name="qry_ot" doc="PARAM">
+			<qry:xquery>
+				for $r in sql('		
+SELECT 
+	CCO03_ORDENES_TRAB.oi_orden_trabajo,
+	CCO03_ORDENES_TRAB.f_vigencia_desde,
+	CCO03_ORDENES_TRAB.f_vigencia_hasta,
+	CCO03_ORDENES_TRAB.oi_empresa
+FROM
+	CCO03_ORDENES_TRAB
+WHERE 
+  CCO03_ORDENES_TRAB.oi_empresa = {#PARAM:@oi_empresa}
+		
+		')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:attribute name="cant_ot" value="number(@cant_ot)+1"/>
+			</qry:out>
+		</qry:select>
+		<qry:select name="qry_ot_habilitada" doc="PARAM">
+			<qry:xquery>
+				for $r in sql('		
+SELECT 
+	CCO03_ORDENES_TRAB.oi_orden_trabajo,
+	CCO03_ORDENES_TRAB.f_vigencia_desde,
+	CCO03_ORDENES_TRAB.f_vigencia_hasta,
+	CCO03_ORDENES_TRAB.oi_empresa
+FROM
+	CCO03_ORDENES_TRAB
+WHERE 
+  CCO03_ORDENES_TRAB.oi_empresa = {#PARAM:@oi_empresa}
+AND 
+  CCO03_ORDENES_TRAB.f_vigencia_desde &lt;= {Datetime(#PARAMIN:@fecha)}
+AND 
+  CCO03_ORDENES_TRAB.f_vigencia_hasta &gt;= {Datetime(#PARAMIN:@fecha)} 		
+		')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:attribute name="habilitado" value="'1'"/>
+				<qry:attribute name="cant_ot_habilitada" value="number(@cant_ot_habilitada)+1"/>
+				<qry:element name="OT">
+					<qry:attribute name="oi_empresa" value="$r/@oi_empresa"/>
+					<qry:attribute name="oi_orden_trabajo" value="$r/@oi_orden_trabajo"/>
+					<qry:attribute name="f_vigencia_desde" value="format_date($r/@f_vigencia_desde, 'yyyymmdd')"/>
+					<qry:attribute name="f_vigencia_hasta" value="format-date($r/@f_vigencia_hasta, 'yyyymmdd')"/>
+				</qry:element>
+			</qry:out>
+		</qry:select>
+	</html:query>
+	<html:xslt>
+		<xsl:template match="DATOS">
+			<html>
+				<head>
+					<meta http-equiv="Content-Type" content="text/html; charset=utf-8"/>
+					<style media="screen">
+						.body {
+          font-family:verdana;
+          font-weight:normal;
+          background-color:#B0B0B0;
+          font-size:11px;
+          width:100%;
+          margin:30px;}
+          
+          .bodysinmarco {
+					PADDING-RIGHT: 0px; 
+					PADDING-LEFT: 0px; 
+					PADDING-BOTTOM: 0px; 
+					MARGIN: 0px; 
+					BORDER-TOP-STYLE: none; 
+					PADDING-TOP: 0px; 
+					BORDER-RIGHT-STYLE: none; 
+					BORDER-LEFT-STYLE: none; 
+					BORDER-BOTTOM-STYLE: none;
+          
+          font-family:verdana;
+          font-weight:normal;          
+          font-size:11px;
+          width:100%;}
+
+          .title {
+          font-size:15px;
+          font-family:verdana;
+          font-weight:bold;}
+
+          .table_table_style {
+          border: none;
+          border-collapse: collapse;
+          background-color:#FFFFFF;
+          font-size: 11px;
+          font-family: verdana;
+          width:100%;}
+          
+          .table_in_style {
+          border: none;
+          border-collapse: collapse;
+          background-color:#FFFFFF;
+          font-size: 11px;
+          font-family: verdana;}
+
+          .table_title_style {
+          border:none;
+          font-family:verdana;
+          background-color:#FFFFFF;
+          font-size:12px;
+          font-weight:normal;
+          width:100%;}
+
+          .group_td {
+          padding-left:30px; }
+
+          .coll_img {
+          padding:0px; margin:0px;
+          font-family:verdana;
+          font-weight:bold;
+          text-align:center;
+          cursor:pointer;
+          border:1px solid black;
+          font-size:8px;
+          width:12px;
+          height:12px;}
+
+          .table_span_style {
+          font-family:verdana;
+          font-weight:bold;
+
+          }
+
+          tfoot {
+          font-family:verdana;
+          font-weight:bold;
+          }
+
+          .stitle {
+          width:100%;
+          background-color:#FFFFFF;
+          }
+          
+          .divmarco {
+          border:solid 1px #555555;
+          border-top:solid 2px #555555;
+          border-right:solid 8px #555555;
+          background-color:white;
+          margin:0px; 
+          padding:20px;
+          width:100%;
+          height:100%}
+          
+          .divsinmarco {          
+          background-color:white;
+          margin:0px;           
+          width:100%;}
+ 
+          .scontent {
+          width:100%;
+          aheight:100%;
+          background-color:#FFFFFF; }
+					</style>
+					<style media="print">
+						.body {
+					font-family:verdana;
+					font-weight:normal; 
+					background-color:white; 
+					font-size:8pt;
+					width:20cm;}
+					
+					.bodysinmarco {
+					font-family:verdana;
+					font-weight:normal; 
+					background-color:white; 
+					font-size:8pt;
+					width:20cm;}
+					
+					.titulo {
+					font-family:verdana;
+					font-size:11pt;
+					font-weight:bold;}
+					
+					.table_table_style {
+					border: none; 
+					border-collapse: collapse; 
+					font-size: 8pt; 
+					font-family: verdana;
+					width:100%;}
+					
+					.table_in_style {
+          border: none;
+          border-collapse: collapse;
+          font-size: 8px;
+          font-family: verdana;}
+					
+					.table_title_style {
+					border:none; 
+					font-family:verdana;
+					font-size:9pt;
+					font-weight:normal;
+					width:100%;}
+								
+					.table_span_style {
+					font-family:verdana;
+					font-weight:bold;
+					}
+					
+					.group_td {
+					padding-left:30px; }
+					
+					.coll_img {
+					display:none;}
+					
+					.stitle {
+					background-color:#FFFFFF; 
+					border:none;}
+					
+					.scontent {
+					background-color:#FFFFFF; 
+					border:none;}
+					</style>
+					<style media="all">
+						.table_table_style td {
+					border: solid 1px black; 
+					padding-left: 3px; 
+					padding-right: 3px;
+					text-align: left;}
+					
+		.table_in_style td {
+					border: solid 1px black; 
+					padding-left: 3px; 
+					padding-right: 3px;
+					text-align: left;}
+					
+					.table_table_style td#num{
+					mso-number-format:0.0;
+					text-align:right;}
+					
+					.table_in_style td#num{
+					mso-number-format:0.0;
+					text-align:right;}
+					
+					.table_table_style th {
+					border:solid 1px black;
+					background-color:#BBBBBB; 
+					border-bottom:solid 2px black;
+					padding-left: 3px; 
+					padding-right: 3px;
+					text-align: center;} 
+					
+					.table_in_style th {
+					border:solid 1px black;
+					background-color:#BBBBBB; 
+					border-bottom:solid 2px black;
+					padding-left: 3px; 
+					padding-right: 3px;
+					text-align: center;}
+					
+					.table_titles_style tr {
+					border:none;
+					font-weight:bold;
+					text-align: left;}
+					
+					.table_title_style span#label {
+					font-family:verdana;
+					font-weight: bold; }
+					</style>
+				</head>
+				<body>
+					<table class="table_title_style" align="center">
+						<tr>
+							<td style="text-align:right;">
+								<xsl:value-of select="concat('Fecha de Ejecuci&#243;n de Informe: ', ./@date)"/>
+							</td>
+						</tr>
+					</table>
+					<table class="title" align="center">
+						<tr>
+							<td>
+								Veh&#237;culos Habilitados
+							</td>
+						</tr>
+						<tr>
+							<td style="text-align:center; font-weight: normal;">
+								<xsl:value-of select="concat('Fecha: ', ./@fecha)"/>
+							</td>
+						</tr>
+					</table>
+					<xsl:for-each select="./EMPRESA">
+						<br/>
+						<table class="table_table_style">
+							<tr style="font-weight: bold; font-family:verdana; font-size=12px">
+								<xsl:value-of select="concat('Empresa: ',./@d_empresa)"/>
+							</tr>
+							<xsl:choose>
+								<xsl:when test="@cant_vehiculos_habilitados != 0">
+									<tr>
+										<th>
+											Dominio
+										</th>
+										<th>
+											Marca
+										</th>
+										<th>
+											Modelo
+										</th>
+										<th>
+											A&#241;o
+										</th>
+										<th>
+											Tipo Veh&#237;culo
+										</th>
+										<th>
+											Fecha Hasta Aptitud
+										</th>
+									</tr>
+									<xsl:for-each select="./VEHICULO">
+										<xsl:choose>
+											<xsl:when test="@habilitado = 1">
+												<tr>
+													<td style="text-align:center; width:10%">
+														<xsl:value-of select="./@c_dominio"/>
+													</td>
+													<td style="text-align:center; width:35%">
+														<xsl:value-of select="./@c_marca"/>
+													</td>
+													<td style="text-align:center; width:10%">
+														<xsl:value-of select="./@d_modelo"/>
+													</td>
+													<td style="text-align:center; width:5%">
+														<xsl:value-of select="./@e_anio"/>
+													</td>
+													<td style="text-align:center; width:25%">
+														<xsl:value-of select="./@tipo_vehiculo"/>
+													</td>
+													<td style="text-align:center; width:15%">
+														<xsl:value-of select="./@f_aptitud"/>
+													</td>
+												</tr>
+											</xsl:when>
+										</xsl:choose>
+									</xsl:for-each>
+								</xsl:when>
+							</xsl:choose>
+						</table>
+					</xsl:for-each>
+					<br/>
+				</body>
+			</html>
+		</xsl:template>
+	</html:xslt>
+</html:html>

@@ -1,0 +1,127 @@
+<html:html xmlns:html="nomad_engine.html" xmlns:qry="nomad_engine.qry" extends="Nomad.Base.BaseReport.rpt" name="NucleusRH.Base.Evaluacion.EvaluacionesPorEvento" doc="source">
+	<html:query declare="&lt;DATOS oi_evento=&quot;8&quot;/&gt;">
+		<qry:main doc="SOURCE">
+			<REPORT label="Listado de Evaluaciones por Evento">
+				<qry:attribute name="date" value="format_date(now(), 'dd/mm/yyyy HH:MM')"/>
+				<GROUPS>
+					<GROUP tag="EMP" type="title" collapse="0" page-break="1">
+						<COLS>
+							<COL name="d_evento" label="Evento"/>
+							<COL name="d_empresa" label="Empresa"/>
+							<COL name="c_periodo" label="Per&#237;odo"/>
+							<COL name="c_estado" label="Estado del Evento">
+								<OPT id="A" value="Abierto"/>
+								<OPT id="C" value="Cerrado"/>
+								<OPT id="I" value="Inicializado"/>
+							</COL>
+						</COLS>
+						<GROUP tag="EVA" label="Evaluaciones" type="table" noreg="No se encontraron Evaluaciones">
+							<COLS style="padding-left:0px;">
+								<COL name="e_numero_legajo" label="Legajo" style="width:7%;" nowrap="1"/>
+								<COL name="d_ape_y_nom" label="Nombre y Apellido" style="width:30%;" nowrap="1"/>
+								<COL name="evaluador" label="Evaluador" style="width:33%;" nowrap="1"/>
+								<COL name="c_estado" label="Estado" style="width:10%;text-align:center;" nowrap="1">
+									<OPT id="AB" value="Abierta"/>
+									<OPT id="EV" value="Evaluada"/>
+									<OPT id="AN" value="Anulada"/>
+									<OPT id="CE" value="Cerrada"/>
+								</COL>
+								<COL name="c_resultado" label="Resultado" style="width:10%;text-align:center;" nowrap="1"/>
+								<COL name="l_aprobado" label="Aprobado" style="width:10%;text-align:center;" nowrap="1">
+									<OPT id="1" value="Si"/>
+									<OPT id="0" value="No"/>
+								</COL>
+							</COLS>
+						</GROUP>
+					</GROUP>
+				</GROUPS>
+				<DATA>
+					<qry:element name="EMP">
+						<qry:insert-select name="qry_evento" doc-path="#SOURCE:DATOS"/>
+						<qry:insert-select name="qry_evaluaciones" doc-path="#SOURCE:DATOS"/>
+					</qry:element>
+				</DATA>
+			</REPORT>
+		</qry:main>
+		<qry:select doc="PARAM" name="qry_evento">
+			<qry:xquery>
+				for $r in sql('
+				SELECT EVA01_EVENTOS.c_evento, EVA01_EVENTOS.d_evento, 
+				EVA01_EVENTOS.c_periodo, ORG03_EMPRESAS.d_empresa, EVA01_EVENTOS.c_estado
+				FROM EVA01_EVENTOS, ORG03_EMPRESAS
+				JOIN 
+				EVA01_EVENTOS.oi_empresa INNER ORG03_EMPRESAS.oi_empresa
+				WHERE
+				EVA01_EVENTOS.oi_evento = {#PARAM:@oi_evento}				
+			')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:attribute name="oi_evento" value="#PARAM:@oi_evento" type="Nomad.NSystem.Int"/>
+				<qry:attribute name="c_evento" value="$r/@c_evento" type="Nomad.NSystem.Int"/>
+				<qry:attribute name="d_evento" value="$r/@c_evento + ' - ' + $r/@d_evento" type="Nomad.NSystem.Int"/>
+				<qry:attribute name="d_empresa" value="$r/@d_empresa" type="Nomad.NSystem.Int"/>
+				<qry:attribute name="c_periodo" value="$r/@c_periodo" type="Nomad.NSystem.Int"/>
+				<qry:attribute name="c_estado" value="$r/@c_estado" type="Nomad.NSystem.Int"/>
+			</qry:out>
+		</qry:select>
+		<qry:select doc="PARAM" name="qry_evaluaciones">
+			<qry:xquery>
+				for $r in sql('
+				SELECT PER02_PERSONAL_EMP.oi_personal_emp, PER01_PERSONAL.d_ape_y_nom, PER02_PERSONAL_EMP.e_numero_legajo,
+				EVA02_EVALUACION.oi_evaluador, EVA02_EVALUACION.c_resultado, 
+				EVA02_EVALUACION.l_aprobado, EVA02_EVALUACION.c_estado
+				FROM EVA02_EVALUACION, PER02_PERSONAL_EMP, PER01_PERSONAL
+				JOIN 
+				EVA02_EVALUACION.oi_personal_emp INNER PER02_PERSONAL_EMP.oi_personal_emp,
+				PER02_PERSONAL_EMP.oi_personal INNER PER01_PERSONAL.oi_personal
+				WHERE 
+				EVA02_EVALUACION.oi_evento = {#PARAM:@oi_evento}
+				ORDER BY e_numero_legajo ASC
+			')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:element name="EVA">
+					<qry:attribute name="oi_personal_emp" value="$r/@oi_personal_emp" type="Nomad.NSystem.Int"/>
+					<qry:attribute name="d_ape_y_nom" value="$r/@d_ape_y_nom" type="Nomad.NSystem.Int"/>
+					<qry:attribute name="e_numero_legajo" value="$r/@e_numero_legajo" type="Nomad.NSystem.Int"/>
+					<qry:attribute name="c_resultado" value="$r/@c_resultado" type="Nomad.NSystem.Int"/>
+					<qry:attribute name="l_aprobado" value="$r/@l_aprobado" type="Nomad.NSystem.Int"/>
+					<qry:attribute name="c_estado" value="$r/@c_estado" type="Nomad.NSystem.Int"/>
+					<qry:attribute name="oi_evaluador" value="$r/@oi_evaluador" type="Nomad.NSystem.Int"/>
+					<qry:insert-select name="SECURITY" doc-path="."/>
+					<qry:insert-select name="qry_evaluador" doc-path="."/>
+				</qry:element>
+			</qry:out>
+		</qry:select>
+		<qry:select doc="PARAM" name="qry_evaluador">
+			<qry:xquery>
+				for $r in sql('
+				SELECT PER01_PERSONAL.d_ape_y_nom, PER02_PERSONAL_EMP.e_numero_legajo
+				FROM PER02_PERSONAL_EMP, PER01_PERSONAL
+				JOIN
+				PER02_PERSONAL_EMP.oi_personal INNER PER01_PERSONAL.oi_personal
+				WHERE 
+				PER02_PERSONAL_EMP.oi_personal_emp = {#PARAM:@oi_evaluador}				
+			')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:attribute name="d_ape_y_nom_evaluador" value="$r/@d_ape_y_nom" type="Nomad.NSystem.Int"/>
+				<qry:attribute name="e_numero_legajo_evaluador" value="$r/@e_numero_legajo" type="Nomad.NSystem.Int"/>
+				<qry:attribute name="evaluador" value="./@e_numero_legajo_evaluador + ' - ' + ./@d_ape_y_nom_evaluador" type="Nomad.NSystem.Int"/>
+			</qry:out>
+		</qry:select>
+		<qry:select doc="PARAM" name="SECURITY">
+			<qry:xquery>
+				for $r in sql('
+			SELECT NMD_SECURITY.policy 
+			FROM NMD_SECURITY 
+			WHERE
+			NMD_SECURITY.class=\'NucleusRH.Base.Personal.LegajoEmpresa.PERSONAL_EMP\' 
+			AND NMD_SECURITY.id={#PARAM:@oi_personal_emp}')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:attribute value="$r/@policy" name="policy"/>
+			</qry:out>
+		</qry:select>
+	</html:query>
+</html:html>

@@ -1,0 +1,244 @@
+<html:html xmlns:html="nomad_engine.html" xmlns:qry="nomad_engine.qry" extends="Nomad.Base.BaseReport.rpt" name="NucleusRH.Base.Accidenabilidad.AccidentesLaborales" doc="source">
+	<html:query declare="&lt;DATOS c_empresa=&quot;TadeoCZ&quot; oi_liquidacion=&quot;43&quot; sec1=&quot;1&quot; sec2=&quot;2&quot;&gt;&#13;&#10;&lt;/DATOS&gt;&#13;&#10;">
+		<qry:main doc="SOURCE">
+			<qry:append-doc name="PARA" doc-path="#SOURCE:DATOS"/>
+			<REPORT label="Diferencia de Recibos">
+				<DATOSs>
+					<qry:insert-select doc-path="#SOURCE:DATOS" name="PARAMETROS"/>
+					<qry:append-doc name="PARAMIN" doc-path="."/>
+				</DATOSs>
+				<qry:attribute value="format_date(now(),'dd/mm/yyyy HH:MM')" name="date"/>
+				<GROUPS>
+					<GROUP tag="ROWS" type="title">
+						<COLS>
+							<COL name="sec1" label="Secuencia Desde"/>
+							<COL name="sec2" label="Secuencia Hasta"/>
+						</COLS>
+						<GROUP style="width:100%" tag="ROW" type="table">
+							<COLS>
+								<COL name="e_numero_legajo" label="Legajo"/>
+								<COL name="d_ape_y_nom" label="Nombre"/>
+								<COL name="n_totsret1" label="S.Ret 1" type="num"/>
+								<COL name="n_totsret2" label="S.Ret 2" type="num"/>
+								<COL name="n_totnsret1" label="NS.Ret 1" type="num"/>
+								<COL name="n_totnsret2" label="NS.Ret 2" type="num"/>
+								<COL name="n_totdesc1" label="Desc. 1" type="num"/>
+								<COL name="n_totdesc2" label="Desc. 2" type="num"/>
+								<COL name="n_totcont1" label="Cont. 1" type="num"/>
+								<COL name="n_totcont2" label="Cont. 2" type="num"/>
+								<COL name="n_totant1" label="Anti. 1" type="num"/>
+								<COL name="n_totant2" label="Anti. 2" type="num"/>
+								<COL name="n_totemb1" label="Emb. 1" type="num"/>
+								<COL name="n_totemb2" label="Emb. 2" type="num"/>
+							</COLS>
+						</GROUP>
+					</GROUP>
+				</GROUPS>
+				<qry:element name="DATA">
+					<qry:insert-select doc-path="#PARAMIN:DATOS" name="sql0"/>
+					<qry:element name="ROWS">
+						<qry:insert-select doc-path="#PARAMIN:DATOS" name="sql1"/>
+						<qry:append-doc name="r1" doc-path="."/>
+						<qry:attribute value="1" name="hts:delete" type="Nomad.NSystem.String"/>
+					</qry:element>
+					<qry:element name="ROWS">
+						<qry:insert-select doc-path="#PARAMIN:DATOS" name="sql2"/>
+						<qry:append-doc name="r2" doc-path="."/>
+						<qry:attribute value="1" name="hts:delete" type="Nomad.NSystem.String"/>
+					</qry:element>
+					<qry:element name="ROWS">
+						<qry:attribute value="#SECUENCIAS:@sec1" name="sec1" type="Nomad.NSystem.String"/>
+						<qry:attribute value="#SECUENCIAS:@sec2" name="sec2" type="Nomad.NSystem.String"/>
+						<qry:insert-select doc-path="." name="sql3"/>
+					</qry:element>
+				</qry:element>
+			</REPORT>
+		</qry:main>
+		<qry:select doc="PARAM" name="PARAMETROS">
+			<qry:xquery>
+				for $r in sql('
+SELECT O.c_empresa, L.c_liquidacion
+FROM LIQ19_LIQUIDACION as L, ORG03_EMPRESAS as O
+WHERE
+L.oi_empresa = O.oi_empresa AND
+L.oi_liquidacion = {#PARAM:@oi_liquidacion} 
+			')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<DATOS>
+					<qry:attribute name="c_empresa" value="$r/@c_empresa" type="Nomad.NSystem.Int"/>
+					<qry:attribute name="c_liquidacion" value="$r/@c_liquidacion" type="Nomad.NSystem.Int"/>
+					<qry:attribute name="sec2" value="#PARAM:@sec2" type="Nomad.NSystem.Int"/>
+					<qry:attribute name="sec1" value="#PARAM:@sec1" type="Nomad.NSystem.Int"/>
+				</DATOS>
+			</qry:out>
+		</qry:select>
+		<qry:select doc="PARAM" name="sql0">
+			<qry:xquery>
+				for $r in sql('
+SELECT 
+	MAX(LIQ19_EJECUCIONES.e_secuencia) AS sec 
+FROM 
+	LIQ19_EJECUCIONES
+WHERE
+	LIQ19_EJECUCIONES.oi_liquidacion = {#PARA:@oi_liquidacion} 
+			')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:element name="SEC">
+					<qry:attribute name="sec2" value="iif(#PARAMIN:DATOS/@sec2 != '',#PARAMIN:DATOS/@sec2, $r/@sec)" type="Nomad.NSystem.Int"/>
+					<qry:attribute name="sec1" value="iif(#PARAMIN:DATOS/@sec1 != '',#PARAMIN:DATOS/@sec1, number($r/@sec)-1)" type="Nomad.NSystem.Int"/>
+					<qry:append-doc doc-path="." name="SECUENCIAS"/>
+					<!--qry:attribute value="1" name="hts:delete" type="Nomad.NSystem.String"/-->
+				</qry:element>
+			</qry:out>
+		</qry:select>
+		<qry:select doc="PARAM" name="sql1">
+			<qry:xquery>
+				for $r in sql('
+SELECT LIQ97_PERSONAL_EMP.e_numero_legajo, max(LIQ20_TOT_LIQ_PER.e_secuencia) AS e_secuencia
+FROM LIQ20_TOT_LIQ_PER, LIQ99_LIQUIDACION, LIQ97_PERSONAL_EMP
+WHERE LIQ20_TOT_LIQ_PER.oi_liquidacion_ddo = LIQ99_LIQUIDACION.oi_liquidacion_ddo AND 
+LIQ20_TOT_LIQ_PER.oi_per_emp_ddo = LIQ97_PERSONAL_EMP.oi_per_emp_ddo AND 
+LIQ99_LIQUIDACION.c_empresa = {#PARAMIN:DATOS/@c_empresa} AND 
+LIQ99_LIQUIDACION.c_liquidacion = {#PARAMIN:DATOS/@c_liquidacion} AND
+LIQ20_TOT_LIQ_PER.e_secuencia &lt;= {#SECUENCIAS:@sec1}
+GROUP BY LIQ97_PERSONAL_EMP.e_numero_legajo
+			')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:element name="ROW">
+					<qry:attribute name="e_numero_legajo" value="$r/@e_numero_legajo" type="Nomad.NSystem.Int"/>
+					<qry:attribute name="e_secuencia" value="$r/@e_secuencia" type="Nomad.NSystem.Int"/>
+				</qry:element>
+			</qry:out>
+		</qry:select>
+		<qry:select doc="PARAM" name="sql2">
+			<qry:xquery>
+				for $r in sql('
+SELECT LIQ97_PERSONAL_EMP.e_numero_legajo, max(LIQ20_TOT_LIQ_PER.e_secuencia) AS e_secuencia
+FROM LIQ20_TOT_LIQ_PER, LIQ99_LIQUIDACION, LIQ97_PERSONAL_EMP
+WHERE LIQ20_TOT_LIQ_PER.oi_liquidacion_ddo = LIQ99_LIQUIDACION.oi_liquidacion_ddo AND 
+LIQ20_TOT_LIQ_PER.oi_per_emp_ddo = LIQ97_PERSONAL_EMP.oi_per_emp_ddo AND 
+LIQ99_LIQUIDACION.c_empresa = {#PARAMIN:DATOS/@c_empresa} AND 
+LIQ99_LIQUIDACION.c_liquidacion = {#PARAMIN:DATOS/@c_liquidacion} AND
+LIQ20_TOT_LIQ_PER.e_secuencia &lt;= {#SECUENCIAS:@sec2}
+GROUP BY LIQ97_PERSONAL_EMP.e_numero_legajo 
+			')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:element name="ROW">
+					<qry:attribute name="e_numero_legajo" value="$r/@e_numero_legajo" type="Nomad.NSystem.Int"/>
+					<qry:attribute name="e_secuencia" value="$r/@e_secuencia" type="Nomad.NSystem.Int"/>
+				</qry:element>
+			</qry:out>
+		</qry:select>
+		<qry:select doc="PARAM" name="sql3">
+			<qry:xquery>
+				for $r in sql('
+			SELECT PER02_PERSONAL_EMP.e_numero_legajo, PER01_PERSONAL.d_ape_y_nom 
+			FROM LIQ25_PERSONAL_LIQ, PER02_PERSONAL_EMP, LIQ19_LIQUIDACION, ORG03_EMPRESAS, PER01_PERSONAL
+WHERE PER02_PERSONAL_EMP.oi_personal = PER01_PERSONAL.oi_personal AND
+LIQ25_PERSONAL_LIQ.oi_personal_emp = PER02_PERSONAL_EMP.oi_personal_emp AND 
+LIQ19_LIQUIDACION.oi_liquidacion = LIQ25_PERSONAL_LIQ.oi_liquidacion AND 
+ORG03_EMPRESAS.oi_empresa = LIQ19_LIQUIDACION.oi_empresa AND 
+LIQ19_LIQUIDACION.c_liquidacion = {#PARAMIN:DATOS/@c_liquidacion} AND
+ORG03_EMPRESAS.c_empresa = {#PARAMIN:DATOS/@c_empresa}
+ORDER BY e_numero_legajo ASC
+')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:element name="ROW">
+					<qry:attribute name="e_numero_legajo" value="$r/@e_numero_legajo" type="Nomad.NSystem.Int"/>
+					<qry:attribute name="d_ape_y_nom" value="$r/@d_ape_y_nom" type="Nomad.NSystem.Int"/>
+					<qry:insert-select doc-path="#r1:ROW[@e_numero_legajo = $r/@e_numero_legajo]" name="sql4"/>
+					<qry:insert-select doc-path="#r2:ROW[@e_numero_legajo = $r/@e_numero_legajo]" name="sql5"/>
+					<qry:insert-select doc-path="." name="sql6"/>
+					<qry:insert-select doc-path="." name="sql7"/>
+					<qry:attribute name="hts:delete" value="iif(@pag1 = @pag2, 1,0)" type="Nomad.NSystem.Int"/>
+					<!--qry:insert-select doc-path=".[@pag1 != @pag2]" name="sql8"/-->
+				</qry:element>
+			</qry:out>
+		</qry:select>
+		<qry:select doc="PARAM" name="sql4">
+			<qry:out>
+				<qry:attribute name="sec1" value="#PARAM:@e_secuencia" type="Nomad.NSystem.Int"/>
+			</qry:out>
+		</qry:select>
+		<qry:select doc="PARAM" name="sql5">
+			<qry:out>
+				<qry:attribute name="sec2" value="#PARAM:@e_secuencia" type="Nomad.NSystem.Int"/>
+			</qry:out>
+		</qry:select>
+		<qry:select doc="PARAM" name="sql6">
+			<qry:xquery>
+				for $r in sql('
+			 SELECT 
+	LIQ20_TOT_LIQ_PER.n_totsret,
+	LIQ20_TOT_LIQ_PER.n_totnsret,
+	LIQ20_TOT_LIQ_PER.n_totasig,
+	LIQ20_TOT_LIQ_PER.n_totsac,
+	LIQ20_TOT_LIQ_PER.n_totigh,
+	LIQ20_TOT_LIQ_PER.n_totigd,
+	LIQ20_TOT_LIQ_PER.n_totdesc,
+	LIQ20_TOT_LIQ_PER.n_totcont,
+	LIQ20_TOT_LIQ_PER.n_totant,
+	LIQ20_TOT_LIQ_PER.n_totemb
+
+			 	
+			 FROM LIQ20_TOT_LIQ_PER, LIQ97_PERSONAL_EMP, LIQ99_LIQUIDACION
+WHERE LIQ20_TOT_LIQ_PER.oi_liquidacion_ddo = LIQ99_LIQUIDACION.oi_liquidacion_ddo AND 
+LIQ20_TOT_LIQ_PER.oi_per_emp_ddo = LIQ97_PERSONAL_EMP.oi_per_emp_ddo AND 
+LIQ20_TOT_LIQ_PER.e_secuencia = {#PARAM:@sec1} AND 
+LIQ97_PERSONAL_EMP.e_numero_legajo = {#PARAM:@e_numero_legajo} AND
+LIQ99_LIQUIDACION.c_empresa = {#PARAMIN:DATOS/@c_empresa} AND 
+LIQ99_LIQUIDACION.c_liquidacion = {#PARAMIN:DATOS/@c_liquidacion}
+')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:attribute name="n_totsret1" value="iif($r/@n_totsret!='',$r/@n_totsret,0)" type="Nomad.NSystem.Int"/>
+				<qry:attribute name="n_totnsret1" value="iif($r/@n_totnsret!='',$r/@n_totnsret,0)" type="Nomad.NSystem.Int"/>
+				<qry:attribute name="n_totdesc1" value="iif($r/@n_totdesc!='',$r/@n_totdesc,0)" type="Nomad.NSystem.Int"/>
+				<qry:attribute name="n_totcont1" value="iif($r/@n_totcont!='',$r/@n_totcont,0)" type="Nomad.NSystem.Int"/>
+				<qry:attribute name="n_totant1" value="iif($r/@n_totant!='',$r/@n_totant,0)" type="Nomad.NSystem.Int"/>
+				<qry:attribute name="n_totemb1" value="iif($r/@n_totemb!='',$r/@n_totemb,0)" type="Nomad.NSystem.Int"/>
+				<qry:attribute name="n_totasig1" value="iif($r/@n_totasig!='',$r/@n_totasig,0)" type="Nomad.NSystem.Int"/>
+				<qry:attribute name="pag1" value="@n_totsret1+'-'+@n_totnsret1+'-'+@n_totdesc1+'-'+@n_totcont1+'-'+@n_totant1+'-'+@n_totemb1+'-'+@n_totasig1" type="Nomad.NSystem.Int"/>
+			</qry:out>
+		</qry:select>
+		<qry:select doc="PARAM" name="sql7">
+			<qry:xquery>
+				for $r in sql('
+			 SELECT 
+			 	LIQ20_TOT_LIQ_PER.n_totsret,
+	LIQ20_TOT_LIQ_PER.n_totnsret,
+	LIQ20_TOT_LIQ_PER.n_totasig,
+	LIQ20_TOT_LIQ_PER.n_totsac,
+	LIQ20_TOT_LIQ_PER.n_totigh,
+	LIQ20_TOT_LIQ_PER.n_totigd,
+	LIQ20_TOT_LIQ_PER.n_totdesc,
+	LIQ20_TOT_LIQ_PER.n_totcont,
+	LIQ20_TOT_LIQ_PER.n_totant,
+	LIQ20_TOT_LIQ_PER.n_totemb
+			 FROM LIQ20_TOT_LIQ_PER, LIQ97_PERSONAL_EMP, LIQ99_LIQUIDACION
+WHERE LIQ20_TOT_LIQ_PER.oi_liquidacion_ddo = LIQ99_LIQUIDACION.oi_liquidacion_ddo AND 
+LIQ20_TOT_LIQ_PER.oi_per_emp_ddo = LIQ97_PERSONAL_EMP.oi_per_emp_ddo AND 
+LIQ20_TOT_LIQ_PER.e_secuencia = {#PARAM:@sec2} AND 
+LIQ97_PERSONAL_EMP.e_numero_legajo = {#PARAM:@e_numero_legajo} AND
+LIQ99_LIQUIDACION.c_empresa = {#PARAMIN:DATOS/@c_empresa} AND 
+LIQ99_LIQUIDACION.c_liquidacion = {#PARAMIN:DATOS/@c_liquidacion}
+')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:attribute name="n_totsret2" value="iif($r/@n_totsret!='',$r/@n_totsret,0)" type="Nomad.NSystem.Int"/>
+				<qry:attribute name="n_totnsret2" value="iif($r/@n_totnsret!='',$r/@n_totnsret,0)" type="Nomad.NSystem.Int"/>
+				<qry:attribute name="n_totdesc2" value="iif($r/@n_totdesc!='',$r/@n_totdesc,0)" type="Nomad.NSystem.Int"/>
+				<qry:attribute name="n_totcont2" value="iif($r/@n_totcont!='',$r/@n_totcont,0)" type="Nomad.NSystem.Int"/>
+				<qry:attribute name="n_totant2" value="iif($r/@n_totant!='',$r/@n_totant,0)" type="Nomad.NSystem.Int"/>
+				<qry:attribute name="n_totemb2" value="iif($r/@n_totemb!='',$r/@n_totemb,0)" type="Nomad.NSystem.Int"/>
+				<qry:attribute name="n_totasig2" value="iif($r/@n_totasig!='',$r/@n_totasig,0)" type="Nomad.NSystem.Int"/>
+				<qry:attribute name="pag2" value="@n_totsret2+'-'+@n_totnsret2+'-'+@n_totdesc2+'-'+@n_totcont2+'-'+@n_totant2+'-'+@n_totemb2+'-'+@n_totasig2" type="Nomad.NSystem.Int"/>
+			</qry:out>
+		</qry:select>
+	</html:query>
+</html:html>

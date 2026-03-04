@@ -1,0 +1,319 @@
+<flow:flow xmlns:flow="nomad_engine.flow" xmlns:qry="nomad_engine.qry" extends="NucleusRH.Base.Liquidacion.Liquidacion.LIQUIDACION.guia.autoflow" name="NucleusRH.Base.Liquidacion.LiquidacionDDO.LIQUIDACION_DDO.guia">
+	<flow:info label="Flow guia para NucleusRH.Base.Liquidacion.LiquidacionDDO.LIQUIDACION_DDO"/>
+	<flow:main doc="SOURCE">
+		<flow:action name="OPEN-GUIA">
+			<flow:open-form parent-doc-path="#SOURCE:" doc-path="#RS:" mode="SHOW" form-class="NucleusRH.Base.Liquidacion.LiquidacionDDO.LIQUIDACION_DDO.guia.form"/>
+		</flow:action>
+	</flow:main>
+	<flow:declare>
+		<qry:define declare="&lt;helper-mess ID=&quot;650&quot; c_empresa=&quot;TadeoCZ&quot;/&gt;" name="X2C">
+			<qry:main doc="SOURCE">
+				<qry:element name="ROW">
+					<qry:insert-select doc-path="#SOURCE:helper-mess" name="RS1"/>
+				</qry:element>
+			</qry:main>
+			<qry:select doc="SOURCE" name="RS1">
+				<qry:xquery>
+					for $r in sql('
+			SELECT 
+				t.c_liquidacion AS CODE, 
+				t.c_empresa AS PID
+			FROM 
+				LIQ99_LIQUIDACION as t, 
+				LIQ19_LIQUIDACION as L, 
+				LIQ19_EJECUCIONES as E
+			JOIN 
+				t.oi_liquidacion_ddo INNER E.oi_liquidacion_ddo,
+				E.oi_liquidacion INNER L.oi_liquidacion
+			WHERE	
+				t.oi_liquidacion_ddo = {#SOURCE:@ID} AND
+				t.c_estado = \'F\' and
+				L.l_simulacion = 1
+			')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:attribute value="$r/@PID" name="PID"/>
+					<qry:attribute value="$r/@CODE" name="code"/>
+					<qry:insert-select doc-path="." name="RS2"/>
+				</qry:out>
+			</qry:select>
+			<qry:select doc="SOURCE" name="RS2">
+				<qry:xquery>
+					for $r in sql('
+			SELECT t.oi_liquidacion_ddo as ID, t.c_liquidacion AS CODE, 
+			t.d_titulo AS TEXT, SEC.policy, t.c_empresa AS PID
+			FROM 
+				LIQ99_LIQUIDACION as t, 
+				LIQ19_LIQUIDACION as L, 
+				LIQ19_EJECUCIONES as E, 
+				NMD_SECURITY(class=\'NucleusRH.Base.Liquidacion.LiquidacionDDO.LIQUIDACION_DDO\') as SEC 
+			JOIN 
+				t.oi_liquidacion_ddo LEFT OUTER SEC.id,
+				t.oi_liquidacion_ddo INNER E.oi_liquidacion_ddo,
+				E.oi_liquidacion INNER L.oi_liquidacion
+			WHERE 
+				t.c_liquidacion = {#SOURCE:@CODE}	AND
+				t.c_empresa = {#SOURCE:@PID}	AND
+				t.c_estado = \'F\' and
+				L.l_simulacion = 1
+			')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:attribute value="$r/@PID" name="PID"/>
+					<qry:attribute value="$r/@ID" name="id"/>
+					<qry:attribute value="$r/@ID" name="value"/>
+					<qry:attribute value="$r/@TEXT" name="text"/>
+					<qry:attribute value="$r/@CODE" name="code"/>
+					<qry:attribute value="$r/@policy" name="policy"/>
+					<qry:insert-select doc-path="." name="RS3"/>
+				</qry:out>
+			</qry:select>
+			<qry:select doc="SOURCE" name="RS3">
+				<qry:xquery>
+					for $r in sql('
+				SELECT max(emp.oi_empresa_ddo) as PID
+				FROM LIQ93_EMPRESAS as emp
+				WHERE emp.c_empresa = {#SOURCE:@PID}
+			')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:attribute value="$r/@PID" name="PID"/>
+					<qry:insert-select doc-path="." name="RS4"/>
+				</qry:out>
+			</qry:select>
+			<qry:select doc="SOURCE" name="RS4">
+				<qry:xquery>
+					for $r in sql('
+				SELECT emp.c_empresa as CODE, emp.d_empresa AS TEXT
+				FROM LIQ93_EMPRESAS as emp
+				WHERE emp.oi_empresa_ddo = {#SOURCE:@PID}
+			')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:attribute value="$r/@PID" name="PID"/>
+					<qry:attribute value="$r/@TEXT + '-' + ./@text" name="text"/>
+					<qry:attribute value="$r/@CODE + '-' + ./@code" name="code"/>
+				</qry:out>
+			</qry:select>
+		</qry:define>
+		<qry:define declare="&lt;helper-mess c_empresa=&quot;TadeoCZ&quot; code=&quot;TadeoCZ-01&quot;/&gt;" name="C2X">
+			<qry:main doc="SOURCE">
+				<qry:element name="ROW">
+					<qry:insert-select doc-path="#SOURCE:helper-mess" name="RS1"/>
+				</qry:element>
+			</qry:main>
+			<qry:select doc="SOURCE" name="RS1">
+				<qry:xquery>
+					for $r in sql('
+				SELECT 
+					t.oi_liquidacion_ddo as ID, 
+					t.c_liquidacion AS CODE, 
+					t.d_titulo AS TEXT, 
+					SEC.policy, 
+					t.c_empresa AS PID
+				FROM 
+					LIQ99_LIQUIDACION as t, 
+					LIQ19_LIQUIDACION as L, 
+					LIQ19_EJECUCIONES as E,
+					NMD_SECURITY(class=\'NucleusRH.Base.Liquidacion.LiquidacionDDO.LIQUIDACION_DDO\') as SEC 
+				JOIN 
+					t.oi_liquidacion_ddo LEFT OUTER SEC.id,
+					t.oi_liquidacion_ddo INNER E.oi_liquidacion_ddo,
+					E.oi_liquidacion INNER L.oi_liquidacion
+				WHERE 
+					t.c_liquidacion = {substring_after(#SOURCE:@CODE,\'-\')}
+					AND t.c_empresa = {substring_before(#SOURCE:@CODE,\'-\')}
+					AND t.c_estado = \'F\' and
+					L.l_simulacion = 1
+			')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:attribute value="$r/@PID" name="PID"/>
+					<qry:attribute value="$r/@ID" name="id"/>
+					<qry:attribute value="$r/@ID" name="value"/>
+					<qry:attribute value="$r/@TEXT" name="text"/>
+					<qry:attribute value="$r/@CODE" name="code"/>
+					<qry:attribute value="$r/@policy" name="policy"/>
+					<qry:insert-select doc-path="." name="RS2"/>
+				</qry:out>
+			</qry:select>
+			<qry:select doc="SOURCE" name="RS2">
+				<qry:xquery>
+					for $r in sql('
+				SELECT max(emp.oi_empresa_ddo) as PID
+				FROM LIQ93_EMPRESAS as emp
+				WHERE emp.c_empresa = {#SOURCE:@PID}
+			')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:insert-select doc-path="$r" name="RS4"/>
+				</qry:out>
+			</qry:select>
+			<qry:select doc="SOURCE" name="RS4">
+				<qry:xquery>
+					for $r in sql('
+				SELECT emp.c_empresa as CODE, emp.d_empresa AS TEXT
+				FROM LIQ93_EMPRESAS as emp
+				WHERE emp.oi_empresa_ddo = {#SOURCE:@PID}
+			')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:attribute value="$r/@PID" name="PID"/>
+					<qry:attribute value="$r/@TEXT + '-' + ./@text" name="text"/>
+					<qry:attribute value="$r/@CODE + '-' + ./@code" name="code"/>
+				</qry:out>
+			</qry:select>
+		</qry:define>
+		<qry:define declare="&lt;ROW PARENTID=&quot;TadeoCZ&quot; CODE=&quot;1&quot; TEXT=&quot;S&quot; FILTER=&quot;S&quot;/&gt;" name="HELP">
+			<qry:main doc="SOURCE">
+				<qry:element name="ROW">
+					<qry:attribute value="#SOURCE:ROW/@PARENTID" name="PARENTID"/>
+					<qry:attribute value="#SOURCE:ROW/@CODE" name="CODE"/>
+					<qry:attribute value="#SOURCE:ROW/@TEXT" name="TEXT"/>
+					<qry:attribute value="#SOURCE:ROW/@FILTER" name="FILTER"/>
+					<qry:insert-select doc-path="." name="RS2"/>
+					<qry:element name="ROWS">
+						<qry:insert-select doc-path=".." name="RS1"/>
+					</qry:element>
+				</qry:element>
+			</qry:main>
+			<qry:select doc="SOURCE" name="RS2">
+				<qry:xquery>
+					for $r in sql('
+				SELECT emp.c_empresa AS CODE, emp.d_empresa AS TEXT
+				FROM LIQ93_EMPRESAS AS emp
+				WHERE emp.c_empresa = {#SOURCE:@PARENTID}
+				GROUP BY emp.c_empresa, emp.d_empresa
+			')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:attribute value="$r/@CODE" name="code"/>
+					<qry:attribute value="$r/@TEXT" name="text"/>
+				</qry:out>
+			</qry:select>
+			<qry:select doc="SOURCE" name="RS1">
+				<qry:xquery>
+					for $r in sql('
+				SELECT 
+					t.oi_liquidacion_ddo as ID, 
+					t.c_liquidacion as CODE, 
+					t.d_titulo AS TEXT, 
+					SEC.policy
+				FROM 
+					LIQ99_LIQUIDACION as t, 
+					LIQ19_LIQUIDACION as L, 
+					LIQ19_EJECUCIONES as E, 
+					NMD_SECURITY(class=\'NucleusRH.Base.Liquidacion.LiquidacionDDO.LIQUIDACION_DDO\') as SEC 
+				JOIN 
+					t.oi_liquidacion_ddo LEFT OUTER SEC.id,
+					t.oi_liquidacion_ddo INNER E.oi_liquidacion_ddo,
+					E.oi_liquidacion INNER L.oi_liquidacion
+					
+				WHERE 
+					t.c_empresa = {#SOURCE:@CODE} AND 
+					t.c_estado = \'F\' and
+					L.l_simulacion = 1
+				ORDER BY CODE asc
+				')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:element name="ROW">
+						<qry:attribute value="$r/@ID" name="id"/>
+						<qry:attribute value="$r/@ID" name="value"/>
+						<qry:attribute value="$r/@CODE" name="code1"/>
+						<qry:attribute value="$r/@TEXT" name="text1"/>
+						<qry:attribute value="#SOURCE:@CODE+'-'+$r/@CODE" name="code"/>
+						<qry:attribute value="#SOURCE:@TEXT+'-'+$r/@TEXT" name="text"/>
+						<qry:attribute value="$r/@policy" name="policy"/>
+					</qry:element>
+				</qry:out>
+			</qry:select>
+		</qry:define>
+		<qry:define declare="&lt;helper-mess ID=&quot;650&quot; /&gt;" name="PRELOAD">
+			<qry:main doc="SOURCE">
+				<qry:append-doc doc-path="#SOURCE:helper-mess" name="HM"/>
+				<qry:element name="ROW">
+					<qry:insert-select doc-path="#SOURCE:helper-mess" name="RS2"/>
+					<qry:insert-select doc-path="." name="RS3"/>
+					<qry:element name="ROWS">
+						<qry:insert-select doc-path=".." name="RS1"/>
+					</qry:element>
+					<qry:attribute value="substring(#HM:@TEXT,1+string_length(./@TEXT))" name="FILTER"/>
+				</qry:element>
+			</qry:main>
+			<qry:select doc="SOURCE" name="RS3">
+				<qry:xquery>
+					for $r in sql('
+				SELECT t.c_empresa as CODE, t.d_empresa as TEXT
+				FROM LIQ93_EMPRESAS as t
+				WHERE t.c_empresa={#SOURCE:@PARENTID} 
+				GROUP BY t.c_empresa, t.d_empresa 
+				ORDER BY CODE asc
+			')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:attribute value="$r/@CODE" name="code"/>
+					<qry:attribute value="$r/@TEXT" name="text"/>
+				</qry:out>
+			</qry:select>
+			<qry:select doc="SOURCE" name="RS2">
+				<qry:xquery>
+					for $r in sql('
+				select 
+					t.c_empresa 
+				from 
+					LIQ99_LIQUIDACION as t, 
+					LIQ19_LIQUIDACION as L, 
+					LIQ19_EJECUCIONES as E               
+				JOIN
+					t.oi_liquidacion_ddo INNER E.oi_liquidacion_ddo,
+					E.oi_liquidacion INNER L.oi_liquidacion
+				where 
+					t.oi_liquidacion_ddo = {#SOURCE:@ID} AND
+					t.c_estado = \'F\' and
+					L.l_simulacion = 1
+			')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:attribute value="$r/@c_empresa" name="PARENTID"/>
+				</qry:out>
+			</qry:select>
+			<qry:select doc="SOURCE" name="RS1">
+				<qry:xquery>
+					for $r in sql('
+				SELECT 
+					t.oi_liquidacion_ddo as ID, 
+					t.c_liquidacion as CODE, 
+					t.d_titulo as TEXT, 
+					t.c_empresa as PID
+				FROM 
+					LIQ99_LIQUIDACION as t, 
+					LIQ19_LIQUIDACION as L, 
+					LIQ19_EJECUCIONES as E
+				JOIN
+					t.oi_liquidacion_ddo INNER E.oi_liquidacion_ddo,
+					E.oi_liquidacion INNER L.oi_liquidacion
+
+				WHERE  
+					t.c_empresa = {#SOURCE:@PARENTID} AND 
+					t.c_estado = \'F\'and
+					L.l_simulacion = 1
+				ORDER BY 
+					CODE asc
+			')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:element name="ROW">
+						<qry:attribute value="$r/@ID" name="id"/>
+						<qry:attribute value="$r/@ID" name="value"/>
+						<qry:attribute value="$r/@CODE" name="code1"/>
+						<qry:attribute value="$r/@TEXT" name="text1"/>
+						<qry:attribute value="#SOURCE:@CODE+'-'+$r/@CODE" name="code"/>
+						<qry:attribute value="#SOURCE:@TEXT+'-'+$r/@TEXT" name="text"/>
+					</qry:element>
+				</qry:out>
+			</qry:select>
+		</qry:define>
+	</flow:declare>
+	<flow:form extends="NucleusRH.Base.Liquidacion.Liquidacion.LIQUIDACION.guia.autoform:SHOW" parent-doc="INVAL" doc="SOURCE" mode="SHOW" name="NucleusRH.Base.Liquidacion.LiquidacionDDO.LIQUIDACION_DDO.guia.form:SHOW" form-class="NucleusRH.Base.Liquidacion.LiquidacionDDO.LIQUIDACION_DDO.guia.form"/>
+</flow:flow>

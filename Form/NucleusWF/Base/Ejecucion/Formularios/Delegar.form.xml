@@ -1,0 +1,347 @@
+<form:Form xmlns:form="nomad_engine.form" xmlns:qry="nomad_engine.qry" doc="source" default_mode="SHOW" name="NucleusWF.Base.Ejecucion.Formularios.ShowForm.form">
+	<form:Help/>
+	<form:Scripts>
+		var CLASS_TREE;
+
+function RefreshTree()
+{          
+	CLASS_TREE=clsClientTree("contDATA","SELECT","CLOCK.ico","folder-close.ico","folder.ico","item.ico",true,LoadChilds,null,onClick,1000);
+	if (Ctrl("c_rol_etty").GetXValue()!="")
+	{
+	  //Consulta RAIZ
+	  var nSQL = GetProxy().SQLService();
+	 	var resultxt=nSQL.Get(Ctrl("main").getResource("Roles"), "&lt;DATA TYPE=\"ROOT\" c_rol_etty=\""+Ctrl("c_rol_etty").GetXValue()+"\" oi_thread=\""+Ctrl("oi_thread").GetXValue()+"\" ETTY=\""+Ctrl("ETTY").GetXValue()+"\" /&gt;");
+	 	
+	 	CLASS_TREE.SetXML(null, resultxt);
+	} else
+	{ 
+	 	CLASS_TREE.SetXML(null, "&lt;tree/&gt;");
+	}
+	
+	Ctrl("SELECT").SetXValue("");
+	RefreshButtons();
+}
+
+function RefreshButtons()
+{          
+	CtrlEnabled("ACCEPT", Ctrl("SELECT").GetXValue()!="");
+	
+	
+}
+
+function LoadChilds(objTree, objGroup)
+{
+	nSQL = GetProxy().SQLService();
+	         
+	var id=objGroup.FullId.split("/");   
+
+	//Genero el Parametro	
+	var param=new NomadXML("DATA");      
+	param.SetAttr("TYPE", objGroup.Tag.split('|')[0]);
+	param.SetAttr("ETTY", Ctrl("ETTY").GetXValue());
+	param.SetAttr("oi_thread", Ctrl("oi_thread").GetXValue());
+	param.SetAttr("ID", id[id.length-1]);
+
+	//Resultado
+	var resultxt=nSQL.Get(Ctrl("main").getResource("Roles"), param.ToString());
+  objTree.SetXML(objGroup.FullId, resultxt);
+}
+
+function onClick(objTree, objGroup)
+{
+	var id=objGroup.FullId.split("/");
+	                      
+	switch(objGroup.Tag.split('|')[0])
+	{
+		case "ROL":
+			Ctrl("c_rol").SetXValue(id[id.length-1]);
+			Ctrl("c_estructura").SetXValue("");
+			Ctrl("oi_entidad").SetXValue("");
+			break;
+			
+		case "EST":                 
+			if (id.length&gt;=2) Ctrl("c_rol").SetXValue(id[id.length-2]);
+			             else	Ctrl("c_rol").SetXValue(objGroup.Tag.split('|')[1]);
+			Ctrl("c_estructura").SetXValue(id[id.length-1]);
+			Ctrl("oi_entidad").SetXValue("");
+			break;
+
+		case "ETT":
+			if (id.length&gt;=3) Ctrl("c_rol").SetXValue(id[id.length-3]);
+			else
+			{
+				pg=objTree.GetGroup(id[id.length-2]);
+				Ctrl("c_rol").SetXValue(pg.Tag.split('|')[1]);
+			}
+			Ctrl("c_estructura").SetXValue(id[id.length-2]);
+			Ctrl("oi_entidad").SetXValue(id[id.length-1]);
+			break;
+
+		default:
+			Ctrl("c_rol").SetXValue("");
+			Ctrl("c_estructura").SetXValue("");
+			Ctrl("oi_entidad").SetXValue("");
+			break;
+	}   
+	/*
+	alert(
+			Ctrl("c_rol").GetXValue()
+			+"-"+
+			Ctrl("c_estructura").GetXValue()
+			+"-"+
+			Ctrl("oi_entidad").GetXValue()
+	);
+	*/
+	
+  RefreshButtons();
+}
+
+function OnLoad() {
+	
+	if (Ctrl("ETTY").GetXValue()=="")
+		Ctrl("ETTY").SetXValue(GetProxy().Etty());       
+	
+	//Creo el OBJETO TREE
+	CLASS_TREE=clsClientTree("contDATA","SELECT","CLOCK.ico","folder-close.ico","folder.ico","item.ico",true,LoadChilds,null,onClick,1000);
+
+	//Actualizo el TREE
+	RefreshTree();     
+}
+	</form:Scripts>
+	<form:Title width="90%">
+		<form:RowAligner name="ralTitle">
+			<form:Row name="row2">
+				<form:Label label="Delegar" nowrap="1" align="center" style="S3 LCol_w" name="GEN"/>
+			</form:Row>
+		</form:RowAligner>
+	</form:Title>
+	<form:Center name="SecCenter">
+		<form:Columns height="50px" name="COLS">
+			<form:Column name="C1" separation="0" align="center" valign="top">
+				<form:Blank height="20px" name="blk1"/>
+				<form:ComboBox label="Rol a Utilizar" name="c_rol_etty" nvalue="#source:@c_rol_etty" docname="ROLES" xsize="35" mode="DOC" required="1">
+					<form:Event action="RefreshTree" name="onchange" runat="client"/>
+				</form:ComboBox>
+				<form:Blank height="20px" name="blk2"/>
+			</form:Column>
+		</form:Columns>
+		<form:Div width="390px" height="200px" label="Seleccione a quien DELEGAR" border="1" rheight="80" rwidth="80" borderwidth="2" name="contDATA"/>
+		<form:Columns name="COLS2" height="50px">
+			<form:Column name="C1" separation="0" align="center" valign="top">
+				<form:Blank height="20px" name="blk2"/>
+				<form:Label name="lbl1" style="S2 LCol_g" label="Comentarios"/>
+				<form:TextBox ysize="10" length="1000" nvalue="#DOC:@o_comentario" name="o_comentario" required="0" xsize="60"/>
+			</form:Column>
+		</form:Columns>
+		<form:Hidden name="oi_thread" nvalue="#source:@oi_thread"/>
+		<form:Hidden name="ETTY" nvalue="#source:@ETTY"/>
+		<form:Hidden name="SELECT" nvalue="#source:@SELECT"/>
+		<form:Hidden name="c_rol" nvalue="#source:@c_rol"/>
+		<form:Hidden name="c_estructura" nvalue="#source:@c_estructura"/>
+		<form:Hidden name="oi_entidad" nvalue="#source:@oi_entidad"/>
+	</form:Center>
+	<form:Bottom>
+		<form:RowAligner name="buttonlinks">
+			<form:Row name="row2">
+				<form:Button startvalidate="1" name="ACCEPT" img="ok" descrip="Aceptar" label="Aceptar">
+					<form:Event action="ACCEPT" name="onclick" runat="server"/>
+				</form:Button>
+				<form:Button img="cancel" descrip="Cancelar" label="Cancelar" name="CANCEL">
+					<form:Event action="CANCEL" name="onclick" runat="server"/>
+				</form:Button>
+			</form:Row>
+		</form:RowAligner>
+	</form:Bottom>
+	<form:Event action="OnLoad" name="OnLoad" runat="client"/>
+	<form:Resources>
+		<form:Resource declare="&lt;DATA TYPE=&quot;ROL&quot; ID=&quot;2&quot; oi_thread=&quot;5001&quot; ETTY=&quot;001AA0E914F9-4F1DB07B013B-000161F8071F&quot; c_rol_etty=&quot;OWNER&quot;/&gt;" name="Roles">
+			<qry:main doc="SOURCE">
+				<tree>
+					<qry:append-doc name="DATAIN" doc-path="."/>
+					<qry:attribute name="ETTY" value="iif(#SOURCE:./@ETTY='',#PROXY:@ETTY,#SOURCE:./@ETTY)"/>
+					<qry:attribute name="oi_thread" value="#SOURCE:./@oi_thread"/>
+					<qry:attribute name="c_rol_etty" value="#SOURCE:./@c_rol_etty"/>
+					<qry:attribute name="ID" value="#SOURCE:./@ID"/>
+					<qry:insert-select doc-path="$DATAIN" name="ORGANIGRAMA"/>
+					<qry:switch test="#SOURCE:./@TYPE">
+						<qry:case value="ROOT">
+							<qry:insert-select doc-path="$DATAIN" name="ROLES_PUEDEN"/>
+							<qry:insert-select doc-path="$DATAIN" name="ROLES_LIST"/>
+						</qry:case>
+						<qry:case value="ROL">
+							<qry:insert-select doc-path="$DATAIN" name="ESTRUCTURA_LIST"/>
+						</qry:case>
+						<qry:case value="EST">
+							<qry:insert-select doc-path="$DATAIN" name="ENTIDAD_LIST"/>
+						</qry:case>
+					</qry:switch>
+				</tree>
+			</qry:main>
+			<qry:select name="ORGANIGRAMA" doc="SOURCE">
+				<qry:xquery>
+					for $r in SQL('
+
+select
+org2.oi_organigrama,
+ins.c_estructura,
+ins.d_owner,
+th.oi_node
+from
+wrk02_threads as th,
+wrk02_instances as ins,
+wrk01_wf as wf,
+wrk05_organigramas as org1, 
+wrk05_organigramas as org2
+join          
+th.oi_instance INNER ins.oi_instance,
+ins.oi_wf INNER wf.oi_wf,
+wf.oi_organigrama INNER org1.oi_organigrama
+where
+th.oi_thread = {#SOURCE:@oi_thread}     
+and org1.c_organigrama = org2.c_organigrama
+and org1.e_version_pub = org2.e_version
+
+')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:attribute name="oi_node" value="$r/@oi_node"/>
+					<qry:attribute name="oi_organigrama" value="$r/@oi_organigrama"/>
+					<qry:attribute name="c_estr_div" value="$r/@c_estructura"/>
+					<qry:attribute name="d_owner" value="$r/@d_owner"/>
+				</qry:out>
+			</qry:select>
+			<qry:select name="ROLES_PUEDEN" doc="SOURCE">
+				<qry:xquery>
+					for $r in SQL('
+select
+T.oi_thread, N.c_rol, N.d_rol_delega
+from
+wrk02_threads as T,
+WRK01_ROLES_NODE as N
+join
+T.oi_node inner N.oi_node
+where
+T.oi_thread={%= $SOURCE/@oi_thread %}
+and N.c_rol=\'{%= $SOURCE/@c_rol_etty %}\'
+and N.c_puede_deleg!=\'NO\'
+
+')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:attribute name="delega" value="$r/@d_rol_delega"/>
+				</qry:out>
+			</qry:select>
+			<qry:select name="ROLES_LIST" doc="SOURCE">
+				<qry:xquery>
+					for $r in split('1;{%=$SOURCE/@delega %}')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:insert-select name="ROL" doc-path="$r"/>
+				</qry:out>
+			</qry:select>
+			<qry:select name="ROL" doc="SOURCE">
+				<qry:xquery>
+					for $r in SQL('
+select
+R.c_role, R.d_role, R.l_unique
+from
+WRK05_ROLES as R
+where
+R.oi_organigrama={%= $DATAIN/@oi_organigrama %} and R.c_role=\'{%= $SOURCE/@value%}\'
+
+')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<group>
+						<qry:attribute name="id" value="$r/@c_role"/>
+						<qry:attribute name="label" value="$r/@d_role"/>
+						<qry:attribute name="imgClose" value="'tarea_T.ico'"/>
+						<qry:attribute name="imgOpen" value="'tarea_T.ico'"/>
+						<qry:attribute name="tag" value="'ROL'"/>
+						<qry:if test="$r/@l_unique">
+							<qry:then>
+								<qry:insert-select name="ESTRUCTURA" doc-path="$r"/>
+							</qry:then>
+						</qry:if>
+					</group>
+				</qry:out>
+			</qry:select>
+			<qry:select name="ESTRUCTURA" doc="SOURCE">
+				<qry:xquery>
+					for $r in SQL('
+select
+S.c_estructura, S.d_estructura, S.c_role 
+from
+WRK05_ESTRUCTURA as S
+where
+S.oi_organigrama={%= $DATAIN/@oi_organigrama %} and S.c_role=\'{%=$SOURCE/@c_role%}\'
+
+')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:attribute name="id" value="$r/@c_estructura"/>
+					<qry:attribute name="label" value="$r/@d_estructura"/>
+					<qry:attribute name="imgClose" value="'organigrama0.ico'"/>
+					<qry:attribute name="imgOpen" value="'organigrama0.ico'"/>
+					<qry:attribute name="tag" value="concat('EST|',$r/@c_role)"/>
+				</qry:out>
+			</qry:select>
+			<qry:select name="ESTRUCTURA_LIST" doc="SOURCE">
+				<qry:xquery>
+					for $r in SQL('
+select
+S.d_estructura, S.c_estructura, S.c_role
+from
+WRK05_ESTRUCTURA as S,
+WRK05_ESTRUCTURA as SP,
+WRK05_ESTR_ESTR as SR,
+WRK05_ENTIDAD_ESTR as SE
+
+join
+SP.oi_estructura inner SE.oi_estructura,
+SP.oi_estructura inner SR.oi_estructura,
+S.c_estructura inner SR.c_estructura
+
+where                                 
+SE.oi_entidad=\'{%=$SOURCE/@ETTY%}\' 
+and SP.oi_organigrama={%= $SOURCE/@oi_organigrama %}
+and S.oi_organigrama={%= $SOURCE/@oi_organigrama %}  
+and S.c_role=\'{%=$SOURCE/@ID%}\'
+group by
+S.d_estructura, S.c_estructura, S.c_role
+
+')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<group imgClose="organigrama0.ico" imgOpen="organigrama0.ico">
+						<qry:attribute name="id" value="$r/@c_estructura"/>
+						<qry:attribute name="label" value="$r/@d_estructura"/>
+						<qry:attribute name="tag" value="concat('EST|',$r/@c_role)"/>
+					</group>
+				</qry:out>
+			</qry:select>
+			<qry:select name="ENTIDAD_LIST" doc="SOURCE">
+				<qry:xquery>
+					for $r in SQL('
+select
+e.oi_entidad, E.d_entidad_estr
+from
+WRK05_ESTRUCTURA as S,  WRK05_ENTIDAD_ESTR as E
+join
+S.oi_estructura inner E.oi_estructura
+where
+S.oi_organigrama={%= $SOURCE/@oi_organigrama %} and S.c_estructura=\'{%=$SOURCE/@ID%}\'
+
+')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<item img="user.ico">
+						<qry:attribute name="id" value="$r/@oi_entidad"/>
+						<qry:attribute name="label" value="$r/@d_entidad_estr"/>
+						<qry:attribute name="tag" value="'ETT'"/>
+					</item>
+				</qry:out>
+			</qry:select>
+		</form:Resource>
+	</form:Resources>
+</form:Form>

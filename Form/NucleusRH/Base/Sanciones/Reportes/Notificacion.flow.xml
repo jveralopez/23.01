@@ -1,0 +1,82 @@
+<flow:flow xmlns:flow="nomad_engine.flow" xmlns:doc="nomad_engine.doc" xmlns:qry="nomad_engine.qry" extends="Nomad.base.HTML_XLS.flow" default_action="initialize" name="NucleusRH.Base.Sanciones.Reportes.Notificacion">
+	<flow:info label="Flow para NucleusRH.Base.Sanciones.Reportes.Notificacion"/>
+	<flow:declare>
+		<doc:define name="DDO"/>
+		<doc:define name="NEWDDO"/>
+		<doc:define name="QRY"/>
+		<doc:define name="FILTERDATA">
+			<DATO oi_personal_emp="" oi_sancion_per=""/>
+		</doc:define>
+		<qry:define declare="&lt;DATO oi_personal_emp=&quot;11581&quot; oi_sancion_per=&quot;&quot; /&gt;" name="QRY_SANCIONES">
+			<qry:main doc="PARAM">
+				<qry:element name="ROWS">
+					<qry:insert-select name="qry1" doc-path="#PARAM:DATO"/>
+				</qry:element>
+			</qry:main>
+			<qry:select name="qry1" doc="PARAM">
+				<qry:xquery>
+					for $r in sql('
+				SELECT 
+					SAN03_SANCION_PER.oi_sancion_per, 
+					SAN03_SANCION_PER.f_fechahora_sanc, 
+					SAN01_MOTIVOS_SANC.d_motivo_sancion,
+					SAN03_SANCION_PER.c_estado
+				FROM 
+					SAN03_SANCION_PER,
+					SAN01_MOTIVOS_SANC,
+					SAN02_SANCIONES
+				JOIN
+					SAN03_SANCION_PER.oi_motivo_sancion INNER SAN01_MOTIVOS_SANC.oi_motivo_sancion,
+					SAN03_SANCION_PER.oi_sancion INNER SAN02_SANCIONES.oi_sancion
+				WHERE 
+					SAN03_SANCION_PER.oi_personal_emp = {#PARAM:@oi_personal_emp}
+					AND SAN02_SANCIONES.l_notificacion = \'1\' 
+					AND SAN03_SANCION_PER.c_estado != \'L\'
+			')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:element name="ROW">
+						<qry:attribute name="id" value="$r/@oi_sancion_per"/>
+						<qry:attribute name="f_fechahora_sanc" value="$r/@f_fechahora_sanc"/>
+						<qry:attribute name="d_motivo_sancion" value="$r/@d_motivo_sancion"/>
+						<qry:attribute name="c_estado" value="$r/@c_estado"/>
+					</qry:element>
+				</qry:out>
+			</qry:select>
+		</qry:define>
+		<doc:define name="RS">
+			<ROWS/>
+		</doc:define>
+	</flow:declare>
+	<flow:main doc="SOURCE">
+		<flow:action name="initialize">
+			<flow:open-form form-class="NucleusRH.Base.Sanciones.Reportes.Notificacion.filter.form" doc-path="#FILTERDATA:" mode="FILTER"/>
+		</flow:action>
+	</flow:main>
+	<flow:form name="NucleusRH.Base.Sanciones.Reportes.Notificacion.filter.form:FILTER" form-class="NucleusRH.Base.Sanciones.Reportes.Notificacion.filter.form" doc="SOURCE" mode="FILTER">
+		<flow:action name="ACCEPT">
+			<flow:call-action action="Save-FILTER"/>
+			<doc:set-attribute from-attr-path="#FORM:ctrl[@id='LIST']/@xval" to-attr-path="#FILTERDATA:@oi_sancion_per"/>
+			<flow:exec-method method="ExecReportHTML" out-attr-path="#BATCHDOC:@batch-id" priority="1" class="Nomad.Base.Report.GeneralReport.REPORT">
+				<flow:param value="NucleusRH.Base.Sanciones.Notificacion.rpt" type="Nomad.NSystem.String" mode="in" name="ReportName"/>
+				<flow:param doc-path="#FILTERDATA:" name="paramIN" type="Nomad.NSystem.Proxy.NomadXML" mode="in"/>
+			</flow:exec-method>
+			<doc:set-attribute from-value="002 - Notificaci&#243;n de Sanci&#243;n" to-attr-path="#BATCHDOC:@title"/>
+			<flow:open-form form-class="Nomad.base.HTML_XLS.form" parent-doc-path="#SOURCE:" mode="SHOW" doc-path="#BATCHDOC:"/>
+		</flow:action>
+		<flow:action name="BACK">
+			<flow:close-form/>
+		</flow:action>
+		<flow:action name="Save-FILTER">
+			<flow:save-user-data name="FILTER-NucleusRH.Base.Sanciones.Reportes.Notificacion" doc-path="#FILTERDATA:"/>
+		</flow:action>
+		<flow:action name="Load-FILTER">
+			<flow:load-user-data name="FILTER-NucleusRH.Base.Sanciones.Reportes.Notificacion" doc="FILTERDATA"/>
+		</flow:action>
+		<flow:action name="on-show">
+			<flow:call-action action="Load-FILTER"/>
+			<doc:load-qry output-doc="RS" input-doc-path="#FILTERDATA:" qry="QRY_SANCIONES"/>
+			<flow:attach-doc attach-id="RS" doc-path="#RS:"/>
+		</flow:action>
+	</flow:form>
+</flow:flow>

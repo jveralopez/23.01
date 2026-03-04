@@ -1,0 +1,77 @@
+<flow:flow xmlns:flow="nomad_engine.flow" xmlns:doc="nomad_engine.doc" xmlns:qry="nomad_engine.qry" name="NucleusRH.Base.Tiempos_Trabajados.Liquidacion.HORAS.guia.flow" extends="Nomad.simple.guia.flow">
+	<flow:info label="Flow guia para NucleusRH.Base.Tiempos_Trabajados.Liquidacion.HORAS"/>
+	<flow:main doc="SOURCE">
+		<flow:action name="HELP">
+			<doc:load-qry output-doc="HORAS" input-doc-path="#SOURCE:" qry="HORAS"/>
+			<flow:open-form parent-doc-path="#HORAS:" doc-path="#HORAS:" form-class="NucleusRH.Base.Tiempos_Trabajados.Liquidacion.HORAS.guia.form" mode="SHOW"/>
+		</flow:action>
+	</flow:main>
+	<flow:declare>
+		<qry:define declare="&lt;DATA oi_liquidacionpers=&quot;168&quot; id=&quot;40&quot; /&gt;" name="HORAS">
+			<qry:main doc="PARAM">
+				<qry:element name="DATOS">
+					<qry:insert-select doc-path="#PARAM:DATA" name="qry_data"/>
+				</qry:element>
+			</qry:main>
+			<qry:select doc="PARAM" name="qry_data">
+				<qry:xquery>
+					for $r in sql(' 
+					SELECT TTA09_LIQUIDACION.c_liquidacion, 
+					TTA09_LIQUIDACION.d_liquidacion,
+					PER02_PERSONAL_EMP.e_numero_legajo, 
+					PER01_PERSONAL.d_ape_y_nom 
+					FROM TTA09_LIQUIDACION, 
+					TTA10_LIQUIDACPERS,
+					PER01_PERSONAL, 
+					PER02_PERSONAL_EMP
+					JOIN PER01_PERSONAL.oi_personal INNER PER02_PERSONAL_EMP.oi_personal,
+					TTA10_LIQUIDACPERS.oi_personal_emp INNER PER02_PERSONAL_EMP.oi_personal_emp, 
+					TTA09_LIQUIDACION.oi_liquidacion INNER TTA10_LIQUIDACPERS.oi_liquidacion
+					WHERE TTA10_LIQUIDACPERS.oi_liquidacionpers = {#PARAM:@oi_liquidacionpers}
+					AND TTA09_LIQUIDACION.oi_liquidacion =  {#PARAM:@id}
+			')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:attribute name="liquidacion" value="$r/@c_liquidacion + ' - ' + $r/@d_liquidacion"/>
+					<qry:attribute name="personal" value="$r/@e_numero_legajo +' - '+ $r/@d_ape_y_nom"/>
+					<qry:element name="ROWS">
+						<qry:insert-select doc-path="$r" name="qry_horas"/>
+					</qry:element>
+				</qry:out>
+			</qry:select>
+			<qry:select doc="PARAM" name="qry_horas">
+				<qry:xquery>
+					for $r in sql('
+				SELECT MIN(TTA10_LIQUIDACPROC.oi_liquidacionproc) AS id, 
+				TTA01_TIPOHORAS.d_tipohora, 
+				SUM(TTA10_LIQUIDACPROC.n_cantidadhs) AS cantidad 
+				FROM TTA10_LIQUIDACPERS, TTA10_LIQUIDACJOR, 
+				TTA10_LIQUIDACPROC, TTA01_TIPOHORAS
+				JOIN TTA10_LIQUIDACPERS.oi_liquidacionpers INNER TTA10_LIQUIDACJOR.oi_liquidacionpers,
+				TTA10_LIQUIDACJOR.oi_liquidacjor INNER TTA10_LIQUIDACPROC.oi_liquidacjor,
+				TTA10_LIQUIDACPROC.oi_tipohora INNER TTA01_TIPOHORAS.oi_tipohora
+				WHERE TTA10_LIQUIDACPERS.oi_liquidacionpers = {#PARAM:@oi_liquidacionpers}
+				AND TTA10_LIQUIDACPERS.oi_liquidacion =  {#PARAM:@id}
+				GROUP BY TTA01_TIPOHORAS.d_tipohora
+			')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:element name="ROW">
+						<qry:attribute name="id" value="$r/@id"/>
+						<qry:attribute name="d_tipohora" value="$r/@d_tipohora"/>
+						<qry:attribute name="cantidad" value="ROUND($r/@cantidad)"/>
+					</qry:element>
+				</qry:out>
+			</qry:select>
+		</qry:define>
+		<doc:define name="HORAS"/>
+	</flow:declare>
+	<flow:form parent-doc="PARENTSOURCE" mode="SHOW" name="NucleusRH.Base.Tiempos_Trabajados.Liquidacion.HORAS.guia.form:SHOW" doc="SOURCE" form-class="NucleusRH.Base.Tiempos_Trabajados.Liquidacion.HORAS.guia.form">
+		<flow:action name="BACK">
+			<flow:close-form/>
+		</flow:action>
+		<flow:action name="on-show">
+			<flow:attach-doc doc-path="#HORAS:ROWS" attach-id="RS"/>
+		</flow:action>
+	</flow:form>
+</flow:flow>

@@ -1,0 +1,219 @@
+<flow:flow xmlns:flow="nomad_engine.flow" xmlns:qry="nomad_engine.qry" extends="NucleusRH.Base.Liquidacion.Liquidacion.LIQUIDACION.guia.autoflow" name="NucleusRH.Base.Liquidacion.Liquidacion.LIQUIDACION.guia">
+	<flow:info label="Flow guia para NucleusRH.Base.Liquidacion.Liquidacion.LIQUIDACION"/>
+	<flow:main doc="SOURCE">
+		<flow:action name="OPEN-GUIA">
+			<flow:open-form parent-doc-path="#SOURCE:" doc-path="#RS:" mode="SHOW" form-class="NucleusRH.Base.Liquidacion.Liquidacion.LIQUIDACION.guia.autoform"/>
+		</flow:action>
+	</flow:main>
+	<flow:declare>
+		<qry:define name="X2C">
+			<qry:main doc="SOURCE">
+				<qry:element name="ROW">
+					<qry:insert-select doc-path="#SOURCE:" name="RS1"/>
+				</qry:element>
+			</qry:main>
+			<qry:select doc="SOURCE" name="RS1">
+				<qry:xquery>
+					for $r in sql('
+					SELECT 
+						t.oi_liquidacion as ID, 
+						t.c_liquidacion as CODE, 
+						t.d_titulo as TEXT, 						
+						t.oi_empresa as PID, 
+						SEC.policy  
+					FROM 
+						LIQ19_LIQUIDACION as t, 
+						NMD_SECURITY(class=\'NucleusRH.Base.Liquidacion.Liquidacion.LIQUIDACION\') as SEC 
+					JOIN 
+						t.oi_liquidacion LEFT OUTER SEC.id  
+					WHERE 
+						t.l_simulacion = 0 and   
+						t.oi_tipo_liq != 7 and
+						t.oi_liquidacion={#SOURCE:helper-mess/@ID} ORDER BY CODE asc')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:attribute value="$r/@ID" name="id"/>
+					<qry:attribute value="$r/@ID" name="value"/>
+					<qry:attribute value="$r/@CODE" name="code"/>
+					<qry:attribute value="$r/@TEXT" name="text"/>
+					<qry:attribute type="Nomad.NSystem.Int" value="$r/@PID" name="PID"/>
+					<qry:insert-select doc-path="." name="RS2"/>
+				</qry:out>
+			</qry:select>
+			<qry:select doc="SOURCE" name="RS2">
+				<qry:xquery>
+					for $r in sql('SELECT t.oi_empresa as ID, t.c_empresa as CODE, t.d_empresa as TEXT, SEC.policy  FROM ORG03_EMPRESAS as t, NMD_SECURITY(class=\'NucleusRH.Base.Organizacion.Empresas.EMPRESA\') as SEC JOIN t.oi_empresa LEFT OUTER SEC.id  WHERE t.oi_empresa={#SOURCE:@PID} ORDER BY CODE asc')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:attribute value="$r/@CODE+'-'+#SOURCE:@CODE" name="code"/>
+					<qry:attribute value="$r/@TEXT+'-'+#SOURCE:@TEXT" name="text"/>
+				</qry:out>
+			</qry:select>
+		</qry:define>
+		<qry:define name="C2X">
+			<qry:main doc="SOURCE">
+				<qry:append-doc doc-path="#SOURCE:helper-mess" name="INDOC"/>
+				<qry:element name="ROW">
+					<qry:insert-select doc-path="#SOURCE:" name="RS1"/>
+				</qry:element>
+			</qry:main>
+			<qry:select doc="SOURCE" name="RS1">
+				<qry:xquery>
+					for $r in sql('SELECT t.oi_empresa as ID, t.c_empresa as CODE, t.d_empresa as TEXT, SEC.policy  FROM ORG03_EMPRESAS as t, NMD_SECURITY(class=\'NucleusRH.Base.Organizacion.Empresas.EMPRESA\') as SEC JOIN t.oi_empresa LEFT OUTER SEC.id  WHERE t.c_empresa={substring_before(#INDOC:@CODE,\'-\')} ORDER BY CODE asc')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:attribute value="$r/@policy" name="policy"/>
+					<qry:attribute value="substring_after(#INDOC:@CODE,'-')" name="SUB_SEARCH"/>
+					<qry:attribute value="$r/@ID" name="PARENTID"/>
+					<qry:attribute value="$r/@CODE" name="code"/>
+					<qry:attribute value="$r/@TEXT" name="text"/>
+					<qry:insert-select doc-path="." name="RS2"/>
+				</qry:out>
+			</qry:select>
+			<qry:select doc="SOURCE" name="RS2">
+				<qry:xquery>
+					for $r in sql('
+				SELECT 
+					t.oi_liquidacion as ID, 
+					t.c_liquidacion as CODE, 
+					t.d_titulo as TEXT, 
+					t.oi_empresa as PID, 
+					SEC.policy  
+				FROM 
+					LIQ19_LIQUIDACION as t, 
+					NMD_SECURITY(class=\'NucleusRH.Base.Liquidacion.Liquidacion.LIQUIDACION\') as SEC 
+				JOIN 
+					t.oi_liquidacion LEFT OUTER SEC.id  
+				WHERE 
+					t.l_simulacion = 0 and
+				    t.oi_tipo_liq != 7 and
+					t.c_liquidacion={substring_before(#SOURCE:@SUB_SEARCH,\'-\')} AND t.oi_empresa={#SOURCE:@PARENTID} ORDER BY CODE asc')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:attribute value="$r/@policy" name="policy"/>
+					<qry:attribute value="''" name="SUB_SEARCH"/>
+					<qry:attribute value="''" name="PARENTID"/>
+					<qry:attribute value="$r/@ID" name="id"/>
+					<qry:attribute value="$r/@ID" name="value"/>
+					<qry:attribute value="#SOURCE:@CODE+'-'+$r/@CODE" name="code"/>
+					<qry:attribute value="#SOURCE:@TEXT+'-'+$r/@TEXT" name="text"/>
+				</qry:out>
+			</qry:select>
+		</qry:define>
+		<qry:define declare="&lt;ROW PARENTID = &quot;1&quot;/&gt;" name="HELP">
+			<qry:main doc="SOURCE">
+				<qry:element name="ROW">
+					<qry:attribute value="#SOURCE:ROW/@PARENTID" name="PARENTID"/>
+					<qry:attribute value="#SOURCE:ROW/@CODE" name="CODE"/>
+					<qry:attribute value="#SOURCE:ROW/@TEXT" name="TEXT"/>
+					<qry:attribute value="#SOURCE:ROW/@FILTER" name="FILTER"/>
+					<qry:insert-select doc-path="." name="RS2"/>
+					<qry:element name="ROWS">
+						<qry:insert-select doc-path=".." name="RS1"/>
+					</qry:element>
+				</qry:element>
+			</qry:main>
+			<qry:select doc="SOURCE" name="RS2">
+				<qry:xquery>
+					for $r in sql('SELECT t.oi_empresa as ID, t.c_empresa as CODE, t.d_empresa as TEXT, SEC.policy  FROM ORG03_EMPRESAS as t, NMD_SECURITY(class=\'NucleusRH.Base.Organizacion.Empresas.EMPRESA\') as SEC JOIN t.oi_empresa LEFT OUTER SEC.id  WHERE t.oi_empresa={#SOURCE:@PARENTID} ORDER BY CODE asc')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:attribute value="$r/@CODE" name="code"/>
+					<qry:attribute value="$r/@TEXT" name="text"/>
+				</qry:out>
+			</qry:select>
+			<qry:select doc="SOURCE" name="RS1">
+				<qry:xquery>
+					for $r in sql('
+				SELECT 
+					t.oi_liquidacion as ID, 
+					t.c_liquidacion as CODE, 
+					t.d_titulo as TEXT, 
+					t.oi_empresa as PID, 
+					SEC.policy  
+				FROM 
+					LIQ19_LIQUIDACION as t, 
+					NMD_SECURITY(class=\'NucleusRH.Base.Liquidacion.Liquidacion.LIQUIDACION\') as SEC 
+				JOIN 
+					t.oi_liquidacion LEFT OUTER SEC.id  
+				WHERE  
+					t.l_simulacion = 0 and 
+					t.oi_tipo_liq != 7 and
+					t.oi_empresa={#SOURCE:@PARENTID} ORDER BY CODE asc')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:element name="ROW">
+						<qry:attribute value="$r/@ID" name="id"/>
+						<qry:attribute value="$r/@ID" name="value"/>
+						<qry:attribute value="$r/@CODE" name="code1"/>
+						<qry:attribute value="$r/@TEXT" name="text1"/>
+						<qry:attribute value="#SOURCE:@CODE+'-'+$r/@CODE" name="code"/>
+						<qry:attribute value="#SOURCE:@TEXT+'-'+$r/@TEXT" name="text"/>
+						<qry:attribute value="$r/@policy" name="policy"/>
+					</qry:element>
+				</qry:out>
+			</qry:select>
+		</qry:define>
+		<qry:define name="PRELOAD">
+			<qry:main doc="SOURCE">
+				<qry:append-doc doc-path="#SOURCE:helper-mess" name="HM"/>
+				<qry:element name="ROW">
+					<qry:insert-select doc-path="#SOURCE:helper-mess" name="RS2"/>
+					<qry:insert-select doc-path="." name="RS3"/>
+					<qry:element name="ROWS">
+						<qry:insert-select doc-path=".." name="RS1"/>
+					</qry:element>
+					<qry:attribute value="substring(#HM:@TEXT,1+string_length(./@TEXT))" name="FILTER"/>
+				</qry:element>
+			</qry:main>
+			<qry:select doc="SOURCE" name="RS3">
+				<qry:xquery>
+					for $r in sql('SELECT t.oi_empresa as ID, t.c_empresa as CODE, t.d_empresa as TEXT, SEC.policy  FROM ORG03_EMPRESAS as t, NMD_SECURITY(class=\'NucleusRH.Base.Organizacion.Empresas.EMPRESA\') as SEC JOIN t.oi_empresa LEFT OUTER SEC.id  WHERE t.oi_empresa={#SOURCE:@PARENTID} ORDER BY CODE asc')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:attribute value="$r/@CODE" name="code"/>
+					<qry:attribute value="$r/@TEXT" name="text"/>
+				</qry:out>
+			</qry:select>
+			<qry:select doc="SOURCE" name="RS2">
+				<qry:xquery>
+					for $r in sql('select t.oi_empresa from LIQ19_LIQUIDACION as t where t.oi_liquidacion={#SOURCE:@ID}')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:attribute value="$r/@oi_empresa" name="PARENTID"/>
+				</qry:out>
+			</qry:select>
+			<qry:select doc="SOURCE" name="RS1">
+				<qry:xquery>
+					for $r in sql('
+				SELECT 
+					t.oi_liquidacion as ID, 
+					t.c_liquidacion as CODE, 
+					t.d_titulo as TEXT, 
+					t.oi_empresa as PID, 
+					SEC.policy  
+				FROM 
+					LIQ19_LIQUIDACION as t, 
+					NMD_SECURITY(class=\'NucleusRH.Base.Liquidacion.Liquidacion.LIQUIDACION\') as SEC 
+				JOIN 
+					t.oi_liquidacion LEFT OUTER SEC.id  
+				WHERE  
+					t.l_simulacion = 0 and 
+					t.oi_tipo_liq != 7 and
+					t.oi_empresa={#SOURCE:@PARENTID} ORDER BY CODE asc')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:element name="ROW">
+						<qry:attribute value="$r/@ID" name="id"/>
+						<qry:attribute value="$r/@ID" name="value"/>
+						<qry:attribute value="$r/@CODE" name="code1"/>
+						<qry:attribute value="$r/@TEXT" name="text1"/>
+						<qry:attribute value="#SOURCE:@CODE+'-'+$r/@CODE" name="code"/>
+						<qry:attribute value="#SOURCE:@TEXT+'-'+$r/@TEXT" name="text"/>
+						<qry:attribute value="$r/@policy" name="policy"/>
+					</qry:element>
+				</qry:out>
+			</qry:select>
+		</qry:define>
+	</flow:declare>
+</flow:flow>

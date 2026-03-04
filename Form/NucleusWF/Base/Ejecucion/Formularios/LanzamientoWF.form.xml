@@ -1,0 +1,171 @@
+<form:Form xmlns:form="nomad_engine.form" xmlns:SPA="nomad_engine.SPA" default_mode="SHOW" doc="source" name="NucleusWF.Base.Ejecucion.Formularios.LanzamientoWF.form">
+	<form:Help/>
+	<form:Title name="secTitle">
+		<form:Label dynamic="1" nvalue="#source:@title" name="lblTitle"/>
+	</form:Title>
+	<form:Center name="secCenter">
+		<form:Blank name="blk01"/>
+		<form:UrlControl width="1100" height="600" border="0" name="controlReporte"/>
+		<form:Hidden name="oi_usuario_sistema"/>
+		<form:Hidden nvalue="#source:@r" name="reporte"/>
+		<form:Hidden nvalue="#source:@g" name="workflow"/>
+		<form:Hidden nvalue="#CRC:@crc" name="crc"/>
+	</form:Center>
+	<form:Bottom name="secBottom">
+		<form:RowAligner name="ra01">
+			<form:Row name="r01">
+				<form:ComboBox SPA:label="Seleccionar acci&#243;n" nvalue="@selectedWF" mode="DOC" name="cmbWorkFlows" docname="listaWF">
+					<options/>
+					<form:Event action="EnableBtnSend" name="onchange" runat="client"/>
+				</form:ComboBox>
+				<form:Button img="play" label="Iniciar" name="btnIniciar">
+					<form:Event action="StartWF" name="OnClick" runat="client"/>
+				</form:Button>
+				<form:Button img="back" SPA:label="Volver" name="btn_salir">
+					<form:Event action="SALIR" name="OnClick" runat="server"/>
+				</form:Button>
+			</form:Row>
+		</form:RowAligner>
+	</form:Bottom>
+	<form:Event action="Form_OnLoad" name="onLoad" runat="client"/>
+	<form:Scripts>
+		var xmlListaWF;
+var listaParametros = new Array(); //Lista de todos los parametros que utilizan los wf dentro del grupo seleccionado. De aca se van a recuperar y validar
+						  //los datos que necesitan cada uno de los wf para comerzarse a ejectuar.
+var arrDataParamWF = new Array(); //Contiene para cada WF sus parametros. Los valores para estos parametros van a ser obtenidos del array listaParametros
+
+var wfSelected; //Guardo el codigo del workflow seleccionado del super combo una vez que se hace click en iniciar.                                       
+var wfXML; //Guardo el xml del wf seleccionado para iniciarse a partir del codigo del "wfSelected"
+
+var iniciaWF;
+var idWFStarted;
+
+var validarExtras = 0; //Var bool que indica a la hora de querer iniciar en wf si hay validaciones extras ademas de los parametros del propio wf que se desea iniciar.
+var msgError = new Array(); //Contiene para cada wf un mensaje de error que se tiene que mostrar en caso de no cumplir con los requisitos. El mensaje se setea desde el reporte.
+								  //En el reporte del wf de domicilios hay un ejemplo.
+
+function Form_OnLoad() {
+xmlListaWF = Ctrl("main").GetLastDocXML("listaWF");
+LoadReporte();
+LoadParamWF();
+LoadDataParamWF();	
+Ctrl("btnIniciar").SetEnabled(false);
+}
+
+
+function LoadReporte(){
+		var reporte = Ctrl("reporte").GetCValue();
+		var workflow = Ctrl("workflow").GetCValue();                                                                                                                                                 
+		 
+		Ctrl("controlReporte").SetURL("../../../ReportViewer.aspx?ut="+GetProxy().UserToken()+"&amp;amp;file="+reporte+"&amp;amp;oi_usuario_sistema="+GetProxy().Etty()+"&amp;amp;crc="+Ctrl("crc").GetXValue());
+		//Ctrl("controlReporte").SetURL("../../../ReportViewer.aspx?ut="+GetProxy().UserToken()+"&amp;amp;file=NucleusWF.Base.Ejecucion.BaseInicioWF.rpt&amp;amp;oi_usuario_sistema="+Ctrl("oi_usuario_sistema").GetCValue()+"&amp;amp;reporte="+Ctrl("nombre_reporte").GetCValue());
+}
+
+
+function LoadParamWF(){
+//Guardo todos los parametros que hay en los WF para cuando iniciar alguno obtener los datos.
+for(var option = xmlListaWF.FirstChild(); option != null; option = option.Next()){
+	//Incluyo los parametros de cada uno. Si se repite el mismo parametro en mas de un WF se pisan y queda uno solo. 
+	for(var param = option.FirstChild().FirstChild(); param != null; param = param.Next()){		
+		listaParametros[param.GetAttr("c_name")] = undefined;
+	}              
+}
+}
+
+
+function LoadDataParamWF(){
+//Guardo para cada workflow los par&#225;metros que requieren para iniciarse.
+for(var option = xmlListaWF.FirstChild(); option != null; option = option.Next()){
+	arrDataParamWF[option.GetAttr("value")] = new Array();
+	//Inicializo los mensajes de errores para cada wf en vacio.
+	msgError[option.GetAttr("value")] = "";
+	for(var param = option.FirstChild().FirstChild(); param != null; param = param.Next()){
+		arrDataParamWF[option.GetAttr("value")][param.GetAttr("c_name")] = undefined;
+	}
+}
+}
+
+
+function StartWF(){
+	idWFStarted = undefined;
+	wfSelected = Ctrl("cmbWorkFlows").GetXValue();
+	//alert("wfSelected:" + wfSelected);
+	if(msgError[wfSelected] != ""){
+		alert(msgError[wfSelected]);
+		return false;	
+	}
+
+var xmlData = new NomadXML("DATA");
+
+iniciaWF = true;
+if(wfSelected == ""){
+	alert("Debe seleccionar una acci&#243;n");
+	iniciaWF = false;
+}else{
+	//Busca el workflow para saber los atributos que necesita tener seteados
+	wfXML = xmlListaWF.FindElement2("option","value",wfSelected);
+	if(wfXML == null){
+		alert("No se encontr&#243; el wf para iniciarse.");
+		iniciaWF = false;
+	}else{
+		//Seteo el id del wf a iniciar
+		idWFStarted = wfXML.GetAttr("id_wf");
+		
+	    //Si no tiene parametros inicia directamente, sino evalua que esten todos seteados
+	    if(wfXML.FirstChild().GetChilds().length == 0){
+	    	iniciaWF = true;
+	  		
+	  	}else{
+	  		for(param = wfXML.FirstChild().FirstChild(); param != null; param = param.Next()){
+	  			if(listaParametros[param.GetAttr("c_name")] == undefined || listaParametros[param.GetAttr("c_name")] == ""){
+	  				alert(param.GetAttr("desc") + " es necesario que tenga un valor para poder iniciar el workflow");
+	  				iniciaWF = false;
+	  				break;
+	  			}
+	  			
+	  			arrDataParamWF[wfSelected][param.GetAttr("c_name")] =  GetParam(param.GetAttr("c_name"));
+				xmlData.SetAttr(param.GetAttr("c_name"),GetParam(param.GetAttr("c_name")));
+	  		}
+	  	}
+	}	
+}
+
+if(iniciaWF == true){
+	//console.log("id wf iniciado:" + idWFStarted);
+	xmlData.SetAttr("oi_wf",idWFStarted);
+	xmlData.SetAttr("DEBUG","0");
+	
+	getFormInMain("NucleusWF.Base.Ejecucion.Formularios.ShowForm.flow", "CREATE", xmlData.ToString(), false);
+}else{
+	//alert("No se puede iniciar el workflow");
+}
+
+return true;
+}
+
+function GetParam(name_param){
+return listaParametros[name_param];
+}
+
+function SetParam(name_param, value){
+listaParametros[name_param] = value;
+//console.log(name_param);
+//console.log(value);
+}
+
+function EnableBtnSend(obj){
+var value = obj.GetXValue();
+
+if(value != undefined &amp;&amp; value != null &amp;&amp; value != ""){
+	Ctrl("btnIniciar").SetEnabled(true);
+}else{
+	Ctrl("btnIniciar").SetEnabled(false);
+}
+}
+
+//Setea los mensajes de errores para cuando se quiere iniciar un wf que no se puede. Los mensajes se setean desde el reporte.
+function SetMsgError(idWF,msg){
+	msgError[idWF] = msg;
+}
+	</form:Scripts>
+</form:Form>

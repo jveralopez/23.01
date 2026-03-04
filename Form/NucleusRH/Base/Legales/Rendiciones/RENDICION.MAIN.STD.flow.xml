@@ -1,0 +1,587 @@
+<flow:flow xmlns:flow="nomad_engine.flow" xmlns:doc="nomad_engine.doc" xmlns:qry="nomad_engine.qry" default_action="NEW" extends="NucleusRH.Base.Legales.Rendiciones.RENDICION.MAIN.STD.autoflow" name="NucleusRH.Base.Legales.Rendiciones.RENDICION.MAIN.STD.flow">
+	<flow:info label="Flow para anular la rendicion"/>
+	<flow:main doc="SOURCE">
+		<flow:action name="AnularRendicion">
+			<flow:exec-method class="NucleusRH.Base.Legales.Rendiciones.RENDICION" method="AnularRendicion">
+				<flow:param name="pstrOIRendicion" mode="in" type="Nomad.NSystem.String" attr-path="#SOURCE:@PARENT"/>
+			</flow:exec-method>
+			<flow:exit-flow return-path="#SOURCE:"/>
+		</flow:action>
+	</flow:main>
+	<flow:declare>
+		<doc:define name="COMP_RENDICION" class="NucleusRH.Base.Legales.Rendiciones.COMP_RENDICION"/>
+		<doc:define class="NucleusRH.Base.Legales.Rendiciones.CONCEPTO_COMP" name="CONCEPTO_COMP"/>
+		<doc:define class="NucleusRH.Base.Legales.Rendiciones.IMPUESTO_COMP" name="IMPUESTO_COMP"/>
+		<doc:define name="RSCOMPROBANTES"/>
+		<doc:define name="RSCONCEPTOS"/>
+		<doc:define name="RSIMPUESTOS"/>
+		<doc:define name="CONCEPTOS_REND"/>
+		<doc:define name="CONCEPTOS_COMP"/>
+		<qry:define name="LIST_COMPROBANTES">
+			<qry:main doc="SOURCE">
+				<qry:element name="ROWS">
+					<qry:insert-select name="qryROW" doc-path="#SOURCE:."/>
+				</qry:element>
+			</qry:main>
+			<qry:select name="qryROW" doc="PARAM">
+				<qry:xquery>
+					for $r in $PARAM/COMP_RENDICION
+				</qry:xquery>
+				<qry:out>
+					<qry:if test="$r/@nmd-status!='~x,'">
+						<qry:then>
+							<qry:element name="ROW">
+								<qry:attribute name="id" value="$r/@id"/>
+								<qry:attribute name="f_comprobante" value="format-date($r/@f_comprobante,'dd/mm/yyyy')"/>
+								<qry:attribute name="d_razon_social" value="$r/@d_razon_social"/>
+								<qry:insert-select name="qryTipoComprob" doc-path="$r"/>
+								<qry:attribute name="c_nro_comp" value="$r/@c_nro_comp"/>
+								<qry:attribute name="n_subtotal" value="format-number($r/@n_subtotal,0,2,',','.','')"/>
+								<qry:attribute name="n_iva" value="format-number($r/@n_iva,0,2,',','.','')"/>
+								<qry:attribute name="n_otros_impuestos" value="format-number($r/@n_otros_impuestos,0,2,',','.','')"/>
+								<qry:attribute name="n_total" value="format-number($r/@n_total,0,2,',','.','')"/>
+								<qry:attribute name="f_transferido" value="format-date($r/@f_transferido,'dd/mm/yyyy')"/>
+							</qry:element>
+						</qry:then>
+					</qry:if>
+				</qry:out>
+			</qry:select>
+			<qry:select name="qryTipoComprob" doc="PARAM">
+				<qry:xquery>
+					for $r in SQL('
+			
+			SELECT
+				LEG63_TIPOS_COMPROB.c_tipo_comprob,				
+				LEG63_TIPOS_COMPROB.d_tipo_comprob
+			
+			FROM
+				LEG63_TIPOS_COMPROB
+				
+			WHERE
+				LEG63_TIPOS_COMPROB.oi_tipo_comprob = {$PARAM/oi_tipo_comprob/@value}
+			
+			')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:attribute name="oi_tipo_comprob" value="'['+$r/@c_tipo_comprob+'] '+$r/@d_tipo_comprob"/>
+				</qry:out>
+			</qry:select>
+		</qry:define>
+		<qry:define name="LIST_CONCEPTOS">
+			<qry:main doc="SOURCE">
+				<qry:element name="ROWS">
+					<qry:insert-select name="qryROW" doc-path="#SOURCE:."/>
+				</qry:element>
+			</qry:main>
+			<qry:select name="qryROW" doc="PARAM">
+				<qry:xquery>
+					for $r in $PARAM/CONCEPTO_COMP
+				</qry:xquery>
+				<qry:out>
+					<qry:if test="$r/@nmd-status!='~x,'">
+						<qry:then>
+							<qry:element name="ROW">
+								<qry:attribute name="id" value="$r/@id"/>
+								<qry:insert-select name="qryConcepto" doc-path="$r"/>
+								<qry:attribute name="d_producto" value="$r/@d_producto"/>
+								<qry:attribute name="n_cantidad" value="$r/@n_cantidad"/>
+								<qry:attribute name="n_precio_unitario" value="format-number($r/@n_precio_unitario,0,2,',','.','')"/>
+								<qry:attribute name="n_subtotal" value="format-number($r/@n_subtotal,0,2,',','.','')"/>
+								<qry:insert-select name="qryImpuesto" doc-path="$r"/>
+								<qry:if test="$r/@n_iva!=''">
+									<qry:then>
+										<qry:attribute name="n_iva" value="format-number($r/@n_iva,0,2,',','.','')"/>
+									</qry:then>
+								</qry:if>
+								<qry:attribute name="n_total" value="format-number($r/@n_total,0,2,',','.','')"/>
+							</qry:element>
+						</qry:then>
+					</qry:if>
+				</qry:out>
+			</qry:select>
+			<qry:select name="qryConcepto" doc="PARAM">
+				<qry:xquery>
+					for $r in SQL('
+			
+			SELECT
+				LEG53_CONCEPTOS.c_concepto,				
+				LEG53_CONCEPTOS.d_concepto
+			
+			FROM
+				LEG53_CONCEPTOS
+				
+			WHERE
+				LEG53_CONCEPTOS.oi_concepto = {$PARAM/oi_concepto/@value}
+			
+			')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:attribute name="oi_concepto" value="'['+$r/@c_concepto+'] '+$r/@d_concepto"/>
+				</qry:out>
+			</qry:select>
+			<qry:select name="qryImpuesto" doc="PARAM">
+				<qry:xquery>
+					for $r in SQL('
+			
+			SELECT
+				LEG62_IMPUESTOS.c_impuesto,
+				LEG62_IMPUESTOS.d_impuesto				
+			
+			FROM
+				LEG62_IMPUESTOS
+				
+			WHERE
+				LEG62_IMPUESTOS.oi_impuesto = {$PARAM/oi_impuesto/@value}
+			
+			')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:attribute name="oi_impuesto" value="'['+$r/@c_impuesto+'] '+$r/@d_impuesto"/>
+				</qry:out>
+			</qry:select>
+		</qry:define>
+		<qry:define name="LIST_IMPUESTOS">
+			<qry:main doc="SOURCE">
+				<qry:element name="ROWS">
+					<qry:insert-select name="qryROW" doc-path="#SOURCE:."/>
+				</qry:element>
+			</qry:main>
+			<qry:select name="qryROW" doc="PARAM">
+				<qry:xquery>
+					for $r in $PARAM/IMPUESTO_COMP
+				</qry:xquery>
+				<qry:out>
+					<qry:if test="$r/@nmd-status!='~x,'">
+						<qry:then>
+							<qry:element name="ROW">
+								<qry:attribute name="id" value="$r/@id"/>
+								<qry:insert-select name="qryImpuesto" doc-path="$r"/>
+								<qry:attribute name="d_detalle" value="$r/@d_detalle"/>
+								<qry:if test="$r/@n_base_imponible!=''">
+									<qry:then>
+										<qry:attribute name="n_base_imponible" value="format-number($r/@n_base_imponible,0,2,',','.','')"/>
+									</qry:then>
+								</qry:if>
+								<qry:if test="$r/@n_alicuota!=''">
+									<qry:then>
+										<qry:attribute name="n_alicuota" value="format-number($r/@n_alicuota,0,2,',','.','')"/>
+									</qry:then>
+								</qry:if>
+								<qry:attribute name="n_importe" value="format-number($r/@n_importe,0,2,',','.','')"/>
+							</qry:element>
+						</qry:then>
+					</qry:if>
+				</qry:out>
+			</qry:select>
+			<qry:select name="qryImpuesto" doc="PARAM">
+				<qry:xquery>
+					for $r in SQL('
+			
+			SELECT				
+				LEG62_IMPUESTOS.c_impuesto,
+				LEG62_IMPUESTOS.d_impuesto
+			
+			FROM
+				LEG62_IMPUESTOS
+				
+			WHERE
+				LEG62_IMPUESTOS.oi_impuesto = {$PARAM/oi_impuesto/@value}
+			
+			')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:attribute name="oi_impuesto" value="'['+$r/@c_impuesto+'] '+$r/@d_impuesto"/>
+				</qry:out>
+			</qry:select>
+		</qry:define>
+		<qry:define name="CONCEPTOS_REND">
+			<qry:main doc="SOURCE">
+				<qry:element name="CONCEPTOS_REND">
+					<qry:insert-select name="qryComprobantes" doc-path="#SOURCE:."/>
+				</qry:element>
+			</qry:main>
+			<qry:select name="qryComprobantes" doc="PARAM">
+				<qry:xquery>
+					for $r in $PARAM/COMPS_RENDICION/COMP_RENDICION
+				</qry:xquery>
+				<qry:out>
+					<qry:if test="$r/@nmd-status!='~x,'">
+						<qry:then>
+							<qry:insert-select name="qryConceptos" doc-path="$r"/>
+						</qry:then>
+					</qry:if>
+				</qry:out>
+			</qry:select>
+			<qry:select name="qryConceptos" doc="PARAM">
+				<qry:xquery>
+					for $r in $PARAM/CONCEPTOS_COMP/CONCEPTO_COMP
+				</qry:xquery>
+				<qry:out>
+					<qry:if test="$r/@nmd-status!='~x,'">
+						<qry:then>
+							<qry:element name="CONCEPTO_REND">
+								<qry:attribute name="oi_concepto" value="$r/oi_concepto/@value"/>
+								<qry:attribute name="n_total" value="$r/@n_total"/>
+							</qry:element>
+						</qry:then>
+					</qry:if>
+				</qry:out>
+			</qry:select>
+		</qry:define>
+		<qry:define name="CONCEPTOS_COMP">
+			<qry:main doc="SOURCE">
+				<qry:element name="CONCEPTOS_COMP">
+					<qry:insert-select name="qryConceptos" doc-path="#SOURCE:."/>
+				</qry:element>
+			</qry:main>
+			<qry:select name="qryConceptos" doc="PARAM">
+				<qry:xquery>
+					for $r in $PARAM/CONCEPTOS_COMP/CONCEPTO_COMP
+				</qry:xquery>
+				<qry:out>
+					<qry:if test="$r/@nmd-status!='~x,'">
+						<qry:then>
+							<qry:element name="CONCEPTO_COMP">
+								<qry:attribute name="oi_concepto" value="$r/oi_concepto/@value"/>
+								<qry:attribute name="n_total" value="$r/@n_total"/>
+							</qry:element>
+						</qry:then>
+					</qry:if>
+				</qry:out>
+			</qry:select>
+		</qry:define>
+		<doc:define name="EMPRESA"/>
+		<doc:define name="TIPO_COMPROB"/>
+		<qry:define name="TOTALES_COMP">
+			<qry:main doc="SOURCE">
+				<qry:element name="TOTALES">
+					<qry:attribute name="n_subtotal" value="0"/>
+					<qry:attribute name="n_subtotal_grav" value="0"/>
+					<qry:attribute name="n_iva" value="0"/>
+					<qry:attribute name="n_otros_impuestos" value="0"/>
+					<qry:insert-select name="qryConceptos" doc-path="#SOURCE:."/>
+					<qry:insert-select name="qryImpuestos" doc-path="#SOURCE:."/>
+					<qry:attribute name="n_total" value="Number(@n_subtotal)+Number(@n_iva)+Number(@n_otros_impuestos)"/>
+				</qry:element>
+			</qry:main>
+			<qry:select name="qryConceptos" doc="PARAM">
+				<qry:xquery>
+					for $r in $PARAM/CONCEPTOS_COMP/CONCEPTO_COMP
+				</qry:xquery>
+				<qry:out>
+					<qry:if test="$r/@nmd-status!='~x,'">
+						<qry:then>
+							<qry:attribute name="n_subtotal" value="Number(@n_subtotal)+Number($r/@n_subtotal)"/>
+							<qry:if test="$r/@n_iva!=''">
+								<qry:then>
+									<qry:attribute name="n_subtotal_grav" value="Number(@n_subtotal_grav)+Number($r/@n_subtotal)"/>
+									<qry:attribute name="n_iva" value="Number(@n_iva)+Number($r/@n_iva)"/>
+								</qry:then>
+							</qry:if>
+						</qry:then>
+					</qry:if>
+				</qry:out>
+			</qry:select>
+			<qry:select name="qryImpuestos" doc="PARAM">
+				<qry:xquery>
+					for $r in $PARAM/IMPUESTOS_COMP/IMPUESTO_COMP
+				</qry:xquery>
+				<qry:out>
+					<qry:if test="$r/@nmd-status!='~x,'">
+						<qry:then>
+							<qry:attribute name="n_otros_impuestos" value="Number(@n_otros_impuestos)+Number($r/@n_importe)"/>
+						</qry:then>
+					</qry:if>
+				</qry:out>
+			</qry:select>
+		</qry:define>
+		<doc:define name="TOTALES_COMP"/>
+		<doc:define name="TITULO"/>
+	</flow:declare>
+	<flow:form mode="FILTER" parent-doc="PARENT" doc="SOURCE" form-class="NucleusRH.Base.Legales.Rendiciones.RENDICION.MAIN.STD_FIL.form" name="NucleusRH.Base.Legales.Rendiciones.RENDICION.MAIN.STD_FIL.form:FILTER">
+		<flow:action name="on-show">
+			<flow:call-action action="Load-FILTER"/>
+		</flow:action>
+		<flow:action name="BACK">
+			<flow:close-form/>
+		</flow:action>
+		<flow:action name="ACCEPT">
+			<flow:call-action action="Save-FILTER"/>
+			<flow:open-form mode="LIST" parent-doc-path="#SOURCE:" doc-path="#SOURCE:" form-class="NucleusRH.Base.Legales.Rendiciones.RENDICION.MAIN.STD_LIST.autoform"/>
+		</flow:action>
+		<flow:action name="Load-FILTER">
+			<flow:load-user-data doc="DATA" name="NucleusRH.Base.Legales.Rendiciones.RENDICION.MAIN.STD_FIL.filter"/>
+		</flow:action>
+		<flow:action name="Save-FILTER">
+			<flow:save-user-data doc-path="#DATA:" name="NucleusRH.Base.Legales.Rendiciones.RENDICION.MAIN.STD_FIL.filter"/>
+		</flow:action>
+		<flow:action name="ADD">
+			<flow:open-form mode="NEW" parent-doc-path="#SOURCE:" doc-path="#SOURCE:" form-class="NucleusRH.Base.Legales.Rendiciones.RENDICION.MAIN.STD_REG.form"/>
+		</flow:action>
+	</flow:form>
+	<flow:form mode="NEW" parent-doc="PARENT" doc="SOURCE" form-class="NucleusRH.Base.Legales.Rendiciones.RENDICION.MAIN.STD_REG.form" name="NucleusRH.Base.Legales.Rendiciones.RENDICION.MAIN.STD_REG.form:NEW">
+		<flow:action name="on-show">
+			<doc:load-qry output-doc="RSCOMPROBANTES" input-doc-path="#DDO:COMPS_RENDICION" qry="LIST_COMPROBANTES"/>
+			<flow:attach-doc doc-path="#RSCOMPROBANTES:" attach-id="RSCOMPROBANTES"/>
+		</flow:action>
+		<flow:action name="on-open">
+			<flow:call-action action="INT-CREATE"/>
+		</flow:action>
+		<flow:action name="REFRESH"/>
+		<flow:action name="CANCEL">
+			<flow:close-form/>
+		</flow:action>
+		<flow:action name="SAVE">
+			<flow:call-action action="INT-VALIDATE"/>
+			<flow:call-action action="INT-SAVE"/>
+			<flow:close-form/>
+		</flow:action>
+		<flow:action name="INT-CREATE">
+			<doc:new-object doc="DDO" class="NucleusRH.Base.Legales.Rendiciones.RENDICION"/>
+			<doc:set-attribute to-attr-path="#DDO:@n_monto_rendicion" from-value="0"/>
+		</flow:action>
+		<flow:action name="INT-VALIDATE"/>
+		<flow:action name="INT-SAVE">
+			<!--doc:set-attribute from-value="1" to-attr-path="#DDO:@oi_adelanto"/-->
+			<flow:exec-method class="NucleusRH.Base.Legales.Rendiciones.RENDICION" method="GuardarRendicion">
+				<flow:param doc="DDO" type="Nomad.NSystem.Object" mode="in" name="DDO"/>
+			</flow:exec-method>
+			<doc:save-object class="NucleusRH.BaytonRH.Legales.Rendiciones.RENDICION" doc="DDO"/>
+		</flow:action>
+		<flow:action name="ADD-COMP">
+			<doc:new-object doc="COMP_RENDICION" class="NucleusRH.Base.Legales.Rendiciones.COMP_RENDICION"/>
+			<doc:set-attribute to-attr-path="#COMP_RENDICION:@n_subtotal" from-value="0"/>
+			<doc:set-attribute to-attr-path="#COMP_RENDICION:@n_subtotal_grav" from-value="0"/>
+			<doc:set-attribute to-attr-path="#COMP_RENDICION:@n_iva" from-value="0"/>
+			<doc:set-attribute to-attr-path="#COMP_RENDICION:@n_otros_impuestos" from-value="0"/>
+			<doc:set-attribute to-attr-path="#COMP_RENDICION:@n_total" from-value="0"/>
+			<flow:open-form doc-path="#COMP_RENDICION:" mode="NEW" form-class="NucleusRH.Base.Legales.Rendiciones.COMP_RENDICION.form"/>
+			<flow:call-action action="LIMPIAR-IVA"/>
+		</flow:action>
+		<flow:action name="EDIT-COMP">
+			<flow:open-form doc-path="#DDO:COMPS_RENDICION/COMP_RENDICION[@id='{#FORM:ctrl[@id='lv_comprobantes']/@xval}']" mode="EDIT" form-class="NucleusRH.Base.Legales.Rendiciones.COMP_RENDICION.form"/>
+		</flow:action>
+		<flow:action name="DEL-COMP">
+			<doc:delete-object doc-path="#DDO:COMPS_RENDICION/COMP_RENDICION[@id='{#FORM:ctrl[@id='lv_comprobantes']/@xval}']"/>
+			<flow:call-action action="TOTAL"/>
+			<flow:call-action action="on-show"/>
+		</flow:action>
+		<flow:action name="TOTAL">
+			<flow:exec-method class="NucleusRH.Base.Legales.Rendiciones.RENDICION" out-doc="DDO" out-type="Nomad.NSystem.Object" method="CalcularTotal">
+				<flow:param name="DDO" doc="DDO" type="Nomad.NSystem.Object" mode="in"/>
+			</flow:exec-method>
+		</flow:action>
+		<flow:action name="LIMPIAR-IVA">
+			<doc:set-attribute from-value="0" to-attr-path="#DETALLE_IVA:@n_exento"/>
+			<doc:set-attribute from-value="0" to-attr-path="#DETALLE_IVA:@n_iva_270"/>
+			<doc:set-attribute from-value="0" to-attr-path="#DETALLE_IVA:@n_iva_210"/>
+			<doc:set-attribute from-value="0" to-attr-path="#DETALLE_IVA:@n_iva_105"/>
+			<doc:set-attribute from-value="0" to-attr-path="#DETALLE_IVA:@n_iva_050"/>
+			<doc:set-attribute from-value="0" to-attr-path="#DETALLE_IVA:@n_iva_025"/>
+			<doc:set-attribute from-value="0" to-attr-path="#DETALLE_IVA:@n_iva_000"/>
+		</flow:action>
+	</flow:form>
+	<flow:form mode="NEW" form-class="NucleusRH.Base.Legales.Rendiciones.COMP_RENDICION.form" name="NucleusRH.Base.Legales.Rendiciones.COMP_RENDICION.form:NEW" doc="SOURCE">
+		<flow:action name="on-show">
+			<doc:load-qry input-doc-path="#SOURCE:CONCEPTOS_COMP" output-doc="RSCONCEPTOS" qry="LIST_CONCEPTOS"/>
+			<flow:attach-doc doc-path="#RSCONCEPTOS:" attach-id="RSCONCEPTOS"/>
+			<doc:load-qry input-doc-path="#SOURCE:IMPUESTOS_COMP" output-doc="RSIMPUESTOS" qry="LIST_IMPUESTOS"/>
+			<flow:attach-doc doc-path="#RSIMPUESTOS:" attach-id="RSIMPUESTOS"/>
+			<!--doc:load-qry input-doc-path="#SOURCE:" output-doc="CONCEPTOS_COMP" qry="CONCEPTOS_COMP"/-->
+		</flow:action>
+		<flow:action name="ACCEPT">
+			<doc:add-object parent-doc-path="#DDO:COMPS_RENDICION" doc-path="#SOURCE:"/>
+			<flow:close-form next-action="TOTAL"/>
+		</flow:action>
+		<flow:action name="CANCEL">
+			<flow:close-form/>
+		</flow:action>
+		<flow:action name="ADD-CONC">
+			<doc:new-object doc="CONCEPTO_COMP" class="NucleusRH.Base.Legales.Rendiciones.CONCEPTO_COMP"/>
+			<flow:open-form parent-doc-path="#SOURCE:" doc-path="#CONCEPTO_COMP:" form-class="NucleusRH.Base.Legales.Rendiciones.CONCEPTO_COMP.form" mode="NEW"/>
+		</flow:action>
+		<flow:action name="ADD-IMP">
+			<doc:new-object doc="IMPUESTO_COMP" class="NucleusRH.Base.Legales.Rendiciones.IMPUESTO_COMP"/>
+			<flow:open-form parent-doc-path="#SOURCE:" doc-path="#IMPUESTO_COMP:" form-class="NucleusRH.Base.Legales.Rendiciones.IMPUESTO_COMP.form" mode="NEW"/>
+		</flow:action>
+		<flow:action name="EDIT-CONC">
+			<flow:open-form parent-doc-path="#SOURCE:" doc-path="#SOURCE:CONCEPTOS_COMP/CONCEPTO_COMP[@id='{#FORM:ctrl[@id='lv_conceptos']/@xval}']" mode="EDIT" form-class="NucleusRH.Base.Legales.Rendiciones.CONCEPTO_COMP.form"/>
+		</flow:action>
+		<flow:action name="EDIT-IMP">
+			<flow:open-form mode="EDIT" form-class="NucleusRH.Base.Legales.Rendiciones.IMPUESTO_COMP.form" doc-path="#SOURCE:IMPUESTOS_COMP/IMPUESTO_COMP[@id='{#FORM:ctrl[@id='lv_impuestos']/@xval}']"/>
+		</flow:action>
+		<flow:action name="DEL-CONC">
+			<doc:delete-object doc-path="#SOURCE:CONCEPTOS_COMP/CONCEPTO_COMP[@id='{#FORM:ctrl[@id='lv_conceptos']/@xval}']"/>
+			<flow:call-action action="TOTALES"/>
+			<flow:call-action action="on-show"/>
+		</flow:action>
+		<flow:action name="DEL-IMP">
+			<doc:delete-object doc-path="#SOURCE:IMPUESTOS_COMP/IMPUESTO_COMP[@id='{#FORM:ctrl[@id='lv_impuestos']/@xval}']"/>
+			<flow:call-action action="TOTALES"/>
+			<flow:call-action action="on-show"/>
+		</flow:action>
+		<flow:action name="TOTALES_OLD">
+			<flow:exec-method out-type="Nomad.NSystem.Object" out-doc="SOURCE" class="NucleusRH.Base.Legales.Rendiciones.COMP_RENDICION" method="CalcularTotales">
+				<flow:param doc="SOURCE" mode="in" name="COMP" type="Nomad.NSystem.Object"/>
+			</flow:exec-method>
+		</flow:action>
+		<flow:action name="TOTALES">
+			<doc:load-qry output-doc="TOTALES_COMP" input-doc-path="#SOURCE:" qry="TOTALES_COMP"/>
+			<doc:set-attribute from-attr-path="#TOTALES_COMP:@n_subtotal" to-attr-path="#SOURCE:@n_subtotal"/>
+			<doc:set-attribute from-attr-path="#TOTALES_COMP:@n_subtotal_grav" to-attr-path="#SOURCE:@n_subtotal_grav"/>
+			<doc:set-attribute from-attr-path="#TOTALES_COMP:@n_iva" to-attr-path="#SOURCE:@n_iva"/>
+			<doc:set-attribute from-attr-path="#TOTALES_COMP:@n_otros_impuestos" to-attr-path="#SOURCE:@n_otros_impuestos"/>
+			<doc:set-attribute from-attr-path="#TOTALES_COMP:@n_total" to-attr-path="#SOURCE:@n_total"/>
+		</flow:action>
+	</flow:form>
+	<flow:form parent-doc="PARENT" form-class="NucleusRH.Base.Legales.Rendiciones.CONCEPTO_COMP.form" name="NucleusRH.Base.Legales.Rendiciones.CONCEPTO_COMP.form:NEW" mode="NEW" doc="SOURCE">
+		<flow:action name="on-show"/>
+		<flow:action name="on-open">
+			<!--doc:load-qry output-doc="CONCEPTOS_REND" qry="CONCEPTOS_REND" input-doc-path="#DDO:"/>
+	<flow:attach-doc doc-path="#CONCEPTOS_REND:" attach-id="CONCEPTOS_REND"/>
+	<flow:attach-doc doc-path="#CONCEPTOS_COMP:" attach-id="CONCEPTOS_COMP"/-->
+			<doc:set-attribute from-attr-path="#PARENT:oi_tipo_comprob/@value" to-attr-path="#TIPO_COMPROB:@oi_tipo_comprob"/>
+		</flow:action>
+		<flow:action name="ACCEPT">
+			<doc:add-object parent-doc-path="#PARENT:CONCEPTOS_COMP" doc-path="#SOURCE:"/>
+			<flow:close-form next-action="TOTALES"/>
+		</flow:action>
+		<flow:action name="CANCEL">
+			<flow:close-form/>
+		</flow:action>
+	</flow:form>
+	<flow:form parent-doc="PARENT" name="NucleusRH.Base.Legales.Rendiciones.IMPUESTO_COMP.form:NEW" form-class="NucleusRH.Base.Legales.Rendiciones.IMPUESTO_COMP.form" mode="NEW" doc="SOURCE">
+		<flow:action name="ACCEPT">
+			<doc:add-object parent-doc-path="#PARENT:IMPUESTOS_COMP" doc-path="#SOURCE:"/>
+			<flow:close-form next-action="TOTALES"/>
+		</flow:action>
+		<flow:action name="CANCEL">
+			<flow:close-form/>
+		</flow:action>
+	</flow:form>
+	<flow:form parent-doc="PARENT" mode="EDIT" name="NucleusRH.Base.Legales.Rendiciones.CONCEPTO_COMP.form:EDIT" form-class="NucleusRH.Base.Legales.Rendiciones.CONCEPTO_COMP.form" doc="SOURCE">
+		<flow:action name="on-show"/>
+		<flow:action name="on-open">
+			<!--doc:load-qry output-doc="CONCEPTOS_REND" qry="CONCEPTOS_REND" input-doc-path="#DDO:"/>
+	<flow:attach-doc doc-path="#CONCEPTOS_REND:" attach-id="CONCEPTOS_REND"/>
+	<flow:attach-doc doc-path="#CONCEPTOS_COMP:" attach-id="CONCEPTOS_COMP"/-->
+			<doc:set-attribute from-attr-path="#PARENT:oi_tipo_comprob/@value" to-attr-path="#TIPO_COMPROB:@oi_tipo_comprob"/>
+		</flow:action>
+		<flow:action name="ACCEPT">
+			<flow:close-form next-action="TOTALES"/>
+		</flow:action>
+	</flow:form>
+	<flow:form mode="EDIT" name="NucleusRH.Base.Legales.Rendiciones.IMPUESTO_COMP.form:EDIT" form-class="NucleusRH.Base.Legales.Rendiciones.IMPUESTO_COMP.form" doc="SOURCE">
+		<flow:action name="ACCEPT">
+			<flow:close-form next-action="TOTALES"/>
+		</flow:action>
+	</flow:form>
+	<flow:form mode="EDIT" name="NucleusRH.Base.Legales.Rendiciones.COMP_RENDICION.form:EDIT" form-class="NucleusRH.Base.Legales.Rendiciones.COMP_RENDICION.form" doc="SOURCE">
+		<flow:action name="on-show">
+			<doc:load-qry input-doc-path="#SOURCE:CONCEPTOS_COMP" output-doc="RSCONCEPTOS" qry="LIST_CONCEPTOS"/>
+			<flow:attach-doc doc-path="#RSCONCEPTOS:" attach-id="RSCONCEPTOS"/>
+			<doc:load-qry input-doc-path="#SOURCE:IMPUESTOS_COMP" output-doc="RSIMPUESTOS" qry="LIST_IMPUESTOS"/>
+			<flow:attach-doc doc-path="#RSIMPUESTOS:" attach-id="RSIMPUESTOS"/>
+			<!--doc:load-qry output-doc="CONCEPTOS_COMP" qry="CONCEPTOS_COMP"/-->
+		</flow:action>
+		<flow:action name="ACCEPT">
+			<flow:close-form next-action="TOTAL"/>
+		</flow:action>
+		<flow:action name="ADD-CONC">
+			<doc:new-object doc="CONCEPTO_COMP" class="NucleusRH.Base.Legales.Rendiciones.CONCEPTO_COMP"/>
+			<flow:open-form parent-doc-path="#SOURCE:" doc-path="#CONCEPTO_COMP:" form-class="NucleusRH.Base.Legales.Rendiciones.CONCEPTO_COMP.form" mode="NEW"/>
+		</flow:action>
+		<flow:action name="ADD-IMP">
+			<doc:new-object doc="IMPUESTO_COMP" class="NucleusRH.Base.Legales.Rendiciones.IMPUESTO_COMP"/>
+			<flow:open-form parent-doc-path="#SOURCE:" doc-path="#IMPUESTO_COMP:" form-class="NucleusRH.Base.Legales.Rendiciones.IMPUESTO_COMP.form" mode="NEW"/>
+		</flow:action>
+		<flow:action name="EDIT-CONC">
+			<flow:open-form parent-doc-path="#SOURCE:" doc-path="#SOURCE:CONCEPTOS_COMP/CONCEPTO_COMP[@id='{#FORM:ctrl[@id='lv_conceptos']/@xval}']" mode="EDIT" form-class="NucleusRH.Base.Legales.Rendiciones.CONCEPTO_COMP.form"/>
+		</flow:action>
+		<flow:action name="EDIT-IMP">
+			<flow:open-form mode="EDIT" form-class="NucleusRH.Base.Legales.Rendiciones.IMPUESTO_COMP.form" doc-path="#SOURCE:IMPUESTOS_COMP/IMPUESTO_COMP[@id='{#FORM:ctrl[@id='lv_impuestos']/@xval}']"/>
+		</flow:action>
+		<flow:action name="DEL-CONC">
+			<doc:delete-object doc-path="#SOURCE:CONCEPTOS_COMP/CONCEPTO_COMP[@id='{#FORM:ctrl[@id='lv_conceptos']/@xval}']"/>
+			<flow:call-action action="TOTALES"/>
+			<flow:call-action action="on-show"/>
+		</flow:action>
+		<flow:action name="DEL-IMP">
+			<doc:delete-object doc-path="#SOURCE:IMPUESTOS_COMP/IMPUESTO_COMP[@id='{#FORM:ctrl[@id='lv_impuestos']/@xval}']"/>
+			<flow:call-action action="TOTALES"/>
+			<flow:call-action action="on-show"/>
+		</flow:action>
+		<flow:action name="TOTALES_OLD">
+			<flow:exec-method out-doc="SOURCE" out-type="Nomad.NSystem.Object" class="NucleusRH.Base.Legales.Rendiciones.COMP_RENDICION" method="CalcularTotales">
+				<flow:param name="COMP" doc="SOURCE" type="Nomad.NSystem.Object" mode="in"/>
+			</flow:exec-method>
+		</flow:action>
+		<flow:action name="TOTALES">
+			<doc:load-qry output-doc="TOTALES_COMP" input-doc-path="#SOURCE:" qry="TOTALES_COMP"/>
+			<doc:set-attribute from-attr-path="#TOTALES_COMP:@n_subtotal" to-attr-path="#SOURCE:@n_subtotal"/>
+			<doc:set-attribute from-attr-path="#TOTALES_COMP:@n_subtotal_grav" to-attr-path="#SOURCE:@n_subtotal_grav"/>
+			<doc:set-attribute from-attr-path="#TOTALES_COMP:@n_iva" to-attr-path="#SOURCE:@n_iva"/>
+			<doc:set-attribute from-attr-path="#TOTALES_COMP:@n_otros_impuestos" to-attr-path="#SOURCE:@n_otros_impuestos"/>
+			<doc:set-attribute from-attr-path="#TOTALES_COMP:@n_total" to-attr-path="#SOURCE:@n_total"/>
+		</flow:action>
+	</flow:form>
+	<flow:form mode="SHOW" parent-doc="PARENT" doc="SOURCE" form-class="NucleusRH.Base.Legales.Rendiciones.RENDICION.MAIN.STD_REG.form" name="NucleusRH.Base.Legales.Rendiciones.RENDICION.MAIN.STD_REG.form:SHOW">
+		<flow:action name="on-show">
+			<doc:load-qry output-doc="RSCOMPROBANTES" input-doc-path="#DDO:COMPS_RENDICION" qry="LIST_COMPROBANTES"/>
+			<flow:attach-doc doc-path="#RSCOMPROBANTES:" attach-id="RSCOMPROBANTES"/>
+		</flow:action>
+		<flow:action name="ADMIN">
+			<flow:open-form mode="SHOW" parent-doc-path="#DDO:" doc-path="#DDO:" form-class="Nomad.Base.Security.form"/>
+		</flow:action>
+		<flow:action name="on-open">
+			<flow:call-action action="REFRESH"/>
+		</flow:action>
+		<flow:action name="REFRESH">
+			<doc:new-object doc="DDO" class="NucleusRH.Base.Legales.Rendiciones.RENDICION"/>
+			<doc:load-object id-path="#SOURCE:@ID" doc="DDO" load-child="1" load-all="1" class="NucleusRH.Base.Legales.Rendiciones.RENDICION"/>
+		</flow:action>
+		<flow:action name="BACK">
+			<flow:close-form/>
+		</flow:action>
+		<flow:action name="EDIT">
+			<flow:close-form next-action="EDIT"/>
+		</flow:action>
+		<flow:action name="DELETE">
+			<flow:close-form next-action="DELETE"/>
+		</flow:action>
+		<flow:action name="SHOW-COMP-OLD">
+			<flow:open-form doc-path="#DDO:COMPS_RENDICION/COMP_RENDICION[@id='{#FORM:ctrl[@id='lv_comprobantes']/@xval}']" mode="SHOW" form-class="NucleusRH.Base.Legales.Rendiciones.COMP_RENDICION.form"/>
+		</flow:action>
+		<flow:action name="SHOW-COMP">
+			<doc:load-object id-path="#FORM:ctrl[@id='lv_comprobantes']/@xval" doc="COMP_RENDICION" class="NucleusRH.Base.Legales.Rendiciones.COMP_RENDICION" load-child="1" load-all="1"/>
+			<flow:open-form doc-path="#COMP_RENDICION:" mode="SHOW" form-class="NucleusRH.Base.Legales.Rendiciones.COMP_RENDICION.form"/>
+		</flow:action>
+	</flow:form>
+	<flow:form mode="SHOW" name="NucleusRH.Base.Legales.Rendiciones.COMP_RENDICION.form:SHOW" form-class="NucleusRH.Base.Legales.Rendiciones.COMP_RENDICION.form" doc="SOURCE">
+		<flow:action name="on-show">
+			<doc:load-qry input-doc-path="#SOURCE:CONCEPTOS_COMP" output-doc="RSCONCEPTOS" qry="LIST_CONCEPTOS"/>
+			<flow:attach-doc doc-path="#RSCONCEPTOS:" attach-id="RSCONCEPTOS"/>
+			<doc:load-qry input-doc-path="#SOURCE:IMPUESTOS_COMP" output-doc="RSIMPUESTOS" qry="LIST_IMPUESTOS"/>
+			<flow:attach-doc doc-path="#RSIMPUESTOS:" attach-id="RSIMPUESTOS"/>
+		</flow:action>
+		<flow:action name="BACK">
+			<flow:close-form/>
+		</flow:action>
+		<flow:action name="SHOW-CONC">
+			<flow:open-form doc-path="#SOURCE:CONCEPTOS_COMP/CONCEPTO_COMP[@id='{#FORM:ctrl[@id='lv_conceptos']/@xval}']" mode="SHOW" form-class="NucleusRH.Base.Legales.Rendiciones.CONCEPTO_COMP.form"/>
+		</flow:action>
+		<flow:action name="SHOW-IMP">
+			<flow:open-form mode="SHOW" form-class="NucleusRH.Base.Legales.Rendiciones.IMPUESTO_COMP.form" doc-path="#SOURCE:IMPUESTOS_COMP/IMPUESTO_COMP[@id='{#FORM:ctrl[@id='lv_impuestos']/@xval}']"/>
+		</flow:action>
+	</flow:form>
+	<flow:form parent-doc="PARENT" mode="SHOW" name="NucleusRH.Base.Legales.Rendiciones.CONCEPTO_COMP.form:SHOW" form-class="NucleusRH.Base.Legales.Rendiciones.CONCEPTO_COMP.form" doc="SOURCE">
+		<flow:action name="BACK">
+			<flow:close-form/>
+		</flow:action>
+	</flow:form>
+	<flow:form mode="SHOW" name="NucleusRH.Base.Legales.Rendiciones.IMPUESTO_COMP.form:SHOW" form-class="NucleusRH.Base.Legales.Rendiciones.IMPUESTO_COMP.form" doc="SOURCE">
+		<flow:action name="BACK">
+			<flow:close-form/>
+		</flow:action>
+	</flow:form>
+</flow:flow>

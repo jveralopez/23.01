@@ -1,0 +1,289 @@
+<html:html xmlns:html="nomad_engine.html" xmlns:qry="nomad_engine.qry" name="NucleusRH.Base.Organizacion.OrganigramaSeguridad" doc="source" extends="Nomad.Base.BaseReport.rpt">
+	<html:query>
+		<qry:main doc="SOURCE">
+			<qry:append-doc name="FILTRO" doc-path="#SOURCE:"/>
+			<REPORT label="Listado de Personas por Estructura">
+				<qry:attribute value="format_date(now(),'dd/mm/yyyy HH:MM')" name="date"/>
+				<GROUPS>
+					<GROUP tag="CLASE" type="title">
+						<COLS>
+							<COL name="clase" label="Organigrama"/>
+						</COLS>
+						<GROUP tag="ESTRUC" type="title">
+							<COLS>
+								<COL name="unidad" label="Estructura"/>
+							</COLS>
+							<GROUP tag="PER" label="Personas en la Estructura" type="table">
+								<COLS>
+									<COL name="nombre" label="Nombre y Apellido" style="width:80%" nowrap="1"/>
+								</COLS>
+							</GROUP>
+							<GROUP tag="PERS_VIEW" label="Personas con acceso" type="table">
+								<COLS>
+									<COL name="nombre" label="Nombre y Apellido" style="width:80%" nowrap="1"/>
+								</COLS>
+							</GROUP>
+						</GROUP>
+					</GROUP>
+				</GROUPS>
+				<qry:element name="DATA">
+					<qry:append-doc name="DOC" doc-path="."/>
+					<qry:insert-select doc-path="#SOURCE:" name="QRY_PARAM"/>
+					<qry:insert-select doc-path="." name="QRY_ORG"/>
+					<qry:insert-select doc-path="#DOC:" name="QRY_PERS"/>
+					<qry:insert-select doc-path="#DOC:" name="QRY_PERS_HIJOS"/>
+				</qry:element>
+			</REPORT>
+		</qry:main>
+		<qry:select name="QRY_PARAM" doc="SOURCE">
+			<qry:xquery>
+				for $r in sql('
+				SELECT org26_parametros.d_valor
+				FROM org26_parametros
+				WHERE 
+				org26_parametros.c_modulo = \'ORG\' 
+				and org26_parametros.c_parametro = \'ClsPol\'
+			')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:attribute name="d_valor" value="$r/@d_valor"/>
+			</qry:out>
+		</qry:select>
+		<qry:select name="QRY_ORG" doc="SOURCE">
+			<qry:xquery>
+				for $r in sql('
+				SELECT 
+					ORG02_CLASES_ORG.oi_clase_org,
+					ORG02_CLASES_ORG.oi_estructura_org,
+					ORG02_CLASES_ORG.d_clase_org
+				FROM 
+					ORG02_CLASES_ORG
+				WHERE 
+					ORG02_CLASES_ORG.c_clase_org = {#SOURCE:@d_valor}
+					AND ORG02_CLASES_ORG.c_estado = \'V\'
+					AND ORG02_CLASES_ORG.l_automatica = 0
+			')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<CLASE>
+					<qry:attribute name="oi_clase_org" value="$r/@oi_clase_org"/>
+					<qry:attribute name="oi_estructura" value="$r/@oi_estructura_org"/>
+					<qry:attribute name="clase" value="$r/@d_clase_org"/>
+					<qry:insert-select name="QRY_ESTRUC_PPAL" doc-path="."/>
+				</CLASE>
+			</qry:out>
+		</qry:select>
+		<qry:select name="QRY_ESTRUC_PPAL" doc="SOURCE">
+			<qry:xquery>
+				for $r in sql('
+				SELECT 
+					ORG02_ESTRUCTURAS.oi_estructura,
+					ORG02_ESTRUCTURAS.oi_clase as oi_clase_org,
+					ORG01_UNI_ORG.c_unidad_org,
+					ORG01_UNI_ORG.d_unidad_org					
+				FROM 
+					ORG02_ESTRUCTURAS,
+					ORG01_UNI_ORG 
+				JOIN
+					ORG02_ESTRUCTURAS.oi_unidad_org INNER ORG01_UNI_ORG.oi_unidad_org 
+				WHERE 
+					ORG02_ESTRUCTURAS.oi_estructura = {#SOURCE:@oi_estructura} 
+			')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<ESTRUC>
+					<qry:attribute name="unidad" value="$r/@c_unidad_org + ' - ' + $r/@d_unidad_org"/>
+					<qry:attribute name="oi_estructura" value="$r/@oi_estructura"/>
+					<qry:insert-select name="QRY_RESP" doc-path="$r"/>
+				</ESTRUC>
+				<qry:insert-select name="QRY_CLASES_HIJAS" doc-path="$r"/>
+				<qry:insert-select name="QRY_ESTRUC_HIJAS" doc-path="$r"/>
+			</qry:out>
+		</qry:select>
+		<qry:select name="QRY_ESTRUC_HIJAS" doc="SOURCE">
+			<qry:xquery>
+				for $r in sql('
+				SELECT 
+					ORG02_ESTRUCTURAS.oi_estructura,
+					ORG02_ESTRUCTURAS.oi_estr_padre,
+					ORG01_UNI_ORG.c_unidad_org,
+					ORG01_UNI_ORG.d_unidad_org
+				FROM 
+					ORG02_ESTRUCTURAS,
+					ORG01_UNI_ORG
+				JOIN
+					ORG02_ESTRUCTURAS.oi_unidad_org INNER ORG01_UNI_ORG.oi_unidad_org
+				WHERE 
+					ORG02_ESTRUCTURAS.oi_estr_padre = {#SOURCE:@oi_estructura}
+			')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<ESTRUC>
+					<qry:attribute name="unidad" value="$r/@c_unidad_org + ' - ' + $r/@d_unidad_org"/>
+					<qry:attribute name="oi_estructura" value="$r/@oi_estructura"/>
+					<qry:attribute name="oi_estr_padre" value="$r/@oi_estr_padre"/>
+					<qry:insert-select name="QRY_RESP" doc-path="$r"/>
+					<qry:if test="count(PERS_VIEW)=0">
+						<qry:then>
+							<qry:insert-select name="QRY_RESP_PADRE" doc-path="$r"/>
+						</qry:then>
+						<qry:else/>
+					</qry:if>
+				</ESTRUC>
+				<qry:insert-select name="QRY_CLASES_HIJAS" doc-path="$r"/>
+				<qry:insert-select name="QRY_ESTRUC_HIJAS" doc-path="$r"/>
+			</qry:out>
+		</qry:select>
+		<qry:select name="QRY_PERS" doc="SOURCE">
+			<qry:xquery>
+				for $r in sql('
+				SELECT 
+					PER01_PERSONAL.d_ape_y_nom,
+					ORG02_ESTRUC_PERS.oi_estructura,
+					ORG02_ESTRUC_PERS.l_responsable
+				FROM
+					PER01_PERSONAL,
+					PER02_PERSONAL_EMP,
+					ORG02_ESTRUC_PERS
+				JOIN
+					ORG02_ESTRUC_PERS.oi_personal_emp INNER PER02_PERSONAL_EMP.oi_personal_emp,
+					PER02_PERSONAL_EMP.oi_personal INNER PER01_PERSONAL.oi_personal 
+				WHERE
+					PER02_PERSONAL_EMP.oi_indic_activo = 1
+			')/ROWS/ROW,
+$s in $DOC/CLASE/ESTRUC
+join $r/@oi_estructura inner $s/@oi_estructura
+			</qry:xquery>
+			<qry:out>
+				<qry:insert-select name="qry_pegar_per" doc-path="$r" to-element="$s"/>
+			</qry:out>
+		</qry:select>
+		<qry:select name="qry_pegar_per" doc="r">
+			<qry:out>
+				<qry:if test="$r/@l_responsable=0">
+					<qry:then>
+						<PER>
+							<qry:attribute name="nombre" value="$r/@d_ape_y_nom"/>
+						</PER>
+					</qry:then>
+					<qry:else/>
+				</qry:if>
+			</qry:out>
+		</qry:select>
+		<qry:select name="QRY_CLASES_HIJAS" doc="SOURCE">
+			<qry:xquery>
+				for $r in sql('
+				SELECT 
+					ORG02_CLASES_ORG.oi_estructura_org as oi_estructura
+				FROM 
+					ORG02_CLASES_ORG,
+					ORG02_CLASES_HIJAS 
+				JOIN
+					ORG02_CLASES_HIJAS.oi_clase_org INNER ORG02_CLASES_ORG.oi_clase_org
+				WHERE 
+				  ORG02_CLASES_HIJAS.oi_estructura = {#SOURCE:@oi_estructura}
+			')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:insert-select name="QRY_ESTRUC_PPAL" doc-path="$r"/>
+			</qry:out>
+		</qry:select>
+		<qry:select name="QRY_PERS_HIJOS" doc="SOURCE">
+			<qry:xquery>
+				for $r in sql('
+				SELECT 
+					PER01_PERSONAL.d_ape_y_nom,
+					ORG02_ESTRUC_PERS.oi_estructura,
+					ORG02_ESTRUCTURAS.oi_estr_padre,
+					ORG02_ESTRUC_PERS.l_responsable
+				FROM
+					PER01_PERSONAL,
+					PER02_PERSONAL_EMP,
+					ORG02_ESTRUC_PERS,
+					ORG02_ESTRUCTURAS
+				JOIN  
+					ORG02_ESTRUC_PERS.oi_estructura INNER ORG02_ESTRUCTURAS.oi_estructura,
+					ORG02_ESTRUC_PERS.oi_personal_emp INNER PER02_PERSONAL_EMP.oi_personal_emp,
+					PER02_PERSONAL_EMP.oi_personal INNER PER01_PERSONAL.oi_personal
+				WHERE
+					PER02_PERSONAL_EMP.oi_indic_activo = 1
+			')/ROWS/ROW,
+$s in $DOC/CLASE/ESTRUC
+join $r/@oi_estr_padre inner $s/@oi_estructura
+			</qry:xquery>
+			<qry:out>
+				<qry:insert-select name="qry_pegar_per_hijo" doc-path="$r" to-element="$s"/>
+			</qry:out>
+		</qry:select>
+		<qry:select name="qry_pegar_per_hijo" doc="r">
+			<qry:out>
+				<qry:if test="$r/@l_responsable=1">
+					<qry:then>
+						<PER>
+							<qry:attribute name="nombre" value="$r/@d_ape_y_nom"/>
+						</PER>
+					</qry:then>
+					<qry:else/>
+				</qry:if>
+			</qry:out>
+		</qry:select>
+		<qry:select name="QRY_RESP" doc="SOURCE">
+			<qry:xquery>
+				for $r in sql('
+				SELECT 
+					PER01_PERSONAL.d_ape_y_nom,
+					ORG02_ESTRUCTURAS.oi_estr_padre as oi_estructura,
+					ORG02_ESTRUC_PERS.l_responsable
+				FROM
+					PER01_PERSONAL,
+					PER02_PERSONAL_EMP,
+					ORG02_ESTRUC_PERS,
+					ORG02_ESTRUCTURAS
+				JOIN              
+				  ORG02_ESTRUC_PERS.oi_estructura INNER ORG02_ESTRUCTURAS.oi_estructura,
+					ORG02_ESTRUC_PERS.oi_personal_emp INNER PER02_PERSONAL_EMP.oi_personal_emp,
+					PER02_PERSONAL_EMP.oi_personal INNER PER01_PERSONAL.oi_personal 
+				WHERE
+					ORG02_ESTRUC_PERS.oi_estructura = {#SOURCE:@oi_estructura}
+					AND ORG02_ESTRUC_PERS.l_responsable = 1    
+					AND PER02_PERSONAL_EMP.oi_indic_activo = 1
+			')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<PERS_VIEW>
+					<qry:attribute name="nombre" value="$r/@d_ape_y_nom"/>
+				</PERS_VIEW>
+				<qry:insert-select name="QRY_RESP" doc-path="$r"/>
+			</qry:out>
+		</qry:select>
+		<qry:select name="QRY_RESP_PADRE" doc="SOURCE">
+			<qry:xquery>
+				for $r in sql('
+				SELECT 
+					PER01_PERSONAL.d_ape_y_nom,
+					ORG02_ESTRUCTURAS.oi_estr_padre,
+					ORG02_ESTRUC_PERS.l_responsable
+				FROM
+					PER01_PERSONAL,
+					PER02_PERSONAL_EMP,
+					ORG02_ESTRUC_PERS,
+					ORG02_ESTRUCTURAS
+				JOIN              
+				  ORG02_ESTRUC_PERS.oi_estructura INNER ORG02_ESTRUCTURAS.oi_estructura,
+					ORG02_ESTRUC_PERS.oi_personal_emp INNER PER02_PERSONAL_EMP.oi_personal_emp,
+					PER02_PERSONAL_EMP.oi_personal INNER PER01_PERSONAL.oi_personal 
+				WHERE
+					ORG02_ESTRUC_PERS.oi_estructura = {#SOURCE:@oi_estr_padre}
+					AND ORG02_ESTRUC_PERS.l_responsable = 1    
+					AND PER02_PERSONAL_EMP.oi_indic_activo = 1
+			')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<PERS_VIEW>
+					<qry:attribute name="nombre" value="$r/@d_ape_y_nom"/>
+				</PERS_VIEW>
+				<qry:insert-select name="QRY_RESP_PADRE" doc-path="$r"/>
+			</qry:out>
+		</qry:select>
+	</html:query>
+</html:html>

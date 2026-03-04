@@ -1,0 +1,93 @@
+<flow:flow xmlns:flow="nomad_engine.flow" xmlns:doc="nomad_engine.doc" xmlns:qry="nomad_engine.qry" name="NucleusRH.Base.Control_de_Visitas.Visitantes.VISITANTE.LM.guia.flow">
+	<flow:main doc="SOURCE">
+		<flow:action name="HELP">
+			<doc:load-qry output-doc="RS" input-doc-path="#SOURCE:" qry="HELP"/>
+			<flow:open-form parent-doc-path="#SOURCE:" doc-path="#RS:" mode="SHOW" form-class="NucleusRH.Base.Control_de_Visitas.Visitantes.VISITANTE.LM.guia.form"/>
+		</flow:action>
+	</flow:main>
+	<flow:declare>
+		<doc:define name="RS"/>
+		<doc:define name="OUT"/>
+		<qry:define declare="&lt;helper-mess ID=&quot;1&quot;/&gt;" name="HELP">
+			<qry:main doc="SOURCE">
+				<qry:element name="DATOS">
+					<qry:attribute type="Nomad.NSystem.String" value="#SOURCE:helper-mess/@ID" name="ID"/>
+					<qry:element name="ROWS">
+						<qry:insert-select name="RS1" doc-path="#SOURCE:"/>
+						<qry:insert-select name="RS2" doc-path="#SOURCE:"/>
+					</qry:element>
+				</qry:element>
+			</qry:main>
+			<qry:select doc="SOURCE" name="RS1">
+				<qry:xquery>
+					for $r in table('
+					SELECT VIS02_VISITANTES.oi_visitante, VIS02_VISITANTES.c_visitante, VIS02_VISITANTES.d_ape_y_nom
+					FROM VIS02_VISITANTES, VIS01_VISITAS_VIS
+					WHERE VIS02_VISITANTES.oi_visitante = VIS01_VISITAS_VIS.oi_visitante
+					AND VIS01_VISITAS_VIS.f_fechahora_sal IS NULL
+					{%? (#SOURCE:helper-mess/@ID!='') {% AND VIS01_VISITAS_VIS.oi_visita={%= #SOURCE:helper-mess/@ID %} %} {% AND 1=1%} %}					
+					AND {%? (string(#SOURCE:helper-mess/rows/row/@oi_visitante)!='') {%  VIS02_VISITANTES.oi_visitante in ({%=string(#SOURCE:helper-mess/rows/row/@oi_visitante) %}) %} {% 1 = 2 %} %}')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:element name="ROW">
+						<qry:attribute type="Nomad.NSystem.Int" value="$r/@oi_visitante" name="id"/>
+						<qry:attribute type="Nomad.NSystem.Int" value="$r/@oi_visitante" name="value"/>
+						<qry:attribute type="Nomad.NSystem.String" value="$r/@c_visitante" name="code"/>
+						<qry:attribute type="Nomad.NSystem.String" value="$r/@d_ape_y_nom" name="text"/>
+						<qry:attribute type="Nomad.NSystem.Boolean" value="1" name="check"/>
+					</qry:element>
+				</qry:out>
+			</qry:select>
+			<qry:select doc="SOURCE" name="RS2">
+				<qry:xquery>
+					for $r in table('
+					SELECT VIS02_VISITANTES.oi_visitante, VIS02_VISITANTES.c_visitante, VIS02_VISITANTES.d_ape_y_nom
+					FROM VIS02_VISITANTES, VIS01_VISITAS_VIS
+					WHERE VIS02_VISITANTES.oi_visitante = VIS01_VISITAS_VIS.oi_visitante
+					AND VIS01_VISITAS_VIS.f_fechahora_sal IS NULL
+					{%? (#SOURCE:helper-mess/@ID!='') {% AND VIS01_VISITAS_VIS.oi_visita={%= #SOURCE:helper-mess/@ID %} %} {% AND 1=1%} %}					
+					AND {%? (string(#SOURCE:helper-mess/rows/row/@oi_visitante)!='') {%  VIS02_VISITANTES.oi_visitante not in ({%=string(#SOURCE:helper-mess/rows/row/@oi_visitante) %}) %} {% 1 = 1 %} %}')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:element name="ROW">
+						<qry:attribute type="Nomad.NSystem.Int" value="$r/@oi_visitante" name="id"/>
+						<qry:attribute type="Nomad.NSystem.Int" value="$r/@oi_visitante" name="value"/>
+						<qry:attribute type="Nomad.NSystem.String" value="$r/@c_visitante" name="code"/>
+						<qry:attribute type="Nomad.NSystem.String" value="$r/@d_ape_y_nom" name="text"/>
+						<qry:attribute type="Nomad.NSystem.Boolean" value="0" name="check"/>
+					</qry:element>
+				</qry:out>
+			</qry:select>
+		</qry:define>
+		<qry:define name="PRUEBA">
+			<qry:main doc="SOURCE">
+				<qry:element name="helper-mess">
+					<qry:attribute type="Nomad.NSystem.Int" value="#SOURCE:DATOS/@ID" name="ID"/>
+					<qry:element name="rows">
+						<qry:insert-select name="RS1" doc-path="#SOURCE:"/>
+					</qry:element>
+				</qry:element>
+			</qry:main>
+			<qry:select doc="SOURCE" name="RS1">
+				<qry:xquery>
+					for $r in #SOURCE:DATOS/ROWS/ROW[@check=1]
+				</qry:xquery>
+				<qry:out>
+					<qry:element name="row">
+						<qry:attribute type="Nomad.NSystem.Int" value="$r/@id" name="oi_visitante"/>
+					</qry:element>
+				</qry:out>
+			</qry:select>
+		</qry:define>
+	</flow:declare>
+	<flow:form name="NucleusRH.Base.Control_de_Visitas.Visitantes.VISITANTE.LM.guia.form" parent-doc="INVAL" doc="SOURCE" mode="SHOW" form-class="NucleusRH.Base.Control_de_Visitas.Visitantes.VISITANTE.LM.guia.form">
+		<flow:action name="on-show"/>
+		<flow:action name="ACCEPT">
+			<doc:load-qry output-doc="OUT" input-doc-path="#SOURCE:" qry="PRUEBA"/>
+			<flow:exit-flow return-path="#OUT:"/>
+		</flow:action>
+		<flow:action name="CANCEL">
+			<flow:exit-flow return-path="#INVAL:"/>
+		</flow:action>
+	</flow:form>
+</flow:flow>

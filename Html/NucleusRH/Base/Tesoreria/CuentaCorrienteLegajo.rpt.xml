@@ -1,0 +1,166 @@
+<html:html xmlns:html="nomad_engine.html" xmlns:qry="nomad_engine.qry" name="NucleusRH.Base.Tesoreria.CuentaCorrienteLegajo" extends="Nomad.Base.BaseReport.rpt" doc="source">
+	<html:query declare="&lt;DATOS oi_empresa=&quot;1&quot; oi_personal_emp=&quot;613&quot; l_inicializadas=&quot;&quot; /&gt;&#13;&#10;">
+		<qry:main doc="SOURCE">
+			<qry:append-doc name="PARAMIN" doc-path="#SOURCE:DATOS"/>
+			<REPORT label="Consulta de Cuenta Corriente" style="width:80%;">
+				<qry:attribute name="date" value="format_date(now(), 'dd/mm/yyyy')"/>
+				<GROUPS>
+					<GROUP tag="CAB" type="title">
+						<COLS>
+							<COL name="legajo" label="Legajo"/>
+							<COL name="saldo" label="Saldo" style="font-size:11pt; font-weight:bold;"/>
+						</COLS>
+						<GROUP tag="PAG" label="Pagos" type="table" style="width:100%;" noreg="No se encontraron Pagos.">
+							<COLS>
+								<COL name="liquidacion" label="Liquidaci&#243;n" style="width:60%;"/>
+								<COL name="f_pago" label="Fecha de Pago" style="width:10%;" type="date"/>
+								<COL name="n_monto" label="Monto" style="width:30%;" type="num"/>
+							</COLS>
+						</GROUP>
+						<GROUP tag="REC" label="Recibos" type="table" style="width:100%;" noreg="No se encontraron Recibos.">
+							<COLS>
+								<COL name="c_liquidacion" label="Liquidaci&#243;n" style="width:40%;"/>
+								<COL name="f_liquidacion" label="F. Liquidaci&#243;n" style="width:15%;text-align:center;" type="date"/>
+								<COL name="n_totpag" label="Monto Recibo" style="width:15%;" type="num"/>
+								<COL name="n_montopagado" label="Pagado" style="width:15%;" type="num"/>
+								<COL name="saldo_recibo" label="Saldo" style="width:15%;" type="num"/>
+							</COLS>
+						</GROUP>
+					</GROUP>
+				</GROUPS>
+				<qry:element name="DATA">
+					<qry:element name="CAB">
+						<qry:insert-select name="qry_cabecera"/>
+						<qry:insert-select name="qry_saldo" doc-path="."/>
+						<qry:insert-select name="qry_pagos" doc-path="."/>
+						<qry:insert-select name="qry_recibos" doc-path="."/>
+					</qry:element>
+				</qry:element>
+			</REPORT>
+		</qry:main>
+		<qry:select doc="SOURCE" name="qry_cabecera">
+			<qry:xquery>
+				for $r in sql('
+				SELECT 
+					PER02_PERSONAL_EMP.e_numero_legajo,
+					PER01_PERSONAL.d_ape_y_nom,
+					ORG03_EMPRESAS.c_empresa 
+				FROM 
+					PER02_PERSONAL_EMP, 
+					ORG03_EMPRESAS,
+					PER01_PERSONAL
+				JOIN
+					PER02_PERSONAL_EMP.oi_empresa INNER ORG03_EMPRESAS.oi_empresa, 
+					PER02_PERSONAL_EMP.oi_personal INNER PER01_PERSONAL.oi_personal
+				WHERE 
+					PER02_PERSONAL_EMP.oi_personal_emp = {#PARAMIN:@oi_personal_emp}
+				')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:attribute name="c_empresa" value="$r/@c_empresa"/>
+				<qry:attribute name="e_numero_legajo" value="$r/@e_numero_legajo"/>
+				<qry:attribute name="legajo" value="$r/@e_numero_legajo + ' - ' + $r/@d_ape_y_nom"/>
+			</qry:out>
+		</qry:select>
+		<qry:select doc="SOURCE" name="qry_saldo">
+			<qry:xquery>
+				for $r in sql('
+			SELECT 	 
+				SUM(LIQ20_TOT_LIQ_PER.n_totpag) AS n_totpag,
+				SUM(LIQ20_TOT_LIQ_PER.n_montopagado) AS n_montopagado
+			FROM
+				LIQ99_LIQUIDACION,
+				LIQ99_RECIBOS,
+				LIQ20_TOT_LIQ_PER, 
+				LIQ97_PERSONAL_EMP
+			JOIN
+				LIQ99_LIQUIDACION.oi_liquidacion_ddo INNER LIQ99_RECIBOS.oi_liquidacion_ddo,
+				LIQ99_RECIBOS.oi_tot_liq_per INNER LIQ20_TOT_LIQ_PER.oi_tot_liq_per,
+				LIQ20_TOT_LIQ_PER.oi_per_emp_ddo INNER LIQ97_PERSONAL_EMP.oi_per_emp_ddo
+			WHERE 
+				LIQ99_LIQUIDACION.c_estado = \'F\' AND
+				LIQ97_PERSONAL_EMP.c_empresa = {#SOURCE:@c_empresa} AND
+				LIQ97_PERSONAL_EMP.e_numero_legajo = {#SOURCE:@e_numero_legajo}
+				{%? (#PARAMIN:@l_inicializadas = '0') {% AND ISNOTNULL(LIQ99_LIQUIDACION.f_cierre) %} {% %} %}
+				')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:attribute name="n_totpag" value="$r/@n_totpag"/>
+				<qry:attribute name="n_montopagado" value="iif($r/@n_montopagado = '', 0, $r/@n_montopagado)"/>
+				<qry:attribute name="saldo" value="number(./@n_totpag) - number(./@n_montopagado)"/>
+			</qry:out>
+		</qry:select>
+		<qry:select doc="SOURCE" name="qry_pagos">
+			<qry:xquery>
+				for $r in sql('
+			SELECT
+				LIQ99_LIQUIDACION.c_liquidacion,
+				LIQ99_LIQUIDACION.d_titulo,
+				TES01_ORD_PAGO.f_pago,
+				TES01_DET_PAGO.n_monto
+			FROM
+				TES01_ORD_PAGO,
+				TES01_DET_PAGO,
+				LIQ99_LIQUIDACION,
+				LIQ97_PERSONAL_EMP
+      JOIN
+				TES01_ORD_PAGO.oi_orden_pago INNER TES01_DET_PAGO.oi_orden_pago,
+				TES01_ORD_PAGO.oi_liquidacion_ddo INNER LIQ99_LIQUIDACION.oi_liquidacion_ddo,
+				TES01_DET_PAGO.oi_per_emp_ddo INNER LIQ97_PERSONAL_EMP.oi_per_emp_ddo
+			WHERE
+				TES01_ORD_PAGO.l_anulada = \'0\' AND
+				TES01_DET_PAGO.l_anulado = \'0\' AND
+				LIQ97_PERSONAL_EMP.c_empresa = {#SOURCE:@c_empresa} AND
+				LIQ97_PERSONAL_EMP.e_numero_legajo = {#SOURCE:@e_numero_legajo}
+				ORDER BY 
+					f_pago ASC
+				')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:element name="PAG">
+					<qry:attribute name="liquidacion" value="$r/@c_liquidacion + ' - ' + $r/@d_titulo"/>
+					<qry:attribute name="f_pago" value="format_date($r/@f_pago, 'dd/mm/yyyy')"/>
+					<qry:attribute name="n_monto" value="$r/@n_monto"/>
+				</qry:element>
+			</qry:out>
+		</qry:select>
+		<qry:select doc="SOURCE" name="qry_recibos">
+			<qry:xquery>
+				for $r in sql('
+			SELECT 	 
+				LIQ99_LIQUIDACION.c_liquidacion,
+				LIQ99_LIQUIDACION.d_titulo,
+				LIQ99_LIQUIDACION.f_liquidacion,
+				LIQ20_TOT_LIQ_PER.n_totpag,
+				LIQ20_TOT_LIQ_PER.n_montopagado
+			FROM
+				LIQ99_LIQUIDACION,
+				LIQ99_RECIBOS,
+				LIQ20_TOT_LIQ_PER, 
+				LIQ97_PERSONAL_EMP
+			JOIN
+				LIQ99_LIQUIDACION.oi_liquidacion_ddo INNER LIQ99_RECIBOS.oi_liquidacion_ddo,
+				LIQ99_RECIBOS.oi_tot_liq_per INNER LIQ20_TOT_LIQ_PER.oi_tot_liq_per,
+				LIQ20_TOT_LIQ_PER.oi_per_emp_ddo INNER LIQ97_PERSONAL_EMP.oi_per_emp_ddo
+			WHERE 
+				LIQ99_LIQUIDACION.c_estado = \'F\' AND
+				LIQ20_TOT_LIQ_PER.n_totpag &gt; 0 AND
+				LIQ97_PERSONAL_EMP.c_empresa = {#SOURCE:@c_empresa} AND
+				LIQ97_PERSONAL_EMP.e_numero_legajo = {#SOURCE:@e_numero_legajo}
+				{%? (#PARAMIN:@l_inicializadas = '0') {% AND ISNOTNULL(LIQ99_LIQUIDACION.f_cierre) %} {% %} %}
+			ORDER BY
+				f_liquidacion ASC	
+				')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:element name="REC">
+					<qry:attribute name="c_liquidacion" value="$r/@c_liquidacion + ' - ' + $r/@d_titulo"/>
+					<qry:attribute name="f_liquidacion" value="format_date($r/@f_liquidacion, 'dd/mm/yyyy')"/>
+					<qry:attribute name="n_totpag" value="$r/@n_totpag"/>
+					<qry:attribute name="n_montopagado" value="iif($r/@n_montopagado = '', 0, $r/@n_montopagado)"/>
+					<qry:attribute name="saldo_recibo" value="number(./@n_totpag) - number(./@n_montopagado)"/>
+				</qry:element>
+			</qry:out>
+		</qry:select>
+	</html:query>
+</html:html>

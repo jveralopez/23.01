@@ -1,0 +1,137 @@
+<INTERFACE-DEF code="" desc="" entermode="DOS" finalenter="1" xmlns:qry="XXX">
+	<QUERY>
+		<qry:main doc="SOURCE">
+			<qry:element name="DATA">
+				<qry:insert-select name="qryHeadFoot" doc-path="#SOURCE:/DATA"/>
+				<qry:element name="DETAILS">
+					<qry:insert-select name="qryDetail" doc-path="#SOURCE:/DATA"/>
+				</qry:element>
+			</qry:element>
+		</qry:main>
+		<qry:select xmlns:qry="nomad.xquery" name="qryHeadFoot" doc="SOURCE">
+			<qry:xquery>
+				for $r in SQL('
+					SELECT 
+						EB.c_convenio,
+						EB.d_cuenta
+					FROM
+						LIQ15_EMPRESA_BCOS as EB
+					WHERE
+						EB.oi_empresa = {%= #SOURCE:@oi_empresa %} and 
+						EB.oi_banco = {%= #SOURCE:@oi_banco %}
+				
+				')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:element name="HEAD">
+					<qry:attribute name="nro_emp" value="FILL_LEFT($r/@c_convenio, '0', 5)"/>
+					<qry:attribute name="cta_debito" value="TRANSLATE($r/@d_cuenta, '-', '')"/>
+					<qry:attribute name="f_acred" value="#SOURCE:@f_acreditacion"/>
+					<qry:insert-select name="qryHeadTot" doc-path="#SOURCE:"/>
+				</qry:element>
+				<qry:element name="FOOT">
+					<qry:attribute name="nro_emp" value="../HEAD/@nro_emp"/>
+					<qry:attribute name="n_registros" value="../HEAD/@n_registros"/>
+				</qry:element>
+			</qry:out>
+		</qry:select>
+		<qry:select xmlns:qry="nomad.xquery" name="qryHeadTot" doc="SOURCE">
+			<qry:xquery>
+				for $r in SQL('
+					SELECT 
+						SUM(TLP.n_totpag) as totpag,
+						COUNT(TLP.n_totpag) as totreg
+												
+					FROM
+						LIQ20_TOT_LIQ_PER as TLP,
+						LIQ97_PERSONAL_EMP as PE,
+						LIQ22_BANCOS as B,
+						PER02_PERSONAL_EMP as EMP, 
+						LIQ25_PERSONAL_LIQ as L25, 
+						LIQ19_EJECUCIONES as EJE, 
+						PER31_FORMAS_PAGO
+						
+	
+					JOIN
+						PE.c_banco INNER B.c_banco,
+						L25.e_secuencia INNER EJE.e_secuencia,
+						L25.oi_liquidacion INNER EJE.oi_liquidacion,
+						EMP.e_numero_legajo INNER PE.e_numero_legajo,
+						TLP.oi_per_emp_ddo INNER PE.oi_per_emp_ddo,
+						TLP.oi_liquidacion_ddo INNER EJE.oi_liquidacion_ddo,
+						TLP.e_secuencia INNER L25.e_secuencia,
+						EMP.oi_personal_emp INNER L25.oi_personal_emp,
+					  PER31_FORMAS_PAGO.c_forma_pago INNER TLP.c_forma_pago
+					
+					WHERE 
+	
+						B.oi_banco = {%= #SOURCE:@oi_banco %}
+						AND L25.oi_liquidacion IN ({%= STRING(#SOURCE:LIQS/LIQ/@oi_liquidacion) %})
+				    and
+	PER31_FORMAS_PAGO.l_banco = 1
+				')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:attribute name="imp_total" value="FORMAT_NUMBER($r/@totpag, 12, 2, '', '', '0')"/>
+				<qry:attribute name="n_registros" value="FORMAT_NUMBER($r/@totreg, 7, 0, '', '', '0')"/>
+			</qry:out>
+		</qry:select>
+		<qry:select xmlns:qry="nomad.xquery" name="qryDetail" doc="SOURCE">
+			<qry:xquery>
+				for $r in SQL('
+					SELECT 
+						TLP.n_totpag,
+						PE.d_ape_y_nom,
+						PE.c_cta_bancaria
+					FROM
+						LIQ20_TOT_LIQ_PER as TLP,
+						LIQ97_PERSONAL_EMP as PE,
+						LIQ22_BANCOS as B,
+						PER02_PERSONAL_EMP as EMP, 
+						LIQ25_PERSONAL_LIQ as L25, 
+						LIQ19_EJECUCIONES as EJE, 
+						PER31_FORMAS_PAGO 
+	
+					JOIN
+						PE.c_banco INNER B.c_banco,
+						L25.e_secuencia INNER EJE.e_secuencia,
+						L25.oi_liquidacion INNER EJE.oi_liquidacion,
+						EMP.e_numero_legajo INNER PE.e_numero_legajo,
+						TLP.oi_per_emp_ddo INNER PE.oi_per_emp_ddo,
+						TLP.oi_liquidacion_ddo INNER EJE.oi_liquidacion_ddo,
+						TLP.e_secuencia INNER L25.e_secuencia,
+						EMP.oi_personal_emp INNER L25.oi_personal_emp,
+					  PER31_FORMAS_PAGO.c_forma_pago INNER TLP.c_forma_pago
+					WHERE 
+	
+						B.oi_banco = {%= #SOURCE:@oi_banco %}
+						AND L25.oi_liquidacion IN ({%= STRING(#SOURCE:LIQS/LIQ/@oi_liquidacion) %})
+				    and
+	PER31_FORMAS_PAGO.l_banco = 1
+				')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:element name="DETAIL">
+					<qry:attribute name="nro_emp" value="../../HEAD/@nro_emp"/>
+					<qry:attribute name="cta_credito" value="TRANSLATE($r/@c_cta_bancaria, '-', '')"/>
+					<qry:attribute name="nombre" value="SUBSTRING(FILL_RIGHT($r/@d_ape_y_nom, ' ', 20), 0, 20)"/>
+					<qry:attribute name="importe" value="FORMAT_NUMBER($r/@n_totpag, 12, 2, '', '', '0')"/>
+					<qry:attribute name="concepto" value="'01'"/>
+					<qry:attribute name="rowdesc" value="$r/@d_ape_y_nom"/>
+				</qry:element>
+			</qry:out>
+		</qry:select>
+	</QUERY>
+	<HEAD>
+		H{nro_emp:5}{cta_debito:12}{imp_total}{f_acred}{space(25)}
+	</HEAD>
+	<DETAIL>
+		D{nro_emp:5}{cta_credito:12}{nombre:20}{importe}{concepto}{space(11)}
+	</DETAIL>
+	<FOOT>
+		F{nro_emp}{n_registros}{space(52)}
+	</FOOT>
+	<MESS>
+		<EMPTY mess="No se encontraron registros. Por favor valide que los legajos estest&#233;n asociados al banco correcto y que las liquidaciones del per&#237;odo est&#233;n cerradas."/>
+	</MESS>
+</INTERFACE-DEF>

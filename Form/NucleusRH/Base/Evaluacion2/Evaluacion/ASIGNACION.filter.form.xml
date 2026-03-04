@@ -1,0 +1,218 @@
+<form:Form xmlns:form="nomad_engine.form" xmlns:qry="nomad_engine.qry" extends="NucleusRH.Base.Personal.LegajoEmpresa.PERSONAL_EMP.BUSCAR2.form" default_mode="FILTER" name="NucleusRH.Base.Evaluacion2.Evaluacion.ASIGNACION.filter.form" doc="source">
+	<form:Resources>
+		<form:Resource declare="&lt;PARAM EVENTO=&quot;2&quot; empresa=&quot;202&quot; activos=&quot;&quot; SUPERVISOR=&quot;12092&quot; EVALUADOR=&quot;&quot;/&gt;" name="qry_evaluacion">
+			<qry:main name="qry" doc="SOURCE">
+				<qry:element name="ROWS">
+					<qry:insert-select name="sql1" doc-path="#SOURCE:PARAM"/>
+				</qry:element>
+			</qry:main>
+			<qry:select name="sql1" doc="SOURCE">
+				<qry:xquery>
+					for $r in sql('
+				SELECT
+					ORG03_EMPRESAS.d_empresa, 
+					PER02_PERSONAL_EMP.oi_personal_emp, 
+					PER02_PERSONAL_EMP.e_numero_legajo, 
+					PER01_PERSONAL.d_ape_y_nom
+				FROM
+					EDD03_EVALUACION,
+					PER02_PERSONAL_EMP,
+					PER01_PERSONAL,
+					ORG03_EMPRESAS
+				JOIN
+					EDD03_EVALUACION.oi_personal_emp INNER PER02_PERSONAL_EMP.oi_personal_emp,
+					PER02_PERSONAL_EMP.oi_personal INNER PER01_PERSONAL.oi_personal,
+					PER02_PERSONAL_EMP.oi_empresa INNER ORG03_EMPRESAS.oi_empresa
+				WHERE 
+					1=1
+					{%?(#SOURCE:@EVENTO!='') {% AND EDD03_EVALUACION.oi_evento = {#SOURCE:@EVENTO} %} {% %} %}
+					{%?(#SOURCE:@empresa!='') {% and ORG03_EMPRESAS.oi_empresa = {#SOURCE:@empresa} %} {% %} %}
+					{%?(#SOURCE:@activos='1') {% and PER02_PERSONAL_EMP.oi_indic_activo= \'1\' %} {% %} %}
+					{%?(#SOURCE:@SUPERVISOR!='') {% AND EDD03_EVALUACION.oi_supervisor in (SELECT PER02_PERSONAL_EMP.oi_personal_emp FROM PER02_PERSONAL_EMP WHERE PER02_PERSONAL_EMP.oi_personal = {%=#SOURCE:@SUPERVISOR%}) %} {% %} %}
+					{%?(#SOURCE:@EVALUADOR!='') {% AND EDD03_EVALUACION.oi_evaluador in (SELECT PER02_PERSONAL_EMP.oi_personal_emp FROM PER02_PERSONAL_EMP WHERE PER02_PERSONAL_EMP.oi_personal = {%=#SOURCE:@EVALUADOR%}) %} {% %} %}
+				ORDER BY 
+					d_empresa ASC, 
+					e_numero_legajo ASC
+		')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:element name="ROW">
+						<qry:attribute name="id" value="$r/@oi_personal_emp"/>
+						<qry:attribute name="d_empresa" value="$r/@d_empresa"/>
+						<qry:attribute name="e_numero_legajo" value="$r/@e_numero_legajo"/>
+						<qry:attribute name="d_ape_y_nom" value="$r/@d_ape_y_nom"/>
+						<qry:attribute name="e_nro_legajo_reloj" value="$r/@e_nro_legajo_reloj"/>
+					</qry:element>
+				</qry:out>
+				<qry:params>
+					##EVENTO,empresa,activos,SUPERVISOR,EVALUADOR##
+				</qry:params>
+			</qry:select>
+		</form:Resource>
+		<form:Resource declare="&lt;PARAM EVENTO=&quot;211&quot; empresa=&quot;&quot; activos=&quot;&quot; SUPERVISOR=&quot;&quot; EVALUADOR=&quot;&quot;/&gt;" name="qry_externo">
+			<qry:main name="qry" doc="SOURCE">
+				<qry:element name="ROWS">
+					<qry:insert-select name="sql1" doc-path="#SOURCE:PARAM"/>
+				</qry:element>
+			</qry:main>
+			<qry:select name="sql1" doc="SOURCE">
+				<qry:xquery>
+					for $r in sql('
+				SELECT 
+					EDD03_EVALUACION.oi_personal_emp
+				FROM
+					EDD03_EVALUACION
+				WHERE 
+					EDD03_EVALUACION.c_estado IN (\'AB\',\'HA\',\'EV\',\'CO\')
+					{%?(#SOURCE:@EVENTO!='') {% AND EDD03_EVALUACION.oi_evento = {#SOURCE:@EVENTO} %} {% %} %}
+				')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:element name="ROW">
+						<qry:attribute name="id" value="$r/@oi_personal_emp"/>
+					</qry:element>
+				</qry:out>
+				<qry:params>
+					##EVENTO##
+				</qry:params>
+			</qry:select>
+		</form:Resource>
+		<form:Resource name="qry_cantLegajos">
+			<qry:main name="qry" doc="SOURCE">
+				<qry:element name="LEGAJOS">
+					<qry:attribute name="valor" value="'100'"/>
+					<qry:insert-select name="qry_par" doc-path="#SOURCE:"/>
+				</qry:element>
+			</qry:main>
+			<qry:select name="qry_par" doc="SOURCE">
+				<qry:xquery>
+					for $r in SQL('
+			SELECT PAR.d_valor 
+			FROM ORG26_PARAMETROS as PAR 
+			WHERE PAR.c_parametro = \'CantLegRepEva\'
+			')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:attribute name="valor" value="iif($r/@d_valor != '' and $r/@d_valor != '0',$r/@d_valor, @valor)"/>
+				</qry:out>
+			</qry:select>
+		</form:Resource>
+	</form:Resources>
+	<form:Title>
+		<form:Label label="Modificaci&#243;n masiva de Evaluador y/o Supervisor" name="lbl_titulo" align="center" style="S3 LCol_w" visible=""/>
+	</form:Title>
+	<form:Center width="100%">
+		<form:VGroup nvalue="#source:@gcustom" label="Criterios de selecci&#243;n de par&#225;metros para el Proceso" border="1" width="90%" name="vgroupDatosCustom" collapse="1">
+			<form:Columns name="cols1" width="100%">
+				<form:Column name="col1_1" valign="middle" separation="2" align="left">
+					<form:ComboBox queryname1="NucleusRH.Base.Evaluacion2.Eventos.EVENTO.INFO" xsize="50" mode="QRY" required="1" nvalue="#source:@evento" descrip="Evento Evaluativo" label="Evento Evaluativo" name="EVENTO"/>
+					<form:ComboBox nvalue="#source:@supervisor_new" name="SUPERVISOR_NEW" queryname1="NucleusRH.Base.Personal.Legajo.PERSONAL.INFO" xsize="50" mode="QRY" descrip="Usuario Supervisor" required="0" label="Supervisor"/>
+					<form:ComboBox nvalue="#source:@evaluador_new" name="EVALUADOR_NEW" queryname1="NucleusRH.Base.Personal.Legajo.PERSONAL.INFO" xsize="50" mode="QRY" descrip="Usuario Evaluador" required="0" label="Evaluador"/>
+					<form:ComboBox label="Puesto - Posici&#243;n" queryname2="NucleusRH.Base.Organizacion.Puestos.PUESTO.INFO" queryname1="NucleusRH.Base.Organizacion.Puestos.POSICION.INFO" descrip="Posici&#243;n anterior para definici&#243;n de responsabilidades o competencias" nvalue="#source:@oi_posicion_new" name="POSICION_NEW" xsize="35" mode="QRY" required="0"/>
+					<form:CheckBox required="0" label="Actualizar Otros Evaluadores" nvalue="#source:@update_evaluadores" name="update_evaluadores"/>
+				</form:Column>
+			</form:Columns>
+		</form:VGroup>
+		<form:VGroup nvalue="#source:@gpers" border="1" width="90%" collapse="1" label="Criterios de selecci&#243;n de personas" name="vgroupDatosPers">
+			<form:Columns name="colsemps" width="100%">
+				<form:Column valign="middle" name="colemp" align="left">
+					<form:ComboBox queryname1="NucleusRH.Base.Organizacion.Empresas.EMPRESA.INFO" xsize="40" mode="QRY" required="1" label="Empresa" nvalue="#source:@empresa" name="empresa" X-POLICY="./FORM/NucleusRH/Base/Evaluacion2/Evaluacion/ASIGNACION/filter/form/empresa">
+						<form:Policies>
+							<form:Updateable X-POLICY="./FORM/NucleusRH/Base/Evaluacion2/Evaluacion/ASIGNACION/filter/form/empresa/HAB"/>
+							<form:Visible X-POLICY="./FORM/NucleusRH/Base/Evaluacion2/Evaluacion/ASIGNACION/filter/form/empresa"/>
+						</form:Policies>
+					</form:ComboBox>
+				</form:Column>
+			</form:Columns>
+			<form:Columns width="100%" name="columns1">
+				<form:Column visible="0" valign="top" align="center" name="col1"/>
+				<form:Column visible="0" valign="middle" align="center" name="colbuttons"/>
+			</form:Columns>
+			<form:Tab name="tab_filtro">
+				<form:Panels>
+					<form:Panel label="Evaluaci&#243;n" name="evaluacion" selected="1">
+						<form:Columns name="cols_evaluacion" width="95%" height="130px">
+							<form:Column name="col1_evaluacion" valign="top" align="left">
+								<form:ComboBox queryname1="NucleusRH.Base.Personal.Legajo.PERSONAL.INFO" xsize="50" mode="QRY" descrip="Usuario Supervisor" nvalue="#source:@supervisor" required="0" label="Supervisor" name="SUPERVISOR"/>
+								<form:ComboBox queryname1="NucleusRH.Base.Personal.Legajo.PERSONAL.INFO" xsize="50" mode="QRY" descrip="Usuario Evaluador" nvalue="#source:@evaluador" required="0" label="Evaluador" name="EVALUADOR"/>
+							</form:Column>
+						</form:Columns>
+					</form:Panel>
+				</form:Panels>
+			</form:Tab>
+		</form:VGroup>
+		<form:TextBox visible="0" ysize="25" xsize="100" name="DEBUG" X-POLICY="./FORM/NucleusRH/Base/Evaluacion2/Evaluacion/ASIGNACION/filter/form/DEBUG">
+			<form:Policies>
+				<form:Updateable X-POLICY="./FORM/NucleusRH/Base/Evaluacion2/Evaluacion/ASIGNACION/filter/form/DEBUG/HAB"/>
+				<form:Visible X-POLICY="./FORM/NucleusRH/Base/Evaluacion2/Evaluacion/ASIGNACION/filter/form/DEBUG"/>
+			</form:Policies>
+		</form:TextBox>
+	</form:Center>
+	<form:Bottom>
+		<form:RowAligner name="rowaligner1">
+			<form:Row name="row1">
+				<form:Button startvalidate="1" descrip="Ejecutar el Proceso de Asignaci&#243;n de Horarios para los legajos seleccionados" label="Ejecutar" img="ok" name="EXECUTE" note="Consultar los Legajos seleccionados">
+					<form:Event action="Ejecutar" runat="client" name="onclick"/>
+				</form:Button>
+				<form:Button img="back" label="Volver" name="BACK" descrip="Volver al Menu princial" note="Volver al Menu princial">
+					<form:Event action="BACK" runat="server" name="onclick"/>
+				</form:Button>
+			</form:Row>
+		</form:RowAligner>
+	</form:Bottom>
+	<form:Scripts>
+		function LoadForm()
+{
+	ONLOAD();	
+}
+
+function Ejecutar()
+{
+	if (Ctrl("POSICION_NEW") &amp;&amp; Ctrl("POSICION_NEW").GetXValue() != "")
+		if (!confirm('Si carga una posici&#243;n se borrar&#225;n todas las plantillas de las evaluaciones y se crear&#225;n nuevamente a partir de la posici&#243;n ingresada. Cualquier resultado registrado sobre la misma se perder&#225;. Est&#225; seguro que desea continuar?')) return false;
+	
+	var required = false;
+	if (Ctrl("EVALUADOR_NEW") &amp;&amp; Ctrl("EVALUADOR_NEW").GetXValue() != "") required = true;
+	if (Ctrl("SUPERVISOR_NEW") &amp;&amp; Ctrl("SUPERVISOR_NEW").GetXValue() != "") required = true;
+	if (Ctrl("POSICION_NEW") &amp;&amp; Ctrl("POSICION_NEW").GetXValue() != "") required = true;
+	if (Ctrl("update_evaluadores") &amp;&amp; Ctrl("update_evaluadores").GetXValue() == "1") required = true;
+	if (Ctrl("EVALUADOR_NEW") || Ctrl("SUPERVISOR_NEW") || Ctrl("POSICION_NEW") || Ctrl("update_evaluadores"))
+	{
+		if (!required)
+		{
+			alert("Debe ingresar por lo menos un dato a modificar (Evaluador, Supervisor, Posici&#243;n u Otros Evaluadores)");
+			return false;
+		}
+	}
+	
+	var np = new NomadProxy("", ut); 
+	var nSQL = np.SQLService();   
+	var cantLeg = nSQL.GetOBJ( Ctrl("main").getResource("qry_cantLegajos"));
+	
+	cantLeg.valor = Trim(cantLeg.valor.toString())
+	                                                    
+	if(cantLeg.valor.toString().length === 0 || isNaN(cantLeg.valor))
+	{
+		cantLeg.valor = 100;	
+	}
+	
+	if (arrFILTER.length==0)
+ 	{             
+ 		alert("No hay legajos filtrados.");
+ 		return false;
+ 	}
+ 	               
+ 	if (arrFILTER.length&gt;cantLeg.valor)
+ 	{             
+ 		alert("Hay demasiados registros seleccionados, afine la b&#250;squeda.");
+ 		return false;
+ 	}
+	
+	FillArray(cantLeg.valor);
+	
+	Ctrl("main").DoEvent("FILTER");
+}
+	</form:Scripts>
+	<form:Event action="ACCEPT" name="FILTER" runat="server"/>
+	<form:Event action="LoadForm" name="onload" runat="client"/>
+</form:Form>

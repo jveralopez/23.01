@@ -1,0 +1,418 @@
+<HTML>
+	<HEAD>
+		<META http-equiv="Content-Type" content="text/html; charset=ISO-8859-1">
+		
+		<LINK HREF="./Styles/General.css" REL="stylesheet" TYPE="text/css">
+		
+		<script src="./Scripts/nmdProxy.js" type="text/javascript"></script>
+		<script src="./Scripts/engComm.js"  type="text/javascript"></script>
+		<script src="./Scripts/nmdXML.js"   type="text/javascript"></script>
+
+		<SCRIPT src="./Scripts/controls.js" type="text/javascript"></SCRIPT>
+		
+		<SCRIPT type="text/javascript" language="javascript">
+			var gobjFields;
+			
+			var garrSec;
+			var gSecNumber;
+			
+			function PageLoad() {
+				LoadSections();
+
+				gobjFields = new clsFields();
+				gobjFields.AddNewField("Lincencia de conducir", "c_lic_conduc", "c_lic_conduc", "COMBO", false);
+				gobjFields.AddNewField("Vehículo propio",       "c_vehiculo", "c_vehiculo", "COMBO", false);
+				gobjFields.AddNewField("Disponibilidad radic",  "c_radicarse", "c_radicarse", "COMBO", false);
+				gobjFields.AddNewField("Disponibilidad viajar", "c_viajar", "c_viajar", "COMBO", false);
+				gobjFields.AddNewField("Situación laboral",     "oi_sit_laboral", "oi_sit_laboral", "COMBO", false);
+				gobjFields.AddNewField("Tipo jornada",          "oi_tipo_jor_lab", "oi_tipo_jor_lab", "COMBO", false);
+				gobjFields.AddNewField("Remuneracion",          "n_remuneracion", "n_remuneracion", "NUM", false);				
+
+				gobjFields.AddNewField("Apellido y Nombres - Familiar 1", "d_ape_y_nom_fam1", "d_ape_y_nom_fam1", "TXT",   false);
+				gobjFields.AddNewField("E-mail - Familiar 1",             "d_email_fam1",     "d_email_fam1",     "TXT",   false);
+				gobjFields.AddNewField("Nro. teléfono - Familiar 1",      "te_nro_fam1",      "te_nro_fam1",      "TXT",   false);
+				gobjFields.AddNewField("Parentezco - Familiar 1",         "oi_tipo_fam1",     "oi_tipo_fam1",     "COMBO", false);
+				gobjFields.AddNewField("Apellido y Nombres - Familiar 2", "d_ape_y_nom_fam2", "d_ape_y_nom_fam2", "TXT",   false);
+				gobjFields.AddNewField("E-mail - Familiar 2",             "d_email_fam2",     "d_email_fam2",     "TXT",   false);
+				gobjFields.AddNewField("Nro. teléfono - Familiar 2",      "te_nro_fam2",      "te_nro_fam2",      "TXT",   false);
+				gobjFields.AddNewField("Parentezco - Familiar 2",         "oi_tipo_fam2",     "oi_tipo_fam2",     "COMBO", false);
+				
+				gobjFields.AddNewField("Apellido y Nombres referencia 1", "d_ape_y_nom_ref1", "d_ape_y_nom_ref1", "TXT", false);
+				gobjFields.AddNewField("E-mail referencia 1",             "d_email_ref1",     "d_email_ref1",     "TXT", false);
+				gobjFields.AddNewField("Nro. teléfono referencia 1",      "te_nro_ref1",      "te_nro_ref1",      "TXT", false);
+				gobjFields.AddNewField("Apellido y Nombres referencia 2", "d_ape_y_nom_ref2", "d_ape_y_nom_ref2", "TXT", false);
+				gobjFields.AddNewField("E-mail referencia 2",             "d_email_ref2",     "d_email_ref2",     "TXT", false);
+				gobjFields.AddNewField("Nro. teléfono referencia 2",      "te_nro_ref2",      "te_nro_ref2",      "TXT", false);
+				
+				gobjFields.SetSource(parent.gxmlUData);
+
+				gobjFields.MapFromSource();
+				
+				parent.LogMode("CV");
+			}
+			
+			function ValidateFields() {
+				var result;
+				var strRemun;
+				
+				result = gobjFields.ValidateMandatories();
+				
+				if (result) {
+					strRemun = gobjFields.GetValue("n_remuneracion");
+					
+					if (strRemun != "") {
+						result = isInteger(gobjFields.GetValue("n_remuneracion"));
+						if (!result) {
+							alert("La remuneración pretendida debe ser un número entero (sin decimales)."); 
+							gobjFields.GetHTMLObject("n_remuneracion").focus();
+							parent.ShowWait(false);
+						}
+					}
+				}
+				
+				return result;
+			}
+			
+			function btnGuardar_Click() {
+				CallTimeOut("Procesando los datos...", "Save();");
+			}
+			
+			function Save() {
+				var xmlResult;
+				
+				if (ValidateFields()) {
+					gobjFields.MapToSource();
+					
+					xmlResult = parent.ExecuteNomadMethod("NucleusRH.Base.SeleccionDePostulantes.CVs.CV", "SaveCV", parent.gxmlUData);
+					
+					if (xmlResult == null) {
+						alert("Se produjo un error en el sistema. Por favor reintente nuevamente en unos minutos.")
+						parent.ShowWait(false);
+					} else {
+						if (xmlResult.GetAttr("out") == "OK") {
+							parent.gxmlUData = xmlResult;
+							parent.LogMode("LO");
+							location.href = "ShowCV.htm";
+						} else {
+							alert(xmlResult.GetAttr("out"));
+						}
+					}
+				}
+			}
+
+			function btnVolver_Click() {
+				if (confirm("Las modificaciones realizadas se perderán.\nEstás seguro que deseas cancelar la edición?")) {
+					parent.LogMode("LO");
+					location.href = "ShowCV.htm";
+				}
+			}
+			
+
+			//----------------------------------------------------------------------------------
+			// Links de secciones
+
+			function LoadSections() {
+				garrSec = new Array();
+				garrSec[garrSec.length] = "CargaCV_DatosPer.htm";
+				garrSec[garrSec.length] = "CargaCV_Formacion.htm";
+				garrSec[garrSec.length] = "CargaCV_Experiencia.htm";
+				garrSec[garrSec.length] = "CargaCV_Idiomas.htm";
+				garrSec[garrSec.length] = "CargaCV_Informatica.htm";
+				garrSec[garrSec.length] = "CargaCV_ALaborales.htm";
+				garrSec[garrSec.length] = "CargaCV_DatosAd.htm";
+				
+				gSecNumber = 6;
+			}
+			
+			function btnNext_Click() {
+				GotoSection(gSecNumber + 1);
+			}
+
+			function btnPrev_Click() {
+				GotoSection(gSecNumber - 1);
+			}
+
+			function GotoSection(pSection) {
+				if (ValidateFields()) {
+					gobjFields.MapToSource();
+					location.href = garrSec[pSection];
+				}
+			}			
+			
+			//----------------------------------------------------------------------------------
+			
+			
+		</SCRIPT>
+
+	</HEAD>
+	<BODY onload="PageLoad();" sscroll="no" class="Main">
+		<table style="TABLE-LAYOUT: fixed" cellpadding="0" cellspacing="0" height="100%" width="100%">
+			<col width="220px" />
+			<col width="100%" />
+			
+			<tr>
+				<td style="vertical-align:top;" class="LeftColumn">
+					<table class="TableDependencias text_1" cellpadding="0" cellspacing="0" width="100%">
+						<col width="100%"/>
+						<tr><th class="alignLeft">Secciones</th></tr>
+						<tr><td class="TDep_n" onclick="GotoSection(0);" onmouseover="LinkChangeStyle(this, 'OVER');" onmouseout="LinkChangeStyle(this, 'NORMAL');">Datos personales</td></tr>
+						<tr><td class="TDep_n" onclick="GotoSection(1);" onmouseover="LinkChangeStyle(this, 'OVER');" onmouseout="LinkChangeStyle(this, 'NORMAL');">Formaci&oacute;n</td></tr>
+						<tr><td class="TDep_n" onclick="GotoSection(2);" onmouseover="LinkChangeStyle(this, 'OVER');" onmouseout="LinkChangeStyle(this, 'NORMAL');">Experiencia laboral</td></tr>
+						<tr><td class="TDep_n" onclick="GotoSection(3);" onmouseover="LinkChangeStyle(this, 'OVER');" onmouseout="LinkChangeStyle(this, 'NORMAL');">Idiomas</td></tr>
+						<tr><td class="TDep_n" onclick="GotoSection(4);" onmouseover="LinkChangeStyle(this, 'OVER');" onmouseout="LinkChangeStyle(this, 'NORMAL');">Conocimientos de inform&aacute;tica</td></tr>
+						<tr><td class="TDep_n" onclick="GotoSection(5);" onmouseover="LinkChangeStyle(this, 'OVER');" onmouseout="LinkChangeStyle(this, 'NORMAL');">&Aacute;reas laborales</td></tr>
+						<tr><td class="TDep_s">Datos adicionales</td></tr>
+						<tr><td style="border-bottom:1px solid #949698;">&nbsp;</td></tr>
+						<tr><td style="BACKGROUND-IMAGE:url(./images/Buttons/save_n.gif);" class="TDep_n" onclick="btnGuardar_Click();" onmouseover="LinkChangeStyle(this, 'OVER');" onmouseout="LinkChangeStyle(this, 'NORMAL');">Finalizar edici&oacute;n</td></tr>
+						<tr><td style="BACKGROUND-IMAGE:url(./images/Buttons/back_n.gif);" class="TDep_n" onclick="btnVolver_Click();" onmouseover="LinkChangeStyle(this, 'OVER');" onmouseout="LinkChangeStyle(this, 'NORMAL');">Cancelar edici&oacute;n</td></tr>
+					</table>
+					</br>
+					<table class="Adv" cellpadding="0" cellspacing="0" width="100%">
+						<col width="100%"/>
+						<tr><th class="alignLeft">Consejos</th></tr>
+						<tr><td>Especific&aacute; los datos que consideres relevantes para que podamos conocerte mejor y tambi&eacute;n los que creas que favorezcan tu candidatura.
+						</td></tr>
+					</table>
+				</td>			
+
+				<td style="vertical-align:top; padding-top:5px;" class="alignCenter">
+				
+					<table style="TABLE-LAYOUT: fixed" width="80%">
+						<col width="50%" />
+						<col width="50%" />
+						
+						<!-- Botonera de secciones --------------------------------------------->
+						<tr class="BotoneraSecciones">
+							<td style="TEXT-ALIGN: left;"><span onclick="btnPrev_Click();" class="BotSec_n BotSecL" onmouseover="LinkChangeStyle(this, 'OVER');" onmouseout="LinkChangeStyle(this, 'NORMAL');">secci&oacute;n anterior</span></td>
+							<td style="TEXT-ALIGN: right;"><span onclick="btnGuardar_Click();" class="BotSec_n" onmouseover="LinkChangeStyle(this, 'OVER');" onmouseout="LinkChangeStyle(this, 'NORMAL');">finalizar edici&oacute;n</span></td>
+						</tr>
+						
+						<!-- Datos adicionales-------------------------------------------------->
+						<tr>
+							<td class="titulo_1" colspan="2">Datos adicionales</td>
+						</tr>
+
+						<tr>
+							<td class="label_r"><span style="FONT-WEIGHT:normal;">Los datos con asteriscos son obligatorios</span></td>
+						</tr>
+						<tr>
+							<td>&nbsp;</td>
+						</tr>
+						
+						<!-- Situacion laboral -------------------------------------->
+						<tr>
+							<td class="label">Situaci&oacute:n laboral</td>
+							<td class="label">&nbsp;</td>
+						</tr>
+
+						<tr>
+							<td> 
+								<select name="oi_sit_laboral" id="oi_sit_laboral">
+									{#QRY:NucleusRH.SituacionesLaborales.xml#}
+								</select>
+							</td>
+							<td class="text_1">&nbsp;</td>
+						</tr>
+						
+						<!-- Jornada y Remuneracion pretendida -------------------------------------->
+						<tr>
+							<td class="label">Jornada laboral pretendida</td>
+							<td class="label">Remuneraci&oacute;n m&iacute;nima pretendida</td>
+						</tr>
+												
+						<tr>
+							<td> 
+								<select name="oi_tipo_jor_lab" id="oi_tipo_jor_lab">
+									{#QRY:NucleusRH.Tipos_Jornadas_Laborales.xml#}
+								</select>
+							</td>
+							
+							<td>
+								<span class="label_w">$&nbsp;</span><INPUT class="Box" maxlength="10" size="20" name="n_remuneracion" id="n_remuneracion" type="text" VALUE=""/>
+							</td>
+						</tr>
+
+						<!-- Disponibilidad de radicarse y viajar -------------------------------------->
+						<tr>
+							<td class="label">Disponibilidad para viajar</td>
+							<td class="label">Disponibilidad para radicarse en otra ciudad</td>
+						</tr>
+
+						<tr>
+							<td class="text_1">
+								<select name="c_viajar" id="c_viajar" style="width:90%;">
+									<OPTION value="">-Seleccione disponibilidad-</OPTION>
+									<option value="NO">No</option>
+									<option value="NA">Solo nacional</option>
+									<option value="EX">Nacional y extranjero</option>
+								</select>
+							</td>
+							<td class="text_1">
+								<select name="c_radicarse" id="c_radicarse" style="width:90%;">
+									<OPTION value="">-Seleccione disponibilidad-</OPTION>
+									<option value="NO">No</option>
+									<option value="NA">Solo nacional</option>
+									<option value="EX">Nacional y extranjero</option>
+								</select>
+							</td>
+						</tr>
+
+						<!-- Licencia de conducir y Vehiculo propio ------------------------------->
+						<tr>
+							<td class="label">Cuento con Lincencia de conducir</td>
+							<td class="label">Cuento con Vehículo propio</td>
+						</tr>
+
+						<tr>
+							<td>
+								<select name="c_lic_conduc" id="c_lic_conduc">
+									<OPTION value="">-Seleccione-</OPTION>
+									<option value="S">Si</option>
+									<option value="N">No</option>
+								</select>
+							</td>
+							<td>
+								<select name="c_vehiculo" id="c_vehiculo">
+									<OPTION value="">-Seleccione-</OPTION>
+									<option value="S">Si</option>
+									<option value="N">No</option>
+								</select>							
+							</td>
+						</tr>
+
+						<!-- Faimiliares -------------------------------------------------->
+						<tr>
+							<td colspan="2" class="titulo_2">
+								<span class="titulo_2_span">Familiares&nbsp;&nbsp;</span>
+							</td>
+						</tr>
+						
+						<tr>
+							<td colspan="2">
+								<table width="100%">
+									<col width="25%"/>
+									<col width="25%"/>
+									<col width="25%"/>
+									<col width="25%"/>
+
+									<tr>
+										<td class="label">Apellido y Nombres - Familiar 1</td>
+										<td class="label">E-mail - Familiar 1</td>
+										<td class="label">Tel&eacute;fono - Familiar 1</td>
+										<td class="label">Parentesco - Familiar 1</td>
+									</tr>
+									
+									<tr>
+										<td><INPUT name="d_ape_y_nom_fam1" id="d_ape_y_nom_fam1" class="Box" type="text" VALUE="" style="width:100%"/></td>
+										<td><INPUT name="d_email_fam1" id="d_email_fam1" class="Box" type="text" VALUE="" style="width:100%"/></td>
+										<td><INPUT name="te_nro_fam1" id="te_nro_fam1" class="Box" type="text" VALUE="" style="width:100%"/></td>										
+										<td>
+											<select name="oi_tipo_fam1" id="oi_tipo_fam1" style="width:100%">
+												{#QRY:NucleusRH.Tipos_Familiar.xml#}
+											</select>
+										</td>
+									</tr>
+									
+								</table>
+							</td>
+						</tr>
+
+
+						<tr>
+							<td colspan="2">
+								<table width="100%">
+									<col width="25%"/>
+									<col width="25%"/>
+									<col width="25%"/>
+									<col width="25%"/>
+
+									<tr>
+										<td class="label">Apellido y Nombres - Familiar 2</td>
+										<td class="label">E-mail - Familiar 2</td>
+										<td class="label">Tel&eacute;fono - Familiar 2</td>
+										<td class="label">Parentesco - Familiar 2</td>
+									</tr>
+									
+									<tr>
+										<td><INPUT name="d_ape_y_nom_fam2" id="d_ape_y_nom_fam2" class="Box" type="text" VALUE="" style="width:100%"/></td>
+										<td><INPUT name="d_email_fam2" id="d_email_fam2" class="Box" type="text" VALUE="" style="width:100%"/></td>
+										<td><INPUT name="te_nro_fam2" id="te_nro_fam2" class="Box" type="text" VALUE="" style="width:100%"/></td>
+										<td>
+											<select name="oi_tipo_fam2" id="oi_tipo_fam2" style="width:100%">
+												{#QRY:NucleusRH.Tipos_Familiar.xml#}
+											</select>
+										</td>										
+									</tr>
+								</table>
+							</td>
+						</tr>
+
+						<!-- Referencias personales -------------------------------------------------->
+						<tr>
+							<td colspan="2" class="titulo_2">
+								<span class="titulo_2_span">Referencias personales&nbsp;&nbsp;</span>
+							</td>
+						</tr>
+
+						<tr>
+							<td colspan="2">
+								<table width="100%">
+									<col width="33%"/>
+									<col width="33%"/>
+									<col width="33%"/>
+
+									<tr>
+										<td class="label">Apellido y Nombres referencia 1</td>
+										<td class="label">E-mail referencia 1</td>
+										<td class="label">Tel&eacute;fono particular referencia 1</td>
+										</td>										
+									</tr>
+									
+									<tr>
+										<td><INPUT name="d_ape_y_nom_ref1" id="d_ape_y_nom_ref1" class="Box" type="text" VALUE="" style="width:100%"/></td>
+										<td><INPUT name="d_email_ref1" id="d_email_ref1" class="Box" type="text" VALUE="" style="width:100%"/></td>
+										<td><INPUT name="te_nro_ref1" id="te_nro_ref1" class="Box" type="text" VALUE="" style="width:100%"/></td>
+									</tr>
+									
+								</table>
+							</td>
+						</tr>
+
+
+						<tr>
+							<td colspan="2">
+								<table width="100%">
+									<col width="33%"/>
+									<col width="33%"/>
+									<col width="33%"/>
+
+									<tr>
+										<td class="label">Apellido y Nombres referencia 2</td>
+										<td class="label">E-mail referencia 2</td>
+										<td class="label">Tel&eacute;fono particular referencia 2</td>
+										</td>										
+									</tr>
+									
+									<tr>
+										<td><INPUT name="d_ape_y_nom_ref2" id="d_ape_y_nom_ref2" class="Box" type="text" VALUE="" style="width:100%"/></td>
+										<td><INPUT name="d_email_ref2" id="d_email_ref2" class="Box" type="text" VALUE="" style="width:100%"/></td>
+										<td><INPUT name="te_nro_ref2" id="te_nro_ref2" class="Box" type="text" VALUE="" style="width:100%"/></td>
+									</tr>
+									
+								</table>
+							</td>
+						</tr>
+
+						<!-- Botonera de secciones --------------------------------------------->
+						<tr><td colspan="2" class="TDBottomLine">&nbsp;</td></tr>
+						<tr class="BotoneraSecciones">
+							<td style="TEXT-ALIGN: left;"><span onclick="btnPrev_Click();" class="BotSec_n BotSecL" onmouseover="LinkChangeStyle(this, 'OVER');" onmouseout="LinkChangeStyle(this, 'NORMAL');">secci&oacute;n anterior</span></td>
+							<td style="TEXT-ALIGN: right;"><span onclick="btnGuardar_Click();" class="BotSec_n" onmouseover="LinkChangeStyle(this, 'OVER');" onmouseout="LinkChangeStyle(this, 'NORMAL');">finalizar edici&oacute;n</span></td>
+						</tr>
+												
+					</table>				
+				</td>
+			</tr>
+		</table>
+	</BODY>
+</HTML>

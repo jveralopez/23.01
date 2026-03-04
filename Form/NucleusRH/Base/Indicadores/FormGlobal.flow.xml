@@ -1,0 +1,216 @@
+<flow:flow xmlns:flow="nomad_engine.flow" xmlns:doc="nomad_engine.doc" xmlns:qry="nomad_engine.qry" description="indicadores de Antiguedad" default_action="AntigPer" extends="Nomad.Base.flow" name="NucleusRH.Base.Indicadores.Personal">
+	<flow:info label="Flow para NucleusRH.Base.Indicadores.Personal">
+		Flow para Nomad.Base.Liquidacion.Liquidacion
+	</flow:info>
+	<flow:declare>
+		<doc:define name="FILTERDATA">
+			<DATA/>
+		</doc:define>
+		<qry:define declare="&lt;DATA modulo_tco=&quot;SUELDOS&quot; /&gt;&#13;&#10;" name="qry_LastActualizacion">
+			<qry:main doc="SOURCE_1">
+				<qry:append-doc doc-path="#SOURCE_1:DATA" name="SOURCE"/>
+				<qry:element name="Datos">
+					<qry:insert-select doc-path="#SOURCE:" name="qry_FindLast"/>
+					<qry:attribute name="Modulo" value="#SOURCE:@modulo_tco"/>
+				</qry:element>
+			</qry:main>
+			<qry:select doc="doc_Last" name="qry_FindLast">
+				<qry:xquery>
+					for $r in sql ('  SELECT MAX (TCO01_EJECUCIONES.f_Inicio_ejec ) as f_Inicio_ejec   
+ 
+FROM TCO01_EJECUCIONES WHERE TCO01_EJECUCIONES.c_modulo_tco={#SOURCE:@modulo_tco}  ')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:insert-select doc-path="$r" name="qry_Result"/>
+					<qry:attribute value="#SOURCE:@modulo_tco" name="aa"/>
+				</qry:out>
+			</qry:select>
+			<qry:select doc="doc_result" name="qry_Result">
+				<qry:xquery>
+					&#32;&#32;for $r in sql (' SELECT TCO01_EJECUCIONES.c_ejecucion, TCO01_EJECUCIONES.c_estado , TCO01_EJECUCIONES.f_Inicio_ejec
+FROM TCO01_EJECUCIONES WHERE TCO01_EJECUCIONES.c_modulo_tco={#SOURCE:@modulo_tco}
+and TCO01_EJECUCIONES.f_Inicio_ejec =
+{DateTime(#doc_result:@f_Inicio_ejec)}
+ ')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:attribute value="$r/@c_ejecucion" name="c_ejecucion_F"/>
+					<qry:attribute value="$r/@c_estado" name="c_estado_F"/>
+					<qry:attribute value="iif($r/@c_estado='C',1,(iif($r/@c_estado='E',10,0)))" name="n_estado_F"/>
+					<qry:attribute value="$r/@f_Inicio_ejec" name="Fecha_Max"/>
+					<qry:insert-select doc-path="$r" name="qry_ResultDIM"/>
+				</qry:out>
+			</qry:select>
+			<qry:select doc="doc_resultDIM" name="qry_ResultDIM">
+				<qry:xquery>
+					&#32;&#32;for $r in sql (' SELECT TCO01_EJECUCIONES.c_ejecucion, TCO01_EJECUCIONES.c_estado 
+FROM TCO01_EJECUCIONES WHERE TCO01_EJECUCIONES.c_modulo_tco=\'DIMENSIONES\'
+and TCO01_EJECUCIONES.c_ejecucion = {#doc_resultDIM:@c_ejecucion}
+ ')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:attribute value="$r/@c_ejecucion" name="c_ejecucion_D"/>
+					<qry:attribute name="c_estado_D" value="$r/@c_estado"/>
+					<qry:attribute value="iif($r/@c_estado='C',1,(iif($r/@c_estado='E',10,0))) + #doc_resultDIM:@n_estado_F" name="n_estado_D"/>
+					<qry:insert-select doc-path="./" name="qry_ResultALL"/>
+				</qry:out>
+			</qry:select>
+			<qry:select doc="doc_resultALL" name="qry_ResultALL">
+				<qry:xquery>
+					&#32;&#32;for $r in sql (' SELECT TCO01_EJECUCIONES.c_ejecucion, TCO01_EJECUCIONES.c_estado 
+FROM TCO01_EJECUCIONES WHERE TCO01_EJECUCIONES.c_modulo_tco=\'datosComunes\'
+and  TCO01_EJECUCIONES.c_ejecucion =    {#doc_resultALL:@c_ejecucion_D}
+ ')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:attribute value="$r/@c_ejecucion" name="c_ejecucion_Com"/>
+					<qry:attribute value="$r/@c_estado" name="c_estado_Com"/>
+					<qry:attribute value="iif($r/@c_estado='C',1,(iif($r/@c_estado='E',10,0))) + #doc_resultALL:@n_estado_D" name="n_estado"/>
+					<qry:insert-select doc-path="./" name="qry_ResultFIN"/>
+				</qry:out>
+			</qry:select>
+			<qry:select doc="doc_FIN" name="qry_ResultFIN">
+				<qry:out>
+					<qry:attribute value="iif(#doc_FIN:@n_estado=0,'Sin Errores',(iif(#doc_FIN:@n_estado&lt;4,'Con errores','En Ejecucion')))" name="c_estado"/>
+				</qry:out>
+			</qry:select>
+		</qry:define>
+		<doc:define name="LastEjec"/>
+		<doc:define name="Doc_qry"/>
+	</flow:declare>
+	<flow:main doc="SOURCE">
+		<flow:action name="AntigPer">
+			<doc:set-attribute to-attr-path="#FILTERDATA:@modulo_tco" from-value="Personal"/>
+			<doc:set-attribute to-attr-path="#FILTERDATA:@accion_flow" from-value="AntigPer"/>
+			<doc:set-attribute to-attr-path="#FILTERDATA:@Titulo_Form" from-value="Antiguedad del personal"/>
+			<doc:set-attribute to-attr-path="#FILTERDATA:@MDXqry" from-value="with member [Measures].[Antiguedad Promedio] as '[Measures].[Antiguedad]'   &#13;&#10; select {[Measures].[Cantidad], [Measures].[Antiguedad Promedio]} ON COLUMNS, &#13;&#10; Hierarchize({[Organigrama].[ORG_REEMPLAZO]}) ON ROWS &#13;&#10;from [PERSONAL] &#13;&#10; where {(  [Tiempo].[ANIOMES_REEMPLAZO1].[ANIOMES_REEMPLAZO2])}"/>
+			<flow:call-action action="initialize_global"/>
+		</flow:action>
+		<flow:action name="AltasEG_Per">
+			<doc:set-attribute to-attr-path="#FILTERDATA:@modulo_tco" from-value="Personal"/>
+			<doc:set-attribute to-attr-path="#FILTERDATA:@accion_flow" from-value="AltasEG_Per"/>
+			<doc:set-attribute to-attr-path="#FILTERDATA:@MDXqry" from-value="&#13;&#10; select {[Measures].[Cantidad], [Measures].[Ingreso],  [Measures].[Egreso]} ON COLUMNS,   Hierarchize({[Organigrama].[ORG_REEMPLAZO]}) ON ROWS  from [PERSONAL] where {([Tiempo].[ANIOMES_REEMPLAZO1].[ANIOMES_REEMPLAZO2])}"/>
+			<doc:set-attribute to-attr-path="#FILTERDATA:@Titulo_Form" from-value="Altas y Egresos del personal"/>
+			<flow:call-action action="initialize_global"/>
+		</flow:action>
+		<flow:action name="Edades_Per">
+			<doc:set-attribute to-attr-path="#FILTERDATA:@modulo_tco" from-value="Personal"/>
+			<doc:set-attribute to-attr-path="#FILTERDATA:@accion_flow" from-value="Edades_Per"/>
+			<doc:set-attribute to-attr-path="#FILTERDATA:@MDXqry" from-value=" &#13;&#10;  with set [Menores de 20] as '{([Edades].[Todos las Edades].[1] : [Edades].[Todos las Edades].[20])}'    set [Entre 21 y 40] as '{([Edades].[Todos las Edades].[21] : [Edades].[Todos las Edades].[40])}'  set [Entre 41 y 55] as '{([Edades].[Todos las Edades].[41] : [Edades].[Todos las Edades].[55])}'   set [Mayores a 55] as '{([Edades].[Todos las Edades].[56] : [Edades].[Todos las Edades].[69])}'   member [Measures].[Menores de 20] as 'sum([Menores de 20],[Measures].[Cantidad])'                 member [Measures].[Entre 21 y 40] as 'sum([Entre 21 y 40],[Measures].[Cantidad])'                  member [Measures].[Entre 41 y 55] as 'sum([Entre 41 y 55],[Measures].[Cantidad])'                  member [Measures].[Mayores a 55] as 'sum([Mayores a 55],[Measures].[Cantidad])'                    select {[Measures].[Cantidad],[Measures].[Menores de 20],[Measures].[Entre 21 y 40],[Measures].[Entre 41 y 55] ,[Measures].[Mayores a 55]} ON COLUMNS, {[Organigrama].[ORG_REEMPLAZO]} ON ROWS   from [PERSONAL] where {([Tiempo].[ANIOMES_REEMPLAZO1].[ANIOMES_REEMPLAZO2])}"/>
+			<doc:set-attribute to-attr-path="#FILTERDATA:@Titulo_Form" from-value="Legajos seg&#250;n rango de edades"/>
+			<flow:call-action action="initialize_global"/>
+		</flow:action>
+		<flow:action name="PromEdades_Per">
+			<doc:set-attribute to-attr-path="#FILTERDATA:@modulo_tco" from-value="Personal"/>
+			<doc:set-attribute to-attr-path="#FILTERDATA:@accion_flow" from-value="PromEdades_Per"/>
+			<doc:set-attribute to-attr-path="#FILTERDATA:@Titulo_Form" from-value="Promedio de edades"/>
+			<doc:set-attribute to-attr-path="#FILTERDATA:@MDXqry" from-value="&#13;&#10;   select {[Measures].[Cantidad], [Measures].[Edad_Promedio]} ON COLUMNS, {[Organigrama].[ORG_REEMPLAZO]} ON ROWS   from [PERSONAL] where {([Tiempo].[ANIOMES_REEMPLAZO1].[ANIOMES_REEMPLAZO2])}"/>
+			<flow:call-action action="initialize_global"/>
+		</flow:action>
+		<flow:action name="Capacita_Per">
+			<doc:set-attribute to-attr-path="#FILTERDATA:@modulo_tco" from-value="Personal"/>
+			<doc:set-attribute to-attr-path="#FILTERDATA:@accion_flow" from-value="Capacita_Per"/>
+			<doc:set-attribute to-attr-path="#FILTERDATA:@Titulo_Form" from-value="Capacitacion del personal"/>
+			<doc:set-attribute to-attr-path="#FILTERDATA:@MDXqry" from-value=" with      member [Measures].[Personas] as 'Count(Filter({[Personal].[Todo el personal].Children}, ([Measures].[Horas Capacitacion] &gt; 0.0)))'&#13;&#10;  member [Measures].[Indice] as '([Measures].[Horas Capacitacion] / [Measures].[Personas])'   member [Measures].[Horas] as '([Measures].[Horas Capacitacion])' select NON EMPTY {[Measures].[Horas],[Measures].[Personas], [Measures].[Indice]} ON COLUMNS,  NON EMPTY Hierarchize(Union({[Organigrama].[ORG_REEMPLAZO]} , [Organigrama].[ORG_REEMPLAZO].Children)) ON ROWS from [PERSONAL] where [Tiempo].[ANIOMES_REEMPLAZO1].[ANIOMES_REEMPLAZO2]"/>
+			<flow:call-action action="initialize_global"/>
+		</flow:action>
+		<flow:action name="ProxJub_Per">
+			<doc:set-attribute to-attr-path="#FILTERDATA:@modulo_tco" from-value="Personal"/>
+			<doc:set-attribute to-attr-path="#FILTERDATA:@accion_flow" from-value="ProxJub_Per"/>
+			<doc:set-attribute to-attr-path="#FILTERDATA:@MDXqry" from-value="&#13;&#10;with   set [Cantidad Mayor 60] as '{([Edades].[Todos las Edades].[61] : [Edades].[Todos las Edades].[69])}'      set [Cantidad Mayor 55] as '{([Edades].[Todos las Edades].[56] : [Edades].[Todos las Edades].[69])}'    member [Measures].[Cantidad Mayor 60] as 'Sum([Cantidad Mayor 60], [Measures].[Cantidad])'    member [Measures].[Cantidad Mayor 55] as 'Sum([Cantidad Mayor 55], [Measures].[Cantidad])'    member [Measures].[Porcentaje55] as '([Measures].[Cantidad Mayor 55] / [Measures].[Cantidad])', FORMAT_STRING = '#%'    member [Measures].[Porcentaje60] as '([Measures].[Cantidad Mayor 60] / [Measures].[Cantidad])', FORMAT_STRING = '#%'    member [Measures].[Total] as '([Measures].[Cantidad])'    select NON EMPTY {[Measures].[Total], [Measures].[Cantidad Mayor 55],[Measures].[Porcentaje55],  [Measures].[Cantidad Mayor 60],[Measures].[Porcentaje60]} ON COLUMNS,     ({[Sexos].[Ambos Sexos].[FEMENINO], [Sexos].[Ambos Sexos].[MASCULINO]}) ON ROWS    from [PERSONAL] where {([Tiempo].[ANIOMES_REEMPLAZO1].[ANIOMES_REEMPLAZO2])}"/>
+			<doc:set-attribute to-attr-path="#FILTERDATA:@Titulo_Form" from-value="Legajos pr&#243;ximos a jubilarse"/>
+			<flow:call-action action="initialize_global"/>
+		</flow:action>
+		<flow:action name="Evaluaciones">
+			<doc:set-attribute to-attr-path="#FILTERDATA:@modulo_tco" from-value="Evaluacion"/>
+			<doc:set-attribute to-attr-path="#FILTERDATA:@accion_flow" from-value="Evaluaciones"/>
+			<doc:set-attribute to-attr-path="#FILTERDATA:@MDXqry" from-value=" with    member [Measures].[Puntaje] as '[Measures].[Result_eval]'   member [Measures].[Maximo] as 'Max({[Organigrama].[ORG_REEMPLAZO], [Organigrama].[ORG_REEMPLAZO].Children}, [Measures].[Puntaje])'   member [Measures].[Minimo] as 'Min({[Organigrama].[ORG_REEMPLAZO], [Organigrama].[ORG_REEMPLAZO].Children}, [Measures].[Puntaje])' select NON EMPTY {[Measures].[Cantidad], [Measures].[Puntaje], [Measures].[Minimo], [Measures].[Maximo]} ON COLUMNS, NON EMPTY Hierarchize(Union({([Evento].[Todos los Eventos], [Organigrama].[ORG_REEMPLAZO])}, Crossjoin([Evento].[Todos los Eventos].Children, {[Organigrama].[ORG_REEMPLAZO]}))) ON ROWS  from [EVALUACION]  where {([Tiempo].[ANIOMES_REEMPLAZO1].[ANIOMES_REEMPLAZO2])}"/>
+			<doc:set-attribute to-attr-path="#FILTERDATA:@Titulo_Form" from-value="An&#225;lisis de resultado de Evaluaciones"/>
+			<flow:call-action action="initialize_global"/>
+		</flow:action>
+		<flow:action name="Competencias">
+			<doc:set-attribute to-attr-path="#FILTERDATA:@modulo_tco" from-value="Evaluacion"/>
+			<doc:set-attribute to-attr-path="#FILTERDATA:@accion_flow" from-value="Competencias"/>
+			<doc:set-attribute to-attr-path="#FILTERDATA:@MDXqry" from-value=" with    member [Measures].[Valor] as '[Measures].[Result_comp]'   member [Measures].[Maximo] as 'Max({[Competencia].CurrentMember, [Competencia].Children}, [Measures].[Valor])'   member [Measures].[Minimo] as 'Min({[Competencia].CurrentMember, [Competencia].Children}, [Measures].[Valor])' select NON EMPTY {[Measures].[Cantidad], [Measures].[Valor], [Measures].[Minimo], [Measures].[Maximo]} ON COLUMNS,   NON EMPTY Crossjoin({[Evento].[Todos los Eventos]}, {([Competencia].[Todos las Competencias], [Organigrama].[ORG_REEMPLAZO])}) ON ROWS  from [EVALUACION]  where {([Tiempo].[ANIOMES_REEMPLAZO1].[ANIOMES_REEMPLAZO2])}"/>
+			<doc:set-attribute to-attr-path="#FILTERDATA:@Titulo_Form" from-value="An&#225;lisis de resultado de Competencias"/>
+			<flow:call-action action="initialize_global"/>
+		</flow:action>
+		<flow:action name="Sueldo_Neto_Acum">
+			<doc:set-attribute to-attr-path="#FILTERDATA:@modulo_tco" from-value="Sueldos"/>
+			<doc:set-attribute to-attr-path="#FILTERDATA:@accion_flow" from-value="Sueldo_Neto_Acum"/>
+			<doc:set-attribute to-attr-path="#FILTERDATA:@MDXqry" from-value="with   member [Measures].[Acumulado al 01/2009]  as 'Sum({([Tiempo].[Todas las fechas].[2009].[01/2009] : [Tiempo].[Todas las fechas].[2009].[01/2009])}, [Measures].[TotPagado])'    member [Measures].[Total 2009]  as '[Measures].[TotPagado]' select {[Measures].[Total 2009] ,[Measures].[Acumulado al 01/2009] } ON COLUMNS , NON EMPTY Hierarchize(Union([Organigrama].[ORG_REEMPLAZO].Children, [Organigrama].[ORG_REEMPLAZO].Children  )) ON ROWS from [SUELDOS]"/>
+			<doc:set-attribute to-attr-path="#FILTERDATA:@Titulo_Form" from-value="Sueldos promedios Netos Acumulados"/>
+			<flow:call-action action="initialize_global"/>
+		</flow:action>
+		<flow:action name="Sueldo_Neto">
+			<doc:set-attribute to-attr-path="#FILTERDATA:@modulo_tco" from-value="Sueldos"/>
+			<doc:set-attribute to-attr-path="#FILTERDATA:@accion_flow" from-value="Sueldo_Neto"/>
+			<doc:set-attribute to-attr-path="#FILTERDATA:@MDXqry" from-value=" with member [Measures].[Minimo] as 'Min([Personal].Children, [Measures].[TotPagado])'&#13;&#10;  member [Measures].[Maximo] as 'Max([Personal].Children, [Measures].[TotPagado])'&#13;&#10;  member [Measures].[Total] as 'Sum([Personal].Children, [Measures].[TotPagado])'&#13;&#10;  member [Measures].[Promedio] as '([Measures].[Total] / [Measures].[CantPers])'&#13;&#10;  member [Measures].[%] as '([Measures].[CantPers] / ([Measures].[CantPers], [Organigrama].[Todo los Organigramas].[ORG_REEMPLAZO]))', FORMAT_STRING = '##0.##%'&#13;&#10;select {[Measures].[Minimo], [Measures].[Maximo], [Measures].[CantPers], [Measures].[Total], [Measures].[Promedio], [Measures].[%]} ON COLUMNS,&#13;&#10;  {[Organigrama].[Todo los Organigramas].[ORG_REEMPLAZO]} ON ROWS&#13;&#10;from [SUELDOS]&#13;&#10;where [Tiempo].[Todas las fechas].[ANIOMES_REEMPLAZO1].[ANIOMES_REEMPLAZO2]"/>
+			<doc:set-attribute to-attr-path="#FILTERDATA:@Titulo_Form" from-value="Sueldos promedios Netos"/>
+			<flow:call-action action="initialize_global"/>
+		</flow:action>
+		<flow:action name="Var_Costo_Lab">
+			<doc:set-attribute to-attr-path="#FILTERDATA:@modulo_tco" from-value="Sueldos"/>
+			<doc:set-attribute to-attr-path="#FILTERDATA:@accion_flow" from-value="Var_Costo_Lab"/>
+			<doc:set-attribute to-attr-path="#FILTERDATA:@MDXqry" from-value=" with   member [Measures].[Total Costos] as 'Sum({[Measures].[TotContribucion], [Measures].[TotSujetoReten], [Measures].[TotNoSujetoReten]})'    member [Measures].[TotalGral] as 'Sum({[Organigrama].[ORG_REEMPLAZO]}, [Measures].[Total Costos])'     member [Measures].[Sueldo Bruto] as 'Sum({[Measures].[TotSujetoReten], [Measures].[TotNoSujetoReten]})'       member [Measures].[Contribuciones] as '[Measures].[TotContribucion]'       member [Measures].[Di] as '([Measures].[TotalGral] - [Measures].[Presupuesto])'    member [Measures].[Dif] as '([Measures].[Di])',   FORMAT_STRING = '####0.00'    member [Measures].[Variacion] as '([Measures].[Dif] / [Measures].[Presupuesto])',   FORMAT_STRING =IIf(([Measures].[Di] &lt; 0.0), '|00.0#%|style=green', IIf(([Measures].[Di] = 0.0), '00.0#%',   IIf(([Measures].[Di] &lt; 290.0), '|00.0#%|style=yellow', '|00.0#%|style=red')))  select NON EMPTY {[Measures].[Total Costos], [Measures].[Presupuesto], [Measures].[Dif], [Measures].[Variacion]} ON COLUMNS,    NON EMPTY Hierarchize(Union({[Centros de Costo].[Todos los CC]}, [Centros de Costo].[Todos los CC].Children)) ON ROWS     from [SUELDOS]  where {([Tiempo].[ANIOMES_REEMPLAZO1].[ANIOMES_REEMPLAZO2])}"/>
+			<doc:set-attribute to-attr-path="#FILTERDATA:@Titulo_Form" from-value="An&#225;lisis de variaci&#243;n de costo laboral"/>
+			<flow:call-action action="initialize_global"/>
+		</flow:action>
+		<flow:action name="Costo_Lab">
+			<doc:set-attribute to-attr-path="#FILTERDATA:@modulo_tco" from-value="Sueldos"/>
+			<doc:set-attribute to-attr-path="#FILTERDATA:@accion_flow" from-value="Costo_Lab"/>
+			<doc:set-attribute to-attr-path="#FILTERDATA:@MDXqry" from-value=" with  member [Measures].[Total Costos] as 'Sum({[Measures].[TotContribucion], [Measures].[TotSujetoReten], [Measures].[TotNoSujetoReten]})'  member [Measures].[TotalGral] as 'Sum({[Organigrama].[ORG_REEMPLAZO]}, [Measures].[Total Costos])'  member [Measures].[Sueldo Bruto] as 'Sum({[Measures].[TotSujetoReten], [Measures].[TotNoSujetoReten]})'  member [Measures].[Contribuciones] as '[Measures].[TotContribucion]'  member [Measures].[%] as '([Measures].[Total Costos] / [Measures].[TotalGral])', FORMAT_STRING = '#%'     select NON EMPTY {[Measures].[Total Costos], [Measures].[%] ,  [Measures].[Sueldo Bruto], [Measures].[Contribuciones]} ON COLUMNS,  NON EMPTY Hierarchize(Union([Organigrama].[ORG_REEMPLAZO].Children, [Organigrama].[ORG_REEMPLAZO].Children  )) ON ROWS from [SUELDOS]  where {([Tiempo].[ANIOMES_REEMPLAZO1].[ANIOMES_REEMPLAZO2])}"/>
+			<doc:set-attribute to-attr-path="#FILTERDATA:@Titulo_Form" from-value="Costo Laboral"/>
+			<flow:call-action action="initialize_global"/>
+		</flow:action>
+		<flow:action name="Sueldos_Conf">
+			<doc:set-attribute to-attr-path="#FILTERDATA:@modulo_tco" from-value="Sueldos"/>
+			<doc:set-attribute to-attr-path="#FILTERDATA:@accion_flow" from-value="Sueldos_Conf"/>
+			<doc:set-attribute to-attr-path="#FILTERDATA:@MDXqry" from-value=" select {[Measures].[Cantidad], [Measures].[Valor]} ON COLUMNS,    NON EMPTY {([Tipo Conceptos].[Todos los Tipos de Conceptos], [Conceptos].[Todos los Conceptos])} ON ROWS    from [SUELDOS_CONC]  where ([Organigrama].[ORG_REEMPLAZO], [Tiempo].[ANIOMES_REEMPLAZO1].[ANIOMES_REEMPLAZO2])"/>
+			<doc:set-attribute to-attr-path="#FILTERDATA:@Titulo_Form" from-value="Sueldos Conformados"/>
+			<flow:call-action action="initialize_global"/>
+		</flow:action>
+		<flow:action name="Hs_GrpTipoHoras">
+			<doc:set-attribute to-attr-path="#FILTERDATA:@modulo_tco" from-value="Horas"/>
+			<doc:set-attribute to-attr-path="#FILTERDATA:@accion_flow" from-value="Hs_GrpTipoHoras"/>
+			<doc:set-attribute to-attr-path="#FILTERDATA:@MDXqry" from-value=" select Hierarchize({[Grupos Tipos Horas].[Todos los Grupos Tipos Horas]}) ON COLUMNS,  Order({([Organigrama].[ORG_REEMPLAZO] , [Measures].[Horas])}, ([Grupos Tipos Horas].[Todos los Grupos Tipos Horas].[Ausencias], [Measures].[Horas]), DESC) ON ROWS from [HORAS] where {([Tiempo].[ANIOMES_REEMPLAZO1].[ANIOMES_REEMPLAZO2])}"/>
+			<doc:set-attribute to-attr-path="#FILTERDATA:@Titulo_Form" from-value="Horas - Grupo Tipo Horas"/>
+			<flow:call-action action="initialize_global"/>
+		</flow:action>
+		<flow:action name="Hs_TipoHoras">
+			<doc:set-attribute to-attr-path="#FILTERDATA:@modulo_tco" from-value="Horas"/>
+			<doc:set-attribute to-attr-path="#FILTERDATA:@accion_flow" from-value="Hs_TipoHoras"/>
+			<doc:set-attribute to-attr-path="#FILTERDATA:@MDXqry" from-value=" SELECT NON EMPTY Hierarchize({[Tipos Horas].[Todos los Tipos Horas]}) ON COLUMNS,  NON EMPTY Crossjoin(Hierarchize({[Organigrama].[ORG_REEMPLAZO]}), {[Measures].[Horas]}) ON ROWS from [HORAS] where {([Tiempo].[ANIOMES_REEMPLAZO1].[ANIOMES_REEMPLAZO2])}"/>
+			<doc:set-attribute to-attr-path="#FILTERDATA:@Titulo_Form" from-value="Horas - Tipo Horas"/>
+			<flow:call-action action="initialize_global"/>
+		</flow:action>
+		<flow:action name="Ausentismo_Per">
+			<doc:set-attribute to-attr-path="#FILTERDATA:@modulo_tco" from-value="Horas"/>
+			<doc:set-attribute to-attr-path="#FILTERDATA:@accion_flow" from-value="Ausentismo_Per"/>
+			<doc:set-attribute to-attr-path="#FILTERDATA:@MDXqry" from-value="with member [Measures].[Horas Esperadas] as '[Measures].[HorasEsperado]'&#13;&#10;  member [Measures].[HorasAusen] as '([Measures].[HorasAusencia] / [Measures].[Horas Esperadas])'&#13;&#10;  member [Measures].[%] as 'IIf(([Measures].[HorasAusencia] = 0.0), 0.0, [Measures].[HorasAusen])', FORMAT_STRING = '##0.##%'&#13;&#10;  member [Measures].[Horas de Ausencia] as '[Measures].[HorasAusencia]'&#13;&#10;select NON EMPTY {[Measures].[Horas de Ausencia], [Measures].[Horas Esperadas], [Measures].[%]} ON COLUMNS,&#13;&#10;  NON EMPTY {[Organigrama].[Todo los Organigramas], [Organigrama].[Todo los Organigramas].[ORG_REEMPLAZO]} ON ROWS&#13;&#10;from [PERSONAL]&#13;&#10;where [Tiempo].[Todas las fechas].[ANIOMES_REEMPLAZO1].[ANIOMES_REEMPLAZO2]"/>
+			<doc:set-attribute to-attr-path="#FILTERDATA:@Titulo_Form" from-value="Horas - Indices de Ausentismo"/>
+			<flow:call-action action="initialize_global"/>
+		</flow:action>
+		<flow:action name="initialize_global">
+			<doc:load-qry qry="qry_LastActualizacion" input-doc-path="#FILTERDATA:" output-doc="LastEjec"/>
+			<doc:set-attribute to-attr-path="#FILTERDATA:@Fecha_Max" from-attr-path="#LastEjec:@Fecha_Max"/>
+			<doc:set-attribute to-attr-path="#FILTERDATA:@c_estado" from-attr-path="#LastEjec:@c_estado"/>
+			<doc:set-attribute from-value="Init" to-attr-path="#FILTERDATA:@action"/>
+			<flow:html-gen input-doc-path="#FILTERDATA:" out-file-path="#FILTERDATA:@URL" template-file="NucleusRH.Base.Indicadores.JPivot.rpt"/>
+			<flow:open-form form-class="NucleusRH.Base.Indicadores.FormGlobal.form" doc-path="#FILTERDATA:" mode="SHOW"/>
+		</flow:action>
+	</flow:main>
+	<flow:form form-class="NucleusRH.Base.Indicadores.FormGlobal.form" name="NucleusRH.Base.Indicadores.FormGlobal.form:EDIT" mode="SHOW" doc="SOURCE">
+		<flow:action name="EJECUTAR_CLICK">
+			<flow:attach-doc doc-path="#FILTERDATA:" attach-id="filterdata"/>
+			<doc:set-attribute from-value="JPivot" to-attr-path="#FILTERDATA:@action"/>
+			<flow:exec-method out-type="Nomad.NSystem.String" out-attr-path="#FILTERDATA:@serverOLAP" class="NucleusRH.Base.Indicadores.Ejecuciones.EJECUCION" method="svr_jPivotHtml"/>
+			<flow:html-gen input-doc-path="#FILTERDATA:" out-file-path="#FILTERDATA:@URL" template-file="NucleusRH.Base.Indicadores.JPivot.rpt"/>
+			<flow:open-form form-class="NucleusRH.Base.Indicadores.FormGlobal.form" doc-path="#FILTERDATA:" mode="SHOW"/>
+		</flow:action>
+		<flow:action name="VOLVER_CLICK">
+			<flow:close-form/>
+		</flow:action>
+		<flow:action name="on-show"/>
+	</flow:form>
+</flow:flow>

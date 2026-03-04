@@ -1,0 +1,314 @@
+<html:html xmlns:html="nomad_engine.html" xmlns:qry="nomad_engine.qry" name="NucleusRH.Base.Liquidacion.EstadisticaConceptos" extends="Nomad.Base.BaseReport.rpt" doc="source">
+	<html:query declare="&lt;FILTRO gcustom=&quot;&quot; oi_empresa=&quot;1&quot; cod_desde=&quot;&quot; cod_hasta=&quot;&quot; oi_tipo_concepto=&quot;&quot; gpers=&quot;&quot; liq_cod=&quot;&quot; liq_f_des=&quot;&quot; liq_f_has=&quot;&quot; liq_f_pag_des=&quot;&quot; liq_f_pag_has=&quot;&quot; liq_oi_tipo_liq=&quot;&quot; liq_c_estado=&quot;&quot; l_listar_lsd=&quot;&quot; liqID=&quot;&quot; activos=&quot;&quot; nombre=&quot;&quot; documento=&quot;&quot; sexo=&quot;&quot; grupo_sanguineo=&quot;&quot; listlegajos=&quot;&quot; oi_indic_activo=&quot;&quot; egresado=&quot;&quot; oi_forma_pago=&quot;&quot; oi_tipo_personal=&quot;&quot; fecha_desde=&quot;&quot; fecha_hasta=&quot;&quot; cb_confidenciales=&quot;&quot; oi_grupo_ccosto=&quot;&quot; oi_centro_costo=&quot;&quot; oi_convenio=&quot;&quot; soloconvenio=&quot;&quot; oi_categoria=&quot;&quot; oi_ubicacion_desde=&quot;&quot; oi_ubicacion_hasta=&quot;&quot; oi_estructura=&quot;&quot; escructura_childs=&quot;&quot; oi_contrato=&quot;&quot; oi_afjp=&quot;&quot; oi_obra_social=&quot;&quot; oi_sindicato=&quot;&quot; l_afiliado_sind=&quot;0&quot; oi_departamento=&quot;&quot; oi_sector=&quot;&quot; oi_banco=&quot;&quot; oi_sucursal=&quot;&quot; legID=&quot;1368&quot; leg_where=&quot;&quot;&gt;&lt;ROWS&gt;&lt;/ROWS&gt;&lt;PERSONAS&gt;&lt;ROW VALUES=&quot;1,2,1366,1367,1368&quot;/&gt;&lt;/PERSONAS&gt;&lt;LIQUIDACIONES&gt;&lt;ROW VALUES=&quot;1,101,102,201,202,301,302,303,401,402,403,405,501,503,504,505,602,801,802,803&quot;/&gt;&lt;/LIQUIDACIONES&gt;&lt;/FILTRO&gt;">
+		<qry:main doc="SOURCE">
+			<qry:append-doc name="PARAMIN" doc-path="#SOURCE:FILTRO"/>
+			<qry:append-doc name="LEGAJOS" doc-path="#SOURCE:FILTRO/PERSONAS"/>
+			<qry:append-doc name="LIQUIDACIONES" doc-path="#SOURCE:FILTRO/LIQUIDACIONES"/>
+			<qry:append-doc name="CONCEPTOSFILTRO" doc-path="#SOURCE:FILTRO/ROWS"/>
+			<REPORT label="Totales por Conceptos y Per&#237;odo">
+				<qry:element name="PERIODOS">
+					<qry:append-doc name="PERIODOS" doc-path="."/>
+					<qry:insert-select name="qry_periodos"/>
+					<qry:attribute name="hts:delete" value="1"/>
+				</qry:element>
+				<qry:attribute name="date" value="format_date(Now(),'dd/mm/yyyy HH:MM')"/>
+				<GROUPS>
+					<GROUP tag="CAB" type="title" noreg="No se encontraron registros para este concepto.">
+						<COLS>
+							<COL name="d_empresa" label="Empresa"/>
+							<qry:if test="#PARAMIN:@cod_desde !='' or #PARAMIN:@cod_hasta !=''">
+								<qry:then>
+									<COL name="conc_des_has" label="Concepto Desde - Hasta"/>
+								</qry:then>
+							</qry:if>
+						</COLS>
+						<GROUP label="Liquidaciones" tag="LIQUIDACIONES" style="width:500px" type="table">
+							<COLS>
+								<COL name="COD" label="Codigo" width="20%"/>
+								<COL name="DES" label="Descripcion" width="40%"/>
+								<COL name="PER" label="Periodo" style="text-align:center;" width="10%"/>
+								<COL name="TYP" label="Tipo" width="20%"/>
+							</COLS>
+						</GROUP>
+						<GROUP tag="CONC" style="padding-left:50px;width:1140px;" type="table" noreg="No se encontraron registros para este concepto.">
+							<COLS>
+								<COL name="c_concepto" label="C&#243;digo"/>
+								<COL name="tipo" label="Tipo de Concepto" type="string"/>
+								<COL name="d_concepto" label="Descripci&#243;n" type="string"/>
+								<qry:insert-select name="qry_columnas"/>
+							</COLS>
+							<FCOLS>
+								<COL name="cant_conc" colspan="3"/>
+								<qry:insert-select name="qry_columnas_tot"/>
+							</FCOLS>
+						</GROUP>
+					</GROUP>
+				</GROUPS>
+				<DATA>
+					<qry:element name="CONCEPTOS">
+						<qry:append-doc name="CONCEPTOS" doc-path="."/>
+						<qry:insert-select name="qry_conc"/>
+						<qry:attribute name="hts:delete" value="1"/>
+					</qry:element>
+					<CAB qry-orderby="orderby">
+						<qry:attribute name="conc_des_has" value="(#PARAMIN:@cod_desde) + ' - ' + (#PARAMIN:@cod_hasta)"/>
+						<qry:insert-select name="qry_empresa" doc-path="#PARAMIN:"/>
+						<qry:insert-select name="qry_liquidaciones" doc-path="#LIQUIDACIONES:"/>
+						<CONTEMP>
+							<qry:append-doc name="CONTEMP" doc-path="."/>
+							<qry:insert-select name="qry_split" doc-path="#LEGAJOS:"/>
+							<qry:attribute name="hts:delete" value="1"/>
+						</CONTEMP>
+						<qry:insert-select name="qry_por_concepto"/>
+						<qry:insert-select name="qry_totales" doc-path="."/>
+					</CAB>
+				</DATA>
+			</REPORT>
+		</qry:main>
+		<qry:select name="qry_periodos" doc="SOURCE">
+			<qry:xquery>
+				for $r in SQL('	
+ 	SELECT
+	LIQ19_LIQUIDACION.e_periodo
+	FROM 
+	LIQ19_LIQUIDACION	
+   	WHERE  
+    LIQ19_LIQUIDACION.oi_liquidacion in   ({%=#LIQUIDACIONES:ROW/@values %})  
+    group by 
+    LIQ19_LIQUIDACION.e_periodo 
+    order by e_periodo asc
+			')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:insert-element doc-path="$r"/>
+				<!--<qry:attribute name="per_desde" value="$r/@per_desde"/>
+<qry:attribute name="per_hasta" value="$r/@per_hasta"/> -->
+			</qry:out>
+		</qry:select>
+		<qry:select name="qry_conc">
+			<qry:xquery>
+				for $r in SQL('
+			
+			SELECT
+  LIQ96_CONCEPTOS.c_concepto as c_concepto,
+ max(LIQ96_CONCEPTOS.d_concepto ) as d_concepto,
+ max(LIQ12_TIPOS_CONC.d_tipo_concepto) as tipo,
+ max(LIQ12_TIPOS_CONC.c_tipo_concepto) as c_tipo_concepto 
+FROM 
+LIQ19_EJECUCIONES,
+LIQ99_LIQUIDACION,
+LIQ99_RECIBOS,
+LIQ20_TOT_LIQ_PER,
+LIQ20_CONC_LIQ_PER,
+LIQ96_CONCEPTOS,
+ LIQ12_TIPOS_CONC,
+ LIQ14_CONCEPTOS
+JOIN 
+ LIQ19_EJECUCIONES.oi_liquidacion_ddo INNER LIQ99_LIQUIDACION.oi_liquidacion_ddo,
+ LIQ99_LIQUIDACION.oi_liquidacion_ddo INNER LIQ99_RECIBOS.oi_liquidacion_ddo, 
+   LIQ99_RECIBOS.oi_tot_liq_per INNER LIQ20_TOT_LIQ_PER.oi_tot_liq_per, 
+   LIQ20_TOT_LIQ_PER.oi_tot_liq_per INNER LIQ20_CONC_LIQ_PER.oi_tot_liq_per, 
+   LIQ20_CONC_LIQ_PER.oi_concepto_ddo INNER LIQ96_CONCEPTOS.oi_concepto_ddo, 
+    LIQ96_CONCEPTOS.c_tipo_concepto INNER LIQ12_TIPOS_CONC.c_tipo_concepto,
+     LIQ96_CONCEPTOS.c_concepto INNER LIQ14_CONCEPTOS.c_concepto 
+   WHERE  
+   LIQ20_CONC_LIQ_PER.n_valor  !=  0.0  
+   AND  LIQ99_LIQUIDACION.c_estado  =  \'F\'  
+   AND LIQ19_EJECUCIONES.oi_liquidacion in   ({%=#LIQUIDACIONES:ROW/@values %})   
+    {%? (#PARAMIN:@oi_tipo_concepto!='') {% AND LIQ12_TIPOS_CONC.oi_tipo_concepto = {#PARAMIN:@oi_tipo_concepto} %} {% %} %}
+  {%? (#CONCEPTOSFILTRO:ROW/@id!='') {% AND LIQ14_CONCEPTOS.oi_concepto in ({%=#CONCEPTOSFILTRO:ROW/@id %}) %} {% %} %}
+   
+    {%? (#PARAMIN:@cod_desde!='') {% AND LIQ96_CONCEPTOS.c_concepto &gt;= {#PARAMIN:@cod_desde} %} {% %} %}
+  {%? (#PARAMIN:@cod_hasta!='') {% AND LIQ96_CONCEPTOS.c_concepto &lt;= {#PARAMIN:@cod_hasta} %} {% %} %}
+
+  GROUP BY 
+LIQ96_CONCEPTOS.c_concepto 
+order by 
+ c_tipo_concepto asc, c_concepto asc			
+			
+			
+			')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:element name="ROW">
+					<qry:attribute name="c_concepto" value="$r/@c_concepto"/>
+					<qry:attribute name="d_concepto" value="$r/@d_concepto"/>
+					<qry:attribute name="c_tipo_concepto" value="iif($r/@c_tipo_concepto='0','1',iif($r/@c_tipo_concepto='1','0',$r/@c_tipo_concepto))"/>
+					<qry:attribute name="tipo" value="$r/@tipo"/>
+				</qry:element>
+			</qry:out>
+		</qry:select>
+		<qry:select doc="SOURCE" name="qry_empresa">
+			<qry:xquery>
+				for $r in sql('
+				SELECT 
+					ORG03_EMPRESAS.c_empresa,
+					ORG03_EMPRESAS.d_empresa
+				FROM 
+					ORG03_EMPRESAS
+				WHERE 
+					ORG03_EMPRESAS.oi_empresa = {#SOURCE:@oi_empresa}
+			')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:attribute name="d_empresa" value="$r/@d_empresa"/>
+				<qry:attribute name="c_empresa" value="$r/@c_empresa"/>
+			</qry:out>
+		</qry:select>
+		<qry:select doc="SOURCE" name="qry_liquidaciones">
+			<qry:xquery>
+				for $r in sql('
+				SELECT 
+					LIQ19_LIQUIDACION.c_liquidacion,
+					LIQ19_LIQUIDACION.d_titulo,
+					LIQ19_LIQUIDACION.e_periodo,
+					LIQ01_TIPOS_LIQ.d_tipo_liq
+				FROM 
+					LIQ19_LIQUIDACION, LIQ01_TIPOS_LIQ
+				JOIN                               
+					LIQ19_LIQUIDACION.oi_tipo_liq INNER LIQ01_TIPOS_LIQ.oi_tipo_liq
+				WHERE 
+					LIQ19_LIQUIDACION.oi_liquidacion in ({%=String(#SOURCE:ROW/@values) %})
+			')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<LIQUIDACIONES>
+					<qry:attribute name="COD" value="$r/@c_liquidacion"/>
+					<qry:attribute name="DES" value="$r/@d_titulo"/>
+					<qry:attribute name="PER" value="format_date($r/@e_periodo+'01','Mmm-yyyy')"/>
+					<qry:attribute name="TYP" value="$r/@d_tipo_liq"/>
+				</LIQUIDACIONES>
+			</qry:out>
+		</qry:select>
+		<qry:select name="qry_split" doc="SOURCE">
+			<qry:xquery>
+				for	$r in split('200;{%=string(#LEGAJOS:ROW/@values) %}')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<!--<qry:call> 
+<FILTRO>
+<qry:attribute name="values" value="$r/@value"/>
+<qry:attribute name="oi_tipo_concepto" value="#PARAMIN:@oi_tipo_concepto"/>
+<qry:attribute name="cod_desde" value="#PARAMIN:@cod_desde"/>
+<qry:attribute name="cod_hasta" value="#PARAMIN:@cod_hasta"/>
+<qry:attribute name="oi_liqs" value="String(#LIQUIDACIONES:ROW/@values)"/>
+</FILTRO>
+</qry:call>  -->
+				<qry:insert-select name="qry_conceptos" doc-path="$r"/>
+			</qry:out>
+		</qry:select>
+		<qry:select doc="SOURCE" name="qry_conceptos">
+			<qry:xquery>
+				for $r in sql('
+SELECT                                          
+	LIQ96_CONCEPTOS.c_concepto,    
+	liq99_liquidacion.e_periodo,
+	max(LIQ96_CONCEPTOS.d_concepto) as d_concepto,
+      sum(LIQ20_CONC_LIQ_PER.n_valor) as n_valor
+FROM 
+	LIQ19_EJECUCIONES,
+	LIQ99_LIQUIDACION,
+	LIQ99_RECIBOS, 
+	LIQ20_TOT_LIQ_PER,
+	LIQ20_CONC_LIQ_PER, 
+	LIQ96_CONCEPTOS,
+	LIQ12_TIPOS_CONC,
+	LIQ25_PERSONAL_LIQ, 
+    PER02_PERSONAL_emp,
+    LIQ14_CONCEPTOS
+JOIN
+	LIQ19_EJECUCIONES.oi_liquidacion_ddo INNER LIQ99_LIQUIDACION.oi_liquidacion_ddo,
+	LIQ99_LIQUIDACION.oi_liquidacion_ddo INNER LIQ99_RECIBOS.oi_liquidacion_ddo,
+	LIQ99_RECIBOS.oi_tot_liq_per INNER LIQ20_TOT_LIQ_PER.oi_tot_liq_per,
+	LIQ20_TOT_LIQ_PER.oi_tot_liq_per INNER LIQ20_CONC_LIQ_PER.oi_tot_liq_per,
+	LIQ20_CONC_LIQ_PER.oi_concepto_ddo INNER LIQ96_CONCEPTOS.oi_concepto_ddo,
+	LIQ96_CONCEPTOS.c_tipo_concepto INNER LIQ12_TIPOS_CONC.c_tipo_concepto,
+	LIQ19_EJECUCIONES.oi_liquidacion INNER LIQ25_PERSONAL_LIQ.oi_liquidacion,	 
+	LIQ25_PERSONAL_LIQ.oi_personal_emp INNER PER02_PERSONAL_EMP.oi_personal_emp, 
+	LIQ99_RECIBOS.e_numero_legajo INNER PER02_PERSONAL_EMP.e_numero_legajo,
+    LIQ96_CONCEPTOS.c_concepto INNER LIQ14_CONCEPTOS.c_concepto
+WHERE
+	LIQ20_CONC_LIQ_PER.n_valor != 0.0 AND
+	LIQ99_LIQUIDACION.c_estado = \'F\' AND
+  LIQ19_EJECUCIONES.oi_liquidacion in ({%=#LIQUIDACIONES:ROW/@values %})  
+  and LIQ25_PERSONAL_LIQ.oi_personal_emp in ({%=#SOURCE:@value %})  
+  {%? (#PARAMIN:@oi_tipo_concepto!='') {% AND LIQ12_TIPOS_CONC.oi_tipo_concepto = {#PARAMIN:@oi_tipo_concepto} %} {% %} %}
+   {%? (#CONCEPTOSFILTRO:ROW/@id!='') {% AND LIQ14_CONCEPTOS.oi_concepto in ({%=#CONCEPTOSFILTRO:ROW/@id %}) %} {% %} %}
+  
+  
+  {%? (#PARAMIN:@cod_desde!='') {% AND LIQ96_CONCEPTOS.c_concepto &gt;= {#PARAMIN:@cod_desde} %} {% %} %}
+  {%? (#PARAMIN:@cod_hasta!='') {% AND LIQ96_CONCEPTOS.c_concepto &lt;= {#PARAMIN:@cod_hasta} %} {% %} %}
+
+GROUP BY                         
+	LIQ96_CONCEPTOS.c_concepto,liq99_liquidacion.e_periodo
+ORDER BY
+   e_periodo asc 
+ 
+')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<CONC>
+					<qry:attribute name="c_concepto" value="$r/@c_concepto"/>
+					<qry:attribute name="n_valor" value="$r/@n_valor"/>
+					<qry:attribute name="e_periodo" value="$r/@e_periodo"/>
+					<qry:attribute name="codigo" value="concat('c_',@e_periodo,'_',@c_concepto)"/>
+				</CONC>
+			</qry:out>
+		</qry:select>
+		<qry:select name="qry_por_concepto" doc="SOURCE">
+			<qry:xquery>
+				for $r in #CONCEPTOS:ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:element name="CONC">
+					<qry:attribute name="orderby" value="$r/@c_tipo_concepto"/>
+					<qry:attribute name="c_concepto" value="$r/@c_concepto"/>
+					<qry:attribute name="d_concepto" value="$r/@d_concepto"/>
+					<qry:attribute name="tipo" value="$r/@tipo"/>
+					<qry:insert-select name="qry_final" doc-path="$r"/>
+				</qry:element>
+			</qry:out>
+		</qry:select>
+		<qry:select name="qry_final" doc="SOURCE">
+			<qry:xquery>
+				for $r in #PERIODOS:ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:attribute-doc doc="SOURCE" name="cod" value="concat('c_',$r/@e_periodo,'_',#SOURCE:@c_concepto)"/>
+				<qry:attribute name-calc="concat('c_',$r/@e_periodo)" value="format-number(sum(#CONTEMP:CONC[@codigo = #SOURCE:@cod]/@n_valor),0,2,',','.','')"/>
+			</qry:out>
+		</qry:select>
+		<qry:select name="qry_columnas">
+			<qry:xquery>
+				for $r in #PERIODOS:ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:element name="COL">
+					<qry:attribute name="label" value="format-date(concat($r/@e_periodo,'01'),'mmm - yyyy')"/>
+					<qry:attribute name="name" value="concat('c_',$r/@e_periodo)"/>
+					<qry:attribute name="style" value="'text-align:right;'"/>
+				</qry:element>
+			</qry:out>
+		</qry:select>
+		<qry:select name="qry_columnas_tot">
+			<qry:xquery>
+				for $r in #PERIODOS:ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:element name="COL">
+					<qry:attribute name="label" value="format-date(concat($r/@e_periodo,'01'),'mmm - yyyy')"/>
+					<qry:attribute name="name" value="concat('t_',$r/@e_periodo)"/>
+					<qry:attribute name="style" value="'text-align:right;'"/>
+				</qry:element>
+			</qry:out>
+		</qry:select>
+		<qry:select name="qry_totales" doc="SOURCE">
+			<qry:xquery>
+				for $r in #PERIODOS:ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:attribute name-calc="concat('t_',$r/@e_periodo)" value="format-number(sum(#CONTEMP:CONC[@e_periodo = $r/@e_periodo]/@n_valor),0,2,',','.','')"/>
+			</qry:out>
+		</qry:select>
+	</html:query>
+</html:html>

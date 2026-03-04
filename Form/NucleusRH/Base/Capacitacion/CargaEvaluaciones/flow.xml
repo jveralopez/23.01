@@ -1,0 +1,446 @@
+<flow:flow xmlns:flow="nomad_engine.flow" xmlns:qry="nomad_engine.qry" xmlns:doc="nomad_engine.doc" name="NucleusRH.Base.Capacitacion.CargaEvaluaciones.flow" extends="Nomad.Base.flow">
+	<flow:info label="Flow para NucleusRH.Base.Capacitacion.CargaEvaluaciones.flow"/>
+	<flow:declare>
+		<qry:define declare="&lt;FILTER oi_dictado=&quot;603&quot;/&gt;" name="QRY_EVAL">
+			<qry:main doc="SOURCE">
+				<qry:element name="ROWS">
+					<qry:insert-select name="RS1" doc-path="#SOURCE:FILTER"/>
+				</qry:element>
+			</qry:main>
+			<qry:select name="RS1" doc="SOURCE">
+				<qry:xquery>
+					for $r in sql('
+			SELECT 
+				CYD02_EVAL_AS_DICT.oi_eval_as_dict,
+				CYD02_EVAL_AS_DICT.f_eval_as_dict,
+				CYD12_EVALUACIONES.c_evaluacion,
+				CYD12_EVALUACIONES.d_evaluacion,
+				CYD12_EVALUACIONES.oi_evaluacion
+			FROM 
+				CYD02_EVAL_AS_DICT, 
+				CYD12_EVALUACIONES
+			JOIN
+				CYD02_EVAL_AS_DICT.oi_evaluacion INNER CYD12_EVALUACIONES.oi_evaluacion			
+			WHERE 
+				CYD02_EVAL_AS_DICT.oi_dictado = {#SOURCE:@oi_dictado} 	
+			ORDER BY 
+				f_eval_as_dict ASC 
+		')ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:element name="ROW">
+						<qry:attribute name="id" value="$r/@oi_evaluacion"/>
+						<qry:attribute name="f_eval_as_dict" value="$r/@f_eval_as_dict"/>
+						<qry:attribute name="d_evaluacion" value="concat('[',$r/@c_evaluacion,'] ',$r/@d_evaluacion)"/>
+					</qry:element>
+				</qry:out>
+			</qry:select>
+		</qry:define>
+		<qry:define declare="&lt;DATA oi_dictado=&quot;603&quot; oi_evaluacion=&quot;1&quot; /&gt;" name="QRY_INSCRIPTOS">
+			<qry:main doc="SOURCE">
+				<qry:element name="ROWS">
+					<qry:element name="FACTDB">
+						<qry:element name="FACTORES">
+							<qry:append-doc name="FACTORES" doc-path="."/>
+							<qry:insert-select name="RS1" doc-path="#SOURCE:."/>
+							<qry:attribute name="hts:delete" value="1"/>
+							<qry:insert-select name="qry_mayor_id"/>
+						</qry:element>
+						<qry:attribute name="hts:delete" value="1"/>
+						<qry:append-doc name="FACTDB" doc-path="."/>
+						<qry:insert-select name="RS2" doc-path="#SOURCE:."/>
+						<qry:insert-select name="qry_recorrer_factores" doc-path="."/>
+					</qry:element>
+					<qry:insert-select name="sql1" doc-path="#SOURCE:."/>
+				</qry:element>
+			</qry:main>
+			<qry:select name="sql1" doc="SOURCE">
+				<qry:xquery>
+					for $r in sql('
+			SELECT 
+				CYD02_INSCRIPTOS.oi_inscripto,
+				CYD02_EVAL_ASIST.f_eval_asist,
+				CYD02_EVAL_ASIST.n_resultado,
+				CYD02_EVAL_ASIST.o_eval_asist, 
+				CYD02_EVAL_ASIST.oi_eval_asist,
+				CYD02_EVAL_ASIST.oi_evaluacion,
+				CYD02_EVAL_ASIST.oi_valor,
+				PER01_PERSONAL.d_ape_y_nom,
+				PER02_PERSONAL_EMP.e_numero_legajo as code,
+				ORG03_EMPRESAS.c_empresa as empresa 
+			FROM 
+				CYD02_INSCRIPTOS, 
+               	CYD02_EVAL_ASIST,
+               	PER02_PERSONAL_EMP,
+               	ORG03_EMPRESAS,
+               	PER01_PERSONAL  
+            JOIN
+                CYD02_INSCRIPTOS.oi_inscripto INNER CYD02_EVAL_ASIST.oi_inscripto,
+                CYD02_INSCRIPTOS.oi_personal_emp INNER PER02_PERSONAL_EMP.oi_personal_emp,
+			    PER02_PERSONAL_EMP.oi_empresa INNER ORG03_EMPRESAS.oi_empresa,
+			    PER02_PERSONAL_EMP.oi_personal INNER PER01_PERSONAL.oi_personal 
+			WHERE
+				CYD02_INSCRIPTOS.oi_dictado = {#SOURCE:@oi_dictado}
+				and CYD02_EVAL_ASIST.oi_evaluacion = {#SOURCE:@oi_evaluacion}
+			 
+		')ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:element name="ROW">
+						<qry:attribute name="id" value="$r/@oi_inscripto"/>
+						<qry:attribute name="inscripto" value="$r/@empresa + ' - [' + $r/@code + '] ' + $r/@d_ape_y_nom"/>
+						<qry:attribute name="oi_evaluacion" value="$r/@oi_evaluacion"/>
+						<qry:attribute name="f_eval_asist" value="$r/@f_eval_asist"/>
+						<qry:attribute name="oi_eval_asist" value="$r/@oi_eval_asist"/>
+						<qry:attribute name="n_resultado" value="$r/@n_resultado"/>
+						<qry:attribute name="o_eval_asist" value="$r/@o_eval_asist"/>
+						<qry:element name="FACTORES">
+							<qry:if test="count(#FACTDB:ROW[@oi_inscripto = $r/@oi_inscripto]) &gt; 0">
+								<qry:then>
+									<qry:insert-element doc-path="#FACTDB:ROW[@oi_inscripto = $r/@oi_inscripto]"/>
+								</qry:then>
+								<qry:else>
+									<qry:insert-select name="qry_insertar_factores" doc-path="#FACTDB:ROW[@oi_inscripto ='']"/>
+								</qry:else>
+							</qry:if>
+						</qry:element>
+						<qry:element name="oi_valor">
+							<qry:attribute name="value" value="$r/@oi_valor"/>
+						</qry:element>
+					</qry:element>
+				</qry:out>
+			</qry:select>
+			<qry:select name="RS1" doc="SOURCE">
+				<qry:xquery>
+					for $r in sql('
+			SELECT 
+				CYD12_FACTORES_EVAL.oi_factor_eval,
+				CYD12_FACTORES_EVAL.c_factor,
+				CYD12_FACTORES_EVAL.d_factor,
+				CYD12_FACTORES_EVAL.oi_escala  
+			FROM 
+				CYD12_FACTORES_EVAL
+			WHERE
+				CYD12_FACTORES_EVAL.oi_evaluacion = {#SOURCE:@oi_evaluacion}
+ 
+		')ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:element name="ROW">
+						<qry:attribute name="oi_factor_eval" value="$r/@oi_factor_eval"/>
+						<qry:attribute name="c_factor" value="$r/@c_factor"/>
+						<qry:attribute name="oi_escala" value="$r/@oi_escala"/>
+						<qry:attribute name="d_factor" value="concat('[',@c_factor,'] ',$r/@d_factor)"/>
+					</qry:element>
+				</qry:out>
+			</qry:select>
+			<qry:select name="qry_mayor_id">
+				<qry:xquery>
+					for $r in SQL('  
+			SELECT
+			max(CYD02_FACT_EV_AS.oi_fact_ev_as) as maxId
+			
+			FROM
+			CYD02_FACT_EV_AS
+			
+			')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:attribute-doc doc="FACTORES" name="maxId" value="$r/@maxId + 5000"/>
+				</qry:out>
+			</qry:select>
+			<qry:select name="RS2" doc="SOURCE">
+				<qry:xquery>
+					for $r in sql('
+				SELECT 
+				CYD02_INSCRIPTOS.oi_inscripto,  
+				CYD12_FACTORES_EVAL.oi_factor_eval,
+				CYD12_FACTORES_EVAL.c_factor,
+				CYD12_FACTORES_EVAL.d_factor,   
+				CYD12_FACTORES_EVAL.oi_escala,
+				CYD02_FACT_EV_AS.n_resultado,
+				CYD02_FACT_EV_AS.oi_valor,
+				CYD02_FACT_EV_AS.o_fact_ev_as,
+				CYD02_FACT_EV_AS.oi_fact_ev_as 
+			FROM 
+				CYD02_INSCRIPTOS, 
+               	CYD02_EVAL_ASIST,
+               	CYD02_FACT_EV_AS,
+               	CYD12_FACTORES_EVAL
+                
+            JOIN
+                CYD02_INSCRIPTOS.oi_inscripto INNER CYD02_EVAL_ASIST.oi_inscripto,
+                CYD02_EVAL_ASIST.oi_eval_asist INNER CYD02_FACT_EV_AS.oi_eval_asist,
+                CYD02_FACT_EV_AS.oi_factor_eval INNER CYD12_FACTORES_EVAL.oi_factor_eval
+			WHERE	 
+				CYD02_EVAL_ASIST.oi_evaluacion = {#SOURCE:@oi_evaluacion}
+          
+		')ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:element name="ROW">
+						<qry:attribute name="id" value="$r/@oi_fact_ev_as"/>
+						<qry:attribute name="oi_factor_eval" value="$r/@oi_factor_eval"/>
+						<qry:attribute name="oi_inscripto" value="$r/@oi_inscripto"/>
+						<qry:attribute name="n_resultado" value="$r/@n_resultado"/>
+						<qry:attribute name="oi_valor" value="$r/@oi_valor"/>
+						<qry:element name="oi_valor">
+							<qry:attribute name="value" value="$r/@oi_valor"/>
+						</qry:element>
+						<qry:attribute name="o_fact_ev_as" value="$r/@o_fact_ev_as"/>
+						<qry:attribute name="c_factor" value="$r/@c_factor"/>
+						<qry:attribute name="oi_escala" value="$r/@oi_escala"/>
+						<qry:attribute name="d_factor" value="concat('[',@c_factor,'] ',$r/@d_factor)"/>
+					</qry:element>
+				</qry:out>
+			</qry:select>
+			<qry:select name="qry_recorrer_factores" doc="SOURCE">
+				<qry:xquery>
+					for $r in #FACTORES:ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:element name="ROW">
+						<qry:attribute name="c_factor" value="$r/@c_factor"/>
+						<qry:attribute name="d_factor" value="$r/@d_factor"/>
+						<qry:attribute name="oi_escala" value="$r/@oi_escala"/>
+						<qry:attribute name="oi_valor" value="$r/@oi_valor"/>
+						<qry:element name="oi_valor">
+							<qry:attribute name="value" value="''"/>
+						</qry:element>
+						<qry:attribute name="oi_factor_eval" value="$r/@oi_factor_eval"/>
+						<qry:attribute name="id" value="#FACTORES:@maxId"/>
+					</qry:element>
+					<qry:attribute-doc doc="FACTORES" name="maxId" value="number(#FACTORES:@maxId) + 1"/>
+				</qry:out>
+			</qry:select>
+			<qry:select name="qry_insertar_factores" doc="SOURCE">
+				<qry:xquery>
+					for $r in #SOURCE:
+				</qry:xquery>
+				<qry:out>
+					<qry:element name="ROW">
+						<qry:attribute name="oi_inscripto" value="../../@id"/>
+						<qry:attribute name="c_factor" value="$r/@c_factor"/>
+						<qry:attribute name="d_factor" value="$r/@d_factor"/>
+						<qry:attribute name="oi_escala" value="$r/@oi_escala"/>
+						<qry:attribute name="id" value="$r/@id"/>
+						<qry:attribute name="oi_valor" value="$r/@oi_valor"/>
+						<qry:element name="oi_valor">
+							<qry:attribute name="value" value="$r/@oi_valor"/>
+						</qry:element>
+						<qry:attribute name="oi_factor_eval" value="$r/@oi_factor_eval"/>
+					</qry:element>
+				</qry:out>
+			</qry:select>
+		</qry:define>
+		<doc:define name="FILTERDATA">
+			<FILTER oi_dictado="" oi_clase=""/>
+		</doc:define>
+		<doc:define name="EVAL"/>
+		<doc:define name="INSCRIPTOS"/>
+		<doc:define name="FACTORES"/>
+		<qry:define declare="&lt;ROWS nmd-col=&quot;1&quot;&gt;&#13;&#10;&#9;&lt;ROW f_eval_asist=&quot;20200511&quot; oi_evaluacion=&quot;1&quot; inscripto=&quot;DINO - [10336] Coronel, Dario&quot; id=&quot;301&quot;/&gt;&#13;&#10;&#9;&lt;ROW f_eval_asist=&quot;20200511&quot; oi_evaluacion=&quot;1&quot; inscripto=&quot;SI - [1] Campos, Eduardo Gaston&quot; id=&quot;503&quot;/&gt;&#13;&#10;&#9;&lt;ROW f_eval_asist=&quot;20200511&quot; oi_evaluacion=&quot;1&quot; inscripto=&quot;SI - [40175] Maldonado, Vanesa&quot; id=&quot;504&quot;/&gt;&#13;&#10;&#9;&lt;ROW f_eval_asist=&quot;20200511&quot; oi_evaluacion=&quot;1&quot; inscripto=&quot;DINO - [1] Martinez, Juan Guillermo&quot; id=&quot;506&quot;/&gt;&#13;&#10;&lt;/ROWS&gt;" name="QRY_FACT">
+			<qry:main doc="SOURCE">
+				<qry:element name="ROWS">
+					<qry:append-doc name="PARAM" doc-path="#SOURCE:ROWS"/>
+					<qry:attribute-doc doc="PARAM" name="oi_evaluacion" value="#SOURCE:ROWS/ROW[0]/@oi_evaluacion"/>
+					<qry:element name="FACTORES">
+						<qry:append-doc name="FACTORES" doc-path="."/>
+						<qry:insert-select name="RS1" doc-path="."/>
+						<qry:attribute name="hts:delete" value="1"/>
+						<qry:insert-select name="qry_mayor_id"/>
+					</qry:element>
+					<qry:append-doc name="FACTDB" doc-path="."/>
+					<qry:insert-select name="qry_split" doc-path="#SOURCE:ROWS"/>
+					<qry:insert-select name="qry_completar" doc-path="#SOURCE:ROWS"/>
+				</qry:element>
+			</qry:main>
+			<qry:select name="RS2" doc="SOURCE">
+				<qry:xquery>
+					for $r in sql('
+				SELECT 
+				CYD02_INSCRIPTOS.oi_inscripto,
+				CYD12_FACTORES_EVAL.c_factor,
+				CYD12_FACTORES_EVAL.d_factor,
+				CYD02_FACT_EV_AS.n_resultado,
+				CYD02_FACT_EV_AS.oi_valor,
+				CYD02_FACT_EV_AS.o_fact_ev_as,
+				CYD02_FACT_EV_AS.oi_fact_ev_as 
+			FROM 
+				CYD02_INSCRIPTOS, 
+               	CYD02_EVAL_ASIST,
+               	CYD02_FACT_EV_AS,
+               	CYD12_FACTORES_EVAL
+                
+            JOIN
+                CYD02_INSCRIPTOS.oi_inscripto INNER CYD02_EVAL_ASIST.oi_inscripto,
+                CYD02_EVAL_ASIST.oi_eval_asist INNER CYD02_FACT_EV_AS.oi_eval_asist,
+                CYD02_FACT_EV_AS.oi_factor_eval INNER CYD12_FACTORES_EVAL.oi_factor_eval
+			WHERE	 
+				CYD02_EVAL_ASIST.oi_evaluacion = {#PARAM:@oi_evaluacion}
+                and CYD02_INSCRIPTOS.oi_inscripto in ({%=#SOURCE:@value%})
+		')ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:element name="ROW">
+						<qry:attribute name="id" value="$r/@oi_fact_ev_as"/>
+						<qry:attribute name="n_resultado" value="$r/@n_resultado"/>
+						<qry:attribute name="oi_valor" value="$r/@oi_valor"/>
+						<qry:attribute name="o_fact_ev_as" value="$r/@o_fact_ev_as"/>
+						<qry:attribute name="c_factor" value="$r/@c_factor"/>
+						<qry:attribute name="d_factor" value="concat('[',@c_factor,'] ',$r/@d_factor)"/>
+					</qry:element>
+				</qry:out>
+			</qry:select>
+			<qry:select name="RS1" doc="SOURCE">
+				<qry:xquery>
+					for $r in sql('
+			SELECT 
+				CYD12_FACTORES_EVAL.oi_factor_eval,
+				CYD12_FACTORES_EVAL.c_factor,
+				CYD12_FACTORES_EVAL.d_factor  
+			FROM 
+				CYD12_FACTORES_EVAL
+			WHERE
+				CYD12_FACTORES_EVAL.oi_evaluacion = {#PARAM:@oi_evaluacion}
+ 
+		')ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:element name="ROW">
+						<qry:attribute name="oi_factor_eval" value="$r/@oi_factor_eval"/>
+						<qry:attribute name="c_factor" value="$r/@c_factor"/>
+						<qry:attribute name="d_factor" value="concat('[',@c_factor,'] ',$r/@d_factor)"/>
+					</qry:element>
+				</qry:out>
+			</qry:select>
+			<qry:select name="qry_completar" doc="SOURCE">
+				<qry:xquery>
+					for $r in #SOURCE:ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:if test="count(#FACTDB:.[@oi_inscripto = $r/@id]) &lt;= 0">
+						<qry:then>
+							<qry:insert-select name="qry_recorrer_factores" doc-path="$r"/>
+						</qry:then>
+					</qry:if>
+				</qry:out>
+			</qry:select>
+			<qry:select name="qry_recorrer_factores" doc="SOURCE">
+				<qry:xquery>
+					for $r in #FACTORES:ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:element name="ROW">
+						<qry:attribute name="oi_inscripto" value="#SOURCE:@id"/>
+						<qry:attribute name="c_factor" value="$r/@c_factor"/>
+						<qry:attribute name="d_factor" value="$r/@d_factor"/>
+						<qry:attribute name="id" value="#FACTORES:@maxId"/>
+					</qry:element>
+					<qry:attribute-doc doc="FACTORES" name="maxId" value="number(#FACTORES:@maxId) + 1"/>
+				</qry:out>
+			</qry:select>
+			<qry:select name="qry_mayor_id">
+				<qry:xquery>
+					for $r in SQL('  
+			SELECT
+			max(CYD02_FACT_EV_AS.oi_fact_ev_as) as maxId
+			
+			FROM
+			CYD02_FACT_EV_AS
+			
+			')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:attribute-doc doc="FACTORES" name="maxId" value="$r/@maxId + 5000"/>
+				</qry:out>
+			</qry:select>
+			<qry:select name="qry_split" doc="SOURCE">
+				<qry:xquery>
+					for $r in split('50;{%=#SOURCE:ROW/@id %}')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:insert-select name="RS2" doc-path="$r"/>
+				</qry:out>
+			</qry:select>
+		</qry:define>
+		<qry:define declare="&lt;DATA oi_dictado=&quot;603&quot; oi_evaluacion=&quot;1&quot; /&gt;" name="QRY_CONTAR_FACT">
+			<qry:main doc="SOURCE">
+				<qry:insert-select name="qry_contar_factores" doc-path="#SOURCE:."/>
+			</qry:main>
+			<qry:select name="qry_contar_factores" doc="PARAM">
+				<qry:xquery>
+					for $r in SQL('			
+			SELECT 	
+				count(CYD12_FACTORES_EVAL.oi_factor_eval) as cantidad 
+			FROM 
+				CYD12_FACTORES_EVAL
+			WHERE
+				CYD12_FACTORES_EVAL.oi_evaluacion = {#PARAM:@oi_evaluacion}
+ 
+			')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:element name="ROW">
+						<qry:attribute name="oi_dictado" value="#PARAM:@oi_dictado"/>
+						<qry:attribute name="oi_evaluacion" value="#PARAM:@oi_evaluacion"/>
+						<qry:attribute name="hayFactores" value="iif($r/@cantidad &gt; 0,'1','0')"/>
+					</qry:element>
+				</qry:out>
+			</qry:select>
+		</qry:define>
+		<doc:define name="FACT"/>
+	</flow:declare>
+	<flow:main doc="SOURCE">
+		<flow:action name="initialize">
+			<flow:open-form form-class="NucleusRH.Base.Capacitacion.CargaEvaluaciones.filter.form" mode="FILTER" doc-path="#SOURCE:"/>
+		</flow:action>
+	</flow:main>
+	<flow:form form-class="NucleusRH.Base.Capacitacion.CargaEvaluaciones.filter.form" name="NucleusRH.Base.Capacitacion.CargaEvaluaciones.filter.form:FILTER" doc="SOURCE" mode="FILTER">
+		<flow:action name="on-show">
+			<flow:attach-doc attach-id="RS" doc-path="#EVAL:"/>
+		</flow:action>
+		<flow:action name="GET_EVAL">
+			<doc:load-qry qry="QRY_EVAL" output-doc="EVAL" input-doc-path="#FILTERDATA:"/>
+			<flow:call-action action="on-show"/>
+		</flow:action>
+		<flow:action name="ACCEPT">
+			<doc:set-attribute to-attr-path="#FILTERDATA:@oi_evaluacion" from-attr-path="#FORM:ctrl[@id='LIST']/@xval"/>
+			<doc:load-qry output-doc="INSCRIPTOS" input-doc-path="#FILTERDATA:" qry="QRY_INSCRIPTOS"/>
+			<doc:load-qry output-doc="FACT" input-doc-path="#FILTERDATA:" qry="QRY_CONTAR_FACT"/>
+			<!--<flow:call-action eq="1" if="#FACT:@hayFactores" action="FACT"/> -->
+			<flow:open-form form-class="NucleusRH.Base.Capacitacion.CargaEvaluaciones.INSCRIPTOS.form" doc-path="#INSCRIPTOS:" mode="EDIT"/>
+		</flow:action>
+		<flow:action name="BACK">
+			<flow:close-form/>
+		</flow:action>
+	</flow:form>
+	<flow:form form-class="NucleusRH.Base.Capacitacion.CargaEvaluaciones.INSCRIPTOS.form" name="NucleusRH.Base.Capacitacion.CargaEvaluaciones.INSCRIPTOS.form:EDIT" mode="EDIT" doc="SOURCE">
+		<flow:action name="SAVE">
+			<flow:exec-method out-attr-path="#BATCHDOC:@batch-id" priority="7" class="NucleusRH.Base.Capacitacion.Dictados.EVAL_ASIST" method="CargaEvaluacion">
+				<flow:param name="xmlInscriptos" type="Nomad.NSystem.Proxy.NomadXML" doc="INSCRIPTOS" mode="in"/>
+			</flow:exec-method>
+			<flow:open-form doc-path="#BATCHDOC:" mode="BATCH" form-class="nomad.base.batchtolist.form"/>
+		</flow:action>
+		<flow:action name="CANCEL">
+			<flow:close-form/>
+		</flow:action>
+		<flow:action name="SIGUIENTE">
+			<flow:open-form doc-path="#INSCRIPTOS:ROW[@id ='{#FILTERDATA:@oi_inscripto}' ]" form-class="NucleusRH.Base.Capacitacion.CargaEvaluaciones.FACTORES.form" mode="EDIT"/>
+		</flow:action>
+	</flow:form>
+	<flow:form name="NucleusRH.Base.Capacitacion.CargaEvaluaciones.FACTORES.form:EDIT" mode="EDIT" form-class="NucleusRH.Base.Capacitacion.CargaEvaluaciones.FACTORES.form" doc="SOURCE">
+		<flow:action name="CANCEL">
+			<flow:close-form/>
+		</flow:action>
+		<flow:action name="on-show">
+			<flow:log text-path="#SOURCE:" text="SOURCE"/>
+		</flow:action>
+	</flow:form>
+	<flow:form mode="BATCH" name="nomad.base.batchtolist.form:BATCH" form-class="nomad.base.batchtolist.form" doc="SOURCE">
+		<flow:action name="on-show"/>
+		<flow:action name="EXIT">
+			<flow:close-form next-action="CANCEL"/>
+		</flow:action>
+	</flow:form>
+</flow:flow>

@@ -1,0 +1,146 @@
+<class-package xmlns:qry="nomad_engine.qry" name="InterfaceVariablesAcum" root-class="ENTRADA" meta-class="DB" languaje="SP" DDOBase="NucleusRH\Base\Liquidacion">
+	<class description="efinicion de interfaz de entrada de tipo uno" name="ENTRADA" access="direct">
+		<meta-properties>
+			<interface-properties file="IntVarLiqAcum.dat" separator=";" mode="1" enter="1" separador=";" decimal="." escape="\"/>
+		</meta-properties>
+		<attribute length="5" type="Nomad.NSystem.Int" name="id" manual="1">
+			<meta-properties/>
+		</attribute>
+		<attribute length="15" name="e_numero_legajo" type="Nomad.NSystem.Int" manual="1">
+			<meta-properties>
+				<interface-properties/>
+			</meta-properties>
+		</attribute>
+		<attribute label="C&#243;digo" name="c_variable" length="30" type="Nomad.NSystem.String" manual="1">
+			<meta-properties>
+				<interface-properties/>
+			</meta-properties>
+		</attribute>
+		<attribute readonly="false" null="false" label="Valor" name="n_valor" length="20" type="Nomad.NSystem.String" precision="0" manual="1">
+			<meta-properties>
+				<interface-properties/>
+			</meta-properties>
+		</attribute>
+		<resource name="qry_variables">
+			<qry:main>
+				<qry:element name="ROWS">
+					<qry:insert-select name="sql1"/>
+				</qry:element>
+			</qry:main>
+			<qry:select name="sql1">
+				<qry:xquery>
+					for $r in INTERFACE('GET_PTR:IntVarLiqAcum.dat')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:insert-select name="sql2" doc-path="$r"/>
+				</qry:out>
+			</qry:select>
+			<qry:select name="sql2" doc="PARAM">
+				<qry:xquery>
+					for $r in DDO('NucleusRH.Base.Liquidacion.InterfaceVariablesAcum.ENTRADA:{%= #PARAM:@id %}')/object/ENTRADA
+				</qry:xquery>
+				<qry:out>
+					<qry:insert-element doc-path="$r"/>
+				</qry:out>
+			</qry:select>
+		</resource>
+		<resource name="qry_OiVarArvchivo">
+			<qry:main>
+				<qry:element name="ROWS">
+					<qry:insert-select name="sql1"/>
+				</qry:element>
+			</qry:main>
+			<qry:select name="sql1">
+				<qry:xquery>
+					for $r in INTERFACE('GET_PTR:IntVarLiqAcum.dat')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:insert-element doc-path="$r"/>
+				</qry:out>
+			</qry:select>
+		</resource>
+		<resource declare="&lt;DATOS oi_liquidacion=&quot;1&quot; e_numero_legajo=&quot;5&quot; /&gt;&#13;&#10;" name="qry_PersonalLiq" description="recupera el oi_personal_liq a partir de una liquidacion y un legajo">
+			<qry:main doc="PARAM">
+				<qry:element name="DATO">
+					<qry:insert-select name="qry_per" doc-path="#PARAM:DATOS"/>
+				</qry:element>
+			</qry:main>
+			<qry:select name="qry_per" doc="PARAM">
+				<qry:xquery>
+					for $r in SQL('
+				SELECT 
+					pl.OI_PERSONAL_LIQ 
+				FROM 
+					LIQ25_PERSONAL_LIQ as pl,
+					PER02_PERSONAL_EMP as pe
+				WHERE 
+					pl.OI_PERSONAL_EMP = pe.OI_PERSONAL_EMP
+					AND pl.OI_LIQUIDACION = {#PARAM:@oi_liquidacion}
+					AND pe.E_NUMERO_LEGAJO = {#PARAM:@e_numero_legajo}
+				')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:attribute type="Nomad.NSystem.Int" value="$r/@oi_personal_liq" name="oi_personal_liq"/>
+				</qry:out>
+			</qry:select>
+		</resource>
+		<resource name="qry_CodigosVariables" declare="&lt;DATOS tipo_var=&quot;4&quot;/&gt;" description="recupera el oi_variable a partir de un codigo">
+			<qry:main doc="PARAM">
+				<qry:element name="VARS">
+					<qry:insert-select name="qry_var" doc-path="#PARAM:DATOS"/>
+				</qry:element>
+			</qry:main>
+			<qry:select name="qry_var" doc="PARAM">
+				<qry:xquery>
+					for $r in SQL(' 
+				SELECT
+					v.oi_variable,
+					v.c_variable,					
+					v.c_externo,
+					v.c_tipo_dato
+				FROM 
+					LIQ09_VARIABLES as v
+				WHERE 
+					v.c_tipo_variable = {#PARAM:@tipo_var}					
+				')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:element name="VAR">
+						<qry:attribute value="$r/@c_tipo_dato" name="c_tipo_dato"/>
+						<qry:attribute value="iif($r/@c_externo!='',$r/@c_externo, $r/@c_variable)" name="c_variable"/>
+						<qry:attribute value="$r/@oi_variable" name="oi_variable"/>
+					</qry:element>
+				</qry:out>
+			</qry:select>
+		</resource>
+		<resource name="qry_persona_oi" description="recupera el oi_personal_emp a partir del legajo">
+			<qry:main doc="PARAM">
+				<qry:element name="DATO">
+					<qry:insert-select doc-path="#PARAM:DATOS" name="qry_per"/>
+				</qry:element>
+			</qry:main>
+			<qry:select doc="PARAM" name="qry_per">
+				<qry:xquery>
+					for $r in SQL('
+				SELECT 
+					pe.oi_personal_emp 
+				FROM 
+					per02_personal_emp  as pe
+				WHERE
+					pe.e_numero_legajo={#PARAM:@e_numero_legajo} and pe.oi_empresa={#PARAM:@oi_empresa} ')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:attribute name="oi_personal_emp" value="$r/@oi_personal_emp" type="Nomad.NSystem.Int"/>
+				</qry:out>
+			</qry:select>
+		</resource>
+		<method name="ImportarVariables" description="Importa variables fijas y de novedad para una liquidaci&#243;n" modifier="static" access="public">
+			<meta-properties>
+				<dotnet11-properties type="lib"/>
+			</meta-properties>
+			<arguments>
+				<argument name="poi_empresa" type="Nomad.NSystem.String" pass="byval"/>
+			</arguments>
+		</method>
+	</class>
+</class-package>

@@ -1,0 +1,268 @@
+<INTERFACE-DEF xmlns:qry="nomad_engine.qry" entermode="DOS" finalenter="1" code="" desc="">
+	<QUERY declare="&lt;DATA oi_empresa=&quot;1&quot; oi_liquidacion=&quot;1&quot; interface=&quot;NUCLEUSDOC&quot; tipo_interface=&quot;LIQUIDACIONES&quot;&gt;&lt;LIQS /&gt;&lt;/DATA&gt;">
+		<qry:main doc="SOURCE">
+			<qry:element name="DATA">
+				<qry:element name="UBICACIONES">
+					<qry:append-doc name="UBICACIONES" doc-path="."/>
+					<qry:insert-select name="QRY_UBICACION" doc-path="#SOURCE:."/>
+					<qry:attribute name="hts:delete" value="1"/>
+				</qry:element>
+				<qry:element name="CTROCOSTOS">
+					<qry:append-doc name="CTROCOSTOS" doc-path="."/>
+					<qry:insert-select name="QRY_CTRO_COSTO" doc-path="#SOURCE:."/>
+					<qry:attribute name="hts:delete" value="1"/>
+				</qry:element>
+				<qry:element name="HEAD"/>
+				<qry:insert-select name="qry_legajos" doc-path="#SOURCE:."/>
+				<!--<qry:insert-select name="QRY_CABECERA" doc-path="#SOURCE:."/>-->
+			</qry:element>
+		</qry:main>
+		<qry:select name="qry_legajos" doc="SOURCE">
+			<qry:xquery>
+				for $r in sql('
+					SELECT
+					TLP.oi_tot_liq_per 
+					FROM
+					LIQ93_EMPRESAS,
+					LIQ99_LIQUIDACION,
+					LIQ19_EJECUCIONES,
+					LIQ19_LIQUIDACION,
+					LIQ99_RECIBOS,
+					LIQ20_TOT_LIQ_PER as TLP,
+					LIQ97_PERSONAL_EMP
+					JOIN
+					LIQ93_EMPRESAS.oi_empresa_ddo INNER LIQ99_LIQUIDACION.oi_empresa_ddo,
+					LIQ99_LIQUIDACION.oi_liquidacion_ddo INNER LIQ19_EJECUCIONES.oi_liquidacion_ddo,
+					LIQ19_EJECUCIONES.oi_liquidacion INNER LIQ19_LIQUIDACION.oi_liquidacion,
+					LIQ99_LIQUIDACION.oi_liquidacion_ddo INNER LIQ99_RECIBOS.oi_liquidacion_ddo,
+					TLP.oi_tot_liq_per INNER LIQ99_RECIBOS.oi_tot_liq_per,
+					TLP.oi_per_emp_ddo INNER LIQ97_PERSONAL_EMP.oi_per_emp_ddo
+					WHERE
+					LIQ19_LIQUIDACION.oi_liquidacion = {#SOURCE:@oi_liquidacion} and
+					LIQ19_LIQUIDACION.oi_empresa = {#SOURCE:@oi_empresa} and  
+					LIQ99_LIQUIDACION.c_estado = \'F\'
+					 
+					ORDER BY 
+					oi_tot_liq_per ASC
+				')/ROWS
+			</qry:xquery>
+			<qry:out>
+				<qry:insert-select name="qry_split" doc-path="$r"/>
+			</qry:out>
+		</qry:select>
+		<qry:select name="qry_split" doc="SOURCE">
+			<qry:xquery>
+				for $r in split('50;{%=#SOURCE:ROW/@oi_tot_liq_per %}')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:insert-select name="QRY_CABECERA" doc-path="$r"/>
+			</qry:out>
+		</qry:select>
+		<qry:select doc="SOURCE" name="QRY_CABECERA">
+			<qry:xquery>
+				for $r in sql('
+					SELECT
+					LIQ97_PERSONAL_EMP.e_numero_legajo,
+					LIQ97_PERSONAL_EMP.c_centro_costo_ult,
+					LIQ97_PERSONAL_EMP.c_modalidad,
+					LIQ97_PERSONAL_EMP.d_ape_y_nom, 
+					LIQ97_PERSONAL_EMP.d_banco as d_banco_sucursal,
+					LIQ97_PERSONAL_EMP.d_sucursal,
+					LIQ97_PERSONAL_EMP.c_cbu,
+					LIQ97_PERSONAL_EMP.c_ubicacion,
+					LIQ93_EMPRESAS.d_empresa,
+					LIQ93_EMPRESAS.c_empresa, 
+					LIQ99_LIQUIDACION.c_liquidacion, 
+					LIQ99_LIQUIDACION.d_titulo, 
+					PER27_CALIFICACIONES.d_calificacion,
+					ORG18_CATEGORIAS.d_categoria,
+					PER06_OBRAS_SOC.d_obra_social,
+					LIQ99_LIQUIDACION.e_periodo,
+					LIQ99_LIQUIDACION.f_pago,
+					LIQ99_LIQUIDACION.d_banco, 
+					LIQ99_LIQUIDACION.c_mes_deposito,
+					LIQ99_LIQUIDACION.f_deposito, 
+					LIQ97_PERSONAL_EMP.f_inicio_contrato,
+					TLP.oi_tot_liq_per,
+					TLP.n_totsret as tot_remu, 
+					TLP.n_totnsret, 
+					TLP.n_totasig, 
+					TLP.n_totdesc,
+					TLP.n_totant,
+					TLP.n_totemb,
+					TLP.n_sbasico,  
+					(TLP.n_totnsret + TLP.n_totasig) AS tot_noremu,
+					(TLP.n_totdesc + TLP.n_totemb) AS tot_descuentos,	
+					CLP.oi_conc_liq_per,
+					CON.c_concepto, 
+					CON.d_concepto, 
+					CON.e_secuencia,	
+					CLP.n_valor AS valor,
+					CLP.n_cantidad AS cantidad,
+					CON.c_tipo_concepto, 
+					T.e_orden,
+					LIQ19_LIQUIDACION.o_liquidacion,  
+					ORG03_FUNCIONES.d_funcion,
+					FP.d_forma_pago,
+					PER35_MOD_CONTR.d_mod_contr,
+					PPE.f_ingreso,
+					PPE.f_antiguedad_rec,
+					PPE.f_egreso
+
+					FROM
+					LIQ93_EMPRESAS,
+					LIQ99_LIQUIDACION,
+					LIQ19_EJECUCIONES,
+					LIQ19_LIQUIDACION,
+					LIQ99_RECIBOS,
+					LIQ20_TOT_LIQ_PER as TLP,
+					LIQ97_PERSONAL_EMP,
+					PER27_CALIFICACIONES,
+					ORG18_CONVENIOS,
+					ORG18_CATEGORIAS,
+					PER06_OBRAS_SOC,
+					liq20_conc_liq_per AS CLP, 
+					liq96_conceptos AS CON, 
+					LIQ14_CONCEPTOS AS C, 
+					LIQ12_TIPOS_CONC AS T,
+					ORG03_FUNCIONES,
+					PER31_FORMAS_PAGO AS FP,
+					PER35_MOD_CONTR,
+					PER02_PERSONAL_EMP AS PPE
+					
+					JOIN
+					LIQ93_EMPRESAS.oi_empresa_ddo INNER LIQ99_LIQUIDACION.oi_empresa_ddo,
+					LIQ99_LIQUIDACION.oi_liquidacion_ddo INNER LIQ19_EJECUCIONES.oi_liquidacion_ddo,
+					LIQ19_EJECUCIONES.oi_liquidacion INNER LIQ19_LIQUIDACION.oi_liquidacion,
+					LIQ99_LIQUIDACION.oi_liquidacion_ddo INNER LIQ99_RECIBOS.oi_liquidacion_ddo,
+					TLP.oi_tot_liq_per INNER LIQ99_RECIBOS.oi_tot_liq_per,
+					TLP.oi_per_emp_ddo INNER LIQ97_PERSONAL_EMP.oi_per_emp_ddo,
+					LIQ97_PERSONAL_EMP.e_numero_legajo INNER PPE.e_numero_legajo,
+					TLP.oi_tot_liq_per INNER CLP.oi_tot_liq_per,
+					CON.oi_concepto_ddo INNER CLP.oi_concepto_ddo,
+					C.c_concepto INNER CON.c_concepto,
+					C.oi_tipo_concepto INNER T.oi_tipo_concepto,         
+					PER27_CALIFICACIONES.c_calificacion RIGHT OUTER LIQ97_PERSONAL_EMP.c_calificacion,
+					ORG18_CONVENIOS.c_convenio RIGHT OUTER LIQ97_PERSONAL_EMP.c_convenio,
+					ORG18_CATEGORIAS.c_categoria RIGHT OUTER  LIQ97_PERSONAL_EMP.c_categoria_ult,
+					ORG18_CATEGORIAS.oi_convenio INNER  ORG18_CONVENIOS.oi_convenio,
+					PER06_OBRAS_SOC.c_obra_social RIGHT OUTER  LIQ97_PERSONAL_EMP.c_obra_social,
+					LIQ97_PERSONAL_EMP.c_funcion LEFT OUTER ORG03_FUNCIONES.c_funcion, 
+					TLP.c_forma_pago LEFT OUTER FP.c_forma_pago
+
+					WHERE
+					TLP.oi_tot_liq_per in ({%= #SOURCE:@value %}) and
+					LIQ99_LIQUIDACION.c_estado = \'F\' AND 
+					T.l_nolistado = 0  and
+					CLP.n_valor != 0 and 
+					CON.ca_fig_recibo != \'N\' and
+					LIQ97_PERSONAL_EMP.c_modalidad = PER35_MOD_CONTR.c_mod_contr
+					ORDER BY 
+					oi_tot_liq_per ASC,
+					e_orden asc,
+					c_concepto asc')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:element name="DETAIL">
+					<qry:attribute name="e_numero_legajo" value="$r/@e_numero_legajo"/>
+					<qry:attribute name="d_ape_y_nom" value="$r/@d_ape_y_nom"/>
+					<qry:attribute name="d_calificacion" value="$r/@d_calificacion"/>
+					<qry:attribute name="d_categoria" value="$r/@d_categoria"/>
+					<qry:attribute name="d_obra_social" value="$r/@d_obra_social"/>
+					<qry:attribute name="e_periodo" value="format_date(string($r/@e_periodo) + '01', 'mm/yyyy')"/>
+					<qry:attribute name="c_liquidacion" value="$r/@c_liquidacion"/>
+					<qry:attribute name="d_titulo" value="$r/@d_titulo"/>
+					<qry:attribute name="f_pago" value="format_date($r/@f_pago,'dd/mm/yyyy')"/>
+					<qry:attribute name="lugar_pago" value="$r/@d_forma_pago"/>
+					<!--<qry:attribute name="lugar_pago" value="concat($r/@d_forma_pago,' / ',$r/@d_banco_sucursal,' ',$r/@d_sucursal)"/>-->
+					<qry:attribute name="periodo_contribucion" value="iif($r/@c_mes_deposito!='',concat(substring($r/@c_mes_deposito,0,2),'/',substring($r/@c_mes_deposito,3,4)),'')"/>
+					<qry:attribute name="fecha_contribucion" value="format_date($r/@f_deposito,'dd/mm/yyyy')"/>
+					<qry:attribute name="lugar_contribucion" value="$r/@d_banco"/>
+					<qry:attribute value="number($r/@tot_remu) + number($r/@n_totnsret) + number($r/@n_totasig)" name="remuneraciones"/>
+					<qry:attribute value="number($r/@n_totdesc) + number($r/@n_totant) + number($r/@n_totemb)" name="deduccciones"/>
+					<qry:attribute value="number(@remuneraciones) + number(@deduccciones)" name="Resultado"/>
+					<qry:attribute name="Resultado" value="format_number(@Resultado,0,2,'.','','')"/>
+					<qry:attribute name="tot_remu" value="iif($r/@tot_remu='','0',format_number($r/@tot_remu,0,2,'.','',''))"/>
+					<qry:attribute name="tot_noremu" value="iif($r/@tot_noremu!='',format_number($r/@tot_noremu,0,2,'.','',''),'0')"/>
+					<qry:attribute name="tot_descuentos" value="iif(@deduccciones!='',format_number(0-@deduccciones,0,2,'.','',''),'0')"/>
+					<qry:attribute name="c_concepto" value="$r/@c_concepto"/>
+					<qry:attribute name="d_concepto" value="$r/@d_concepto"/>
+					<qry:attribute name="cantidad" value="format_number($r/@cantidad,0,2,'.','','')"/>
+					<qry:attribute name="remun" value="iif($r/@c_tipo_concepto='1',format_number($r/@valor,0,2,'.','',''),'0')"/>
+					<qry:attribute name="no_remun" value="iif($r/@c_tipo_concepto='0' or $r/@c_tipo_concepto='2' ,format_number($r/@valor,0,2,'.','',''),'0')"/>
+					<qry:attribute name="deduc" value="iif($r/@c_tipo_concepto='3' or $r/@c_tipo_concepto='7'or $r/@c_tipo_concepto='8',format_number(0 - $r/@valor,0,2,'.','',''),'0')"/>
+					<qry:attribute name="sbasico" value="format_number(number($r/@tot_remu) + number($r/@tot_noremu),0,2,'.','','')"/>
+					<qry:attribute name="o_liquidacion" value="$r/@o_liquidacion"/>
+					<qry:attribute name="d_funcion" value="$r/@d_funcion"/>
+					<qry:attribute name="d_mod_contr" value="$r/@d_mod_contr"/>
+					<qry:attribute name="f_ingreso" value="format_date($r/@f_ingreso,'dd/mm/yyyy')"/>
+					<qry:attribute name="d_ubicacion" value="#UBICACIONES:ubicacion[@c_ubicacion = $r/@c_ubicacion]/@d_ubicacion"/>
+					<qry:attribute name="c_ubicacion" value="#UBICACIONES:ubicacion[@c_ubicacion = $r/@c_ubicacion]/@c_ubicacion"/>
+					
+					<qry:attribute name="zona1_aux1" value="@f_ingreso"/>
+					<qry:attribute name="zona1_aux2" value="''"/>
+					<qry:attribute name="zona1_aux3" value="''"/>
+					<!--<qry:insert-select name="QRY_UBICACION" doc-path="$r"/>-->
+					<qry:attribute name="zona2_aux1" value="''"/>
+					<qry:attribute name="zona2_aux2" value="''"/>
+					<qry:attribute name="zona2_aux3" value="''"/>
+					<!--<qry:insert-select name="QRY_CTRO_COSTO" doc-path="$r"/>-->
+					<qry:attribute name="zona3_aux1" value="CONCAT('Centro de costo: ', #CTROCOSTOS:CTRO_COSTO[@c_centro_costo = $r/@c_centro_costo_ult]/@d_centro_costo)"/>
+					<qry:attribute name="zona3_aux2" value="CONCAT('Sueldo o jornal: ' + format_number($r/@n_sbasico,0,2,'.','',''))"/>
+					<qry:attribute name="zona3_aux3" value="''"/>
+					<qry:attribute name="zona4_aux1" value="CONCAT('CBU: ' + $r/@c_cbu)"/>
+					<qry:attribute name="zona4_aux2" value="CONCAT('Banco: ' + $r/@d_banco_sucursal)"/>
+					<qry:attribute name="zona4_aux3" value="CONCAT(@c_ubicacion +'-'+ @d_ubicacion)"/>
+					<qry:attribute name="sector" value="''"/>
+					<qry:attribute name="f_egreso" value="format_date($r/@f_egreso,'dd/mm/yyyy')"/>
+					<qry:attribute name="ant_reconocida" value="format_date($r/@f_antiguedad_rec,'dd/mm/yyyy')"/>				
+				</qry:element>
+			</qry:out>
+		</qry:select>
+		<qry:select name="QRY_UBICACION" doc="SOURCE">
+			<qry:xquery>
+				for $r in SQL('
+				SELECT
+					ORG03_UBICACIONES.d_ubicacion,
+					ORG03_UBICACIONES.c_ubicacion					
+				FROM
+					ORG03_UBICACIONES				
+			')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<!--<qry:attribute name="zona2_aux1" value="iif($r/@d_ubicacion != '',$r/@d_ubicacion, '')"/>-->
+				<qry:element name="ubicacion">
+					<qry:attribute name="c_ubicacion" value="$r/@c_ubicacion"/>
+					<qry:attribute name="d_ubicacion" value="$r/@d_ubicacion"/>
+				</qry:element>
+			</qry:out>
+		</qry:select>
+		<qry:select name="QRY_CTRO_COSTO" doc="SOURCE">
+			<qry:xquery>
+				for $r in SQL('
+				SELECT
+					ORG08_CS_COSTO.d_centro_costo,
+					ORG08_CS_COSTO.c_centro_costo										
+				FROM
+				  ORG08_CS_COSTO				
+			')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:element name="CTRO_COSTO">
+					<!--<qry:attribute name="zona3_aux1" value="CONCAT('Centro de costo: ' + $r/@d_centro_costo)"/>-->
+					<qry:attribute name="c_centro_costo" value="$r/@c_centro_costo"/>
+					<qry:attribute name="d_centro_costo" value="$r/@d_centro_costo"/>
+				</qry:element>
+			</qry:out>
+		</qry:select>
+	</QUERY>
+	<HEAD>
+		LEGAJO;NOMBRE;MOD_CONTRATACION;CATEGORIA;OBRA_SOCIAL;PERIODO;COD_LIQUIDACION;DESC_LIQUIDACION;FECHA_PAGO;LUGAR_PAGO;PERIODO_CONTRIBUCION;FECHA_CONTRIBUCION;LUGAR_CONTRIBUCION;NETO;BRUTO;REM;NREM;DESC;COD_CONCEPTO;DES_CONCEPTO;CAN_CONCEPTO;REM_CONCEPTO;NREM_CONCEPTO;DESC_CONCEPTO;OBS;SECTOR;F_EGRESO;ANT_RECONOCIDA;ZONA1_AUX1;ZONA1_AUX2;ZONA1_AUX3;ZONA2_AUX1;ZONA2_AUX2;ZONA2_AUX3;ZONA3_AUX1;ZONA3_AUX2;ZONA3_AUX3;ZONA4_AUX1;ZONA4_AUX2;ZONA4_AUX3
+	</HEAD>
+	<DETAIL>
+		{e_numero_legajo};{d_ape_y_nom};{d_mod_contr};{d_categoria};{d_obra_social};{e_periodo};{c_liquidacion};{d_titulo};{f_pago};{lugar_pago};{periodo_contribucion};{fecha_contribucion};{lugar_contribucion};{Resultado};{sbasico};{tot_remu};{tot_noremu};{tot_descuentos};{c_concepto};{d_concepto};{cantidad};{remun};{no_remun};{deduc};{o_liquidacion};{sector};{f_egreso};{ant_reconocida};{zona1_aux1};{zona1_aux2};{zona1_aux3};{zona2_aux1};{zona2_aux2};{zona2_aux3};{zona3_aux1};{zona3_aux2};{zona3_aux3};{zona4_aux1};{zona4_aux2};{zona4_aux3}
+	</DETAIL>
+	<MESS>
+		<EMPTY mess="No se encontraron registros."/>
+	</MESS>
+</INTERFACE-DEF>

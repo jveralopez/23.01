@@ -1,0 +1,113 @@
+<form:Form xmlns:form="nomad_engine.form" xmlns:qry="nomad_engine.qry" extends="NucleusRH.Base.Vacaciones.LegajoVacaciones.filter.form" name="NucleusRH.Base.Vacaciones.Reportes.NotificacionVacaciones.filter" doc="source">
+	<form:Title>
+		<form:Label label="Notificaci&#243;n de Vacaciones" name="lbl_titulo" align="center" style="S3 LCol_w" visible=""/>
+	</form:Title>
+	<form:Center width="100%">
+		<form:VGroup nvalue="#source:@gcustom" border="1" width="90%" label="Criterios de selecci&#243;n particulares" name="vgroupDatosCustom" collapse="1">
+			<form:Columns name="colsemps_c" width="100%">
+				<form:Column name="colemp_c" valign="middle" align="left">
+					<form:DateTime nvalue="#source:@f_notifica" name="f_notifica" label="Fecha Notificaci&#243;n" pattern="YYYYMMDD" required="0" enabled="" descr="Fecha Ingreso Desde" mask="dd/mm/yyyy">
+						<form:SButtons>
+							<form:SButton descrip="Fecha Desde" img="Calendar" visible="" label="Calendar" name="Calendar">
+								<form:Event action="SHOW_HELPER" name="onclick" runat="client"/>
+							</form:SButton>
+						</form:SButtons>
+					</form:DateTime>
+					<form:CheckBox name="l_reimprime" nvalue="#source:@l_reimprime" label="Reimprime Notificaci&#243;n"/>
+				</form:Column>
+			</form:Columns>
+		</form:VGroup>
+	</form:Center>
+	<form:Bottom>
+		<form:RowAligner name="rowaligner1">
+			<form:Row name="row1">
+				<form:Button label="Filtrar" img="ok" name="btnFILTER" descrip="Consultar los Legajos seleccionados" note="Consultar los Legajos seleccionados">
+					<form:Event action="Filtrar" runat="client" name="onclick"/>
+				</form:Button>
+			</form:Row>
+		</form:RowAligner>
+	</form:Bottom>
+	<form:Scripts>
+		function set_f_hasta(me){
+	var date = AddDays(me.TypedValue(), 30);  	
+ 	Ctrl('f_hasta').SetXValue(date2str(date)); 
+}
+function Filtrar()
+{               
+    if (arrFILTER.length == 0)
+    {             
+        alert("No hay legajos filtrados.");
+        return false;
+    } 
+    
+    if (arrFILTER.length &gt; 200)
+    {             
+        alert("Hay demasiados registros seleccionados, afine la b&#250;squeda.");
+        return false;
+    }
+    
+    FillArray(100);
+    
+    Ctrl("main").DoEvent("FILTER");
+    
+}
+	</form:Scripts>
+	<form:Event name="FILTER" action="FILTER" runat="server"/>
+	<form:Resources>
+		<form:Resource declare="&lt;DATOS&gt;&#13;&#10;oi_empresa=&quot;10&quot; l_reimprime=&quot;0&quot; oi_estructura=&quot;&quot;&#13;&#10;&#9;&#13;&#10;&lt;/DATOS&gt;" name="qry_externo">
+			<qry:main name="qry">
+				<qry:element name="ROWS">
+					<qry:insert-select name="GET_FECHA"/>
+				</qry:element>
+			</qry:main>
+			<qry:select doc="PARAM" name="GET_FECHA">
+				<qry:xquery>
+					for $r in sql('
+				SELECT 
+					ORG26_PARAMETROS.d_valor 
+				FROM 
+					ORG26_PARAMETROS 
+				WHERE 
+					ORG26_PARAMETROS.c_modulo = \'VAC\' 
+					AND ORG26_PARAMETROS.c_parametro = \'NOTIF\'
+			')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:attribute name="valor" value="datetime(number(datetime(now()))-number($r/@d_valor))" type="Nomad.NSystem.Int"/>
+					<qry:insert-select name="sql1" doc-path=".."/>
+				</qry:out>
+			</qry:select>
+			<qry:select name="sql1" doc="SOURCE">
+				<qry:xquery>
+					for $r in sql('
+					SELECT
+						per02.oi_personal_emp,
+						per02.e_numero_legajo
+					FROM
+						PER02_PERSONAL_EMP as per02,
+						VAC01_SOLICITUDES as vac01,
+						VAC02_ESTADOS_SOL AS vac02,
+						VAC01_NOTIF AS vac03
+					JOIN	
+						per02.oi_personal_emp INNER vac01.oi_personal_emp,
+						vac01.oi_estado_solic INNER vac02.oi_estado_solic,
+						vac01.oi_solicitud INNER vac03.oi_solicitud
+					WHERE
+						vac02.c_estado_solic IN (\'A\',\'L\') AND
+						vac01.f_desde_solicitud &gt;= {Datetime(#SOURCE:@valor)}
+						{%? ('##l_reimprime##'='0') 
+							{% AND vac03.l_notificada = \'0\' %} 
+							{%  %} 
+						%}
+					ORDER BY e_numero_legajo ASC                                
+				')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:element name="ROW">
+						<qry:attribute name="id" value="$r/@oi_personal_emp"/>
+					</qry:element>
+				</qry:out>
+			</qry:select>
+		</form:Resource>
+	</form:Resources>
+</form:Form>

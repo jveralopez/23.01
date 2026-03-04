@@ -1,0 +1,154 @@
+<html:html xmlns:html="nomad_engine.html" xmlns:qry="nomad_engine.qry" extends="Nomad.Base.BaseReport.rpt" doc="source" name="NucleusRH.Base.MedinicaLaboral.Comprobante">
+	<html:query declare="&lt;DATOS oi_personal_emp=&quot;11569&quot; f_fechahora_cons=&quot;20111020093900&quot; oi_motivo_consulta=&quot;28&quot; f_baja=&quot;20111020&quot; f_prev_alta=&quot;20111025&quot; f_alta=&quot;&quot; e_dias_perdidos=&quot;3&quot; oi_enfermedad=&quot;&quot; f_prox_consulta=&quot;&quot; o_consulta_per=&quot;&quot; f_fechahora_visita=&quot;&quot; oi_medico=&quot;&quot; d_domicilio=&quot;&quot; oi_tipo_domicilio=&quot;&quot; oi_lugar_atencion=&quot;&quot; o_medicacion=&quot;&quot; o_detalle_cons=&quot;&quot; /&gt;">
+		<qry:main doc="SOURCE">
+			<qry:append-doc name="PARAMIN" doc-path="#SOURCE:DATOS"/>
+			<REPORT label="Comprobante de Consulta M&#233;dica">
+				<qry:attribute value="format_date(now(),'dd/mm/yyyy HH:MM')" name="date"/>
+				<GROUPS>
+					<GROUP style="width:100%" tag="DATOS" type="title">
+						<COLS>
+							<COL name="d_empresa" label="Empresa"/>
+							<COL name="legajo" label="Legajo"/>
+						</COLS>
+						<GROUP tag="CONSULTA" label="Consulta" type="table">
+							<COLS>
+								<COL name="f_fechahora_cons" label="Fecha-Hora de la consulta"/>
+								<COL name="d_motivo_consulta" label="Motivo"/>
+								<COL name="f_baja" label="Fecha Baja" type="date"/>
+								<COL name="f_prev_alta" label="Fecha Prevista Alta" type="date"/>
+								<COL name="f_alta" label="Fecha Alta" type="date"/>
+								<COL name="e_dias_perdidos" label="D&#237;as Perdidos"/>
+								<COL name="d_enfermedad" label="Enfermedad"/>
+								<COL name="f_prox_consulta" label="Fecha Pr&#243;xima Consulta" type="date"/>
+							</COLS>
+						</GROUP>
+						<qry:if test="#PARAMIN:@f_fechahora_visita != ''">
+							<qry:then>
+								<GROUP tag="CONSULTA" type="title">
+									<COLS>
+										<COL name="o_consulta_per" label="Observaciones Consulta"/>
+									</COLS>
+								</GROUP>
+								<GROUP tag="DETALLE" label="Visita M&#233;dica" type="table">
+									<COLS>
+										<COL name="d_medico" label="M&#233;dico"/>
+										<COL name="d_domicilio" label="Lugar de Atenci&#243;n"/>
+										<COL name="o_medicacion" label="Medicaci&#243;n suministrada"/>
+									</COLS>
+								</GROUP>
+								<GROUP tag="DETALLE" type="title">
+									<COLS>
+										<COL name="o_detalle_cons" label="Observaciones Visita M&#233;dica"/>
+									</COLS>
+								</GROUP>
+							</qry:then>
+						</qry:if>
+					</GROUP>
+				</GROUPS>
+				<qry:element name="DATA">
+					<qry:element name="DATOS">
+						<qry:insert-select doc-path="#PARAMIN:" name="qry_datos_legajo"/>
+						<CONSULTA>
+							<qry:insert-select doc-path="#PARAMIN:" name="qry_datos_consulta"/>
+							<qry:insert-select doc-path="#PARAMIN:" name="qry_datos_enfermedad"/>
+							<qry:attribute name="f_fechahora_cons" value="format_date(#PARAMIN:@f_fechahora_cons,'dd/mm/yyyy HH:MM')"/>
+							<qry:attribute name="f_baja" value="format_date(#PARAMIN:@f_baja,'dd/mm/yyyy')"/>
+							<qry:attribute name="f_prev_alta" value="format_date(#PARAMIN:@f_prev_alta,'dd/mm/yyyy')"/>
+							<qry:attribute name="f_alta" value="format_date(#PARAMIN:@f_alta,'dd/mm/yyyy')"/>
+							<qry:attribute name="f_prox_consulta" value="format_date(#PARAMIN:@f_prox_consulta,'dd/mm/yyyy')"/>
+							<qry:attribute name="e_dias_perdidos" value="#PARAMIN:@e_dias_perdidos"/>
+							<qry:attribute name="o_consulta_per" value="#PARAMIN:@o_consulta_per"/>
+						</CONSULTA>
+						<DETALLE>
+							<qry:insert-select doc-path="#PARAMIN:" name="qry_datos_medico"/>
+							<qry:insert-select doc-path="#PARAMIN:" name="qry_datos_tipo_dom"/>
+							<qry:insert-select doc-path="#PARAMIN:" name="qry_datos_lugar_atencion"/>
+							<qry:attribute name="d_domicilio" value="#PARAMIN:@d_domicilio +' '+ ./@d_tipo_domicilio+' '+./@d_lugar_atencion"/>
+							<qry:attribute name="o_medicacion" value="#PARAMIN:@o_medicacion"/>
+							<qry:attribute name="o_detalle_cons" value="#PARAMIN:@o_detalle_cons"/>
+						</DETALLE>
+					</qry:element>
+				</qry:element>
+			</REPORT>
+		</qry:main>
+		<qry:select doc="PARAM" name="qry_datos_legajo">
+			<qry:xquery>
+				for $r in sql('
+			SELECT PER02_PERSONAL_EMP.e_numero_legajo,
+			PER01_PERSONAL.d_ape_y_nom,
+			ORG03_EMPRESAS.d_empresa
+			FROM PER02_PERSONAL_EMP, PER01_PERSONAL, ORG03_EMPRESAS
+			JOIN PER02_PERSONAL_EMP.oi_empresa INNER ORG03_EMPRESAS.oi_empresa,
+			PER02_PERSONAL_EMP.oi_personal INNER PER01_PERSONAL.oi_personal
+			WHERE PER02_PERSONAL_EMP.oi_personal_emp = {#PARAM:@oi_personal_emp} 
+			')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:attribute name="legajo" value="$r/@e_numero_legajo + ' - ' + $r/@d_ape_y_nom"/>
+				<qry:attribute name="d_empresa" value="$r/@d_empresa"/>
+			</qry:out>
+		</qry:select>
+		<qry:select doc="PARAM" name="qry_datos_consulta">
+			<qry:xquery>
+				for $r in sql('
+				SELECT MED05_MOTIVOS_CONS.d_motivo_consulta
+				FROM MED05_MOTIVOS_CONS
+				WHERE MED05_MOTIVOS_CONS.oi_motivo_consulta = {#PARAM:@oi_motivo_consulta} 
+			')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:attribute name="d_motivo_consulta" value="$r/@d_motivo_consulta"/>
+			</qry:out>
+		</qry:select>
+		<qry:select doc="PARAM" name="qry_datos_medico">
+			<qry:xquery>
+				for $r in sql('
+			SELECT MED03_MEDICOS.c_nro_documento,
+			MED03_MEDICOS.d_apellido,
+			MED03_MEDICOS.d_nombres
+			FROM MED03_MEDICOS
+			WHERE MED03_MEDICOS.oi_medico = {#PARAM:@oi_medico} 
+			')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:attribute name="d_medico" value="$r/@c_nro_documento + ' ' + $r/@d_apellido +', ' + $r/@d_nombres"/>
+			</qry:out>
+		</qry:select>
+		<qry:select doc="PARAM" name="qry_datos_enfermedad">
+			<qry:xquery>
+				for $r in sql('
+			SELECT MED06_ENFERMEDADES.d_enfermedad
+			FROM MED06_ENFERMEDADES
+			WHERE MED06_ENFERMEDADES.oi_enfermedad = {#PARAM:@oi_enfermedad} 
+			')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:attribute name="d_enfermedad" value="$r/@d_enfermedad"/>
+			</qry:out>
+		</qry:select>
+		<qry:select doc="PARAM" name="qry_datos_tipo_dom">
+			<qry:xquery>
+				for $r in sql('
+			SELECT PER09_TIPOS_DOMIC.d_tipo_domicilio
+			FROM PER09_TIPOS_DOMIC
+			WHERE PER09_TIPOS_DOMIC.oi_tipo_domicilio = {#PARAM:@oi_tipo_domicilio} 
+			')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:attribute name="d_tipo_domicilio" value="$r/@d_tipo_domicilio"/>
+			</qry:out>
+		</qry:select>
+		<qry:select doc="PARAM" name="qry_datos_lugar_atencion">
+			<qry:xquery>
+				for $r in sql('
+			SELECT MED07_LUGARES_ATEN.d_lugar_atencion
+			FROM MED07_LUGARES_ATEN
+			WHERE MED07_LUGARES_ATEN.oi_lugar_atencion = {#PARAM:@oi_lugar_atencion} 
+			')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:attribute name="d_lugar_atencion" value="$r/@d_lugar_atencion"/>
+			</qry:out>
+		</qry:select>
+	</html:query>
+</html:html>

@@ -1,0 +1,296 @@
+<flow:flow xmlns:flow="nomad_engine.flow" xmlns:doc="nomad_engine.doc" xmlns:qry="nomad_engine.qry" extends="NucleusRH.Base.Evaluacion.Eventos.autoflow" name="NucleusRH.Base.Evaluacion.Eventos">
+	<flow:info label="Flow para NucleusRH.Base.Evaluacion.Eventos"/>
+	<flow:declare>
+		<doc:define name="INI_DOC"/>
+		<doc:define name="DOC_INI">
+			<FILTRO todos="" excluir="" oi_evento="">
+				<PERSONAS/>
+			</FILTRO>
+		</doc:define>
+		<doc:define name="DOC_INI_OUT"/>
+		<doc:define name="AUXDOC"/>
+		<qry:define declare="&lt;EVENTO descr=&quot;[cv] fd&quot; l_evaluacion=&quot;1&quot; c_estado=&quot;A&quot; c_periodo=&quot;dd&quot; d_evento=&quot;fd&quot; c_evento=&quot;cv&quot; id=&quot;8&quot;&gt;&#13;&#10;&#9;&lt;MOT_EVENTO/&gt;&#13;&#10;&lt;/EVENTO&gt;" name="INI_QRY">
+			<qry:main doc="SOURCE">
+				<qry:element name="DATOS">
+					<qry:element name="EVALUADOS">
+						<qry:insert-select doc-path="#SOURCE:" name="Select_Personas"/>
+					</qry:element>
+				</qry:element>
+			</qry:main>
+			<qry:select doc="SOURCE" name="Select_Personas">
+				<qry:xquery>
+					for $r in sql('
+				SELECT EVA02_EVALUACION.oi_evaluacion, EVA02_EVALUACION.oi_personal_emp
+				FROM EVA02_EVALUACION
+				WHERE EVA02_EVALUACION.oi_evento = {#SOURCE:EVENTO/@id}
+			')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:element name="PERSONA">
+						<qry:attribute value="$r/@oi_evaluacion" name="oi_evaluacion"/>
+						<qry:attribute value="$r/@oi_personal_emp" name="oi_personal_emp"/>
+					</qry:element>
+				</qry:out>
+			</qry:select>
+		</qry:define>
+		<qry:define declare="&lt;FILTRO todos=&quot;&quot; excluir=&quot;1&quot; oi_evento=&quot;1&quot; &gt;&#13;&#10;&#9;&lt;PERSONAS&gt;&#13;&#10;&#9;&#9;&lt;PERSONA oi_personal_emp=&quot;2&quot;/&gt;&#13;&#10;&#9;&lt;/PERSONAS&gt;&#13;&#10;&lt;/FILTRO&gt;&#9;" name="ARMAR_LISTA_PERSONAS">
+			<qry:main doc="SOURCE">
+				<qry:element name="DATOS">
+					<qry:element name="FILTRO">
+						<qry:attribute value="#SOURCE:FILTRO/@oi_evento" name="oi_evento"/>
+						<qry:element name="ROWS">
+							<qry:insert-select doc-path="#SOURCE:" name="TODOS"/>
+						</qry:element>
+					</qry:element>
+				</qry:element>
+			</qry:main>
+			<qry:select doc="SOURCE" name="TODOS">
+				<qry:xquery>
+					for $r in sql('
+				SELECT PER02_PERSONAL_EMP.oi_personal_emp, PER02_PERSONAL_EMP.e_numero_legajo, PER01_PERSONAL.d_ape_y_nom
+				FROM PER02_PERSONAL_EMP, PER01_PERSONAL, EVA01_EVENTOS
+				JOIN
+				PER02_PERSONAL_EMP.oi_empresa INNER EVA01_EVENTOS.oi_empresa,
+				PER02_PERSONAL_EMP.oi_personal INNER PER01_PERSONAL.oi_personal
+				WHERE	
+				EVA01_EVENTOS.oi_evento = {#SOURCE:FILTRO/@oi_evento} AND
+				PER02_PERSONAL_EMP.oi_personal_emp NOT IN 
+				(SELECT EVA02_EVALUACION.oi_personal_emp FROM EVA02_EVALUACION WHERE EVA02_EVALUACION.oi_evento = {%=#SOURCE:FILTRO/@oi_evento %})
+				AND PER02_PERSONAL_EMP.oi_indic_activo = 1 AND
+				{%?  (#SOURCE:FILTRO/@todos!='1') 
+					{% 
+						{%? (string(#SOURCE:FILTRO/PERSONAS/PERSONA/@oi_personal_emp)!='')
+							{% 
+								PER02_PERSONAL_EMP.oi_personal_emp	 {%? (#SOURCE:FILTRO/@excluir!='1') 
+								{% IN ({%=string(#SOURCE:FILTRO/PERSONAS/PERSONA/@oi_personal_emp) %}) %} {% NOT IN ({%=string(#SOURCE:FILTRO/PERSONAS/PERSONA/@oi_personal_emp) %}) %} %}
+							%} 
+							{% 1 = 3 %} 
+						%} 
+					%} 
+					{% 1 = 1 %} 
+				%}
+					')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:element name="ROW">
+						<qry:attribute value="$r/@oi_personal_emp" name="id"/>
+						<qry:attribute value="$r/@oi_personal_emp" name="oi_personal_emp"/>
+						<qry:attribute value="$r/@e_numero_legajo" name="code"/>
+						<qry:attribute value="$r/@d_ape_y_nom" name="text"/>
+					</qry:element>
+				</qry:out>
+			</qry:select>
+		</qry:define>
+		<qry:define declare="&lt;FILTRO todos=&quot;1&quot; excluir=&quot;0&quot; oi_evento=&quot;3&quot;&gt;&#13;&#10;  &lt;PERSONAS/&gt;&#13;&#10;&lt;/FILTRO&gt;" name="ARMAR_PERSONAS_A_BLANQUEAR">
+			<qry:main doc="SOURCE">
+				<qry:element name="DATOS">
+					<qry:element name="FILTRO">
+						<qry:attribute value="#SOURCE:FILTRO/@oi_evento" name="oi_evento"/>
+						<qry:attribute value="0" name="band"/>
+						<qry:element name="ROWS">
+							<qry:insert-select doc-path="#SOURCE:" name="TODOS"/>
+						</qry:element>
+						<qry:insert-select doc-path="." name="SQL1"/>
+					</qry:element>
+				</qry:element>
+			</qry:main>
+			<qry:select doc="SOURCE" name="TODOS">
+				<qry:xquery>
+					for $r in sql('
+			SELECT
+			EVA02_EVALUACION.oi_personal_emp, PER02_PERSONAL_EMP.e_numero_legajo, PER01_PERSONAL.d_ape_y_nom, EVA02_EVALUACION.oi_evaluacion
+			FROM
+			EVA02_EVALUACION, PER02_PERSONAL_EMP, PER01_PERSONAL
+			JOIN
+			PER02_PERSONAL_EMP.oi_personal_emp INNER EVA02_EVALUACION.oi_personal_emp,
+     	PER02_PERSONAL_EMP.oi_personal INNER PER01_PERSONAL.oi_personal 
+			WHERE
+			EVA02_EVALUACION.oi_evento = {%=#SOURCE:FILTRO/@oi_evento %} 
+			AND
+			{%? (#SOURCE:FILTRO/@todos!='1')	
+			{% 
+			{%? (string(#SOURCE:FILTRO/PERSONAS/PERSONA/@oi_personal_emp)!='')
+			{% PER02_PERSONAL_EMP.oi_personal_emp
+			{%? (#SOURCE:FILTRO/@excluir!='1') {% in ({%=string(#SOURCE:FILTRO/PERSONAS/PERSONA/@oi_personal_emp) %}) %} {% not in ({%=string(#SOURCE:FILTRO/PERSONAS/PERSONA/@oi_personal_emp) %}) %} %}			
+			%}
+			{% 1 = 3 %}
+			%}
+			%}
+			{% 1 = 1 %}
+			%}
+			')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:element name="ROW">
+						<qry:attribute value="$r/@oi_personal_emp" name="id"/>
+						<qry:attribute value="$r/@oi_personal_emp" name="oi_personal_emp"/>
+						<qry:attribute value="$r/@e_numero_legajo" name="code"/>
+						<qry:attribute value="$r/@d_ape_y_nom" name="text"/>
+						<qry:attribute value="$r/@oi_evaluacion" name="evaluacion"/>
+					</qry:element>
+				</qry:out>
+			</qry:select>
+			<qry:select doc="SOURCE" name="SQL1">
+				<qry:xquery>
+					for $r in sql('
+			SELECT EVA02_EVALUACION.oi_personal_emp
+			FROM EVA02_EVALUACION
+			WHERE
+			{%? (string(#SOURCE:ROWS/ROW/@oi_personal_emp)!='')
+				{% EVA02_EVALUACION.oi_personal_emp	IN ({%=string(#SOURCE:ROWS/ROW/@oi_personal_emp) %})	%}
+				{% 1 = 3 %}
+			%}
+			')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:attribute value="1" name="band"/>
+				</qry:out>
+			</qry:select>
+		</qry:define>
+		<qry:define declare="&lt;EVENTO id=&quot;1&quot;/&gt;" name="qry_evaluaciones">
+			<qry:main doc="PARAM">
+				<qry:element name="DATA">
+					<qry:attribute value="'0'" name="band"/>
+					<qry:insert-select name="qryClase" doc-path="#PARAM:EVENTO"/>
+				</qry:element>
+			</qry:main>
+			<qry:select name="qryClase" doc="PARAM">
+				<qry:xquery>
+					for $f in sql('
+			SELECT				
+				EVA02_EVALUACION.oi_evaluacion,
+				EVA02_EVALUACION.c_estado			
+			FROM 
+				EVA02_EVALUACION			
+			WHERE				
+				EVA02_EVALUACION.oi_evento = {#PARAM:@id }
+				AND EVA02_EVALUACION.c_estado NOT IN (\'CE\', \'AN\')									
+      ')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:attribute value="'1'" name="band"/>
+				</qry:out>
+			</qry:select>
+		</qry:define>
+		<qry:define name="qry_inicializados" declare="&lt;EVENTO descr=&quot;[cv] fd&quot; l_evaluacion=&quot;1&quot; c_estado=&quot;A&quot; c_periodo=&quot;dd&quot; d_evento=&quot;fd&quot; c_evento=&quot;cv&quot; id=&quot;8&quot;&gt;&#13;&#10;&#9;&lt;MOT_EVENTO/&gt;&#13;&#10;&lt;/EVENTO&gt;">
+			<qry:main doc="SOURCE">
+				<qry:element name="FILTRO">
+					<qry:attribute value="#SOURCE:EVENTO/@id" name="oi_evento"/>
+					<qry:attribute value="#SOURCE:EVENTO/oi_empresa/@value" name="oi_empresa"/>
+					<qry:element name="ROWS">
+						<qry:insert-select doc-path="#SOURCE:EVENTO" name="SQL1"/>
+					</qry:element>
+				</qry:element>
+			</qry:main>
+			<qry:select doc="SOURCE" name="SQL1">
+				<qry:xquery>
+					for $r in sql('
+				SELECT EVA02_EVALUACION.oi_personal_emp, PER02_PERSONAL_EMP.e_numero_legajo,
+				PER01_PERSONAL.d_ape_y_nom
+				FROM EVA02_EVALUACION, PER02_PERSONAL_EMP, PER01_PERSONAL
+				JOIN EVA02_EVALUACION.oi_personal_emp INNER PER02_PERSONAL_EMP.oi_personal_emp,
+				PER02_PERSONAL_EMP.oi_personal INNER PER01_PERSONAL.oi_personal
+				WHERE EVA02_EVALUACION.oi_evento = {#SOURCE:@id}
+				ORDER BY e_numero_legajo ASC
+			')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:element name="ROW">
+						<qry:attribute value="$r/@oi_personal_emp" name="id"/>
+						<qry:attribute value="$r/@e_numero_legajo" name="e_numero_legajo"/>
+						<qry:attribute value="$r/@d_ape_y_nom" name="d_ape_y_nom"/>
+					</qry:element>
+				</qry:out>
+			</qry:select>
+		</qry:define>
+		<doc:define name="PARAM"/>
+	</flow:declare>
+	<flow:main doc="SOURCE"/>
+	<flow:group Name="EVENTO">
+		<flow:form extends="NucleusRH.Base.Evaluacion.Eventos.EVENTO.noreg.autoform:EDIT" parent-doc="PARENTSOURCE" doc="SOURCE" name="NucleusRH.Base.Evaluacion.Eventos.EVENTO.noreg.form:EDIT" form-class="NucleusRH.Base.Evaluacion.Eventos.EVENTO.noreg.autoform" mode="EDIT">
+			<flow:action name="open-flow-SHOW">
+				<flow:open-form iter-index="#QRY:ROW/@id" parent-doc-path="#QRY:" doc-path="#DDO:" mode="SHOW" form-class="NucleusRH.Base.Evaluacion.Eventos.EVENTO.form"/>
+			</flow:action>
+			<flow:action name="new-DDO">
+				<doc:new-object doc="NEWDDOROOT" class="NucleusRH.Base.Evaluacion.Eventos.EVENTO"/>
+				<doc:set-attribute from-value="A" to-attr-path="#NEWDDOROOT:@c_estado"/>
+			</flow:action>
+			<flow:action name="open-flow-ADD">
+				<flow:open-form doc-path="#NEWDDOROOT:" mode="NEW" form-class="NucleusRH.Base.Evaluacion.Eventos.EVENTO.form"/>
+			</flow:action>
+			<flow:action name="open-flow-LIST">
+				<flow:open-form iter-index="#QRY_LIST:ROW/@id" parent-doc-path="#QRY_LIST:" doc-path="#DDO:" mode="LIST" form-class="NucleusRH.Base.Evaluacion.Eventos.EVENTO.form"/>
+			</flow:action>
+			<flow:action name="open-flow-EDIT">
+				<flow:open-form iter-index="#QRY:ROW/@id" parent-doc-path="#QRY:" doc-path="#DDO:" mode="EDIT" form-class="NucleusRH.Base.Evaluacion.Eventos.EVENTO.form"/>
+			</flow:action>
+		</flow:form>
+		<flow:form extends="NucleusRH.Base.Evaluacion.Eventos.EVENTO.autoform:SHOW" parent-doc="PARENTSOURCE" doc="SOURCE" name="NucleusRH.Base.Evaluacion.Eventos.EVENTO.form:SHOW" form-class="NucleusRH.Base.Evaluacion.Eventos.EVENTO.form" mode="SHOW">
+			<flow:action name="new-DDO">
+				<doc:new-object doc="NEWDDOROOT" class="NucleusRH.Base.Evaluacion.Eventos.EVENTO"/>
+				<doc:set-attribute from-value="A" to-attr-path="#NEWDDOROOT:@c_estado"/>
+			</flow:action>
+			<flow:action name="open-flow-EDIT">
+				<flow:open-form doc-path="#DDO:" mode="EDIT" form-class="NucleusRH.Base.Evaluacion.Eventos.EVENTO.form"/>
+			</flow:action>
+			<flow:action name="open-flow-ADD">
+				<flow:open-form doc-path="#NEWDDOROOT:" mode="NEW" form-class="NucleusRH.Base.Evaluacion.Eventos.EVENTO.form"/>
+			</flow:action>
+			<flow:action name="CERRAR">
+				<doc:load-qry output-doc="AUXDOC" input-doc-path="#SOURCE:" qry="qry_evaluaciones"/>
+				<flow:call-action else="CERRAR_FAIL" eq="0" if="#AUXDOC:@band" action="CERRAR_OK"/>
+			</flow:action>
+			<flow:action name="CERRAR_OK">
+				<doc:set-attribute from-value="C" to-attr-path="#SOURCE:@c_estado"/>
+				<doc:set-attribute from-attr-path="#FORM:ctrl[@id='f_hoy']/@xval" from-value="" to-attr-path="#SOURCE:@f_cierre"/>
+				<doc:save-object class="NucleusRH.Base.Evaluacion.Eventos.EVENTO" doc="SOURCE"/>
+			</flow:action>
+			<flow:action name="CERRAR_FAIL">
+				<flow:message message="El evento no puede ser cerrado porque tiene Evaluaciones que no han sido cerradas."/>
+			</flow:action>
+			<flow:action name="ADMINISTRAR">
+				<doc:load-qry output-doc="PARAM" input-doc-path="#SOURCE:" qry="qry_inicializados"/>
+				<flow:open-form parent-doc-path="#SOURCE:" doc-path="#PARAM:" mode="EDIT" form-class="NucleusRH.Base.Evaluacion.Eventos.ADMINISTRAR.form"/>
+			</flow:action>
+		</flow:form>
+		<flow:form extends="NucleusRH.Base.Evaluacion.Eventos.EVENTO.autoform:EDIT" parent-doc="PARENTSOURCE" doc="SOURCE" name="NucleusRH.Base.Evaluacion.Eventos.EVENTO.form:EDIT" form-class="NucleusRH.Base.Evaluacion.Eventos.EVENTO.form" mode="EDIT"/>
+		<flow:form extends="NucleusRH.Base.Evaluacion.Eventos.EVENTO.autoform:NEW" parent-doc="PARENTSOURCE" doc="SOURCE" name="NucleusRH.Base.Evaluacion.Eventos.EVENTO.form:NEW" form-class="NucleusRH.Base.Evaluacion.Eventos.EVENTO.form" mode="NEW"/>
+		<flow:form extends="NucleusRH.Base.Evaluacion.Eventos.EVENTO.autoform:LIST" parent-doc="PARENTSOURCE" doc="SOURCE" name="NucleusRH.Base.Evaluacion.Eventos.EVENTO.FORM:LIST" form-class="NucleusRH.Base.Evaluacion.Eventos.EVENTO.form" mode="LIST">
+			<flow:action name="open-flow-EDIT">
+				<flow:open-form doc-path="#DDO:" mode="EDIT" form-class="NucleusRH.Base.Evaluacion.Eventos.EVENTO.form"/>
+			</flow:action>
+			<flow:action name="open-flow-ADD">
+				<flow:open-form doc-path="#NEWDDOROOT:" mode="NEW" form-class="NucleusRH.Base.Evaluacion.Eventos.EVENTO.form"/>
+			</flow:action>
+			<flow:action name="new-DDO">
+				<doc:new-object doc="NEWDDOROOT" class="NucleusRH.Base.Evaluacion.Eventos.EVENTO"/>
+				<doc:set-attribute from-value="A" to-attr-path="#NEWDDOROOT:@c_estado"/>
+			</flow:action>
+		</flow:form>
+	</flow:group>
+	<flow:group name="AdministrarLegajos">
+		<flow:form parent-doc="PARENTSOURCE" name="NucleusRH.Base.Evaluacion.Eventos.ADMINISTRAR.form:EDIT" mode="EDIT" form-class="NucleusRH.Base.Evaluacion.Eventos.ADMINISTRAR.form" doc="SOURCE">
+			<flow:action name="BACK">
+				<flow:close-form/>
+			</flow:action>
+			<flow:action name="on-show">
+				<flow:attach-doc doc-path="#SOURCE:ROWS" attach-id="ARRA"/>
+			</flow:action>
+			<flow:action name="SAVE">
+				<doc:load-qry output-doc="INI_DOC" input-doc-path="#PARENTSOURCE:" qry="qry_inicializados"/>
+				<flow:log text-path="#INI_DOC:" text="MET1"/>
+				<flow:exec-method priority="6" out-type="String" out-attr-path="#BATCHDOC:@batch-id" class="NucleusRH.Base.Evaluacion.Eventos.EVENTO" method="AdministrarLegajos">
+					<flow:param doc-path="#SOURCE:ROWS" type="Nomad.NSystem.Object" mode="in" name="PARAM"/>
+					<flow:param attr-path="#PARENTSOURCE:@id" type="Nomad.NSystem.String" mode="in" name="evento"/>
+				</flow:exec-method>
+				<flow:open-form form-class="nomad.base.batchtolist.form" mode="BATCH" doc-path="#BATCHDOC:"/>
+			</flow:action>
+		</flow:form>
+	</flow:group>
+	<flow:form mode="BATCH" name="nomad.base.batchtolist.form:BATCH" form-class="nomad.base.batchtolist.form" doc="SOURCE">
+		<flow:action name="on-show"/>
+		<flow:action name="EXIT">
+			<flow:close-form next-action="BACK"/>
+		</flow:action>
+	</flow:form>
+</flow:flow>

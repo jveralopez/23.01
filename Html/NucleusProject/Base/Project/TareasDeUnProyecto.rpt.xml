@@ -1,0 +1,212 @@
+<html:html xmlns:html="nomad_engine.html" xmlns:qry="nomad_engine.qry" extends="Nomad.Base.BaseReport.rpt" xtends="Nomad.Base.BaseReport.rpt" doc="source" name="NucleusRH.Base.Liquidacion.ListadoConcepto">
+	<html:query declare="&lt;DATA recurso=&quot;&quot; oi_proyecto=&quot;1925&quot; salida=&quot;HTML&quot; comboEstado=&quot;&quot; oi_recurso=&quot;&quot; selected=&quot;L&quot; ROWS_IDs=&quot;IN ( \'D\')&quot; /&gt;&#13;&#10;">
+		<qry:main doc="SOURCE">
+			<REPORT label="Tareas por Proyectos" style="width:90%;">
+				<qry:attribute name="date" value="format_date(Now(),'dd/mm/yyyy HH:MM')"/>
+				<GROUPS>
+					<GROUP tag="PROYECTO" style="padding-left:0px" type="title" noreg="No se encontraron registros para los filtros seleccionados.">
+						<COLS>
+							<COL name="proyecto" label="Proyecto" style=""/>
+							<COL name="f_inicio" label="Fecha Inicio" style="" type="date"/>
+							<COL name="f_fin" label="Fecha Fin" style="" type="date"/>
+							<COL name="recurso" label="Recurso" style="" align="left"/>
+							<COL name="hs_insumidas" label="Hs. Insumidas" style="" align="left"/>
+							<COL name="hs_estimadas" label="Hs. Estimadas" style="" align="left"/>
+						</COLS>
+						<GROUP label="Tareas" tag="TAREA" style="padding-left:0px" type="table" noreg="No se encontraron registros para los filtros seleccionados.">
+							<COLS>
+								<COL name="proyecto" label="Proyecto" align="left" style=""/>
+								<COL name="c_tarea" label="Codigo" align="left" style=""/>
+								<COL name="d_tarea" label="Descripcion" align="left" style=""/>
+								<COL name="c_estado" label="Estado" align="left" style="">
+									<OPT value="Inicializada" id="I"/>
+									<OPT value="Asignar Personas" id="AP"/>
+									<OPT value="Trabajando" id="T"/>
+									<OPT value="Pausada" id="P"/>
+									<OPT value="Finalizada" id="F"/>
+									<OPT value="Anulada" id="A"/>
+									<OPT value="Bloqueada" id="L"/>
+									<OPT value="Derivada a Testing" id="D"/>
+								</COL>
+								<COL name="o_tarea" label="Observacion" align="left" style=""/>
+								<COL name="recurso" label="Recurso Asignado" style="" align="left"/>
+								<COL name="f_inicio" label="Fecha Inicio" align="left" style=""/>
+								<COL name="f_fin_est" label="Fecha estimada Fin" align="left" style=""/>
+								<COL name="hs_estimadas" label="Hs. Estimadas" style="" align="left"/>
+								<COL name="hs_insumidas" label="Hs. Imputadas" style="" align="left"/>
+							</COLS>
+						</GROUP>
+					</GROUP>
+				</GROUPS>
+				<qry:element name="DATA">
+					<qry:append-doc name="docFil" doc-path="#SOURCE:DATA"/>
+					<qry:insert-select name="PROYECTO" doc-path="#SOURCE:DATA"/>
+				</qry:element>
+			</REPORT>
+		</qry:main>
+		<qry:select name="PROYECTO" doc="SOURCE">
+			<qry:xquery>
+				for $r in SQL(' 
+SELECT 
+	PRY01_PROYECTOS.c_proyecto, 
+	PRY01_PROYECTOS.oi_proyecto, 
+	PRY01_PROYECTOS.d_proyecto,
+	PRY01_PROYECTOS.f_inicio,
+	PRY01_PROYECTOS.f_fin
+FROM 
+	PRY01_PROYECTOS 
+WHERE 
+	PRY01_PROYECTOS.oi_proyecto = {#SOURCE:@oi_proyecto}
+')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<PROYECTO>
+					<qry:attribute name="f_inicio" value="format-date($r/@f_inicio, 'dd/mm/yyyy')"/>
+					<qry:attribute name="f_fin" value="format-date($r/@f_fin, 'dd/mm/yyyy')"/>
+					<qry:insert-select name="RECURSO" doc-path="$r"/>
+					<qry:insert-select name="ESFUERZO" doc-path="$r"/>
+					<qry:attribute name="proyecto" value="'[' + $r/@c_proyecto + '] ' + $r/@d_proyecto"/>
+					<qry:insert-select name="TAREAS" doc-path="$r"/>
+					<qry:insert-select name="PROY_TAREA" doc-path="$r"/>
+					<qry:attribute name="hs_insumidas" value="iif(@hs_insumidas!='',format-number(@hs_insumidas,0,2,',','.',''),@hs_insumidas)"/>
+				</PROYECTO>
+			</qry:out>
+		</qry:select>
+		<qry:select doc="SOURCE" name="PROY_TAREA">
+			<qry:xquery>
+				for $r in SQL('SELECT
+PRY01_PROYECTOS.c_proyecto 
+, PRY01_PROYECTOS.d_proyecto
+, PRY01_PROYECTOS.oi_proyecto
+FROM PRY01_PROYECTOS 
+WHERE PRY01_PROYECTOS.oi_proyecto_parent = {#SOURCE:@oi_proyecto}
+	
+')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:insert-select doc-path="$r" name="TAREAS"/>
+				<qry:insert-select doc-path="$r" name="ESFUERZO"/>
+				<qry:insert-select doc-path="$r" name="PROY_TAREA"/>
+			</qry:out>
+		</qry:select>
+		<qry:select doc="SOURCE" name="TAREAS">
+			<qry:xquery>
+				for $r in SQL('SELECT 
+PRY02_TAREAS.oi_tarea			
+, PRY02_TAREAS.c_tarea
+, PRY02_TAREAS.d_tarea
+, PRY02_TAREAS.c_estado
+, PRY02_TAREAS.o_tarea
+, PRY02_TAREAS.f_inicio
+, PRY02_TAREAS.f_fin_est 
+, PRY02_TAREAS.e_estimado
+, PRY03_UND_TIEMPO.e_minutos 
+FROM 
+PRY02_TAREAS,
+PRY03_UND_TIEMPO 
+JOIN   
+PRY02_TAREAS.oi_unidad_tiempo INNER PRY03_UND_TIEMPO.oi_unidad_tiempo
+WHERE PRY02_TAREAS.oi_proyecto = {#SOURCE:@oi_proyecto} 
+{%? (#docFil:@oi_recurso!='')	{% AND PRY02_TAREAS.oi_recurso = {#docFil:@oi_recurso} %} {% %} %}
+{%? (#docFil:@ROWS_IDs!='') {% AND PRY02_TAREAS.c_estado {%=#docFil:@ROWS_IDs%} %} {%  %} %}
+')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<TAREA>
+					<qry:attribute name="proyecto" value="'[' + #SOURCE:@c_proyecto + '] ' + #SOURCE:@d_proyecto"/>
+					<qry:attribute name="c_tarea" value="$r/@c_tarea"/>
+					<qry:attribute name="d_tarea" value="$r/@d_tarea"/>
+					<qry:attribute name="c_estado" value="$r/@c_estado"/>
+					<qry:attribute name="o_tarea" value="$r/@o_tarea"/>
+					<qry:insert-select name="RECURSO_TAREA" doc-path="$r"/>
+					<qry:attribute name="f_inicio" value="format-date($r/@f_inicio, 'dd/mm/yyyy')"/>
+					<qry:attribute name="f_fin_est" value="format-date($r/@f_fin_est, 'dd/mm/yyyy')"/>
+					<qry:attribute name="hs_estimadas" value="(number($r/@e_estimado) * number($r/@e_minutos)) div 60"/>
+					<qry:insert-select name="TRABAJO" doc-path="$r"/>
+				</TAREA>
+			</qry:out>
+		</qry:select>
+		<qry:select doc="SOURCE" name="RECURSO">
+			<qry:xquery>
+				for $r in SQL('
+SELECT 
+	PER01_PERSONAL.d_ape_y_nom
+FROM 
+	PRY01_PROYECTOS,
+	PRY05_RECURSOS,
+	PER01_PERSONAL  
+JOIN
+	PRY01_PROYECTOS.oi_recurso INNER PRY05_RECURSOS.oi_recurso,
+	PRY05_RECURSOS.oi_personal INNER PER01_PERSONAL.oi_personal
+WHERE 
+	PRY01_PROYECTOS.oi_proyecto = {#SOURCE:@oi_proyecto}  	
+')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:attribute name="recurso" value="$r/@d_ape_y_nom"/>
+			</qry:out>
+		</qry:select>
+		<qry:select doc="SOURCE" name="RECURSO_TAREA">
+			<qry:xquery>
+				for $r in SQL('
+SELECT 
+	PER01_PERSONAL.d_ape_y_nom
+FROM 
+	PRY02_TAREAS,
+	PRY05_RECURSOS,
+	PER01_PERSONAL  
+JOIN
+	PRY02_TAREAS.oi_recurso INNER PRY05_RECURSOS.oi_recurso,
+	PRY05_RECURSOS.oi_personal INNER PER01_PERSONAL.oi_personal
+WHERE 
+	PRY02_TAREAS.oi_tarea = {#SOURCE:@oi_tarea}  	
+')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:attribute name="recurso" value="$r/@d_ape_y_nom"/>
+			</qry:out>
+		</qry:select>
+		<qry:select doc="SOURCE" name="ESFUERZO">
+			<qry:xquery>
+				for $r in SQL('
+SELECT 
+	PRY02_TAREAS.e_estimado,
+	PRY02_TAREAS.oi_tarea,
+	PRY03_UND_TIEMPO.e_minutos
+FROM 
+	PRY01_PROYECTOS,
+	PRY02_TAREAS,
+	PRY03_UND_TIEMPO  
+JOIN
+	PRY01_PROYECTOS.oi_proyecto INNER PRY02_TAREAS.oi_proyecto,
+	PRY02_TAREAS.oi_unidad_tiempo INNER PRY03_UND_TIEMPO.oi_unidad_tiempo
+WHERE 
+	PRY01_PROYECTOS.oi_proyecto = {#SOURCE:@oi_proyecto}  	
+')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:attribute name="hs_estimadas" value="@hs_estimadas + (number($r/@e_estimado) * number($r/@e_minutos)) div 60"/>
+				<qry:insert-select doc-path="$r" name="TRABAJO"/>
+			</qry:out>
+		</qry:select>
+		<qry:select name="TRABAJO" doc="PARAM">
+			<qry:xquery>
+				for $r in SQL('	
+SELECT 
+	PRY04_TRABAJOS.e_duracion,
+	PRY03_UND_TIEMPO.e_minutos
+FROM 
+	PRY04_TRABAJOS,
+	PRY03_UND_TIEMPO
+JOIN
+	PRY04_TRABAJOS.oi_unidad_tiempo INNER PRY03_UND_TIEMPO.oi_unidad_tiempo
+WHERE
+	PRY04_TRABAJOS.oi_tarea = {#PARAM:@oi_tarea}	
+')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:attribute name="hs_insumidas" value="@hs_insumidas + (number($r/@e_duracion) * number($r/@e_minutos)) div 60"/>
+			</qry:out>
+		</qry:select>
+	</html:query>
+</html:html>

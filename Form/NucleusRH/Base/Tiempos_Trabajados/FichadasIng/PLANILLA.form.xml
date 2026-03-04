@@ -1,0 +1,127 @@
+<form:Form xmlns:form="nomad_engine.form" name="Planilla de fichadas" doc="source">
+	<form:Title>
+		<form:Label label="Planilla de carga de Fichadas" name="lbl_titulo" style="S3 LCol_w"/>
+	</form:Title>
+	<form:Center width="100%">
+		<form:Blank name="bl1"/>
+		<form:Grid idvalue="#DATAGRID:@id" width="1020px" proto="&lt;ROW/&gt;" doc="DATAGRID" allowdelall="1" allowdel="1" allownew="1" nvalue="#source:" paging="1" rows="10" name="grdfichadas">
+			<form:GColumns>
+				<form:GColumn name="colLegajo">
+					<form:FKInput xsize="10" label="Empresa - Legajo" name="oi_personal_emp" nvalue="#DATAGRID:@oi_personal_emp" length="30" visible="" required="1">
+						<form:STexts>
+							<form:SText descrip="Legajos por Empresa" name="txt1" xsize="40"/>
+						</form:STexts>
+						<form:Helper name="NucleusRH.Base.Tiempos_Trabajados.Personal.PERSONAL_EMP.guia.autoflow" c2x="C2X" x2c="X2C" help="HELP">
+							<helper-mess code="{this.CVal}" id="{this.XVal}" text="{this.Text.1}"/>
+						</form:Helper>
+						<form:SButtons>
+							<form:SButton descrip="Selecci&#243;n de Legajos por Empresa" name="SEARCH" label="Search" img="SEARCH">
+								<form:Event runat="client" name="onclick" action="SHOW_HELPER"/>
+							</form:SButton>
+						</form:SButtons>
+					</form:FKInput>
+				</form:GColumn>
+				<form:GColumn name="colFechaHora">
+					<form:DateTime name="f_fechahora" xsize="17" pattern="YYYYMMDDHHMM" label="Fecha Hora" required="1" mask="dd/mm/yyyy" nvalue="#DATAGRID:@fecha">
+						<form:SButtons>
+							<form:SButton img="Calendar" label="Calendar" name="Calendar">
+								<form:Event action="SHOW_HELPER" name="onclick" runat="client"/>
+							</form:SButton>
+						</form:SButtons>
+					</form:DateTime>
+				</form:GColumn>
+				<form:GColumn name="colTipo">
+					<form:Combo nvalue="#DATAGRID:@c_tipo" required="1" label="Tipo" name="c_tipo">
+						<form:Opts name="opts">
+							<OPT name="entrada" text="Entrada" code="E" value="E"/>
+							<OPT name="salida" text="Salida" code="S" value="S"/>
+						</form:Opts>
+					</form:Combo>
+				</form:GColumn>
+				<form:GColumn name="colTerminal">
+					<form:Combo label="Terminal" note="" flow="NucleusRH.Base.Tiempos_Trabajados.Terminales.TERMINAL.combo.autoflow" action="COMBO" required="1" name="oi_terminal" nvalue="#DATAGRID:@oi_terminal"/>
+				</form:GColumn>
+			</form:GColumns>
+			<form:SButtons>
+				<form:SButton descrip="Duplicar un registro" label="Duplicar" img="duplicate" name="duplicate">
+					<form:Event action="duplicate" name="onclick" runat="client"/>
+				</form:SButton>
+			</form:SButtons>
+		</form:Grid>
+		<form:Hidden nvalue="#PARAM:@PreEditFic" name="PreEditFic"/>
+		<form:Hidden nvalue="#PARAM:@PosEditFic" name="PosEditFic"/>
+		<form:Hidden nvalue="#PARAM:@EditMyFic" name="EditMyFic"/>
+	</form:Center>
+	<form:Bottom>
+		<form:RowAligner name="rowaligner1">
+			<form:Row name="row1">
+				<form:Button startvalidate="1" descrip="Ejecutar el Proceso de Verificaci&#243;n de Fichadas para el rango de fechas y los Legajos seleccionados" label="Ejecutar" img="ok" name="EXECUTE" note="Consultar los Legajos seleccionados">
+					<form:Event action="Validate" name="onclick" runat="client"/>
+					<form:Event action="EXECUTE" runat="server" name="onclick"/>
+				</form:Button>
+				<form:Button img="back" label="Volver" name="BACK" descrip="Volver al Menu princial" note="Volver al Menu princial">
+					<form:Event action="BACK" runat="server" name="onclick"/>
+				</form:Button>
+			</form:Row>
+		</form:RowAligner>
+	</form:Bottom>
+	<form:Scripts>
+		function duplicate()
+{
+	if (Ctrl('grdfichadas').TotalRowsCount() !=0)
+	{
+		var per = Ctrl('grdfichadas').GetCellSelectedXValue('oi_personal_emp');
+		var fecha = Ctrl('grdfichadas').GetCellSelectedXValue('f_fechahora');		
+		var tipo = Ctrl('grdfichadas').GetCellSelectedXValue('c_tipo');
+		var terminal = Ctrl('grdfichadas').GetCellSelectedXValue('oi_terminal');		
+		
+		Ctrl('grdfichadas').AddNew();
+				
+		var objctrl = Ctrl('grdfichadas').GetCellSelectedControl('oi_personal_emp');
+		objctrl.SetXValue(per);		
+		objctrl = Ctrl('grdfichadas').GetCellSelectedControl('f_fechahora');
+		objctrl.SetXValue(fecha);
+		objctrl = Ctrl('grdfichadas').GetCellSelectedControl('c_tipo');
+		objctrl.SetXValue(tipo);
+		objctrl = Ctrl('grdfichadas').GetCellSelectedControl('oi_terminal');
+		objctrl.SetXValue(terminal);		
+	}	
+}
+
+function Validate()
+{	
+	if(Ctrl('PosEditFic').GetXValue() == "" &amp;&amp; Ctrl('PreEditFic').GetXValue())
+		return true
+		
+	momentoActual = new Date();	
+	fechaComparePos = new Date(momentoActual.getFullYear(), momentoActual.getMonth(), momentoActual.getDate() + 1 +  parseInt(Ctrl('PosEditFic').GetXValue()));
+	fechaComparePre = new Date(momentoActual.getFullYear(), momentoActual.getMonth(), momentoActual.getDate() - 1 - parseInt(Ctrl('PreEditFic').GetXValue()));
+	
+	if(Ctrl('PosEditFic').GetXValue() != "")
+	{
+		for (i=0;i&lt;Ctrl('grdfichadas').TotalRowsCount();i++)	
+		{
+			if (Ctrl('grdfichadas').GetCellControl("f_fechahora", i).TypedValue() &gt; fechaComparePos) 
+			{
+				alert('La fecha de la fichada supera la cantidad de d&#237;as posteriores a la fecha actual permitidos ('+Ctrl('PosEditFic').GetXValue()+').');			
+				return false;
+			}		 		
+		}
+	}
+	
+	if(Ctrl('PreEditFic').GetXValue() != "")
+	{
+		for (i=0;i&lt;Ctrl('grdfichadas').TotalRowsCount();i++)	
+		{
+			if (Ctrl('grdfichadas').GetCellControl("f_fechahora", i).TypedValue() &lt; fechaComparePre) 
+			{
+				alert('La fecha de la fichada supera la cantidad de d&#237;as previos a la fecha actual permitidos ('+Ctrl('PreEditFic').GetXValue()+').');
+				return false;
+			}		 		
+		}
+	}
+	
+	return true;	
+}
+	</form:Scripts>
+</form:Form>

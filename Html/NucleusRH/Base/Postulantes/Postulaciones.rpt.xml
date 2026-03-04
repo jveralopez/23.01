@@ -1,0 +1,306 @@
+<html:html xmlns:html="nomad_engine.html" xmlns:qry="nomad_engine.qry" extends="Nomad.Base.BaseReport.rpt" doc="source" name="NucleusRH.Base.Personal.Legajo">
+	<html:query declare="&lt;DATOS oi_oferta_lab=&quot;165&quot; chkTelefono=&quot;1&quot; chkIdiomas=&quot;1&quot; chkConocimientos=&quot;1&quot; chkEstudios=&quot;1&quot;/&gt;&#13;&#10;">
+		<qry:main doc="SOURCE">
+			<REPORT label="Postulaciones por Oferta Laboral">
+				<qry:attribute value="format_date(now(),'dd/mm/yyyy HH:MM')" name="date"/>
+				<GROUPS>
+					<GROUP tag="OFE" type="title">
+						<COLS>
+							<COL name="oferta_lab" label="Oferta Laboral"/>
+							<COL name="f_oferta_lab" label="Fecha Alta" type="date"/>
+							<COL name="f_cierre" label="Fecha Cierre" type="date"/>
+						</COLS>
+						<GROUP tag="POS" type="table" label="Postulaciones" style="width:100%;">
+							<COLS>
+								<COL name="d_ape_y_nom" label="Apellido y Nombre" style="width:150px"/>
+								<COL name="c_nro_doc" label="N&#250;mero de Documento" style="width:90px"/>
+								<COL name="c_sexo" label="Sexo" style="width:50px"/>
+								<COL name="f_nacim" label="Fecha de Nacimiento" style="width:50px" type="date"/>
+								<qry:if test="#SOURCE:DATOS/@chkTelefono='1'">
+									<qry:then>
+										<COL name="te_telefono" label="Tel&#233;fono" style="width:150px"/>
+									</qry:then>
+								</qry:if>
+								<qry:if test="#SOURCE:DATOS/@chkCelular='1'">
+									<qry:then>
+										<COL name="celular" label="Celular" style="width:100px"/>
+									</qry:then>
+								</qry:if>
+								<qry:if test="#SOURCE:DATOS/@chkCuil='1'">
+									<qry:then>
+										<COL name="c_nro_cuil" label="CUIL" style="width:60px"/>
+									</qry:then>
+								</qry:if>
+								<qry:if test="#SOURCE:DATOS/@chkMail='1'">
+									<qry:then>
+										<COL name="mail" label="Mail" style="width:60px"/>
+									</qry:then>
+								</qry:if>
+								<qry:if test="#SOURCE:DATOS/@chkNacionalidad='1'">
+									<qry:then>
+										<COL name="nacionalidad" label="Nacionalidad" style="width:160px"/>
+									</qry:then>
+								</qry:if>
+								<qry:if test="#SOURCE:DATOS/@chkLocalidad='1'">
+									<qry:then>
+										<COL name="localidad" label="Localidad" style="width:60px"/>
+									</qry:then>
+								</qry:if>
+								<qry:if test="#SOURCE:DATOS/@chkDomicilio='1'">
+									<qry:then>
+										<COL name="domic" label="Domicilio" style="width:160px"/>
+									</qry:then>
+								</qry:if>
+								<qry:if test="#SOURCE:DATOS/@chkEstadoCivil='1'">
+									<qry:then>
+										<COL name="estadoCivil" label="Estado Civil" style="width:160px"/>
+									</qry:then>
+								</qry:if>
+								<qry:if test="#SOURCE:DATOS/@chkConocimientos='1'">
+									<qry:then>
+										<COL name="conocimientos" label="Conocimientos" style="width:2000px"/>
+									</qry:then>
+								</qry:if>
+								<qry:if test="#SOURCE:DATOS/@chkIdiomas='1'">
+									<qry:then>
+										<COL name="idiomas" label="Idiomas" style="width:2000px"/>
+									</qry:then>
+								</qry:if>
+								<qry:if test="#SOURCE:DATOS/@chkEstudios='1'">
+									<qry:then>
+										<COL name="estudios" label="Estudios" style="width:2000px"/>
+									</qry:then>
+								</qry:if>
+							</COLS>
+						</GROUP>
+					</GROUP>
+				</GROUPS>
+				<qry:element name="DATA">
+					<qry:element name="OFE">
+						<qry:insert-select doc-path="#SOURCE:DATOS" name="OFERTA"/>
+						<qry:insert-select doc-path="#SOURCE:DATOS" name="POSTULACIONES"/>
+					</qry:element>
+				</qry:element>
+			</REPORT>
+		</qry:main>
+		<qry:select doc="SOURCE" name="OFERTA">
+			<qry:xquery>
+				for $r in SQL('
+					SELECT
+						POS03_OFERTAS_LAB.c_oferta_lab,
+						POS03_OFERTAS_LAB.d_oferta_lab,
+						POS03_OFERTAS_LAB.f_oferta_lab,
+						POS03_OFERTAS_LAB.f_cierre                                                                       
+					FROM
+						POS03_OFERTAS_LAB
+					WHERE 
+						POS03_OFERTAS_LAB.oi_oferta_lab = {#SOURCE:@oi_oferta_lab}
+				')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:attribute name="oferta_lab" value="$r/@c_oferta_lab + ' - ' + $r/@d_oferta_lab"/>
+				<qry:attribute name="f_oferta_lab" value="format_date($r/@f_oferta_lab,'dd/mm/yyyy')"/>
+				<qry:attribute name="f_cierre" value="format_date($r/@f_cierre,'dd/mm/yyyy')"/>
+			</qry:out>
+		</qry:select>
+		<qry:select doc="SOURCE" name="POSTULACIONES">
+			<qry:xquery>
+				for $r in SQL('     
+					SELECT 
+						POS01_CV.oi_cv,
+						POS01_CV.d_ape_y_nom,
+						TDOC.c_tipo_documento,
+						POS01_CV.c_nro_doc,
+						POS01_CV.c_sexo,
+						POS01_CV.f_nacim
+						{%?(#SOURCE:@chkTelefono='1')
+							{%, POS01_CV.c_pais as pais_tel
+								, POS01_CV.c_area as area_tel
+								, POS01_CV.te_nro as tel
+							%}
+							{% %}
+						%}
+						{%?(#SOURCE:@chkCelular='1')
+							{%, POS01_CV.c_pais_cel as pais_cel
+								, POS01_CV.c_area_cel as area_cel
+								, POS01_CV.te_celular as cel
+							%}
+							{% %}
+						%}
+						{%?(#SOURCE:@chkCuil='1')
+							{%, POS01_CV.c_nro_cuil
+							%}
+							{% %}
+						%}
+						{%?(#SOURCE:@chkDomicilio='1')
+							{%, POS01_CV.d_calle
+								, POS01_CV.c_nro
+								, POS01_CV.c_piso
+								, POS01_CV.c_departamento
+							%}
+							{% %}
+						%}
+						{%?(#SOURCE:@chkMail='1')
+							{%, POS01_CV.d_email %}
+							{% %}
+						%} 
+						{%?(#SOURCE:@chkNacionalidad='1')
+							{%, ORG12_NACIONALID.d_nacionalidad %}
+							{% %}
+						%}                               
+						{%?(#SOURCE:@chkLocalidad='1')
+							{%, POS01_CV.d_localidad
+								,	ORG35_PROVINCIAS.d_provincia %}
+							{% %}
+						%}
+						{%?(#SOURCE:@chkEstadoCivil='1')
+							{%,	ORG22_EST_CIVIL.d_estado_civil%}
+							{% %}
+						%}
+					FROM
+						POS01_CV,
+						PER20_TIPOS_DOC as TDOC,
+						POS01_POSTU_CV              
+						{%?(#SOURCE:@chkNacionalidad='1')
+							{%, ORG12_NACIONALID %}
+							{% %}
+						%}
+						{%?(#SOURCE:@chkLocalidad='1')
+							{%,	ORG35_PROVINCIAS %}
+							{% %}
+						%}
+						{%?(#SOURCE:@chkEstadoCivil='1')
+							{%,	ORG22_EST_CIVIL%}
+							{% %}
+						%}
+					JOIN
+						POS01_CV.oi_tipo_documento LEFT OUTER TDOC.oi_tipo_documento,
+						POS01_CV.oi_cv INNER POS01_POSTU_CV.oi_cv
+						{%?(#SOURCE:@chkNacionalidad='1')
+							{%, POS01_CV.oi_nacionalidad LEFT OUTER ORG12_NACIONALID.oi_nacionalidad %}
+							{% %}
+						%}
+						{%?(#SOURCE:@chkLocalidad='1')
+							{%, POS01_CV.oi_provincia LEFT OUTER ORG35_PROVINCIAS.oi_provincia %}
+							{% %}
+						%}
+						{%?(#SOURCE:@chkEstadoCivil='1')
+							{%,	POS01_CV.oi_estado_civil LEFT OUTER ORG22_EST_CIVIL.oi_estado_civil%}
+							{% %}
+						%}
+					WHERE
+						POS01_POSTU_CV.oi_oferta_lab = {#SOURCE:@oi_oferta_lab}
+				')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:element name="POS">
+					<qry:attribute name="oi_cv" value="$r/@oi_cv"/>
+					<qry:attribute name="d_ape_y_nom" value="$r/@d_ape_y_nom"/>
+					<qry:attribute name="c_nro_doc" value="$r/@c_tipo_documento+'-'+$r/@c_nro_doc"/>
+					<qry:attribute name="c_sexo" value="iif($r/@c_sexo='M', 'Masculino', 'Femenino')"/>
+					<qry:attribute name="f_nacim" value="format_date($r/@f_nacim, 'dd/mm/yyyy')"/>
+					<qry:attribute name="pais_cel" value="iif($r/@pais_cel!='', '('+nmd_replace($r/@pais_cel, '-', '') + ')', '')"/>
+					<qry:attribute name="area_cel" value="iif($r/@area_cel!='', '('+nmd_replace($r/@area_cel, '-', '') + ')', '')"/>
+					<qry:attribute name="cel" value="iif($r/@cel='', '-', nmd_replace($r/@cel, '-', ''))"/>
+					<qry:attribute name="celular" value="@pais_cel + @area_cel + @cel"/>
+					<qry:attribute name="pais_tel" value="iif($r/@pais_tel!='', '('+nmd_replace($r/@pais_tel, '-', '') + ')', '')"/>
+					<qry:attribute name="area_tel" value="iif($r/@area_tel!='', '('+nmd_replace($r/@area_tel, '-', '') + ')', '')"/>
+					<qry:attribute name="tel" value="iif($r/@tel='NULL', '-', nmd_replace($r/@tel, '-', ''))"/>
+					<qry:attribute name="te_telefono" value="@pais_tel + @area_tel + @tel"/>
+					<qry:attribute name="c_nro_cuil" value="$r/@c_nro_cuil"/>
+					<qry:attribute name="domic" value="$r/@d_calle +' '+ $r/@c_nro +' '+ $r/@c_piso +' '+ $r/@c_departamento"/>
+					<qry:attribute name="mail" value="$r/@d_email"/>
+					<qry:attribute name="nacionalidad" value="$r/@d_nacionalidad"/>
+					<qry:attribute name="localidad" value="iif($r/@d_provincia!='', $r/@d_provincia +' '+ $r/@d_localidad, $r/@d_localidad)"/>
+					<qry:attribute name="estadoCivil" value="$r/@d_estado_civil"/>
+					<qry:if test="#SOURCE:@chkConocimientos='1'">
+						<qry:then>
+							<qry:attribute name="conocimientos" value="''"/>
+							<qry:insert-select name="getConocimientos" doc-path="."/>
+						</qry:then>
+					</qry:if>
+					<qry:if test="#SOURCE:@chkIdiomas='1'">
+						<qry:then>
+							<qry:attribute name="idiomas" value="''"/>
+							<qry:insert-select name="getIdioma" doc-path="."/>
+						</qry:then>
+					</qry:if>
+					<qry:if test="#SOURCE:@chkEstudios='1'">
+						<qry:then>
+							<qry:attribute name="Estudios" value="''"/>
+							<qry:insert-select name="getEstudio" doc-path="."/>
+						</qry:then>
+					</qry:if>
+				</qry:element>
+			</qry:out>
+		</qry:select>
+		<qry:select doc="SOURCE" name="getConocimientos">
+			<qry:xquery>
+				for $r in SQL('
+SELECT
+POS16_CONOCIMIENTOS.d_conocimiento
+FROM
+POS01_CV,
+POS01_CONOC_CV,
+POS16_CONOCIMIENTOS
+JOIN
+POS01_CV.oi_cv INNER POS01_CONOC_CV.oi_cv,
+POS01_CONOC_CV.oi_conocimiento INNER POS16_CONOCIMIENTOS.oi_conocimiento
+WHERE 
+POS01_CV.oi_cv = {#SOURCE:@oi_cv}
+			')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:attribute name="conocimientos" value="iif(@conocimientos='', $r/@d_conocimiento ,@conocimientos + ' | ' + $r/@d_conocimiento)"/>
+			</qry:out>
+		</qry:select>
+		<qry:select doc="SOURCE" name="getIdioma">
+			<qry:xquery>
+				for $r in SQL('
+SELECT
+ORG20_IDIOMAS.d_idioma
+FROM
+POS01_CV,
+POS01_IDIOMAS_CV,
+ORG20_IDIOMAS
+JOIN
+POS01_CV.oi_cv INNER POS01_IDIOMAS_CV.oi_cv,
+POS01_IDIOMAS_CV.oi_idioma INNER ORG20_IDIOMAS.oi_idioma
+WHERE 
+POS01_CV.oi_cv = {#SOURCE:@oi_cv}
+			')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:attribute name="idiomas" value="iif(@idiomas='', $r/@d_idioma ,@idiomas + ' | ' + $r/@d_idioma)"/>
+			</qry:out>
+		</qry:select>
+		<qry:select doc="SOURCE" name="getEstudio">
+			<qry:xquery>
+				for $r in SQL('
+SELECT
+ORG11_ESTUDIOS.d_estudio
+FROM
+POS01_CV,
+POS01_ESTUDIOS_CV,
+ORG11_ESTUDIOS
+JOIN
+POS01_CV.oi_cv INNER POS01_ESTUDIOS_CV.oi_cv,
+POS01_ESTUDIOS_CV.oi_estudio INNER ORG11_ESTUDIOS.oi_estudio
+WHERE 
+POS01_CV.oi_cv = {#SOURCE:@oi_cv}
+			')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:attribute name="estudios" value="iif(@estudios='', $r/@d_estudio ,@estudios + ' | ' + $r/@d_estudio)"/>
+			</qry:out>
+		</qry:select>
+		<qry:select name="" doc="">
+			<qry:xquery>
+				for $r in SQL('***consulta***')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:element name="prueba"/>
+			</qry:out>
+		</qry:select>
+	</html:query>
+</html:html>

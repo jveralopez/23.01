@@ -1,0 +1,81 @@
+<flow:flow xmlns:flow="nomad_engine.flow" xmlns:doc="nomad_engine.doc" xmlns:qry="nomad_engine.qry" name="Nomad.Base.Security.Audits">
+	<flow:info label="Flow para NucleusRH.Base.RecordCard.RecordCard.form"/>
+	<flow:main doc="FILTRO">
+		<flow:action name="initialize">
+			<doc:load-qry output-doc="RECORDCARD" input-doc-path="#FILTRO:" qry="recordCard"/>
+			<flow:open-form doc-path="#RECORDCARD:" mode="FILTER" form-class="NucleusRH.Base.RecordCard.RecordCard.form"/>
+		</flow:action>
+	</flow:main>
+	<flow:declare>
+		<doc:define name="FILTRO">
+			<DATA filterId="" filterClass="" eventStartDate="" eventEndDate="" classDesc=""/>
+		</doc:define>
+		<qry:define declare="&lt;DATA filterId=&quot;50&quot; filterClass=&quot;NucleusRH.BaytonRH.Cliente.Clientes.CLIENTE&quot; eventStartDate=&quot;&quot; eventEndDate=&quot;&quot;/&gt;" name="recordCard">
+			<qry:main doc="SOURCE">
+				<qry:element name="ROWS">
+					<qry:insert-select name="RS1" doc-path="#SOURCE:DATA"/>
+				</qry:element>
+			</qry:main>
+			<qry:select doc="SOURCE" name="RS1">
+				<qry:xquery>
+					for $r in sql('
+MAXSIZE 1000
+SELECT
+	rec02_eventos.f_evento,
+	rec02_eventos.oi_evento, 
+	rec01_acciones.d_accion, 
+	rec01_acciones.d_clase, 
+	rec02_eventos.d_usuario, 
+	rec02_eventos.d_evento
+FROM
+	REC01_CLASES_ACC, 
+	REC01_ACCIONES, 
+	REC02_EVEN_CLASES, 
+	REC02_EVENTOS
+JOIN	
+	REC01_ACCIONES.oi_accion INNER REC01_CLASES_ACC.oi_accion
+	, REC02_EVEN_CLASES.oi_clase_acc INNER REC01_CLASES_ACC.oi_clase_acc
+	, REC02_EVENTOS.oi_evento INNER REC02_EVEN_CLASES.oi_evento
+WHERE	
+	REC01_CLASES_ACC.d_clase = {#SOURCE:@filterClass}
+	AND REC02_EVEN_CLASES.e_objeto = {#SOURCE:@filterId}
+ORDER BY f_evento desc
+			')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:element name="ROW">
+						<qry:attribute value="$r/@oi_evento" name="id"/>
+						<qry:attribute value="$r/@f_evento" name="f_evento"/>
+						<qry:attribute value="$r/@d_accion" name="d_accion"/>
+						<!--si el campo d_evento viene con el motivo anexado, se separan en 2 atributos-->
+						<qry:if test="contains($r/@d_evento,'[mot:')">
+							<qry:then>
+								<qry:attribute value="substring-before($r/@d_evento,'[mot:')" name="d_evento"/>
+								<qry:attribute value="substring-before(substring-after($r/@d_evento,'[mot: '),']')" name="d_motivo"/>
+							</qry:then>
+							<qry:else>
+								<qry:attribute value="$r/@d_evento" name="d_evento"/>
+							</qry:else>
+						</qry:if>
+						<qry:attribute value="$r/@d_usuario" name="d_usuario"/>
+					</qry:element>
+				</qry:out>
+			</qry:select>
+		</qry:define>
+		<doc:define name="RECORDCARD"/>
+	</flow:declare>
+	<flow:group name="RECORDCARD">
+		<flow:form form-class="NucleusRH.Base.RecordCard.RecordCard.form" name="NucleusRH.Base.RecordCard.RecordCard.form:LIST" mode="FILTER" parent-doc="PARENTSOURCE" doc="SOURCE">
+			<flow:action name="on-show">
+				<flow:attach-doc doc-path="#SOURCE:" attach-id="RS"/>
+			</flow:action>
+			<flow:action name="BACK">
+				<flow:exit-flow return-path="#FILTRO:"/>
+			</flow:action>
+			<flow:action name="FILTER">
+				<doc:load-qry output-doc="RECORDCARD" input-doc-path="#FILTRO:" qry="recordCard"/>
+				<flow:attach-doc doc-path="#RECORDCARD:" attach-id="RS"/>
+			</flow:action>
+		</flow:form>
+	</flow:group>
+</flow:flow>

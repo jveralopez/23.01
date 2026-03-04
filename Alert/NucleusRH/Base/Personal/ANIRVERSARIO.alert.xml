@@ -1,0 +1,185 @@
+<ALERT xmlns:qry="nomad_engine.qry" label="Aniversarios del mes" name="ANIVERSARIO.alert">
+	<PARAMS>
+		<PARAM type="string" req="1" label="Modo de alerta" name="Modo"/>
+		<PARAM type="int" label="Cantidad de meses siguientes" req="0" name="CantMes"/>
+		<PARAM type="string" req="0" label="C&#243;digo de Empresa" name="CodEmp"/>
+	</PARAMS>
+	<QRY declare="&lt;PARAMS Modo=&quot;AM+&quot; CantMes=&quot;5&quot; CodEmp=&quot;&quot;/&gt;">
+		<qry:include name="Nomad.Base.Login.Entidades.ENTIDAD.INFO"/>
+		<qry:main doc="PARAMS">
+			<qry:append-doc name="PARAMIN" doc-path="$PARAMS/PARAMS"/>
+			<qry:element name="ROWS">
+				<TODOS>
+					<qry:if test="#PARAMIN:@Modo='AM+'">
+						<qry:then>
+							<qry:attribute name="MES" value="datetime(2000, month-from-dateTime(now()) + number(#PARAMIN:@CantMes), 1)"/>
+							<qry:attribute name="MES" value="month-from-dateTime(@MES)"/>
+						</qry:then>
+						<qry:else>
+							<qry:attribute name="MES" value="month-from-dateTime(now())"/>
+						</qry:else>
+					</qry:if>
+					<qry:attribute name="CANTMES" value="#PARAMIN:@CantMes"/>
+					<qry:attribute name="MODO" value="#PARAMIN:@Modo"/>
+					<qry:attribute name="CODEMP" value="#PARAMIN:@CodEmp"/>
+					<qry:attribute name="DIAHOY" value="day-from-dateTime(now())"/>
+					<qry:insert-select name="QRY_CUMP_PER" doc-path="."/>
+					<qry:insert-select name="QRY_COUNT" doc-path="."/>
+				</TODOS>
+			</qry:element>
+		</qry:main>
+		<qry:select doc="PARAM" name="QRY_CUMP_PER">
+			<qry:xquery>
+				for $r in sql('
+			MAXSIZE 80
+			SELECT
+				PER02_PERSONAL_EMP.e_numero_legajo,
+				PER01_PERSONAL.d_ape_y_nom,
+				PER01_PERSONAL.c_nro_documento,
+				PER20_TIPOS_DOC.c_tipo_documento,
+				PER20_TIPOS_DOC.d_tipo_documento,
+			  PER02_PERSONAL_EMP.f_ingreso,
+				PER01_PERSONAL.d_email,
+				PER01_PERSONAL.oi_usuario_sistema,
+				ORG03_EMPRESAS.c_empresa,
+				ORG03_EMPRESAS.d_empresa
+			FROM
+				PER01_PERSONAL,
+				PER02_PERSONAL_EMP,
+				PER20_TIPOS_DOC,
+				ORG03_EMPRESAS	
+			JOIN 
+				ORG03_EMPRESAS.oi_empresa INNER PER02_PERSONAL_EMP.oi_empresa,
+				PER01_PERSONAL.oi_personal INNER PER02_PERSONAL_EMP.oi_personal,
+				PER01_PERSONAL.oi_tipo_documento INNER PER20_TIPOS_DOC.oi_tipo_documento	
+			WHERE 	
+				{%? (#PARAMIN:@Modo='AD')                         
+					{% GETMONTH(PER02_PERSONAL_EMP.f_ingreso) = {month-from-dateTime(now())} 
+						 AND GETDAY(PER02_PERSONAL_EMP.f_ingreso) = {day-from-dateTime(now())} %}  
+					{% GETMONTH(PER02_PERSONAL_EMP.f_ingreso) = {#PARAM:@MES} %}        
+				%}
+				{%? (#PARAMIN:@CodEmp!='')                         
+					{% AND ORG03_EMPRESAS.c_empresa = {#PARAMIN:@CodEmp} %}  
+					{% %}        
+				%}	
+				AND PER02_PERSONAL_EMP.oi_indic_activo = 1	
+			ORDER BY 
+				d_empresa ASC,
+				e_numero_legajo ASC,
+				f_ingreso ASC
+		')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:element name="EMP">
+					<qry:attribute name="LEGAJO" value="$r/@e_numero_legajo"/>
+					<qry:attribute name="NOMBRE" value="$r/@d_ape_y_nom"/>
+					<qry:attribute name="CODEMPRESA" value="$r/@c_empresa"/>
+					<qry:attribute name="DESCEMPRESA" value="$r/@d_empresa"/>
+					<qry:attribute name="CODDOC" value="$r/@d_tipo_documento"/>
+					<qry:attribute name="NRODOC" value="$r/@c_nro_documento"/>
+					<qry:attribute name="TIPODOC" value="$r/@c_tipo_documento"/>
+					<qry:attribute name="MAIL" value="nmd-replace(string($r/@d_email),',',';')"/>
+					<qry:attribute name="FECHAANIV" value="format-date(datetime(2000, month-from-dateTime($r/@f_ingreso), day-from-dateTime($r/@f_ingreso)), 'mm/dd')"/>
+					<qry:attribute name="MES" value="format-date($r/@f_ingreso,'mmm')"/>
+					<qry:attribute name="DIA" value="day-from-dateTime($r/@f_ingreso)"/>
+					<qry:attribute name="CANTANIO" value="number(year-from-dateTime(now())) - number(year-from-dateTime($r/@f_ingreso))"/>
+					<qry:insert-select name="sql1" doc-path="$r"/>
+				</qry:element>
+				<qry:attribute name="TOTSHOW" value="@TOTSHOW+1"/>
+			</qry:out>
+		</qry:select>
+		<qry:select doc="PARAM" name="QRY_COUNT">
+			<qry:xquery>
+				for $r in sql('
+			
+			SELECT
+				COUNT(PER02_PERSONAL_EMP.e_numero_legajo) as totalReg
+			FROM
+				PER01_PERSONAL,
+				PER02_PERSONAL_EMP,
+				PER20_TIPOS_DOC,
+				ORG03_EMPRESAS	
+			JOIN 
+				ORG03_EMPRESAS.oi_empresa INNER PER02_PERSONAL_EMP.oi_empresa,
+				PER01_PERSONAL.oi_personal INNER PER02_PERSONAL_EMP.oi_personal,
+				PER01_PERSONAL.oi_tipo_documento INNER PER20_TIPOS_DOC.oi_tipo_documento	
+			WHERE 	
+				{%? (#PARAMIN:@Modo='AD')                         
+					{% GETMONTH(PER02_PERSONAL_EMP.f_ingreso) = {month-from-dateTime(now())} 
+						 AND GETDAY(PER02_PERSONAL_EMP.f_ingreso) = {day-from-dateTime(now())} %}  
+					{% GETMONTH(PER02_PERSONAL_EMP.f_ingreso) = {#PARAM:@MES} %}        
+				%}
+				{%? (#PARAMIN:@CodEmp!='')                         
+					{% AND ORG03_EMPRESAS.c_empresa = {#PARAMIN:@CodEmp} %}  
+					{% %}        
+				%}	
+				AND PER02_PERSONAL_EMP.oi_indic_activo = 1	
+				
+		')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:attribute name="TOTREG" value="$r/@totalReg"/>
+			</qry:out>
+		</qry:select>
+		<qry:select doc="PARAM" name="sql1">
+			<qry:xquery>
+				for $r in file('Nomad\\Base\\Login\\Entidades\\{%=#PARAM:@oi_usuario_sistema%}.ENTIDAD.XML')/ENTIDAD
+			</qry:xquery>
+			<qry:out>
+				<qry:attribute name="MAIL" value="@MAIL + ';' + nmd-replace(string($r/MAILS/MAIL[@PRINCIPAL=1]/@EMAIL),',',';')"/>
+			</qry:out>
+		</qry:select>
+	</QRY>
+	<MAILS>
+		<MAIL suject="[Alertas NucleusRH] Aniversario del personal" group="EMP">
+			RECURSOS HUMANOS le desea Feliz {% @EMP.CANTANIO %}&#186; Aniversario!\\ 
+      
+      
+**Atte.**
+
+**&#193;rea de Recursos Humanos.**
+		</MAIL>
+		<MAIL group="TODOS" suject="[Alertas NucleusRH] Aniversario del personal">
+			**Los siguientes legajos cumplen su aniversario en {% @EMP.MES %}:**
+
+         
+^Empresa          ^Legajo          ^Documento         ^Fecha Aniversario                ^A&#241;os          ^ 
+{%FOR-EACH EMP%}|[{% @EMP.CODEMPRESA %}] {% @EMP.DESCEMPRESA %}  |[{% @EMP.LEGAJO %}] {% @EMP.NOMBRE %}  |[{% @EMP.TIPODOC %}] {% @EMP.NRODOC %}  | {% @EMP.FECHAANIV %} | {% @EMP.CANTANIO %} |
+{%END EMP%}  
+
+Se informan los primeros {% @TODOS.TOTSHOW %} de un total de {% @TODOS.TOTREG %} aniversarios.
+		</MAIL>
+	</MAILS>
+	<GROUPS>
+		<GROUP label="Por Empleado" name="EMP">
+			<FIELD type="int" label="Legajo" name="LEGAJO"/>
+			<FIELD type="string" label="Apellido y Nombre" name="NOMBRE"/>
+			<FIELD type="string" label="C&#243;digo Empresa" name="CODEMPRESA"/>
+			<FIELD type="string" label="Descripci&#243;n Empresa" name="DESCEMPRESA"/>
+			<FIELD type="string" label="Documento" name="CODDOC"/>
+			<FIELD type="string" label="Nro. Documento" name="NRODOC"/>
+			<FIELD type="string" label="Tipo Documento" name="TIPODOC"/>
+			<FIELD label="E-Mail" type="string" name="MAIL"/>
+			<FIELD label="Fecha Aniversario" name="FECHAANIV" type="string"/>
+			<FIELD label="Mes del aniversario" type="string" name="MES"/>
+			<FIELD label="D&#237;a del aniversario" type="int" name="DIA"/>
+			<FIELD name="CANTANIO" type="int" label="A&#241;os de aniversario"/>
+		</GROUP>
+		<GROUP label="Sin Agrupar" name="TODOS">
+			<FIELD type="string" label="Modo de alerta" name="MODO"/>
+			<FIELD label="Cantidad de meses de mas" type="int" name="CANTMES"/>
+			<FIELD type="int" label="Mes de la alerta" name="MES"/>
+			<FIELD name="DIAHOY" type="int" label="D&#237;a de la fecha"/>
+			<FIELD type="string" label="C&#243;digo Empresa" name="CODEMP"/>
+			<FIELD name="TOTREG" label="Cantidad de Registros que genera la Consulta" type="int"/>
+			<FIELD label="Cantidad de Registros que genera la consulta con el l&#237;mite establecido" name="TOTSHOW" type="int"/>
+		</GROUP>
+	</GROUPS>
+	<ENUMS>
+		<ENUM name="Modos">
+			<ITEM text="Aniversarios del d&#237;a" value="AD"/>
+			<ITEM text="Aniversarios del mes actual" value="AM"/>
+			<ITEM text="Aniversarios de X mes siguientes" value="AM+"/>
+		</ENUM>
+	</ENUMS>
+</ALERT>

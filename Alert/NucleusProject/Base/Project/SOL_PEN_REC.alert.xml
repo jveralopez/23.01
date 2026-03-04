@@ -1,0 +1,241 @@
+<ALERT xmlns:qry="nomad_engine.qry" label="Solicitudes Pendientes por Recurso" name="SOL_PEN_REC.alert">
+	<PARAMS/>
+	<QRY declare="&lt;PARAMS f_desde=&quot;20131017&quot; f_hasta=&quot;20131018&quot;&gt;&#13;&#10;&#9;&lt;EVE IDS=&quot;&quot;/&gt;&#13;&#10;&lt;/PARAMS&gt;">
+		<qry:include name="Nomad.Base.Login.Entidades.ENTIDAD.INFO"/>
+		<qry:main name="" doc="PARAMS">
+			<qry:append-doc name="PARAMIN" doc-path="$PARAMS/PARAMS"/>
+			<qry:element name="ROWS">
+				<qry:insert-select name="QRY_CANT" doc-path=""/>
+			</qry:element>
+		</qry:main>
+		<qry:select doc="PARAM" name="QRY_CANT">
+			<qry:xquery>
+				for $r in SQL ('
+		
+	   SELECT
+          PRY05_RECURSOS.oi_recurso as oi_recurso,
+          count(PRY07_SOLICITUDES.oi_solicitud) as cant
+
+    FROM
+      PRY05_RECURSOS,
+      PRY07_SOLICITUDES
+
+    JOIN
+      PRY05_RECURSOS.oi_recurso LEFT OUTER PRY07_SOLICITUDES.oi_recurso  
+    
+    WHERE
+    
+      PRY07_SOLICITUDES.c_estado NOT IN (5,6,7)
+		  
+		  AND PRY07_SOLICITUDES.f_estim_implem &lt;= Now()      
+		  
+		  GROUP BY PRY05_RECURSOS.oi_recurso
+
+    		')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:insert-select name="QRY_RESP" doc-path="$r"/>
+			</qry:out>
+		</qry:select>
+		<qry:select name="QRY_RESP" doc="PARAM">
+			<qry:xquery>
+				for $r in SQL('
+		SELECT
+      PRY05_RECURSOS.oi_recurso,
+			PRY05_RECURSOS.d_email as mail_rec,
+			PRY05_RECURSOS.c_recurso,
+			PER01_PERSONAL.d_ape_y_nom,
+			PER01_PERSONAL.oi_usuario_sistema
+		FROM
+			PRY05_RECURSOS,
+			PER01_PERSONAL
+
+		JOIN
+			PRY05_RECURSOS.oi_personal INNER PER01_PERSONAL.oi_personal
+			
+    WHERE     
+       PRY05_RECURSOS.oi_recurso = {#PARAM:@oi_recurso}
+       AND PRY05_RECURSOS.l_activo = 1   
+       
+')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:element name="RESPONSABLE">
+					<qry:if test="$r/@mail_rec!=''">
+						<qry:then>
+							<qry:attribute name="COD_RESP" value="$r/@c_recurso"/>
+							<qry:attribute name="NOM_RESP" value="$r/@d_ape_y_nom"/>
+							<qry:attribute name="MAIL" value="nmd-replace(string($r/@mail_rec),',',';')"/>
+						</qry:then>
+						<qry:else>
+							<qry:insert-select name="sql1" doc-path="$r"/>
+							<qry:attribute name="email" value="substring-after(@MAIL, ';')"/>
+							<qry:attribute name="COD_RESP" value="$r/@c_recurso"/>
+							<qry:attribute name="NOM_RESP" value="$r/@d_ape_y_nom"/>
+							<qry:attribute name="MAIL" value="@email"/>
+						</qry:else>
+					</qry:if>
+					<qry:if test="number($PARAM/@cant)&gt;15">
+						<qry:then>
+							<qry:attribute name="MSJ" value="'Usted posee '+$PARAM/@cant+' solicitudes vencidas (se muestran las primeras 15)'"/>
+						</qry:then>
+						<qry:else>
+							<qry:attribute name="MSJ" value="'Usted posee '+$PARAM/@cant+' solicitud/es vencida/s'"/>
+						</qry:else>
+					</qry:if>
+					<qry:insert-select name="QRY_SOL" doc-path="$r"/>
+				</qry:element>
+			</qry:out>
+		</qry:select>
+		<qry:select name="QRY_SOL" doc="PARAM">
+			<qry:xquery>
+				for $r in SQL('
+		SELECT   
+			
+			PRY07_SOLICITUDES.c_solicitud as cod_sol, 
+			PRY07_SOLICITUDES.d_solicitud as nom_sol,  
+			PRY07_SOLICITUDES.f_solicitud as fecha_sol, 
+			PRY07_SOLICITUDES.f_estim_implem as fecha_est, 
+			PRY08_CONTACTOS.c_contacto as cod_con,
+			PRY08_CONTACTOS.d_nom_y_ape as nom_con,
+			PRY08_CLIENTES.d_nom_cliente as nom_cli,
+			PRY11_APLICACIONES.d_aplicacion as des_apli,
+			PRY11_MODULOS.c_modulo as cod_mod,
+			PRY11_MODULOS.d_nombre as nom_mod, 
+			PRY16_CLASIF.c_clasificacion as cod_clasif,
+			PRY16_CLASIF.d_clasificacion as des_clasif,
+      PRY13_ERRORES.d_nombre as nom_error,
+      PRY05_RECURSOS.c_recurso as cod_rec,
+			PER01_PERSONAL.d_ape_y_nom as nom_rec,
+			PER01_PERSONAL.oi_usuario_sistema,
+			PRY07_SOLICITUDES.c_estado
+		
+		
+		FROM
+			PRY07_SOLICITUDES,
+			PRY05_RECURSOS,
+			PER01_PERSONAL,
+			PRY08_CLIENTES,
+			PRY11_APLICACIONES,
+			PRY11_MODULOS,
+			PRY08_CONTACTOS,
+			PRY13_ERRORES,
+			PRY16_CLASIF 
+		JOIN
+			PRY05_RECURSOS.oi_recurso INNER PRY07_SOLICITUDES.oi_recurso,
+			PRY05_RECURSOS.oi_personal INNER PER01_PERSONAL.oi_personal,
+			PRY07_SOLICITUDES.oi_modulo INNER PRY11_MODULOS.oi_modulo,
+			PRY11_MODULOS.oi_aplicacion INNER PRY11_APLICACIONES.oi_aplicacion,
+			PRY07_SOLICITUDES.oi_contacto INNER PRY08_CONTACTOS.oi_contacto,
+			PRY08_CONTACTOS.oi_cliente INNER PRY08_CLIENTES.oi_cliente,
+			PRY07_SOLICITUDES.oi_error LEFT OUTER PRY13_ERRORES.oi_error,
+			PRY07_SOLICITUDES.oi_clasificacion INNER PRY16_CLASIF.oi_clasificacion
+		
+		WHERE 
+			PRY05_RECURSOS.oi_recurso = {#PARAM:@oi_recurso}
+			
+		  and PRY07_SOLICITUDES.c_estado NOT IN (5,6,7)
+		  
+	    AND PRY07_SOLICITUDES.f_estim_implem &lt;= Now() 
+	    
+	    ORDER BY fecha_est ASC
+
+	
+			')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:attribute name="count" value="number(@count)+1"/>
+				<qry:if test="number(@count)&lt;=15">
+					<qry:then>
+						<qry:element name="SOLICITUD">
+							<qry:attribute name="COD_SOL" value="$r/@cod_sol"/>
+							<qry:attribute name="NOM_SOL" value="$r/@nom_sol"/>
+							<qry:attribute name="FECHA_SOL" value="format-date($r/@fecha_sol, 'dd/mm/yyyy')"/>
+							<qry:attribute name="FECHA_EST" value="format-date($r/@fecha_est, 'dd/mm/yyyy')"/>
+							<qry:attribute name="CONTACTO" value="'[' + $r/@cod_con + '] ' + $r/@nom_con"/>
+							<qry:attribute name="CLIENTE" value="$r/@nom_cli"/>
+							<qry:attribute name="APLICACION" value="$r/@des_apli"/>
+							<qry:attribute name="MODULO" value="'[' + $r/@cod_mod + '] ' + $r/@nom_mod"/>
+							<qry:attribute name="CLASIF" value="'[' + $r/@cod_clasif + '] ' + $r/@des_clasif"/>
+							<qry:attribute name="CRITICIDAD" value="$r/@nom_error"/>
+							<qry:attribute name="RECURSO" value="'[' + $r/@cod_rec + '] ' + $r/@nom_rec"/>
+							<qry:switch test="$r/@c_estado">
+								<qry:case value="1">
+									<qry:attribute name="ESTADO" value="'PENDIENTE'"/>
+								</qry:case>
+								<qry:case value="2">
+									<qry:attribute name="ESTADO" value="'DERIVADO A PMO'"/>
+								</qry:case>
+								<qry:case value="3">
+									<qry:attribute name="ESTADO" value="'DERIVADO PARA ESTIMACION/DESARROLLO'"/>
+								</qry:case>
+								<qry:case value="4">
+									<qry:attribute name="ESTADO" value="'DERIVADO A CLIENTE'"/>
+								</qry:case>
+								<qry:case value="5">
+									<qry:attribute name="ESTADO" value="'CERRADO'"/>
+								</qry:case>
+								<qry:case value="6">
+									<qry:attribute name="ESTADO" value="'CERRADO POR EL CLIENTE'"/>
+								</qry:case>
+								<qry:case value="7">
+									<qry:attribute name="ESTADO" value="'RECHAZADO'"/>
+								</qry:case>
+								<qry:case value="8">
+									<qry:attribute name="ESTADO" value="'TRABAJANDO'"/>
+								</qry:case>
+								<qry:default>
+									<qry:attribute name="ESTADO" value="$r/@c_estado"/>
+								</qry:default>
+							</qry:switch>
+						</qry:element>
+					</qry:then>
+					<qry:else/>
+				</qry:if>
+			</qry:out>
+		</qry:select>
+		<qry:select doc="PARAM" name="sql1">
+			<qry:xquery>
+				for $r in file('Nomad\\Base\\Login\\Entidades\\{%=#PARAM:@oi_usuario_sistema%}.ENTIDAD.XML')/ENTIDAD
+			</qry:xquery>
+			<qry:out>
+				<qry:attribute name="MAIL" value="@MAIL + ';' + nmd-replace(string($r/MAILS/MAIL[@PRINCIPAL=1]/@EMAIL),',',';')"/>
+			</qry:out>
+		</qry:select>
+	</QRY>
+	<MAILS>
+		<MAIL group="RESPONSABLE">
+			**Estimado/a {% @RESPONSABLE.NOM_RESP %}:**
+
+{%@RESPONSABLE.MSJ%} 
+
+^C&#243;digo Solicitud          ^Nombre Solicitud          ^Fecha Solicitud ^Fecha Estimada Implementaci&#243;n ^Contacto  ^Cliente      ^Aplicaci&#243;n      ^M&#243;dulo      ^Clasificaci&#243;n      ^Criticidad Error      ^Recurso      ^Estado^
+{%FOR-EACH SOLICITUD%}| {% @SOLICITUD.COD_SOL %} | {% @SOLICITUD.NOM_SOL %} |{% @SOLICITUD.FECHA_SOL %} | {% @SOLICITUD.FECHA_EST %} | {% @SOLICITUD.CONTACTO %} | {% @SOLICITUD.CLIENTE %} |  {% @SOLICITUD.APLICACION %} | {% @SOLICITUD.MODULO %} | {% @SOLICITUD.CLASIF %} |  {% @SOLICITUD.CRITICIDAD %}  |  {% @SOLICITUD.RECURSO %}  |  {% @SOLICITUD.ESTADO %}  |  
+{%END SOLICITUD%}
+		</MAIL>
+	</MAILS>
+	<GROUPS>
+		<GROUP label="Responsable" name="RESPONSABLE">
+			<FIELD type="string" label="C&#243;digo de responsable" name="COD_RESP"/>
+			<FIELD type="string" label="Nombre y Apellido del Responsable" name="NOM_RESP"/>
+			<FIELD type="string" label="Correo Electr&#243;nico del Responsable" name="MAIL"/>
+			<FIELD label="Cantidad de Solicitudes" name="CANT" type="int"/>
+			<FIELD type="string" label="Mensaje" name="MSJ"/>
+		</GROUP>
+		<GROUP label="Solicitudes" name="SOLICITUD">
+			<FIELD type="string" label="C&#243;digo solicitud" name="COD_SOL"/>
+			<FIELD type="string" label="Nombre solicitud" name="NOM_SOL"/>
+			<FIELD type="string" label="Fecha solicitud" name="FECHA_SOL"/>
+			<FIELD type="string" label="Fecha solicitud" name="FECHA_EST"/>
+			<FIELD type="string" label="Contacto" name="CONTACTO"/>
+			<FIELD type="string" label="Cliente" name="CLIENTE"/>
+			<FIELD type="string" label="Aplicaci&#243;n" name="APLICACION"/>
+			<FIELD type="string" label="M&#243;dulo" name="MODULO"/>
+			<FIELD type="string" label="Clasificaci&#243;n" name="CLASIF"/>
+			<FIELD type="string" label="Criticidad" name="CRITICIDAD"/>
+			<FIELD type="string" label="Recurso" name="RECURSO"/>
+			<FIELD type="string" label="Estado" name="ESTADO"/>
+		</GROUP>
+	</GROUPS>
+	<ENUMS/>
+</ALERT>

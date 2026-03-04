@@ -1,0 +1,238 @@
+<html:html xmlns:html="nomad_engine.html" xmlns:qry="nomad_engine.qry" extends="Nomad.Base.BaseReport.rpt" doc="source" name="NucleusRH.Base.Personal.CCLicencias">
+	<html:query declare="&lt;FILTRO oi_personal_emp=&quot;2143&quot; selected=&quot;100&quot;&gt;&#13;&#10;&#9;&lt;LIC nmd-col=&quot;1&quot;&gt;&#13;&#10;&#9;&#9;&lt;L id=&quot;105&quot;/&gt;&#13;&#10;&#9;&#9;&lt;L id=&quot;116&quot;/&gt;&#13;&#10;&#9;&#9;&lt;L id=&quot;107&quot;/&gt;&#13;&#10;&#9;&#9;&lt;L id=&quot;109&quot;/&gt;&#13;&#10;&#9;&#9;&lt;L id=&quot;112&quot;/&gt;&#13;&#10;&#9;&#9;&lt;L id=&quot;115&quot;/&gt;&#13;&#10;&#9;&#9;&lt;L id=&quot;111&quot;/&gt;&#13;&#10;&#9;&#9;&lt;L id=&quot;118&quot;/&gt;&#13;&#10;&#9;&#9;&lt;L id=&quot;119&quot;/&gt;&#13;&#10;&#9;&#9;&lt;L id=&quot;110&quot;/&gt;&#13;&#10;&#9;&#9;&lt;L id=&quot;101&quot;/&gt;&#13;&#10;&#9;&#9;&lt;L id=&quot;227&quot;/&gt;&#13;&#10;&#9;&#9;&lt;L id=&quot;114&quot;/&gt;&#13;&#10;&#9;&#9;&lt;L id=&quot;103&quot;/&gt;&#13;&#10;&#9;&#9;&lt;L id=&quot;113&quot;/&gt;&#13;&#10;&#9;&#9;&lt;L id=&quot;104&quot;/&gt;&#13;&#10;&#9;&#9;&lt;L id=&quot;108&quot;/&gt;&#13;&#10;&#9;&#9;&lt;L id=&quot;117&quot;/&gt;&#13;&#10;&#9;&#9;&lt;L id=&quot;102&quot;/&gt;&#13;&#10;&#9;&#9;&lt;L id=&quot;106&quot;/&gt;&#13;&#10;&#9;&#9;&lt;L id=&quot;100&quot;/&gt;&#13;&#10;&#9;&#9;&lt;L id=&quot;120&quot;/&gt;&#13;&#10;&#9;&lt;/LIC&gt;&#13;&#10;&lt;/FILTRO&gt;">
+		<qry:main doc="SOURCE">
+			<qry:append-doc name="PARAMIN" doc-path="#SOURCE:FILTRO"/>
+			<REPORT label="Cuenta Corriente de Licencias por Legajo">
+				<GROUPS>
+					<GROUP tag="LEG" type="title">
+						<COLS>
+							<COL name="legajo" label="Legajo"/>
+							<COL name="f_ingreso" label="Fecha Ingreso" type="date"/>
+						</COLS>
+						<GROUP tag="LIC" type="title">
+							<COLS>
+								<COL name="licencia" label="Licencia"/>
+							</COLS>
+							<GROUP tag="FLIAR" type="title">
+								<COLS>
+									<COL name="d_tipo_familiar" label="Tipo Familiar"/>
+									<COL name="f_ape_y_nom" label="Apellido y Nombre Familiar"/>
+								</COLS>
+							</GROUP>
+							<GROUP tag="DETLIC" type="table" style="width:40%">
+								<COLS>
+									<COL name="anio" label="A&#241;o" style="width:100px;text-align:center"/>
+									<COL name="disponible" label="Disponible" style="width:100px;text-align:center"/>
+									<COL name="usado" label="Usado" style="width:100px;text-align:center"/>
+									<COL name="saldo" label="Saldo" style="width:100px;text-align:center"/>
+								</COLS>
+							</GROUP>
+						</GROUP>
+					</GROUP>
+				</GROUPS>
+				<qry:element name="DATA">
+					<qry:element name="LEG">
+						<qry:insert-select doc-path="#PARAMIN:" name="QRY_LEGAJO"/>
+					</qry:element>
+				</qry:element>
+			</REPORT>
+		</qry:main>
+		<qry:select doc="PARAM" name="QRY_LEGAJO">
+			<qry:xquery>
+				for $r in sql('
+				SELECT 
+					PER02_PERSONAL_EMP.oi_personal_emp,
+					PER02_PERSONAL_EMP.e_numero_legajo,
+					PER02_PERSONAL_EMP.f_ingreso,
+					ORG03_EMPRESAS.c_empresa,
+					PER01_PERSONAL.d_ape_y_nom
+				FROM 
+					ORG03_EMPRESAS,
+					PER02_PERSONAL_EMP,
+					PER01_PERSONAL
+				JOIN
+					ORG03_EMPRESAS.oi_empresa INNER PER02_PERSONAL_EMP.oi_empresa,
+					PER01_PERSONAL.oi_personal INNER PER02_PERSONAL_EMP.oi_personal
+				WHERE
+					PER02_PERSONAL_EMP.oi_personal_emp = {#PARAM:@oi_personal_emp}
+			')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:attribute name="legajo" value="'('+$r/@c_empresa + ' - ' + $r/@e_numero_legajo + ') ' + $r/@d_ape_y_nom"/>
+				<qry:attribute name="f_ingreso" value="format_date($r/@f_ingreso, 'dd/mm/yyyy')"/>
+				<qry:insert-select doc-path="$r" name="QRY_LICENCIAS"/>
+			</qry:out>
+		</qry:select>
+		<qry:select doc="PARAM" name="QRY_LICENCIAS">
+			<qry:xquery>
+				for $r in sql('		
+			SELECT 
+				PER02_LICEN_PER.oi_licencia,						
+				PER16_LICENCIAS.d_licencia,
+				PER02_LICEN_PER.oi_familiar_per
+			FROM
+				PER02_LICEN_PER,
+				PER16_LICENCIAS
+			JOIN
+				PER16_LICENCIAS.oi_licencia INNER PER02_LICEN_PER.oi_licencia				  
+			WHERE
+				PER02_LICEN_PER.oi_personal_emp = {#PARAM:@oi_personal_emp}
+				AND PER02_LICEN_PER.oi_licencia in ({%=string(#PARAMIN:LIC/L/@id)%})				  					                      
+          	GROUP BY
+          		PER02_LICEN_PER.oi_licencia,
+          		PER16_LICENCIAS.d_licencia,
+          		PER02_LICEN_PER.oi_familiar_per
+          	ORDER BY 
+          		d_licencia ASC
+				')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:element name="LIC">
+					<qry:attribute name="oi_licencia" value="$r/@oi_licencia"/>
+					<qry:attribute name="oi_familiar_per" value="$r/@oi_familiar_per"/>
+					<qry:attribute name="familiar" value="'-'"/>
+					<qry:insert-select doc-path="$r" name="QRY_DATOS_FLIAR"/>
+					<qry:attribute name="licencia" value="$r/@d_licencia"/>
+					<qry:attribute name="anio_ult" value="'-1'"/>
+					<qry:insert-select doc-path="$r" name="QRY_LICENCIAS_DET"/>
+				</qry:element>
+			</qry:out>
+		</qry:select>
+		<qry:select doc="PARAM" name="QRY_LICENCIAS_DET">
+			<qry:xquery>
+				for $r in sql('		
+		SELECT 
+			PER02_LICEN_PER.oi_licencia_per,
+			PER02_LICEN_PER.e_cant_dias,
+			PER02_LICEN_PER.e_anio_corresp,						
+			PER02_LICEN_PER.f_inicio,
+			PER02_LICEN_PER.f_fin,						
+			PER16_LICENCIAS.e_max_dias_anio,
+			PER02_LICEN_PER.oi_licencia,
+			PER02_PERSONAL_EMP.oi_personal_emp,
+			PER16_LICENCIAS.l_acumulativa,
+			PER02_LICEN_PER.oi_familiar_per
+		FROM 
+			PER02_PERSONAL_EMP,
+			PER02_LICEN_PER,
+			PER16_LICENCIAS
+		JOIN 
+			PER02_LICEN_PER.oi_personal_emp INNER PER02_PERSONAL_EMP.oi_personal_emp, 
+			PER16_LICENCIAS.oi_licencia INNER PER02_LICEN_PER.oi_licencia				  
+		WHERE
+			PER02_PERSONAL_EMP.oi_personal_emp = {#PARAMIN:@oi_personal_emp}
+			AND PER02_LICEN_PER.oi_licencia = {#PARAM:@oi_licencia}
+			{%? (#PARAM:@oi_familiar_per='') {% AND isnull(PER02_LICEN_PER.oi_familiar_per) %} {% AND PER02_LICEN_PER.oi_familiar_per ={#PARAM:@oi_familiar_per} %} %}	         
+		ORDER BY 
+          	f_inicio ASC
+				')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:attribute name="l_acumulativa" value="$r/@l_acumulativa"/>
+				<qry:if test="@anio_ult != $r/@e_anio_corresp">
+					<qry:then>
+						<qry:attribute name="max_dias_anio" value="$r/@e_max_dias_anio"/>
+						<qry:insert-select doc-path="$r" name="QRY_DIAS_CONVENIO"/>
+						<qry:insert-select doc-path="$r" name="QRY_DIAS_TFLIAR"/>
+						<qry:if test="@l_acumulativa=1">
+							<qry:then>
+								<qry:attribute name="disp" value="number(@disp) + number(@max_dias_anio)"/>
+							</qry:then>
+							<qry:else>
+								<qry:attribute name="disp" value="number(@max_dias_anio)"/>
+							</qry:else>
+						</qry:if>
+					</qry:then>
+				</qry:if>
+				<qry:attribute name="disp" value="number(@disp) - number($r/@e_cant_dias)"/>
+				<qry:attribute name="anio_ult" value="$r/@e_anio_corresp"/>
+				<qry:element name="DETLIC">
+					<qry:attribute name="oi_licencia_per" value="$r/@oi_licencia_per"/>
+					<qry:attribute name="usado" value="$r/@e_cant_dias"/>
+					<qry:attribute name="anio" value="$r/@e_anio_corresp"/>
+					<qry:attribute name="saldo" value="iif(number(../@max_dias_anio)!=0,number(../@disp),'0')"/>
+					<qry:attribute name="disponible" value="iif(number(../@max_dias_anio)!=0,number(../@disp) + number(@usado),'0')"/>
+					<qry:attribute name="fe_inicio_per" value="format_date($r/@f_inicio, 'dd/mm/yyyy')"/>
+					<qry:attribute name="fe_fin_per" value="format_date($r/@f_fin, 'dd/mm/yyyy')"/>
+				</qry:element>
+			</qry:out>
+		</qry:select>
+		<qry:select doc="PARAM" name="QRY_DIAS_CONVENIO">
+			<qry:xquery>
+				for $r in SQL('
+SELECT 	
+	PER16_LIC_CONV.e_max_dias_anio,
+	PER16_LIC_CONV.l_acumulativa
+FROM
+	PER16_LICENCIAS,
+	PER16_LIC_CONV,
+	PER02_PERSONAL_EMP,
+	ORG18_CATEGORIAS
+JOIN
+	PER16_LICENCIAS.oi_licencia INNER PER16_LIC_CONV.oi_licencia,
+	PER16_LIC_CONV.oi_convenio INNER ORG18_CATEGORIAS.oi_convenio,
+	ORG18_CATEGORIAS.oi_categoria INNER PER02_PERSONAL_EMP.oi_categoria_ult
+WHERE
+	PER16_LICENCIAS.oi_licencia = {#PARAM:@oi_licencia}
+	AND PER02_PERSONAL_EMP.oi_personal_emp = {#PARAM:@oi_personal_emp}			
+			')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:attribute name="max_dias_anio" value="$r/@e_max_dias_anio"/>
+				<qry:attribute name="l_acumulativa" value="$r/@l_acumulativa"/>
+			</qry:out>
+		</qry:select>
+		<qry:select doc="PARAM" name="QRY_DIAS_TFLIAR">
+			<qry:xquery>
+				for $r in SQL('
+		SELECT 
+			PER16_LC_TFLIAR.e_max_dias_lic,
+			PER16_LC_TFLIAR.e_max_dias_anio
+		FROM
+			PER16_LICENCIAS,
+			PER16_LIC_CONV,
+			PER16_LC_TFLIAR,
+			PER02_PERSONAL_EMP,
+			ORG18_CATEGORIAS,
+			PER01_FLIARES_PER
+		JOIN
+			PER16_LICENCIAS.oi_licencia INNER PER16_LIC_CONV.oi_licencia,
+			PER16_LIC_CONV.oi_convenio INNER ORG18_CATEGORIAS.oi_convenio,
+			PER16_LIC_CONV.oi_licencias_conv INNER PER16_LC_TFLIAR.oi_licencias_conv,
+			ORG18_CATEGORIAS.oi_categoria INNER PER02_PERSONAL_EMP.oi_categoria_ult,			
+			PER16_LC_TFLIAR.oi_tipo_familiar INNER PER01_FLIARES_PER.oi_tipo_familiar		
+		WHERE
+			PER16_LICENCIAS.oi_licencia = {#PARAM:@oi_licencia}
+			AND PER02_PERSONAL_EMP.oi_personal_emp = {#PARAM:@oi_personal_emp}
+			AND PER01_FLIARES_PER.oi_familiar_per = {#PARAM:@oi_familiar_per}				
+			')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:attribute name="max_dias_anio" value="$r/@e_max_dias_anio"/>
+				<qry:attribute name="l_acumulativa" value="'0'"/>
+			</qry:out>
+		</qry:select>
+		<qry:select doc="PARAM" name="QRY_DATOS_FLIAR">
+			<qry:xquery>
+				for $r in SQL('
+		SELECT
+			PER01_FLIARES_PER.d_ape_y_nom,			
+			PER15_TIPOS_FAM.d_tipo_familiar
+		FROM
+			PER01_FLIARES_PER, 
+			PER15_TIPOS_FAM			
+		JOIN		
+			PER01_FLIARES_PER.oi_tipo_familiar INNER PER15_TIPOS_FAM.oi_tipo_familiar		
+		WHERE
+			PER01_FLIARES_PER.oi_familiar_per = {#PARAM:@oi_familiar_per}				
+			')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:element name="FLIAR">
+					<qry:attribute name="f_ape_y_nom" value="$r/@d_ape_y_nom"/>
+					<qry:attribute name="d_tipo_familiar" value="$r/@d_tipo_familiar"/>
+				</qry:element>
+			</qry:out>
+		</qry:select>
+	</html:query>
+</html:html>

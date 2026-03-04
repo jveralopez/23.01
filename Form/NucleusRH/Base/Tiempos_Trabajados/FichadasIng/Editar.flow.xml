@@ -1,0 +1,396 @@
+<flow:flow xmlns:flow="nomad_engine.flow" xmlns:qry="nomad_engine.qry" xmlns:doc="nomad_engine.doc" extends="NucleusRH.Base.Tiempos_Trabajados.FichadasIng.autoflow" name="NucleusRH.Base.Tiempos_Trabajados.FichadasIng.Editar.flow" default_action="initialize">
+	<flow:declare>
+		<qry:define name="GETDATOS" declare="&lt;FILTRO oi_personal=&quot;11565&quot; f_ini=&quot;20080801&quot; f_fin=&quot;20081001&quot; /&gt;">
+			<qry:main doc="SOURCE">
+				<qry:element name="DATA">
+					<qry:insert-select doc-path="#SOURCE:FILTRO" name="RS1"/>
+				</qry:element>
+			</qry:main>
+			<qry:select name="RS1" doc="SOURCE">
+				<qry:xquery>
+					for $r in sql(' 
+				SELECT TTA04_PERSONAL.oi_personal_emp,
+				TTA04_PERSONAL.e_nro_legajo_reloj,
+				PER01_PERSONAL.d_ape_y_nom,
+				PER02_PERSONAL_EMP.e_numero_legajo,
+				ORG03_EMPRESAS.c_empresa
+				FROM PER01_PERSONAL,
+				PER02_PERSONAL_EMP,
+				ORG03_EMPRESAS,
+				TTA04_PERSONAL
+				JOIN PER02_PERSONAL_EMP.oi_empresa INNER ORG03_EMPRESAS.oi_empresa,
+				PER02_PERSONAL_EMP.oi_personal INNER PER01_PERSONAL.oi_personal,
+				PER02_PERSONAL_EMP.oi_personal_emp INNER TTA04_PERSONAL.oi_personal_emp
+				WHERE PER02_PERSONAL_EMP.oi_personal_emp = {#SOURCE:@oi_personal_emp}
+				')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:attribute name="datos" value="' (' + $r/@c_empresa + ' - ' + $r/@e_numero_legajo + ') ' + $r/@d_ape_y_nom + ' | ' + format_date(#SOURCE:@f_ini,'dd/mm/yyyy') + ' - ' + format_date(#SOURCE:@f_fin,'dd/mm/yyyy')"/>
+					<qry:attribute name="oi_personal_emp" value="$r/@oi_personal_emp"/>
+					<qry:attribute name="e_nro_legajo_reloj" value="$r/@e_nro_legajo_reloj"/>
+				</qry:out>
+			</qry:select>
+		</qry:define>
+		<qry:define name="FILTER" declare="&lt;FILTRO oi_personal=&quot;11565&quot; f_ini=&quot;20080801&quot; f_fin=&quot;20080901&quot; /&gt;">
+			<qry:main doc="SOURCE">
+				<qry:element name="ROWS">
+					<qry:insert-select doc-path="#SOURCE:FILTRO" name="RS1"/>
+				</qry:element>
+			</qry:main>
+			<qry:select name="RS1" doc="SOURCE">
+				<qry:xquery>
+					for $r in sql(' 
+				SELECT TTA07_FICHADASING.oi_personal_emp, TTA07_FICHADASING.oi_fichadasing, 
+				TTA07_FICHADASING.f_fechahora, TTA07_FICHADASING.c_tipo, 
+				TTA07_FICHADASING.o_observaciones, TTA07_FICHADASING.c_origen, 
+				TTA07_FICHADASING.c_estado, TTA07_FICHADASING.oi_liquidacion
+				FROM TTA07_FICHADASING
+				WHERE TTA07_FICHADASING.oi_personal_emp = {#SOURCE:@oi_personal_emp}
+				AND TTA07_FICHADASING.f_fechahora &gt;= {DateTime(Number(DateTime(#SOURCE:@f_ini))-1)}
+				AND TTA07_FICHADASING.f_fechahora &lt;= {DateTime(Number(DateTime(#SOURCE:@f_fin))+2)}
+				ORDER BY f_fechahora ASC, c_tipo ASC
+			')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:element name="ROW">
+						<qry:attribute name="value" value="$r/@oi_personal_emp"/>
+						<qry:attribute name="id" value="$r/@oi_fichadasing"/>
+						<qry:attribute name="f_fechahora" value="$r/@f_fechahora"/>
+						<qry:attribute name="c_tipo" value="$r/@c_tipo"/>
+						<qry:attribute name="o_observaciones" value="$r/@o_observaciones"/>
+						<qry:attribute name="c_estado" value="$r/@c_estado"/>
+						<qry:attribute name="c_origen" value="$r/@c_origen"/>
+						<qry:attribute name="c_tipo" value="$r/@c_tipo"/>
+						<qry:attribute name="img" value="iif($r/@oi_liquidacion!='','Listas/LOCK.ICO','')"/>
+						<qry:insert-select doc-path="./.[@c_estado='A']" name="QRY_ANULADA_SI"/>
+						<qry:insert-select doc-path="./.[@c_estado!='A']" name="QRY_ANULADA_NO"/>
+						<qry:insert-select doc-path="./.[@c_origen='T']" name="QRY_TERMINAL"/>
+						<qry:insert-select doc-path="./.[@c_origen='M']" name="QRY_MANUAL"/>
+					</qry:element>
+				</qry:out>
+			</qry:select>
+			<qry:select doc="PARAM" name="QRY_ANULADA_SI">
+				<qry:out>
+					<qry:attribute value="1" name="l_anulada"/>
+				</qry:out>
+			</qry:select>
+			<qry:select doc="PARAM" name="QRY_ANULADA_NO">
+				<qry:out>
+					<qry:attribute value="0" name="l_anulada"/>
+				</qry:out>
+			</qry:select>
+			<qry:select doc="PARAM" name="QRY_TERMINAL">
+				<qry:out>
+					<qry:attribute value="'Terminal'" name="origen"/>
+				</qry:out>
+			</qry:select>
+			<qry:select doc="PARAM" name="QRY_MANUAL">
+				<qry:out>
+					<qry:attribute value="'Manual'" name="origen"/>
+				</qry:out>
+			</qry:select>
+			<qry:select doc="PARAM" name="QRY_ENTRADA">
+				<qry:out>
+					<qry:attribute value="'right_gre.gif'" name="img"/>
+				</qry:out>
+			</qry:select>
+			<qry:select doc="PARAM" name="QRY_SALIDA">
+				<qry:out>
+					<qry:attribute value="'left_red.gif'" name="img"/>
+				</qry:out>
+			</qry:select>
+			<qry:select doc="PARAM" name="QRY_INDEFINIDA">
+				<qry:out>
+					<qry:attribute value="'ukn.ico'" name="img"/>
+				</qry:out>
+			</qry:select>
+		</qry:define>
+		<qry:define declare="&lt;FILTRO oi_personal_emp=&quot;11565&quot; f_ini=&quot;20080801&quot; f_fin=&quot;20080830&quot; /&gt;" name="LIST">
+			<qry:main doc="SOURCE">
+				<qry:element name="ROWS">
+					<qry:insert-select doc-path="#SOURCE:FILTRO" name="RS1"/>
+				</qry:element>
+			</qry:main>
+			<qry:select name="RS1" doc="SOURCE">
+				<qry:xquery>
+					for $r in sql(' 
+				SELECT 
+					TTA07_FICHADASING.oi_personal_emp, 
+					TTA07_FICHADASING.oi_fichadasing, 
+					TTA07_FICHADASING.f_fechahora, 
+					TTA07_FICHADASING.c_tipo, 
+					TTA07_FICHADASING.o_observaciones, 
+					TTA07_FICHADASING.c_origen, 
+					TTA07_FICHADASING.c_estado, 
+					TTA07_FICHADASING.oi_liquidacion
+				FROM 
+					TTA07_FICHADASING
+				WHERE 
+					TTA07_FICHADASING.oi_personal_emp = {#SOURCE:@oi_personal_emp}
+					AND TTA07_FICHADASING.f_fechahora &gt;= {DateTime(Number(DateTime(#SOURCE:@f_ini))-1)}
+					AND TTA07_FICHADASING.f_fechahora &lt;= {DateTime(Number(DateTime(#SOURCE:@f_fin))+2)}
+				ORDER BY 
+					f_fechahora ASC, c_tipo ASC
+			')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:element name="ROW">
+						<qry:attribute name="value" value="$r/@oi_personal_emp"/>
+						<qry:attribute name="id" value="$r/@oi_fichadasing"/>
+						<qry:attribute name="dia" value="substring(format_date(wday-from-dateTime($r/@f_fechahora), 'Ddd'),0,3)"/>
+						<qry:attribute name="f_fechahora" value="$r/@f_fechahora"/>
+						<qry:attribute name="c_tipo" value="$r/@c_tipo"/>
+						<qry:attribute name="o_observaciones" value="$r/@o_observaciones"/>
+						<qry:attribute name="c_estado" value="$r/@c_estado"/>
+						<qry:attribute name="c_origen" value="$r/@c_origen"/>
+						<qry:attribute name="c_tipo" value="$r/@c_tipo"/>
+						<qry:attribute name="img" value="iif($r/@oi_liquidacion!='','Listas/LOCK.ICO','')"/>
+						<qry:insert-select doc-path="./.[@c_estado='A']" name="QRY_ANULADA_SI"/>
+						<qry:insert-select doc-path="./.[@c_estado!='A']" name="QRY_ANULADA_NO"/>
+						<qry:insert-select doc-path="./.[@c_origen='T']" name="QRY_TERMINAL"/>
+						<qry:insert-select doc-path="./.[@c_origen='M']" name="QRY_MANUAL"/>
+					</qry:element>
+				</qry:out>
+			</qry:select>
+			<qry:select doc="PARAM" name="QRY_ANULADA_SI">
+				<qry:out>
+					<qry:attribute value="1" name="l_anulada"/>
+				</qry:out>
+			</qry:select>
+			<qry:select doc="PARAM" name="QRY_ANULADA_NO">
+				<qry:out>
+					<qry:attribute value="0" name="l_anulada"/>
+				</qry:out>
+			</qry:select>
+			<qry:select doc="PARAM" name="QRY_TERMINAL">
+				<qry:out>
+					<qry:attribute value="'Terminal'" name="origen"/>
+				</qry:out>
+			</qry:select>
+			<qry:select doc="PARAM" name="QRY_MANUAL">
+				<qry:out>
+					<qry:attribute value="'Manual'" name="origen"/>
+				</qry:out>
+			</qry:select>
+			<qry:select doc="PARAM" name="QRY_ENTRADA">
+				<qry:out>
+					<qry:attribute value="'right_gre.gif'" name="img"/>
+				</qry:out>
+			</qry:select>
+			<qry:select doc="PARAM" name="QRY_SALIDA">
+				<qry:out>
+					<qry:attribute value="'left_red.gif'" name="img"/>
+				</qry:out>
+			</qry:select>
+			<qry:select doc="PARAM" name="QRY_INDEFINIDA">
+				<qry:out>
+					<qry:attribute value="'ukn.ico'" name="img"/>
+				</qry:out>
+			</qry:select>
+		</qry:define>
+		<doc:define name="FILTRO"/>
+		<doc:define name="FILTERDATA">
+			<FILTRO oi_personal_emp="" f_ini="" f_fin=""/>
+		</doc:define>
+		<qry:define name="qry_params">
+			<qry:main>
+				<qry:element name="PARAMS">
+					<qry:insert-select name="PreEditFic"/>
+					<qry:insert-select name="PosEditFic"/>
+					<qry:insert-select name="EditMyFic"/>
+				</qry:element>
+			</qry:main>
+			<qry:select name="PreEditFic">
+				<qry:xquery>
+					for $r in SQL('
+				SELECT
+					ORG26_PARAMETROS.d_valor
+				FROM 
+					ORG26_PARAMETROS
+				WHERE
+					ORG26_PARAMETROS.c_parametro = \'PreEditFic\'
+				
+			')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:attribute name="PreEditFic" value="$r/@d_valor"/>
+				</qry:out>
+			</qry:select>
+			<qry:select name="PosEditFic">
+				<qry:xquery>
+					for $r in SQL('
+				SELECT
+					ORG26_PARAMETROS.d_valor
+				FROM 
+					ORG26_PARAMETROS
+				WHERE
+					ORG26_PARAMETROS.c_parametro = \'PosEditFic\'
+				
+			')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:attribute name="PosEditFic" value="$r/@d_valor"/>
+				</qry:out>
+			</qry:select>
+			<qry:select name="EditMyFic">
+				<qry:xquery>
+					for $r in SQL('
+				SELECT
+					ORG26_PARAMETROS.d_valor
+				FROM 
+					ORG26_PARAMETROS
+				WHERE
+					ORG26_PARAMETROS.c_parametro = \'EditMyFic\'
+				
+			')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:attribute name="EditMyFic" value="$r/@d_valor"/>
+				</qry:out>
+			</qry:select>
+		</qry:define>
+		<doc:define name="PARAM"/>
+	</flow:declare>
+	<flow:main doc="SOURCE">
+		<flow:action name="initialize">
+			<flow:open-form form-class="NucleusRH.Base.Tiempos_Trabajados.FichadasIng.FICHADASING.Editar.filter.form" mode="FILTER" doc-path="#SOURCE:"/>
+		</flow:action>
+		<flow:action name="initreport">
+			<doc:assign-value from-path="#SOURCE:" to-doc="FILTERDATA"/>
+			<flow:log text-path="#FILTERDATA:" text="pp1"/>
+			<doc:new-object doc="DDO" class="NucleusRH.Base.Tiempos_Trabajados.FichadasIng.FICHADASING"/>
+			<doc:new-object doc="NEWDDOROOT" class="NucleusRH.Base.Tiempos_Trabajados.FichadasIng.FICHADASING"/>
+			<doc:load-qry output-doc="FILTRO" qry="GETDATOS" input-doc-path="#FILTERDATA:"/>
+			<doc:load-qry qry="FILTER" output-doc="QRY" input-doc-path="#FILTERDATA:"/>
+			<flow:open-form iter-index="#QRY:ROW/@id" parent-doc-path="#QRY:" doc-path="#DDO:" mode="EDIT" form-class="NucleusRH.Base.Tiempos_Trabajados.FichadasIng.FICHADASING.noreg.form"/>
+		</flow:action>
+	</flow:main>
+	<flow:form name="NucleusRH.Base.Tiempos_Trabajados.FichadasIng.FICHADASING.Editar.filter.form:FILTER" extends="NucleusRH.Base.Tiempos_Trabajados.FichadasIng.FICHADASING.filter.autoform:FILTER" form-class="NucleusRH.Base.Tiempos_Trabajados.FichadasIng.FICHADASING.Editar.filter.form" parent-doc="PARENTSOURCE" doc="SOURCE" mode="FILTER">
+		<flow:action name="on-show">
+			<flow:call-action action="inits-DDO"/>
+		</flow:action>
+		<flow:action name="FILTER">
+			<flow:log text-path="#FILTERDATA:" text="ppfilter"/>
+			<doc:load-qry output-doc="FILTRO" qry="GETDATOS" input-doc-path="#FILTERDATA:"/>
+			<doc:load-qry qry="FILTER" output-doc="QRY" input-doc-path="#FILTERDATA:"/>
+			<flow:call-action action="Save-FILTER"/>
+			<flow:call-action action="open-flow-SHOW"/>
+		</flow:action>
+		<flow:action name="Save-FILTER">
+			<flow:save-user-data name="FILTER-NucleusRH.Base.Tiempos_Trabajados.EditarFichadas" doc-path="#FILTERDATA:"/>
+		</flow:action>
+		<flow:action name="Load-FILTER">
+			<flow:load-user-data name="FILTER-NucleusRH.Base.Tiempos_Trabajados.EditarFichadas" doc="FILTERDATA"/>
+		</flow:action>
+		<flow:action name="open-flow-SHOW">
+			<flow:open-form iter-index="#QRY:ROW/@id" parent-doc-path="#QRY:" doc-path="#DDO:" mode="EDIT" form-class="NucleusRH.Base.Tiempos_Trabajados.FichadasIng.FICHADASING.noreg.form"/>
+		</flow:action>
+	</flow:form>
+	<flow:form extends="NucleusRH.Base.Tiempos_Trabajados.FichadasIng.FICHADASING.noreg.autoform:EDIT" parent-doc="PARENTSOURCE" doc="SOURCE" name="NucleusRH.Base.Tiempos_Trabajados.FichadasIng.FICHADASING.noreg.form:EDIT" form-class="NucleusRH.Base.Tiempos_Trabajados.FichadasIng.FICHADASING.noreg.form" mode="EDIT">
+		<flow:action name="open-flow-LIST">
+			<flow:open-form iter-index="#QRY_LIST:ROW/@id" parent-doc-path="#QRY_LIST:" doc-path="#DDO:" mode="LIST" form-class="NucleusRH.Base.Tiempos_Trabajados.FichadasIng.FICHADASING.form"/>
+		</flow:action>
+		<flow:action name="on-move-iterator">
+			<flow:call-action action="load-DDO"/>
+			<flow:call-action action="goto-list"/>
+		</flow:action>
+	</flow:form>
+	<flow:form extends="NucleusRH.Base.Tiempos_Trabajados.FichadasIng.FICHADASING.autoform:LIST" parent-doc="PARENTSOURCE" doc="SOURCE" name="NucleusRH.Base.Tiempos_Trabajados.FichadasIng.FICHADASING.form:LIST" form-class="NucleusRH.Base.Tiempos_Trabajados.FichadasIng.FICHADASING.form" mode="LIST">
+		<flow:action name="on-show">
+			<doc:load-qry output-doc="PARAM" qry="qry_params"/>
+			<flow:attach-doc attach-id="RS" doc-path="#QRY_LIST:"/>
+			<flow:call-action else="SETID" eq="0" if="#FILTERDATA:@id" action="SINID"/>
+		</flow:action>
+		<flow:action name="open-flow-EDIT">
+			<flow:open-form doc-path="#DDO:" mode="EDIT" form-class="NucleusRH.Base.Tiempos_Trabajados.FichadasIng.FICHADASING.form"/>
+		</flow:action>
+		<flow:action name="open-flow-ADD">
+			<flow:open-form doc-path="#NEWDDOROOT:" mode="NEW" form-class="NucleusRH.Base.Tiempos_Trabajados.FichadasIng.FICHADASING.form"/>
+		</flow:action>
+		<flow:action name="ANULAR">
+			<flow:call-action action="load-DDO"/>
+			<doc:set-attribute from-attr-path="#PROXY:DATA/@USER" to-attr-path="#DDO:@d_user_edit"/>
+			<doc:set-attribute from-attr-path="#FORM:ctrl[@id='now']/@xval" to-attr-path="#DDO:@f_edit"/>
+			<doc:set-attribute from-value="A" to-attr-path="#DDO:@c_estado"/>
+			<flow:call-action action="save-DDO"/>
+			<flow:call-action action="After-Change"/>
+			<flow:call-action action="on-show"/>
+		</flow:action>
+		<flow:action name="RESTAURAR">
+			<flow:call-action action="load-DDO"/>
+			<doc:set-attribute from-attr-path="#PROXY:DATA/@USER" to-attr-path="#DDO:@d_user_edit"/>
+			<doc:set-attribute from-attr-path="#FORM:ctrl[@id='now']/@xval" to-attr-path="#DDO:@f_edit"/>
+			<doc:set-attribute from-value="P" to-attr-path="#DDO:@c_estado"/>
+			<flow:call-action action="save-DDO"/>
+			<flow:call-action action="After-Change"/>
+			<flow:call-action action="on-show"/>
+		</flow:action>
+		<flow:action name="ENTRADA">
+			<flow:call-action action="load-DDO"/>
+			<doc:set-attribute from-attr-path="#PROXY:DATA/@USER" to-attr-path="#DDO:@d_user_edit"/>
+			<doc:set-attribute from-attr-path="#FORM:ctrl[@id='now']/@xval" to-attr-path="#DDO:@f_edit"/>
+			<doc:set-attribute from-value="E" to-attr-path="#DDO:@c_tipo"/>
+			<flow:call-action action="save-DDO"/>
+			<flow:call-action action="After-Change"/>
+			<flow:call-action action="on-show"/>
+		</flow:action>
+		<flow:action name="SALIDA">
+			<flow:call-action action="load-DDO"/>
+			<doc:set-attribute from-attr-path="#PROXY:DATA/@USER" to-attr-path="#DDO:@d_user_edit"/>
+			<doc:set-attribute from-attr-path="#FORM:ctrl[@id='now']/@xval" to-attr-path="#DDO:@f_edit"/>
+			<doc:set-attribute from-value="S" to-attr-path="#DDO:@c_tipo"/>
+			<flow:call-action action="save-DDO"/>
+			<flow:call-action action="After-Change"/>
+			<flow:call-action action="on-show"/>
+		</flow:action>
+		<flow:action name="SINID"/>
+		<flow:action name="SETID">
+			<doc:set-attribute from-attr-path="#FILTERDATA:@id" to-attr-path="#FORM:ctrl[@id='LIST']/@xval"/>
+		</flow:action>
+	</flow:form>
+	<flow:form extends="NucleusRH.Base.Tiempos_Trabajados.FichadasIng.FICHADASING.autoform:NEW" parent-doc="PARENTSOURCE" doc="SOURCE" name="NucleusRH.Base.Tiempos_Trabajados.FichadasIng.FICHADASING.form:NEW" form-class="NucleusRH.Base.Tiempos_Trabajados.FichadasIng.FICHADASING.form" mode="NEW">
+		<flow:action name="save-DDO">
+			<doc:set-attribute to-attr-path="#NEWDDOROOT:oi_personal_emp/@value" from-attr-path="#FILTRO:@oi_personal_emp"/>
+			<doc:set-attribute from-value="M" to-attr-path="#NEWDDOROOT:@c_origen"/>
+			<doc:set-attribute from-value="P" to-attr-path="#NEWDDOROOT:@c_estado"/>
+			<doc:set-attribute from-attr-path="#FILTRO:@e_nro_legajo_reloj" to-attr-path="#NEWDDOROOT:@e_numero_legajo"/>
+			<doc:set-attribute from-attr-path="#PROXY:DATA/@USER" to-attr-path="#NEWDDOROOT:@d_user_create"/>
+			<doc:set-attribute from-attr-path="#FORM:ctrl[@id='now']/@xval" to-attr-path="#NEWDDOROOT:@f_create"/>
+			<doc:save-object class="NucleusRH.Base.Tiempos_Trabajados.FichadasIng.FICHADASING" doc="NEWDDOROOT"/>
+			<doc:load-object id-path="#NEWDDOROOT:@id" class="NucleusRH.Base.Tiempos_Trabajados.FichadasIng.FICHADASING" doc="DDO"/>
+		</flow:action>
+		<flow:action name="on-show">
+			<doc:load-qry output-doc="PARAM" qry="qry_params"/>
+		</flow:action>
+	</flow:form>
+	<flow:form extends="NucleusRH.Base.Tiempos_Trabajados.FichadasIng.FICHADASING.autoform:EDIT" parent-doc="PARENTSOURCE" doc="SOURCE" name="NucleusRH.Base.Tiempos_Trabajados.FichadasIng.FICHADASING.form:EDIT" form-class="NucleusRH.Base.Tiempos_Trabajados.FichadasIng.FICHADASING.form" mode="EDIT">
+		<flow:action name="save-DDO">
+			<doc:set-attribute from-attr-path="#PROXY:DATA/@USER" to-attr-path="#DDO:@d_user_edit"/>
+			<doc:set-attribute from-attr-path="#FORM:ctrl[@id='now']/@xval" to-attr-path="#DDO:@f_edit"/>
+			<doc:save-object class="NucleusRH.Base.Tiempos_Trabajados.FichadasIng.FICHADASING" doc="DDO"/>
+		</flow:action>
+		<flow:action name="delete-DDO">
+			<doc:delete-object doc-path="#DDO:" class="NucleusRH.Base.Tiempos_Trabajados.FichadasIng.FICHADASING" doc="DDO"/>
+			<doc:save-object class="NucleusRH.Base.Tiempos_Trabajados.FichadasIng.FICHADASING" doc="DDO"/>
+		</flow:action>
+		<flow:action name="--------------------------------------------"/>
+		<flow:action name="on-show"/>
+		<flow:action name="After-Change">
+			<doc:iter-refresh/>
+			<doc:iter-last/>
+		</flow:action>
+		<flow:action name="After-Back"/>
+		<flow:action name="SAVE">
+			<flow:call-action action="save-DDO"/>
+			<flow:close-form next-action="After-Change"/>
+		</flow:action>
+		<flow:action name="DELETE">
+			<flow:call-action action="delete-DDO"/>
+			<flow:close-form next-action="After-Change"/>
+		</flow:action>
+		<flow:action name="CANCEL">
+			<flow:close-form next-action="After-Cancel"/>
+		</flow:action>
+		<flow:action name="PARENT"/>
+	</flow:form>
+</flow:flow>

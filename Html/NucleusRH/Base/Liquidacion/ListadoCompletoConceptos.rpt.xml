@@ -1,0 +1,562 @@
+<html:html xmlns:html="nomad_engine.html" xmlns:qry="nomad_engine.qry" xmlns:xsl="http://www.w3.org/1999/XSL/Transform" doc="source" name="NucleusRH.Base.Liquidacion.ListadoConcepto">
+	<html:query declare="&lt;FILTRO report=&quot;&quot; e_periodo=&quot;200802&quot; oi_empresa=&quot;10&quot; modo=&quot;HTML&quot;&gt;&#13;&#10;&#13;&#10;&lt;/FILTRO&gt;">
+		<qry:main doc="SOURCE">
+			<qry:element name="DATOS">
+				<qry:element name="CONCEPTOS">
+					<qry:attribute name="f_emision" value="format_date(now(),'dd/mm/yyyy HH:MM')"/>
+					<qry:insert-select doc-path="#SOURCE:FILTRO" name="QRY_CONCEPTOS"/>
+				</qry:element>
+			</qry:element>
+		</qry:main>
+		<qry:select name="QRY_CONCEPTOS" doc="SOURCE">
+			<qry:xquery>
+				for $r in sql(' 
+SELECT 
+LIQ14.oi_concepto, 
+LIQ14.c_concepto, 
+LIQ14.d_concepto, 
+LIQ02.d_grupo_tliq, 
+LIQ12.d_tipo_concepto, 
+LIQ13.d_clase_concepto, 
+LIQ24.d_grupo_empresa, 
+LIQ14.ca_fig_recibo, 
+LIQ14.ca_acum_ganancia, 
+LIQ14.ca_tipo_asiento, 
+LIQ14.l_activo, 
+LIQ14.t_formula, 
+LIQ14.e_secuencia
+FROM LIQ14_CONCEPTOS as LIQ14, 
+LIQ02_GRUPOS_TLIQ as LIQ02,
+LIQ12_TIPOS_CONC as LIQ12,
+LIQ13_CLASES_CONC as LIQ13,
+LIQ24_GRUPOS_EMPRE as LIQ24
+
+JOIN
+ 
+liq14.oi_grupo_tliq left outer liq02.oi_grupo_tliq,
+LIQ14.oi_tipo_concepto inner LIQ12.oi_tipo_concepto,
+LIQ13.oi_clase_concepto right outer LIQ14.oi_clase_concepto,
+LIQ24.oi_grupo_empresa right outer  LIQ14.oi_grupo_empresa
+WHERE 
+1=1 
+{%? (string(#SOURCE:CONCEPTOS/CONCEPTO/@id)!='') {% AND LIQ14.OI_CONCEPTO in ({%=string(#SOURCE:CONCEPTOS/CONCEPTO/@id) %}) %} {%  %} %}
+{%? (#SOURCE:@oi_tipo_concepto!='') {% AND LIQ14.oi_tipo_concepto = {#SOURCE:@oi_tipo_concepto} %} {%  %} %}
+{%? (#SOURCE:@oi_clase_concepto!='') {% AND LIQ14.oi_clase_concepto = {#SOURCE:@oi_clase_concepto} %} {%  %} %}
+{%? (#SOURCE:@ca_fig_recibo!='') {% AND LIQ14.ca_fig_recibo={#SOURCE:@ca_fig_recibo} %} {% %} %}
+{%? (#SOURCE:@l_activo!='')	{% AND LIQ14.l_activo= {%=#SOURCE:@l_activo %} %} {% %} %}
+
+ORDER BY        			
+{%? (#SOURCE:@ATRIB_ORDEN1!='')	{% {%=#SOURCE:@ATRIB_ORDEN1%} {%? (#SOURCE:@ORDEN1!='') {% {%=#SOURCE:@ORDEN1%}, %} {% ASC, %}	%} %} {% %} %}
+{%? (#SOURCE:@ATRIB_ORDEN2!='')	{% {%=#SOURCE:@ATRIB_ORDEN2%} {%? (#SOURCE:@ORDEN2!='') {% {%=#SOURCE:@ORDEN2%}, %} {% ASC, %}	%} %} {% %} %}
+{%? (#SOURCE:@ATRIB_ORDEN3!='')	{% {%=#SOURCE:@ATRIB_ORDEN3%} {%? (#SOURCE:@ORDEN3!='') {% {%=#SOURCE:@ORDEN3%}, %} {% ASC, %}	%} %} {% %} %}
+OI_CONCEPTO ASC
+')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:element name="CONCEPTO">
+					<qry:attribute name="c_concepto" value="$r/@c_concepto"/>
+					<qry:attribute name="d_concepto" value="$r/@d_concepto"/>
+					<qry:attribute name="d_grupo_tliq" value="$r/@d_grupo_tliq"/>
+					<qry:attribute name="d_tipo_concepto" value="$r/@d_tipo_concepto"/>
+					<qry:attribute name="d_clase_concepto" value="$r/@d_clase_concepto"/>
+					<qry:attribute name="d_grupo_empresa" value="$r/@d_grupo_empresa"/>
+					<qry:attribute name="ca_fig_recibo" value="$r/@ca_fig_recibo"/>
+					<qry:attribute name="ca_acum_ganancia" value="$r/@ca_acum_ganancia"/>
+					<qry:attribute name="ca_tipo_asiento" value="$r/@ca_tipo_asiento"/>
+					<qry:attribute name="l_activo" value="$r/@l_activo"/>
+					<qry:attribute name="t_formula" value="$r/@t_formula"/>
+					<qry:attribute name="e_secuencia" value="$r/@e_secuencia"/>
+					<qry:attribute name="l_incluir" value="#SOURCE:@l_incluir"/>
+					<qry:element name="VARIABLES">
+						<qry:insert-select doc-path="$r" name="QRY_VAR"/>
+					</qry:element>
+				</qry:element>
+			</qry:out>
+		</qry:select>
+		<qry:select name="QRY_VAR" doc="SOURCE">
+			<qry:xquery>
+				for $r in sql(' 
+				SELECT 
+LIQ09.c_tipo_variable, 
+LIQ09.c_variable, 
+LIQ09.d_variable, 
+LIQ09.c_tipo_dato,
+LIQ14.c_tipo_parametro
+
+FROM LIQ09_VARIABLES as LIQ09,
+LIQ14_CONC_VAR as LIQ14
+JOIN
+LIQ14.oi_variable INNER LIQ09.oi_variable
+WHERE
+LIQ14.oi_concepto = {%= #SOURCE:@oi_concepto %}
+')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:element name="VAR">
+					<qry:attribute name="d_tipo_variable" value="$r/@c_tipo_variable"/>
+					<qry:attribute name="c_variable" value="$r/@c_variable"/>
+					<qry:attribute name="d_variable" value="$r/@d_variable"/>
+					<qry:attribute name="c_tipo_dato" value="$r/@c_tipo_dato"/>
+					<qry:attribute name="c_tipo_parametro" value="$r/@c_tipo_parametro"/>
+				</qry:element>
+			</qry:out>
+		</qry:select>
+	</html:query>
+	<html:xslt>
+		<xsl:template match="/DATOS">
+			<html>
+				<head>
+					<LINK href="../Skins/Styles/GReport.css" type="text/css" rel="stylesheet"/>
+					<STYLE>
+						body{background-color:#FFFFFF;}
+td.tit
+{
+	font-family:verdana;
+	font-weight: bolder;
+	font-size: 18px;
+	padding: 2px 2px 2px 2px;	
+	text-align: center;
+}
+td.fecha
+{	
+	font-family:verdana;
+	font-size: 12px;
+	padding: 2px 2px 2px 2px;	
+	text-align: right;
+}
+td.txt
+{	
+	font-family:verdana;
+	font-size: 12px;
+	padding: 2px 2px 2px 2px;	
+	text-align: left;
+}
+td.x1
+{
+	text-align:center;
+	font-family:verdana;
+	font-weight: normal;
+	font-size: 10px;
+	font-style: normal;
+	border-bottom-width: 1;
+	border-bottom-style: solid;
+	border-bottom-color: #000000;
+	border-left-width: 1;
+	border-left-style: solid;
+	border-left-color: #000000;
+	padding: 2px 2px 2px 2px;	
+}
+td.x2
+{
+	text-align:center;
+	font-family:verdana;
+	font-weight: normal;
+	font-size: 10px;
+	font-style: normal;
+	border-left-width: 1;
+	border-left-style: solid;
+	border-left-color: #000000;
+	border-bottom-width: 1;
+	border-bottom-style: solid;
+	border-bottom-color: #000000;
+	border-right-width: 1;
+	border-right-style: solid;
+	border-right-color: #000000;
+	padding: 2px 2px 2px 2px;	
+}
+td.x3
+{
+	text-align:center;
+	font-family:verdana;
+	font-weight: bold;
+	font-size: 12px;
+	font-style: normal;
+	background-color:#C0C0C0;
+	border-top-width: 1;
+	border-top-style: solid;
+	border-top-color: #000000;
+	border-left-width: 1;
+	border-left-style: solid;
+	border-left-color: #000000;
+	border-bottom-width: 1;
+	border-bottom-style: solid;
+	border-bottom-color: #000000;
+	padding: 2px 2px 2px 2px;	
+}
+td.x4
+{
+	text-align:center;
+	font-family:verdana;
+	font-weight: bold;
+	font-size: 12px;
+	font-style: normal;
+	background-color:#C0C0C0;
+	border-top-width: 1;
+	border-top-style: solid;
+	border-top-color: #000000;
+	border-left-width: 1;
+	border-left-style: solid;
+	border-left-color: #000000;
+	border-bottom-width: 1;
+	border-bottom-style: solid;
+	border-bottom-color: #000000;
+	border-right-width: 1;
+	border-right-style: solid;
+	border-right-color: #000000;	
+	padding: 2px 2px 2px 2px;	
+}
+					</STYLE>
+				</head>
+				<body bgcolor="#F2F2EC">
+					<xsl:apply-templates select="CONCEPTOS"/>
+					<br/>
+				</body>
+			</html>
+		</xsl:template>
+		<xsl:template match="CONCEPTOS">
+			<table CELLPADDING="0" CELLSPACING="0" width="100%">
+				<tr>
+					<td colspan="6" class="fecha">
+						<b>
+							Fecha de Emisi&#243;n:&#160;
+						</b>
+						<xsl:value-of select="@f_emision"/>
+					</td>
+				</tr>
+				<tr>
+					<td colspan="6" class="tit">
+						Listado Completo de Conceptos
+					</td>
+				</tr>
+				<xsl:for-each select="CONCEPTO">
+					<tr>
+						<td colspan="6" class="txt">
+							<h4>
+								<b>
+									Concepto:&#160;
+								</b>
+								<xsl:value-of select="@c_concepto"/>
+								<xsl:text>
+									&#160;-&#160;
+								</xsl:text>
+								<xsl:value-of select="@d_concepto"/>
+								&#160;
+							</h4>
+						</td>
+					</tr>
+					<xsl:if test="@d_grupo_tliq">
+						<tr>
+							<td colspan="6" class="txt">
+								<b>
+									Grupos de Tipos de liquidaci&#243;n:&#160;
+								</b>
+								<xsl:value-of select="@d_grupo_tliq"/>
+								&#160;
+							</td>
+						</tr>
+					</xsl:if>
+					<xsl:if test="@d_tipo_concepto">
+						<tr>
+							<td colspan="6" class="txt">
+								<b>
+									Tipo de Concepto:&#160;
+								</b>
+								<xsl:value-of select="@d_tipo_concepto"/>
+								&#160;
+							</td>
+						</tr>
+					</xsl:if>
+					<xsl:if test="@d_clase_concepto">
+						<tr>
+							<td colspan="6" class="txt">
+								<b>
+									Clase de Concepto:&#160;
+								</b>
+								<xsl:value-of select="@d_clase_concepto"/>
+								&#160;
+							</td>
+						</tr>
+					</xsl:if>
+					<xsl:if test="@d_grupo_empresa">
+						<tr>
+							<td colspan="6" class="txt">
+								<b>
+									Grupo de empresas:&#160;
+								</b>
+								<xsl:value-of select="@d_grupo_empresa"/>
+								&#160;
+							</td>
+						</tr>
+					</xsl:if>
+					<xsl:if test="@ca_fig_recibo='S'">
+						<tr>
+							<td colspan="6" class="txt">
+								<b>
+									Figura en Recibo?:&#160;
+								</b>
+								<xsl:text>
+									Si
+								</xsl:text>
+								&#160;
+							</td>
+						</tr>
+					</xsl:if>
+					<xsl:if test="@ca_fig_recibo='N'">
+						<tr>
+							<td colspan="6" class="txt">
+								<b>
+									Figura en Recibo?:&#160;
+								</b>
+								<xsl:text>
+									No
+								</xsl:text>
+								&#160;
+							</td>
+						</tr>
+					</xsl:if>
+					<xsl:if test="@ca_fig_recibo='I'">
+						<tr>
+							<td colspan="6" class="txt">
+								<b>
+									Figura en Recibo?:&#160;
+								</b>
+								<xsl:text>
+									Solo el importe
+								</xsl:text>
+								&#160;
+							</td>
+						</tr>
+					</xsl:if>
+					<xsl:if test="@ca_acum_ganancia='H'">
+						<tr>
+							<td colspan="6" class="txt">
+								<b>
+									Acumula Ganancia?:&#160;
+								</b>
+								<xsl:text>
+									Acumula Haberes
+								</xsl:text>
+								&#160;
+							</td>
+						</tr>
+					</xsl:if>
+					<xsl:if test="@ca_acum_ganancia='D'">
+						<tr>
+							<td colspan="6" class="txt">
+								<b>
+									Acumula Ganancia?:&#160;
+								</b>
+								<xsl:text>
+									Acumula Deducciones
+								</xsl:text>
+								&#160;
+							</td>
+						</tr>
+					</xsl:if>
+					<xsl:if test="@ca_acum_ganancia='N'">
+						<tr>
+							<td colspan="6" class="txt">
+								<b>
+									Acumula Ganancia?:&#160;
+								</b>
+								<xsl:text>
+									No Acumula
+								</xsl:text>
+								&#160;
+							</td>
+						</tr>
+					</xsl:if>
+					<xsl:if test="@ca_tipo_asiento='L'">
+						<tr>
+							<td colspan="6" class="txt">
+								<b>
+									Tipo de Asiento:&#160;
+								</b>
+								<xsl:text>
+									Liquidaci&#243;n
+								</xsl:text>
+								&#160;
+							</td>
+						</tr>
+					</xsl:if>
+					<xsl:if test="@ca_tipo_asiento='P'">
+						<tr>
+							<td colspan="6" class="txt">
+								<b>
+									Tipo de Asiento:&#160;
+								</b>
+								<xsl:text>
+									Provisi&#243;n
+								</xsl:text>
+								&#160;
+							</td>
+						</tr>
+					</xsl:if>
+					<xsl:if test="@ca_tipo_asiento='N'">
+						<tr>
+							<td colspan="6" class="txt">
+								<b>
+									Tipo de Asiento:&#160;
+								</b>
+								<xsl:text>
+									Ninguno
+								</xsl:text>
+								&#160;
+							</td>
+						</tr>
+					</xsl:if>
+					<xsl:if test="@l_activo=1">
+						<tr>
+							<td colspan="6" class="txt">
+								<b>
+									Esta Activo?:&#160;
+								</b>
+								<xsl:text>
+									Si
+								</xsl:text>
+								&#160;
+							</td>
+						</tr>
+					</xsl:if>
+					<xsl:if test="@l_activo=0">
+						<tr>
+							<td colspan="6" class="txt">
+								<b>
+									Esta Activo?:&#160;
+								</b>
+								<xsl:text>
+									No
+								</xsl:text>
+								&#160;
+							</td>
+						</tr>
+					</xsl:if>
+					<tr>
+						<td colspan="6">
+							&#160;
+						</td>
+					</tr>
+					<tr>
+						<td colspan="6" class="txt">
+							<strong>
+								Variables relacionadas
+							</strong>
+						</td>
+					</tr>
+					<tr>
+						<td>
+							<b>
+								&#160;&#160;&#160;&#160;&#160;
+							</b>
+						</td>
+						<td class="x3">
+							Tipo de Variable
+						</td>
+						<td class="x3">
+							C&#243;digo
+						</td>
+						<td class="x3">
+							Nombre
+						</td>
+						<td class="x3">
+							Tipo de dato
+						</td>
+						<td class="x4">
+							Tipo de Parametro
+						</td>
+					</tr>
+					<xsl:for-each select="VARIABLES/VAR">
+						<tr>
+							<td>
+								<b>
+									&#160;&#160;&#160;&#160;&#160;
+								</b>
+							</td>
+							<td class="x1">
+								<xsl:value-of select="@d_tipo_variable"/>
+							</td>
+							<td class="x1">
+								<xsl:value-of select="@c_variable"/>
+							</td>
+							<td class="x1">
+								<xsl:value-of select="@d_variable"/>
+							</td>
+							<td class="x1">
+								<xsl:if test="@c_tipo_dato='double'">
+									<xsl:text>
+										Decimal
+									</xsl:text>
+								</xsl:if>
+								<xsl:if test="@c_tipo_dato='bool'">
+									<xsl:text>
+										Logico
+									</xsl:text>
+								</xsl:if>
+								<xsl:if test="@c_tipo_dato='int'">
+									<xsl:text>
+										Entero
+									</xsl:text>
+								</xsl:if>
+								<xsl:if test="@c_tipo_dato='DateTime'">
+									<xsl:text>
+										Fecha
+									</xsl:text>
+								</xsl:if>
+							</td>
+							<td class="x2">
+								<xsl:if test="@c_tipo_parametro='IN'">
+									<xsl:text>
+										De Entrada
+									</xsl:text>
+								</xsl:if>
+								<xsl:if test="@c_tipo_parametro='OUT'">
+									<xsl:text>
+										De Salida
+									</xsl:text>
+								</xsl:if>
+								<xsl:if test="@c_tipo_parametro='ACV'">
+									<xsl:text>
+										Acumula Valor
+									</xsl:text>
+								</xsl:if>
+								<xsl:if test="@c_tipo_parametro='ACC'">
+									<xsl:text>
+										Acumula Cantidad
+									</xsl:text>
+								</xsl:if>
+							</td>
+						</tr>
+					</xsl:for-each>
+					<tr>
+						<td colspan="6">
+							&#160;
+						</td>
+					</tr>
+					<xsl:if test="@t_formula">
+						<xsl:if test="@l_incluir=1">
+							<tr>
+								<td colspan="6" class="x2" width="300px">
+									<b>
+										Formula:&#160;
+									</b>
+									<br/>
+									<div class="etiqueta">
+										<pre font="arial">
+											<xsl:value-of select="@t_formula"/>
+										</pre>
+									</div>
+									&#160;
+								</td>
+							</tr>
+						</xsl:if>
+					</xsl:if>
+					<tr>
+						<td colspan="6">
+							&#160;
+						</td>
+					</tr>
+				</xsl:for-each>
+			</table>
+		</xsl:template>
+	</html:xslt>
+</html:html>

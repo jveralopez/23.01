@@ -1,0 +1,2313 @@
+<html:html xmlns:html="nomad_engine.html" xmlns:qry="nomad_engine.qry" xmlns:xsl="http://www.w3.org/1999/XSL/Transform" name="NucleusRH.Base.MedicinaLaboral.ConsultasMedicas.rpt" extends="Nomad.Base.BaseReport.rpt" doc="source">
+	<html:query declare="&lt;FILTRO values=&quot;1959,1313&quot; f_hasta=&quot;20250616&quot; f_desde=&quot;20190101&quot; oi_empresa=&quot;1&quot;/&gt;&#13;&#10;">
+		<qry:main doc="PARAM">
+			<qry:no-show>
+				<qry:append-doc name="PARAMIN" doc-path="#PARAM:FILTRO"/>
+				<qry:insert-select doc-path="#PARAMIN:.[@agrupacion = '1']" name="sql_agrupa_motivo"/>
+				<qry:insert-select doc-path="#PARAMIN:.[@agrupacion = '2']" name="sql_agrupa_enfermedad"/>
+				<qry:insert-select doc-path="#PARAMIN:.[@agrupacion = '3']" name="sql_agrupa_medico"/>
+				<qry:insert-select doc-path="#PARAMIN:.[@agrupacion = '4']" name="sql_agrupa_empresa"/>
+				<qry:attribute name="agrupacion" value="''"/>
+				<qry:append-doc name="AGRUP" doc-path="."/>
+				<qry:insert-select doc-path="#PARAMIN:.[@agrupacion = '']" name="sql1"/>
+			</qry:no-show>
+		</qry:main>
+		<qry:select doc="PARAM" name="sql_agrupa_motivo">
+			<qry:xquery>
+				for $r in sql('
+			SELECT MED05_MOTIVOS_CONS.oi_motivo_consulta,
+			MED05_MOTIVOS_CONS.c_motivo_consulta,
+			MED05_MOTIVOS_CONS.d_motivo_consulta
+			FROM MED05_MOTIVOS_CONS
+			ORDER BY c_motivo_consulta ASC  			
+			')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:element name="GRUPO">
+					<qry:attribute name="hts:delete" value="1"/>
+					<qry:attribute name="grupo" value="$r/@d_motivo_consulta"/>
+					<qry:attribute name="agrupacion" value="'AND MED04_HIST_CLINICA.oi_motivo_consulta = ' + $r/@oi_motivo_consulta"/>
+					<qry:append-doc name="AGRUP" doc-path="."/>
+					<qry:insert-select doc-path="." name="sql1"/>
+				</qry:element>
+				<qry:attribute name="agrupacion" value="'Motivo de Consulta'"/>
+			</qry:out>
+		</qry:select>
+		<qry:select doc="PARAM" name="sql_agrupa_enfermedad">
+			<qry:xquery>
+				for $r in sql('
+			SELECT MED06_ENFERMEDADES.oi_enfermedad,
+			MED06_ENFERMEDADES.c_enfermedad,
+			MED06_ENFERMEDADES.d_enfermedad
+			FROM MED06_ENFERMEDADES
+			ORDER BY c_enfermedad ASC  			
+			')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:element name="GRUPO">
+					<qry:attribute name="hts:delete" value="1"/>
+					<qry:attribute name="grupo" value="$r/@d_enfermedad"/>
+					<qry:attribute name="agrupacion" value="'AND MED04_HIST_CLINICA.oi_enfermedad = ' + $r/@oi_enfermedad"/>
+					<qry:append-doc name="AGRUP" doc-path="."/>
+					<qry:insert-select doc-path="." name="sql1"/>
+				</qry:element>
+				<qry:attribute name="agrupacion" value="'Enfermedad'"/>
+			</qry:out>
+		</qry:select>
+		<qry:select doc="PARAM" name="sql_agrupa_medico">
+			<qry:xquery>
+				for $r in sql('
+			SELECT MED03_MEDICOS.oi_medico,
+			MED03_MEDICOS.c_nro_documento,
+			MED03_MEDICOS.d_apellido,
+			MED03_MEDICOS.d_nombres
+			FROM MED03_MEDICOS
+			ORDER BY c_nro_documento ASC  			
+			')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:element name="GRUPO">
+					<qry:attribute name="hts:delete" value="1"/>
+					<qry:attribute name="grupo" value="$r/@c_nro_documento + ' ' + $r/@d_apellido +', ' + $r/@d_nombres"/>
+					<qry:attribute name="agrupacion" value="'AND MED04_DETALLE_HIST.oi_medico = ' + $r/@oi_medico"/>
+					<qry:append-doc name="AGRUP" doc-path="."/>
+					<qry:insert-select doc-path="." name="sql1"/>
+				</qry:element>
+				<qry:attribute name="agrupacion" value="'Medico'"/>
+			</qry:out>
+		</qry:select>
+		<qry:select doc="PARAM" name="sql_agrupa_empresa">
+			<qry:xquery>
+				for $r in sql('
+			SELECT MED02_EMPRESAS.oi_empresa_medica,
+			MED02_EMPRESAS.c_empresa_medica,
+			MED02_EMPRESAS.d_empresa_medica
+			FROM MED02_EMPRESAS
+			ORDER BY c_empresa_medica ASC  			
+			')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:element name="GRUPO">
+					<qry:attribute name="hts:delete" value="1"/>
+					<qry:attribute name="grupo" value="$r/@d_empresa_medica"/>
+					<qry:attribute name="agrupacion" value="'AND MED02_EMPRESAS.oi_empresa_medica = ' + $r/@oi_empresa_medica"/>
+					<qry:append-doc name="AGRUP" doc-path="."/>
+					<qry:insert-select doc-path="." name="sql1"/>
+				</qry:element>
+			</qry:out>
+		</qry:select>
+		<qry:select doc="PARAM" name="sql1">
+			<qry:xquery>
+				for $r in sql('
+				SELECT           
+					{%? (#PARAMIN:@orden!=''){% {%= #PARAMIN:@orden %} as Orden,%}{% %} %}
+					MED04_HIST_CLINICA.oi_consulta_per, 
+					MED04_HIST_CLINICA.oi_personal_emp,
+					MED04_HIST_CLINICA.f_fechahora_cons, 
+					MED04_HIST_CLINICA.oi_motivo_consulta,
+					MED04_HIST_CLINICA.f_baja, 
+					MED04_HIST_CLINICA.f_alta, 
+					MED04_HIST_CLINICA.e_dias_perdidos,
+					MED04_HIST_CLINICA.o_consulta_per,
+					MED04_HIST_CLINICA.oi_enfermedad,
+					MED04_HIST_CLINICA.f_prox_consulta,
+					MED04_HIST_CLINICA.f_prev_alta,
+					ORG03_UBICACIONES.c_ubicacion,
+					ORG03_UBICACIONES.d_ubicacion,
+					PER02_PERSONAL_EMP.f_ingreso,
+					ORG04_POSICIONES.d_posicion,
+					ORG04_PUESTOS.d_puesto,
+					ORG18_CATEGORIAS.d_categoria,
+					ORG08_CS_COSTO.d_centro_costo,
+					PER35_MOD_CONTR.d_mod_contr
+					{%? (#PARAMIN:@oi_medico != '' AND #PARAMIN:@oi_empresa_medica = '') 
+						{% , MED04_DETALLE_HIST.oi_medico %} 
+						{% %} 
+					%}
+					{%? (#PARAMIN:@oi_empresa_medica != '') 
+						{%, MED04_DETALLE_HIST.oi_medico, MED03_MEDICOS.oi_empresa_medica %} 
+						{% %} 
+					%}
+				FROM 
+					MED04_HIST_CLINICA, 
+					PER02_PERSONAL_EMP,
+					ORG03_UBICACIONES,
+					ORG04_POSICIONES,
+					ORG04_PUESTOS,
+					ORG18_CATEGORIAS,
+					ORG08_CS_COSTO,
+					PER35_MOD_CONTR
+					{%? (#PARAMIN:@oi_medico != '' AND #PARAMIN:@oi_empresa_medica = '' OR #PARAMIN:@agrupacion ='3') 
+						{% , MED04_DETALLE_HIST %} 
+						{% %} 
+					%}
+					{%? (#PARAMIN:@oi_empresa_medica != '' OR #PARAMIN:@agrupacion ='4')
+						{%, MED04_DETALLE_HIST, MED03_MEDICOS, MED02_EMPRESAS %} 
+						{% %} 
+					%}
+					
+				JOIN 
+					MED04_HIST_CLINICA.oi_personal_emp INNER PER02_PERSONAL_EMP.oi_personal_emp,					
+					PER02_PERSONAL_EMP.oi_ubicacion LEFT OUTER ORG03_UBICACIONES.oi_ubicacion,
+					PER02_PERSONAL_EMP.oi_posicion_ult  LEFT OUTER ORG04_POSICIONES.oi_posicion,
+					PER02_PERSONAL_EMP.oi_puesto_ult  LEFT OUTER ORG04_PUESTOS.oi_puesto,
+					PER02_PERSONAL_EMP.oi_categoria_ult  LEFT OUTER ORG18_CATEGORIAS.oi_categoria,
+					PER02_PERSONAL_EMP.oi_ctro_costo_ult LEFT OUTER ORG08_CS_COSTO.oi_centro_costo,
+					PER02_PERSONAL_EMP.oi_mod_contr  LEFT OUTER  PER35_MOD_CONTR.oi_mod_contr
+					{%? (#PARAMIN:@oi_medico != '' AND #PARAMIN:@oi_empresa_medica = '' OR #PARAMIN:@agrupacion ='3') 
+						{% ,	MED04_HIST_CLINICA.oi_consulta_per INNER MED04_DETALLE_HIST.oi_consulta_per %} 
+						{% %} 
+					%}
+					{%? (#PARAMIN:@oi_empresa_medica != '' OR #PARAMIN:@agrupacion ='4') 
+						{% ,	MED04_HIST_CLINICA.oi_consulta_per INNER MED04_DETALLE_HIST.oi_consulta_per 
+							 ,	MED03_MEDICOS.oi_medico INNER MED04_DETALLE_HIST.oi_medico
+							 ,	MED03_MEDICOS.oi_empresa_medica INNER MED02_EMPRESAS.oi_empresa_medica%} 
+						{% %} 
+					%}
+					
+				WHERE 
+					PER02_PERSONAL_EMP.oi_empresa = {#PARAMIN:@oi_empresa} AND
+					PER02_PERSONAL_EMP.oi_personal_emp in ({%=#PARAMIN:@values%})
+					{%? (#PARAMIN:@f_desde!= '') {% AND MED04_HIST_CLINICA.f_fechahora_cons &gt; {Datetime(#PARAMIN:@f_desde)} %} {% %} %} 
+					{%? (#PARAMIN:@f_hasta != '') {% AND MED04_HIST_CLINICA.f_fechahora_cons &lt; {Datetime(Number(Datetime(#PARAMIN:@f_hasta))+1)} %} {% %} %}					
+					{%? (#PARAMIN:@oi_motivo_consulta != '') {% AND MED04_HIST_CLINICA.oi_motivo_consulta = {#PARAMIN:@oi_motivo_consulta} %} {% %} %}
+					{%? (#PARAMIN:@oi_enfermedad != '') {% AND MED04_HIST_CLINICA.oi_enfermedad = {#PARAMIN:@oi_enfermedad} %} {% %} %}
+					{%? (#PARAMIN:@oi_medico != '') {% AND MED04_DETALLE_HIST.oi_medico = {#PARAMIN:@oi_medico} %} {% %} %}
+					{%? (#PARAMIN:@oi_empresa_medica != '') {% AND MED03_MEDICOS.oi_empresa_medica = {#PARAMIN:@oi_empresa_medica} %} {% %} %}
+					
+					{%? (#AGRUP:@agrupacion != '')  {%=#AGRUP:@agrupacion%} {% %} %}					
+					
+				 {%? (#PARAMIN:@orden!='') 
+						{%ORDER BY orden ASC %} 
+						{% %} 
+					%}  
+					
+			')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:element name="PERSONA">
+					<qry:attribute name="d_mod_contr" value="$r/@d_mod_contr"/>
+					<qry:attribute name="d_centro_costo" value="$r/@d_centro_costo"/>
+					<qry:attribute name="d_categoria" value="$r/@d_categoria"/>
+					<qry:attribute name="d_posicion" value="$r/@d_posicion"/>
+					<qry:attribute name="d_puesto" value="$r/@d_puesto"/>
+					<qry:attribute name="f_ingreso" value="format_date($r/@f_ingreso,'dd/mm/yyyy')"/>
+					<qry:attribute name="f_prox_consulta" value="format_date($r/@f_prox_consulta,'dd/mm/yyyy')"/>
+					<qry:attribute name="f_prev_alta" value="format_date($r/@f_prev_alta,'dd/mm/yyyy')"/>
+					<qry:attribute name="oi_consulta_per" value="$r/@oi_consulta_per"/>
+					<qry:attribute name="oi_personal_emp" value="$r/@oi_personal_emp"/>
+					<qry:attribute name="f_fechahora_cons" value="format_date($r/@f_fechahora_cons,'dd/mm/yyyy HH:MM')"/>
+					<qry:attribute name="oi_motivo_consulta" value="$r/@oi_motivo_consulta"/>
+					<qry:attribute name="f_fechahora_acc" value="format_date($r/@f_fechahora_acc,'dd/mm/yyyy HH:MM')"/>
+					<qry:attribute name="f_baja" value="format_date($r/@f_baja,'dd/mm/yyyy')"/>
+					<qry:attribute name="f_alta" value="format_date($r/@f_alta,'dd/mm/yyyy')"/>
+					<qry:attribute name="e_dias_perdidos" value="$r/@e_dias_perdidos"/>
+					<qry:attribute name="c_ubicacion" value="$r/@c_ubicacion"/>
+					<qry:attribute name="d_ubicacion" value="$r/@d_ubicacion"/>
+					<qry:attribute name="oi_enfermedad" value="$r/@oi_enfermedad"/>
+					<qry:attribute name="oi_medico" value="$r/@oi_medico"/>
+					<qry:attribute name="oi_empresa_medica" value="$r/@oi_empresa_medica"/>
+					<qry:insert-select doc-path=".[#PARAMIN:@oi_medico = '' OR #PARAMIN:@oi_empresa_medico= '' ]" name="sql_ois"/>
+					<qry:insert-select doc-path="." name="sql3"/>
+					<qry:insert-select doc-path="." name="sql4"/>
+					<qry:insert-select doc-path="." name="sql5"/>
+					<qry:insert-select doc-path="." name="sql6"/>
+					<qry:insert-select doc-path="." name="sql7"/>
+					<qry:insert-select doc-path="." name="sql8"/>
+					<qry:attribute name="f_fechahora_visita" value="@f_fechahora_visita"/>
+					<qry:attribute name="o_consulta_per" value="$r/@o_consulta_per"/>
+				</qry:element>
+				<qry:attribute name="hts:delete" value="''"/>
+			</qry:out>
+		</qry:select>
+		<qry:select doc="PARAM" name="sql3">
+			<qry:xquery>
+				for $r in sql('
+			SELECT MED05_MOTIVOS_CONS.d_motivo_consulta
+			FROM MED05_MOTIVOS_CONS 
+			WHERE
+			{%? (#PARAM:@oi_motivo_consulta != '') {% MED05_MOTIVOS_CONS.oi_motivo_consulta = {#PARAM:@oi_motivo_consulta} %} {% 1=2 %} %}
+			')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:attribute name="d_motivo_consulta" value="$r/@d_motivo_consulta"/>
+			</qry:out>
+		</qry:select>
+		<qry:select doc="PARAM" name="sql4">
+			<qry:xquery>
+				for $r in sql('
+			SELECT 
+			PER02_PERSONAL_EMP.e_numero_legajo,
+			PER01_PERSONAL.d_ape_y_nom,
+			PER01_PERSONAL.f_nacim
+			FROM 
+			PER02_PERSONAL_EMP,
+			 PER01_PERSONAL
+			
+			JOIN	
+			PER02_PERSONAL_EMP.oi_personal INNER PER01_PERSONAL.oi_personal
+			WHERE
+			PER02_PERSONAL_EMP.oi_personal_emp = {#PARAM:@oi_personal_emp}
+			')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:attribute name="e_numero_legajo" value="$r/@e_numero_legajo"/>
+				<qry:attribute name="d_ape_y_nom" value="$r/@d_ape_y_nom"/>
+				<qry:attribute name="f_nacim" value="format_date($r/@f_nacim,'dd/mm/yyyy')"/>
+			</qry:out>
+		</qry:select>
+		<qry:select doc="PARAM" name="sql5">
+			<qry:xquery>
+				for $r in sql('
+			SELECT MED06_ENFERMEDADES.d_enfermedad
+			FROM MED06_ENFERMEDADES
+			WHERE
+			{%? (#PARAM:@oi_enfermedad!= '') {% MED06_ENFERMEDADES.oi_enfermedad = {#PARAM:@oi_enfermedad} %} {% 1=2 %} %}
+			')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:attribute name="d_enfermedad" value="$r/@d_enfermedad"/>
+			</qry:out>
+		</qry:select>
+		<qry:select doc="PARAM" name="sql6">
+			<qry:xquery>
+				for $r in sql('
+			SELECT MED03_MEDICOS.c_nro_documento,
+			MED03_MEDICOS.d_apellido,
+			MED03_MEDICOS.d_nombres
+			FROM MED03_MEDICOS
+			WHERE
+			{%? (#PARAM:@oi_medico!= '') {% MED03_MEDICOS.oi_medico = {#PARAM:@oi_medico} %} {% 1=2 %} %} 			
+			')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:attribute name="d_medico" value="$r/@c_nro_documento + ' ' + $r/@d_apellido +', ' + $r/@d_nombres"/>
+			</qry:out>
+		</qry:select>
+		<qry:select doc="PARAM" name="sql7">
+			<qry:xquery>
+				for $r in sql('
+			SELECT MED02_EMPRESAS.d_empresa_medica
+			FROM MED02_EMPRESAS
+			WHERE
+			{%? (#PARAM:@oi_empresa_medica!= '') {% MED02_EMPRESAS.oi_empresa_medica = {#PARAM:@oi_empresa_medica} %} {% 1=2 %} %} 			
+			')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:attribute name="d_empresa_medica" value="$r/@d_empresa_medica"/>
+			</qry:out>
+		</qry:select>
+		<qry:select doc="PARAM" name="sql8">
+			<qry:xquery>
+				for $r in sql('
+			SELECT 
+				MED04_DETALLE_HIST.f_fechahora_visita
+			FROM 
+				MED04_DETALLE_HIST
+			WHERE
+				MED04_DETALLE_HIST.oi_consulta_per = {#PARAM:@oi_consulta_per}
+		')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:attribute name="f_fechahora_visita1" value="format_date($r/@f_fechahora_visita, 'dd/mm/yyyy HH:MM')"/>
+				<qry:attribute name="f_fechahora_visita" value="./@f_fechahora_visita + '| ' + @f_fechahora_visita1"/>
+			</qry:out>
+		</qry:select>
+		<qry:select doc="PARAM" name="sql_ois">
+			<qry:xquery>
+				for $r in sql('
+				SELECT MED04_DETALLE_HIST.oi_medico, MED03_MEDICOS.oi_empresa_medica
+				FROM MED03_MEDICOS, MED04_DETALLE_HIST
+				JOIN MED03_MEDICOS.oi_medico INNER MED04_DETALLE_HIST.oi_medico
+				WHERE MED04_DETALLE_HIST.oi_consulta_per ={#PARAM:@oi_consulta_per}
+			')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:attribute name="oi_medico" value="$r/@oi_medico"/>
+				<qry:attribute name="oi_empresa_medica" value="$r/@oi_empresa_medica"/>
+			</qry:out>
+		</qry:select>
+	</html:query>
+	<html:xslt>
+		<xsl:template name="GROUP_TABLE2">
+			<xsl:param name="CHILDS"/>
+			<xsl:variable name="group" select="."/>
+			<xsl:variable name="tag" select="@tag"/>
+			<xsl:variable name="tag2" select="@tag2"/>
+			<xsl:if test="count($CHILDS/*[name()= $tag2]/*[name()= $tag])=0">
+				<xsl:if test="@noreg!=''">
+					<br/>
+					<span style="font-weight:bold;">
+						<xsl:value-of select="@noreg"/>
+					</span>
+					<br/>
+				</xsl:if>
+			</xsl:if>
+			<xsl:if test="count($CHILDS/*[name()= $tag2]/*[name()= $tag])&gt;0">
+				<span class="table_span_style">
+					<xsl:value-of select="@label"/>
+				</span>
+				<table VALIGN="top" class="table_table_style" cellspacing="0" cellpadding="0" border="0">
+					<xsl:if test="@style">
+						<xsl:attribute name="style">
+							<xsl:value-of select="@style"/>
+						</xsl:attribute>
+					</xsl:if>
+					<xsl:call-template name="HEAD_GROUP"/>
+					<tbody>
+						<xsl:for-each select="$CHILDS/*[name()= $tag2]/*[name()= $tag]">
+							<xsl:variable name="current_child_x" select="."/>
+							<xsl:if test="not($current_child_x/@visible='0')">
+								<tr>
+									<xsl:if test="$current_child_x/@style">
+										<xsl:attribute name="style">
+											<xsl:value-of select="$current_child_x/@style"/>
+										</xsl:attribute>
+									</xsl:if>
+									<xsl:for-each select="$group/COLS/COL">
+										<xsl:choose>
+											<xsl:when test="@col-span">
+												<xsl:variable name="current_col" select="@name"/>
+												<xsl:for-each select="SPAN">
+													<xsl:variable name="current_span" select="@col"/>
+													<td>
+														<xsl:if test="@align">
+															<xsl:attribute name="align">
+																<xsl:value-of select="@align"/>
+															</xsl:attribute>
+														</xsl:if>
+														<xsl:if test="@style">
+															<xsl:attribute name="style">
+																<xsl:value-of select="@style"/>
+															</xsl:attribute>
+														</xsl:if>
+														<xsl:if test="@nowrap='1'">
+															<xsl:attribute name="nowrap">
+																<xsl:value-of select="'1'"/>
+															</xsl:attribute>
+														</xsl:if>
+														<xsl:variable name="value" select="concat($current_child_x/attribute::*[name() = concat($current_col,'_',$current_span)], $current_child_x/attr[@name = concat($current_col,'_',$current_span)]/@val)"/>
+														<xsl:if test="$value!=''">
+															<xsl:choose>
+																<xsl:when test="@type='num'">
+																	<xsl:attribute name="class">
+																		num
+																	</xsl:attribute>
+																	<xsl:attribute name="x:num" namespace="urn:schemas-microsoft-com:office:excel">
+																		<xsl:value-of select="$value"/>
+																	</xsl:attribute>
+																	<xsl:value-of select="format-number($value, '###,###,##0.00')"/>
+																</xsl:when>
+																<xsl:when test="@type='long'">
+																	<xsl:attribute name="class">
+																		long
+																	</xsl:attribute>
+																	<xsl:value-of select="$value" disable-output-escaping="yes"/>
+																</xsl:when>
+																<xsl:when test="@type='date'">
+																	<xsl:attribute name="class">
+																		date
+																	</xsl:attribute>
+																	<xsl:attribute name="x:num" namespace="urn:schemas-microsoft-com:office:excel">
+																		<xsl:call-template name="calculate-julian-day">
+																			<xsl:with-param name="date" select="$value"/>
+																		</xsl:call-template>
+																	</xsl:attribute>
+																	<xsl:value-of select="$value"/>
+																</xsl:when>
+																<xsl:when test="@type='period'">
+																	<xsl:attribute name="class">
+																		period
+																	</xsl:attribute>
+																	<xsl:attribute name="x:num" namespace="urn:schemas-microsoft-com:office:excel">
+																		<xsl:call-template name="calculate-julian-day">
+																			<xsl:with-param name="date" select="concat('01/',$value)"/>
+																		</xsl:call-template>
+																	</xsl:attribute>
+																	<xsl:value-of select="$value"/>
+																</xsl:when>
+																<xsl:when test="@type='text'">
+																	<pre>
+																		<xsl:value-of select="$value" disable-output-escaping="yes"/>
+																	</pre>
+																</xsl:when>
+																<xsl:when test="@type='simple_text'">
+																	<xsl:attribute name="class">
+																		text
+																	</xsl:attribute>
+																	<xsl:value-of select="$value" disable-output-escaping="yes"/>
+																</xsl:when>
+																<xsl:when test="@type='multiline'">
+																	<xsl:call-template name="Multiline">
+																		<xsl:with-param name="stringIn" select="$value"/>
+																	</xsl:call-template>
+																</xsl:when>
+																<xsl:when test="@type='template'">
+																	<xsl:call-template name="T0">
+																		<xsl:with-param name="template" select="$current_col"/>
+																		<xsl:with-param name="source" select="$current_child_x"/>
+																	</xsl:call-template>
+																</xsl:when>
+																<xsl:when test="@type='img'">
+																	<xsl:attribute name="class">
+																		img
+																	</xsl:attribute>
+																	<img src="./Images/Reports/defaultimg.JPG" onclick="window.open(this.src.replace('height', 'haight'))">
+																		<xsl:attribute name="height">
+																			<xsl:if test="not(@height)">
+																				<xsl:value-of select="'50px'"/>
+																			</xsl:if>
+																			<xsl:if test="@height">
+																				<xsl:value-of select="@height"/>
+																				px
+																			</xsl:if>
+																		</xsl:attribute>
+																		<xsl:attribute name="src">
+																			<xsl:if test="not(@height)">
+																				<xsl:value-of select="concat('NomadFile.aspx?mode=DB&amp;class=', @class, '&amp;id=', $value, '&amp;ut=', @ut, '&amp;height=50')"/>
+																			</xsl:if>
+																			<xsl:if test="@height">
+																				<xsl:value-of select="concat('NomadFile.aspx?mode=DB&amp;class=', @class, '&amp;id=', $value, '&amp;ut=', @ut, '&amp;height=', @height)"/>
+																			</xsl:if>
+																		</xsl:attribute>
+																	</img>
+																</xsl:when>
+																<xsl:when test="OPT">
+																	<xsl:value-of select="OPT[@id=$value]/@value" disable-output-escaping="yes"/>
+																</xsl:when>
+																<xsl:otherwise>
+																	<xsl:value-of select="$value" disable-output-escaping="yes"/>
+																</xsl:otherwise>
+															</xsl:choose>
+														</xsl:if>
+													</td>
+												</xsl:for-each>
+											</xsl:when>
+											<xsl:otherwise>
+												<xsl:variable name="current_col" select="@name"/>
+												<td>
+													<xsl:if test="@align">
+														<xsl:attribute name="align">
+															<xsl:value-of select="@align"/>
+														</xsl:attribute>
+													</xsl:if>
+													<xsl:if test="@style">
+														<xsl:attribute name="style">
+															<xsl:value-of select="@style"/>
+														</xsl:attribute>
+													</xsl:if>
+													<xsl:if test="@colspan">
+														<xsl:attribute name="colspan">
+															<xsl:value-of select="@colspan"/>
+														</xsl:attribute>
+													</xsl:if>
+													<xsl:if test="@nowrap='1'">
+														<xsl:attribute name="nowrap">
+															<xsl:value-of select="'1'"/>
+														</xsl:attribute>
+													</xsl:if>
+													<xsl:variable name="value" select="concat($current_child_x/attribute::*[name() = $current_col], $current_child_x/attr[@name = $current_col]/@val)"/>
+													<xsl:if test="$value!=''">
+														<xsl:choose>
+															<xsl:when test="@type='num'">
+																<xsl:attribute name="class">
+																	num
+																</xsl:attribute>
+																<xsl:attribute name="x:num" namespace="urn:schemas-microsoft-com:office:excel">
+																	<xsl:value-of select="$value"/>
+																</xsl:attribute>
+																<xsl:if test="@format">
+																	<xsl:value-of select="format-number($value, @format)"/>
+																</xsl:if>
+																<xsl:if test="not(@format)">
+																	<xsl:value-of select="format-number($value, '###,###,##0.00')"/>
+																</xsl:if>
+															</xsl:when>
+															<xsl:when test="@type='long'">
+																<xsl:attribute name="class">
+																	long
+																</xsl:attribute>
+																<xsl:value-of select="$value" disable-output-escaping="yes"/>
+															</xsl:when>
+															<xsl:when test="@type='date'">
+																<xsl:attribute name="class">
+																	date
+																</xsl:attribute>
+																<xsl:attribute name="x:num" namespace="urn:schemas-microsoft-com:office:excel">
+																	<xsl:call-template name="calculate-julian-day">
+																		<xsl:with-param name="date" select="$value"/>
+																	</xsl:call-template>
+																</xsl:attribute>
+																<xsl:value-of select="$value"/>
+															</xsl:when>
+															<xsl:when test="@type='period'">
+																<xsl:attribute name="class">
+																	period
+																</xsl:attribute>
+																<xsl:attribute name="x:num" namespace="urn:schemas-microsoft-com:office:excel">
+																	<xsl:call-template name="calculate-julian-day">
+																		<xsl:with-param name="date" select="concat('01/',$value)"/>
+																	</xsl:call-template>
+																</xsl:attribute>
+																<xsl:value-of select="$value"/>
+															</xsl:when>
+															<xsl:when test="@type='text'">
+																<pre>
+																	<xsl:value-of select="$value" disable-output-escaping="yes"/>
+																</pre>
+															</xsl:when>
+															<xsl:when test="@type='simple_text'">
+																<xsl:attribute name="class">
+																	text
+																</xsl:attribute>
+																<xsl:value-of select="$value" disable-output-escaping="yes"/>
+															</xsl:when>
+															<xsl:when test="@type='multiline'">
+																<xsl:call-template name="Multiline">
+																	<xsl:with-param name="stringIn" select="$value"/>
+																</xsl:call-template>
+															</xsl:when>
+															<xsl:when test="@type='template'">
+																<xsl:call-template name="T0">
+																	<xsl:with-param name="template" select="$current_col"/>
+																	<xsl:with-param name="source" select="$current_child_x"/>
+																</xsl:call-template>
+															</xsl:when>
+															<xsl:when test="@type='img'">
+																<xsl:attribute name="class">
+																	img
+																</xsl:attribute>
+																<img src="./Images/Reports/defaultimg.JPG" onclick="window.open(this.src.replace('height', 'haight'))">
+																	<xsl:attribute name="height">
+																		<xsl:if test="not(@height)">
+																			<xsl:value-of select="'50px'"/>
+																		</xsl:if>
+																		<xsl:if test="@height">
+																			<xsl:value-of select="@height"/>
+																			px
+																		</xsl:if>
+																	</xsl:attribute>
+																	<xsl:attribute name="src">
+																		<xsl:if test="not(@height)">
+																			<xsl:value-of select="concat('NomadFile.aspx?mode=DB&amp;class=', @class, '&amp;id=', $value, '&amp;ut=', @ut, '&amp;height=50')"/>
+																		</xsl:if>
+																		<xsl:if test="@height">
+																			<xsl:value-of select="concat('NomadFile.aspx?mode=DB&amp;class=', @class, '&amp;id=', $value, '&amp;ut=', @ut, '&amp;height=', @height)"/>
+																		</xsl:if>
+																	</xsl:attribute>
+																</img>
+															</xsl:when>
+															<xsl:when test="OPT">
+																<xsl:value-of select="OPT[@id=$value]/@value" disable-output-escaping="yes"/>
+															</xsl:when>
+															<xsl:otherwise>
+																<xsl:value-of select="$value" disable-output-escaping="yes"/>
+															</xsl:otherwise>
+														</xsl:choose>
+													</xsl:if>
+												</td>
+											</xsl:otherwise>
+										</xsl:choose>
+									</xsl:for-each>
+								</tr>
+								<xsl:if test="$group/GROUP">
+									<tr>
+										<td>
+											<xsl:if test="$group/GROUP/COLS/@style">
+												<xsl:attribute name="style">
+													<xsl:value-of select="$group/GROUP/COLS/@style"/>
+												</xsl:attribute>
+											</xsl:if>
+											<xsl:attribute name="colspan">
+												<xsl:value-of select="count($group/COLS/COL)"/>
+											</xsl:attribute>
+											<xsl:for-each select="$group/GROUP">
+												<xsl:call-template name="GROUP_TYPE">
+													<xsl:with-param name="CHILDS" select="$current_child_x"/>
+												</xsl:call-template>
+											</xsl:for-each>
+										</td>
+									</tr>
+								</xsl:if>
+							</xsl:if>
+						</xsl:for-each>
+					</tbody>
+					<xsl:call-template name="FOOT_GROUP">
+						<xsl:with-param name="CHILDS" select="$CHILDS"/>
+					</xsl:call-template>
+				</table>
+				<br/>
+			</xsl:if>
+		</xsl:template>
+		<xsl:template match="/REPORT/GROUPS/GROUP[1]">
+			<html>
+				<xsl:attribute name="x:HOLA" namespace="urn:schemas-microsoft-com:office:excel">
+					HOLA
+				</xsl:attribute>
+				<head>
+					<meta http-equiv="Content-Type" content="text/html; charset=utf-8"/>
+					<style media="screen">
+						.body {
+          font-family:verdana;
+          font-weight:normal;
+          background-color:#B0B0B0;
+          font-size:11px;
+          width:100%;
+          margin:0px;
+          text-align:center;}
+          
+          .bodysinmarco {
+          PADDING-RIGHT: 0px; 
+          PADDING-LEFT: 0px; 
+          PADDING-BOTTOM: 0px; 
+          MARGIN: 0px; 
+          BORDER-TOP-STYLE: none; 
+          PADDING-TOP: 0px; 
+          BORDER-RIGHT-STYLE: none; 
+          BORDER-LEFT-STYLE: none; 
+          BORDER-BOTTOM-STYLE: none;
+          
+          font-family:verdana;
+          font-weight:normal;          
+          font-size:11px;
+          width:100%;}
+
+          .title {
+          font-size:15px;
+          font-family:verdana;
+          font-weight:bold;}
+
+          .table_table_style {
+          border: none;
+          border-collapse: collapse;
+          background-color:#FFFFFF;
+          font-size: 11px;
+          font-family: verdana;
+          width:100%;}
+
+          .table_title_style {
+          border:none;
+          font-family:verdana;
+          background-color:#FFFFFF;
+          font-size:12px;
+          font-weight:normal;
+          width:100%;}
+
+          .group_td {
+          padding-left:30px; }
+
+          .coll_img {
+          padding:0px; margin:0px;
+          font-family:verdana;
+          font-weight:bold;
+          text-align:center;
+          cursor:pointer;
+          border:1px solid black;
+          font-size:8px;
+          width:12px;
+          height:12px;}
+
+          .table_span_style {
+          font-family:verdana;
+          font-weight:bold;
+
+          }
+
+          tfoot {
+          font-family:verdana;
+          font-weight:bold;
+          }
+
+          .stitle {
+          width:100%;
+          background-color:#FFFFFF;
+          }
+          
+          .divmarco {
+          -moz-box-shadow: 0px 0px 45px #000000;
+		  -webkit-box-shadow: 0px 0px 45px #000000;
+		  box-shadow: 0px 0px 45px #000000;
+		  background-color:white;
+          padding:20px;
+          min-height: 800px;
+          height:auto !important;
+          height: 800px;
+          min-width:700px;
+          margin: 40px;
+          display:inline-block;
+          }
+          
+          .divsinmarco {          
+          background-color:white;
+          margin:0px;           
+          width:100%;}
+ 
+          .scontent {
+          width:100%;
+          aheight:100%;
+          background-color:#FFFFFF; }
+					</style>
+					<style media="print">
+						.body {
+					font-family:verdana;
+					font-weight:normal; 
+					background-color:white; 
+					font-size:8pt;
+					width:20cm;}
+					
+					.bodysinmarco {
+					font-family:verdana;
+					font-weight:normal; 
+					background-color:white; 
+					font-size:8pt;
+					width:20cm;}
+					
+					.titulo {
+					font-family:verdana;
+					font-size:11pt;
+					font-weight:bold;}
+					
+					.table_table_style {
+					border: none; 
+					border-collapse: collapse; 
+					font-size: 8pt; 
+					font-family: verdana;
+					width:100%;}
+					
+					.table_title_style {
+					border:none; 
+					font-family:verdana;
+					font-size:9pt;
+					font-weight:normal;
+					width:100%;}
+					
+					.table_span_style {
+					font-family:verdana;
+					font-weight:bold;
+					}
+					
+					.group_td {
+					padding-left:30px; }
+					
+					.coll_img {
+					display:none;}
+					
+					.stitle {
+					background-color:#FFFFFF; 
+					border:none;}
+					
+					.scontent {
+					background-color:#FFFFFF; 
+					border:none;}
+					</style>
+					<style media="all">
+						td, span {
+					}
+					
+					.table_table_style td {
+					border: solid 1px black; 
+					padding-left: 3px; 
+					padding-right: 3px;
+					text-align: left;}
+					
+					.table_table_style td.num{
+					mso-number-format:Standard;
+					text-align:right;}
+					
+					.table_table_style td.long{
+					mso-number-format:"@";
+					text-align:right;}
+					
+					.table_table_style td.date{
+					mso-number-format:"Short Date";
+					text-align:center;}
+					
+					
+					.table_table_style td.text{
+					mso-number-format:"\@";
+										}
+					
+					.table_table_style td.period{
+					mso-number-format:"mm\/yyyy";
+					text-align:center;}
+					
+					.table_table_style td.img{
+					text-align:center;
+					cursor:pointer;}
+					
+					.table_table_style th {
+					border:solid 1px black;
+					background-color:#BBBBBB; 
+					border-bottom:solid 2px black;
+					padding-left: 3px; 
+					padding-right: 3px;
+					text-align: center;}
+					
+					.table_title_style span#label {
+					font-family:verdana;
+					font-weight: bold; }
+					</style>
+				</head>
+				<body class="body">
+					<xsl:if test="/REPORT/@marco = 0">
+						<xsl:attribute name="class">
+							bodysinmarco
+						</xsl:attribute>
+					</xsl:if>
+					<div class="divmarco">
+						<xsl:if test="/REPORT/@marco = 0">
+							<xsl:attribute name="class">
+								divsinmarco
+							</xsl:attribute>
+						</xsl:if>
+						<table class="stitle">
+							<xsl:if test="/REPORT/@style">
+								<xsl:attribute name="style">
+									<xsl:value-of select="/REPORT/@style"/>
+								</xsl:attribute>
+							</xsl:if>
+							<xsl:if test="/REPORT/@date!=''">
+								<tr>
+									<th style="text-align:right; font-size:10pt; font-weight:normal;">
+										<xsl:attribute name="colspan">
+											<xsl:if test="/REPORT/@colspan">
+												<xsl:value-of select="/REPORT/@colspan"/>
+											</xsl:if>
+											<xsl:if test="not(/REPORT/@colspan)">
+												5
+											</xsl:if>
+										</xsl:attribute>
+										<span style="font-weight:bold;">
+											Fecha de Emisi&#243;n:&#160;
+										</span>
+										<xsl:value-of select="/REPORT/@date"/>
+										&#160;
+									</th>
+								</tr>
+							</xsl:if>
+							<xsl:if test="/REPORT/@label">
+								<tr>
+									<th>
+										<xsl:attribute name="colspan">
+											<xsl:if test="/REPORT/@colspan">
+												<xsl:value-of select="/REPORT/@colspan"/>
+											</xsl:if>
+											<xsl:if test="not(/REPORT/@colspan)">
+												5
+											</xsl:if>
+										</xsl:attribute>
+										<xsl:value-of select="/REPORT/@label"/>
+									</th>
+								</tr>
+							</xsl:if>
+						</table>
+						<table class="scontent">
+							<xsl:if test="/REPORT/@style">
+								<xsl:attribute name="style">
+									<xsl:value-of select="/REPORT/@style"/>
+								</xsl:attribute>
+							</xsl:if>
+							<tr>
+								<td VALIGN="top">
+									<xsl:call-template name="GROUP_TYPE">
+										<xsl:with-param name="CHILDS" select="/REPORT/DATA"/>
+									</xsl:call-template>
+								</td>
+							</tr>
+						</table>
+					</div>
+				</body>
+			</html>
+		</xsl:template>
+		<xsl:template name="GROUP_TABLE">
+			<xsl:param name="CHILDS"/>
+			<xsl:variable name="group" select="."/>
+			<xsl:variable name="tag" select="@tag"/>
+			<xsl:if test="count($CHILDS/*[name()= $tag])=0">
+				<xsl:if test="@noreg!=''">
+					<br/>
+					<span style="font-weight:bold;">
+						<xsl:value-of select="@noreg"/>
+					</span>
+					<br/>
+				</xsl:if>
+			</xsl:if>
+			<xsl:if test="count($CHILDS/*[name()= $tag])&gt;0">
+				<span class="table_span_style">
+					<xsl:value-of select="@label"/>
+				</span>
+				<table VALIGN="top" class="table_table_style" cellspacing="0" cellpadding="0" border="0">
+					<xsl:if test="@style">
+						<xsl:attribute name="style">
+							<xsl:value-of select="@style"/>
+						</xsl:attribute>
+					</xsl:if>
+					<xsl:call-template name="HEAD_GROUP"/>
+					<tbody>
+						<xsl:for-each select="$CHILDS/*[name()= $tag]">
+							<xsl:variable name="current_child_x" select="."/>
+							<xsl:if test="not($current_child_x/@visible='0')">
+								<tr>
+									<xsl:if test="$current_child_x/@style">
+										<xsl:attribute name="style">
+											<xsl:value-of select="$current_child_x/@style"/>
+										</xsl:attribute>
+									</xsl:if>
+									<xsl:for-each select="$group/COLS/COL">
+										<xsl:choose>
+											<xsl:when test="@col-span">
+												<xsl:variable name="current_col" select="@name"/>
+												<xsl:for-each select="SPAN">
+													<xsl:variable name="current_span" select="@col"/>
+													<td>
+														<xsl:if test="@align">
+															<xsl:attribute name="align">
+																<xsl:value-of select="@align"/>
+															</xsl:attribute>
+														</xsl:if>
+														<xsl:if test="@style">
+															<xsl:attribute name="style">
+																<xsl:value-of select="@style"/>
+															</xsl:attribute>
+														</xsl:if>
+														<xsl:if test="@nowrap='1'">
+															<xsl:attribute name="nowrap">
+																<xsl:value-of select="'1'"/>
+															</xsl:attribute>
+														</xsl:if>
+														<xsl:variable name="value" select="concat($current_child_x/attribute::*[name() = concat($current_col,'_',$current_span)], $current_child_x/attr[@name = concat($current_col,'_',$current_span)]/@val)"/>
+														<xsl:if test="$value!=''">
+															<xsl:choose>
+																<xsl:when test="@type='num'">
+																	<xsl:attribute name="class">
+																		num
+																	</xsl:attribute>
+																	<xsl:attribute name="x:num" namespace="urn:schemas-microsoft-com:office:excel">
+																		<xsl:value-of select="$value"/>
+																	</xsl:attribute>
+																	<xsl:value-of select="format-number($value, '###,###,##0.00')"/>
+																</xsl:when>
+																<xsl:when test="@type='long'">
+																	<xsl:attribute name="class">
+																		long
+																	</xsl:attribute>
+																	<xsl:value-of select="$value" disable-output-escaping="yes"/>
+																</xsl:when>
+																<xsl:when test="@type='date'">
+																	<xsl:attribute name="class">
+																		date
+																	</xsl:attribute>
+																	<xsl:attribute name="x:num" namespace="urn:schemas-microsoft-com:office:excel">
+																		<xsl:call-template name="calculate-julian-day">
+																			<xsl:with-param name="date" select="$value"/>
+																		</xsl:call-template>
+																	</xsl:attribute>
+																	<xsl:value-of select="$value"/>
+																</xsl:when>
+																<xsl:when test="@type='period'">
+																	<xsl:attribute name="class">
+																		period
+																	</xsl:attribute>
+																	<xsl:attribute name="x:num" namespace="urn:schemas-microsoft-com:office:excel">
+																		<xsl:call-template name="calculate-julian-day">
+																			<xsl:with-param name="date" select="concat('01/',$value)"/>
+																		</xsl:call-template>
+																	</xsl:attribute>
+																	<xsl:value-of select="$value"/>
+																</xsl:when>
+																<xsl:when test="@type='text'">
+																	<pre>
+																		<xsl:value-of select="$value" disable-output-escaping="yes"/>
+																	</pre>
+																</xsl:when>
+																<xsl:when test="@type='simple_text'">
+																	<xsl:attribute name="class">
+																		text
+																	</xsl:attribute>
+																	<xsl:value-of select="$value" disable-output-escaping="yes"/>
+																</xsl:when>
+																<xsl:when test="@type='multiline'">
+																	<xsl:call-template name="Multiline">
+																		<xsl:with-param name="stringIn" select="$value"/>
+																	</xsl:call-template>
+																</xsl:when>
+																<xsl:when test="@type='template'">
+																	<xsl:call-template name="T0">
+																		<xsl:with-param name="template" select="$current_col"/>
+																		<xsl:with-param name="source" select="$current_child_x"/>
+																	</xsl:call-template>
+																</xsl:when>
+																<xsl:when test="@type='img'">
+																	<xsl:attribute name="class">
+																		img
+																	</xsl:attribute>
+																	<img src="./Images/Reports/defaultimg.JPG" onclick="window.open(this.src.replace('height', 'haight'))">
+																		<xsl:attribute name="height">
+																			<xsl:if test="not(@height)">
+																				<xsl:value-of select="'50px'"/>
+																			</xsl:if>
+																			<xsl:if test="@height">
+																				<xsl:value-of select="@height"/>
+																				px
+																			</xsl:if>
+																		</xsl:attribute>
+																		<xsl:attribute name="src">
+																			<xsl:if test="not(@height)">
+																				<xsl:value-of select="concat('NomadFile.aspx?mode=DB&amp;class=', @class, '&amp;id=', $value, '&amp;ut=', @ut, '&amp;height=50')"/>
+																			</xsl:if>
+																			<xsl:if test="@height">
+																				<xsl:value-of select="concat('NomadFile.aspx?mode=DB&amp;class=', @class, '&amp;id=', $value, '&amp;ut=', @ut, '&amp;height=', @height)"/>
+																			</xsl:if>
+																		</xsl:attribute>
+																	</img>
+																</xsl:when>
+																<xsl:when test="OPT">
+																	<xsl:value-of select="OPT[@id=$value]/@value" disable-output-escaping="yes"/>
+																</xsl:when>
+																<xsl:otherwise>
+																	<xsl:value-of select="$value" disable-output-escaping="yes"/>
+																</xsl:otherwise>
+															</xsl:choose>
+														</xsl:if>
+													</td>
+												</xsl:for-each>
+											</xsl:when>
+											<xsl:otherwise>
+												<xsl:variable name="current_col" select="@name"/>
+												<td>
+													<xsl:if test="@align">
+														<xsl:attribute name="align">
+															<xsl:value-of select="@align"/>
+														</xsl:attribute>
+													</xsl:if>
+													<xsl:if test="@style">
+														<xsl:attribute name="style">
+															<xsl:value-of select="@style"/>
+														</xsl:attribute>
+													</xsl:if>
+													<xsl:if test="@colspan">
+														<xsl:attribute name="colspan">
+															<xsl:value-of select="@colspan"/>
+														</xsl:attribute>
+													</xsl:if>
+													<xsl:if test="@nowrap='1'">
+														<xsl:attribute name="nowrap">
+															<xsl:value-of select="'1'"/>
+														</xsl:attribute>
+													</xsl:if>
+													<xsl:variable name="value" select="concat($current_child_x/attribute::*[name() = $current_col], $current_child_x/attr[@name = $current_col]/@val)"/>
+													<xsl:if test="$value!=''">
+														<xsl:choose>
+															<xsl:when test="@type='num'">
+																<xsl:attribute name="class">
+																	num
+																</xsl:attribute>
+																<xsl:attribute name="x:num" namespace="urn:schemas-microsoft-com:office:excel">
+																	<xsl:value-of select="$value"/>
+																</xsl:attribute>
+																<xsl:if test="@format">
+																	<xsl:value-of select="format-number($value, @format)"/>
+																</xsl:if>
+																<xsl:if test="not(@format)">
+																	<xsl:value-of select="format-number($value, '###,###,##0.00')"/>
+																</xsl:if>
+															</xsl:when>
+															<xsl:when test="@type='long'">
+																<xsl:attribute name="class">
+																	long
+																</xsl:attribute>
+																<xsl:value-of select="$value" disable-output-escaping="yes"/>
+															</xsl:when>
+															<xsl:when test="@type='date'">
+																<xsl:attribute name="class">
+																	date
+																</xsl:attribute>
+																<xsl:attribute name="x:num" namespace="urn:schemas-microsoft-com:office:excel">
+																	<xsl:call-template name="calculate-julian-day">
+																		<xsl:with-param name="date" select="$value"/>
+																	</xsl:call-template>
+																</xsl:attribute>
+																<xsl:value-of select="$value"/>
+															</xsl:when>
+															<xsl:when test="@type='period'">
+																<xsl:attribute name="class">
+																	period
+																</xsl:attribute>
+																<xsl:attribute name="x:num" namespace="urn:schemas-microsoft-com:office:excel">
+																	<xsl:call-template name="calculate-julian-day">
+																		<xsl:with-param name="date" select="concat('01/',$value)"/>
+																	</xsl:call-template>
+																</xsl:attribute>
+																<xsl:value-of select="$value"/>
+															</xsl:when>
+															<xsl:when test="@type='text'">
+																<pre>
+																	<xsl:value-of select="$value" disable-output-escaping="yes"/>
+																</pre>
+															</xsl:when>
+															<xsl:when test="@type='simple_text'">
+																<xsl:attribute name="class">
+																	text
+																</xsl:attribute>
+																<xsl:value-of select="$value" disable-output-escaping="yes"/>
+															</xsl:when>
+															<xsl:when test="@type='multiline'">
+																<xsl:call-template name="Multiline">
+																	<xsl:with-param name="stringIn" select="$value"/>
+																</xsl:call-template>
+															</xsl:when>
+															<xsl:when test="@type='template'">
+																<xsl:call-template name="T0">
+																	<xsl:with-param name="template" select="$current_col"/>
+																	<xsl:with-param name="source" select="$current_child_x"/>
+																</xsl:call-template>
+															</xsl:when>
+															<xsl:when test="@type='img'">
+																<xsl:attribute name="class">
+																	img
+																</xsl:attribute>
+																<img src="./Images/Reports/defaultimg.JPG" onclick="window.open(this.src.replace('height', 'haight'))">
+																	<xsl:attribute name="height">
+																		<xsl:if test="not(@height)">
+																			<xsl:value-of select="'50px'"/>
+																		</xsl:if>
+																		<xsl:if test="@height">
+																			<xsl:value-of select="@height"/>
+																			px
+																		</xsl:if>
+																	</xsl:attribute>
+																	<xsl:attribute name="src">
+																		<xsl:if test="not(@height)">
+																			<xsl:value-of select="concat('NomadFile.aspx?mode=DB&amp;class=', @class, '&amp;id=', $value, '&amp;ut=', @ut, '&amp;height=50')"/>
+																		</xsl:if>
+																		<xsl:if test="@height">
+																			<xsl:value-of select="concat('NomadFile.aspx?mode=DB&amp;class=', @class, '&amp;id=', $value, '&amp;ut=', @ut, '&amp;height=', @height)"/>
+																		</xsl:if>
+																	</xsl:attribute>
+																</img>
+															</xsl:when>
+															<xsl:when test="OPT">
+																<xsl:value-of select="OPT[@id=$value]/@value" disable-output-escaping="yes"/>
+															</xsl:when>
+															<xsl:otherwise>
+																<xsl:value-of select="$value" disable-output-escaping="yes"/>
+															</xsl:otherwise>
+														</xsl:choose>
+													</xsl:if>
+												</td>
+											</xsl:otherwise>
+										</xsl:choose>
+									</xsl:for-each>
+								</tr>
+								<xsl:if test="$group/GROUP">
+									<tr>
+										<td>
+											<xsl:if test="$group/GROUP/COLS/@style">
+												<xsl:attribute name="style">
+													<xsl:value-of select="$group/GROUP/COLS/@style"/>
+												</xsl:attribute>
+											</xsl:if>
+											<xsl:attribute name="colspan">
+												<xsl:value-of select="count($group/COLS/COL)"/>
+											</xsl:attribute>
+											<xsl:for-each select="$group/GROUP">
+												<xsl:call-template name="GROUP_TYPE">
+													<xsl:with-param name="CHILDS" select="$current_child_x"/>
+												</xsl:call-template>
+											</xsl:for-each>
+										</td>
+									</tr>
+								</xsl:if>
+							</xsl:if>
+						</xsl:for-each>
+					</tbody>
+					<xsl:call-template name="FOOT_GROUP">
+						<xsl:with-param name="CHILDS" select="$CHILDS"/>
+					</xsl:call-template>
+				</table>
+				<br/>
+			</xsl:if>
+		</xsl:template>
+		<xsl:template name="GROUP_TABLE_PARENT">
+			<xsl:param name="CHILDS"/>
+			<xsl:variable name="group" select="."/>
+			<xsl:variable name="tag" select="@tag"/>
+			<xsl:value-of select="@label"/>
+			<table VALIGN="top" class="table_table_style" cellspacing="0" cellpadding="0" border="0">
+				<tbody>
+					<xsl:for-each select="$CHILDS/*[name()= $tag]">
+						<xsl:variable name="current_child_x" select="."/>
+						<xsl:if test="not($current_child_x/@visible='0')">
+							<thead style="display: table-header-group;">
+								<tr>
+									<xsl:for-each select="$group/COLS/COL">
+										<th nowrap="1">
+											<xsl:value-of select="@label"/>
+										</th>
+									</xsl:for-each>
+								</tr>
+							</thead>
+							<tbody>
+								<tr>
+									<xsl:for-each select="$group/COLS/COL">
+										<xsl:variable name="current_col" select="@name"/>
+										<td>
+											<xsl:if test="@style">
+												<xsl:attribute name="style">
+													<xsl:value-of select="@style"/>
+												</xsl:attribute>
+											</xsl:if>
+											<xsl:if test="@nowrap='1'">
+												<xsl:attribute name="nowrap">
+													<xsl:value-of select="'1'"/>
+												</xsl:attribute>
+											</xsl:if>
+											<xsl:variable name="value" select="concat($current_child_x/attribute::*[name() = $current_col], $current_child_x/attr[@name = $current_col]/@val)"/>
+											<xsl:if test="$value!=''">
+												<xsl:choose>
+													<xsl:when test="@type='num'">
+														<xsl:attribute name="x:num" namespace="urn:schemas-microsoft-com:office:excel">
+															<xsl:value-of select="$value"/>
+														</xsl:attribute>
+														<xsl:if test="@format">
+															<xsl:value-of select="format-number($value, @format)"/>
+														</xsl:if>
+														<xsl:if test="not(@format)">
+															<xsl:value-of select="format-number($value, '###,###,##0.00')"/>
+														</xsl:if>
+													</xsl:when>
+													<xsl:when test="@type='long'">
+														<xsl:value-of select="$value" disable-output-escaping="yes"/>
+													</xsl:when>
+													<xsl:when test="@type='date'">
+														<xsl:attribute name="x:num" namespace="urn:schemas-microsoft-com:office:excel">
+															<xsl:call-template name="calculate-julian-day">
+																<xsl:with-param name="date" select="$value"/>
+															</xsl:call-template>
+														</xsl:attribute>
+														<xsl:value-of select="$value"/>
+													</xsl:when>
+													<xsl:when test="OPT">
+														<xsl:value-of select="OPT[@id=$value]/@value" disable-output-escaping="yes"/>
+													</xsl:when>
+													<xsl:when test="@type='text'">
+														<pre>
+															<xsl:value-of select="$value" disable-output-escaping="yes"/>
+														</pre>
+													</xsl:when>
+													<xsl:when test="@type='template'">
+														<xsl:call-template name="T0">
+															<xsl:with-param name="template" select="$current_col"/>
+															<xsl:with-param name="source" select="$current_child_x"/>
+														</xsl:call-template>
+													</xsl:when>
+													<xsl:when test="@type='img'">
+														<xsl:attribute name="class">
+															img
+														</xsl:attribute>
+														<img src="./Images/Reports/defaultimg.JPG" onclick="window.open(this.src.replace('height', 'haight'))">
+															<xsl:attribute name="height">
+																<xsl:if test="not(@height)">
+																	<xsl:value-of select="'50px'"/>
+																</xsl:if>
+																<xsl:if test="@height">
+																	<xsl:value-of select="@height"/>
+																</xsl:if>
+															</xsl:attribute>
+															<xsl:attribute name="src">
+																<xsl:if test="not(@height)">
+																	<xsl:value-of select="concat('NomadFile.aspx?mode=DB&amp;class=', @class, '&amp;id=', $value, '&amp;ut=', @ut, '&amp;height=50')"/>
+																</xsl:if>
+																<xsl:if test="@height">
+																	<xsl:value-of select="concat('NomadFile.aspx?mode=DB&amp;class=', @class, '&amp;id=', $value, '&amp;ut=', @ut, '&amp;height=', @height)"/>
+																</xsl:if>
+															</xsl:attribute>
+														</img>
+													</xsl:when>
+													<xsl:when test="@type='multiline'">
+														<table>
+															<xsl:call-template name="Multiline">
+																<xsl:with-param name="stringIn" select="$value"/>
+															</xsl:call-template>
+														</table>
+													</xsl:when>
+													<xsl:otherwise>
+														<xsl:value-of select="$value" disable-output-escaping="yes"/>
+													</xsl:otherwise>
+												</xsl:choose>
+											</xsl:if>
+										</td>
+									</xsl:for-each>
+								</tr>
+								<xsl:if test="$group/GROUP">
+									<tr>
+										<td class="group_td">
+											<xsl:if test="$group/GROUP/COLS/@style">
+												<xsl:attribute name="style">
+													<xsl:value-of select="$group/GROUP/COLS/@style"/>
+												</xsl:attribute>
+											</xsl:if>
+											<xsl:attribute name="colspan">
+												<xsl:value-of select="count($group/COLS/COL)"/>
+											</xsl:attribute>
+											<xsl:for-each select="$group/GROUP">
+												<xsl:call-template name="GROUP_TYPE">
+													<xsl:with-param name="CHILDS" select="$current_child_x"/>
+												</xsl:call-template>
+											</xsl:for-each>
+										</td>
+									</tr>
+								</xsl:if>
+							</tbody>
+						</xsl:if>
+					</xsl:for-each>
+				</tbody>
+				<xsl:call-template name="FOOT_GROUP">
+					<xsl:with-param name="CHILDS" select="$CHILDS"/>
+				</xsl:call-template>
+			</table>
+			<br/>
+		</xsl:template>
+		<xsl:template name="GROUP_TITLE">
+			<xsl:param name="CHILDS"/>
+			<xsl:variable name="group" select="."/>
+			<xsl:variable name="tag" select="@tag"/>
+			<span class="table_span_style">
+				<xsl:value-of select="@label"/>
+			</span>
+			<xsl:if test="count($CHILDS/*[name()= $tag])=0">
+				<xsl:if test="@noreg!=''">
+					<br/>
+					<span style="font-weight:bold;">
+						<xsl:value-of select="@noreg"/>
+					</span>
+				</xsl:if>
+			</xsl:if>
+			<xsl:for-each select="$CHILDS/*[name()= $tag]">
+				<xsl:variable name="current_child_t" select="."/>
+				<xsl:if test="not($current_child_t/@visible='0')">
+					<table class="table_title_style" border="0">
+						<xsl:if test="$group/@page-break = '1'">
+							<xsl:if test="position() != last()">
+								<xsl:attribute name="style">
+									<xsl:value-of select="'page-break-after: always;'"/>
+								</xsl:attribute>
+							</xsl:if>
+						</xsl:if>
+						<thead style="display: table-header-group;">
+							<xsl:for-each select="$group/COLS/COL">
+								<xsl:variable name="current_col" select="@name"/>
+								<tr>
+									<td nowrap="1">
+										<xsl:if test="@style">
+											<xsl:attribute name="style">
+												<xsl:value-of select="@style"/>
+											</xsl:attribute>
+										</xsl:if>
+										<span id="label">
+											<xsl:if test="@label!=''">
+												<xsl:value-of select="@label"/>
+												:&#160;
+											</xsl:if>
+										</span>
+										<xsl:variable name="value" select="concat($current_child_t/attribute::*[name() = $current_col], $current_child_t/attr[@name = $current_col]/@val)"/>
+										<xsl:if test="$value!=''">
+											<xsl:choose>
+												<xsl:when test="@type='num'">
+													<xsl:if test="@format">
+														<xsl:value-of select="format-number($value, @format)"/>
+													</xsl:if>
+													<xsl:if test="not(@format)">
+														<xsl:value-of select="format-number($value, '###,###,##0.00')"/>
+													</xsl:if>
+												</xsl:when>
+												<xsl:when test="OPT">
+													<xsl:value-of select="OPT[@id=$value]/@value" disable-output-escaping="yes"/>
+												</xsl:when>
+												<xsl:when test="@type='text'">
+													<pre>
+														<xsl:value-of select="$value" disable-output-escaping="yes"/>
+													</pre>
+												</xsl:when>
+												<xsl:when test="@type='template'">
+													<xsl:call-template name="T0">
+														<xsl:with-param name="template" select="$current_col"/>
+														<xsl:with-param name="source" select="$current_child_t"/>
+													</xsl:call-template>
+												</xsl:when>
+												<xsl:when test="@type='multiline'">
+													<table>
+														<xsl:call-template name="Multiline">
+															<xsl:with-param name="stringIn" select="$value"/>
+														</xsl:call-template>
+													</table>
+												</xsl:when>
+												<xsl:otherwise>
+													<xsl:value-of select="$value" disable-output-escaping="yes"/>
+												</xsl:otherwise>
+											</xsl:choose>
+										</xsl:if>
+									</td>
+								</tr>
+							</xsl:for-each>
+							<br/>
+						</thead>
+						<xsl:if test="$group/GROUP">
+							<tbody>
+								<tr>
+									<td valign="top" class="group_td">
+										<xsl:if test="$group/GROUP/COLS/@style">
+											<xsl:attribute name="style">
+												<xsl:value-of select="$group/GROUP/COLS/@style"/>
+											</xsl:attribute>
+										</xsl:if>
+										<xsl:for-each select="$group/GROUP">
+											<xsl:call-template name="GROUP_TYPE">
+												<xsl:with-param name="CHILDS" select="$current_child_t"/>
+											</xsl:call-template>
+										</xsl:for-each>
+									</td>
+								</tr>
+							</tbody>
+						</xsl:if>
+					</table>
+					<br/>
+				</xsl:if>
+			</xsl:for-each>
+		</xsl:template>
+		<xsl:template name="GROUP_HOR_TABLE">
+			<xsl:param name="CHILDS"/>
+			<xsl:variable name="group" select="."/>
+			<xsl:variable name="tag" select="@tag"/>
+			<span class="table_span_style">
+				<xsl:value-of select="@label"/>
+			</span>
+			<table class="table_table_style" cellspacing="0" cellpadding="0" border="0">
+				<xsl:if test="@style">
+					<xsl:attribute name="style">
+						<xsl:value-of select="@style"/>
+					</xsl:attribute>
+				</xsl:if>
+				<tbody>
+					<xsl:for-each select="$CHILDS/*[name()= $tag]">
+						<tr>
+							<xsl:if test="@style">
+								<xsl:attribute name="style">
+									<xsl:value-of select="@style"/>
+								</xsl:attribute>
+							</xsl:if>
+							<xsl:for-each select="COL">
+								<td>
+									<xsl:if test="@style">
+										<xsl:attribute name="style">
+											<xsl:value-of select="@style"/>
+										</xsl:attribute>
+									</xsl:if>
+									<xsl:if test="@nowrap='1'">
+										<xsl:attribute name="nowrap">
+											<xsl:value-of select="'1'"/>
+										</xsl:attribute>
+									</xsl:if>
+									<xsl:if test="@colspan">
+										<xsl:attribute name="colspan">
+											<xsl:value-of select="@colspan"/>
+										</xsl:attribute>
+									</xsl:if>
+									<xsl:if test="@class!=''">
+										<xsl:variable name="class" select="@class"/>
+										<xsl:attribute name="style">
+											<xsl:value-of select="$group/STYLES/STYLE[@name=$class]/@style"/>
+											<xsl:value-of select="@style"/>
+										</xsl:attribute>
+									</xsl:if>
+									<xsl:value-of select="@value" disable-output-escaping="yes"/>
+								</td>
+							</xsl:for-each>
+						</tr>
+					</xsl:for-each>
+				</tbody>
+			</table>
+		</xsl:template>
+		<xsl:template name="GROUP_TITLE_COLLAPSE">
+			<xsl:param name="CHILDS"/>
+			<xsl:variable name="group" select="."/>
+			<xsl:variable name="tag" select="@tag"/>
+			<xsl:value-of select="@label"/>
+			<xsl:if test="count($CHILDS/*[name()= $tag])=0">
+				<xsl:if test="@noreg!=''">
+					<br/>
+					<span style="font-weight:bold;">
+						<xsl:value-of select="@noreg"/>
+					</span>
+				</xsl:if>
+			</xsl:if>
+			<xsl:if test="count($CHILDS/*[name()= $tag])&gt;0">
+				<table border="0" style="width:100%">
+					<xsl:for-each select="$CHILDS/*[name()= $tag]">
+						<xsl:variable name="current_child_c" select="."/>
+						<xsl:if test="not($current_child_c/@visible='0')">
+							<tr>
+								<td>
+									<table class="table_title_style" border="0">
+										<thead style="display: table-header-group;">
+											<xsl:for-each select="$group/COLS/COL">
+												<xsl:variable name="current_col" select="@name"/>
+												<tr>
+													<td width="12px">
+														<xsl:if test="position()=last()">
+															<xsl:choose>
+																<xsl:when test="$group/@collapse='1'">
+																	<div class="coll_img" onclick="this.style.display='none'; this.nextSibling.style.display=''; this.parentNode.parentNode.parentNode.nextSibling.style.display='';">
+																		+
+																	</div>
+																	<div class="coll_img" style="display:none;" onclick="this.style.display='none'; this.previousSibling.style.display=''; this.parentNode.parentNode.parentNode.nextSibling.style.display='none';">
+																		-
+																	</div>
+																</xsl:when>
+																<xsl:otherwise>
+																	<div class="coll_img" style="display:none;" onclick="this.style.display='none'; this.nextSibling.style.display=''; this.parentNode.parentNode.parentNode.nextSibling.style.display='';">
+																		+
+																	</div>
+																	<div class="coll_img" onclick="this.style.display='none'; this.previousSibling.style.display=''; this.parentNode.parentNode.parentNode.nextSibling.style.display='none';">
+																		-
+																	</div>
+																</xsl:otherwise>
+															</xsl:choose>
+														</xsl:if>
+													</td>
+													<td nowrap="1">
+														<xsl:if test="@style">
+															<xsl:attribute name="style">
+																<xsl:value-of select="@style"/>
+															</xsl:attribute>
+														</xsl:if>
+														<span id="label">
+															<xsl:if test="@label!=''">
+																<xsl:value-of select="@label"/>
+																:&#160;
+															</xsl:if>
+														</span>
+														<xsl:value-of select="$current_child_c/attribute::*[name() = $current_col]" disable-output-escaping="yes"/>
+													</td>
+												</tr>
+											</xsl:for-each>
+										</thead>
+										<tbody>
+											<xsl:if test="$group/@collapse='1'">
+												<xsl:attribute name="style">
+													<xsl:value-of select="'display:none;'"/>
+												</xsl:attribute>
+											</xsl:if>
+											<xsl:if test="$group/GROUP">
+												<tr>
+													<td width="0px">
+														&#160;
+													</td>
+													<td valign="top" class="group_td">
+														<xsl:if test="$group/GROUP/COLS/@style">
+															<xsl:attribute name="style">
+																<xsl:value-of select="$group/GROUP/COLS/@style"/>
+															</xsl:attribute>
+														</xsl:if>
+														<xsl:for-each select="$group/GROUP">
+															<xsl:call-template name="GROUP_TYPE">
+																<xsl:with-param name="CHILDS" select="$current_child_c"/>
+															</xsl:call-template>
+														</xsl:for-each>
+													</td>
+												</tr>
+											</xsl:if>
+										</tbody>
+									</table>
+								</td>
+							</tr>
+						</xsl:if>
+					</xsl:for-each>
+				</table>
+			</xsl:if>
+		</xsl:template>
+		<xsl:template name="HEAD_GROUP">
+			<thead style="display: table-header-group;">
+				<xsl:for-each select="COLSU">
+					<tr>
+						<xsl:for-each select="COL">
+							<th nowrap="1">
+								<xsl:if test="@col-span">
+									<xsl:attribute name="colspan">
+										<xsl:value-of select="@col-span"/>
+									</xsl:attribute>
+								</xsl:if>
+								<xsl:if test="@colspan">
+									<xsl:attribute name="colspan">
+										<xsl:value-of select="@colspan"/>
+									</xsl:attribute>
+								</xsl:if>
+								<xsl:if test="@rowspan">
+									<xsl:attribute name="rowspan">
+										<xsl:value-of select="@rowspan"/>
+									</xsl:attribute>
+								</xsl:if>
+								<xsl:value-of select="@label"/>
+							</th>
+						</xsl:for-each>
+					</tr>
+				</xsl:for-each>
+				<tr>
+					<xsl:for-each select="COLS/COL[not(@hvisible) or (@hvisible!='no')]">
+						<th nowrap="1">
+							<xsl:if test="@colspan">
+								<xsl:attribute name="colspan">
+									<xsl:value-of select="@colspan"/>
+								</xsl:attribute>
+							</xsl:if>
+							<xsl:if test="@col-span">
+								<xsl:attribute name="colspan">
+									<xsl:value-of select="@col-span"/>
+								</xsl:attribute>
+							</xsl:if>
+							<xsl:if test="@style">
+								<xsl:attribute name="style">
+									<xsl:value-of select="@style"/>
+								</xsl:attribute>
+							</xsl:if>
+							<xsl:value-of select="@label"/>
+						</th>
+					</xsl:for-each>
+				</tr>
+			</thead>
+		</xsl:template>
+		<xsl:template name="FOOT_GROUP">
+			<xsl:param name="CHILDS"/>
+			<tfoot>
+				<tr>
+					<xsl:for-each select="FCOLS/COL">
+						<xsl:variable name="current_col" select="@name"/>
+						<xsl:if test="@name">
+							<td>
+								<xsl:if test="@colspan">
+									<xsl:attribute name="colspan">
+										<xsl:value-of select="@colspan"/>
+									</xsl:attribute>
+								</xsl:if>
+								<xsl:if test="@style">
+									<xsl:attribute name="style">
+										<xsl:value-of select="@style"/>
+									</xsl:attribute>
+								</xsl:if>
+								<xsl:variable name="value" select="concat($CHILDS/attribute::*[name() = $current_col], $CHILDS/attr[@name = $current_col]/@val)"/>
+								<xsl:if test="$value!=''">
+									<xsl:choose>
+										<xsl:when test="@type='num'">
+											<xsl:attribute name="class">
+												num
+											</xsl:attribute>
+											<xsl:attribute name="x:num" namespace="urn:schemas-microsoft-com:office:excel">
+												<xsl:value-of select="$value"/>
+											</xsl:attribute>
+											<xsl:if test="@format">
+												<xsl:value-of select="format-number($value, @format)"/>
+											</xsl:if>
+											<xsl:if test="not(@format)">
+												<xsl:value-of select="format-number($value, '###,###,##0.00')"/>
+											</xsl:if>
+										</xsl:when>
+										<xsl:when test="@type='date'">
+											<xsl:attribute name="class">
+												date
+											</xsl:attribute>
+											<xsl:attribute name="x:num" namespace="urn:schemas-microsoft-com:office:excel">
+												<xsl:call-template name="calculate-julian-day">
+													<xsl:with-param name="date" select="$value"/>
+												</xsl:call-template>
+											</xsl:attribute>
+											<xsl:value-of select="$value"/>
+										</xsl:when>
+										<xsl:when test="OPT">
+											<xsl:value-of select="OPT[@id=$value]/@value" disable-output-escaping="yes"/>
+										</xsl:when>
+										<xsl:when test="@type='text'">
+											<pre>
+												<xsl:value-of select="$value" disable-output-escaping="yes"/>
+											</pre>
+										</xsl:when>
+										<xsl:when test="@type='template'">
+											<xsl:call-template name="T0">
+												<xsl:with-param name="template" select="$current_col"/>
+												<xsl:with-param name="source" select="$CHILDS"/>
+											</xsl:call-template>
+										</xsl:when>
+										<xsl:when test="@type='multiline'">
+											<table>
+												<xsl:call-template name="Multiline">
+													<xsl:with-param name="stringIn" select="$value"/>
+												</xsl:call-template>
+											</table>
+										</xsl:when>
+										<xsl:otherwise>
+											<xsl:value-of select="$value" disable-output-escaping="yes"/>
+										</xsl:otherwise>
+									</xsl:choose>
+								</xsl:if>
+							</td>
+						</xsl:if>
+						<xsl:if test="not(@name)">
+							<td>
+								<xsl:if test="@colspan">
+									<xsl:attribute name="colspan">
+										<xsl:value-of select="@colspan"/>
+									</xsl:attribute>
+								</xsl:if>
+								<xsl:if test="@style">
+									<xsl:attribute name="style">
+										<xsl:value-of select="@style"/>
+									</xsl:attribute>
+								</xsl:if>
+								<xsl:value-of select="@label"/>
+							</td>
+						</xsl:if>
+					</xsl:for-each>
+				</tr>
+			</tfoot>
+		</xsl:template>
+		<xsl:template name="GROUP_TYPE">
+			<xsl:param name="CHILDS"/>
+			<xsl:choose>
+				<xsl:when test="@type='title'">
+					<xsl:call-template name="GROUP_TITLE">
+						<xsl:with-param name="CHILDS" select="$CHILDS"/>
+					</xsl:call-template>
+				</xsl:when>
+				<xsl:when test="@type='title_collapse'">
+					<xsl:call-template name="GROUP_TITLE_COLLAPSE">
+						<xsl:with-param name="CHILDS" select="$CHILDS"/>
+					</xsl:call-template>
+				</xsl:when>
+				<xsl:when test="@type='title_sinespacios'">
+					<xsl:call-template name="GROUP_TITLE_SINESPACIOS">
+						<xsl:with-param name="CHILDS" select="$CHILDS"/>
+					</xsl:call-template>
+				</xsl:when>
+				<xsl:when test="@type='table'">
+					<xsl:call-template name="GROUP_TABLE">
+						<xsl:with-param name="CHILDS" select="$CHILDS"/>
+					</xsl:call-template>
+				</xsl:when>
+				<xsl:when test="@type='table2'">
+					<xsl:call-template name="GROUP_TABLE2">
+						<xsl:with-param name="CHILDS" select="$CHILDS"/>
+					</xsl:call-template>
+				</xsl:when>
+				<xsl:when test="@type='hor_table'">
+					<xsl:call-template name="GROUP_HOR_TABLE">
+						<xsl:with-param name="CHILDS" select="$CHILDS"/>
+					</xsl:call-template>
+				</xsl:when>
+				<xsl:when test="@type='table_parent'">
+					<xsl:call-template name="GROUP_TABLE_PARENT">
+						<xsl:with-param name="CHILDS" select="$CHILDS"/>
+					</xsl:call-template>
+				</xsl:when>
+				<xsl:when test="@type='tablestruc'">
+					<xsl:call-template name="GROUP_TABLESTRUC">
+						<xsl:with-param name="CHILDS" select="$CHILDS"/>
+					</xsl:call-template>
+				</xsl:when>
+				<xsl:when test="@type='paste'">
+					<xsl:call-template name="GROUP_PASTE">
+						<xsl:with-param name="CHILDS" select="$CHILDS"/>
+					</xsl:call-template>
+				</xsl:when>
+				<xsl:when test="@type='html'">
+					<xsl:call-template name="GROUP_HTML">
+						<xsl:with-param name="CHILDS" select="$CHILDS"/>
+					</xsl:call-template>
+				</xsl:when>
+				<xsl:otherwise>
+					<xsl:call-template name="GROUP_TABLE">
+						<xsl:with-param name="CHILDS" select="$CHILDS"/>
+					</xsl:call-template>
+				</xsl:otherwise>
+			</xsl:choose>
+		</xsl:template>
+		<xsl:template name="innerMultiline">
+			<xsl:param name="stringIn"/>
+			<xsl:if test="$stringIn!=''">
+				<xsl:value-of select="substring-before($stringIn, '&#10;')" disable-output-escaping="yes"/>
+				<br/>
+				<xsl:call-template name="innerMultiline">
+					<xsl:with-param name="stringIn" select="substring-after($stringIn, '&#10;')"/>
+				</xsl:call-template>
+			</xsl:if>
+		</xsl:template>
+		<xsl:template name="Multiline">
+			<xsl:param name="stringIn"/>
+			<xsl:call-template name="innerMultiline">
+				<xsl:with-param name="stringIn" select="concat($stringIn, '&#10;')"/>
+			</xsl:call-template>
+		</xsl:template>
+		<xsl:template match="T0" name="T0">
+			<xsl:param name="template"/>
+			<xsl:param name="source"/>
+			<xsl:if test="$template=1"/>
+		</xsl:template>
+		<xsl:template name="GROUP_PASTE">
+			<xsl:param name="CHILDS"/>
+			<xsl:copy-of select="./*"/>
+		</xsl:template>
+		<xsl:template name="GROUP_HTML">
+			<xsl:param name="CHILDS"/>
+			<xsl:variable name="group" select="."/>
+			<xsl:variable name="tag" select="@tag"/>
+			<xsl:for-each select="$CHILDS/*[name()=$tag]">
+				<xsl:copy-of select="."/>
+			</xsl:for-each>
+		</xsl:template>
+		<xsl:template name="GROUP_TITLE_SINESPACIOS">
+			<xsl:param name="CHILDS"/>
+			<xsl:variable name="group" select="."/>
+			<xsl:variable name="tag" select="@tag"/>
+			<xsl:value-of select="@label"/>
+			<xsl:if test="count($CHILDS/*[name()= $tag])=0">
+				<xsl:if test="@noreg!=''">
+					<span style="font-weight:bold;">
+						<xsl:value-of select="@noreg"/>
+					</span>
+				</xsl:if>
+			</xsl:if>
+			<xsl:for-each select="$CHILDS/*[name()= $tag]">
+				<xsl:variable name="current_child_t" select="."/>
+				<table class="table_title_style" border="0">
+					<xsl:if test="$group/@page-break = '1'">
+						<xsl:if test="position() != last()">
+							<xsl:attribute name="style">
+								<xsl:value-of select="'page-break-after: always;'"/>
+							</xsl:attribute>
+						</xsl:if>
+					</xsl:if>
+					<xsl:if test="not($current_child_t/@visible='0')">
+						<thead style="display: table-header-group;">
+							<xsl:for-each select="$group/COLS/COL">
+								<xsl:variable name="current_col" select="@name"/>
+								<tr>
+									<td nowrap="1">
+										<xsl:if test="@style">
+											<xsl:attribute name="style">
+												<xsl:value-of select="@style"/>
+											</xsl:attribute>
+										</xsl:if>
+										<span id="label">
+											<xsl:if test="@label!=''">
+												<xsl:value-of select="@label"/>
+												:&#160;
+											</xsl:if>
+										</span>
+										<xsl:variable name="value" select="concat($current_child_t/attribute::*[name() = $current_col], $current_child_t/attr[@name = $current_col]/@val)"/>
+										<xsl:if test="$value!=''">
+											<xsl:choose>
+												<xsl:when test="@type='num'">
+													<xsl:if test="@format">
+														<xsl:value-of select="format-number($value, @format)"/>
+													</xsl:if>
+													<xsl:if test="not(@format)">
+														<xsl:value-of select="format-number($value, '###,###,##0.00')"/>
+													</xsl:if>
+												</xsl:when>
+												<xsl:when test="OPT">
+													<xsl:value-of select="OPT[@id=$value]/@value" disable-output-escaping="yes"/>
+												</xsl:when>
+												<xsl:when test="@type='text'">
+													<pre>
+														<xsl:value-of select="$value" disable-output-escaping="yes"/>
+													</pre>
+												</xsl:when>
+												<xsl:when test="@type='template'">
+													<xsl:call-template name="T0">
+														<xsl:with-param name="template" select="$current_col"/>
+														<xsl:with-param name="source" select="$current_child_t"/>
+													</xsl:call-template>
+												</xsl:when>
+												<xsl:when test="@type='multiline'">
+													<table>
+														<xsl:call-template name="Multiline">
+															<xsl:with-param name="stringIn" select="$value"/>
+														</xsl:call-template>
+													</table>
+												</xsl:when>
+												<xsl:otherwise>
+													<xsl:value-of select="$value" disable-output-escaping="yes"/>
+												</xsl:otherwise>
+											</xsl:choose>
+										</xsl:if>
+									</td>
+								</tr>
+							</xsl:for-each>
+						</thead>
+						<xsl:if test="$group/GROUP">
+							<tbody>
+								<tr>
+									<td valign="top" class="group_td">
+										<xsl:if test="$group/GROUP/COLS/@style">
+											<xsl:attribute name="style">
+												<xsl:value-of select="$group/GROUP/COLS/@style"/>
+											</xsl:attribute>
+										</xsl:if>
+										<xsl:for-each select="$group/GROUP">
+											<xsl:call-template name="GROUP_TYPE">
+												<xsl:with-param name="CHILDS" select="$current_child_t"/>
+											</xsl:call-template>
+										</xsl:for-each>
+									</td>
+								</tr>
+							</tbody>
+						</xsl:if>
+					</xsl:if>
+				</table>
+			</xsl:for-each>
+		</xsl:template>
+		<xsl:template name="GROUP_TABLESTRUC">
+			<xsl:param name="CHILDS"/>
+			<xsl:variable name="group" select="."/>
+			<span class="table_span_style">
+				<xsl:value-of select="@label"/>
+			</span>
+			<style>
+				.table_tablestruc {
+          border: none;
+          border-collapse: collapse;
+          background-color:#FFFFFF;
+          font-size: 11px;
+          font-family: verdana;
+          width:100%;
+          }
+			</style>
+			<table class="table_tablestruc" cellspacing="0" cellpadding="0" border="0">
+				<xsl:if test="@style">
+					<xsl:attribute name="style">
+						<xsl:value-of select="@style"/>
+					</xsl:attribute>
+				</xsl:if>
+				<tbody>
+					<xsl:for-each select="$group/GROUPROW">
+						<tr>
+							<xsl:if test="@style">
+								<xsl:attribute name="style">
+									<xsl:value-of select="@style"/>
+								</xsl:attribute>
+							</xsl:if>
+							<xsl:for-each select="./GROUPCOL">
+								<td VALIGN="top">
+									<xsl:if test="@style">
+										<xsl:attribute name="style">
+											<xsl:value-of select="@style"/>
+										</xsl:attribute>
+									</xsl:if>
+									<xsl:for-each select="GROUP">
+										<xsl:variable name="current_child_x" select="."/>
+										<xsl:call-template name="GROUP_TYPE">
+											<xsl:with-param name="CHILDS" select="$CHILDS"/>
+										</xsl:call-template>
+									</xsl:for-each>
+								</td>
+							</xsl:for-each>
+						</tr>
+					</xsl:for-each>
+				</tbody>
+			</table>
+		</xsl:template>
+		<xsl:template match="DATA"/>
+		<xsl:template name="calculate-julian-day">
+			<xsl:param name="date"/>
+			<xsl:variable name="year" select="number(substring($date, 7, 4))"/>
+			<xsl:variable name="month" select="number(substring($date, 4, 2))"/>
+			<xsl:variable name="day" select="number(substring($date, 1, 2))"/>
+			<xsl:variable name="bi">
+				<xsl:choose>
+					<xsl:when test="$month&lt;=2 and ((($year mod 4 = 0) and ($year mod 100 != 0)) or ($year mod 400 = 0))">
+						1
+					</xsl:when>
+					<xsl:otherwise>
+						0
+					</xsl:otherwise>
+				</xsl:choose>
+			</xsl:variable>
+			<xsl:value-of select="$year*365 + floor($year div 4) - floor($year div 100) + floor($year div 400)-693959+$day+number(substring('  0, 31, 59, 90,120,151,181,212,243,273,304,334,365',1+($month - 1)*4,3))-$bi"/>
+		</xsl:template>
+	</html:xslt>
+	<html:for-each declare="&lt;FILTRO oi_clase_org=&quot;&quot; gcustom=&quot;&quot; oi_empresa=&quot;1&quot; f_desde=&quot;20190101&quot; f_hasta=&quot;20250616&quot; oi_motivo_consulta=&quot;&quot; oi_enfermedad=&quot;&quot; oi_medico=&quot;&quot; oi_empresa_medica=&quot;&quot; agrupacion=&quot;&quot; orden=&quot;&quot; activos=&quot;&quot; nombre=&quot;&quot; documento=&quot;&quot; sexo=&quot;&quot; grupo_sanguineo=&quot;&quot; listlegajos=&quot;&quot; oi_indic_activo=&quot;&quot; egresado=&quot;&quot; oi_forma_pago=&quot;&quot; oi_tipo_personal=&quot;&quot; fecha_desde=&quot;&quot; fecha_hasta=&quot;&quot; cb_confidenciales=&quot;&quot; oi_grupo_ccosto=&quot;&quot; oi_centro_costo=&quot;&quot; oi_convenio=&quot;&quot; soloconvenio=&quot;&quot; oi_categoria=&quot;&quot; oi_ubicacion_desde=&quot;&quot; oi_ubicacion_hasta=&quot;&quot; oi_estructura=&quot;&quot; escructura_childs=&quot;&quot; oi_contrato=&quot;&quot; oi_afjp=&quot;&quot; oi_obra_social=&quot;&quot; oi_sindicato=&quot;&quot; l_afiliado_sind=&quot;0&quot; oi_departamento=&quot;&quot; oi_sector=&quot;&quot; legID=&quot;1313&quot; leg_where=&quot;&quot;&gt;&#13;&#10;&#9;&lt;PERSONAS nmd-col=&quot;1&quot;&gt;&#13;&#10;&#9;&#9;&lt;ROW VALUES=&quot;1959,1313&quot; /&gt;&#13;&#10;&#9;&lt;/PERSONAS&gt;&#13;&#10;&lt;/FILTRO&gt;">
+		<qry:main doc="PARAM">
+			<qry:append-doc name="PARAMIN" doc-path="#PARAM:FILTRO"/>
+			<REPORT label="Consultas M&#233;dicas">
+				<qry:attribute value="format_date(now(),'dd/mm/yyyy HH:MM')" name="date"/>
+				<GROUPS>
+					<GROUP style="width:100%" tag="DATOS" type="title">
+						<COLS>
+							<COL name="d_empresa" label="Empresa"/>
+							<qry:if test="#PARAM:FILTRO/@f_desde!=''">
+								<qry:then>
+									<COL name="f_desde" label="Fecha Desde" type="date"/>
+								</qry:then>
+							</qry:if>
+							<qry:if test="#PARAM:FILTRO/@f_hasta!=''">
+								<qry:then>
+									<COL name="f_hasta" label="Fecha Hasta" type="date"/>
+								</qry:then>
+							</qry:if>
+							<qry:if test="#PARAM:FILTRO/@oi_motivo_consulta!=''">
+								<qry:then>
+									<COL name="d_motivo_consulta" label="Motivo de Consulta"/>
+								</qry:then>
+							</qry:if>
+							<qry:if test="#PARAM:FILTRO/@oi_enfermedad!=''">
+								<qry:then>
+									<COL name="d_enfermedad" label="Enfermedad"/>
+								</qry:then>
+							</qry:if>
+							<qry:if test="#PARAM:FILTRO/@oi_medico!=''">
+								<qry:then>
+									<COL name="d_medico" label="M&#233;dico"/>
+								</qry:then>
+							</qry:if>
+							<qry:if test="#PARAM:FILTRO/@oi_empresa_medica!=''">
+								<qry:then>
+									<COL name="d_empresa_medica" label="Empresa M&#233;dica"/>
+								</qry:then>
+							</qry:if>
+							<qry:if test="#PARAM:FILTRO/@agrupacion!=''">
+								<qry:then>
+									<COL name="agrupacion" label="Agrupaci&#243;n"/>
+								</qry:then>
+							</qry:if>
+						</COLS>
+						<qry:if test="#PARAM:FILTRO/@agrupacion!=''">
+							<qry:then>
+								<GROUP tag="GRUPO" type="title">
+									<COLS>
+										<COL name="grupo" style="font-weight:bold;"/>
+									</COLS>
+									<GROUP tag="PERSONA" label="Legajos" type="table">
+										<COLS>
+											<COL name="e_numero_legajo" label="Legajo" style="width:5%"/>
+											<COL name="d_ape_y_nom" label="Apellido y Nombre" style="width:30%"/>
+											<COL name="f_ingreso" label="Fecha Ingreso" style="width:15%"/>
+											<COL name="f_nacim" label="Fecha Nacimiento" style="width:15%"/>
+											<COL name="c_ubicacion" label="Cod. Ubi." style="width:5%"/>
+											<COL name="d_ubicacion" label="Ubicaci&#243;n" style="width:40%"/>
+											<COL name="d_centro_costo" label="Centro de Costo" style="width:30%"/>
+											<COL name="d_categoria" label="Categoria" style="width:30%"/>
+											<COL name="d_puesto" label="Puesto" style="width:30%"/>
+											<COL name="d_posicion" label="Posici&#243;n" style="width:30%"/>
+											<COL name="d_mod_contr" label="Modalidad de Contrataci&#243;n" style="width:40%"/>
+											<COL name="f_fechahora_cons" label="Fecha consulta y hora" style="width:5%;text-align:center" type="datetime"/>
+											<COL name="d_motivo_consulta" label="Motivo de consulta" style="width:15%"/>
+											<COL name="f_prox_consulta" label="Fecha pr&#243;xima Consulta" style="width:15%"/>
+											<COL name="f_baja" label="Fecha baja" style="width:5%;text-align:center" type="date"/>
+											<COL name="f_alta" label="Fecha alta" style="width:5%;text-align:center" type="date"/>
+											<COL name="f_prev_alta" label="Fecha prevista alta" style="width:15%"/>
+											<COL name="e_dias_perdidos" label="D&#237;as Perdidos" style="width:5%"/>
+											<COL name="d_enfermedad" label="Enfermedad" style="width:15%"/>
+											<COL name="d_empresa_medica" label="Empresa M&#233;dica"/>
+											<COL name="d_medico" label="M&#233;dico"/>
+											<qry:insert-select doc-path="#PARAMIN:.[@agrupacion = '1']" name="sql_attr_motivo"/>
+											<qry:insert-select doc-path="#PARAMIN:.[@agrupacion = '2']" name="sql_attr_enfermedad"/>
+											<COL name="f_fechahora_visita1" label="Control M&#233;dico" style="width:5%;text-align:center" type="datetime"/>
+											<COL name="o_consulta_per" label="Observaciones" style="width:5%"/>
+											<qry:insert-select doc-path="#PARAMIN:.[@agrupacion = '3']" name="sql_attr_medico"/>
+											<qry:insert-select doc-path="#PARAMIN:.[@agrupacion = '4']" name="sql_attr_empresa"/>
+										</COLS>
+									</GROUP>
+								</GROUP>
+							</qry:then>
+							<qry:else>
+								<GROUP tag="PERSONA" label="Legajos" type="table">
+									<COLS>
+										<COL name="e_numero_legajo" label="Legajo" style="width:5%;text-align:center"/>
+										<COL name="d_ape_y_nom" label="Apellido y Nombre" style="width:30%;text-align:center"/>
+										<COL name="f_ingreso" label="Fecha Ingreso" style="width:15%;text-align:center" type="date"/>
+										<COL name="f_nacim" label="Fecha Nacimiento" style="width:15%;text-align:center" type="date"/>
+										<COL name="c_ubicacion" label="Cod. Ubi." style="width:5%;text-align:center"/>
+										<COL name="d_ubicacion" label="Ubicaci&#243;n" style="width:40%;text-align:center"/>
+										<COL name="d_centro_costo" label="Centro de Costo" style="width:30%"/>
+										<COL name="d_categoria" label="Categoria" style="width:30%;text-align:center"/>
+										<COL name="d_puesto" label="Puesto" style="width:30%;text-align:center"/>
+										<COL name="d_posicion" label="Posici&#243;n" style="width:30%"/>
+										<COL name="d_mod_contr" label="Modalidad de Contrataci&#243;n" style="width:40%"/>
+										<COL name="f_fechahora_cons" label="Fecha consulta y hora" style="width:5%;text-align:center" type="datetime"/>
+										<COL name="d_motivo_consulta" label="Motivo de consulta" style="width:15%;text-align:center"/>
+										<COL name="f_prox_consulta" label="Fecha pr&#243;xima Consulta" style="width:15%;text-align:center" type="date"/>
+										<COL name="f_baja" label="Fecha baja" style="width:5%;text-align:center" type="date"/>
+										<COL name="f_alta" label="Fecha alta" style="width:5%;text-align:center" type="date"/>
+										<COL name="f_prev_alta" label="Fecha prevista alta" style="width:15%" type="date"/>
+										<COL name="e_dias_perdidos" label="D&#237;as Perdidos" style="width:5%"/>
+										<COL name="d_enfermedad" label="Enfermedad" style="width:15%"/>
+										<COL name="d_empresa_medica" label="Empresa M&#233;dica"/>
+										<COL name="d_medico" label="M&#233;dico"/>
+										<qry:insert-select doc-path="#PARAMIN:.[@agrupacion = '1']" name="sql_attr_motivo"/>
+										<qry:insert-select doc-path="#PARAMIN:.[@agrupacion = '2']" name="sql_attr_enfermedad"/>
+										<COL name="f_fechahora_visita1" label="Control M&#233;dico" style="width:5%;text-align:center" type="datetime"/>
+										<COL name="o_consulta_per" label="Observaciones" style="width:5%"/>
+										<qry:insert-select doc-path="#PARAMIN:.[@agrupacion = '3']" name="sql_attr_medico"/>
+										<qry:insert-select doc-path="#PARAMIN:.[@agrupacion = '4']" name="sql_attr_empresa"/>
+									</COLS>
+								</GROUP>
+							</qry:else>
+						</qry:if>
+					</GROUP>
+				</GROUPS>
+				<qry:element name="DATA">
+					<DATOS qry-orderby="orderby">
+						<qry:attribute name="oi_empresa" value="#PARAM:FILTRO/@oi_empresa"/>
+						<qry:attribute name="orden" value="#PARAM:FILTRO/@orden"/>
+						<qry:attribute name="f_desde" value="format_date(#PARAM:FILTRO/@f_desde,'dd/mm/yyyy')"/>
+						<qry:attribute name="f_hasta" value="format_date(#PARAM:FILTRO/@f_hasta,'dd/mm/yyyy')"/>
+						<qry:attribute value="format_date(now(),'dd/mm/yyyy')" name="f_informe"/>
+						<qry:insert-select doc-path="#PARAM:FILTRO/PERSONAS/ROW" name="QRY_PERSONAS"/>
+						<qry:insert-select doc-path="#PARAM:FILTRO" name="QRY_EMPRESA"/>
+						<qry:if test="#PARAM:FILTRO/@oi_enfermedad!=''">
+							<qry:then>
+								<qry:insert-select doc-path="#PARAM:FILTRO" name="sql5"/>
+							</qry:then>
+						</qry:if>
+						<qry:if test="#PARAM:FILTRO/@oi_medico!=''">
+							<qry:then>
+								<qry:insert-select doc-path="#PARAM:FILTRO" name="sql6"/>
+							</qry:then>
+						</qry:if>
+						<qry:if test="#PARAM:FILTRO/@oi_motivo_consulta!=''">
+							<qry:then>
+								<qry:insert-select doc-path="#PARAM:FILTRO" name="sql3"/>
+							</qry:then>
+						</qry:if>
+						<qry:if test="#PARAM:FILTRO/@oi_empresa_medica!=''">
+							<qry:then>
+								<qry:insert-select doc-path="#PARAM:FILTRO" name="sql7"/>
+							</qry:then>
+						</qry:if>
+						<qry:switch test="#PARAMIN:@agrupacion">
+							<qry:case value="1">
+								<qry:attribute name="agrupacion" value="'Motivo de Consulta'"/>
+							</qry:case>
+							<qry:case value="2">
+								<qry:attribute name="agrupacion" value="'Enfermedad'"/>
+							</qry:case>
+							<qry:case value="3">
+								<qry:attribute name="agrupacion" value="'M&#233;dico'"/>
+							</qry:case>
+							<qry:case value="4">
+								<qry:attribute name="agrupacion" value="'Empresa M&#233;dica'"/>
+							</qry:case>
+						</qry:switch>
+					</DATOS>
+				</qry:element>
+			</REPORT>
+		</qry:main>
+		<qry:select doc="PARAM" name="QRY_PERSONAS">
+			<qry:out>
+				<qry:call>
+					<FILTRO>
+						<qry:attribute name="oi_empresa" value="#PARAMIN:@oi_empresa"/>
+						<qry:attribute name="orden" value="#PARAMIN:@orden"/>
+						<qry:attribute name="f_desde" value="#PARAMIN:@f_desde"/>
+						<qry:attribute name="f_hasta" value="#PARAMIN:@f_hasta"/>
+						<qry:attribute name="oi_motivo_consulta" value="#PARAMIN:@oi_motivo_consulta"/>
+						<qry:attribute name="oi_enfermedad" value="#PARAMIN:@oi_enfermedad"/>
+						<qry:attribute name="oi_medico" value="#PARAMIN:@oi_medico"/>
+						<qry:attribute name="agrupacion" value="#PARAMIN:@agrupacion"/>
+						<qry:attribute name="oi_empresa_medica" value="#PARAMIN:@oi_empresa_medica"/>
+						<qry:attribute value="#PARAM:@values" name="values"/>
+					</FILTRO>
+				</qry:call>
+			</qry:out>
+		</qry:select>
+		<qry:select doc="PARAM" name="QRY_EMPRESA">
+			<qry:xquery>
+				for $r in sql('
+			SELECT 
+				ORG03_EMPRESAS.d_empresa
+			FROM 
+				ORG03_EMPRESAS
+			WHERE	
+				ORG03_EMPRESAS.oi_empresa = {#PARAM:@oi_empresa}
+				')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:attribute name="d_empresa" value="$r/@d_empresa"/>
+			</qry:out>
+		</qry:select>
+		<qry:select doc="PARAM" name="sql_attr_medico">
+			<qry:out>
+				<COL name="d_motivo_consulta" label="Motivo de consulta" style="width:15%"/>
+				<COL name="d_enfermedad" label="Enfermedad" style="width:15%"/>
+			</qry:out>
+		</qry:select>
+		<qry:select doc="PARAM" name="sql_attr_empresa">
+			<qry:out>
+				<COL name="d_motivo_consulta" label="Motivo de consulta" style="width:15%"/>
+				<COL name="d_enfermedad" label="Enfermedad" style="width:15%"/>
+			</qry:out>
+		</qry:select>
+		<qry:select doc="PARAM" name="sql_attr_motivo">
+			<qry:out>
+				<COL name="d_enfermedad" label="Enfermedad" style="width:15%"/>
+			</qry:out>
+		</qry:select>
+		<qry:select doc="PARAM" name="sql_attr_enfermedad">
+			<qry:out>
+				<COL name="d_motivo_consulta" label="Motivo de consulta" style="width:15%"/>
+			</qry:out>
+		</qry:select>
+		<qry:select doc="PARAM" name="sql5">
+			<qry:xquery>
+				for $r in sql('
+			SELECT MED06_ENFERMEDADES.d_enfermedad
+			FROM MED06_ENFERMEDADES
+			WHERE
+			{%? (#PARAM:@oi_enfermedad!= '') {% MED06_ENFERMEDADES.oi_enfermedad = {#PARAM:@oi_enfermedad} %} {% 1=2 %} %}
+			')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:attribute name="d_enfermedad" value="$r/@d_enfermedad"/>
+			</qry:out>
+		</qry:select>
+		<qry:select doc="PARAM" name="sql6">
+			<qry:xquery>
+				for $r in sql('
+			SELECT MED03_MEDICOS.c_nro_documento,
+			MED03_MEDICOS.d_apellido,
+			MED03_MEDICOS.d_nombres
+			FROM MED03_MEDICOS
+			WHERE
+			{%? (#PARAM:@oi_medico!= '') {% MED03_MEDICOS.oi_medico = {#PARAM:@oi_medico} %} {% 1=2 %} %} 			
+			')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:attribute name="d_medico" value="$r/@c_nro_documento + ' ' + $r/@d_apellido +', ' + $r/@d_nombres"/>
+			</qry:out>
+		</qry:select>
+		<qry:select doc="PARAM" name="sql3">
+			<qry:xquery>
+				for $r in sql('
+			SELECT MED05_MOTIVOS_CONS.d_motivo_consulta
+			FROM MED05_MOTIVOS_CONS 
+			WHERE
+			{%? (#PARAM:@oi_motivo_consulta != '') {% MED05_MOTIVOS_CONS.oi_motivo_consulta = {#PARAM:@oi_motivo_consulta} %} {% 1=2 %} %}
+			')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:attribute name="d_motivo_consulta" value="$r/@d_motivo_consulta"/>
+			</qry:out>
+		</qry:select>
+		<qry:select doc="PARAM" name="sql7">
+			<qry:xquery>
+				for $r in sql('
+			SELECT MED02_EMPRESAS.d_empresa_medica
+			FROM MED02_EMPRESAS
+			WHERE
+			{%? (#PARAM:@oi_empresa_medica!= '') {% MED02_EMPRESAS.oi_empresa_medica = {#PARAM:@oi_empresa_medica} %} {% 1=2 %} %} 			
+			')/ROWS/ROW
+			</qry:xquery>
+			<qry:out>
+				<qry:attribute name="d_empresa_medica" value="$r/@d_empresa_medica"/>
+			</qry:out>
+		</qry:select>
+	</html:for-each>
+</html:html>

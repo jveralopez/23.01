@@ -1,0 +1,255 @@
+<qry:define xmlns:qry="XXX" name="prueba2">
+	<qry:main doc="PARAM">
+		<qry:append-doc name="FILTRO" doc-path="#PARAM:/FILTRO"/>
+		<qry:element name="clase-organizativa">
+			<qry:attribute type="Nomad.NSystem.String" value="format_date(#FILTRO:@f_des,'dd/mm/yyyy')" name="f_des"/>
+			<qry:attribute type="Nomad.NSystem.String" value="format_date(#FILTRO:@f_has,'dd/mm/yyyy')" name="f_has"/>
+			<qry:insert-select doc-path="#FILTRO:" name="filtro_empresa"/>
+			<qry:insert-select doc-path="#FILTRO:" name="filtro_unidad_org"/>
+			<qry:insert-select doc-path="#FILTRO:" name="qry_clase_organizativa"/>
+		</qry:element>
+	</qry:main>
+	<qry:select doc="PARAM" name="filtro_empresa">
+		<qry:xquery>
+			for $r in table('
+						select d_empresa from org03_empresas where oi_empresa= {#FILTRO:@oi_empresa}
+					')/ROWS/ROW
+		</qry:xquery>
+		<qry:out>
+			<qry:attribute type="Nomad.NSystem.String" value="$r/@d_empresa" name="d_empresa"/>
+		</qry:out>
+	</qry:select>
+	<qry:select doc="PARAM" name="filtro_unidad_org">
+		<qry:xquery>
+			for $r in table('
+						select d_unidad_org from org02_estructuras, org01_uni_org
+						where oi_estructura={#FILTRO:@oi_estructura}
+					and org02_estructuras.oi_unidad_org = org01_uni_org.oi_unidad_org
+					')/ROWS/ROW
+		</qry:xquery>
+		<qry:out>
+			<qry:attribute type="Nomad.NSystem.String" value="$r/@d_unidad_org" name="d_unidad_org"/>
+		</qry:out>
+	</qry:select>
+	<qry:select doc="PARAM" name="qry_clase_organizativa">
+		<qry:xquery>
+			for $r in table('
+						SELECT * 
+						FROM ORG02_CLASES_ORG 
+						WHERE oi_clase_org = {#FILTRO:@oi_clase_org}
+					')/ROWS/ROW
+		</qry:xquery>
+		<qry:out>
+			<qry:attribute type="Nomad.NSystem.String" value="$r/@d_clase_org" name="d_clase_org"/>
+			<qry:attribute type="Nomad.NSystem.String" value="$r/@oi_clase_org" name="oi_clase_org"/>
+			<qry:element name="padre">
+				<qry:insert-select doc-path="#FILTRO:" name="qry_padre"/>
+			</qry:element>
+		</qry:out>
+	</qry:select>
+	<qry:select doc="PARAM" name="qry_padre">
+		<qry:xquery>
+			for $r in table('		
+						SELECT ORG02_CLASES_ORG.*, ORG01_UNI_ORG.*, ORG02_ESTRUCTURAS.*
+						FROM ORG02_CLASES_ORG, ORG02_ESTRUCTURAS, ORG01_UNI_ORG
+						WHERE oi_clase_org = {#FILTRO:@oi_clase_org} and
+						ORG02_ESTRUCTURAS.oi_estructura = ORG02_CLASES_ORG.oi_estructura_org AND
+						ORG02_ESTRUCTURAS.oi_unidad_org = ORG01_UNI_ORG.oi_unidad_org')/ROWS/ROW
+		</qry:xquery>
+		<qry:out>
+			<qry:attribute type="Nomad.NSystem.String" value="$r/@c_unidad_org" name="c_unidad_org_padre"/>
+			<qry:attribute type="Nomad.NSystem.String" value="$r/@d_unidad_org" name="d_unidad_org_padre"/>
+			<qry:attribute type="Nomad.NSystem.String" value="$r/@oi_estructura_org" name="oi_estructura_org"/>
+			<qry:element name="ESTRUCTURAS">
+				<qry:attribute type="Nomad.NSystem.String" value="'pp'" name="pp"/>
+				<qry:insert-select doc-path="$r" name="qry_estructura"/>
+			</qry:element>
+		</qry:out>
+	</qry:select>
+	<qry:select doc="PARAM" name="qry_estructura">
+		<qry:xquery>
+			for $r in table('		
+						SELECT ORG02_ESTRUCTURAS.oi_estructura id, *
+						FROM ORG02_ESTRUCTURAS, ORG01_UNI_ORG, org01_tipos_uni
+						WHERE oi_estr_padre = {#PARAM:@oi_estructura_org}
+						{%? (#FILTRO:@oi_estructura!='') {% AND ORG02_ESTRUCTURAS.oi_estructura={%=#FILTRO:@oi_estructura %} %} {% AND 1=1%} %}
+						AND ORG02_ESTRUCTURAS.oi_unidad_org = ORG01_UNI_ORG.oi_unidad_org 
+						AND ORG01_UNI_ORG.oi_tipo_uni_org = org01_tipos_uni.oi_tipo_uni_org 
+						')/ROWS/ROW
+		</qry:xquery>
+		<qry:out>
+			<qry:element name="UNIDAD-ORGANIZATIVA">
+				<qry:attribute type="Nomad.NSystem.String" value="$r/@c_unidad_org +  ' - ' +  $r/@d_unidad_org" name="d_unidad_org"/>
+				<qry:attribute type="Nomad.NSystem.String" value="$r/@id" name="oi_estructura_org"/>
+				<qry:attribute type="Nomad.NSystem.String" value="$r/@oi_unidad_org" name="oi_unidad_org"/>
+				<qry:attribute type="Nomad.NSystem.String" value="$r/@d_tipo_uni_org" name="d_tipo_uni_org"/>
+				<qry:element name="PERSONAS">
+					<qry:attribute type="Nomad.NSystem.String" value="'pp'" name="pp"/>
+					<qry:insert-select name="qry_LicPer" doc-path="$r"/>
+					<qry:insert-select name="qry_estructura_sig_nivel" doc-path="$r"/>
+				</qry:element>
+			</qry:element>
+		</qry:out>
+	</qry:select>
+	<qry:select doc="PARAM" name="qry_LicPer">
+		<qry:xquery>
+			for $r in table('select tmp.e_numero_legajo, 
+															tmp.d_ape_y_nom , 
+															tmp.oi_licencia_per, 
+															tmp.oi_licencia, 
+															tmp.oi_personal_emp, 
+															tmp.f_inicio,
+															tmp.f_fin, 
+															e_cant_dias = isnull(tmp.e_cant_dias ,999), 
+															e_max_dias_anio = isnull(tmp.e_max_dias_anio ,999),
+															tmp.oi_convenio  , 	
+															e_max_dias_lic = isnull(PER16_LIC_CONV.e_max_dias_lic ,999) ,
+															tmp.d_licencia
+			  								from (SELECT 	e_numero_legajo, d_ape_y_nom , oi_licencia_per, 
+																PER02_LICEN_PER.oi_licencia, 
+																PER02_LICEN_PER.oi_personal_emp, 
+																PER02_LICEN_PER.f_inicio,
+																PER02_LICEN_PER.f_fin, 
+																e_cant_dias =   PER02_LICEN_PER.e_cant_dias , 
+																e_max_dias_anio = isnull(PER16_LICENCIAS.e_max_dias_anio ,0) ,
+																ORG18_CATEGORIAS.oi_convenio , PER16_LICENCIAS.d_licencia d_licencia
+																from per01_personal, per02_personal_emp,   PER02_LICEN_PER, org02_estruc_pers, PER16_LICENCIAS, ORG18_CATEGORIAS
+																	where oi_clase_org = {%=#FILTRO:@oi_clase_org%}
+																	and org02_estruc_pers.oi_estructura={%=#PARAM:@id%}
+																	{%? (#FILTRO:@oi_estructura!='') {% AND org02_estruc_pers.oi_estructura={%=#FILTRO:@oi_estructura %} %} {% AND 1=1%} %}
+																	and PER02_PERSONAL_EMP.oi_empresa = {%=#FILTRO:@oi_empresa%} 						
+																	and PER02_LICEN_PER.oi_personal_emp =  per02_personal_emp.oi_personal_emp
+																	and PER02_LICEN_PER.oi_licencia =  PER16_LICENCIAS.oi_licencia
+																	and PER02_PERSONAL_EMP.oi_categoria_ult = ORG18_CATEGORIAS.oi_categoria 			
+																	and PER02_PERSONAL_EMP.oi_personal_emp = org02_estruc_pers.oi_personal_emp 
+																	
+																	and per01_personal.oi_personal = PER02_PERSONAL_EMP.oi_personal
+																	{%? (#FILTRO:@f_des!='') 
+																		{% and PER02_LICEN_PER.f_inicio &gt;= \'{%=#FILTRO:@f_des%}\'
+																		 and PER02_LICEN_PER.f_inicio &lt;= GETDATE() %}  
+																  {% %}
+																  %}  
+																	
+																	{%? (#FILTRO:@f_has!='') 
+																	
+																	{% and isnull(PER02_LICEN_PER.f_fin,DATEDIFF(day,1,\'{%=#FILTRO:@f_has %}\')) &lt;= \'{%=#FILTRO:@f_has %}\' %} 
+																	  	  {% %}
+																	%}																					  
+																  
+																	{%? (string(#FILTRO:PERSONAS/PERSONA/@id)!='') 
+																		{% AND PER02_PERSONAL_EMP.oi_personal_emp in ({%=string(#FILTRO:PERSONAS/PERSONA/@id) %}) 
+																		%}
+																  {% %}
+																		%}
+															) tmp , PER16_LIC_CONV  
+												where 	tmp.oi_licencia	*= PER16_LIC_CONV.oi_licencia AND  
+																tmp.oi_convenio *= PER16_LIC_CONV.oi_convenio   
+						')/ROWS/ROW
+		</qry:xquery>
+		<qry:out>
+			<qry:element name="PERSONA">
+				<qry:attribute type="Nomad.NSystem.String" value="#FILTRO:@oi_clase_org" name="oi_clase_org"/>
+				<qry:attribute type="Nomad.NSystem.String" value="#PARAM:@id" name="id"/>
+				<qry:attribute type="Nomad.NSystem.String" value="#FILTRO:@oi_empresa" name="oi_empresa  "/>
+				<qry:attribute type="Nomad.NSystem.String" value="#FILTRO:@f_des" name="f_des"/>
+				<qry:attribute type="Nomad.NSystem.String" value="#FILTRO:@f_has" name="f_has"/>
+				<qry:attribute type="Nomad.NSystem.String" value="$r/@e_numero_legajo" name="e_numero_legajo"/>
+				<qry:attribute type="Nomad.NSystem.String" value="$r/@d_ape_y_nom" name="d_ape_y_nom"/>
+				<qry:attribute value="format_date($r/@f_inicio,'dd/mm/yyyy')" type="Nomad.NSystem.String" name="f_inicio"/>
+				<qry:attribute value="format_date($r/@f_fin,'dd/mm/yyyy')" type="Nomad.NSystem.String" name="f_fin"/>
+				<qry:attribute type="Nomad.NSystem.String" value="$r/@oi_licencia" name="oi_licencia"/>
+				<qry:attribute type="Nomad.NSystem.String" value="$r/@e_cant_dias" name="e_cant_dias"/>
+				<qry:attribute name="e_max_dias_anio" type="Nomad.NSystem.String" value="$r/@e_max_dias_anio"/>
+				<qry:attribute name="e_max_dias_lic" type="Nomad.NSystem.String" value="$r/@e_max_dias_lic"/>
+				<qry:attribute type="Nomad.NSystem.String" value="$r/@d_licencia" name="d_licencia"/>
+			</qry:element>
+		</qry:out>
+	</qry:select>
+	<qry:select doc="PARAM" name="qry_estructura_sig_nivel">
+		<qry:xquery>
+			for $r in table('		
+					SELECT ORG02_ESTRUCTURAS.oi_estructura id, ORG01_UNI_ORG.oi_unidad_org oi_uni_org 
+					FROM ORG02_ESTRUCTURAS, ORG01_UNI_ORG
+					WHERE oi_estr_padre = {#PARAM:@id}
+					AND ORG02_ESTRUCTURAS.oi_unidad_org *= ORG01_UNI_ORG.oi_unidad_org 
+					')/ROWS/ROW
+		</qry:xquery>
+		<qry:out>
+			<qry:insert-select doc-path="$r" name="qry_personas_sig_nivel"/>
+			<qry:insert-select doc-path="$r" name="qry_estructura_sig_nivel"/>
+		</qry:out>
+	</qry:select>
+	<qry:select doc="PARAM" name="qry_personas_sig_nivel">
+		<qry:xquery>
+			for $r in table('select tmp.e_numero_legajo, 
+															tmp.d_ape_y_nom , 
+															tmp.oi_licencia_per, 
+															tmp.oi_licencia, 
+															tmp.oi_personal_emp, 
+															tmp.f_inicio,
+															tmp.f_fin, 
+															e_cant_dias = isnull(tmp.e_cant_dias  ,999), 
+															e_max_dias_anio = isnull(tmp.e_max_dias_anio ,999),
+															tmp.oi_convenio  , 	
+															e_max_dias_lic = isnull(PER16_LIC_CONV.e_max_dias_lic ,999) ,
+															tmp.d_licencia
+			  								from (SELECT 	e_numero_legajo, d_ape_y_nom , oi_licencia_per, 
+																PER02_LICEN_PER.oi_licencia, 
+																PER02_LICEN_PER.oi_personal_emp, 
+																PER02_LICEN_PER.f_inicio,
+																PER02_LICEN_PER.f_fin, 
+																e_cant_dias =   PER02_LICEN_PER.e_cant_dias , 
+																e_max_dias_anio = isnull(PER16_LICENCIAS.e_max_dias_anio ,0) ,
+																ORG18_CATEGORIAS.oi_convenio   , PER16_LICENCIAS.d_licencia
+																from per01_personal, per02_personal_emp,   PER02_LICEN_PER, org02_estruc_pers, PER16_LICENCIAS, ORG18_CATEGORIAS
+																	where oi_clase_org = {%=#FILTRO:@oi_clase_org%}
+																	and org02_estruc_pers.oi_estructura={%=#PARAM:@id%}
+																	and PER02_PERSONAL_EMP.oi_empresa = {%=#FILTRO:@oi_empresa%} 						
+																	and PER02_LICEN_PER.oi_personal_emp =  per02_personal_emp.oi_personal_emp
+																	and PER02_LICEN_PER.oi_licencia =  PER16_LICENCIAS.oi_licencia
+																	and PER02_PERSONAL_EMP.oi_categoria_ult = ORG18_CATEGORIAS.oi_categoria 			
+																	and PER02_PERSONAL_EMP.oi_personal_emp = org02_estruc_pers.oi_personal_emp 
+																	and per01_personal.oi_personal = PER02_PERSONAL_EMP.oi_personal
+																	{%? (#FILTRO:@f_des!='') 
+																		{% and PER02_LICEN_PER.f_inicio &gt;= \'{%=#FILTRO:@f_des%}\'
+																		   and PER02_LICEN_PER.f_inicio &lt;= GETDATE() %}  
+																 		{% %}
+																  %}
+																	{%? (#FILTRO:@f_has!='') 
+																	
+																	{% and isnull(PER02_LICEN_PER.f_fin,DATEDIFF(day,1,\'{%=#FILTRO:@f_has %}\')) &lt;= \'{%=#FILTRO:@f_has %}\' %} 
+																	 	  {% %}
+																	%}																					  
+
+																	{%? (string(#FILTRO:PERSONAS/PERSONA/@id)!='') 
+																		{% AND PER02_PERSONAL_EMP.oi_personal_emp in ({%=string(#FILTRO:PERSONAS/PERSONA/@id) %}) 
+																		%}
+																         {% %}
+																	%}
+											) tmp , PER16_LIC_CONV  
+												where 	tmp.oi_licencia	*= PER16_LIC_CONV.oi_licencia AND  
+																tmp.oi_convenio *= PER16_LIC_CONV.oi_convenio   
+						')/ROWS/ROW
+		</qry:xquery>
+		<qry:out>
+			<qry:element name="PERSONA">
+				<qry:attribute type="Nomad.NSystem.String" value="#FILTRO:@oi_clase_org" name="oi_clase_org"/>
+				<qry:attribute type="Nomad.NSystem.String" value="#PARAM:@id" name="id"/>
+				<qry:attribute type="Nomad.NSystem.String" value="#FILTRO:@oi_empresa" name="oi_empresa  "/>
+				<qry:attribute type="Nomad.NSystem.String" value="#FILTRO:@f_des" name="f_des"/>
+				<qry:attribute type="Nomad.NSystem.String" value="#FILTRO:@f_has" name="f_has"/>
+				<qry:attribute type="Nomad.NSystem.String" value="$r/@e_numero_legajo" name="e_numero_legajo"/>
+				<qry:attribute type="Nomad.NSystem.String" value="$r/@d_ape_y_nom" name="d_ape_y_nom"/>
+				<qry:attribute value="format_date($r/@f_inicio,'dd/mm/yyyy')" type="Nomad.NSystem.String" name="f_inicio"/>
+				<qry:attribute value="format_date($r/@f_fin,'dd/mm/yyyy')" type="Nomad.NSystem.String" name="f_fin"/>
+				<qry:attribute type="Nomad.NSystem.String" value="$r/@d_novedad" name="d_novedad"/>
+				<qry:attribute type="Nomad.NSystem.String" value="$r/@c_estado" name="c_estado"/>
+				<qry:attribute name="e_max_dias_anio" type="Nomad.NSystem.String" value="$r/@e_max_dias_anio"/>
+				<qry:attribute name="e_max_dias_lic" type="Nomad.NSystem.String" value="$r/@e_max_dias_lic"/>
+				<qry:attribute type="Nomad.NSystem.String" value="$r/@oi_licencia" name="oi_licencia"/>
+				<qry:attribute type="Nomad.NSystem.String" value="$r/@e_cant_dias" name="e_cant_dias"/>
+				<qry:attribute type="Nomad.NSystem.String" value="$r/@d_licencia" name="d_licencia"/>
+			</qry:element>
+		</qry:out>
+	</qry:select>
+</qry:define>

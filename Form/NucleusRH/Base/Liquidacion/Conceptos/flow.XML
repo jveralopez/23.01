@@ -1,0 +1,594 @@
+<flow:flow xmlns:flow="nomad_engine.flow" xmlns:doc="nomad_engine.doc" xmlns:qry="nomad_engine.qry" default_action="initialize" extends="NucleusRH.Base.Liquidacion.Conceptos.autoflow" name="NucleusRH.Base.Liquidacion.Conceptos">
+	<flow:info label="Flow para NucleusRH.Base.Liquidacion.Conceptos"/>
+	<flow:declare>
+		<doc:define name="NEWDDO"/>
+		<doc:define name="OUT"/>
+		<doc:define name="VARS"/>
+		<doc:define name="DDONuevo"/>
+		<doc:define name="QRY"/>
+		<doc:define name="FILTERDATA">
+			<FILTRO ATRIB_ORDEN1="" ORDEN1="" ATRIB_ORDEN2="" ORDEN2="" ATRIB_ORDEN3="" ORDEN3="" ca_fig_recibo="" l_activo="" oi_tipo_concepto="" oi_clase_concepto="">
+				<ROWS/>
+			</FILTRO>
+		</doc:define>
+		<qry:define declare="&lt;FILTRO ATRIB_ORDEN1=&quot;c_concepto&quot; ORDEN1=&quot;&quot; L_ACTIVO=&quot;&quot; oi_clase_concepto=&quot;&quot; oi_tipo_concepto=&quot;&quot;/&gt;" name="FILTER">
+			<qry:main doc="SOURCE">
+				<qry:element name="ROWS">
+					<qry:insert-select name="RS1" doc-path="#SOURCE:FILTRO"/>
+				</qry:element>
+			</qry:main>
+			<qry:select doc="SOURCE" name="RS1">
+				<qry:xquery>
+					for $r in sql('
+				SELECT 
+					c.oi_concepto,
+					c.c_concepto,
+					c.d_concepto,
+					c.oi_grupo_tliq,
+					c.oi_tipo_concepto,
+					c.oi_clase_concepto,
+					c.ca_fig_recibo,
+					c.l_activo,
+					c.e_secuencia
+				FROM 
+					LIQ14_CONCEPTOS as c
+				WHERE 
+					1=1 
+	        		{%? (string(#SOURCE:ROWS/ROW/@id)!='') {% AND c.OI_CONCEPTO in ({%=string(#SOURCE:ROWS/ROW/@id) %}) %} {%  %} %}
+	        		{%? (#SOURCE:@oi_tipo_concepto!='') {% AND c.oi_tipo_concepto = {#SOURCE:@oi_tipo_concepto} %} {%  %} %}
+	        		{%? (#SOURCE:@oi_clase_concepto!='') {% AND c.oi_clase_concepto = {#SOURCE:@oi_clase_concepto} %} {%  %} %}
+	        		{%? (#SOURCE:@ca_fig_recibo!='') {% AND c.ca_fig_recibo={#SOURCE:@ca_fig_recibo} %} {% %} %}
+	        		{%? (#SOURCE:@l_activo!='')	{% AND c.l_activo= {%=#SOURCE:@l_activo %} %} {% %} %}
+	        		
+	        	ORDER BY        			
+        	{%? (#SOURCE:@ATRIB_ORDEN1!='')	{% {%=#SOURCE:@ATRIB_ORDEN1%} {%? (#SOURCE:@ORDEN1!='') {% {%=#SOURCE:@ORDEN1%}, %} {% ASC, %}	%} %} {% %} %}
+        			OI_CONCEPTO ASC	
+
+        			        	
+        	')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:element name="ROW">
+						<qry:attribute type="Nomad.NSystem.String" value="$r/@OI_CONCEPTO" name="value"/>
+						<qry:attribute type="Nomad.NSystem.String" value="$r/@OI_CONCEPTO" name="id"/>
+					</qry:element>
+				</qry:out>
+			</qry:select>
+		</qry:define>
+		<qry:define declare="&lt;XML oi_concepto=&quot;50&quot; /&gt;" name="qry_cargarTree">
+			<qry:main doc="PARAM">
+				<qry:element name="tree">
+					<qry:element name="groups">
+						<qry:element name="group">
+							<qry:attribute name="name" value="'Variables'" type="Nomad.NSystem.String"/>
+							<qry:attribute name="expanded" value="'1'" type="Nomad.NSystem.String"/>
+							<qry:element name="groups">
+								<qry:insert-select doc-path="#PARAM:" name="qry_GrupoConcVar"/>
+							</qry:element>
+						</qry:element>
+					</qry:element>
+				</qry:element>
+			</qry:main>
+			<qry:select doc="PARAM" name="qry_GrupoConcVar">
+				<qry:xquery>
+					for $r in sql('
+				SELECT
+					cv.OI_CONCEPTO, 
+					v.c_tipo_Variable
+
+				FROM 
+					LIQ09_VARIABLES as v,
+					LIQ14_CONC_VAR as cv
+
+				WHERE
+					cv.OI_CONCEPTO = {#PARAM:XML/@oi_concepto}
+					AND v.OI_VARIABLE = cv.OI_VARIABLE
+				GROUP BY
+					cv.OI_CONCEPTO, 
+					v.c_tipo_Variable
+					
+			')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:element name="group">
+						<qry:attribute name="oi_concepto" value="#PARAM:XML/@oi_concepto" type="Nomad.NSystem.String"/>
+						<qry:attribute name="c_tipo_variable" value="$r/@c_tipo_variable" type="Nomad.NSystem.String"/>
+						<qry:attribute name="name" value="$r/@d_tipo_variable" type="Nomad.NSystem.String"/>
+						<qry:attribute name="expanded" value="'0'" type="Nomad.NSystem.String"/>
+						<qry:element name="items">
+							<qry:insert-select doc-path=".." name="qry_ConcVar"/>
+						</qry:element>
+					</qry:element>
+				</qry:out>
+			</qry:select>
+			<qry:select doc="PARAM" name="qry_ConcVar">
+				<qry:xquery>
+					for $r in sql('
+				SELECT 
+					v.c_variable,
+					v.d_variable 
+				FROM 
+					LIQ09_VARIABLES as v,
+					LIQ14_CONC_VAR as cv  
+				WHERE 
+					v.OI_VARIABLE = cv.OI_VARIABLE
+					AND cv.OI_CONCEPTO = {#PARAM:@oi_concepto}
+					AND v.c_TIPO_VARIABLE = {#PARAM:@c_tipo_variable}
+					
+			')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:element name="item">
+						<qry:attribute name="name" value="$r/@c_variable" type="Nomad.NSystem.String"/>
+						<qry:attribute name="descrip" value="$r/@d_variable" type="Nomad.NSystem.String"/>
+					</qry:element>
+				</qry:out>
+			</qry:select>
+		</qry:define>
+		<qry:define declare="&lt;CONCEPTO t_formula=&quot;1&quot; value=&quot;1&quot;&gt;&#13;&#10;&#9;&lt;CONC_VAR&gt;&#13;&#10;&#9;&#9;&lt;CONC_VARIABLE oi_variable=&quot;1&quot; /&gt;&#13;&#10;&#9;&lt;/CONC_VAR&gt;&#13;&#10;&lt;/CONCEPTO&gt;&#9;&#9;&#13;&#10;" name="qry_Testing">
+			<qry:main doc="SOURCE">
+				<qry:element name="Root">
+					<qry:attribute name="t_formula" value="#SOURCE:CONCEPTO/@t_formula" type="Nomad.NSystem.String"/>
+					<qry:element name="vars">
+						<qry:element name="var">
+							<qry:attribute name="name" value="'Valor'" type="Nomad.NSystem.String"/>
+							<qry:attribute name="descrip" value="'Valor'" type="Nomad.NSystem.String"/>
+						</qry:element>
+						<qry:element name="var">
+							<qry:attribute name="name" value="'Cantidad'" type="Nomad.NSystem.String"/>
+							<qry:attribute name="descrip" value="'Cantidad'" type="Nomad.NSystem.String"/>
+						</qry:element>
+						<qry:element name="var">
+							<qry:attribute name="name" value="'Error'" type="Nomad.NSystem.String"/>
+							<qry:attribute name="descrip" value="'Error'" type="Nomad.NSystem.String"/>
+						</qry:element>
+						<qry:element name="var">
+							<qry:attribute name="name" value="'Item'" type="Nomad.NSystem.String"/>
+							<qry:attribute name="descrip" value="'Item'" type="Nomad.NSystem.String"/>
+						</qry:element>
+						<qry:element name="var">
+							<qry:attribute name="name" value="'ItemA'" type="Nomad.NSystem.String"/>
+							<qry:attribute name="descrip" value="'ItemA'" type="Nomad.NSystem.String"/>
+						</qry:element>
+						<qry:element name="var">
+							<qry:attribute name="name" value="'EsManual'" type="Nomad.NSystem.String"/>
+							<qry:attribute name="descrip" value="'EsManual'" type="Nomad.NSystem.String"/>
+						</qry:element>
+						<qry:element name="var">
+							<qry:attribute name="name" value="'ValorManual'" type="Nomad.NSystem.String"/>
+							<qry:attribute name="descrip" value="'ValorManual'" type="Nomad.NSystem.String"/>
+						</qry:element>
+						<qry:element name="var">
+							<qry:attribute name="name" value="'CantidadManual'" type="Nomad.NSystem.String"/>
+							<qry:attribute name="descrip" value="'CantidadManual'" type="Nomad.NSystem.String"/>
+						</qry:element>
+						<qry:insert-select name="RS1" doc-path="#SOURCE:CONCEPTO"/>
+					</qry:element>
+				</qry:element>
+			</qry:main>
+			<qry:select doc="SOURCE" name="RS1">
+				<qry:xquery>
+					for $r in #SOURCE:CONC_VAR/CONC_VARIABLE/oi_variable
+				</qry:xquery>
+				<qry:out>
+					<qry:insert-select name="RS2" doc-path="$r"/>
+				</qry:out>
+			</qry:select>
+			<qry:select doc="SOURCE" name="RS2">
+				<qry:xquery>
+					for $r in sql('
+				SELECT 
+					v.c_variable,
+					v.d_variable
+				FROM
+					LIQ09_VARIABLES v
+				WHERE 
+					v.oi_variable = {#SOURCE:@value}
+				GROUP BY
+					v.c_variable,
+					v.d_variable 
+				')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:element name="var">
+						<qry:attribute name="name" value="$r/@c_variable" type="Nomad.NSystem.String"/>
+						<qry:attribute name="descrip" value="$r/@d_variable" type="Nomad.NSystem.String"/>
+					</qry:element>
+				</qry:out>
+			</qry:select>
+		</qry:define>
+		<qry:define declare="&#9;&lt;FILTRO ATRIB_ORDEN1=&quot;&quot; ORDEN1=&quot;&quot; ATRIB_ORDEN2=&quot;&quot; ORDEN2=&quot;&quot; ATRIB_ORDEN3=&quot;&quot; ORDEN3=&quot;&quot; CA_FIG_RECIBO=&quot;&quot; L_ACTIVO=&quot;&quot;&gt;&#13;&#10;&#9;&#9;&lt;CONCEPTOS/&gt;&#13;&#10;&#9;&#9;&lt;TIPOSCONCEPTOS/&gt;&#13;&#10;&#9;&#9;&lt;CLASESCONCEPTOS/&gt;&#13;&#10;&#9;&lt;/FILTRO&gt;" name="LIST">
+			<qry:main doc="SOURCE" maxdeep="2">
+				<qry:element name="ROWS">
+					<qry:insert-select name="sql1" doc-path="#SOURCE:FILTRO"/>
+				</qry:element>
+			</qry:main>
+			<qry:select doc="SOURCE" name="sql1">
+				<qry:xquery>
+					for $r in sql('
+				SELECT
+					c.oi_concepto,
+					c.c_concepto,
+					c.d_concepto,
+					c.l_activo,
+					c.oi_tipo_concepto,
+					c.oi_clase_concepto,
+					c.e_secuencia
+				FROM
+					LIQ14_CONCEPTOS as c 
+  				WHERE
+  					1=1 
+  				{%? (string(#SOURCE:ROWS/ROW/@id) != '') {% AND c.OI_CONCEPTO in ({%=string(#SOURCE:ROWS/ROW/@id) %}) %} {%  %} %}
+					{%? (#SOURCE:@oi_tipo_concepto!='') {% AND c.oi_tipo_concepto = {#SOURCE:@oi_tipo_concepto} %} {%  %} %}
+	        {%? (#SOURCE:@oi_clase_concepto!='') {% AND c.oi_clase_concepto = {#SOURCE:@oi_clase_concepto} %} {%  %} %}
+	        {%? (#SOURCE:@ca_fig_recibo!='') {% AND c.ca_fig_recibo={#SOURCE:@ca_fig_recibo} %} {% %} %}
+	        {%? (#SOURCE:@l_activo!='')	{% AND c.l_activo= {%=#SOURCE:@l_activo %} %} {% %} %}
+	        ORDER BY 
+					{%? (#SOURCE:@ATRIB_ORDEN1!='')	{% {%=#SOURCE:@ATRIB_ORDEN1%} {%? (#SOURCE:@ORDEN1!='') {% {%=#SOURCE:@ORDEN1%}, %} {% ASC, %}	%} %} {% %} %}
+    			OI_CONCEPTO ASC
+					
+			')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:element name="ROW">
+						<qry:attribute name="id" value="$r/@oi_concepto" type="Nomad.NSystem.Int"/>
+						<qry:attribute name="c_concepto" value="$r/@c_concepto" type="Nomad.NSystem.String"/>
+						<qry:attribute name="d_concepto" value="$r/@d_concepto" type="Nomad.NSystem.String"/>
+						<qry:attribute name="l_activo" value="$r/@l_activo" type="Nomad.NSystem.Boolean"/>
+						<qry:attribute name="e_secuencia" value="$r/@e_secuencia" type="Nomad.NSystem.Boolean"/>
+						<qry:attribute name="oi_tipo_concepto" value="$r/@oi_tipo_concepto"/>
+						<qry:attribute name="oi_clase_concepto" value="$r/@oi_clase_concepto"/>
+					</qry:element>
+				</qry:out>
+			</qry:select>
+		</qry:define>
+		<doc:define class="NucleusRH.Base.Liquidacion.Conceptos.CONCEPTO" name="AUXDOC"/>
+		<doc:define name="USO"/>
+		<qry:define declare="&lt;PARAM c_concepto = '80000001' /&gt;" name="qry_concepto_liquidado">
+			<qry:main doc="SOURCE">
+				<qry:element name="ROW">
+					<qry:attribute name="seUsoConcepto" value="'0'"/>
+					<qry:attribute name="usaLSD" value="'0'"/>
+					<qry:insert-select name="qry_parametro"/>
+					<qry:if test="@usaLSD = '1'">
+						<qry:then>
+							<qry:insert-select name="sql1" doc-path="#SOURCE:."/>
+						</qry:then>
+					</qry:if>
+				</qry:element>
+			</qry:main>
+			<qry:select name="sql1" doc="SOURCE">
+				<qry:xquery>
+					for $r in SQL(' 
+			fromrow 0
+			maxsize 1			
+			SELECT 
+			LIQ96_CONCEPTOS.oi_concepto_ddo
+			FROM
+			LIQ96_CONCEPTOS
+			where 
+			LIQ96_CONCEPTOS.c_concepto = {#SOURCE:@c_concepto}
+			')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:attribute name="seUsoConcepto" value="'1'"/>
+				</qry:out>
+			</qry:select>
+			<qry:select name="qry_parametro" doc="SOURCE">
+				<qry:xquery>
+					for $r in SQL('
+			SELECT  
+			ORG26_PARAMETROS.d_valor
+			FROM 
+			ORG26_PARAMETROS
+			where 
+			ORG26_PARAMETROS.c_parametro = \'UsaLSD\'	
+			')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:attribute name="usaLSD" value="$r/@d_valor"/>
+				</qry:out>
+			</qry:select>
+		</qry:define>
+		<doc:define name="EQUIV"/>
+		<qry:define name="qry_equivalencia">
+			<qry:main doc="SOURCE">
+				<qry:element name="ROW">
+					<qry:attribute name="oi_equivalencia" value="'0'"/>
+					<qry:insert-select name="sql1" doc-path="#SOURCE:."/>
+				</qry:element>
+			</qry:main>
+			<qry:select name="sql1" doc="SOURCE">
+				<qry:xquery>
+					for $r in SQL('
+			SELECT   
+			LIQ14_EQUIVALENCIA.oi_equivalencia
+			FROM
+			LIQ14_EQUIVALENCIA
+			WHERE 
+			LIQ14_EQUIVALENCIA.oi_concepto = {#SOURCE:@id}	
+			')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:attribute name="oi_equivalencia" value="$r/@oi_equivalencia"/>
+				</qry:out>
+			</qry:select>
+		</qry:define>
+		<doc:define name="E">
+			<ROW>
+				<oi_concepto/>
+			</ROW>
+		</doc:define>
+	</flow:declare>
+	<flow:main doc="SOURCE">
+		<flow:action name="initialize">
+			<flow:open-form doc-path="#FILTERDATA:" mode="FILTER" form-class="NucleusRH.Base.Liquidacion.Conceptos.filter.form"/>
+		</flow:action>
+		<flow:action name="cargarTree">
+			<doc:load-qry output-doc="OUT" input-doc-path="#SOURCE:" qry="qry_cargarTree"/>
+			<flow:exit-flow return-path="#OUT:"/>
+		</flow:action>
+		<flow:action name="VerFormula">
+			<flow:open-form doc-path="#SOURCE:" mode="SHOW" form-class="NucleusRH.Base.Liquidacion.Conceptos.Testing.Formula.form"/>
+		</flow:action>
+	</flow:main>
+	<flow:form doc="FILTERDATA" name="NucleusRH.Base.Liquidacion.Conceptos.filter.form:FILTER" form-class="NucleusRH.Base.Liquidacion.Conceptos.filter.form" mode="FILTER" extends="NucleusRH.Base.Liquidacion.Conceptos.CONCEPTO.filter.autoform:FILTER">
+		<flow:action name="on-show">
+			<flow:comment/>
+		</flow:action>
+		<flow:action name="FILTER">
+			<flow:log text-path="#SOURCE:" text="logsourcegrilla"/>
+			<flow:log text="logfilterdatapp" text-path="#FILTERDATA:"/>
+			<doc:load-qry output-doc="QRY" qry="FILTER" input-doc-path="#FILTERDATA:"/>
+			<doc:new-object doc="DDO" class="NucleusRH.Base.Liquidacion.Conceptos.CONCEPTO"/>
+			<flow:call-action action="Save-FILTER"/>
+			<flow:open-form iter-index="#QRY:ROW/@value" doc-path="#DDO:" parent-doc-path="#DDO:" mode="EDIT" form-class="NucleusRH.Base.Liquidacion.Conceptos.CONCEPTO.noreg.autoform"/>
+		</flow:action>
+		<flow:action name="open-flow-ADD">
+			<flow:open-form doc-path="#NEWDDOROOT:" mode="NEW" form-class="NucleusRH.Base.Liquidacion.Conceptos.CONCEPTO.form"/>
+		</flow:action>
+		<flow:action name="open-flow-LIST">
+			<flow:open-form iter-index="#QRY:ROW/@id" parent-doc-path="#QRY:" doc-path="#DDO:" mode="SHOW" form-class="NucleusRH.Base.Liquidacion.Conceptos.CONCEPTO.form"/>
+		</flow:action>
+		<flow:action name="EXPORT">
+			<doc:load-qry output-doc="QRY" qry="FILTER" input-doc-path="#FILTERDATA:"/>
+			<flow:exec-method method="InterfaceSalida" priority="5" out-type="String" out-attr-path="#BATCHDOC:@batch-id" class="NucleusRH.Base.Liquidacion.Conceptos.CONCEPTO">
+				<flow:param doc-path="#QRY:" type="Nomad.NSystem.Object" mode="in" name="parametros"/>
+			</flow:exec-method>
+			<flow:open-form form-class="Nomad.Base.Batch.Download.form" mode="BATCH" doc-path="#BATCHDOC:"/>
+		</flow:action>
+		<flow:action name="IMPORT">
+			<flow:open-form form-class="NucleusRH.Base.Liquidacion.Conceptos.CONCEPTO.IMPORTAR.form" mode="SHOW" doc-path="#SOURCE:"/>
+		</flow:action>
+		<flow:action name="EXPORT2">
+			<doc:load-qry output-doc="QRY" qry="FILTER" input-doc-path="#FILTERDATA:"/>
+			<flow:exec-method method="ExportarConceptos" priority="5" out-type="String" out-attr-path="#BATCHDOC:@batch-id" class="NucleusRH.Base.Liquidacion.Conceptos.CONCEPTO">
+				<flow:param doc-path="#QRY:" type="Nomad.NSystem.Object" mode="in" name="parametros"/>
+			</flow:exec-method>
+			<flow:open-form form-class="Nomad.Base.Batch.Download.form" mode="BATCH" doc-path="#BATCHDOC:"/>
+		</flow:action>
+	</flow:form>
+	<flow:form name="NucleusRH.Base.Liquidacion.Conceptos.CONCEPTO.noreg.form:EDIT" parent-doc="PARENTSOURCE" doc="SOURCE" extends="NucleusRH.Base.Liquidacion.Conceptos.CONCEPTO.noreg.autoform:EDIT" form-class="NucleusRH.Base.Liquidacion.Conceptos.CONCEPTO.noreg.autoform" mode="EDIT">
+		<flow:action name="open-flow-ADD">
+			<flow:open-form doc-path="#NEWDDOROOT:" mode="NEW" form-class="NucleusRH.Base.Liquidacion.Conceptos.CONCEPTO.form"/>
+		</flow:action>
+		<flow:action name="open-flow-SHOW">
+			<flow:open-form iter-index="#QRY:ROW/@id" parent-doc-path="#QRY:" doc-path="#DDO:" mode="SHOW" form-class="NucleusRH.Base.Liquidacion.Conceptos.CONCEPTO.form"/>
+		</flow:action>
+		<flow:action name="open-flow-LIST">
+			<flow:open-form iter-index="#QRY_LIST:ROW/@id" parent-doc-path="#QRY_LIST:" doc-path="#DDO:" mode="LIST" form-class="NucleusRH.Base.Liquidacion.Conceptos.CONCEPTO.form"/>
+		</flow:action>
+	</flow:form>
+	<flow:form name="NucleusRH.Base.Liquidacion.Conceptos.CONCEPTO.form:SHOW" doc="SOURCE" form-class="NucleusRH.Base.Liquidacion.Conceptos.CONCEPTO.form" mode="SHOW" extends="NucleusRH.Base.Liquidacion.Conceptos.CONCEPTO.autoform:SHOW" parent-doc="PARENTSOURCE">
+		<flow:action name="open-flow-ADD">
+			<flow:open-form doc-path="#NEWDDOROOT:" mode="NEW" form-class="NucleusRH.Base.Liquidacion.Conceptos.CONCEPTO.form"/>
+		</flow:action>
+		<flow:action name="open-flow-EDIT">
+			<flow:open-form doc-path="#SOURCE:" mode="EDIT" form-class="NucleusRH.Base.Liquidacion.Conceptos.CONCEPTO.form"/>
+		</flow:action>
+		<flow:action name="TESTEAR_CLICK">
+			<doc:load-qry output-doc="OUT" input-doc-path="#SOURCE:" qry="qry_Testing"/>
+			<flow:open-form doc-path="#OUT:" parent-doc-path="#SOURCE:" mode="SHOW" form-class="NucleusRH.Base.Liquidacion.Conceptos.Testing.form"/>
+		</flow:action>
+		<flow:action name="CALL:DUPLICAR">
+			<doc:load-object class="NucleusRH.Base.Liquidacion.Conceptos.CONCEPTO" id-path="#DDO:@id" doc="DDO"/>
+			<doc:new-object doc="NEWDDOROOT" class="NucleusRH.Base.Liquidacion.Conceptos.CONCEPTO"/>
+			<flow:exec-method out-doc="NEWDDOROOT" this-doc="NEWDDOROOT" class="NucleusRH.Base.Liquidacion.Conceptos.CONCEPTO" method="DUPLICATE">
+				<flow:param doc="SOURCE" type="Nomad.NSystem.Object" mode="in" name="paramDDO"/>
+			</flow:exec-method>
+			<flow:call-action action="open-flow-ADD"/>
+		</flow:action>
+		<flow:action name="delete-DDO">
+			<doc:load-qry output-doc="USO" input-doc-path="#SOURCE:" qry="qry_concepto_liquidado"/>
+			<flow:call-action if="#USO:@seUsoConcepto" else="MEN" eq="0" action="BORRAR"/>
+		</flow:action>
+		<flow:action name="BORRAR">
+			<doc:delete-object doc-path="#DDO:" class="NucleusRH.Base.Liquidacion.Conceptos.CONCEPTO" doc="DDO"/>
+			<doc:save-object class="NucleusRH.Base.Liquidacion.Conceptos.CONCEPTO" doc="DDO"/>
+		</flow:action>
+		<flow:action name="MEN">
+			<flow:message message="El concepto no se puede eliminar, ya fue liquidado"/>
+		</flow:action>
+		<flow:action name="VER_EQUIVALENCIA">
+			<flow:open-form form-class="NucleusRH.Base.Liquidacion.Conceptos.EquivalenciaLSD.form" mode="SHOW" doc-path="#SOURCE:"/>
+		</flow:action>
+	</flow:form>
+	<flow:form name="NucleusRH.Base.Liquidacion.Conceptos.CONCEPTO.form:EDIT" doc="SOURCE" form-class="NucleusRH.Base.Liquidacion.Conceptos.CONCEPTO.form" mode="EDIT" extends="NucleusRH.Base.Liquidacion.Conceptos.CONCEPTO.autoform:EDIT" parent-doc="PARENTSOURCE">
+		<flow:action name="TESTEAR_CLICK">
+			<doc:load-qry output-doc="OUT" input-doc-path="#SOURCE:" qry="qry_Testing"/>
+			<flow:open-form doc-path="#OUT:" parent-doc-path="#SOURCE:" mode="SHOW" form-class="NucleusRH.Base.Liquidacion.Conceptos.Testing.form"/>
+		</flow:action>
+		<flow:action name="TESTEARSINTAXIS_CLICK">
+			<flow:exec-method method="compile" this-doc="DDO" out-attr-path="#FORM:ctrl[@id='error']/@xval" out-type="String"/>
+		</flow:action>
+		<flow:action name="AVANZADA_CLICK">
+			<flow:open-form doc-path="#SOURCE:" mode="EDIT" form-class="NucleusRH.Base.Liquidacion.Conceptos.AvanzadaFormula.form"/>
+		</flow:action>
+		<flow:action name="delete-DDO">
+			<doc:load-qry output-doc="USO" input-doc-path="#SOURCE:" qry="qry_concepto_liquidado"/>
+			<flow:call-action if="#USO:@seUsoConcepto" else="MEN" eq="0" action="BORRAR"/>
+		</flow:action>
+		<flow:action name="BORRAR">
+			<doc:delete-object doc-path="#DDO:" class="NucleusRH.Base.Liquidacion.Conceptos.CONCEPTO" doc="DDO"/>
+			<doc:save-object class="NucleusRH.Base.Liquidacion.Conceptos.CONCEPTO" doc="DDO"/>
+		</flow:action>
+		<flow:action name="MEN">
+			<flow:message message="El concepto no se puede eliminar, ya fue liquidado"/>
+		</flow:action>
+		<flow:action name="VER_EQUIVALENCIA">
+			<flow:open-form form-class="NucleusRH.Base.Liquidacion.Conceptos.EquivalenciaLSD.form" mode="EDIT" doc-path="#SOURCE:"/>
+		</flow:action>
+	</flow:form>
+	<flow:form name="NucleusRH.Base.Liquidacion.Conceptos.CONCEPTO.form:NEW" doc="SOURCE" form-class="NucleusRH.Base.Liquidacion.Conceptos.CONCEPTO.form" mode="NEW" extends="NucleusRH.Base.Liquidacion.Conceptos.CONCEPTO.autoform:NEW" parent-doc="PARENTSOURCE">
+		<flow:action name="TESTEAR_CLICK">
+			<doc:load-qry output-doc="OUT" input-doc-path="#SOURCE:" qry="qry_Testing"/>
+			<flow:open-form doc-path="#OUT:" parent-doc-path="#SOURCE:" mode="SHOW" form-class="NucleusRH.Base.Liquidacion.Conceptos.Testing.form"/>
+		</flow:action>
+		<flow:action name="TESTEARSINTAXIS_CLICK">
+			<flow:exec-method method="compile" this-doc="DDO" out-attr-path="#FORM:ctrl[@id='error']/@xval" out-type="String"/>
+		</flow:action>
+		<flow:action name="SAVE">
+			<flow:call-action action="save-DDO"/>
+			<flow:close-form next-action="After-Change"/>
+		</flow:action>
+	</flow:form>
+	<flow:form name="NucleusRH.Base.Liquidacion.Conceptos.Testing.form:SHOW" parent-doc="PARENTSOURCE" doc="SOURCE" form-class="NucleusRH.Base.Liquidacion.Conceptos.Testing.form" mode="SHOW">
+		<flow:action name="on-show">
+			<flow:comment>
+				<flow:log text-path="#SOURCE:" text="Esteban"/>
+			</flow:comment>
+		</flow:action>
+		<flow:action name="RES_CLICK">
+			<doc:assign-value to-doc="VARS" from-path="#SOURCE:vars"/>
+			<flow:exec-method method="execute" this-doc="DDO" out-attr-path="#FORM:ctrl[@id='error']/@xval" out-type="Nomad.NSystem.String">
+				<flow:param name="oi_liquidacion" mode="in" attr-path="#FORM:ctrl[@id='oi_liquidacion' ]/@xval" type="int"/>
+				<flow:param name="oi_personal_emp" mode="in" attr-path="#FORM:ctrl[@id='oi_personal_emp']/@xval" type="int"/>
+				<flow:param name="xmlvalues" mode="inout" doc="VARS"/>
+			</flow:exec-method>
+			<doc:assign-mapping a-doc="VARS" b-doc="OUT" dir-apply="a-&gt;b">
+				<map docA="A" docB="B">
+					<submap path-docA="#A:" path-docB="#B:vars">
+						<map docA="A" docB="B">
+							<link A="#A:@name" B="#B:@name"/>
+							<link A="#A:@value" B="#B:@value"/>
+						</map>
+						<ProtoA/>
+						<ProtoB/>
+					</submap>
+				</map>
+			</doc:assign-mapping>
+		</flow:action>
+		<flow:action name="BACK">
+			<flow:close-form/>
+		</flow:action>
+	</flow:form>
+	<flow:form name="NucleusRH.Base.Liquidacion.Conceptos.AvanzadaFormula.form:EDIT" doc="SOURCE" form-class="NucleusRH.Base.Liquidacion.Conceptos.AvanzadaFormula.form" mode="EDIT">
+		<flow:action name="on-show"/>
+		<flow:action name="CANCEL">
+			<flow:close-form/>
+		</flow:action>
+		<flow:action name="ACEPTAR"/>
+		<flow:action name="TESTEARSINTAXIS_CLICK">
+			<flow:exec-method method="compile" this-doc="DDO" out-attr-path="#FORM:ctrl[@id='error']/@xval" out-type="String"/>
+		</flow:action>
+		<flow:action name="TESTEAR_CLICK">
+			<doc:load-qry output-doc="OUT" input-doc-path="#SOURCE:" qry="qry_Testing"/>
+			<flow:open-form doc-path="#OUT:" parent-doc-path="#SOURCE:" mode="SHOW" form-class="NucleusRH.Base.Liquidacion.Conceptos.Testing.form"/>
+		</flow:action>
+	</flow:form>
+	<flow:form name="NucleusRH.Base.Liquidacion.Conceptos.Testing.Formula.form:SHOW" doc="SOURCE" form-class="NucleusRH.Base.Liquidacion.Conceptos.Testing.Formula.form" mode="SHOW">
+		<flow:action name="on-show"/>
+		<flow:action name="BACK">
+			<flow:close-form/>
+		</flow:action>
+	</flow:form>
+	<flow:form extends="NucleusRH.Base.Liquidacion.Conceptos.CONCEPTO.autoform:LIST" parent-doc="PARENTSOURCE" doc="SOURCE" name="NucleusRH.Base.Liquidacion.Conceptos.CONCEPTO.form:LIST" form-class="NucleusRH.Base.Liquidacion.Conceptos.CONCEPTO.form" mode="LIST">
+		<flow:action name="open-flow-EDIT">
+			<flow:open-form doc-path="#DDO:" mode="EDIT" form-class="NucleusRH.Base.Liquidacion.Conceptos.CONCEPTO.form"/>
+		</flow:action>
+		<flow:action name="open-flow-ADD">
+			<flow:open-form doc-path="#NEWDDOROOT:" mode="NEW" form-class="NucleusRH.Base.Liquidacion.Conceptos.CONCEPTO.form"/>
+		</flow:action>
+		<flow:action name="CALL:DUPLICAR">
+			<doc:load-object class="NucleusRH.Base.Liquidacion.Conceptos.CONCEPTO" id-path="#FORM:ctrl[@id='LIST']/@xval" doc="DDO"/>
+			<doc:new-object doc="NEWDDOROOT" class="NucleusRH.Base.Liquidacion.Conceptos.CONCEPTO"/>
+			<flow:exec-method out-doc="NEWDDOROOT" this-doc="NEWDDOROOT" class="NucleusRH.Base.Liquidacion.Conceptos.CONCEPTO" method="DUPLICATE">
+				<flow:param doc="SOURCE" type="Nomad.NSystem.Object" mode="in" name="paramDDO"/>
+			</flow:exec-method>
+			<flow:call-action action="open-flow-ADD"/>
+		</flow:action>
+		<flow:action name="delete-DDO">
+			<doc:load-qry output-doc="USO" input-doc-path="#SOURCE:" qry="qry_concepto_liquidado"/>
+			<flow:call-action if="#USO:@seUsoConcepto" else="MEN" eq="0" action="BORRAR"/>
+		</flow:action>
+		<flow:action name="BORRAR">
+			<doc:delete-object doc-path="#DDO:" class="NucleusRH.Base.Liquidacion.Conceptos.CONCEPTO" doc="DDO"/>
+			<doc:save-object class="NucleusRH.Base.Liquidacion.Conceptos.CONCEPTO" doc="DDO"/>
+		</flow:action>
+		<flow:action name="MEN">
+			<flow:message message="El concepto no se puede eliminar, ya fue liquidado"/>
+		</flow:action>
+		<flow:action name="VER_EQUIVALENCIA">
+			<flow:log text-path="#DDO:" text="DDO"/>
+			<doc:load-object class="NucleusRH.Base.Liquidacion.Conceptos.CONCEPTO" id-path="#FORM:ctrl[@id='LIST']/@xval" doc="DDO"/>
+			<flow:open-form doc-path="#DDO:" form-class="NucleusRH.Base.Liquidacion.Conceptos.EquivalenciaLSD.form" mode="SHOW"/>
+		</flow:action>
+	</flow:form>
+	<flow:form parent-doc="PARENTSOURCE" mode="SHOW" name="NucleusRH.Base.Liquidacion.Conceptos.CONCEPTO.IMPORTAR.form:SHOW" form-class="NucleusRH.Base.Liquidacion.Conceptos.CONCEPTO.IMPORTAR.form" doc="#SOURCE:">
+		<flow:action name="BACK">
+			<flow:close-form/>
+		</flow:action>
+		<flow:action name="ACCEPT">
+			<flow:exec-method method="ImportarConceptos" class="NucleusRH.Base.Liquidacion.Conceptos.CONCEPTO" priority="7" out-type="String" out-attr-path="#BATCHDOC:@batch-id"/>
+			<flow:open-form form-class="nomad.base.batchtolist.form" mode="BATCH" doc-path="#BATCHDOC:"/>
+		</flow:action>
+	</flow:form>
+	<flow:form mode="SHOW" form-class="NucleusRH.Base.Liquidacion.Conceptos.EquivalenciaLSD.form" name="NucleusRH.Base.Liquidacion.Conceptos.EquivalenciaLSD.form:SHOW" doc="SOURCE">
+		<flow:action name="ACCEPT">
+			<flow:log text-path="#E:" text="EEEE"/>
+			<flow:exec-method class="NucleusRH.Base.Liquidacion.EquivalenciaLSD.EQUIVALENCIA" method="GuardarEquivalencia">
+				<flow:param doc-path="#E:" type="Nomad.NSystem.Proxy.NomadXML" mode="in" name="xmlParam"/>
+			</flow:exec-method>
+			<flow:close-form/>
+		</flow:action>
+		<flow:action name="BACK">
+			<flow:close-form/>
+		</flow:action>
+		<flow:action name="on-show">
+			<doc:new-object class="NucleusRH.Base.Liquidacion.EquivalenciaLSD.EQUIVALENCIA" doc="E"/>
+			<flow:log text-path="#SOURCE:" text="SOURCE"/>
+			<doc:load-qry output-doc="EQUIV" input-doc-path="#SOURCE:" qry="qry_equivalencia"/>
+			<flow:log text="EQUIV" text-path="#EQUIV:"/>
+			<flow:call-action eq="0" action="C" else="CARGAR" if="#EQUIV:@oi_equivalencia"/>
+			<doc:set-attribute to-attr-path="#E:oi_concepto/@value" from-attr-path="#SOURCE:@id"/>
+		</flow:action>
+		<flow:action name="CARGAR">
+			<doc:load-object id-path="#EQUIV:@oi_equivalencia" class="NucleusRH.Base.Liquidacion.EquivalenciaLSD.EQUIVALENCIA" doc="E" load-child="1" load-all="1"/>
+		</flow:action>
+		<flow:action name="C"/>
+	</flow:form>
+	<flow:form mode="EDIT" form-class="NucleusRH.Base.Liquidacion.Conceptos.EquivalenciaLSD.form" name="NucleusRH.Base.Liquidacion.Conceptos.EquivalenciaLSD.form:EDIT" doc="SOURCE">
+		<flow:action name="ACCEPT">
+			<flow:log text-path="#E:" text="EEEE"/>
+			<flow:exec-method class="NucleusRH.Base.Liquidacion.EquivalenciaLSD.EQUIVALENCIA" method="GuardarEquivalencia">
+				<flow:param doc-path="#E:" type="Nomad.NSystem.Proxy.NomadXML" mode="in" name="xmlParam"/>
+			</flow:exec-method>
+			<flow:close-form/>
+		</flow:action>
+		<flow:action name="BACK">
+			<flow:close-form/>
+		</flow:action>
+		<flow:action name="on-show">
+			<doc:new-object class="NucleusRH.Base.Liquidacion.EquivalenciaLSD.EQUIVALENCIA" doc="E"/>
+			<flow:log text-path="#SOURCE:" text="SOURCE"/>
+			<doc:load-qry output-doc="EQUIV" input-doc-path="#SOURCE:" qry="qry_equivalencia"/>
+			<flow:log text="EQUIV" text-path="#EQUIV:"/>
+			<flow:call-action eq="0" action="C" else="CARGAR" if="#EQUIV:@oi_equivalencia"/>
+			<doc:set-attribute to-attr-path="#E:oi_concepto/@value" from-attr-path="#SOURCE:@id"/>
+		</flow:action>
+		<flow:action name="CARGAR">
+			<doc:load-object id-path="#EQUIV:@oi_equivalencia" class="NucleusRH.Base.Liquidacion.EquivalenciaLSD.EQUIVALENCIA" doc="E" load-child="1" load-all="1"/>
+		</flow:action>
+		<flow:action name="C"/>
+	</flow:form>
+</flow:flow>

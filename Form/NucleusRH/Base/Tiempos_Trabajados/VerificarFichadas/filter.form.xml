@@ -1,0 +1,123 @@
+<form:Form xmlns:form="nomad_engine.form" xmlns:qry="nomad_engine.qry" extends="NucleusRH.Base.Tiempos_Trabajados.Personal.PERSONAL_EMP.BUSCAR2.form" name="VerificarFichadas" doc="source">
+	<form:Title>
+		<form:Label name="lbl_titulo" style="S3 LCol_w" label="Verificar Fichadas"/>
+	</form:Title>
+	<form:Center width="100%">
+		<form:VGroup nvalue="#source:@gcustom" label="Criterios de selecci&#243;n de par&#225;metros para el Proceso" border="1" width="90%" name="vgroupDatosCustom" collapse="1">
+			<form:Columns width="100%" name="1">
+				<form:Column valign="middle" name="2" separation="2" align="left">
+					<form:Rower label="Fecha Desde - Hasta" separation="5" required="1" name="finifin">
+						<form:DateTime nvalue="#source:@f_ini" name="f_ini" pattern="YYYYMMDD" required="1" descr="Fecha de Inicio del Horario para una Persona" mask="dd/mm/yyyy">
+							<form:SButtons>
+								<form:SButton img="Calendar" label="Calendar" name="Calendar">
+									<form:Event action="SHOW_HELPER" name="onclick" runat="client"/>
+								</form:SButton>
+							</form:SButtons>
+						</form:DateTime>
+						<form:Label name="lblfechas" label="..."/>
+						<form:DateTime nvalue="#source:@f_fin" name="f_fin" pattern="YYYYMMDD" required="1" descr="Fecha de Inicio del Horario para una Persona" mask="dd/mm/yyyy">
+							<form:SButtons>
+								<form:SButton img="Calendar" label="Calendar" name="Calendar">
+									<form:Event action="SHOW_HELPER" name="onclick" runat="client"/>
+								</form:SButton>
+							</form:SButtons>
+						</form:DateTime>
+					</form:Rower>
+					<form:CheckBox label="Ejecuci&#243;n Parcial?" required="1" nvalue="#source:@parcial" name="parcial"/>
+					<form:CheckBox label="Verificar s&#243;lo Legajos con fichadas?" required="1" nvalue="#source:@fichadas" name="fichadas"/>
+					<form:Combo required="1" nvalue="#source:@TipoClasif" descrip="Determina el tipo de clasificaci&#243;n de fichadas a utilizar" label="Tipo Clasificaci&#243;n" name="TipoClasif">
+						<form:Opts name="opts1">
+							<OPT name="N" text="No Aplica" code="N" value="N"/>
+							<OPT name="H" text="Seg&#250;n Horario" code="H" value="H"/>
+							<OPT name="A" text="&#193;gil" code="A" value="A"/>
+						</form:Opts>
+						<form:SButtons>
+							<form:SButton img="regist" label="Search" name="REGIST">
+								<form:Event name="onclick" action="REGIST" runat="extern">
+									<form:helpper action="initialize" name="NucleusRH.Base.Tiempos_Trabajados.Parametros.PARAMETRO.guia.flow">
+										<FILTRO c_parametro="TipoClasif"/>
+									</form:helpper>
+								</form:Event>
+							</form:SButton>
+						</form:SButtons>
+					</form:Combo>
+				</form:Column>
+			</form:Columns>
+		</form:VGroup>
+	</form:Center>
+	<form:Bottom>
+		<form:RowAligner name="rowaligner1">
+			<form:Row name="row1">
+				<form:Button startvalidate="1" descrip="Ejecutar el Proceso de Verificaci&#243;n de Fichadas para el rango de fechas y los Legajos seleccionados" label="Ejecutar" img="ok" name="EXECUTE" note="Consultar los Legajos seleccionados">
+					<form:Event action="Ejecutar" runat="client" name="onclick"/>
+				</form:Button>
+				<form:Button img="back" label="Volver" name="BACK" descrip="Volver al Menu princial" note="Volver al Menu princial">
+					<form:Event action="BACK" runat="server" name="onclick"/>
+				</form:Button>
+			</form:Row>
+		</form:RowAligner>
+	</form:Bottom>
+	<form:Scripts>
+		function Ejecutar()
+{               
+	if (Ctrl('f_ini').TypedValue() &gt; Ctrl('f_fin').TypedValue())
+	{
+		alert("La Fecha Desde debe ser anterior o igual a la Fecha Hasta");
+		return false;
+	}
+	 
+	FillArray(100);
+	Ctrl("main").DoEvent("FILTER");	 		
+}
+	</form:Scripts>
+	<form:Event action="ACCEPT" name="FILTER" runat="server"/>
+	<form:Resources>
+		<form:Resource declare="&lt;PARAM f_ini=&quot;20100101&quot; f_fin=&quot;20101231&quot; fichadas=&quot;1&quot;/&gt;" name="qry_externo">
+			<qry:main name="qry" doc="SOURCE">
+				<qry:element name="ROWS">
+					<qry:insert-select name="sql1" doc-path="#SOURCE:/PARAM"/>
+				</qry:element>
+			</qry:main>
+			<qry:select name="sql1" doc="SOURCE">
+				<qry:xquery>
+					for $r in sql('
+					SELECT 
+						PER02_PERSONAL_EMP.oi_personal_emp,
+				    SEC.policy
+					FROM 
+						TTA04_HORARIOSPERS, PER02_PERSONAL_EMP,
+						NMD_SECURITY(class=\'NucleusRH.Base.Personal.LegajoEmpresa.PERSONAL_EMP\') as SEC						
+					JOIN 
+						TTA04_HORARIOSPERS.oi_personal_emp INNER PER02_PERSONAL_EMP.oi_personal_emp,
+				    PER02_PERSONAL_EMP.oi_personal_emp LEFT OUTER SEC.id						
+					WHERE 
+						TTA04_HORARIOSPERS.f_fechainicio &lt;= {DateTime(#SOURCE:@f_fin)}
+						AND (TTA04_HORARIOSPERS.f_fechafin &gt;= {DateTime(#SOURCE:@f_ini)}
+						OR ISNULL(TTA04_HORARIOSPERS.f_fechafin))
+					  {%?(#SOURCE:@fichadas='1') 
+						{% 
+						   AND PER02_PERSONAL_EMP.oi_personal_emp IN (
+						   SELECT TTA07_FICHADASING.oi_personal_emp
+						   FROM TTA07_FICHADASING
+						   WHERE TTA07_FICHADASING.f_fechahora &gt;= #{%=#SOURCE:@f_ini%}#
+						   AND TTA07_FICHADASING.f_fechahora &lt;= #{%=String(DateTime(Number(DateTime(#SOURCE:@f_fin))+1))%}#
+						   GROUP BY TTA07_FICHADASING.oi_personal_emp)
+						%} 
+						{% %} 
+				  %}	
+					
+				')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:element name="ROW">
+						<qry:attribute name="id" value="$r/@oi_personal_emp"/>
+						<qry:attribute name="policy" value="$r/@policy"/>
+					</qry:element>
+				</qry:out>
+			</qry:select>
+			<qry:params>
+				##fichadas,f_ini,f_fin##
+			</qry:params>
+		</form:Resource>
+	</form:Resources>
+</form:Form>

@@ -1,0 +1,490 @@
+<form:Form xmlns:form="nomad_engine.form" xmlns:qry="nomad_engine.qry" extends="NucleusRH.Base.Tiempos_Trabajados.Personal.NOVEDAD.MAIN.STD_LIST.autoform" doc="source" name="NucleusRH.Base.Tiempos_Trabajados.Personal.NOVEDAD.list.form">
+	<form:Center height="100%" width="95%">
+		<form:RecordSet nvalue="#source:@ID" width="100%" xquery="QRY_IDS_LIST" height="100%" select-show="1" mode="IDS" row-height="20" descrip="Registros" label="Registros" name="LIST" doc-store="#APP#_#USER#_NucleusRH.Base.Tiempos_Trabajados.Personal.NOVEDAD_STD_LIST.xml">
+			<form:RSColumns>
+				<form:RSColumn show="C" orderby="1" width="120px" type="string" name="oi_empresa" label="Empresa" descrip="Empresa"/>
+				<form:RSColumn show="C" orderby="1" width="120px" type="string" name="oi_personal_emp" label="Legajo" descrip="Legajo"/>
+				<form:RSColumn show="C" orderby="0" width="120px" type="string" name="oi_tipohora" label="Tipo de Hora" descrip="Tipo de Hora"/>
+				<form:RSColumn format="dd/mm/yyyy" type="datetime" show="C" orderby="1" width="80px" name="f_fecha" label="Fecha" descrip="Fecha de la Novedad"/>
+				<form:RSColumn format="HH:MM" type="datetime" show="C" orderby="1" width="60px" name="e_horainicio" label="Hora Inicio" descrip="Hora Inicio"/>
+				<form:RSColumn format="HH:MM" type="datetime" show="C" orderby="1" width="60px" name="e_horafin" label="Hora Fin" descrip="Hora Fin"/>
+				<form:RSColumn show="C" orderby="1" width="120px" type="string" name="d_novedad" label="Descripci&#243;n" descrip="Descripci&#243;n"/>
+			</form:RSColumns>
+			<form:SButtons>
+				<form:SButton img="refresh" descrip="Actualizar Registros" label="Actualizar" name="REFRESH">
+					<form:Event action="OnRefresh" runat="client" name="onclick"/>
+				</form:SButton>
+			</form:SButtons>
+			<form:Event action="EnabledButtons" name="OnClick" runat="client"/>
+			<form:Event action="OnOrder" name="CONTEX_MENU_ORDER" runat="client"/>
+			<form:Event action="RegShow" name="OnPressEnter" runat="client"/>
+			<form:Event action="RegShow" name="OnPressC" runat="client"/>
+			<form:Event action="RegAdd" name="OnPressInsert" runat="client"/>
+			<form:Event action="RegAdd" name="OnPressA" runat="client"/>
+			<form:Event action="RegDelete" name="OnPressDelete" runat="client"/>
+			<form:Event action="RegDelete" name="OnPressD" runat="client"/>
+			<form:Event action="RegEdit" name="OnPressM" runat="client"/>
+		</form:RecordSet>
+		<form:Hidden nvalue="#source:@oi_personal_emp" name="legajo"/>
+		<form:Hidden nvalue="#source:@f_desde" name="fecha_desde"/>
+		<form:Hidden nvalue="#source:@f_hasta" name="fecha_hasta"/>
+		<form:Hidden nvalue="#source:@tipo_hora" name="tipo_hora"/>
+	</form:Center>
+	<form:Scripts>
+		var RS;
+var CFG,CHLCFG;
+var TIT=null;
+
+//Actualiza la Lista
+function LoadList(force)
+{       
+  var proxy=GetProxy(); //as NomadProxy
+  var param=new NomadXML("DATA");
+  var lst=Ctrl("LIST");
+
+  var max=CFG.GetAttrInt("maxreg");
+  if (isNaN(max)) max=0;
+
+  if (force || Ctrl("VALUES").GetXValue()=="*" || Ctrl("VALUES").GetXValue()=="" )
+  {
+  param.SetAttr("parent" ,Ctrl("PARENT").GetXValue());
+  param.SetAttr("order"  ,Ctrl("ORDER").GetXValue().substr(1));
+  param.SetAttr("asc"    ,Ctrl("ORDER").GetXValue().substr(0,1)=="+"?"1":"0"); 
+   
+  param.SetAttr("legajo",Ctrl("legajo").GetXValue());
+  param.SetAttr("fecha_desde",Ctrl("fecha_desde").GetXValue());
+  param.SetAttr("fecha_hasta",Ctrl("fecha_hasta").GetXValue());
+  param.SetAttr("tipo_hora",Ctrl("tipo_hora").GetXValue());
+        
+  if (Ctrl("BUSCAR")) param.SetAttr("search" ,Ctrl("BUSCAR").GetXValue());
+  if (max&gt;0) param.SetAttr("LEN",max);
+
+  //Agrego los Parametros Adicionales
+  for (cur=CFG.FirstChild(); cur!=null; cur=cur.Next())
+  {
+  	if (Ctrl(cur.GetAttr("name")))
+  		param.SetAttr(cur.GetAttr("name"), Ctrl(cur.GetAttr("name")).GetXValue());
+
+//Faltan algunos Parametros  		
+  	if (cur.GetAttrBool("req") &amp;&amp; Ctrl(cur.GetAttr("name")).GetXValue()=="")
+  	{
+  Ctrl("VALUES").SetXValue("");
+  Ctrl("LIST_REG").SetXValue("Especifique alg&#250;n criterio de b&#250;squeda.");
+  
+	//Limpio todo
+  lst.IDs=new Array();
+  lst.SetXValue("");          
+
+	//Mensaje Inicial de la Lista
+	lst.MsgEmply="Especifique alg&#250;n criterio de b&#250;squeda...";
+	lst.ResetSQL();
+  		return;
+  	}
+  }
+
+  //Cargo el RS
+  if(CFG.GetAttr("METHOD")!="")
+  {
+    var ca=proxy.RPCService();
+    ca.AddParam(new NomadRPCParamOut("OUT", "Nomad.NSystem.Object", "Nomad.NSystem.Proxy.NomadXML"));
+
+    //Lista de Parametros
+    var p=0;
+    var mecfg=new NomadXML(Ctrl("main").getResource("QRY_IDS_METHOD"));
+    for (cur=mecfg.FirstChild(); cur!=null; cur=cur.Next())
+    {
+      switch(cur.GetAttr("value").split(":")[0])
+      {
+        case "ctrl":
+          p++;
+          ca.AddParam(new NomadRPCParam("P"+p, "IN", Ctrl(cur.GetAttr("value").substr(5)).GetXValue(), "String"));
+          break;
+        case "const":
+          p++;
+          ca.AddParam(new NomadRPCParam("P"+p, "IN", cur.GetAttr("value").substr(6), "String"));
+          break;
+        default:
+          if (cur.GetAttr("value")!="")
+          {
+            p++;
+            ca.AddParam(new NomadRPCParam("P"+p, "IN", cur.GetAttr("value"), "String"));
+          }
+          break;
+      }
+    }
+
+    ca.Execute(CFG.GetAttr("METHOD").split(":")[0],CFG.GetAttr("METHOD").split(":")[1]);
+    RS=new NomadXML(ca.GetParam("OUT").Data);
+  } else
+  {
+    RS=proxy.SQLService().GetXML(Ctrl("main").getResource("QRY_IDS_NUEVO"), param.ToString());
+  }
+
+  //Actualizo el Label
+  var total=RS.GetAttrInt("total"); if (isNaN(total)) total=0;
+  var count=RS.GetAttrInt("count"); if (isNaN(count)) count=0;
+
+
+//Limpio la Lista
+  lst.IDs=new Array();
+
+  //Genero la Lista de IDS                                
+  var found=false;
+  for (var cur=RS.FirstChild(); cur!=null; cur=cur.Next())
+  	if (max==0 || lst.IDs.length&lt;max)
+  	{
+    	lst.IDs.push(cur.GetAttr("id"));
+    	if (cur.GetAttr("id")==lst.GetXValue()) found=true;
+    }
+
+  Ctrl("VALUES").SetXValue(lst.IDs.length&gt;100 ? "*" : lst.IDs.join("|"))
+  } else
+  {
+//Cargo la Lista
+  lst.IDs=Ctrl("VALUES").GetXValue().split("|");
+  count=lst.IDs.length
+  }
+
+  if (max&gt;0 &amp;&amp; count&gt;=max)
+  {                      
+  	if (count==max)
+  		Ctrl("LIST_REG").SetXValue("Primeros "+max+" registros");
+  	else                                                      
+  		Ctrl("LIST_REG").SetXValue("ERROR AL MOSTRAR LA CANTIDAD DE REGISTROS ("+max+"!="+count+")");
+  } else            
+  if (count==0)
+  {
+  	Ctrl("LIST_REG").SetXValue("No hay registros");
+  } else
+  {
+  	Ctrl("LIST_REG").SetXValue(count + " registros");
+  }
+
+
+  lst.MsgEmply="No hay registros";
+  if (!found) lst.SetXValue("");
+  lst.ResetSQL();
+}
+
+//Habilita los Botones
+function EnabledButtons()
+{
+  var cur,f;
+  if (Ctrl("LIST").GetXValue()=="" || Ctrl("LIST").TotalRow&lt;=0)
+  {
+    CtrlEnabled("SHOW"  ,false);
+    CtrlEnabled("ACCEPT",false);
+    CtrlEnabled("ADD"   ,CheckEnabledButton("ADD"));
+    CtrlEnabled("EDIT"  ,false);
+    CtrlEnabled("DELETE",false);
+    CtrlEnabled("ADMIN" ,false);
+
+    //Buscar que botones estan habilitados siempre
+    for (cur=CHLCFG.FirstChild(); cur; cur=cur.Next())
+    {
+      f=cur.GetAttrInt("flag");
+      CtrlEnabled(cur.GetAttr("name"), (f==2?CheckEnabledButton(cur.GetAttr("name")):false));
+    }
+  } else
+  if (Ctrl("LIST").GetSelectAttrValue("lock")!="")
+  {
+    CtrlEnabled("SHOW"  ,CheckEnabledButton("SHOW"));
+    CtrlEnabled("ACCEPT",CheckEnabledButton("ACCEPT"));
+    CtrlEnabled("ADD"   ,CheckEnabledButton("ADD"));
+    CtrlEnabled("EDIT"  ,Ctrl("LIST").GetSelectAttrValue("lock")=="2"?CheckEnabledButton("EDIT"):false);
+    CtrlEnabled("DELETE",false);
+    CtrlEnabled("ADMIN" ,(GetProxy().Admin()?CheckEnabledButton("ADMIN"):false));
+
+    //Buscar que botones estan habilitados si esta bloqueado
+    for (cur=CHLCFG.FirstChild(); cur; cur=cur.Next())
+    {
+      f=cur.GetAttrInt("flag");
+      CtrlEnabled(cur.GetAttr("name"), (f==2?CheckEnabledButton(cur.GetAttr("name")):false));
+    }
+  } else
+  {
+    CtrlEnabled("SHOW"  ,CheckEnabledButton("SHOW"));
+    CtrlEnabled("ACCEPT",CheckEnabledButton("ACCEPT"));
+    CtrlEnabled("ADD"   ,CheckEnabledButton("ADD"));
+    CtrlEnabled("EDIT"  ,CheckEnabledButton("EDIT"));
+    CtrlEnabled("DELETE",CheckEnabledButton("DELETE"));
+    CtrlEnabled("ADMIN" ,(GetProxy().Admin()?CheckEnabledButton("ADMIN"):false));
+
+    //Habilitar todos los botones
+    for (cur=CHLCFG.FirstChild(); cur; cur=cur.Next())
+      CtrlEnabled(cur.GetAttr("name"), CheckEnabledButton(cur.GetAttr("name")));
+  }
+}
+
+function InternalRefresh(force)
+{
+  LoadList(force);
+  EnabledButtons();
+}
+
+function RefreshList(force)
+{                  
+if (CFG.GetAttr("autoload")!="0" || force || Ctrl("VALUES").GetXValue()!="")
+{                     
+var lst=Ctrl("LIST");
+
+//Limpio la Lista
+lst.IDs=new Array();
+
+//Mensaje Inicial de la Lista
+lst.MsgEmply="Cargando...";
+lst.ResetSQL();
+
+NomadTimeout("InternalRefresh("+(CFG.GetAttr("autoload")!="0" || force?"true":"false")+");", 200, "Cargando la lista...");
+} else                               
+EnabledButtons();
+}
+
+function ReplaceResource(recID)
+{
+  var recValue=Ctrl("main").getResource(recID);
+  recValue=Replace(recValue,"#RESOURCE-LIST#"  ,CFG.GetAttr("RESOURCE-LIST"  ));
+  recValue=Replace(recValue,"#RESOURCE-ID#"    ,CFG.GetAttr("RESOURCE-ID"    ));
+  recValue=Replace(recValue,"#RESOURCE-PARENT#",CFG.GetAttr("RESOURCE-PARENT"));
+  recValue=Replace(recValue,"#RESOURCE-OBJECT#",CFG.GetAttr("RESOURCE-OBJECT"));
+
+  Ctrl("main").setResource(recValue, recID);
+}
+
+///////////////////////////////////////////////////////////////////////////////
+//EVENTOS
+function OnLoad()
+{
+  //Cargo la Configuracion
+  CFG   =new NomadXML(Ctrl("main").getResource("QRY_CFG"));
+  CHLCFG=new NomadXML(Ctrl("main").getResource("QRY_CHILD"));
+
+  //Mensaje Inicial de la Lista
+  Ctrl("LIST").MsgEmply=(CFG.GetAttr("autoload")!="0"?"Cargando...":"Especifique alg&#250;n criterio de b&#250;squeda...");
+  Ctrl("LIST_REG").SetXValue(CFG.GetAttr("autoload")!="0"?"Cargando...":"Especifique alg&#250;n criterio de b&#250;squeda.");
+
+  //Modifico los Recursos
+  ReplaceResource("QRY_IDS");
+  ReplaceResource("QRY_IDS_LIST");
+  ReplaceResource("QRY_IDS_METHOD");
+  ReplaceResource("QRY_IDS_PARENT");
+
+  //Actualizo el Titulo
+  if ((CFG.GetAttr("RESOURCE-PARENT")!="") &amp;&amp; (Ctrl("PARENT").GetXValue()!=""))
+  {
+    if (TIT==null)
+      TIT=GetProxy().SQLService().GetXML(Ctrl("main").getResource("QRY_IDS_PARENT"), '&lt;PARAM IDS="'+Ctrl("PARENT").GetXValue()+'"/&gt;');
+
+  while(TIT!=null)
+  {
+    if (TIT.GetAttr("descr")!="")
+      Ctrl("PAR").SetXValue(" ("+TIT.GetAttr("descr")+")");
+    TIT=TIT.FirstChild();
+  }
+  }
+
+  //Cargo la Lista
+  RefreshList(false);
+  
+  //Evento PosONLOAD
+  PosOnLoad();
+}
+
+function PosOnLoad()
+{
+}
+
+function CheckEnabledButton(name)
+{
+return true;
+}
+
+function OnReady()
+{
+  //Cargo la Configuracion
+  if (Ctrl("BUSCAR")) Ctrl("BUSCAR").SetFocus();
+}
+
+function OnActivate()
+{
+  //Cargo la Lista
+  RefreshList(false);
+}                   
+
+function OnSearch()
+{
+  //Cargo la Lista
+  RefreshList(true);
+}                   
+
+function OnRefresh()
+{
+  //Cargo la Lista
+  RefreshList(true);
+}                   
+
+function OnOrder()
+{
+  Ctrl("ORDER").SetXValue((Ctrl("LIST").OrderMode=="ASC"?"+":"-")+Ctrl("LIST").OrderBy);
+  RefreshList(true);
+}
+
+///////////////////////////////////////////////////////////////////////////////
+//ACCIONES
+function RegShow()
+{
+  if (Ctrl("SHOW")?false:true) return false;
+  if (!Ctrl("SHOW").GetEnabled()) return false;
+
+  Ctrl("main").DoEvent("SHOW"  );
+  return true;
+}
+function RegAdd()
+{
+  if (Ctrl("ADD")?false:true) return false;
+  if (!Ctrl("ADD").GetEnabled()) return false;
+
+  Ctrl("main").DoEvent("ADD"   );
+  return true;
+}
+function RegEdit()
+{
+  if (Ctrl("EDIT")?false:true) return false;
+  if (!Ctrl("EDIT").GetEnabled()) return false;
+
+  Ctrl("main").DoEvent("EDIT"  );
+  return true;
+}
+function RegDelete()
+{
+  if (Ctrl("DELETE")?false:true) return false;
+  if (!Ctrl("DELETE").GetEnabled()) return false;
+  if (!confirm("&#191;Esta seguro que quiere eliminar el Registro?")) return false;
+
+  Ctrl("main").DoEvent("DELETE");
+  return true;
+}
+function RegAdmin()
+{
+  if (Ctrl("ADMIN")?false:true) return false;
+  if (!Ctrl("ADMIN").GetEnabled()) return false;
+
+  Ctrl("main").DoEvent("ADMIN" );
+  return true;
+}
+
+function ActionBACK()
+{
+  if (Ctrl("BACK")?false:true) return false;
+  if (!Ctrl("BACK").GetEnabled()) return false;
+  if (!confirm("&#191;Esta seguro que quiere Salir de la Pantalla?")) return false;
+
+  Ctrl("main").DoEvent("BACK"  );
+  return true;
+}
+function ActionNEXT()
+{
+  if (Ctrl("NEXT")?false:true) return false;
+  if (!Ctrl("NEXT").GetEnabled()) return false;
+
+  Ctrl("main").DoEvent("NEXT"  );
+  return true;
+}
+function ActionPREV()
+{
+  if (Ctrl("PREV")?false:true) return false;
+  if (!Ctrl("PREV").GetEnabled()) return false;
+
+  Ctrl("main").DoEvent("PREV"  );
+  return true;
+}
+function ActionEND()
+{
+  if (Ctrl("END")?false:true) return false;
+  if (!Ctrl("END").GetEnabled()) return false;
+  if (!confirm("&#191;Esta seguro que quiere Terminar la Operacion?")) return false;
+
+  Ctrl("main").DoEvent("BACK"  );
+  return true;
+}
+function DependCall(obj)
+{
+  var flowId=CHLCFG.FindElement2("CHILD","name",obj.ID()).GetAttr("flow");
+  var flag  =CHLCFG.FindElement2("CHILD","name",obj.ID()).GetAttr("flag");
+
+  if (Ctrl("LIST").GetXValue()=="") if(flag!="2") return;
+
+  if (flowId.indexOf(":")&gt;=0)
+    appendFormInMain(flowId.split(":")[0], flowId.split(":")[1], '&lt;DATA PARENT="'+Ctrl("LIST").GetXValue()+'" GRAND="'+Ctrl("PARENT").GetXValue()+'" /&gt;');
+  else
+    appendFormInMain(flowId              , "LIST"              , '&lt;DATA PARENT="'+Ctrl("LIST").GetXValue()+'" GRAND="'+Ctrl("PARENT").GetXValue()+'" /&gt;');
+}
+	</form:Scripts>
+	<form:Resources>
+		<form:Resource name="QRY_IDS_NUEVO">
+			<qry:main doc="SOURCE">
+				<ROWS>
+					<qry:append-doc name="FILTER" doc-path="#SOURCE:/DATA"/>
+					<qry:insert-select name="IDS"/>
+				</ROWS>
+			</qry:main>
+			<qry:select name="IDS">
+				<qry:xquery>
+					for $r in SQL('
+		
+		{%?(#FILTER:@LEN='') {% %} {% MAXSIZE {%=#FILTER:@LEN %} %} %}
+		
+		SELECT
+			SEC.policy,
+		  TTA04_NOVEDADES.oi_novedad AS ID,
+		  TTA04_NOVEDADES.oi_personal_emp AS PARENT,
+		  ORG03_EMPRESAS.c_empresa AS CEMP,
+		  ORG03_EMPRESAS.d_empresa AS DEMP,
+		  PER02_PERSONAL_EMP.e_numero_legajo AS NLEG,
+		  PER01_PERSONAL.d_ape_y_nom AS NYA,
+		  TTA01_TIPOHORAS.c_tipohora AS CTH,
+		  TTA01_TIPOHORAS.d_tipohora AS DTH
+			{%?($FILTER/@order!='') {% ,TTA04_NOVEDADES.{%=$FILTER/@order %} AS COL_ORDER %} {% ,TTA04_NOVEDADES.f_fecha AS f_fecha %} %}
+		
+		FROM 
+		  NMD_SECURITY(class=\'NucleusRH.Base.Personal.LegajoEmpresa.PERSONAL_EMP\') as SEC,
+		  TTA04_NOVEDADES,
+		  TTA01_TIPOHORAS,
+		  PER02_PERSONAL_EMP,
+		  PER01_PERSONAL,
+		  ORG03_EMPRESAS
+		
+		JOIN
+			TTA04_NOVEDADES.oi_personal_emp LEFT OUTER SEC.id,
+			TTA04_NOVEDADES.oi_tipohora LEFT OUTER TTA01_TIPOHORAS.oi_tipohora,
+			TTA04_NOVEDADES.oi_personal_emp INNER PER02_PERSONAL_EMP.oi_personal_emp,
+			PER02_PERSONAL_EMP.oi_personal INNER PER01_PERSONAL.oi_personal,
+			PER02_PERSONAL_EMP.oi_empresa INNER ORG03_EMPRESAS.oi_empresa
+		
+		WHERE
+			1=1			
+			{%?($FILTER/@parent!='') {% AND PARENT={$FILTER/@parent} %} {% %} %}				
+			{%?($FILTER/@search!='') {% AND (contain(ucase(CEMP),{upper-case($FILTER/@search)}) OR contain(ucase(DEMP),{upper-case($FILTER/@search)}) OR contain(ucase(NLEG),{upper-case($FILTER/@search)}) OR contain(ucase(NYA),{upper-case($FILTER/@search)}) OR contain(ucase(CTH),{upper-case($FILTER/@search)}) OR contain(ucase(DTH),{upper-case($FILTER/@search)})) %} {% %} %}
+		 	{%?($FILTER/@legajo!='') {% AND  TTA04_NOVEDADES.oi_personal_emp={$FILTER/@legajo} %} {% %} %}
+		   	{%?($FILTER/@fecha_desde!='') {% AND  TTA04_NOVEDADES.f_fecha&gt;={$FILTER/@fecha_desde} %} {% %} %}
+		    {%?($FILTER/@fecha_hasta!='') {% AND  TTA04_NOVEDADES.f_fecha&lt;={$FILTER/@fecha_hasta} %} {% %} %}
+		    {%?($FILTER/@tipo_hora!='') {% AND  TTA01_TIPOHORAS.oi_tipohora={$FILTER/@tipo_hora} %} {% %} %}
+		   
+		
+		{%?($FILTER/@order!='') {% ORDER BY COL_ORDER {%=iif($FILTER/@asc='1','asc','desc') %} %} {% ORDER BY f_fecha desc %} %}
+		 
+		 
+		')/ROWS/ROW
+				</qry:xquery>
+				<qry:out>
+					<qry:attribute name="count" value="$r/../@CNT"/>
+					<qry:attribute name="total" value="$r/../@CNT"/>
+					<ROW>
+						<qry:attribute name="policy" value="$r/@policy"/>
+						<qry:attribute value="$r/@ID" name="id"/>
+					</ROW>
+				</qry:out>
+			</qry:select>
+		</form:Resource>
+	</form:Resources>
+</form:Form>
